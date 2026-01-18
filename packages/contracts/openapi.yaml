@@ -1,0 +1,2234 @@
+﻿openapi: 3.0.3
+info:
+  title: Beauty Platform API
+  version: v1
+  description: API contract for Beauty Platform.
+servers:
+  - url: /api/v1
+security:
+  - CookieAuth: []
+  - BearerAuth: []
+
+tags:
+  - name: auth
+  - name: marketplace
+  - name: booking
+  - name: client
+  - name: crm
+  - name: platform
+  - name: integrations
+  - name: ai
+  - name: realtime
+
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh access token
+      responses:
+        '200':
+          description: Refresh success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRefreshResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout
+      responses:
+        '200':
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Current session info
+      responses:
+        '200':
+          description: Session data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /marketplace/feed:
+    get:
+      tags: [marketplace]
+      summary: Marketplace feed
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/District'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/PriceFrom'
+        - $ref: '#/components/parameters/PriceTo'
+        - $ref: '#/components/parameters/RatingFrom'
+        - $ref: '#/components/parameters/AvailableOn'
+        - $ref: '#/components/parameters/AvailableToday'
+        - $ref: '#/components/parameters/AvailableTomorrow'
+        - $ref: '#/components/parameters/HasOnlinePayment'
+        - $ref: '#/components/parameters/HasPromo'
+        - $ref: '#/components/parameters/Tags'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Feed list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceFeedResponse'
+  /marketplace/map:
+    get:
+      tags: [marketplace]
+      summary: Marketplace map points
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/District'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/PriceFrom'
+        - $ref: '#/components/parameters/PriceTo'
+        - $ref: '#/components/parameters/RatingFrom'
+        - $ref: '#/components/parameters/AvailableOn'
+        - $ref: '#/components/parameters/AvailableToday'
+        - $ref: '#/components/parameters/AvailableTomorrow'
+        - $ref: '#/components/parameters/HasOnlinePayment'
+        - $ref: '#/components/parameters/HasPromo'
+        - $ref: '#/components/parameters/Tags'
+      responses:
+        '200':
+          description: Map list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceMapResponse'
+  /marketplace/search:
+    get:
+      tags: [marketplace]
+      summary: Marketplace search
+      parameters:
+        - $ref: '#/components/parameters/Query'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/City'
+        - $ref: '#/components/parameters/District'
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/PriceFrom'
+        - $ref: '#/components/parameters/PriceTo'
+        - $ref: '#/components/parameters/RatingFrom'
+        - $ref: '#/components/parameters/AvailableOn'
+        - $ref: '#/components/parameters/AvailableToday'
+        - $ref: '#/components/parameters/AvailableTomorrow'
+        - $ref: '#/components/parameters/HasOnlinePayment'
+        - $ref: '#/components/parameters/HasPromo'
+        - $ref: '#/components/parameters/Tags'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Search list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceSearchResponse'
+  /marketplace/accounts/{slug}:
+    get:
+      tags: [marketplace]
+      summary: Public account profile
+      parameters:
+        - $ref: '#/components/parameters/AccountSlug'
+      responses:
+        '200':
+          description: Account profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceAccountResponse'
+  /marketplace/locations/{id}:
+    get:
+      tags: [marketplace]
+      summary: Public location profile
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Location profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceLocationResponse'
+  /marketplace/specialists/{id}:
+    get:
+      tags: [marketplace]
+      summary: Public specialist profile
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Specialist profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceSpecialistResponse'
+  /marketplace/services/{id}:
+    get:
+      tags: [marketplace]
+      summary: Public service profile
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Service profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceServiceResponse'
+
+  /booking/availability:
+    get:
+      tags: [booking]
+      summary: Availability by days
+      parameters:
+        - $ref: '#/components/parameters/AccountSlug'
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+      responses:
+        '200':
+          description: Availability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingAvailabilityResponse'
+  /booking/slots:
+    get:
+      tags: [booking]
+      summary: Slots for a day or range
+      parameters:
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+        - $ref: '#/components/parameters/RangeFrom'
+        - $ref: '#/components/parameters/RangeTo'
+      responses:
+        '200':
+          description: Slots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingSlotsResponse'
+  /booking/appointments:
+    post:
+      tags: [booking]
+      summary: Create appointment
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreateRequest'
+      responses:
+        '200':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /booking/appointments/{id}/reschedule:
+    post:
+      tags: [booking]
+      summary: Reschedule appointment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRescheduleRequest'
+      responses:
+        '200':
+          description: Appointment rescheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+  /booking/appointments/{id}/cancel:
+    post:
+      tags: [booking]
+      summary: Cancel appointment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCancelRequest'
+      responses:
+        '200':
+          description: Appointment cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+
+  /client/me:
+    get:
+      tags: [client]
+      summary: Current client profile
+      responses:
+        '200':
+          description: Client profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientMeResponse'
+  /client/appointments:
+    get:
+      tags: [client]
+      summary: Client appointments
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Appointments list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientAppointmentsResponse'
+  /client/favorites:
+    get:
+      tags: [client]
+      summary: Client favorites
+      responses:
+        '200':
+          description: Favorites list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientFavoritesResponse'
+  /client/loyalty:
+    get:
+      tags: [client]
+      summary: Client loyalty wallet
+      responses:
+        '200':
+          description: Loyalty wallet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientLoyaltyResponse'
+  /client/notifications:
+    get:
+      tags: [client]
+      summary: Client notifications
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientNotificationsResponse'
+  /client/payments:
+    get:
+      tags: [client]
+      summary: Client payments
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientPaymentsResponse'
+  /client/settings:
+    get:
+      tags: [client]
+      summary: Client settings
+      responses:
+        '200':
+          description: Client settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientSettingsResponse'
+    patch:
+      tags: [client]
+      summary: Update client settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdateRequest'
+      responses:
+        '200':
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientSettingsResponse'
+
+  /crm/calendar:
+    get:
+      tags: [crm]
+      summary: CRM calendar
+      parameters:
+        - $ref: '#/components/parameters/Date'
+      responses:
+        '200':
+          description: Calendar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmCalendarResponse'
+  /crm/schedule:
+    get:
+      tags: [crm]
+      summary: CRM schedule
+      responses:
+        '200':
+          description: Schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmScheduleResponse'
+  /crm/services:
+    get:
+      tags: [crm]
+      summary: List services
+      responses:
+        '200':
+          description: Services list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServicesResponse'
+    post:
+      tags: [crm]
+      summary: Create service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceResponse'
+  /crm/services/{id}:
+    get:
+      tags: [crm]
+      summary: Get service
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceResponse'
+    patch:
+      tags: [crm]
+      summary: Update service
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericUpdateRequest'
+      responses:
+        '200':
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceResponse'
+    delete:
+      tags: [crm]
+      summary: Delete service
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Service deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /crm/specialists:
+    get:
+      tags: [crm]
+      summary: List specialists
+      responses:
+        '200':
+          description: Specialists list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistsResponse'
+    post:
+      tags: [crm]
+      summary: Create specialist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Specialist created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistResponse'
+  /crm/specialists/{id}:
+    get:
+      tags: [crm]
+      summary: Get specialist
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Specialist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistResponse'
+    patch:
+      tags: [crm]
+      summary: Update specialist
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericUpdateRequest'
+      responses:
+        '200':
+          description: Specialist updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistResponse'
+    delete:
+      tags: [crm]
+      summary: Delete specialist
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Specialist deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /crm/clients:
+    get:
+      tags: [crm]
+      summary: List clients
+      responses:
+        '200':
+          description: Clients list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientsResponse'
+    post:
+      tags: [crm]
+      summary: Create client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientResponse'
+  /crm/clients/{id}:
+    get:
+      tags: [crm]
+      summary: Get client
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientResponse'
+    patch:
+      tags: [crm]
+      summary: Update client
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericUpdateRequest'
+      responses:
+        '200':
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientResponse'
+    delete:
+      tags: [crm]
+      summary: Delete client
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Client deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /crm/promos:
+    get:
+      tags: [crm]
+      summary: List promotions
+      responses:
+        '200':
+          description: Promotions list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmPromotionsResponse'
+    post:
+      tags: [crm]
+      summary: Create promotion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Promotion created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmPromotionResponse'
+  /crm/promos/{id}:
+    get:
+      tags: [crm]
+      summary: Get promotion
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Promotion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmPromotionResponse'
+    patch:
+      tags: [crm]
+      summary: Update promotion
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericUpdateRequest'
+      responses:
+        '200':
+          description: Promotion updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmPromotionResponse'
+    delete:
+      tags: [crm]
+      summary: Delete promotion
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Promotion deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /crm/analytics:
+    get:
+      tags: [crm]
+      summary: CRM analytics
+      responses:
+        '200':
+          description: Analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmAnalyticsResponse'
+  /crm/settings:
+    get:
+      tags: [crm]
+      summary: CRM settings
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSettingsResponse'
+    patch:
+      tags: [crm]
+      summary: Update CRM settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdateRequest'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSettingsResponse'
+
+  /platform/accounts:
+    get:
+      tags: [platform]
+      summary: List accounts
+      responses:
+        '200':
+          description: Accounts list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAccountsResponse'
+  /platform/accounts/{id}:
+    patch:
+      tags: [platform]
+      summary: Update account
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericUpdateRequest'
+      responses:
+        '200':
+          description: Account updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAccountResponse'
+  /platform/plans:
+    get:
+      tags: [platform]
+      summary: List plans
+      responses:
+        '200':
+          description: Plans list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformPlansResponse'
+    post:
+      tags: [platform]
+      summary: Create plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformPlanResponse'
+  /platform/plans/{id}:
+    patch:
+      tags: [platform]
+      summary: Update plan
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericUpdateRequest'
+      responses:
+        '200':
+          description: Plan updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformPlanResponse'
+  /platform/audit:
+    get:
+      tags: [platform]
+      summary: Platform audit log
+      responses:
+        '200':
+          description: Audit log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformAuditResponse'
+  /platform/monitoring/outbox:
+    get:
+      tags: [platform]
+      summary: Outbox monitoring
+      responses:
+        '200':
+          description: Outbox monitoring
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformOutboxResponse'
+  /platform/monitoring/deliveries:
+    get:
+      tags: [platform]
+      summary: Deliveries monitoring
+      responses:
+        '200':
+          description: Deliveries monitoring
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformDeliveriesResponse'
+  /platform/monitoring/webhooks:
+    get:
+      tags: [platform]
+      summary: Webhooks monitoring
+      responses:
+        '200':
+          description: Webhooks monitoring
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformWebhooksResponse'
+  /platform/templates:
+    post:
+      tags: [platform]
+      summary: Create template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformTemplateResponse'
+  /platform/settings:
+    get:
+      tags: [platform]
+      summary: Platform settings
+      responses:
+        '200':
+          description: Platform settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSettingsResponse'
+    patch:
+      tags: [platform]
+      summary: Update platform settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdateRequest'
+      responses:
+        '200':
+          description: Platform settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSettingsResponse'
+
+  /integrations/webhooks/endpoints:
+    get:
+      tags: [integrations]
+      summary: List webhook endpoints
+      responses:
+        '200':
+          description: Endpoints list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpointsResponse'
+    post:
+      tags: [integrations]
+      summary: Create webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Endpoint created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpointResponse'
+  /integrations/webhooks/endpoints/{id}/test:
+    post:
+      tags: [integrations]
+      summary: Test webhook endpoint
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+  /integrations/webhooks/deliveries:
+    get:
+      tags: [integrations]
+      summary: Webhook deliveries
+      responses:
+        '200':
+          description: Deliveries list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeliveriesResponse'
+
+  /ai/threads:
+    post:
+      tags: [ai]
+      summary: Create AI thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Thread created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiThreadResponse'
+  /ai/threads/{id}:
+    get:
+      tags: [ai]
+      summary: Get AI thread
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Thread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiThreadResponse'
+  /ai/threads/{id}/messages:
+    post:
+      tags: [ai]
+      summary: Post AI message
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericCreateRequest'
+      responses:
+        '200':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiMessageResponse'
+  /ai/logs:
+    get:
+      tags: [ai]
+      summary: AI logs
+      responses:
+        '200':
+          description: Logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiLogsResponse'
+  /ai/settings:
+    get:
+      tags: [ai]
+      summary: AI settings
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSettingsResponse'
+    patch:
+      tags: [ai]
+      summary: Update AI settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdateRequest'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSettingsResponse'
+  /ai/limits:
+    get:
+      tags: [ai]
+      summary: AI limits
+      responses:
+        '200':
+          description: Limits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiLimitsResponse'
+
+  /realtime/sse:
+    get:
+      tags: [realtime]
+      summary: SSE stream
+      parameters:
+        - name: channels
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    AccountSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    Query:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+    City:
+      name: city
+      in: query
+      required: false
+      schema:
+        type: string
+    District:
+      name: district
+      in: query
+      required: false
+      schema:
+        type: string
+    CategoryId:
+      name: categoryId
+      in: query
+      required: false
+      schema:
+        type: string
+    ServiceId:
+      name: serviceId
+      in: query
+      required: false
+      schema:
+        type: string
+    SpecialistId:
+      name: specialistId
+      in: query
+      required: false
+      schema:
+        type: string
+    LocationId:
+      name: locationId
+      in: query
+      required: false
+      schema:
+        type: string
+    PriceFrom:
+      name: priceFrom
+      in: query
+      required: false
+      schema:
+        type: number
+        format: float
+    PriceTo:
+      name: priceTo
+      in: query
+      required: false
+      schema:
+        type: number
+        format: float
+    RatingFrom:
+      name: ratingFrom
+      in: query
+      required: false
+      schema:
+        type: number
+        format: float
+    AvailableOn:
+      name: availableOn
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    AvailableToday:
+      name: availableToday
+      in: query
+      required: false
+      schema:
+        type: boolean
+    AvailableTomorrow:
+      name: availableTomorrow
+      in: query
+      required: false
+      schema:
+        type: boolean
+    HasOnlinePayment:
+      name: hasOnlinePayment
+      in: query
+      required: false
+      schema:
+        type: boolean
+    HasPromo:
+      name: hasPromo
+      in: query
+      required: false
+      schema:
+        type: boolean
+    Tags:
+      name: tags
+      in: query
+      required: false
+      schema:
+        type: string
+    Sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+    Date:
+      name: date
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    AccountId:
+      name: accountId
+      in: query
+      required: false
+      schema:
+        type: string
+    FromDate:
+      name: from
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+    ToDate:
+      name: to
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+    RangeFrom:
+      name: rangeFrom
+      in: query
+      required: false
+      schema:
+        type: string
+    RangeTo:
+      name: rangeTo
+      in: query
+      required: false
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+
+  responses:
+    ErrorResponse:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: session
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    Error:
+      type: object
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    PageInfo:
+      type: object
+      required: [cursor, nextCursor, limit]
+      properties:
+        cursor:
+          type: string
+          nullable: true
+        nextCursor:
+          type: string
+          nullable: true
+        limit:
+          type: integer
+          minimum: 1
+    ListResponse:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: {}
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    DataResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+    EmptyResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {}
+    OkResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            ok:
+              type: boolean
+
+    AuthLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    AuthLoginResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/AuthUserSummary'
+            permissions:
+              type: array
+              items:
+                type: string
+    AuthMeResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/AuthUserSummary'
+            permissions:
+              type: array
+              items:
+                type: string
+    AuthUserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          nullable: true
+    AuthRefreshResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+
+    AppointmentCreateRequest:
+      type: object
+      required: [accountId, startAt]
+      properties:
+        accountId:
+          type: string
+        locationId:
+          type: string
+        specialistId:
+          type: string
+        serviceIds:
+          type: array
+          items:
+            type: string
+        startAt:
+          type: string
+          format: date-time
+        clientId:
+          type: string
+        clientContact:
+          type: object
+          additionalProperties: true
+    AppointmentRescheduleRequest:
+      type: object
+      required: [startAt]
+      properties:
+        startAt:
+          type: string
+          format: date-time
+    AppointmentCancelRequest:
+      type: object
+      properties:
+        reasonId:
+          type: string
+        comment:
+          type: string
+    AppointmentResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Appointment'
+
+    MarketplaceFeedResponse:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceCard'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    MarketplaceSearchResponse:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceCard'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    MarketplaceMapResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceMapPoint'
+    MarketplaceAccountResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/MarketplaceAccount'
+    MarketplaceLocationResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/MarketplaceLocation'
+    MarketplaceSpecialistResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/MarketplaceSpecialist'
+    MarketplaceServiceResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/MarketplaceService'
+
+    BookingAvailabilityResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityDay'
+    BookingSlotsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotItem'
+
+    MarketplaceCard:
+      type: object
+      required: [id, type, name]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          description: account|location|specialist|service
+        name:
+          type: string
+        subtitle:
+          type: string
+        rating:
+          type: number
+          format: float
+        priceFrom:
+          type: number
+          format: float
+        isAvailableToday:
+          type: boolean
+        hasOnlinePayment:
+          type: boolean
+        hasPromo:
+          type: boolean
+        slug:
+          type: string
+        coverUrl:
+          type: string
+    MarketplaceMapPoint:
+      type: object
+      required: [id, lat, lng]
+      properties:
+        id:
+          type: string
+        lat:
+          type: number
+          format: float
+        lng:
+          type: number
+          format: float
+        label:
+          type: string
+        type:
+          type: string
+    MarketplaceAccount:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        rating:
+          type: number
+          format: float
+        description:
+          type: string
+        branding:
+          type: object
+          additionalProperties: true
+        publicPage:
+          type: object
+          additionalProperties: true
+    MarketplaceLocation:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        geo:
+          type: object
+          properties:
+            lat:
+              type: number
+              format: float
+            lng:
+              type: number
+              format: float
+    MarketplaceSpecialist:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        bio:
+          type: string
+        level:
+          type: string
+        rating:
+          type: number
+          format: float
+    MarketplaceService:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        baseDurationMin:
+          type: integer
+        basePrice:
+          type: number
+          format: float
+
+    AvailabilityDay:
+      type: object
+      required: [date, hasSlots]
+      properties:
+        date:
+          type: string
+          format: date
+        hasSlots:
+          type: boolean
+    SlotItem:
+      type: object
+      required: [time]
+      properties:
+        time:
+          type: string
+        specialistId:
+          type: string
+        durationMin:
+          type: integer
+        price:
+          type: number
+          format: float
+
+    Appointment:
+      type: object
+      required: [id, status, startAt, endAt]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        priceTotal:
+          type: number
+          format: float
+        durationTotalMin:
+          type: integer
+
+    SettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+    SettingsUpdateRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    GenericCreateRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+    GenericUpdateRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    ClientMeResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/ClientProfile'
+    ClientAppointmentsResponse:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Appointment'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    ClientFavoritesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FavoriteItem'
+    ClientLoyaltyResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/LoyaltyWallet'
+    ClientNotificationsResponse:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationItem'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    ClientPaymentsResponse:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentItem'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+    ClientSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/ClientSettings'
+
+    CrmCalendarResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmCalendar'
+    CrmScheduleResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmSchedule'
+    CrmServicesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+    CrmServiceResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Service'
+    CrmSpecialistsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Specialist'
+    CrmSpecialistResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Specialist'
+    CrmClientsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientProfile'
+    CrmClientResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/ClientProfile'
+    CrmPromotionsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Promotion'
+    CrmPromotionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Promotion'
+    CrmAnalyticsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmAnalytics'
+    CrmSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmSettings'
+
+    PlatformAccountsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformAccount'
+    PlatformAccountResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/PlatformAccount'
+    PlatformPlansResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformPlan'
+    PlatformPlanResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/PlatformPlan'
+    PlatformAuditResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformAuditLog'
+    PlatformOutboxResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutboxItem'
+    PlatformDeliveriesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryLog'
+    PlatformWebhooksResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDelivery'
+    PlatformTemplateResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/TemplateLibrary'
+    PlatformSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/PlatformSettings'
+
+    WebhookEndpointsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookEndpoint'
+    WebhookEndpointResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/WebhookEndpoint'
+    WebhookDeliveriesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDelivery'
+
+    AiThreadResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/AiThread'
+    AiMessageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/AiMessage'
+    AiLogsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiLog'
+    AiSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/AiSettings'
+    AiLimitsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AiLimit'
+
+    ClientProfile:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+    FavoriteItem:
+      type: object
+      required: [id, type, entityId]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        entityId:
+          type: string
+    LoyaltyWallet:
+      type: object
+      required: [id, balance]
+      properties:
+        id:
+          type: string
+        balance:
+          type: number
+          format: float
+    NotificationItem:
+      type: object
+      required: [id, body]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+    PaymentItem:
+      type: object
+      required: [id, amount, status]
+      properties:
+        id:
+          type: string
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+        currency:
+          type: string
+    ClientSettings:
+      type: object
+      properties:
+        channels:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    CrmCalendar:
+      type: object
+      additionalProperties: true
+    CrmSchedule:
+      type: object
+      additionalProperties: true
+    Service:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        baseDurationMin:
+          type: integer
+        basePrice:
+          type: number
+          format: float
+    Specialist:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+    Promotion:
+      type: object
+      required: [id, name, type]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        value:
+          type: number
+          format: float
+    CrmAnalytics:
+      type: object
+      additionalProperties: true
+    CrmSettings:
+      type: object
+      additionalProperties: true
+
+    PlatformAccount:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+    PlatformPlan:
+      type: object
+      required: [id, name, code]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+        priceMonthly:
+          type: number
+          format: float
+    PlatformAuditLog:
+      type: object
+      required: [id, action, createdAt]
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    OutboxItem:
+      type: object
+      required: [id, eventName, status]
+      properties:
+        id:
+          type: string
+        eventName:
+          type: string
+        status:
+          type: string
+    DeliveryLog:
+      type: object
+      required: [id, status, channel]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        channel:
+          type: string
+    WebhookDelivery:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+    TemplateLibrary:
+      type: object
+      required: [id, name, type]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+    PlatformSettings:
+      type: object
+      additionalProperties: true
+
+    WebhookEndpoint:
+      type: object
+      required: [id, url, status]
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        status:
+          type: string
+
+    AiThread:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+    AiMessage:
+      type: object
+      required: [id, content]
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+    AiLog:
+      type: object
+      required: [id, message]
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+    AiSettings:
+      type: object
+      additionalProperties: true
+    AiLimit:
+      type: object
+      required: [id, key, value]
+      properties:
+        id:
+          type: string
+        key:
+          type: string
+        value:
+          type: integer

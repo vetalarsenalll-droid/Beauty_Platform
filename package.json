@@ -1,0 +1,21 @@
+{
+  "name": "beauty-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:worker": "npm --workspace apps/worker run dev",
+    "lint": "npm --workspace apps/web run lint",
+    "prisma:studio": "powershell -ExecutionPolicy Bypass -File ./studio.ps1",
+    "prisma:validate": "powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 validate"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.1"
+  }
+}

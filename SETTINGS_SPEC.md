@@ -1,0 +1,1 @@
+﻿SETTINGS_SPEC moved to docs/SETTINGS/SETTINGS_SPEC.md

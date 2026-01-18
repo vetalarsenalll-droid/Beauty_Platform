@@ -1,0 +1,1682 @@
+// Prisma schema for Beauty Platform (single source of truth)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum UserType {
+  STAFF
+  CLIENT
+}
+
+enum RoleName {
+  OWNER
+  MANAGER
+  SPECIALIST
+  READONLY
+}
+
+enum AppointmentStatus {
+  NEW
+  CONFIRMED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  REQUIRES_ACTION
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum TransactionType {
+  CHARGE
+  REFUND
+  CAPTURE
+  VOID
+  OFFLINE_PAYMENT
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  TELEGRAM
+  MAX
+  PUSH
+  SMS
+  WEBHOOK
+  SSE
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+  DEAD
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+  DEAD
+}
+
+enum WebhookStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+enum PublicPageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum TemplateType {
+  NOTIFICATION
+  SEO_PRESET
+  CONSTRUCTOR_PRESET
+}
+
+enum NotificationScope {
+  PLATFORM
+  ACCOUNT
+  USER
+}
+
+enum AudienceType {
+  CLIENT
+  STAFF
+  PLATFORM_ADMIN
+}
+
+enum PromotionType {
+  PERCENT
+  FIXED
+  BUNDLE
+}
+
+enum PromoRedemptionStatus {
+  APPLIED
+  CANCELLED
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  SPEND
+  EXPIRE
+  ADJUSTMENT
+  REFUND_REVERSAL
+}
+
+enum GiftCardStatus {
+  ACTIVE
+  REDEEMED
+  EXPIRED
+  CANCELLED
+}
+
+enum MembershipType {
+  COUNT
+  PERIOD
+}
+
+enum IdentityProvider {
+  EMAIL
+  PHONE
+  TELEGRAM
+  MAX
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum OutboxScope {
+  PLATFORM
+  ACCOUNT
+  USER
+}
+model PlatformPlan {
+  id            String                 @id @default(cuid())
+  name          String
+  code          String                 @unique
+  description   String?
+  priceMonthly  Decimal                @db.Decimal(12, 2)
+  currency      String                 @default("RUB")
+  isActive      Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  features      PlatformPlanFeature[]
+  subscriptions PlatformSubscription[]
+  accounts      Account[]
+}
+
+model PlatformPlanFeature {
+  id        String   @id @default(cuid())
+  planId    String
+  key       String
+  value     String?
+  createdAt DateTime @default(now())
+
+  plan PlatformPlan @relation(fields: [planId], references: [id])
+
+  @@unique([planId, key])
+}
+
+model PlatformSubscription {
+  id            String             @id @default(cuid())
+  accountId     String
+  planId        String
+  status        SubscriptionStatus @default(ACTIVE)
+  startedAt     DateTime           @default(now())
+  endsAt        DateTime?
+  nextBillingAt DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  account Account      @relation(fields: [accountId], references: [id])
+  plan    PlatformPlan @relation(fields: [planId], references: [id])
+  invoices PlatformInvoice[]
+
+  @@index([accountId, status])
+}
+
+model PlatformInvoice {
+  id             String        @id @default(cuid())
+  accountId      String
+  subscriptionId String?
+  status         InvoiceStatus @default(DRAFT)
+  amount         Decimal       @db.Decimal(12, 2)
+  currency       String        @default("RUB")
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  account      Account               @relation(fields: [accountId], references: [id])
+  subscription PlatformSubscription? @relation(fields: [subscriptionId], references: [id])
+  payments     PlatformPayment[]
+
+  @@index([accountId, status])
+}
+
+model PlatformPayment {
+  id          String        @id @default(cuid())
+  invoiceId   String?
+  amount      Decimal       @db.Decimal(12, 2)
+  currency    String        @default("RUB")
+  status      PaymentStatus @default(PENDING)
+  provider    String?
+  providerRef String?
+  createdAt   DateTime      @default(now())
+
+  invoice PlatformInvoice? @relation(fields: [invoiceId], references: [id])
+}
+
+model PlatformLimit {
+  id        String   @id @default(cuid())
+  accountId String
+  key       String
+  valueInt  Int?
+  valueJson Json?
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, key])
+}
+
+model PlatformAdmin {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+
+  user        User                                @relation(fields: [userId], references: [id])
+  permissions PlatformAdminPermissionAssignment[]
+  audits      PlatformAuditLog[]
+}
+
+model PlatformPermission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  assignments PlatformAdminPermissionAssignment[]
+}
+
+model PlatformAdminPermissionAssignment {
+  id           String   @id @default(cuid())
+  adminId      String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  admin      PlatformAdmin      @relation(fields: [adminId], references: [id])
+  permission PlatformPermission @relation(fields: [permissionId], references: [id])
+
+  @@unique([adminId, permissionId])
+}
+
+model PlatformAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String?
+  ipAddress  String?
+  diffJson   Json?
+  createdAt  DateTime @default(now())
+
+  admin PlatformAdmin @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, createdAt])
+}
+
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  valueJson Json
+  updatedAt DateTime @updatedAt
+}
+
+model TemplateLibrary {
+  id          String      @id @default(cuid())
+  type        TemplateType
+  name        String
+  description String?
+  contentJson Json
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  versions TemplateVersion[]
+}
+
+model TemplateVersion {
+  id          String   @id @default(cuid())
+  templateId  String
+  version     Int
+  contentJson Json
+  createdAt   DateTime @default(now())
+
+  template TemplateLibrary @relation(fields: [templateId], references: [id])
+
+  @@unique([templateId, version])
+}
+
+model HealthCheck {
+  id        String   @id @default(cuid())
+  name      String
+  status    String
+  checkedAt DateTime @default(now())
+  details   Json?
+}
+
+model MonitoringMetric {
+  id        String   @id @default(cuid())
+  name      String
+  value     Float
+  createdAt DateTime @default(now())
+}
+
+model SystemAlert {
+  id         String   @id @default(cuid())
+  level      String
+  message    String
+  details    Json?
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+}
+model Account {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  status    AccountStatus @default(ACTIVE)
+  timeZone  String
+  planId    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  plan              PlatformPlan?        @relation(fields: [planId], references: [id])
+  platformSubscriptions PlatformSubscription[]
+  platformInvoices PlatformInvoice[]
+  platformLimits   PlatformLimit[]
+  settings          AccountSetting?
+  branding          AccountBranding?
+  domains           AccountDomain[]
+  publicPages       PublicPage[]
+  seoSettings       SeoSetting?
+  mediaCollections  MediaCollection[]
+  locations         Location[]
+  services          Service[]
+  serviceCategories ServiceCategory[]
+  roles             Role[]
+  users             RoleAssignment[]
+  clients           Client[]
+  clientTags        ClientTag[]
+  specialistProfiles SpecialistProfile[]
+  appointments      Appointment[]
+  appointmentHolds  AppointmentHold[]
+  scheduleTemplates ScheduleTemplate[]
+  blockedSlots      BlockedSlot[]
+  paymentIntents    PaymentIntent[]
+  transactions      Transaction[]
+  refunds           Refund[]
+  receipts          Receipt[]
+  paymentMethods    PaymentMethod[]
+  promotions        Promotion[]
+  promoCodes        PromoCode[]
+  referrals         Referral[]
+  giftCards         GiftCard[]
+  memberships       Membership[]
+  loyaltyRules      LoyaltyRule[]
+  loyaltyWallets    LoyaltyWallet[]
+  reviews           Review[]
+  ratingAggregates  RatingAggregate[]
+  notifications     Notification[]
+  notificationTemplates NotificationTemplate[]
+  notificationPreferences NotificationPreference[]
+  outboxItems       OutboxItem[]
+  webhookEndpoints  WebhookEndpoint[]
+
+  @@index([status, createdAt])
+}
+
+model AccountSetting {
+  id                      String   @id @default(cuid())
+  accountId               String   @unique
+  slotStepMinutes         Int      @default(15)
+  requireDeposit          Boolean  @default(false)
+  requirePaymentToConfirm Boolean  @default(false)
+  cancellationWindowHours Int?
+  rescheduleWindowHours   Int?
+  holdTtlMinutes          Int?
+  defaultReminderHours    Int?
+  notificationQuietHours  Json?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model AccountBranding {
+  id             String   @id @default(cuid())
+  accountId      String   @unique
+  logoUrl        String?
+  coverUrl       String?
+  accentColor    String?
+  secondaryColor String?
+  themePreset    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model AccountDomain {
+  id         String   @id @default(cuid())
+  accountId  String
+  domain     String   @unique
+  isPrimary  Boolean  @default(false)
+  verifiedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model PublicPage {
+  id                 String           @id @default(cuid())
+  accountId          String
+  status             PublicPageStatus @default(DRAFT)
+  draftJson          Json?
+  publishedVersionId String? @unique
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  account          Account             @relation(fields: [accountId], references: [id])
+  versions         PublicPageVersion[]
+  publishedVersion PublicPageVersion?  @relation("PublishedVersion", fields: [publishedVersionId], references: [id])
+  sections         PublicPageSection[]
+  media            PublicPageMedia[]
+
+  @@index([accountId, status])
+}
+
+model PublicPageVersion {
+  id           String   @id @default(cuid())
+  publicPageId String
+  version      Int
+  contentJson  Json
+  createdAt    DateTime @default(now())
+
+  publicPage  PublicPage  @relation(fields: [publicPageId], references: [id])
+  publishedFor PublicPage? @relation("PublishedVersion")
+
+  @@unique([publicPageId, version])
+}
+
+model PublicPageSection {
+  id          String   @id @default(cuid())
+  publicPageId String
+  key         String
+  title       String?
+  sortOrder   Int
+  isVisible   Boolean  @default(true)
+  layoutPreset String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  publicPage PublicPage @relation(fields: [publicPageId], references: [id])
+  blocks     PublicPageBlock[]
+
+  @@index([publicPageId, sortOrder])
+}
+
+model PublicPageBlock {
+  id        String   @id @default(cuid())
+  sectionId String
+  type      String
+  contentJson Json
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  section PublicPageSection @relation(fields: [sectionId], references: [id])
+
+  @@index([sectionId, sortOrder])
+}
+
+model PublicPageMedia {
+  id          String   @id @default(cuid())
+  publicPageId String
+  assetId     String
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+
+  publicPage PublicPage @relation(fields: [publicPageId], references: [id])
+  asset      MediaAsset @relation(fields: [assetId], references: [id])
+
+  @@index([publicPageId, sortOrder])
+}
+
+model SeoSetting {
+  id             String   @id @default(cuid())
+  accountId      String   @unique
+  title          String?
+  description    String?
+  ogImageUrl     String?
+  schemaJson     Json?
+  robots         String?
+  sitemapEnabled Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  accountId String?
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  accountId String?
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+}
+
+model MediaAsset {
+  id        String   @id @default(cuid())
+  accountId String?
+  url       String
+  type      String
+  width     Int?
+  height    Int?
+  size      Int?
+  createdAt DateTime @default(now())
+
+  links           MediaLink[]
+  publicPageMedia PublicPageMedia[]
+}
+
+model MediaCollection {
+  id        String   @id @default(cuid())
+  accountId String
+  name      String
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  links   MediaLink[]
+}
+
+model MediaLink {
+  id           String   @id @default(cuid())
+  assetId      String
+  collectionId String?
+  entityType   String
+  entityId     String
+  createdAt    DateTime @default(now())
+
+  asset      MediaAsset       @relation(fields: [assetId], references: [id])
+  collection MediaCollection? @relation(fields: [collectionId], references: [id])
+
+  @@index([entityType, entityId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  accountId String
+  clientId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  client  Client  @relation(fields: [clientId], references: [id])
+  votes   ReviewVote[]
+}
+
+model ReviewVote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String?
+  value     Int
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+}
+
+model RatingAggregate {
+  id          String   @id @default(cuid())
+  accountId   String
+  entityType  String
+  entityId    String
+  ratingAvg   Float
+  ratingCount Int
+  updatedAt   DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([entityType, entityId])
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  clientId   String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id])
+
+  @@unique([clientId, entityType, entityId])
+}
+
+model SearchIndex {
+  id         String   @id @default(cuid())
+  accountId  String?
+  entityType String
+  entityId   String
+  payload    Json
+  updatedAt  DateTime @updatedAt
+
+  @@index([accountId])
+}
+
+model GeoPoint {
+  id         String   @id @default(cuid())
+  locationId String   @unique
+  lat        Float
+  lng        Float
+
+  location Location @relation(fields: [locationId], references: [id])
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  accountId   String
+  name        String
+  address     String
+  phone       String?
+  status      String @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account     Account            @relation(fields: [accountId], references: [id])
+  geoPoint    GeoPoint?
+  hours       LocationHour[]
+  exceptions  LocationException[]
+  services    ServiceLocation[]
+  specialists SpecialistLocation[]
+  appointments Appointment[]
+  workingHours WorkingHour[]
+  breaks       Break[]
+  vacations    Vacation[]
+  blockedSlots BlockedSlot[]
+
+  @@index([accountId, createdAt])
+}
+
+model LocationHour {
+  id         String   @id @default(cuid())
+  locationId String
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@index([locationId, dayOfWeek])
+}
+
+model LocationException {
+  id         String   @id @default(cuid())
+  locationId String
+  date       DateTime
+  isClosed   Boolean @default(false)
+  startTime  String?
+  endTime    String?
+
+  location Location @relation(fields: [locationId], references: [id])
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String?
+  phone     String?
+  status    UserStatus @default(ACTIVE)
+  type      UserType   @default(STAFF)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  profile          UserProfile?
+  identities       UserIdentity[]
+  sessions         UserSession[]
+  roleAssignments  RoleAssignment[]
+  specialistProfiles SpecialistProfile[]
+  clientProfiles     Client[]
+  notifications    Notification[]
+  channelPreferences UserNotificationChannelPreference[]
+  deviceTokens       DeviceToken[]
+  reviewVotes        ReviewVote[]
+  notificationPreferences NotificationPreference[]
+  outboxItems         OutboxItem[]
+  aiThreads           AiThread[]
+  platformAdmin    PlatformAdmin?
+
+  @@index([email])
+}
+
+model UserProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  firstName String?
+  lastName  String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserIdentity {
+  id             String           @id @default(cuid())
+  userId         String
+  provider       IdentityProvider
+  providerUserId String?
+  email          String?
+  phone          String?
+  passwordHash   String?
+  passwordSalt   String?
+  passwordAlgo   String?
+  passwordUpdatedAt DateTime?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerUserId])
+  @@unique([provider, email])
+}
+
+model UserSession {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserNotificationChannelPreference {
+  id        String              @id @default(cuid())
+  userId    String
+  channel   NotificationChannel
+  enabled   Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, channel])
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  platform  String
+  token     String
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([platform, token])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  accountId String
+  name      RoleName
+  createdAt DateTime @default(now())
+
+  account     Account          @relation(fields: [accountId], references: [id])
+  permissions RolePermission[]
+  assignments RoleAssignment[]
+
+  @@unique([accountId, name])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model RoleAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  accountId String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  account Account @relation(fields: [accountId], references: [id])
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, accountId])
+}
+
+model SpecialistLevel {
+  id        String   @id @default(cuid())
+  accountId String?
+  name      String
+  rank      Int
+  createdAt DateTime @default(now())
+
+  specialists SpecialistProfile[]
+  levelHistory SpecialistLevelHistory[]
+  serviceLevelConfigs ServiceLevelConfig[]
+}
+
+model SpecialistProfile {
+  id        String   @id @default(cuid())
+  accountId String
+  userId    String
+  levelId   String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account     Account          @relation(fields: [accountId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+  level       SpecialistLevel? @relation(fields: [levelId], references: [id])
+  services    SpecialistService[]
+  locations   SpecialistLocation[]
+  appointments Appointment[]
+  appointmentHolds AppointmentHold[]
+  workingHours WorkingHour[]
+  breaks      Break[]
+  vacations   Vacation[]
+  blockedSlots BlockedSlot[]
+  levelHistory SpecialistLevelHistory[]
+
+  @@unique([accountId, userId])
+}
+
+model SpecialistLevelHistory {
+  id           String   @id @default(cuid())
+  specialistId String
+  levelId      String
+  assignedAt   DateTime @default(now())
+
+  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
+  level      SpecialistLevel   @relation(fields: [levelId], references: [id])
+}
+model ServiceCategory {
+  id        String   @id @default(cuid())
+  accountId String?
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+
+  account  Account? @relation(fields: [accountId], references: [id])
+  services Service[]
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  accountId       String
+  categoryId      String?
+  name            String
+  description     String?
+  baseDurationMin Int
+  basePrice       Decimal  @db.Decimal(12, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  account          Account          @relation(fields: [accountId], references: [id])
+  category         ServiceCategory? @relation(fields: [categoryId], references: [id])
+  variants         ServiceVariant[]
+  levelConfigs     ServiceLevelConfig[]
+  specialists      SpecialistService[]
+  locations        ServiceLocation[]
+  appointmentServices AppointmentService[]
+}
+
+model ServiceVariant {
+  id          String   @id @default(cuid())
+  serviceId   String
+  name        String
+  durationMin Int?
+  price       Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  service Service @relation(fields: [serviceId], references: [id])
+}
+
+model ServiceLevelConfig {
+  id          String   @id @default(cuid())
+  serviceId   String
+  levelId     String
+  durationMin Int?
+  price       Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  service Service         @relation(fields: [serviceId], references: [id])
+  level   SpecialistLevel @relation(fields: [levelId], references: [id])
+
+  @@unique([serviceId, levelId])
+}
+
+model SpecialistService {
+  id                  String   @id @default(cuid())
+  specialistId        String
+  serviceId           String
+  priceOverride       Decimal? @db.Decimal(12, 2)
+  durationOverrideMin Int?
+  createdAt           DateTime @default(now())
+
+  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
+  service    Service           @relation(fields: [serviceId], references: [id])
+
+  @@unique([specialistId, serviceId])
+}
+
+model ServiceLocation {
+  id         String   @id @default(cuid())
+  serviceId  String
+  locationId String
+
+  service  Service  @relation(fields: [serviceId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([serviceId, locationId])
+}
+
+model SpecialistLocation {
+  id           String   @id @default(cuid())
+  specialistId String
+  locationId   String
+
+  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
+  location   Location          @relation(fields: [locationId], references: [id])
+
+  @@unique([specialistId, locationId])
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  accountId String
+  userId    String?
+  firstName String?
+  lastName  String?
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+  contacts ClientContact[]
+  notes    ClientNote[]
+  tags     ClientTagAssignment[]
+  consents ClientConsent[]
+  appointments Appointment[]
+  favorites Favorite[]
+  reviews   Review[]
+  loyaltyWallet LoyaltyWallet?
+  referralsMade Referral[] @relation("ReferralReferrer")
+  referralsReceived Referral[] @relation("ReferralReferred")
+  promoRedemptions PromoRedemption[]
+  paymentIntents   PaymentIntent[]
+  paymentMethods   PaymentMethod[]
+  membershipRedemptions MembershipRedemption[]
+  aiThreads        AiThread[]
+
+  @@index([accountId, createdAt])
+}
+
+model ClientContact {
+  id        String   @id @default(cuid())
+  clientId  String
+  type      String
+  value     String
+  verifiedAt DateTime?
+
+  client Client @relation(fields: [clientId], references: [id])
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  note      String
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id])
+}
+
+model ClientTag {
+  id        String   @id @default(cuid())
+  accountId String
+  name      String
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  assignments ClientTagAssignment[]
+}
+
+model ClientTagAssignment {
+  id       String @id @default(cuid())
+  clientId String
+  tagId    String
+
+  client Client   @relation(fields: [clientId], references: [id])
+  tag    ClientTag @relation(fields: [tagId], references: [id])
+
+  @@unique([clientId, tagId])
+}
+
+model ClientConsent {
+  id        String   @id @default(cuid())
+  clientId  String
+  type      String
+  grantedAt DateTime?
+  revokedAt DateTime?
+
+  client Client @relation(fields: [clientId], references: [id])
+}
+
+model Appointment {
+  id               String            @id @default(cuid())
+  accountId        String
+  locationId       String
+  specialistId     String
+  clientId         String
+  startAt          DateTime
+  endAt            DateTime
+  status           AppointmentStatus @default(NEW)
+  priceTotal       Decimal           @db.Decimal(12, 2)
+  durationTotalMin Int
+  source           String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  account    Account           @relation(fields: [accountId], references: [id])
+  location   Location          @relation(fields: [locationId], references: [id])
+  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
+  client     Client            @relation(fields: [clientId], references: [id])
+  services   AppointmentService[]
+  statusHistory AppointmentStatusHistory[]
+  paymentIntents PaymentIntent[]
+
+  @@index([accountId, startAt])
+  @@index([specialistId, startAt])
+  @@index([locationId, startAt])
+  @@index([status])
+}
+
+model AppointmentService {
+  id            String   @id @default(cuid())
+  appointmentId String
+  serviceId     String
+  variantId     String?
+  price         Decimal  @db.Decimal(12, 2)
+  durationMin   Int
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  service     Service     @relation(fields: [serviceId], references: [id])
+}
+
+model AppointmentStatusHistory {
+  id            String            @id @default(cuid())
+  appointmentId String
+  actorType     String
+  actorId       String?
+  fromStatus    AppointmentStatus?
+  toStatus      AppointmentStatus
+  reasonId      String?
+  comment       String?
+  createdAt     DateTime          @default(now())
+
+  appointment Appointment      @relation(fields: [appointmentId], references: [id])
+  reason      CancellationReason? @relation(fields: [reasonId], references: [id])
+
+  @@index([appointmentId, createdAt])
+}
+
+model CancellationReason {
+  id        String   @id @default(cuid())
+  accountId String?
+  name      String
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  statusHistory AppointmentStatusHistory[]
+}
+
+model AppointmentHold {
+  id           String   @id @default(cuid())
+  accountId    String
+  specialistId String
+  clientId     String?
+  startAt      DateTime
+  endAt        DateTime
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
+  account    Account           @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, expiresAt])
+}
+
+model ScheduleTemplate {
+  id        String   @id @default(cuid())
+  accountId String
+  name      String
+  createdAt DateTime @default(now())
+
+  account      Account      @relation(fields: [accountId], references: [id])
+  workingHours WorkingHour[]
+  breaks       Break[]
+}
+
+model WorkingHour {
+  id                 String   @id @default(cuid())
+  scheduleTemplateId String?
+  locationId         String?
+  specialistId       String?
+  dayOfWeek          Int
+  startTime          String
+  endTime            String
+
+  scheduleTemplate ScheduleTemplate? @relation(fields: [scheduleTemplateId], references: [id])
+  location         Location?         @relation(fields: [locationId], references: [id])
+  specialist       SpecialistProfile? @relation(fields: [specialistId], references: [id])
+}
+
+model Break {
+  id                 String   @id @default(cuid())
+  scheduleTemplateId String?
+  locationId         String?
+  specialistId       String?
+  startAt            DateTime
+  endAt              DateTime
+  createdAt          DateTime @default(now())
+
+  scheduleTemplate ScheduleTemplate? @relation(fields: [scheduleTemplateId], references: [id])
+  location         Location?         @relation(fields: [locationId], references: [id])
+  specialist       SpecialistProfile? @relation(fields: [specialistId], references: [id])
+}
+
+model Vacation {
+  id           String   @id @default(cuid())
+  specialistId String?
+  locationId   String?
+  startAt      DateTime
+  endAt        DateTime
+  createdAt    DateTime @default(now())
+
+  specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
+  location   Location?          @relation(fields: [locationId], references: [id])
+}
+
+model BlockedSlot {
+  id           String   @id @default(cuid())
+  accountId    String
+  locationId   String?
+  specialistId String?
+  startAt      DateTime
+  endAt        DateTime
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  account    Account           @relation(fields: [accountId], references: [id])
+  location   Location?         @relation(fields: [locationId], references: [id])
+  specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
+
+  @@index([accountId, startAt])
+}
+model PaymentIntent {
+  id            String              @id @default(cuid())
+  accountId     String
+  appointmentId String?
+  clientId      String?
+  amount        Decimal             @db.Decimal(12, 2)
+  currency      String              @default("RUB")
+  status        PaymentIntentStatus @default(CREATED)
+  scenario      String
+  provider      String?
+  providerRef   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  account     Account       @relation(fields: [accountId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  client      Client?       @relation(fields: [clientId], references: [id])
+  transactions Transaction[]
+  refunds      Refund[]
+
+  @@index([accountId, status])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  accountId   String
+  intentId    String?
+  type        TransactionType
+  amount      Decimal         @db.Decimal(12, 2)
+  currency    String          @default("RUB")
+  providerRef String?
+  createdAt   DateTime        @default(now())
+
+  account Account        @relation(fields: [accountId], references: [id])
+  intent  PaymentIntent? @relation(fields: [intentId], references: [id])
+  refunds Refund[]
+  receipts Receipt[]
+
+  @@index([accountId, createdAt])
+}
+
+model Refund {
+  id            String       @id @default(cuid())
+  accountId     String
+  transactionId String?
+  intentId      String?
+  amount        Decimal      @db.Decimal(12, 2)
+  status        RefundStatus @default(PENDING)
+  reason        String?
+  createdAt     DateTime     @default(now())
+
+  account     Account        @relation(fields: [accountId], references: [id])
+  transaction Transaction?   @relation(fields: [transactionId], references: [id])
+  intent      PaymentIntent? @relation(fields: [intentId], references: [id])
+}
+
+model Receipt {
+  id            String   @id @default(cuid())
+  accountId     String
+  transactionId String?
+  provider      String
+  receiptUrl    String?
+  payload       Json?
+  createdAt     DateTime @default(now())
+
+  account     Account       @relation(fields: [accountId], references: [id])
+  transaction Transaction?  @relation(fields: [transactionId], references: [id])
+}
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  accountId String
+  clientId  String?
+  provider  String
+  token     String
+  last4     String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  client  Client? @relation(fields: [clientId], references: [id])
+}
+
+model PaymentWebhookEvent {
+  id              String   @id @default(cuid())
+  provider        String
+  providerEventId String   @unique
+  payload         Json
+  receivedAt      DateTime @default(now())
+}
+
+model Promotion {
+  id        String        @id @default(cuid())
+  accountId String
+  name      String
+  type      PromotionType
+  value     Decimal       @db.Decimal(12, 2)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+
+  account    Account   @relation(fields: [accountId], references: [id])
+  promoCodes PromoCode[]
+}
+
+model PromoCode {
+  id                String   @id @default(cuid())
+  accountId         String
+  promotionId       String
+  code              String
+  startsAt          DateTime?
+  endsAt            DateTime?
+  maxUses           Int?
+  maxUsesPerClient  Int?
+  createdAt         DateTime @default(now())
+
+  account    Account   @relation(fields: [accountId], references: [id])
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  redemptions PromoRedemption[]
+
+  @@unique([accountId, code])
+}
+
+model PromoRedemption {
+  id          String                @id @default(cuid())
+  promoCodeId String
+  clientId    String?
+  status      PromoRedemptionStatus @default(APPLIED)
+  redeemedAt  DateTime?
+  createdAt   DateTime              @default(now())
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id])
+  client    Client?   @relation(fields: [clientId], references: [id])
+}
+
+model LoyaltyWallet {
+  id        String   @id @default(cuid())
+  accountId String
+  clientId  String   @unique
+  balance   Decimal  @db.Decimal(12, 2) @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  client  Client  @relation(fields: [clientId], references: [id])
+  transactions LoyaltyTransaction[]
+
+  @@index([accountId])
+}
+
+model LoyaltyRule {
+  id        String   @id @default(cuid())
+  accountId String
+  name      String
+  type      String
+  value     Decimal  @db.Decimal(12, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model LoyaltyTransaction {
+  id        String                 @id @default(cuid())
+  walletId  String
+  type      LoyaltyTransactionType
+  amount    Decimal                @db.Decimal(12, 2)
+  reason    String?
+  sourceType String?
+  sourceId  String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  wallet LoyaltyWallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+}
+
+model Referral {
+  id               String   @id @default(cuid())
+  accountId        String
+  referrerClientId String
+  referredClientId String?
+  code             String
+  createdAt        DateTime @default(now())
+
+  account  Account @relation(fields: [accountId], references: [id])
+  referrer Client  @relation("ReferralReferrer", fields: [referrerClientId], references: [id])
+  referred Client? @relation("ReferralReferred", fields: [referredClientId], references: [id])
+}
+
+model GiftCard {
+  id        String         @id @default(cuid())
+  accountId String
+  code      String
+  amount    Decimal        @db.Decimal(12, 2)
+  balance   Decimal        @db.Decimal(12, 2)
+  status    GiftCardStatus @default(ACTIVE)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, code])
+}
+
+model Membership {
+  id        String         @id @default(cuid())
+  accountId String
+  name      String
+  type      MembershipType
+  totalUses Int?
+  validFrom DateTime?
+  validTo   DateTime?
+  createdAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  redemptions MembershipRedemption[]
+}
+
+model MembershipRedemption {
+  id           String   @id @default(cuid())
+  membershipId String
+  clientId     String
+  usedAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id])
+  client     Client     @relation(fields: [clientId], references: [id])
+}
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  accountId String?
+  name      String
+  channel   NotificationChannel
+  locale    String
+  subject   String?
+  bodyText  String?
+  bodyHtml  String?
+  variables Json?
+  version   Int                 @default(1)
+  isSystem  Boolean             @default(false)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  account     Account?               @relation(fields: [accountId], references: [id])
+  preferences NotificationPreference[]
+
+  @@index([accountId])
+}
+
+model NotificationPreference {
+  id         String            @id @default(cuid())
+  scope      NotificationScope
+  accountId  String?
+  userId     String?
+  eventName  String
+  audience   AudienceType
+  channel    NotificationChannel
+  enabled    Boolean           @default(true)
+  reminderOffsetMinutes Int?
+  templateId String?
+  createdAt  DateTime @default(now())
+
+  account  Account?              @relation(fields: [accountId], references: [id])
+  user     User?                 @relation(fields: [userId], references: [id])
+  template NotificationTemplate? @relation(fields: [templateId], references: [id])
+
+  @@unique([scope, accountId, userId, eventName, audience, channel])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  accountId String?
+  title     String?
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id])
+}
+
+model OutboxItem {
+  id          String      @id @default(cuid())
+  scope       OutboxScope
+  accountId   String?
+  userId      String?
+  eventName   String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  dedupeKey   String       @unique
+  availableAt DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  processedAt DateTime?
+
+  account   Account?    @relation(fields: [accountId], references: [id])
+  user      User?       @relation(fields: [userId], references: [id])
+  deliveries DeliveryLog[]
+
+  @@index([status, availableAt])
+}
+
+model DeliveryLog {
+  id                String            @id @default(cuid())
+  outboxItemId      String
+  channel           NotificationChannel
+  target            String
+  status            DeliveryStatus
+  attempt           Int
+  errorCode         String?
+  errorMessage      String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime @default(now())
+
+  outboxItem OutboxItem @relation(fields: [outboxItemId], references: [id])
+
+  @@index([outboxItemId, attempt])
+}
+
+model WebhookEndpoint {
+  id          String        @id @default(cuid())
+  accountId   String
+  url         String
+  secret      String
+  events      String[]
+  status      WebhookStatus @default(ACTIVE)
+  errorStreak Int           @default(0)
+  lastErrorAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  account    Account          @relation(fields: [accountId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([accountId, status])
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  eventName String
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+model WebhookDelivery {
+  id          String         @id @default(cuid())
+  endpointId  String
+  eventName   String
+  payload     Json
+  signature   String
+  status      DeliveryStatus @default(QUEUED)
+  attempt     Int            @default(0)
+  nextRetryAt DateTime?
+  createdAt   DateTime       @default(now())
+  sentAt      DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id])
+
+  @@index([endpointId, status, nextRetryAt])
+}
+
+model AiThread {
+  id        String   @id @default(cuid())
+  accountId String?
+  clientId  String?
+  userId    String?
+  title     String?
+  createdAt DateTime @default(now())
+
+  client   Client?   @relation(fields: [clientId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id])
+  messages AiMessage[]
+  actions  AiAction[]
+}
+
+model AiMessage {
+  id        String   @id @default(cuid())
+  threadId  String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  thread AiThread @relation(fields: [threadId], references: [id])
+}
+
+model AiAction {
+  id         String   @id @default(cuid())
+  threadId   String?
+  actionType String
+  payload    Json
+  status     String
+  createdAt  DateTime @default(now())
+
+  thread AiThread? @relation(fields: [threadId], references: [id])
+  logs   AiLog[]
+}
+
+model AiLog {
+  id        String   @id @default(cuid())
+  actionId  String?
+  level     String
+  message   String
+  data      Json?
+  createdAt DateTime @default(now())
+
+  action AiAction? @relation(fields: [actionId], references: [id])
+}
+
+model AiLimit {
+  id        String   @id @default(cuid())
+  accountId String?
+  key       String
+  valueInt  Int
+  createdAt DateTime @default(now())
+}
+
+model AiSetting {
+  id        String   @id @default(cuid())
+  accountId String?
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+}
