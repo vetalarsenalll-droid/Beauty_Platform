@@ -1,23 +1,11 @@
-﻿import { requirePlatformSession } from "@/lib/auth";
-
-type Metric = {
-  label: string;
-  value: string;
-  hint: string;
-};
+import { requirePlatformSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 type ActionCard = {
   title: string;
   text: string;
   href: string;
 };
-
-const metrics: Metric[] = [
-  { label: "Активные аккаунты", value: "—", hint: "Все активные бизнесы" },
-  { label: "Новые регистрации", value: "—", hint: "За последние 7 дней" },
-  { label: "Outbox lag", value: "—", hint: "Средняя задержка" },
-  { label: "Системные алерты", value: "—", hint: "Требуют внимания" },
-];
 
 const actions: ActionCard[] = [
   {
@@ -39,6 +27,58 @@ const actions: ActionCard[] = [
 
 export default async function PlatformHome() {
   await requirePlatformSession();
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [activeAccounts, newAccounts, pendingOutbox, healthChecks] =
+    await Promise.all([
+      prisma.account.count({ where: { status: "ACTIVE" } }),
+      prisma.account.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      prisma.outboxItem.findMany({
+        where: { status: { in: ["PENDING", "PROCESSING"] } },
+        select: { createdAt: true },
+      }),
+      prisma.healthCheck.findMany({ select: { status: true } }),
+    ]);
+
+  const lagMinutes =
+    pendingOutbox.length === 0
+      ? null
+      : Math.round(
+          pendingOutbox.reduce(
+            (sum, item) => sum + (Date.now() - item.createdAt.getTime()),
+            0
+          ) /
+            pendingOutbox.length /
+            60000
+        );
+
+  const alertsCount = healthChecks.filter(
+    (check) => check.status.toLowerCase() !== "ok"
+  ).length;
+
+  const metrics = [
+    {
+      label: "Активные аккаунты",
+      value: String(activeAccounts),
+      hint: "Все активные бизнесы",
+    },
+    {
+      label: "Новые регистрации",
+      value: String(newAccounts),
+      hint: "За последние 7 дней",
+    },
+    {
+      label: "Outbox lag",
+      value: lagMinutes === null ? "—" : `${lagMinutes} мин`,
+      hint: "Средняя задержка",
+    },
+    {
+      label: "Системные алерты",
+      value: String(alertsCount),
+      hint: "Требуют внимания",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-6">

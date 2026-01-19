@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createSession, verifyPassword } from "@/lib/auth";
+import { jsonError, jsonOk } from "@/lib/api";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
@@ -9,15 +10,11 @@ export async function POST(request: Request) {
   };
 
   if (!body.email || !body.password) {
-    return Response.json(
-      {
-        error: {
-          code: "VALIDATION_FAILED",
-          message: "Email и пароль обязательны",
-          details: { fields: ["email", "password"] },
-        },
-      },
-      { status: 400 }
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Email и пароль обязательны",
+      { fields: ["email", "password"] },
+      400
     );
   }
 
@@ -42,15 +39,11 @@ export async function POST(request: Request) {
     !identity.passwordSalt ||
     !identity.user
   ) {
-    return Response.json(
-      {
-        error: {
-          code: "INVALID_CREDENTIALS",
-          message: "Неверный email или пароль",
-          details: {},
-        },
-      },
-      { status: 401 }
+    return jsonError(
+      "INVALID_CREDENTIALS",
+      "Неверный email или пароль",
+      {},
+      401
     );
   }
 
@@ -61,28 +54,20 @@ export async function POST(request: Request) {
   );
 
   if (!passwordOk) {
-    return Response.json(
-      {
-        error: {
-          code: "INVALID_CREDENTIALS",
-          message: "Неверный email или пароль",
-          details: {},
-        },
-      },
-      { status: 401 }
+    return jsonError(
+      "INVALID_CREDENTIALS",
+      "Неверный email или пароль",
+      {},
+      401
     );
   }
 
   if (!identity.user.platformAdmin) {
-    return Response.json(
-      {
-        error: {
-          code: "FORBIDDEN",
-          message: "Нет доступа к Platform Admin",
-          details: {},
-        },
-      },
-      { status: 403 }
+    return jsonError(
+      "FORBIDDEN",
+      "Нет доступа к Platform Admin",
+      {},
+      403
     );
   }
 
@@ -106,13 +91,13 @@ export async function POST(request: Request) {
       (assignment) => assignment.permission.key
     ) ?? [];
 
-  return Response.json({
-    data: {
-      user: {
-        id: identity.userId,
-        email: identity.user.email ?? identity.email,
-      },
-      permissions,
+  return jsonOk({
+    user: {
+      id: identity.userId,
+      email: identity.user.email ?? identity.email,
     },
+    permissions,
+    token,
+    expiresAt: expiresAt.toISOString(),
   });
 }

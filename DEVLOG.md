@@ -242,6 +242,54 @@
 
 ## 2026-01-18
 - Date: 2026-01-18
+- Task: Fix Next.js dynamic params in platform routes
+- Summary: Awaited params Promise in platform [id] API handlers to avoid undefined id.
+- Files: apps/web/app/api/v1/platform/accounts/[id]/route.ts, apps/web/app/api/v1/platform/plans/[id]/route.ts, apps/web/app/api/v1/platform/templates/[id]/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/[id]/route.ts
+- Notes: Required by Next.js 16 dynamic API behavior.
+- Tests: Not run (api only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Platform accounts save feedback + refresh
+- Summary: Added response handling and refresh after saving plan/status changes.
+- Files: apps/web/app/(platform)/platform/accounts/account-row-actions.tsx
+- Notes: Shows API errors to avoid silent failures.
+- Tests: Not run (ui only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Platform Admin overview metrics wired to DB
+- Summary: Replaced placeholders with real counts for active accounts, recent registrations, outbox lag, and system alerts.
+- Files: apps/web/app/(platform)/platform/page.tsx
+- Notes: Outbox lag computed from pending/processing items.
+- Tests: Not run (ui only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Platform Admin audit logging in API
+- Summary: Added audit logger and writes on platform accounts/plans/settings/templates/moderation actions.
+- Files: apps/web/lib/audit.ts, apps/web/lib/auth.ts, apps/web/app/api/v1/platform/accounts/route.ts, apps/web/app/api/v1/platform/accounts/[id]/route.ts, apps/web/app/api/v1/platform/plans/route.ts, apps/web/app/api/v1/platform/plans/[id]/route.ts, apps/web/app/api/v1/platform/settings/route.ts, apps/web/app/api/v1/platform/templates/route.ts, apps/web/app/api/v1/platform/templates/[id]/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/[id]/route.ts
+- Notes: Audit rows now appear in Platform Admin Audit page.
+- Tests: Not run (api only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Platform Admin audit page wired to DB
+- Summary: Replaced static audit rows with real PlatformAuditLog data and added empty state.
+- Files: apps/web/app/(platform)/platform/audit/page.tsx
+- Notes: Uses admin->user email when available.
+- Tests: Not run (ui only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Prep numeric IDs + fix Platform API text
+- Summary: Added script to convert Prisma IDs to Int, rewrote Platform API routes with numeric IDs and Russian audit text, rewrote Platform overview metrics, updated seed SQL for numeric IDs + UTF-8, and set Postgres init encoding.
+- Files: scripts/convert-prisma-ids-to-int.ps1, packages/db/prisma/schema.prisma, docker/dev/docker-compose.yml, scripts/seed-platform-admin.sql, apps/web/app/(platform)/platform/page.tsx, apps/web/app/api/v1/platform/accounts/route.ts, apps/web/app/api/v1/platform/accounts/[id]/route.ts, apps/web/app/api/v1/platform/plans/route.ts, apps/web/app/api/v1/platform/plans/[id]/route.ts, apps/web/app/api/v1/platform/templates/route.ts, apps/web/app/api/v1/platform/templates/[id]/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/[id]/route.ts
+- Notes: Requires schema conversion + DB reset to take effect.
+- Tests: Not run (schema/seed/API only).
+
+## 2026-01-18
+- Date: 2026-01-18
 - Task: Unify mobile theme with web style
 - Summary: Updated Flutter theme palette, typography, and radii to match the purple SaaS design.
 - Files: apps/mobile/lib/app_theme.dart
@@ -271,3 +319,67 @@
 - Files: scripts/seed-platform-admin.ps1
 - Notes: Refresh Prisma Studio to see updated descriptions.
 - Tests: Not run (seed only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Fix Flutter widget test entrypoint
+- Summary: Pointed widget_test to PlatformApp after removing main.dart.
+- Files: apps/mobile/test/widget_test.dart
+- Notes: Test now checks Platform Admin title.
+- Tests: Not run (test only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Improve Platform accounts API errors
+- Summary: Added duplicate/foreign-key handling for account creation to return proper error codes.
+- Files: apps/web/app/api/v1/platform/accounts/route.ts
+- Notes: Plan lookup now returns VALIDATION_FAILED instead of generic SERVER_ERROR.
+- Tests: Not run (manual only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Improve Platform plan/account error handling
+- Summary: Added duplicate detection for plan name/code and improved account update errors when planId is invalid.
+- Files: apps/web/app/api/v1/platform/plans/route.ts, apps/web/app/api/v1/platform/plans/[id]/route.ts, apps/web/app/api/v1/platform/accounts/[id]/route.ts
+- Notes: API now returns DUPLICATE or VALIDATION_FAILED instead of SERVER_ERROR.
+- Tests: Not run (manual only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Fix platform audit logging for numeric IDs
+- Summary: Coerced audit targetId to string to avoid Prisma type errors when passing numeric IDs.
+- Files: apps/web/lib/audit.ts
+- Notes: Should stop SERVER_ERROR on create/update when audit logging runs.
+- Tests: Not run (manual only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Align mobile Platform Admin shell with web sections
+- Summary: Added drawer-based navigation and section views for overview/accounts/plans/moderation/monitoring/audit/settings; fixed mojibake in mobile screens.
+- Files: apps/mobile/lib/main_platform.dart, apps/mobile/lib/screens/platform_home.dart, apps/mobile/lib/screens/crm_home.dart, apps/mobile/lib/screens/client_home.dart, apps/mobile/lib/screens/booking_home.dart, apps/mobile/lib/main_client.dart
+- Notes: Mobile sections show empty states until API wiring is added.
+- Tests: Not run (manual only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Add in-screen navigation for mobile Platform Admin
+- Summary: Quick action cards now switch to the related section; section views accept navigation callback.
+- Files: apps/mobile/lib/main_platform.dart, apps/mobile/lib/screens/platform_home.dart
+- Notes: Real data still requires API wiring.
+- Tests: Not run (manual only).
+
+## 2026-01-18
+- Date: 2026-01-18
+- Task: Fix mobile Platform Admin build errors
+- Summary: Removed const from widget lists that include callbacks so navigation cards compile.
+- Files: apps/mobile/lib/screens/platform_home.dart
+- Notes: Rebuild required after Flutter hot restart.
+- Tests: Not run (manual only).
+
+## 2026-01-19
+- Date: 2026-01-19
+- Task: Add mobile token auth + API wiring for Platform Admin
+- Summary: Added bearer token support in API auth, mobile login screen, and API client to load overview/accounts/plans data.
+- Files: apps/web/lib/auth.ts, apps/web/lib/platform-api.ts, apps/web/app/api/v1/auth/login/route.ts, apps/web/app/api/v1/auth/me/route.ts, apps/mobile/lib/api_config.dart, apps/mobile/lib/api_client.dart, apps/mobile/lib/auth_service.dart, apps/mobile/lib/platform_api.dart, apps/mobile/lib/platform_login.dart, apps/mobile/lib/main_platform.dart, apps/mobile/lib/screens/platform_home.dart, apps/mobile/pubspec.yaml, API_CHANGELOG.md
+- Notes: Mobile uses token from /auth/login; web continues to use cookies.
+- Tests: Not run (manual only).

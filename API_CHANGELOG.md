@@ -35,3 +35,12 @@
 - DTOs: AuthMeResponse, AuthUserSummary, updated AuthLoginResponse (user + permissions).
 - Examples: None.
 - Notes: Auth uses httpOnly cookies; access/refresh tokens omitted for now.
+
+## 2026-01-19 - v1
+- Date: 2026-01-19
+- Version: v1
+- Changes: Added bearer token support for mobile and included token in login response.
+- Endpoints: POST /auth/login, GET /auth/me, all /platform/* accept Authorization: Bearer.
+- DTOs: AuthLoginResponse now includes token + expiresAt.
+- Examples: None.
+- Notes: Web keeps httpOnly cookie; mobile uses bearer token from login.

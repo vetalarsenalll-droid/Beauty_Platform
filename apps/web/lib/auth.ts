@@ -7,7 +7,8 @@ const SESSION_COOKIE = "bp_session";
 const SESSION_TTL_DAYS = 30;
 
 type PlatformSession = {
-  userId: string;
+  adminId: number;
+  userId: number;
   email: string | null;
   permissions: string[];
 };
@@ -16,7 +17,40 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-export async function createSession(userId: string) {
+function mapSession(session: Awaited<ReturnType<typeof findSession>>) {
+  if (!session?.user?.platformAdmin) return null;
+
+  const permissions =
+    session.user.platformAdmin.permissions.map(
+      (assignment) => assignment.permission.key
+    ) ?? [];
+
+  return {
+    adminId: session.user.platformAdmin.id,
+    userId: session.userId,
+    email: session.user.email ?? session.user.platformAdmin.userId,
+    permissions,
+  };
+}
+
+async function findSession(tokenHash: string) {
+  return prisma.userSession.findFirst({
+    where: { refreshTokenHash: tokenHash, expiresAt: { gt: new Date() } },
+    include: {
+      user: {
+        include: {
+          platformAdmin: {
+            include: {
+              permissions: { include: { permission: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export async function createSession(userId: number) {
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -55,33 +89,17 @@ export async function getPlatformSession(): Promise<PlatformSession | null> {
   if (!token) return null;
 
   const tokenHash = hashToken(token);
-  const session = await prisma.userSession.findFirst({
-    where: { refreshTokenHash: tokenHash, expiresAt: { gt: new Date() } },
-    include: {
-      user: {
-        include: {
-          platformAdmin: {
-            include: {
-              permissions: { include: { permission: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  const session = await findSession(tokenHash);
+  return mapSession(session);
+}
 
-  if (!session?.user?.platformAdmin) return null;
-
-  const permissions =
-    session.user.platformAdmin.permissions.map(
-      (assignment) => assignment.permission.key
-    ) ?? [];
-
-  return {
-    userId: session.userId,
-    email: session.user.email ?? session.user.platformAdmin.userId,
-    permissions,
-  };
+export async function getPlatformSessionByToken(
+  token: string
+): Promise<PlatformSession | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const session = await findSession(tokenHash);
+  return mapSession(session);
 }
 
 export async function requirePlatformSession(): Promise<PlatformSession> {

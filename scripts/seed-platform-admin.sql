@@ -1,30 +1,25 @@
-﻿BEGIN;
+BEGIN;
 
-INSERT INTO "PlatformPermission" ("id", "key", "description", "createdAt")
+SET client_encoding = 'UTF8';
+
+INSERT INTO "PlatformPermission" ("key", "description", "createdAt")
 VALUES
-  ('perm_platform_all', 'platform.all', 'Полный доступ ко всем разделам платформы', NOW()),
-  ('perm_platform_accounts', 'platform.accounts', 'Управление аккаунтами и лимитами', NOW()),
-  ('perm_platform_plans', 'platform.plans', 'Тарифы и подписки', NOW()),
-  ('perm_platform_moderation', 'platform.moderation', 'Модерация публичного контента', NOW()),
-  ('perm_platform_monitoring', 'platform.monitoring', 'Мониторинг системы', NOW()),
-  ('perm_platform_audit', 'platform.audit', 'Аудит действий администраторов', NOW()),
-  ('perm_platform_settings', 'platform.settings', 'Глобальные настройки платформы', NOW())
-ON CONFLICT ("id") DO UPDATE
+  ('platform.all', 'Полный доступ ко всем разделам платформы', NOW()),
+  ('platform.accounts', 'Управление аккаунтами и лимитами', NOW()),
+  ('platform.plans', 'Тарифы и подписки', NOW()),
+  ('platform.moderation', 'Модерация публичного контента', NOW()),
+  ('platform.monitoring', 'Мониторинг системы', NOW()),
+  ('platform.audit', 'Аудит действий администраторов', NOW()),
+  ('platform.settings', 'Глобальные настройки платформы', NOW())
+ON CONFLICT ("key") DO UPDATE
 SET "description" = EXCLUDED."description";
 
-INSERT INTO "User" ("id", "email", "status", "type", "createdAt", "updatedAt")
-VALUES (
-  'user_platform_admin_1',
-  'admin@beauty.local',
-  'ACTIVE',
-  'STAFF',
-  NOW(),
-  NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "User" ("email", "status", "type", "createdAt", "updatedAt")
+VALUES ('admin@beauty.local', 'ACTIVE', 'STAFF', NOW(), NOW())
+ON CONFLICT ("email") DO UPDATE
+SET "status" = EXCLUDED."status", "updatedAt" = EXCLUDED."updatedAt";
 
 INSERT INTO "UserIdentity" (
-  "id",
   "userId",
   "provider",
   "providerUserId",
@@ -35,9 +30,8 @@ INSERT INTO "UserIdentity" (
   "passwordUpdatedAt",
   "createdAt"
 )
-VALUES (
-  'identity_platform_admin_1',
-  'user_platform_admin_1',
+SELECT
+  u.id,
   'EMAIL',
   'admin@beauty.local',
   'admin@beauty.local',
@@ -46,40 +40,34 @@ VALUES (
   'scrypt',
   NOW(),
   NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+FROM "User" u
+WHERE u.email = 'admin@beauty.local'
+ON CONFLICT ("provider", "providerUserId") DO UPDATE
+SET "passwordHash" = EXCLUDED."passwordHash",
+    "passwordSalt" = EXCLUDED."passwordSalt",
+    "passwordAlgo" = EXCLUDED."passwordAlgo",
+    "passwordUpdatedAt" = EXCLUDED."passwordUpdatedAt";
 
-INSERT INTO "PlatformAdmin" ("id", "userId", "status", "createdAt")
-VALUES (
-  'platform_admin_1',
-  'user_platform_admin_1',
-  'ACTIVE',
-  NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "PlatformAdmin" ("userId", "status", "createdAt")
+SELECT u.id, 'ACTIVE', NOW()
+FROM "User" u
+WHERE u.email = 'admin@beauty.local'
+ON CONFLICT ("userId") DO NOTHING;
 
-INSERT INTO "PlatformAdminPermissionAssignment" ("id", "adminId", "permissionId", "createdAt")
-VALUES (
-  'assign_platform_admin_all',
-  'platform_admin_1',
-  'perm_platform_all',
-  NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "PlatformAdminPermissionAssignment" ("adminId", "permissionId", "createdAt")
+SELECT pa.id, pp.id, NOW()
+FROM "PlatformAdmin" pa
+JOIN "User" u ON u.id = pa."userId"
+JOIN "PlatformPermission" pp ON pp."key" = 'platform.all'
+WHERE u.email = 'admin@beauty.local'
+ON CONFLICT ("adminId", "permissionId") DO NOTHING;
 
-INSERT INTO "User" ("id", "email", "status", "type", "createdAt", "updatedAt")
-VALUES (
-  'user_platform_moderator_1',
-  'moderator@beauty.local',
-  'ACTIVE',
-  'STAFF',
-  NOW(),
-  NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "User" ("email", "status", "type", "createdAt", "updatedAt")
+VALUES ('moderator@beauty.local', 'ACTIVE', 'STAFF', NOW(), NOW())
+ON CONFLICT ("email") DO UPDATE
+SET "status" = EXCLUDED."status", "updatedAt" = EXCLUDED."updatedAt";
 
 INSERT INTO "UserIdentity" (
-  "id",
   "userId",
   "provider",
   "providerUserId",
@@ -90,9 +78,8 @@ INSERT INTO "UserIdentity" (
   "passwordUpdatedAt",
   "createdAt"
 )
-VALUES (
-  'identity_platform_moderator_1',
-  'user_platform_moderator_1',
+SELECT
+  u.id,
   'EMAIL',
   'moderator@beauty.local',
   'moderator@beauty.local',
@@ -101,25 +88,26 @@ VALUES (
   'scrypt',
   NOW(),
   NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+FROM "User" u
+WHERE u.email = 'moderator@beauty.local'
+ON CONFLICT ("provider", "providerUserId") DO UPDATE
+SET "passwordHash" = EXCLUDED."passwordHash",
+    "passwordSalt" = EXCLUDED."passwordSalt",
+    "passwordAlgo" = EXCLUDED."passwordAlgo",
+    "passwordUpdatedAt" = EXCLUDED."passwordUpdatedAt";
 
-INSERT INTO "PlatformAdmin" ("id", "userId", "status", "createdAt")
-VALUES (
-  'platform_admin_moderator_1',
-  'user_platform_moderator_1',
-  'ACTIVE',
-  NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "PlatformAdmin" ("userId", "status", "createdAt")
+SELECT u.id, 'ACTIVE', NOW()
+FROM "User" u
+WHERE u.email = 'moderator@beauty.local'
+ON CONFLICT ("userId") DO NOTHING;
 
-INSERT INTO "PlatformAdminPermissionAssignment" ("id", "adminId", "permissionId", "createdAt")
-VALUES (
-  'assign_platform_moderator_moderation',
-  'platform_admin_moderator_1',
-  'perm_platform_moderation',
-  NOW()
-)
-ON CONFLICT ("id") DO NOTHING;
+INSERT INTO "PlatformAdminPermissionAssignment" ("adminId", "permissionId", "createdAt")
+SELECT pa.id, pp.id, NOW()
+FROM "PlatformAdmin" pa
+JOIN "User" u ON u.id = pa."userId"
+JOIN "PlatformPermission" pp ON pp."key" = 'platform.moderation'
+WHERE u.email = 'moderator@beauty.local'
+ON CONFLICT ("adminId", "permissionId") DO NOTHING;
 
 COMMIT;

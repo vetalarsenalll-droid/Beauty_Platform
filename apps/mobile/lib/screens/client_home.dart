@@ -17,7 +17,7 @@ class ClientHome extends StatelessWidget {
         SizedBox(height: 16),
         SummaryGrid(
           items: [
-            SummaryItem(title: 'Мои записи', subtitle: 'Перенос/отмена'),
+            SummaryItem(title: 'Мои записи', subtitle: 'Перенос и отмена'),
             SummaryItem(title: 'Оплаты', subtitle: 'Чеки и возвраты'),
             SummaryItem(title: 'Избранное', subtitle: 'Салоны и мастера'),
             SummaryItem(title: 'Лояльность', subtitle: 'Баланс и уровни'),

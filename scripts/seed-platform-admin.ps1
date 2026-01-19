@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $seedPath = Join-Path $projectRoot "scripts\\seed-platform-admin.sql"
 $envPath = Join-Path $projectRoot ".env"
+$env:PGCLIENTENCODING = "UTF8"
 
 if (Test-Path $envPath) {
   Get-Content $envPath | ForEach-Object {
@@ -22,4 +23,5 @@ if (-not (Test-Path $seedPath)) {
   Write-Error "Seed file not found: $seedPath"
 }
 
-Get-Content -Encoding UTF8 $seedPath | docker exec -i $ContainerName psql -U $env:POSTGRES_USER -d $env:POSTGRES_DB
+Get-Content -Encoding UTF8 $seedPath | docker exec -i $ContainerName `
+  psql -v ON_ERROR_STOP=1 -U $env:POSTGRES_USER -d $env:POSTGRES_DB

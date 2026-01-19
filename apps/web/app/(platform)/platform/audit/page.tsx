@@ -1,35 +1,25 @@
-﻿import { requirePlatformPermission } from "@/lib/auth";
+import { requirePlatformPermission } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-type AuditRow = {
-  actor: string;
-  action: string;
-  target: string;
-  time: string;
-};
-
-const rows: AuditRow[] = [
-  {
-    actor: "admin@beauty.local",
-    action: "Изменил настройки платформы",
-    target: "SEO presets",
-    time: "сегодня, 10:12",
-  },
-  {
-    actor: "moderator@beauty.local",
-    action: "Одобрил отзыв",
-    target: "Beauty Studio One",
-    time: "сегодня, 09:50",
-  },
-  {
-    actor: "admin@beauty.local",
-    action: "Обновил тариф",
-    target: "Pro",
-    time: "вчера, 18:21",
-  },
-];
+const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export default async function PlatformAuditPage() {
   await requirePlatformPermission("platform.audit");
+
+  const rows = await prisma.platformAuditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: {
+      admin: {
+        include: {
+          user: true,
+        },
+      },
+    },
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,17 +43,34 @@ export default async function PlatformAuditPage() {
           <div>Время</div>
         </div>
         <div className="mt-3 flex flex-col gap-3 text-sm">
-          {rows.map((row, index) => (
-            <div
-              key={`${row.actor}-${index}`}
-              className="grid grid-cols-[1.2fr_1.6fr_1fr_0.8fr] gap-3 rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3"
-            >
-              <div className="font-semibold">{row.actor}</div>
-              <div>{row.action}</div>
-              <div className="text-[color:var(--bp-muted)]">{row.target}</div>
-              <div className="text-[color:var(--bp-muted)]">{row.time}</div>
+          {rows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] px-4 py-6 text-center text-[color:var(--bp-muted)]">
+              Пока нет записей аудита. Действия будут появляться здесь.
             </div>
-          ))}
+          ) : (
+            rows.map((row) => {
+              const actor =
+                row.admin?.user?.email ??
+                row.adminId ??
+                "Неизвестный администратор";
+              const target = row.targetId
+                ? `${row.targetType} · ${row.targetId}`
+                : row.targetType;
+              return (
+                <div
+                  key={row.id}
+                  className="grid grid-cols-[1.2fr_1.6fr_1fr_0.8fr] gap-3 rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3"
+                >
+                  <div className="font-semibold">{actor}</div>
+                  <div>{row.action}</div>
+                  <div className="text-[color:var(--bp-muted)]">{target}</div>
+                  <div className="text-[color:var(--bp-muted)]">
+                    {dateFormatter.format(row.createdAt)}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

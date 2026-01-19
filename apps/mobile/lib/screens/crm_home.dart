@@ -11,16 +11,17 @@ class CrmHome extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: const [
         SectionHeader(
-          title: 'CRM Бизнес',
-          subtitle: 'Календарь, расписание, услуги и клиенты.',
+          title: 'CRM Business',
+          subtitle:
+              'Операционное управление: записи, расписание, клиенты и финансы.',
         ),
         SizedBox(height: 16),
         SummaryGrid(
           items: [
-            SummaryItem(title: 'Календарь', subtitle: 'День/Неделя/Месяц'),
+            SummaryItem(title: 'Календарь', subtitle: 'День/неделя/месяц'),
             SummaryItem(title: 'Расписание', subtitle: 'Смены и перерывы'),
-            SummaryItem(title: 'Услуги', subtitle: 'Категории и цены'),
-            SummaryItem(title: 'Клиенты', subtitle: 'История и заметки'),
+            SummaryItem(title: 'Клиенты', subtitle: 'Карточки и теги'),
+            SummaryItem(title: 'Финансы', subtitle: 'Выручка и касса'),
           ],
         ),
       ],

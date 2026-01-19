@@ -185,7 +185,7 @@ enum OutboxScope {
   USER
 }
 model PlatformPlan {
-  id            String                 @id @default(cuid())
+  id Int @id @default(autoincrement())
   name          String
   code          String                 @unique
   description   String?
@@ -200,8 +200,8 @@ model PlatformPlan {
 }
 
 model PlatformPlanFeature {
-  id        String   @id @default(cuid())
-  planId    String
+  id Int @id @default(autoincrement())
+  planId Int
   key       String
   value     String?
   createdAt DateTime @default(now())
@@ -212,9 +212,9 @@ model PlatformPlanFeature {
 }
 
 model PlatformSubscription {
-  id            String             @id @default(cuid())
-  accountId     String
-  planId        String
+  id Int @id @default(autoincrement())
+  accountId Int
+  planId Int
   status        SubscriptionStatus @default(ACTIVE)
   startedAt     DateTime           @default(now())
   endsAt        DateTime?
@@ -230,9 +230,9 @@ model PlatformSubscription {
 }
 
 model PlatformInvoice {
-  id             String        @id @default(cuid())
-  accountId      String
-  subscriptionId String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  subscriptionId Int?
   status         InvoiceStatus @default(DRAFT)
   amount         Decimal       @db.Decimal(12, 2)
   currency       String        @default("RUB")
@@ -250,8 +250,8 @@ model PlatformInvoice {
 }
 
 model PlatformPayment {
-  id          String        @id @default(cuid())
-  invoiceId   String?
+  id Int @id @default(autoincrement())
+  invoiceId Int?
   amount      Decimal       @db.Decimal(12, 2)
   currency    String        @default("RUB")
   status      PaymentStatus @default(PENDING)
@@ -263,8 +263,8 @@ model PlatformPayment {
 }
 
 model PlatformLimit {
-  id        String   @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   key       String
   valueInt  Int?
   valueJson Json?
@@ -276,8 +276,8 @@ model PlatformLimit {
 }
 
 model PlatformAdmin {
-  id        String     @id @default(cuid())
-  userId    String     @unique
+  id Int @id @default(autoincrement())
+  userId Int     @unique
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
 
@@ -287,7 +287,7 @@ model PlatformAdmin {
 }
 
 model PlatformPermission {
-  id          String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   key         String   @unique
   description String?
   createdAt   DateTime @default(now())
@@ -296,9 +296,9 @@ model PlatformPermission {
 }
 
 model PlatformAdminPermissionAssignment {
-  id           String   @id @default(cuid())
-  adminId      String
-  permissionId String
+  id Int @id @default(autoincrement())
+  adminId Int
+  permissionId Int
   createdAt    DateTime @default(now())
 
   admin      PlatformAdmin      @relation(fields: [adminId], references: [id])
@@ -308,8 +308,8 @@ model PlatformAdminPermissionAssignment {
 }
 
 model PlatformAuditLog {
-  id         String   @id @default(cuid())
-  adminId    String
+  id Int @id @default(autoincrement())
+  adminId Int
   action     String
   targetType String
   targetId   String?
@@ -323,14 +323,14 @@ model PlatformAuditLog {
 }
 
 model PlatformSetting {
-  id        String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   key       String   @unique
   valueJson Json
   updatedAt DateTime @updatedAt
 }
 
 model TemplateLibrary {
-  id          String      @id @default(cuid())
+  id Int @id @default(autoincrement())
   type        TemplateType
   name        String
   description String?
@@ -343,8 +343,8 @@ model TemplateLibrary {
 }
 
 model TemplateVersion {
-  id          String   @id @default(cuid())
-  templateId  String
+  id Int @id @default(autoincrement())
+  templateId Int
   version     Int
   contentJson Json
   createdAt   DateTime @default(now())
@@ -355,7 +355,7 @@ model TemplateVersion {
 }
 
 model HealthCheck {
-  id        String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   name      String
   status    String
   checkedAt DateTime @default(now())
@@ -363,14 +363,14 @@ model HealthCheck {
 }
 
 model MonitoringMetric {
-  id        String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   name      String
   value     Float
   createdAt DateTime @default(now())
 }
 
 model SystemAlert {
-  id         String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   level      String
   message    String
   details    Json?
@@ -378,12 +378,12 @@ model SystemAlert {
   resolvedAt DateTime?
 }
 model Account {
-  id        String        @id @default(cuid())
+  id Int @id @default(autoincrement())
   name      String
   slug      String        @unique
   status    AccountStatus @default(ACTIVE)
   timeZone  String
-  planId    String?
+  planId Int?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -433,8 +433,8 @@ model Account {
 }
 
 model AccountSetting {
-  id                      String   @id @default(cuid())
-  accountId               String   @unique
+  id Int @id @default(autoincrement())
+  accountId Int   @unique
   slotStepMinutes         Int      @default(15)
   requireDeposit          Boolean  @default(false)
   requirePaymentToConfirm Boolean  @default(false)
@@ -450,8 +450,8 @@ model AccountSetting {
 }
 
 model AccountBranding {
-  id             String   @id @default(cuid())
-  accountId      String   @unique
+  id Int @id @default(autoincrement())
+  accountId Int   @unique
   logoUrl        String?
   coverUrl       String?
   accentColor    String?
@@ -464,8 +464,8 @@ model AccountBranding {
 }
 
 model AccountDomain {
-  id         String   @id @default(cuid())
-  accountId  String
+  id Int @id @default(autoincrement())
+  accountId Int
   domain     String   @unique
   isPrimary  Boolean  @default(false)
   verifiedAt DateTime?
@@ -475,11 +475,11 @@ model AccountDomain {
 }
 
 model PublicPage {
-  id                 String           @id @default(cuid())
-  accountId          String
+  id Int @id @default(autoincrement())
+  accountId Int
   status             PublicPageStatus @default(DRAFT)
   draftJson          Json?
-  publishedVersionId String? @unique
+  publishedVersionId Int? @unique
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -493,8 +493,8 @@ model PublicPage {
 }
 
 model PublicPageVersion {
-  id           String   @id @default(cuid())
-  publicPageId String
+  id Int @id @default(autoincrement())
+  publicPageId Int
   version      Int
   contentJson  Json
   createdAt    DateTime @default(now())
@@ -506,8 +506,8 @@ model PublicPageVersion {
 }
 
 model PublicPageSection {
-  id          String   @id @default(cuid())
-  publicPageId String
+  id Int @id @default(autoincrement())
+  publicPageId Int
   key         String
   title       String?
   sortOrder   Int
@@ -523,8 +523,8 @@ model PublicPageSection {
 }
 
 model PublicPageBlock {
-  id        String   @id @default(cuid())
-  sectionId String
+  id Int @id @default(autoincrement())
+  sectionId Int
   type      String
   contentJson Json
   sortOrder Int
@@ -537,9 +537,9 @@ model PublicPageBlock {
 }
 
 model PublicPageMedia {
-  id          String   @id @default(cuid())
-  publicPageId String
-  assetId     String
+  id Int @id @default(autoincrement())
+  publicPageId Int
+  assetId Int
   sortOrder   Int
   createdAt   DateTime @default(now())
 
@@ -550,8 +550,8 @@ model PublicPageMedia {
 }
 
 model SeoSetting {
-  id             String   @id @default(cuid())
-  accountId      String   @unique
+  id Int @id @default(autoincrement())
+  accountId Int   @unique
   title          String?
   description    String?
   ogImageUrl     String?
@@ -564,8 +564,8 @@ model SeoSetting {
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   name      String
   slug      String
   createdAt DateTime @default(now())
@@ -574,8 +574,8 @@ model Category {
 }
 
 model Tag {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   name      String
   slug      String
   createdAt DateTime @default(now())
@@ -584,8 +584,8 @@ model Tag {
 }
 
 model MediaAsset {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   url       String
   type      String
   width     Int?
@@ -598,8 +598,8 @@ model MediaAsset {
 }
 
 model MediaCollection {
-  id        String   @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      String
   createdAt DateTime @default(now())
 
@@ -608,9 +608,9 @@ model MediaCollection {
 }
 
 model MediaLink {
-  id           String   @id @default(cuid())
-  assetId      String
-  collectionId String?
+  id Int @id @default(autoincrement())
+  assetId Int
+  collectionId Int?
   entityType   String
   entityId     String
   createdAt    DateTime @default(now())
@@ -622,9 +622,9 @@ model MediaLink {
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  accountId String
-  clientId  String
+  id Int @id @default(autoincrement())
+  accountId Int
+  clientId Int
   rating    Int
   comment   String?
   createdAt DateTime @default(now())
@@ -635,9 +635,9 @@ model Review {
 }
 
 model ReviewVote {
-  id        String   @id @default(cuid())
-  reviewId  String
-  userId    String?
+  id Int @id @default(autoincrement())
+  reviewId Int
+  userId Int?
   value     Int
   createdAt DateTime @default(now())
 
@@ -646,8 +646,8 @@ model ReviewVote {
 }
 
 model RatingAggregate {
-  id          String   @id @default(cuid())
-  accountId   String
+  id Int @id @default(autoincrement())
+  accountId Int
   entityType  String
   entityId    String
   ratingAvg   Float
@@ -660,8 +660,8 @@ model RatingAggregate {
 }
 
 model Favorite {
-  id         String   @id @default(cuid())
-  clientId   String
+  id Int @id @default(autoincrement())
+  clientId Int
   entityType String
   entityId   String
   createdAt  DateTime @default(now())
@@ -672,8 +672,8 @@ model Favorite {
 }
 
 model SearchIndex {
-  id         String   @id @default(cuid())
-  accountId  String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   entityType String
   entityId   String
   payload    Json
@@ -683,8 +683,8 @@ model SearchIndex {
 }
 
 model GeoPoint {
-  id         String   @id @default(cuid())
-  locationId String   @unique
+  id Int @id @default(autoincrement())
+  locationId Int   @unique
   lat        Float
   lng        Float
 
@@ -692,8 +692,8 @@ model GeoPoint {
 }
 
 model Location {
-  id          String   @id @default(cuid())
-  accountId   String
+  id Int @id @default(autoincrement())
+  accountId Int
   name        String
   address     String
   phone       String?
@@ -717,8 +717,8 @@ model Location {
 }
 
 model LocationHour {
-  id         String   @id @default(cuid())
-  locationId String
+  id Int @id @default(autoincrement())
+  locationId Int
   dayOfWeek  Int
   startTime  String
   endTime    String
@@ -729,8 +729,8 @@ model LocationHour {
 }
 
 model LocationException {
-  id         String   @id @default(cuid())
-  locationId String
+  id Int @id @default(autoincrement())
+  locationId Int
   date       DateTime
   isClosed   Boolean @default(false)
   startTime  String?
@@ -740,8 +740,8 @@ model LocationException {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String?
+  id Int @id @default(autoincrement())
+  email     String?   @unique
   phone     String?
   status    UserStatus @default(ACTIVE)
   type      UserType   @default(STAFF)
@@ -767,8 +767,8 @@ model User {
 }
 
 model UserProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
+  id Int @id @default(autoincrement())
+  userId Int   @unique
   firstName String?
   lastName  String?
   avatarUrl String?
@@ -779,8 +779,8 @@ model UserProfile {
 }
 
 model UserIdentity {
-  id             String           @id @default(cuid())
-  userId         String
+  id Int @id @default(autoincrement())
+  userId Int
   provider       IdentityProvider
   providerUserId String?
   email          String?
@@ -798,8 +798,8 @@ model UserIdentity {
 }
 
 model UserSession {
-  id               String   @id @default(cuid())
-  userId           String
+  id Int @id @default(autoincrement())
+  userId Int
   refreshTokenHash String
   expiresAt        DateTime
   createdAt        DateTime @default(now())
@@ -808,8 +808,8 @@ model UserSession {
 }
 
 model UserNotificationChannelPreference {
-  id        String              @id @default(cuid())
-  userId    String
+  id Int @id @default(autoincrement())
+  userId Int
   channel   NotificationChannel
   enabled   Boolean             @default(true)
   createdAt DateTime            @default(now())
@@ -821,8 +821,8 @@ model UserNotificationChannelPreference {
 }
 
 model DeviceToken {
-  id        String   @id @default(cuid())
-  userId    String
+  id Int @id @default(autoincrement())
+  userId Int
   platform  String
   token     String
   createdAt DateTime @default(now())
@@ -834,8 +834,8 @@ model DeviceToken {
 }
 
 model Role {
-  id        String   @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      RoleName
   createdAt DateTime @default(now())
 
@@ -847,7 +847,7 @@ model Role {
 }
 
 model Permission {
-  id          String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   key         String   @unique
   description String?
   createdAt   DateTime @default(now())
@@ -856,9 +856,9 @@ model Permission {
 }
 
 model RolePermission {
-  id           String   @id @default(cuid())
-  roleId       String
-  permissionId String
+  id Int @id @default(autoincrement())
+  roleId Int
+  permissionId Int
 
   role       Role       @relation(fields: [roleId], references: [id])
   permission Permission @relation(fields: [permissionId], references: [id])
@@ -867,10 +867,10 @@ model RolePermission {
 }
 
 model RoleAssignment {
-  id        String   @id @default(cuid())
-  userId    String
-  accountId String
-  roleId    String
+  id Int @id @default(autoincrement())
+  userId Int
+  accountId Int
+  roleId Int
   createdAt DateTime @default(now())
 
   user    User    @relation(fields: [userId], references: [id])
@@ -881,8 +881,8 @@ model RoleAssignment {
 }
 
 model SpecialistLevel {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   name      String
   rank      Int
   createdAt DateTime @default(now())
@@ -893,10 +893,10 @@ model SpecialistLevel {
 }
 
 model SpecialistProfile {
-  id        String   @id @default(cuid())
-  accountId String
-  userId    String
-  levelId   String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  userId Int
+  levelId Int?
   bio       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -918,17 +918,17 @@ model SpecialistProfile {
 }
 
 model SpecialistLevelHistory {
-  id           String   @id @default(cuid())
-  specialistId String
-  levelId      String
+  id Int @id @default(autoincrement())
+  specialistId Int
+  levelId Int
   assignedAt   DateTime @default(now())
 
   specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
   level      SpecialistLevel   @relation(fields: [levelId], references: [id])
 }
 model ServiceCategory {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   name      String
   slug      String
   createdAt DateTime @default(now())
@@ -938,9 +938,9 @@ model ServiceCategory {
 }
 
 model Service {
-  id              String   @id @default(cuid())
-  accountId       String
-  categoryId      String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  categoryId Int?
   name            String
   description     String?
   baseDurationMin Int
@@ -959,8 +959,8 @@ model Service {
 }
 
 model ServiceVariant {
-  id          String   @id @default(cuid())
-  serviceId   String
+  id Int @id @default(autoincrement())
+  serviceId Int
   name        String
   durationMin Int?
   price       Decimal? @db.Decimal(12, 2)
@@ -970,9 +970,9 @@ model ServiceVariant {
 }
 
 model ServiceLevelConfig {
-  id          String   @id @default(cuid())
-  serviceId   String
-  levelId     String
+  id Int @id @default(autoincrement())
+  serviceId Int
+  levelId Int
   durationMin Int?
   price       Decimal? @db.Decimal(12, 2)
   createdAt   DateTime @default(now())
@@ -984,9 +984,9 @@ model ServiceLevelConfig {
 }
 
 model SpecialistService {
-  id                  String   @id @default(cuid())
-  specialistId        String
-  serviceId           String
+  id Int @id @default(autoincrement())
+  specialistId Int
+  serviceId Int
   priceOverride       Decimal? @db.Decimal(12, 2)
   durationOverrideMin Int?
   createdAt           DateTime @default(now())
@@ -998,9 +998,9 @@ model SpecialistService {
 }
 
 model ServiceLocation {
-  id         String   @id @default(cuid())
-  serviceId  String
-  locationId String
+  id Int @id @default(autoincrement())
+  serviceId Int
+  locationId Int
 
   service  Service  @relation(fields: [serviceId], references: [id])
   location Location @relation(fields: [locationId], references: [id])
@@ -1009,9 +1009,9 @@ model ServiceLocation {
 }
 
 model SpecialistLocation {
-  id           String   @id @default(cuid())
-  specialistId String
-  locationId   String
+  id Int @id @default(autoincrement())
+  specialistId Int
+  locationId Int
 
   specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
   location   Location          @relation(fields: [locationId], references: [id])
@@ -1020,9 +1020,9 @@ model SpecialistLocation {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  accountId String
-  userId    String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  userId Int?
   firstName String?
   lastName  String?
   phone     String?
@@ -1052,8 +1052,8 @@ model Client {
 }
 
 model ClientContact {
-  id        String   @id @default(cuid())
-  clientId  String
+  id Int @id @default(autoincrement())
+  clientId Int
   type      String
   value     String
   verifiedAt DateTime?
@@ -1062,8 +1062,8 @@ model ClientContact {
 }
 
 model ClientNote {
-  id        String   @id @default(cuid())
-  clientId  String
+  id Int @id @default(autoincrement())
+  clientId Int
   note      String
   createdAt DateTime @default(now())
 
@@ -1071,8 +1071,8 @@ model ClientNote {
 }
 
 model ClientTag {
-  id        String   @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      String
   createdAt DateTime @default(now())
 
@@ -1081,9 +1081,9 @@ model ClientTag {
 }
 
 model ClientTagAssignment {
-  id       String @id @default(cuid())
-  clientId String
-  tagId    String
+  id Int @id @default(autoincrement())
+  clientId Int
+  tagId Int
 
   client Client   @relation(fields: [clientId], references: [id])
   tag    ClientTag @relation(fields: [tagId], references: [id])
@@ -1092,8 +1092,8 @@ model ClientTagAssignment {
 }
 
 model ClientConsent {
-  id        String   @id @default(cuid())
-  clientId  String
+  id Int @id @default(autoincrement())
+  clientId Int
   type      String
   grantedAt DateTime?
   revokedAt DateTime?
@@ -1102,11 +1102,11 @@ model ClientConsent {
 }
 
 model Appointment {
-  id               String            @id @default(cuid())
-  accountId        String
-  locationId       String
-  specialistId     String
-  clientId         String
+  id Int @id @default(autoincrement())
+  accountId Int
+  locationId Int
+  specialistId Int
+  clientId Int
   startAt          DateTime
   endAt            DateTime
   status           AppointmentStatus @default(NEW)
@@ -1131,9 +1131,9 @@ model Appointment {
 }
 
 model AppointmentService {
-  id            String   @id @default(cuid())
-  appointmentId String
-  serviceId     String
+  id Int @id @default(autoincrement())
+  appointmentId Int
+  serviceId Int
   variantId     String?
   price         Decimal  @db.Decimal(12, 2)
   durationMin   Int
@@ -1143,13 +1143,13 @@ model AppointmentService {
 }
 
 model AppointmentStatusHistory {
-  id            String            @id @default(cuid())
-  appointmentId String
+  id Int @id @default(autoincrement())
+  appointmentId Int
   actorType     String
   actorId       String?
   fromStatus    AppointmentStatus?
   toStatus      AppointmentStatus
-  reasonId      String?
+  reasonId Int?
   comment       String?
   createdAt     DateTime          @default(now())
 
@@ -1160,8 +1160,8 @@ model AppointmentStatusHistory {
 }
 
 model CancellationReason {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   name      String
   isActive  Boolean @default(true)
   createdAt DateTime @default(now())
@@ -1170,10 +1170,10 @@ model CancellationReason {
 }
 
 model AppointmentHold {
-  id           String   @id @default(cuid())
-  accountId    String
-  specialistId String
-  clientId     String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  specialistId Int
+  clientId Int?
   startAt      DateTime
   endAt        DateTime
   expiresAt    DateTime
@@ -1186,8 +1186,8 @@ model AppointmentHold {
 }
 
 model ScheduleTemplate {
-  id        String   @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      String
   createdAt DateTime @default(now())
 
@@ -1197,10 +1197,10 @@ model ScheduleTemplate {
 }
 
 model WorkingHour {
-  id                 String   @id @default(cuid())
-  scheduleTemplateId String?
-  locationId         String?
-  specialistId       String?
+  id Int @id @default(autoincrement())
+  scheduleTemplateId Int?
+  locationId Int?
+  specialistId Int?
   dayOfWeek          Int
   startTime          String
   endTime            String
@@ -1211,10 +1211,10 @@ model WorkingHour {
 }
 
 model Break {
-  id                 String   @id @default(cuid())
-  scheduleTemplateId String?
-  locationId         String?
-  specialistId       String?
+  id Int @id @default(autoincrement())
+  scheduleTemplateId Int?
+  locationId Int?
+  specialistId Int?
   startAt            DateTime
   endAt              DateTime
   createdAt          DateTime @default(now())
@@ -1225,9 +1225,9 @@ model Break {
 }
 
 model Vacation {
-  id           String   @id @default(cuid())
-  specialistId String?
-  locationId   String?
+  id Int @id @default(autoincrement())
+  specialistId Int?
+  locationId Int?
   startAt      DateTime
   endAt        DateTime
   createdAt    DateTime @default(now())
@@ -1237,10 +1237,10 @@ model Vacation {
 }
 
 model BlockedSlot {
-  id           String   @id @default(cuid())
-  accountId    String
-  locationId   String?
-  specialistId String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  locationId Int?
+  specialistId Int?
   startAt      DateTime
   endAt        DateTime
   reason       String?
@@ -1253,10 +1253,10 @@ model BlockedSlot {
   @@index([accountId, startAt])
 }
 model PaymentIntent {
-  id            String              @id @default(cuid())
-  accountId     String
-  appointmentId String?
-  clientId      String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  appointmentId Int?
+  clientId Int?
   amount        Decimal             @db.Decimal(12, 2)
   currency      String              @default("RUB")
   status        PaymentIntentStatus @default(CREATED)
@@ -1276,9 +1276,9 @@ model PaymentIntent {
 }
 
 model Transaction {
-  id          String          @id @default(cuid())
-  accountId   String
-  intentId    String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  intentId Int?
   type        TransactionType
   amount      Decimal         @db.Decimal(12, 2)
   currency    String          @default("RUB")
@@ -1294,10 +1294,10 @@ model Transaction {
 }
 
 model Refund {
-  id            String       @id @default(cuid())
-  accountId     String
-  transactionId String?
-  intentId      String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  transactionId Int?
+  intentId Int?
   amount        Decimal      @db.Decimal(12, 2)
   status        RefundStatus @default(PENDING)
   reason        String?
@@ -1309,9 +1309,9 @@ model Refund {
 }
 
 model Receipt {
-  id            String   @id @default(cuid())
-  accountId     String
-  transactionId String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  transactionId Int?
   provider      String
   receiptUrl    String?
   payload       Json?
@@ -1322,9 +1322,9 @@ model Receipt {
 }
 
 model PaymentMethod {
-  id        String   @id @default(cuid())
-  accountId String
-  clientId  String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  clientId Int?
   provider  String
   token     String
   last4     String?
@@ -1336,7 +1336,7 @@ model PaymentMethod {
 }
 
 model PaymentWebhookEvent {
-  id              String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   provider        String
   providerEventId String   @unique
   payload         Json
@@ -1344,8 +1344,8 @@ model PaymentWebhookEvent {
 }
 
 model Promotion {
-  id        String        @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      String
   type      PromotionType
   value     Decimal       @db.Decimal(12, 2)
@@ -1359,9 +1359,9 @@ model Promotion {
 }
 
 model PromoCode {
-  id                String   @id @default(cuid())
-  accountId         String
-  promotionId       String
+  id Int @id @default(autoincrement())
+  accountId Int
+  promotionId Int
   code              String
   startsAt          DateTime?
   endsAt            DateTime?
@@ -1377,9 +1377,9 @@ model PromoCode {
 }
 
 model PromoRedemption {
-  id          String                @id @default(cuid())
-  promoCodeId String
-  clientId    String?
+  id Int @id @default(autoincrement())
+  promoCodeId Int
+  clientId Int?
   status      PromoRedemptionStatus @default(APPLIED)
   redeemedAt  DateTime?
   createdAt   DateTime              @default(now())
@@ -1389,9 +1389,9 @@ model PromoRedemption {
 }
 
 model LoyaltyWallet {
-  id        String   @id @default(cuid())
-  accountId String
-  clientId  String   @unique
+  id Int @id @default(autoincrement())
+  accountId Int
+  clientId Int   @unique
   balance   Decimal  @db.Decimal(12, 2) @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1404,8 +1404,8 @@ model LoyaltyWallet {
 }
 
 model LoyaltyRule {
-  id        String   @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      String
   type      String
   value     Decimal  @db.Decimal(12, 2)
@@ -1416,8 +1416,8 @@ model LoyaltyRule {
 }
 
 model LoyaltyTransaction {
-  id        String                 @id @default(cuid())
-  walletId  String
+  id Int @id @default(autoincrement())
+  walletId Int
   type      LoyaltyTransactionType
   amount    Decimal                @db.Decimal(12, 2)
   reason    String?
@@ -1432,10 +1432,10 @@ model LoyaltyTransaction {
 }
 
 model Referral {
-  id               String   @id @default(cuid())
-  accountId        String
-  referrerClientId String
-  referredClientId String?
+  id Int @id @default(autoincrement())
+  accountId Int
+  referrerClientId Int
+  referredClientId Int?
   code             String
   createdAt        DateTime @default(now())
 
@@ -1445,8 +1445,8 @@ model Referral {
 }
 
 model GiftCard {
-  id        String         @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   code      String
   amount    Decimal        @db.Decimal(12, 2)
   balance   Decimal        @db.Decimal(12, 2)
@@ -1460,8 +1460,8 @@ model GiftCard {
 }
 
 model Membership {
-  id        String         @id @default(cuid())
-  accountId String
+  id Int @id @default(autoincrement())
+  accountId Int
   name      String
   type      MembershipType
   totalUses Int?
@@ -1474,9 +1474,9 @@ model Membership {
 }
 
 model MembershipRedemption {
-  id           String   @id @default(cuid())
-  membershipId String
-  clientId     String
+  id Int @id @default(autoincrement())
+  membershipId Int
+  clientId Int
   usedAt       DateTime?
   createdAt    DateTime @default(now())
 
@@ -1484,8 +1484,8 @@ model MembershipRedemption {
   client     Client     @relation(fields: [clientId], references: [id])
 }
 model NotificationTemplate {
-  id        String              @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   name      String
   channel   NotificationChannel
   locale    String
@@ -1505,16 +1505,16 @@ model NotificationTemplate {
 }
 
 model NotificationPreference {
-  id         String            @id @default(cuid())
+  id Int @id @default(autoincrement())
   scope      NotificationScope
-  accountId  String?
-  userId     String?
+  accountId Int?
+  userId Int?
   eventName  String
   audience   AudienceType
   channel    NotificationChannel
   enabled    Boolean           @default(true)
   reminderOffsetMinutes Int?
-  templateId String?
+  templateId Int?
   createdAt  DateTime @default(now())
 
   account  Account?              @relation(fields: [accountId], references: [id])
@@ -1525,9 +1525,9 @@ model NotificationPreference {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  accountId String?
+  id Int @id @default(autoincrement())
+  userId Int
+  accountId Int?
   title     String?
   body      String
   data      Json?
@@ -1539,10 +1539,10 @@ model Notification {
 }
 
 model OutboxItem {
-  id          String      @id @default(cuid())
+  id Int @id @default(autoincrement())
   scope       OutboxScope
-  accountId   String?
-  userId      String?
+  accountId Int?
+  userId Int?
   eventName   String
   payload     Json
   status      OutboxStatus @default(PENDING)
@@ -1559,8 +1559,8 @@ model OutboxItem {
 }
 
 model DeliveryLog {
-  id                String            @id @default(cuid())
-  outboxItemId      String
+  id Int @id @default(autoincrement())
+  outboxItemId Int
   channel           NotificationChannel
   target            String
   status            DeliveryStatus
@@ -1577,8 +1577,8 @@ model DeliveryLog {
 }
 
 model WebhookEndpoint {
-  id          String        @id @default(cuid())
-  accountId   String
+  id Int @id @default(autoincrement())
+  accountId Int
   url         String
   secret      String
   events      String[]
@@ -1595,15 +1595,15 @@ model WebhookEndpoint {
 }
 
 model WebhookEvent {
-  id        String   @id @default(cuid())
+  id Int @id @default(autoincrement())
   eventName String
   payload   Json
   createdAt DateTime @default(now())
 }
 
 model WebhookDelivery {
-  id          String         @id @default(cuid())
-  endpointId  String
+  id Int @id @default(autoincrement())
+  endpointId Int
   eventName   String
   payload     Json
   signature   String
@@ -1619,10 +1619,10 @@ model WebhookDelivery {
 }
 
 model AiThread {
-  id        String   @id @default(cuid())
-  accountId String?
-  clientId  String?
-  userId    String?
+  id Int @id @default(autoincrement())
+  accountId Int?
+  clientId Int?
+  userId Int?
   title     String?
   createdAt DateTime @default(now())
 
@@ -1633,8 +1633,8 @@ model AiThread {
 }
 
 model AiMessage {
-  id        String   @id @default(cuid())
-  threadId  String
+  id Int @id @default(autoincrement())
+  threadId Int
   role      String
   content   String
   createdAt DateTime @default(now())
@@ -1643,8 +1643,8 @@ model AiMessage {
 }
 
 model AiAction {
-  id         String   @id @default(cuid())
-  threadId   String?
+  id Int @id @default(autoincrement())
+  threadId Int?
   actionType String
   payload    Json
   status     String
@@ -1655,8 +1655,8 @@ model AiAction {
 }
 
 model AiLog {
-  id        String   @id @default(cuid())
-  actionId  String?
+  id Int @id @default(autoincrement())
+  actionId Int?
   level     String
   message   String
   data      Json?
@@ -1666,17 +1666,20 @@ model AiLog {
 }
 
 model AiLimit {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   key       String
   valueInt  Int
   createdAt DateTime @default(now())
 }
 
 model AiSetting {
-  id        String   @id @default(cuid())
-  accountId String?
+  id Int @id @default(autoincrement())
+  accountId Int?
   key       String
   value     Json
   updatedAt DateTime @updatedAt
 }
+
+
+

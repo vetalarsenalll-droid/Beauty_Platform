@@ -78,7 +78,7 @@ CREATE TYPE "OutboxScope" AS ENUM ('PLATFORM', 'ACCOUNT', 'USER');
 
 -- CreateTable
 CREATE TABLE "PlatformPlan" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "description" TEXT,
@@ -93,8 +93,8 @@ CREATE TABLE "PlatformPlan" (
 
 -- CreateTable
 CREATE TABLE "PlatformPlanFeature" (
-    "id" TEXT NOT NULL,
-    "planId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "planId" INTEGER NOT NULL,
     "key" TEXT NOT NULL,
     "value" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -104,9 +104,9 @@ CREATE TABLE "PlatformPlanFeature" (
 
 -- CreateTable
 CREATE TABLE "PlatformSubscription" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "planId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "planId" INTEGER NOT NULL,
     "status" "SubscriptionStatus" NOT NULL DEFAULT 'ACTIVE',
     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "endsAt" TIMESTAMP(3),
@@ -119,9 +119,9 @@ CREATE TABLE "PlatformSubscription" (
 
 -- CreateTable
 CREATE TABLE "PlatformInvoice" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "subscriptionId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "subscriptionId" INTEGER,
     "status" "InvoiceStatus" NOT NULL DEFAULT 'DRAFT',
     "amount" DECIMAL(12,2) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'RUB',
@@ -136,8 +136,8 @@ CREATE TABLE "PlatformInvoice" (
 
 -- CreateTable
 CREATE TABLE "PlatformPayment" (
-    "id" TEXT NOT NULL,
-    "invoiceId" TEXT,
+    "id" SERIAL NOT NULL,
+    "invoiceId" INTEGER,
     "amount" DECIMAL(12,2) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'RUB',
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
@@ -150,8 +150,8 @@ CREATE TABLE "PlatformPayment" (
 
 -- CreateTable
 CREATE TABLE "PlatformLimit" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "key" TEXT NOT NULL,
     "valueInt" INTEGER,
     "valueJson" JSONB,
@@ -162,8 +162,8 @@ CREATE TABLE "PlatformLimit" (
 
 -- CreateTable
 CREATE TABLE "PlatformAdmin" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
     "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -172,7 +172,7 @@ CREATE TABLE "PlatformAdmin" (
 
 -- CreateTable
 CREATE TABLE "PlatformPermission" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "key" TEXT NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -182,9 +182,9 @@ CREATE TABLE "PlatformPermission" (
 
 -- CreateTable
 CREATE TABLE "PlatformAdminPermissionAssignment" (
-    "id" TEXT NOT NULL,
-    "adminId" TEXT NOT NULL,
-    "permissionId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "adminId" INTEGER NOT NULL,
+    "permissionId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "PlatformAdminPermissionAssignment_pkey" PRIMARY KEY ("id")
@@ -192,8 +192,8 @@ CREATE TABLE "PlatformAdminPermissionAssignment" (
 
 -- CreateTable
 CREATE TABLE "PlatformAuditLog" (
-    "id" TEXT NOT NULL,
-    "adminId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "adminId" INTEGER NOT NULL,
     "action" TEXT NOT NULL,
     "targetType" TEXT NOT NULL,
     "targetId" TEXT,
@@ -206,7 +206,7 @@ CREATE TABLE "PlatformAuditLog" (
 
 -- CreateTable
 CREATE TABLE "PlatformSetting" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "key" TEXT NOT NULL,
     "valueJson" JSONB NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -216,7 +216,7 @@ CREATE TABLE "PlatformSetting" (
 
 -- CreateTable
 CREATE TABLE "TemplateLibrary" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "type" "TemplateType" NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -230,8 +230,8 @@ CREATE TABLE "TemplateLibrary" (
 
 -- CreateTable
 CREATE TABLE "TemplateVersion" (
-    "id" TEXT NOT NULL,
-    "templateId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "templateId" INTEGER NOT NULL,
     "version" INTEGER NOT NULL,
     "contentJson" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -241,7 +241,7 @@ CREATE TABLE "TemplateVersion" (
 
 -- CreateTable
 CREATE TABLE "HealthCheck" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "status" TEXT NOT NULL,
     "checkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -252,7 +252,7 @@ CREATE TABLE "HealthCheck" (
 
 -- CreateTable
 CREATE TABLE "MonitoringMetric" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "value" DOUBLE PRECISION NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -262,7 +262,7 @@ CREATE TABLE "MonitoringMetric" (
 
 -- CreateTable
 CREATE TABLE "SystemAlert" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "level" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "details" JSONB,
@@ -274,12 +274,12 @@ CREATE TABLE "SystemAlert" (
 
 -- CreateTable
 CREATE TABLE "Account" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "status" "AccountStatus" NOT NULL DEFAULT 'ACTIVE',
     "timeZone" TEXT NOT NULL,
-    "planId" TEXT,
+    "planId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -288,8 +288,8 @@ CREATE TABLE "Account" (
 
 -- CreateTable
 CREATE TABLE "AccountSetting" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "slotStepMinutes" INTEGER NOT NULL DEFAULT 15,
     "requireDeposit" BOOLEAN NOT NULL DEFAULT false,
     "requirePaymentToConfirm" BOOLEAN NOT NULL DEFAULT false,
@@ -306,8 +306,8 @@ CREATE TABLE "AccountSetting" (
 
 -- CreateTable
 CREATE TABLE "AccountBranding" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "logoUrl" TEXT,
     "coverUrl" TEXT,
     "accentColor" TEXT,
@@ -321,8 +321,8 @@ CREATE TABLE "AccountBranding" (
 
 -- CreateTable
 CREATE TABLE "AccountDomain" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "domain" TEXT NOT NULL,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
     "verifiedAt" TIMESTAMP(3),
@@ -333,11 +333,11 @@ CREATE TABLE "AccountDomain" (
 
 -- CreateTable
 CREATE TABLE "PublicPage" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "status" "PublicPageStatus" NOT NULL DEFAULT 'DRAFT',
     "draftJson" JSONB,
-    "publishedVersionId" TEXT,
+    "publishedVersionId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -346,8 +346,8 @@ CREATE TABLE "PublicPage" (
 
 -- CreateTable
 CREATE TABLE "PublicPageVersion" (
-    "id" TEXT NOT NULL,
-    "publicPageId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "publicPageId" INTEGER NOT NULL,
     "version" INTEGER NOT NULL,
     "contentJson" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -357,8 +357,8 @@ CREATE TABLE "PublicPageVersion" (
 
 -- CreateTable
 CREATE TABLE "PublicPageSection" (
-    "id" TEXT NOT NULL,
-    "publicPageId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "publicPageId" INTEGER NOT NULL,
     "key" TEXT NOT NULL,
     "title" TEXT,
     "sortOrder" INTEGER NOT NULL,
@@ -372,8 +372,8 @@ CREATE TABLE "PublicPageSection" (
 
 -- CreateTable
 CREATE TABLE "PublicPageBlock" (
-    "id" TEXT NOT NULL,
-    "sectionId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "sectionId" INTEGER NOT NULL,
     "type" TEXT NOT NULL,
     "contentJson" JSONB NOT NULL,
     "sortOrder" INTEGER NOT NULL,
@@ -385,9 +385,9 @@ CREATE TABLE "PublicPageBlock" (
 
 -- CreateTable
 CREATE TABLE "PublicPageMedia" (
-    "id" TEXT NOT NULL,
-    "publicPageId" TEXT NOT NULL,
-    "assetId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "publicPageId" INTEGER NOT NULL,
+    "assetId" INTEGER NOT NULL,
     "sortOrder" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -396,8 +396,8 @@ CREATE TABLE "PublicPageMedia" (
 
 -- CreateTable
 CREATE TABLE "SeoSetting" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "title" TEXT,
     "description" TEXT,
     "ogImageUrl" TEXT,
@@ -411,8 +411,8 @@ CREATE TABLE "SeoSetting" (
 
 -- CreateTable
 CREATE TABLE "Category" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -422,8 +422,8 @@ CREATE TABLE "Category" (
 
 -- CreateTable
 CREATE TABLE "Tag" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -433,8 +433,8 @@ CREATE TABLE "Tag" (
 
 -- CreateTable
 CREATE TABLE "MediaAsset" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "url" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "width" INTEGER,
@@ -447,8 +447,8 @@ CREATE TABLE "MediaAsset" (
 
 -- CreateTable
 CREATE TABLE "MediaCollection" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -457,9 +457,9 @@ CREATE TABLE "MediaCollection" (
 
 -- CreateTable
 CREATE TABLE "MediaLink" (
-    "id" TEXT NOT NULL,
-    "assetId" TEXT NOT NULL,
-    "collectionId" TEXT,
+    "id" SERIAL NOT NULL,
+    "assetId" INTEGER NOT NULL,
+    "collectionId" INTEGER,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -469,9 +469,9 @@ CREATE TABLE "MediaLink" (
 
 -- CreateTable
 CREATE TABLE "Review" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "rating" INTEGER NOT NULL,
     "comment" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -481,9 +481,9 @@ CREATE TABLE "Review" (
 
 -- CreateTable
 CREATE TABLE "ReviewVote" (
-    "id" TEXT NOT NULL,
-    "reviewId" TEXT NOT NULL,
-    "userId" TEXT,
+    "id" SERIAL NOT NULL,
+    "reviewId" INTEGER NOT NULL,
+    "userId" INTEGER,
     "value" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -492,8 +492,8 @@ CREATE TABLE "ReviewVote" (
 
 -- CreateTable
 CREATE TABLE "RatingAggregate" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
     "ratingAvg" DOUBLE PRECISION NOT NULL,
@@ -505,8 +505,8 @@ CREATE TABLE "RatingAggregate" (
 
 -- CreateTable
 CREATE TABLE "Favorite" (
-    "id" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -516,8 +516,8 @@ CREATE TABLE "Favorite" (
 
 -- CreateTable
 CREATE TABLE "SearchIndex" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "entityType" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
@@ -528,8 +528,8 @@ CREATE TABLE "SearchIndex" (
 
 -- CreateTable
 CREATE TABLE "GeoPoint" (
-    "id" TEXT NOT NULL,
-    "locationId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "locationId" INTEGER NOT NULL,
     "lat" DOUBLE PRECISION NOT NULL,
     "lng" DOUBLE PRECISION NOT NULL,
 
@@ -538,8 +538,8 @@ CREATE TABLE "GeoPoint" (
 
 -- CreateTable
 CREATE TABLE "Location" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "address" TEXT NOT NULL,
     "phone" TEXT,
@@ -552,8 +552,8 @@ CREATE TABLE "Location" (
 
 -- CreateTable
 CREATE TABLE "LocationHour" (
-    "id" TEXT NOT NULL,
-    "locationId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "locationId" INTEGER NOT NULL,
     "dayOfWeek" INTEGER NOT NULL,
     "startTime" TEXT NOT NULL,
     "endTime" TEXT NOT NULL,
@@ -563,8 +563,8 @@ CREATE TABLE "LocationHour" (
 
 -- CreateTable
 CREATE TABLE "LocationException" (
-    "id" TEXT NOT NULL,
-    "locationId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "locationId" INTEGER NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "isClosed" BOOLEAN NOT NULL DEFAULT false,
     "startTime" TEXT,
@@ -575,7 +575,7 @@ CREATE TABLE "LocationException" (
 
 -- CreateTable
 CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "email" TEXT,
     "phone" TEXT,
     "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
@@ -588,8 +588,8 @@ CREATE TABLE "User" (
 
 -- CreateTable
 CREATE TABLE "UserProfile" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
     "firstName" TEXT,
     "lastName" TEXT,
     "avatarUrl" TEXT,
@@ -601,12 +601,16 @@ CREATE TABLE "UserProfile" (
 
 -- CreateTable
 CREATE TABLE "UserIdentity" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
     "provider" "IdentityProvider" NOT NULL,
     "providerUserId" TEXT,
     "email" TEXT,
     "phone" TEXT,
+    "passwordHash" TEXT,
+    "passwordSalt" TEXT,
+    "passwordAlgo" TEXT,
+    "passwordUpdatedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "UserIdentity_pkey" PRIMARY KEY ("id")
@@ -614,8 +618,8 @@ CREATE TABLE "UserIdentity" (
 
 -- CreateTable
 CREATE TABLE "UserSession" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
     "refreshTokenHash" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -625,8 +629,8 @@ CREATE TABLE "UserSession" (
 
 -- CreateTable
 CREATE TABLE "UserNotificationChannelPreference" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
     "channel" "NotificationChannel" NOT NULL,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -637,8 +641,8 @@ CREATE TABLE "UserNotificationChannelPreference" (
 
 -- CreateTable
 CREATE TABLE "DeviceToken" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
     "platform" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -649,8 +653,8 @@ CREATE TABLE "DeviceToken" (
 
 -- CreateTable
 CREATE TABLE "Role" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" "RoleName" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -659,7 +663,7 @@ CREATE TABLE "Role" (
 
 -- CreateTable
 CREATE TABLE "Permission" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "key" TEXT NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -669,19 +673,19 @@ CREATE TABLE "Permission" (
 
 -- CreateTable
 CREATE TABLE "RolePermission" (
-    "id" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
-    "permissionId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "roleId" INTEGER NOT NULL,
+    "permissionId" INTEGER NOT NULL,
 
     CONSTRAINT "RolePermission_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "RoleAssignment" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "roleId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "RoleAssignment_pkey" PRIMARY KEY ("id")
@@ -689,8 +693,8 @@ CREATE TABLE "RoleAssignment" (
 
 -- CreateTable
 CREATE TABLE "SpecialistLevel" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "name" TEXT NOT NULL,
     "rank" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -700,10 +704,10 @@ CREATE TABLE "SpecialistLevel" (
 
 -- CreateTable
 CREATE TABLE "SpecialistProfile" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "levelId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "levelId" INTEGER,
     "bio" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -713,9 +717,9 @@ CREATE TABLE "SpecialistProfile" (
 
 -- CreateTable
 CREATE TABLE "SpecialistLevelHistory" (
-    "id" TEXT NOT NULL,
-    "specialistId" TEXT NOT NULL,
-    "levelId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "specialistId" INTEGER NOT NULL,
+    "levelId" INTEGER NOT NULL,
     "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "SpecialistLevelHistory_pkey" PRIMARY KEY ("id")
@@ -723,8 +727,8 @@ CREATE TABLE "SpecialistLevelHistory" (
 
 -- CreateTable
 CREATE TABLE "ServiceCategory" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -734,9 +738,9 @@ CREATE TABLE "ServiceCategory" (
 
 -- CreateTable
 CREATE TABLE "Service" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "categoryId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "categoryId" INTEGER,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "baseDurationMin" INTEGER NOT NULL,
@@ -750,8 +754,8 @@ CREATE TABLE "Service" (
 
 -- CreateTable
 CREATE TABLE "ServiceVariant" (
-    "id" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "serviceId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "durationMin" INTEGER,
     "price" DECIMAL(12,2),
@@ -762,9 +766,9 @@ CREATE TABLE "ServiceVariant" (
 
 -- CreateTable
 CREATE TABLE "ServiceLevelConfig" (
-    "id" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
-    "levelId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "serviceId" INTEGER NOT NULL,
+    "levelId" INTEGER NOT NULL,
     "durationMin" INTEGER,
     "price" DECIMAL(12,2),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -774,9 +778,9 @@ CREATE TABLE "ServiceLevelConfig" (
 
 -- CreateTable
 CREATE TABLE "SpecialistService" (
-    "id" TEXT NOT NULL,
-    "specialistId" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "specialistId" INTEGER NOT NULL,
+    "serviceId" INTEGER NOT NULL,
     "priceOverride" DECIMAL(12,2),
     "durationOverrideMin" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -786,27 +790,27 @@ CREATE TABLE "SpecialistService" (
 
 -- CreateTable
 CREATE TABLE "ServiceLocation" (
-    "id" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
-    "locationId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "serviceId" INTEGER NOT NULL,
+    "locationId" INTEGER NOT NULL,
 
     CONSTRAINT "ServiceLocation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "SpecialistLocation" (
-    "id" TEXT NOT NULL,
-    "specialistId" TEXT NOT NULL,
-    "locationId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "specialistId" INTEGER NOT NULL,
+    "locationId" INTEGER NOT NULL,
 
     CONSTRAINT "SpecialistLocation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Client" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "userId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "userId" INTEGER,
     "firstName" TEXT,
     "lastName" TEXT,
     "phone" TEXT,
@@ -819,8 +823,8 @@ CREATE TABLE "Client" (
 
 -- CreateTable
 CREATE TABLE "ClientContact" (
-    "id" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "type" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "verifiedAt" TIMESTAMP(3),
@@ -830,8 +834,8 @@ CREATE TABLE "ClientContact" (
 
 -- CreateTable
 CREATE TABLE "ClientNote" (
-    "id" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "note" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -840,8 +844,8 @@ CREATE TABLE "ClientNote" (
 
 -- CreateTable
 CREATE TABLE "ClientTag" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -850,17 +854,17 @@ CREATE TABLE "ClientTag" (
 
 -- CreateTable
 CREATE TABLE "ClientTagAssignment" (
-    "id" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
-    "tagId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clientId" INTEGER NOT NULL,
+    "tagId" INTEGER NOT NULL,
 
     CONSTRAINT "ClientTagAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ClientConsent" (
-    "id" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "type" TEXT NOT NULL,
     "grantedAt" TIMESTAMP(3),
     "revokedAt" TIMESTAMP(3),
@@ -870,11 +874,11 @@ CREATE TABLE "ClientConsent" (
 
 -- CreateTable
 CREATE TABLE "Appointment" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "locationId" TEXT NOT NULL,
-    "specialistId" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "locationId" INTEGER NOT NULL,
+    "specialistId" INTEGER NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "startAt" TIMESTAMP(3) NOT NULL,
     "endAt" TIMESTAMP(3) NOT NULL,
     "status" "AppointmentStatus" NOT NULL DEFAULT 'NEW',
@@ -889,9 +893,9 @@ CREATE TABLE "Appointment" (
 
 -- CreateTable
 CREATE TABLE "AppointmentService" (
-    "id" TEXT NOT NULL,
-    "appointmentId" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "appointmentId" INTEGER NOT NULL,
+    "serviceId" INTEGER NOT NULL,
     "variantId" TEXT,
     "price" DECIMAL(12,2) NOT NULL,
     "durationMin" INTEGER NOT NULL,
@@ -901,13 +905,13 @@ CREATE TABLE "AppointmentService" (
 
 -- CreateTable
 CREATE TABLE "AppointmentStatusHistory" (
-    "id" TEXT NOT NULL,
-    "appointmentId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "appointmentId" INTEGER NOT NULL,
     "actorType" TEXT NOT NULL,
     "actorId" TEXT,
     "fromStatus" "AppointmentStatus",
     "toStatus" "AppointmentStatus" NOT NULL,
-    "reasonId" TEXT,
+    "reasonId" INTEGER,
     "comment" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -916,8 +920,8 @@ CREATE TABLE "AppointmentStatusHistory" (
 
 -- CreateTable
 CREATE TABLE "CancellationReason" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "name" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -927,10 +931,10 @@ CREATE TABLE "CancellationReason" (
 
 -- CreateTable
 CREATE TABLE "AppointmentHold" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "specialistId" TEXT NOT NULL,
-    "clientId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "specialistId" INTEGER NOT NULL,
+    "clientId" INTEGER,
     "startAt" TIMESTAMP(3) NOT NULL,
     "endAt" TIMESTAMP(3) NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
@@ -941,8 +945,8 @@ CREATE TABLE "AppointmentHold" (
 
 -- CreateTable
 CREATE TABLE "ScheduleTemplate" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -951,10 +955,10 @@ CREATE TABLE "ScheduleTemplate" (
 
 -- CreateTable
 CREATE TABLE "WorkingHour" (
-    "id" TEXT NOT NULL,
-    "scheduleTemplateId" TEXT,
-    "locationId" TEXT,
-    "specialistId" TEXT,
+    "id" SERIAL NOT NULL,
+    "scheduleTemplateId" INTEGER,
+    "locationId" INTEGER,
+    "specialistId" INTEGER,
     "dayOfWeek" INTEGER NOT NULL,
     "startTime" TEXT NOT NULL,
     "endTime" TEXT NOT NULL,
@@ -964,10 +968,10 @@ CREATE TABLE "WorkingHour" (
 
 -- CreateTable
 CREATE TABLE "Break" (
-    "id" TEXT NOT NULL,
-    "scheduleTemplateId" TEXT,
-    "locationId" TEXT,
-    "specialistId" TEXT,
+    "id" SERIAL NOT NULL,
+    "scheduleTemplateId" INTEGER,
+    "locationId" INTEGER,
+    "specialistId" INTEGER,
     "startAt" TIMESTAMP(3) NOT NULL,
     "endAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -977,9 +981,9 @@ CREATE TABLE "Break" (
 
 -- CreateTable
 CREATE TABLE "Vacation" (
-    "id" TEXT NOT NULL,
-    "specialistId" TEXT,
-    "locationId" TEXT,
+    "id" SERIAL NOT NULL,
+    "specialistId" INTEGER,
+    "locationId" INTEGER,
     "startAt" TIMESTAMP(3) NOT NULL,
     "endAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -989,10 +993,10 @@ CREATE TABLE "Vacation" (
 
 -- CreateTable
 CREATE TABLE "BlockedSlot" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "locationId" TEXT,
-    "specialistId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "locationId" INTEGER,
+    "specialistId" INTEGER,
     "startAt" TIMESTAMP(3) NOT NULL,
     "endAt" TIMESTAMP(3) NOT NULL,
     "reason" TEXT,
@@ -1003,10 +1007,10 @@ CREATE TABLE "BlockedSlot" (
 
 -- CreateTable
 CREATE TABLE "PaymentIntent" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "appointmentId" TEXT,
-    "clientId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "appointmentId" INTEGER,
+    "clientId" INTEGER,
     "amount" DECIMAL(12,2) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'RUB',
     "status" "PaymentIntentStatus" NOT NULL DEFAULT 'CREATED',
@@ -1021,9 +1025,9 @@ CREATE TABLE "PaymentIntent" (
 
 -- CreateTable
 CREATE TABLE "Transaction" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "intentId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "intentId" INTEGER,
     "type" "TransactionType" NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'RUB',
@@ -1035,10 +1039,10 @@ CREATE TABLE "Transaction" (
 
 -- CreateTable
 CREATE TABLE "Refund" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "transactionId" TEXT,
-    "intentId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "transactionId" INTEGER,
+    "intentId" INTEGER,
     "amount" DECIMAL(12,2) NOT NULL,
     "status" "RefundStatus" NOT NULL DEFAULT 'PENDING',
     "reason" TEXT,
@@ -1049,9 +1053,9 @@ CREATE TABLE "Refund" (
 
 -- CreateTable
 CREATE TABLE "Receipt" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "transactionId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "transactionId" INTEGER,
     "provider" TEXT NOT NULL,
     "receiptUrl" TEXT,
     "payload" JSONB,
@@ -1062,9 +1066,9 @@ CREATE TABLE "Receipt" (
 
 -- CreateTable
 CREATE TABLE "PaymentMethod" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "clientId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "clientId" INTEGER,
     "provider" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "last4" TEXT,
@@ -1076,7 +1080,7 @@ CREATE TABLE "PaymentMethod" (
 
 -- CreateTable
 CREATE TABLE "PaymentWebhookEvent" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "provider" TEXT NOT NULL,
     "providerEventId" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
@@ -1087,8 +1091,8 @@ CREATE TABLE "PaymentWebhookEvent" (
 
 -- CreateTable
 CREATE TABLE "Promotion" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "type" "PromotionType" NOT NULL,
     "value" DECIMAL(12,2) NOT NULL,
@@ -1102,9 +1106,9 @@ CREATE TABLE "Promotion" (
 
 -- CreateTable
 CREATE TABLE "PromoCode" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "promotionId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "promotionId" INTEGER NOT NULL,
     "code" TEXT NOT NULL,
     "startsAt" TIMESTAMP(3),
     "endsAt" TIMESTAMP(3),
@@ -1117,9 +1121,9 @@ CREATE TABLE "PromoCode" (
 
 -- CreateTable
 CREATE TABLE "PromoRedemption" (
-    "id" TEXT NOT NULL,
-    "promoCodeId" TEXT NOT NULL,
-    "clientId" TEXT,
+    "id" SERIAL NOT NULL,
+    "promoCodeId" INTEGER NOT NULL,
+    "clientId" INTEGER,
     "status" "PromoRedemptionStatus" NOT NULL DEFAULT 'APPLIED',
     "redeemedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1129,9 +1133,9 @@ CREATE TABLE "PromoRedemption" (
 
 -- CreateTable
 CREATE TABLE "LoyaltyWallet" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "balance" DECIMAL(12,2) NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -1141,8 +1145,8 @@ CREATE TABLE "LoyaltyWallet" (
 
 -- CreateTable
 CREATE TABLE "LoyaltyRule" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "value" DECIMAL(12,2) NOT NULL,
@@ -1154,8 +1158,8 @@ CREATE TABLE "LoyaltyRule" (
 
 -- CreateTable
 CREATE TABLE "LoyaltyTransaction" (
-    "id" TEXT NOT NULL,
-    "walletId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "walletId" INTEGER NOT NULL,
     "type" "LoyaltyTransactionType" NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "reason" TEXT,
@@ -1169,10 +1173,10 @@ CREATE TABLE "LoyaltyTransaction" (
 
 -- CreateTable
 CREATE TABLE "Referral" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
-    "referrerClientId" TEXT NOT NULL,
-    "referredClientId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
+    "referrerClientId" INTEGER NOT NULL,
+    "referredClientId" INTEGER,
     "code" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -1181,8 +1185,8 @@ CREATE TABLE "Referral" (
 
 -- CreateTable
 CREATE TABLE "GiftCard" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "code" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "balance" DECIMAL(12,2) NOT NULL,
@@ -1195,8 +1199,8 @@ CREATE TABLE "GiftCard" (
 
 -- CreateTable
 CREATE TABLE "Membership" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "type" "MembershipType" NOT NULL,
     "totalUses" INTEGER,
@@ -1209,9 +1213,9 @@ CREATE TABLE "Membership" (
 
 -- CreateTable
 CREATE TABLE "MembershipRedemption" (
-    "id" TEXT NOT NULL,
-    "membershipId" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "membershipId" INTEGER NOT NULL,
+    "clientId" INTEGER NOT NULL,
     "usedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -1220,8 +1224,8 @@ CREATE TABLE "MembershipRedemption" (
 
 -- CreateTable
 CREATE TABLE "NotificationTemplate" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "name" TEXT NOT NULL,
     "channel" "NotificationChannel" NOT NULL,
     "locale" TEXT NOT NULL,
@@ -1239,16 +1243,16 @@ CREATE TABLE "NotificationTemplate" (
 
 -- CreateTable
 CREATE TABLE "NotificationPreference" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "scope" "NotificationScope" NOT NULL,
-    "accountId" TEXT,
-    "userId" TEXT,
+    "accountId" INTEGER,
+    "userId" INTEGER,
     "eventName" TEXT NOT NULL,
     "audience" "AudienceType" NOT NULL,
     "channel" "NotificationChannel" NOT NULL,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "reminderOffsetMinutes" INTEGER,
-    "templateId" TEXT,
+    "templateId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "NotificationPreference_pkey" PRIMARY KEY ("id")
@@ -1256,9 +1260,9 @@ CREATE TABLE "NotificationPreference" (
 
 -- CreateTable
 CREATE TABLE "Notification" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "accountId" INTEGER,
     "title" TEXT,
     "body" TEXT NOT NULL,
     "data" JSONB,
@@ -1270,10 +1274,10 @@ CREATE TABLE "Notification" (
 
 -- CreateTable
 CREATE TABLE "OutboxItem" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "scope" "OutboxScope" NOT NULL,
-    "accountId" TEXT,
-    "userId" TEXT,
+    "accountId" INTEGER,
+    "userId" INTEGER,
     "eventName" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
     "status" "OutboxStatus" NOT NULL DEFAULT 'PENDING',
@@ -1287,8 +1291,8 @@ CREATE TABLE "OutboxItem" (
 
 -- CreateTable
 CREATE TABLE "DeliveryLog" (
-    "id" TEXT NOT NULL,
-    "outboxItemId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "outboxItemId" INTEGER NOT NULL,
     "channel" "NotificationChannel" NOT NULL,
     "target" TEXT NOT NULL,
     "status" "DeliveryStatus" NOT NULL,
@@ -1304,8 +1308,8 @@ CREATE TABLE "DeliveryLog" (
 
 -- CreateTable
 CREATE TABLE "WebhookEndpoint" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER NOT NULL,
     "url" TEXT NOT NULL,
     "secret" TEXT NOT NULL,
     "events" TEXT[],
@@ -1320,7 +1324,7 @@ CREATE TABLE "WebhookEndpoint" (
 
 -- CreateTable
 CREATE TABLE "WebhookEvent" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "eventName" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1330,8 +1334,8 @@ CREATE TABLE "WebhookEvent" (
 
 -- CreateTable
 CREATE TABLE "WebhookDelivery" (
-    "id" TEXT NOT NULL,
-    "endpointId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "endpointId" INTEGER NOT NULL,
     "eventName" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
     "signature" TEXT NOT NULL,
@@ -1346,10 +1350,10 @@ CREATE TABLE "WebhookDelivery" (
 
 -- CreateTable
 CREATE TABLE "AiThread" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
-    "clientId" TEXT,
-    "userId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
+    "clientId" INTEGER,
+    "userId" INTEGER,
     "title" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -1358,8 +1362,8 @@ CREATE TABLE "AiThread" (
 
 -- CreateTable
 CREATE TABLE "AiMessage" (
-    "id" TEXT NOT NULL,
-    "threadId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "threadId" INTEGER NOT NULL,
     "role" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1369,8 +1373,8 @@ CREATE TABLE "AiMessage" (
 
 -- CreateTable
 CREATE TABLE "AiAction" (
-    "id" TEXT NOT NULL,
-    "threadId" TEXT,
+    "id" SERIAL NOT NULL,
+    "threadId" INTEGER,
     "actionType" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
     "status" TEXT NOT NULL,
@@ -1381,8 +1385,8 @@ CREATE TABLE "AiAction" (
 
 -- CreateTable
 CREATE TABLE "AiLog" (
-    "id" TEXT NOT NULL,
-    "actionId" TEXT,
+    "id" SERIAL NOT NULL,
+    "actionId" INTEGER,
     "level" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "data" JSONB,
@@ -1393,8 +1397,8 @@ CREATE TABLE "AiLog" (
 
 -- CreateTable
 CREATE TABLE "AiLimit" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "key" TEXT NOT NULL,
     "valueInt" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1404,8 +1408,8 @@ CREATE TABLE "AiLimit" (
 
 -- CreateTable
 CREATE TABLE "AiSetting" (
-    "id" TEXT NOT NULL,
-    "accountId" TEXT,
+    "id" SERIAL NOT NULL,
+    "accountId" INTEGER,
     "key" TEXT NOT NULL,
     "value" JSONB NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -1510,6 +1514,9 @@ CREATE INDEX "Location_accountId_createdAt_idx" ON "Location"("accountId", "crea
 CREATE INDEX "LocationHour_locationId_dayOfWeek_idx" ON "LocationHour"("locationId", "dayOfWeek");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
 CREATE INDEX "User_email_idx" ON "User"("email");
 
 -- CreateIndex
@@ -1517,6 +1524,9 @@ CREATE UNIQUE INDEX "UserProfile_userId_key" ON "UserProfile"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserIdentity_provider_providerUserId_key" ON "UserIdentity"("provider", "providerUserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserIdentity_provider_email_key" ON "UserIdentity"("provider", "email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserNotificationChannelPreference_userId_channel_key" ON "UserNotificationChannelPreference"("userId", "channel");
@@ -2039,4 +2049,3 @@ ALTER TABLE "AiAction" ADD CONSTRAINT "AiAction_threadId_fkey" FOREIGN KEY ("thr
 
 -- AddForeignKey
 ALTER TABLE "AiLog" ADD CONSTRAINT "AiLog_actionId_fkey" FOREIGN KEY ("actionId") REFERENCES "AiAction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
