@@ -383,3 +383,11 @@
 - Files: apps/web/lib/auth.ts, apps/web/lib/platform-api.ts, apps/web/app/api/v1/auth/login/route.ts, apps/web/app/api/v1/auth/me/route.ts, apps/mobile/lib/api_config.dart, apps/mobile/lib/api_client.dart, apps/mobile/lib/auth_service.dart, apps/mobile/lib/platform_api.dart, apps/mobile/lib/platform_login.dart, apps/mobile/lib/main_platform.dart, apps/mobile/lib/screens/platform_home.dart, apps/mobile/pubspec.yaml, API_CHANGELOG.md
 - Notes: Mobile uses token from /auth/login; web continues to use cookies.
 - Tests: Not run (manual only).
+
+## 2026-01-20
+- Date: 2026-01-20
+- Task: Proper access/refresh session flow for web + mobile
+- Summary: Split sessions into access/refresh tokens, added refresh endpoint, rotated access on API calls, and updated mobile to store/refresh tokens.
+- Files: packages/db/prisma/schema.prisma, apps/web/lib/auth.ts, apps/web/lib/platform-api.ts, apps/web/app/api/v1/auth/login/route.ts, apps/web/app/api/v1/auth/refresh/route.ts, apps/web/app/api/v1/auth/logout/route.ts, apps/web/middleware.ts, apps/web/app/api/v1/platform/accounts/route.ts, apps/web/app/api/v1/platform/accounts/[id]/route.ts, apps/web/app/api/v1/platform/plans/route.ts, apps/web/app/api/v1/platform/plans/[id]/route.ts, apps/web/app/api/v1/platform/monitoring/outbox/route.ts, apps/web/app/api/v1/platform/monitoring/deliveries/route.ts, apps/web/app/api/v1/platform/monitoring/webhooks/route.ts, apps/web/app/api/v1/platform/audit/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/[id]/route.ts, apps/web/app/api/v1/platform/settings/route.ts, apps/web/app/api/v1/platform/templates/route.ts, apps/web/app/api/v1/platform/templates/[id]/route.ts, apps/mobile/lib/api_client.dart, apps/mobile/lib/auth_service.dart, apps/mobile/lib/platform_api.dart, apps/mobile/lib/platform_login.dart, apps/mobile/lib/main_platform.dart, apps/mobile/lib/screens/platform_home.dart
+- Notes: Requires Prisma migration and re-login to create new sessions.
+- Tests: Not run (manual only).

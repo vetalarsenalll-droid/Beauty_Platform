@@ -1,6 +1,6 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 
 export async function GET() {
   const auth = await requirePlatformApiPermission("platform.audit");
@@ -14,7 +14,7 @@ export async function GET() {
     },
   });
 
-  return jsonOk(
+  const response = jsonOk(
     logs.map((log) => ({
       id: log.id,
       action: log.action,
@@ -29,4 +29,5 @@ export async function GET() {
       },
     }))
   );
+  return applyAccessCookie(response, auth);
 }

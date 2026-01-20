@@ -39,7 +39,7 @@ class _PlatformScaffoldState extends State<PlatformScaffold> {
   }
 
   Future<void> _restoreToken() async {
-    final token = await AuthService().getToken();
+    final token = await AuthService().getValidAccessToken();
     if (!mounted) return;
     setState(() => _token = token);
   }

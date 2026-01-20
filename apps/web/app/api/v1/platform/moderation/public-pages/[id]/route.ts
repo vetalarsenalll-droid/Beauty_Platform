@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 export async function PATCH(
@@ -44,11 +44,12 @@ export async function PATCH(
       diffJson: { status },
     });
 
-    return jsonOk({
+    const response = jsonOk({
       id: updated.id,
       status: updated.status,
       updatedAt: updated.updatedAt.toISOString(),
     });
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
       return jsonError("NOT_FOUND", "Public page not found", null, 404);

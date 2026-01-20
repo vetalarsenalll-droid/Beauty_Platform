@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../api_client.dart';
 import '../platform_api.dart';
+import '../auth_service.dart';
 import '../widgets/section_header.dart';
 import '../widgets/summary_grid.dart';
 
@@ -129,7 +129,7 @@ class _PlatformOverviewState extends State<_PlatformOverview> {
       _loading = true;
       _error = null;
     });
-    final api = PlatformApi(ApiClient(token: widget.token));
+    final api = PlatformApi(AuthService());
     final accountsResponse = await api.fetchAccounts();
     final outboxResponse = await api.fetchOutbox();
 
@@ -265,7 +265,7 @@ class _PlatformAccountsState extends State<_PlatformAccounts> {
   List<dynamic> _plans = [];
   int? _selectedPlanId;
 
-  PlatformApi get _api => PlatformApi(ApiClient(token: widget.token));
+  PlatformApi get _api => PlatformApi(AuthService());
 
   @override
   void initState() {
@@ -460,7 +460,7 @@ class _PlatformPlansState extends State<_PlatformPlans> {
   String? _error;
   List<dynamic> _plans = [];
 
-  PlatformApi get _api => PlatformApi(ApiClient(token: widget.token));
+  PlatformApi get _api => PlatformApi(AuthService());
 
   @override
   void initState() {

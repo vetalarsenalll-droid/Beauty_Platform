@@ -1,14 +1,27 @@
 import { cookies } from "next/headers";
-import { clearSession } from "@/lib/auth";
+import { clearSession, getAuthCookies } from "@/lib/auth";
 
 export async function POST() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("bp_session")?.value;
-  if (token) {
-    await clearSession(token);
+  const { ACCESS_COOKIE, REFRESH_COOKIE } = getAuthCookies();
+  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+  const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
+
+  if (accessToken) {
+    await clearSession(accessToken);
+  }
+  if (refreshToken) {
+    await clearSession(refreshToken);
   }
 
-  cookieStore.set("bp_session", "", {
+  cookieStore.set(ACCESS_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
+  cookieStore.set(REFRESH_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

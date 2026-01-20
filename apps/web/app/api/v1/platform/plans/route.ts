@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
 
@@ -38,7 +38,8 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  return jsonOk(plans.map((plan) => mapPlan(plan as DbPlan)));
+  const response = jsonOk(plans.map((plan) => mapPlan(plan as DbPlan)));
+  return applyAccessCookie(response, auth);
 }
 
 export async function POST(request: Request) {
@@ -106,7 +107,8 @@ export async function POST(request: Request) {
       },
     });
 
-    return jsonOk(mapPlan(created as DbPlan), 201);
+    const response = jsonOk(mapPlan(created as DbPlan), 201);
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2002") {
       const target = Array.isArray(error?.meta?.target)

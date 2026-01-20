@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 type DbTemplate = {
@@ -35,7 +35,8 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  return jsonOk(templates.map((template) => mapTemplate(template as DbTemplate)));
+  const response = jsonOk(templates.map((template) => mapTemplate(template as DbTemplate)));
+  return applyAccessCookie(response, auth);
 }
 
 export async function POST(request: Request) {
@@ -81,5 +82,6 @@ export async function POST(request: Request) {
     diffJson: { type, name, description, isActive },
   });
 
-  return jsonOk(mapTemplate(created as DbTemplate), 201);
+  const response = jsonOk(mapTemplate(created as DbTemplate), 201);
+  return applyAccessCookie(response, auth);
 }

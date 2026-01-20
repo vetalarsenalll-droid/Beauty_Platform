@@ -1,12 +1,14 @@
-import { getPlatformSession, getPlatformSessionByToken } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthCookies, getPlatformSessionByToken, refreshSession } from "@/lib/auth";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 
-type PlatformSession = NonNullable<Awaited<ReturnType<typeof getPlatformSession>>>;
+type PlatformSession = NonNullable<
+  Awaited<ReturnType<typeof getPlatformSessionByToken>>
+>;
 
 type PlatformAuthResult =
-  | { session: PlatformSession }
+  | { session: PlatformSession; accessToken?: string; accessExpiresAt?: Date }
   | { response: NextResponse };
 
 export async function requirePlatformApiPermission(
@@ -27,7 +29,28 @@ export async function requirePlatformApiPermission(
       };
     }
   } else {
-    session = await getPlatformSession();
+    const cookieStore = await cookies();
+    const { ACCESS_COOKIE, REFRESH_COOKIE } = getAuthCookies();
+    const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+    const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
+
+    if (accessToken) {
+      session = await getPlatformSessionByToken(accessToken);
+    }
+
+    if (!session && refreshToken) {
+      const refreshed = await refreshSession(refreshToken);
+      if (refreshed) {
+        session = await getPlatformSessionByToken(refreshed.accessToken);
+        if (session) {
+          return {
+            session,
+            accessToken: refreshed.accessToken,
+            accessExpiresAt: refreshed.accessExpiresAt,
+          };
+        }
+      }
+    }
   }
 
   if (!session) {
@@ -52,4 +75,20 @@ export async function requirePlatformApiPermission(
   }
 
   return { session };
+}
+
+export function applyAccessCookie(
+  response: NextResponse,
+  auth: { accessToken?: string; accessExpiresAt?: Date }
+) {
+  if (!auth.accessToken || !auth.accessExpiresAt) return response;
+  const { ACCESS_COOKIE } = getAuthCookies();
+  response.cookies.set(ACCESS_COOKIE, auth.accessToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: auth.accessExpiresAt,
+  });
+  return response;
 }

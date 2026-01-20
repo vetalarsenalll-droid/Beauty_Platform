@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 type DbTemplate = {
@@ -49,7 +49,8 @@ export async function GET(
     return jsonError("NOT_FOUND", "Template not found", null, 404);
   }
 
-  return jsonOk(mapTemplate(template as DbTemplate));
+  const response = jsonOk(mapTemplate(template as DbTemplate));
+  return applyAccessCookie(response, auth);
 }
 
 export async function PATCH(
@@ -101,7 +102,8 @@ export async function PATCH(
       diffJson: data,
     });
 
-    return jsonOk(mapTemplate(updated as DbTemplate));
+    const response = jsonOk(mapTemplate(updated as DbTemplate));
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
       return jsonError("NOT_FOUND", "Template not found", null, 404);
@@ -139,7 +141,8 @@ export async function DELETE(
       diffJson: { isActive: false },
     });
 
-    return jsonOk({ id: templateId, isActive: false });
+    const response = jsonOk({ id: templateId, isActive: false });
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
       return jsonError("NOT_FOUND", "Template not found", null, 404);

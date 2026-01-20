@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 type DbSetting = {
@@ -27,7 +27,8 @@ export async function GET() {
     orderBy: { key: "asc" },
   });
 
-  return jsonOk(settings.map((setting) => mapSetting(setting as DbSetting)));
+  const response = jsonOk(settings.map((setting) => mapSetting(setting as DbSetting)));
+  return applyAccessCookie(response, auth);
 }
 
 export async function PATCH(request: Request) {
@@ -77,5 +78,6 @@ export async function PATCH(request: Request) {
     diffJson: { keys: changedKeys },
   });
 
-  return jsonOk(results);
+  const response = jsonOk(results);
+  return applyAccessCookie(response, auth);
 }

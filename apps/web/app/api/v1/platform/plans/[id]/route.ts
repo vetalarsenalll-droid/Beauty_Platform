@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
 
@@ -49,7 +49,8 @@ export async function GET(
     return jsonError("NOT_FOUND", "Plan not found", null, 404);
   }
 
-  return jsonOk(mapPlan(plan as DbPlan));
+  const response = jsonOk(mapPlan(plan as DbPlan));
+  return applyAccessCookie(response, auth);
 }
 
 export async function PATCH(
@@ -114,7 +115,8 @@ export async function PATCH(
       },
     });
 
-    return jsonOk(mapPlan(updated as DbPlan));
+    const response = jsonOk(mapPlan(updated as DbPlan));
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2002") {
       const target = Array.isArray(error?.meta?.target)
@@ -160,7 +162,8 @@ export async function DELETE(
       diffJson: { isActive: false },
     });
 
-    return jsonOk({ id: planId, isActive: false });
+    const response = jsonOk({ id: planId, isActive: false });
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
       return jsonError("NOT_FOUND", "Plan not found", null, 404);

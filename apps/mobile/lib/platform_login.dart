@@ -34,8 +34,12 @@ class _PlatformLoginState extends State<PlatformLogin> {
       return;
     }
 
-    final token = response['data']?['token']?.toString();
-    if (token == null || token.isEmpty) {
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    final accessToken = data['accessToken']?.toString() ?? '';
+    final refreshToken = data['refreshToken']?.toString() ?? '';
+    final accessExpiresAt = data['accessExpiresAt']?.toString() ?? '';
+    final refreshExpiresAt = data['refreshExpiresAt']?.toString() ?? '';
+    if (accessToken.isEmpty || refreshToken.isEmpty) {
       setState(() {
         _loading = false;
         _error = 'Не получен токен';
@@ -43,9 +47,14 @@ class _PlatformLoginState extends State<PlatformLogin> {
       return;
     }
 
-    await auth.saveToken(token);
+    await auth.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      accessExpiresAt: accessExpiresAt,
+      refreshExpiresAt: refreshExpiresAt,
+    );
     if (!mounted) return;
-    widget.onLoggedIn(token);
+    widget.onLoggedIn(accessToken);
   }
 
   @override

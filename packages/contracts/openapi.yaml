@@ -1387,6 +1387,16 @@ components:
               type: array
               items:
                 type: string
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            accessExpiresAt:
+              type: string
+              format: date-time
+            refreshExpiresAt:
+              type: string
+              format: date-time
     AuthMeResponse:
       type: object
       required: [data]
@@ -1419,6 +1429,12 @@ components:
               type: string
             refreshToken:
               type: string
+            accessExpiresAt:
+              type: string
+              format: date-time
+            refreshExpiresAt:
+              type: string
+              format: date-time
 
     AppointmentCreateRequest:
       type: object

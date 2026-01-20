@@ -3,8 +3,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 
-const SESSION_COOKIE = "bp_session";
-const SESSION_TTL_DAYS = 30;
+const ACCESS_COOKIE = "bp_access";
+const REFRESH_COOKIE = "bp_refresh";
+const ACCESS_TTL_MINUTES = 15;
+const REFRESH_TTL_DAYS = 30;
 
 type PlatformSession = {
   adminId: number;
@@ -17,7 +19,7 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-function mapSession(session: Awaited<ReturnType<typeof findSession>>) {
+function mapSession(session: Awaited<ReturnType<typeof findSessionByAccess>>) {
   if (!session?.user?.platformAdmin) return null;
 
   const permissions =
@@ -33,9 +35,9 @@ function mapSession(session: Awaited<ReturnType<typeof findSession>>) {
   };
 }
 
-async function findSession(tokenHash: string) {
+async function findSessionByAccess(tokenHash: string) {
   return prisma.userSession.findFirst({
-    where: { refreshTokenHash: tokenHash, expiresAt: { gt: new Date() } },
+    where: { accessTokenHash: tokenHash, accessExpiresAt: { gt: new Date() } },
     include: {
       user: {
         include: {
@@ -50,26 +52,61 @@ async function findSession(tokenHash: string) {
   });
 }
 
-export async function createSession(userId: number) {
+async function findSessionByRefresh(tokenHash: string) {
+  return prisma.userSession.findFirst({
+    where: { refreshTokenHash: tokenHash, refreshExpiresAt: { gt: new Date() } },
+    include: {
+      user: {
+        include: {
+          platformAdmin: {
+            include: {
+              permissions: { include: { permission: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function createTokens() {
   const token = crypto.randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
-  const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+  return { token, tokenHash };
+}
+
+export async function createSession(userId: number) {
+  const { token: accessToken, tokenHash: accessTokenHash } = createTokens();
+  const { token: refreshToken, tokenHash: refreshTokenHash } = createTokens();
+  const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_MINUTES * 60 * 1000);
+  const refreshExpiresAt = new Date(
+    Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000
+  );
 
   await prisma.userSession.create({
     data: {
       userId,
-      refreshTokenHash: tokenHash,
-      expiresAt,
+      accessTokenHash,
+      accessExpiresAt,
+      refreshTokenHash,
+      refreshExpiresAt,
     },
   });
 
-  return { token, expiresAt };
+  return {
+    accessToken,
+    refreshToken,
+    accessExpiresAt,
+    refreshExpiresAt,
+  };
 }
 
 export async function clearSession(token: string) {
   const tokenHash = hashToken(token);
   await prisma.userSession.deleteMany({
-    where: { refreshTokenHash: tokenHash },
+    where: {
+      OR: [{ refreshTokenHash: tokenHash }, { accessTokenHash: tokenHash }],
+    },
   });
 }
 
@@ -85,12 +122,21 @@ export async function verifyPassword(
 
 export async function getPlatformSession(): Promise<PlatformSession | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+  const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
 
-  const tokenHash = hashToken(token);
-  const session = await findSession(tokenHash);
-  return mapSession(session);
+  if (accessToken) {
+    const session = await findSessionByAccess(hashToken(accessToken));
+    const mapped = mapSession(session);
+    if (mapped) return mapped;
+  }
+
+  if (refreshToken) {
+    const session = await findSessionByRefresh(hashToken(refreshToken));
+    return mapSession(session);
+  }
+
+  return null;
 }
 
 export async function getPlatformSessionByToken(
@@ -98,8 +144,52 @@ export async function getPlatformSessionByToken(
 ): Promise<PlatformSession | null> {
   if (!token) return null;
   const tokenHash = hashToken(token);
-  const session = await findSession(tokenHash);
+  const session = await findSessionByAccess(tokenHash);
   return mapSession(session);
+}
+
+export async function getPlatformSessionByRefreshToken(
+  token: string
+): Promise<PlatformSession | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const session = await findSessionByRefresh(tokenHash);
+  return mapSession(session);
+}
+
+export async function refreshSession(refreshToken: string) {
+  const tokenHash = hashToken(refreshToken);
+  const session = await findSessionByRefresh(tokenHash);
+  if (!session) return null;
+
+  const { token: accessToken, tokenHash: accessTokenHash } = createTokens();
+  const { token: newRefreshToken, tokenHash: newRefreshTokenHash } = createTokens();
+  const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_MINUTES * 60 * 1000);
+  const refreshExpiresAt = new Date(
+    Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000
+  );
+
+  await prisma.userSession.update({
+    where: { id: session.id },
+    data: {
+      accessTokenHash,
+      accessExpiresAt,
+      refreshTokenHash: newRefreshTokenHash,
+      refreshExpiresAt,
+    },
+  });
+
+  return {
+    accessToken,
+    refreshToken: newRefreshToken,
+    accessExpiresAt,
+    refreshExpiresAt,
+    session,
+  };
+}
+
+export function getAuthCookies() {
+  return { ACCESS_COOKIE, REFRESH_COOKIE };
 }
 
 export async function requirePlatformSession(): Promise<PlatformSession> {

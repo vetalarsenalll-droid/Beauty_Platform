@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 type DbAccount = {
@@ -51,7 +51,8 @@ export async function GET(
     return jsonError("NOT_FOUND", "Account not found", null, 404);
   }
 
-  return jsonOk(mapAccount(account as DbAccount));
+  const response = jsonOk(mapAccount(account as DbAccount));
+  return applyAccessCookie(response, auth);
 }
 
 export async function PATCH(
@@ -115,7 +116,8 @@ export async function PATCH(
       diffJson: data,
     });
 
-    return jsonOk(mapAccount(updated as DbAccount));
+    const response = jsonOk(mapAccount(updated as DbAccount));
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2002") {
       const target = Array.isArray(error?.meta?.target)
@@ -166,7 +168,8 @@ export async function DELETE(
       diffJson: { status: "ARCHIVED" },
     });
 
-    return jsonOk({ id: accountId, status: "ARCHIVED" });
+    const response = jsonOk({ id: accountId, status: "ARCHIVED" });
+    return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
       return jsonError("NOT_FOUND", "Account not found", null, 404);

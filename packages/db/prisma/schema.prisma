@@ -800,8 +800,10 @@ model UserIdentity {
 model UserSession {
   id Int @id @default(autoincrement())
   userId Int
-  refreshTokenHash String
-  expiresAt        DateTime
+  accessTokenHash  String   @unique
+  accessExpiresAt  DateTime
+  refreshTokenHash String   @unique
+  refreshExpiresAt DateTime
   createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])

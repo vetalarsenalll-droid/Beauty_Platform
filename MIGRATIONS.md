@@ -49,3 +49,13 @@
 - Data migration: None.
 - Rollback: Drop added columns/index.
 - Notes: Fixes commented SQL in previous migration.
+
+## 2026-01-20 - auth_sessions_access_refresh
+- Date: 2026-01-20
+- Slug: auth_sessions_access_refresh
+- Prisma migration: pending
+- Purpose: Split auth sessions into access/refresh tokens with independent TTLs.
+- Schema changes: UserSession now stores accessTokenHash/accessExpiresAt and refreshTokenHash/refreshExpiresAt with unique constraints.
+- Data migration: Existing sessions must be recreated (logout all users).
+- Rollback: Revert UserSession columns to refreshTokenHash/expiresAt.
+- Notes: Requires a new Prisma migration and redeploy.

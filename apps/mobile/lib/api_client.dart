@@ -9,30 +9,36 @@ class ApiClient {
 
   Uri _uri(String path) => Uri.parse('${ApiConfig.baseUrl}$path');
 
-  Map<String, String> _headers() {
+  Map<String, String> _headers({String? overrideToken}) {
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
-    if (token != null && token!.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
+    final authToken = overrideToken ?? token;
+    if (authToken != null && authToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer ${authToken.trim()}';
     }
     return headers;
   }
 
-  Future<Map<String, dynamic>> get(String path) async {
-    final response = await http.get(_uri(path), headers: _headers());
-    return _decode(response);
-  }
-
-  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> get(String path, {String? tokenOverride}) async {
     final response =
-        await http.post(_uri(path), headers: _headers(), body: jsonEncode(body));
+        await http.get(_uri(path), headers: _headers(overrideToken: tokenOverride));
     return _decode(response);
   }
 
-  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body,
+      {String? tokenOverride}) async {
+    final response = await http.post(_uri(path),
+        headers: _headers(overrideToken: tokenOverride),
+        body: jsonEncode(body));
+    return _decode(response);
+  }
+
+  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body,
+      {String? tokenOverride}) async {
     final response = await http.patch(_uri(path),
-        headers: _headers(), body: jsonEncode(body));
+        headers: _headers(overrideToken: tokenOverride),
+        body: jsonEncode(body));
     return _decode(response);
   }
 

@@ -1,6 +1,6 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { jsonOk } from "@/lib/api";
-import { requirePlatformApiPermission } from "@/lib/platform-api";
+import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 
 export async function GET() {
   const auth = await requirePlatformApiPermission("platform.monitoring");
@@ -25,11 +25,12 @@ export async function GET() {
     },
   });
 
-  return jsonOk({
+  const response = jsonOk({
     counts: { queued, sent, failed, dead },
     endpoints: endpoints.map((item) => ({
       ...item,
       updatedAt: item.updatedAt.toISOString(),
     })),
   });
+  return applyAccessCookie(response, auth);
 }

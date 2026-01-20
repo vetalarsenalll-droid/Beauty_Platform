@@ -4,8 +4,9 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/platform") && pathname !== "/platform/login") {
-    const session = request.cookies.get("bp_session");
-    if (!session) {
+    const access = request.cookies.get("bp_access");
+    const refresh = request.cookies.get("bp_refresh");
+    if (!access && !refresh) {
       const url = request.nextUrl.clone();
       url.pathname = "/platform/login";
       return NextResponse.redirect(url);

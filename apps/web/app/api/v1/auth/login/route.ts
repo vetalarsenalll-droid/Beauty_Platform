@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { createSession, verifyPassword } from "@/lib/auth";
+import { createSession, getAuthCookies, verifyPassword } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
 
 export async function POST(request: Request) {
@@ -75,15 +75,25 @@ export async function POST(request: Request) {
     where: { userId: identity.userId },
   });
 
-  const { token, expiresAt } = await createSession(identity.userId);
+  const { accessToken, refreshToken, accessExpiresAt, refreshExpiresAt } =
+    await createSession(identity.userId);
 
   const cookieStore = await cookies();
-  cookieStore.set("bp_session", token, {
+  const { ACCESS_COOKIE, REFRESH_COOKIE } = getAuthCookies();
+
+  cookieStore.set(ACCESS_COOKIE, accessToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: expiresAt,
+    expires: accessExpiresAt,
+  });
+  cookieStore.set(REFRESH_COOKIE, refreshToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: refreshExpiresAt,
   });
 
   const permissions =
@@ -97,7 +107,9 @@ export async function POST(request: Request) {
       email: identity.user.email ?? identity.email,
     },
     permissions,
-    token,
-    expiresAt: expiresAt.toISOString(),
+    accessToken,
+    refreshToken,
+    accessExpiresAt: accessExpiresAt.toISOString(),
+    refreshExpiresAt: refreshExpiresAt.toISOString(),
   });
 }

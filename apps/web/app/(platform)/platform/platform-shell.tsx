@@ -1,220 +1,415 @@
-﻿"use client";
+"use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-type NavItem = {
-  href: string;
-  label: string;
-  permission?: string;
-};
-
-const navItems: NavItem[] = [
-  { href: "/platform", label: "Обзор" },
-  {
-    href: "/platform/accounts",
-    label: "Аккаунты",
-    permission: "platform.accounts",
-  },
-  { href: "/platform/plans", label: "Тарифы", permission: "platform.plans" },
-  {
-    href: "/platform/moderation",
-    label: "Модерация",
-    permission: "platform.moderation",
-  },
-  {
-    href: "/platform/monitoring",
-    label: "Мониторинг",
-    permission: "platform.monitoring",
-  },
-  { href: "/platform/audit", label: "Аудит", permission: "platform.audit" },
-  {
-    href: "/platform/settings",
-    label: "Настройки",
-    permission: "platform.settings",
-  },
-];
+import { useEffect, useMemo, useState } from "react";
 
 type PlatformShellProps = {
+  children: React.ReactNode;
   userEmail: string;
   permissions: string[];
-  children: React.ReactNode;
 };
 
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { label: "Обзор", href: "/platform", icon: <IconHome /> },
+  { label: "Аккаунты", href: "/platform/accounts", icon: <IconUsers /> },
+  { label: "Тарифы", href: "/platform/plans", icon: <IconTag /> },
+  { label: "Модерация", href: "/platform/moderation", icon: <IconShield /> },
+  { label: "Мониторинг", href: "/platform/monitoring", icon: <IconPulse /> },
+  { label: "Аудит", href: "/platform/audit", icon: <IconFile /> },
+  { label: "Настройки", href: "/platform/settings", icon: <IconSettings /> },
+];
+
 export default function PlatformShell({
-  userEmail,
-  permissions,
   children,
+  userEmail,
 }: PlatformShellProps) {
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname();
+  const [darkMode, setDarkMode] = useState(false);
 
-  const visibleNav = useMemo(() => {
-    return navItems.filter((item) => {
-      if (!item.permission) return true;
-      return (
-        permissions.includes("platform.all") ||
-        permissions.includes(item.permission)
-      );
-    });
-  }, [permissions]);
+  const initials = useMemo(() => {
+    const base = userEmail?.split("@")[0] ?? "BP";
+    return base.slice(0, 2).toUpperCase();
+  }, [userEmail]);
 
-  const handleLogout = async () => {
-    await fetch("/api/v1/auth/logout", { method: "POST" });
-    window.location.href = "/platform/login";
-  };
+  useEffect(() => {
+    const stored = localStorage.getItem("bp-sidebar");
+    setCollapsed(stored === "collapsed");
+  }, []);
 
-  const isActive = (href: string) => {
-    if (href === "/platform") return pathname === "/platform";
-    return pathname.startsWith(href);
-  };
+  useEffect(() => {
+    localStorage.setItem("bp-sidebar", collapsed ? "collapsed" : "expanded");
+  }, [collapsed]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("bp-theme");
+    setDarkMode(stored === "dark");
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("bp-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   return (
-    <div className="min-h-screen text-[color:var(--bp-ink)]">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 px-6 py-6 lg:grid-cols-[auto_1fr]">
-        <aside
-          className={`${
-            collapsed ? "w-20" : "w-64"
-          } hidden rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)] transition-all lg:block`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-              Платформа
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
+      <div
+        className={`fixed inset-0 z-30 bg-black/30 transition-opacity md:hidden ${
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-[color:var(--bp-stroke)] bg-[color:var(--sidebar-bg)] shadow-[var(--bp-shadow)] transition-[transform,width] duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)] md:fixed md:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${collapsed ? "w-[272px] md:w-[78px]" : "w-[272px]"}`}
+      >
+        <div className="flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-xs font-semibold text-white">
+              BS
             </div>
-            <button
-              type="button"
-              onClick={() => setCollapsed((prev) => !prev)}
-              className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-1 text-xs text-[color:var(--bp-muted)] transition hover:bg-[color:var(--bp-surface)]"
-              aria-label="Свернуть меню"
-            >
-              {collapsed ? "›" : "‹"}
-            </button>
+            {!collapsed && (
+              <div>
+                <div className="text-sm font-semibold leading-tight">
+                  Beauty Spot
+                </div>
+                <div className="text-xs text-[color:var(--bp-muted)]">
+                  Точка красоты
+                </div>
+              </div>
+            )}
           </div>
-          <h1
-            className={`mt-2 text-lg font-semibold ${
-              collapsed ? "hidden" : "block"
-            }`}
-          >
-            Beauty Platform
-          </h1>
-          <p
-            className={`mt-1 text-xs text-[color:var(--bp-muted)] ${
-              collapsed ? "hidden" : "block"
-            }`}
-          >
-            {userEmail}
-          </p>
-          <nav className="mt-6 flex flex-col gap-2 text-sm font-medium text-[color:var(--bp-muted)]">
-            {visibleNav.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className={`rounded-2xl border border-transparent px-3 py-2 transition hover:border-[color:var(--bp-stroke)] hover:bg-[color:var(--bp-surface)] ${
-                    active
-                      ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]"
-                      : ""
-                  } ${collapsed ? "text-xs" : ""}`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  {collapsed ? item.label[0] : item.label}
-                </a>
-              );
-            })}
-          </nav>
           <button
             type="button"
-            onClick={handleLogout}
-            className={`mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-xs font-semibold text-[color:var(--bp-muted)] transition hover:bg-[color:var(--bp-surface)] ${
-              collapsed ? "hidden" : ""
-            }`}
+            aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+            title={collapsed ? "Развернуть меню" : "Свернуть меню"}
+            onClick={() => setCollapsed((prev) => !prev)}
+            className="hidden h-9 w-9 items-center justify-center text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)] md:flex"
           >
-            Выйти
+            {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
           </button>
-        </aside>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 shadow-[var(--bp-shadow)] lg:hidden">
-            <div className="text-sm font-semibold">Платформа</div>
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-xs text-[color:var(--bp-muted)] transition hover:bg-[color:var(--bp-surface)]"
-            >
-              Меню
-            </button>
-          </div>
-
-          <div className="rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6 shadow-[var(--bp-shadow)]">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-                  Панель управления
-                </div>
-                <div className="text-lg font-semibold">Platform Admin</div>
-              </div>
-              <div className="flex flex-1 items-center justify-end gap-3">
-                <input
-                  type="search"
-                  placeholder="Поиск по разделам"
-                  className="hidden w-64 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)] sm:block"
-                />
-                <button
-                  type="button"
-                  className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs text-[color:var(--bp-muted)] transition hover:bg-[color:var(--bp-surface)]"
-                >
-                  {userEmail}
-                </button>
-              </div>
-            </div>
-            <div className="mt-6">{children}</div>
-          </div>
         </div>
-      </div>
 
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm lg:hidden">
-          <div className="m-4 rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6 shadow-[var(--bp-shadow)]">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Платформа</div>
-              <button
-                type="button"
-                onClick={() => setMobileOpen(false)}
-                className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-xs text-[color:var(--bp-muted)] transition hover:bg-[color:var(--bp-surface)]"
-              >
-                Закрыть
-              </button>
-            </div>
-            <nav className="mt-4 flex flex-col gap-2 text-sm font-medium text-[color:var(--bp-muted)]">
-              {visibleNav.map((item) => {
-                const active = isActive(item.href);
-                return (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    className={`rounded-2xl border border-transparent px-3 py-2 transition hover:border-[color:var(--bp-stroke)] hover:bg-[color:var(--bp-surface)] ${
-                      active
-                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]"
-                        : ""
+        <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-2">
+          <div className="flex flex-col gap-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/platform" && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={collapsed ? item.label : undefined}
+                  aria-label={item.label}
+                  className={`group flex w-full items-center rounded-2xl text-sm font-medium transition hover:bg-[color:var(--sidebar-item)] ${
+                    collapsed
+                      ? "justify-start px-3 py-2 md:justify-center md:px-2 md:py-2"
+                      : "px-3 py-2"
+                  } ${
+                    isActive
+                      ? "bg-[color:var(--sidebar-item-active)] text-[color:var(--bp-ink)]"
+                      : "text-[color:var(--bp-muted)]"
+                  }`}
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl text-[color:inherit]">
+                    {item.icon}
+                  </span>
+                  <span
+                    className={`whitespace-nowrap transition-all duration-200 ${
+                      collapsed
+                        ? "opacity-100 translate-x-0 md:pointer-events-none md:w-0 md:overflow-hidden md:opacity-0 md:-translate-x-1"
+                        : "opacity-100 translate-x-0"
                     }`}
                   >
                     {item.label}
-                  </a>
-                );
-              })}
-            </nav>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-xs font-semibold text-[color:var(--bp-muted)] transition hover:bg-[color:var(--bp-surface)]"
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="shrink-0 border-t border-[color:var(--bp-stroke)] px-3 py-4">
+          <div
+            className={`mb-3 flex items-center gap-3 px-2 py-1 ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--bp-chip)] text-xs font-semibold">
+              {initials}
+            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <div className="truncate text-xs text-[color:var(--bp-muted)]">
+                  {userEmail}
+                </div>
+                <div className="text-xs text-[color:var(--bp-muted)]">
+                  Администратор
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className={`flex w-full items-center rounded-2xl text-sm font-medium text-[color:var(--bp-muted)] transition hover:bg-[color:var(--sidebar-item)] hover:text-[color:var(--bp-ink)] ${
+              collapsed ? "justify-center px-2 py-2" : "px-3 py-2"
+            }`}
+            title={collapsed ? "Выйти" : undefined}
+            aria-label="Выйти"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl">
+              <IconLogout />
+            </span>
+            <span
+              className={`whitespace-nowrap transition-all duration-200 ${
+                collapsed
+                  ? "pointer-events-none w-0 overflow-hidden opacity-0 -translate-x-1"
+                  : "opacity-100 translate-x-0"
+              }`}
             >
               Выйти
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      <div
+        className={`flex min-h-screen flex-1 flex-col ${
+          collapsed ? "md:pl-[78px]" : "md:pl-[272px]"
+        }`}
+      >
+        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/90 px-4 shadow-[var(--bp-shadow)] backdrop-blur-[var(--glass-blur)] sm:px-6">
+          <button
+            type="button"
+            aria-label="Открыть меню"
+            title="Открыть меню"
+            onClick={() => setMobileOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)] md:hidden"
+          >
+            <IconMenu />
+          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Поиск"
+              title="Поиск"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)] md:hidden"
+            >
+              <IconSearch />
+            </button>
+            <div className="relative hidden md:block">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--bp-muted)]">
+                <IconSearch />
+              </span>
+              <input
+                type="search"
+                placeholder="Поиск по системе"
+                className="h-10 w-[260px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] pl-9 pr-3 text-sm text-[color:var(--bp-ink)] outline-none transition focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+              />
+            </div>
+            <button
+              type="button"
+              aria-label="Уведомления"
+              title="Уведомления"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)]"
+            >
+              <IconBell />
+            </button>
+            <button
+              type="button"
+              aria-label="Переключить тему"
+              title="Переключить тему"
+              onClick={() => setDarkMode((prev) => !prev)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)]"
+            >
+              {darkMode ? <IconSun /> : <IconMoon />}
             </button>
           </div>
-        </div>
-      ) : null}
+        </header>
+
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto flex w-full max-w-[1240px] flex-col">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
+  );
+}
+
+function IconBase({
+  children,
+  className = "h-5 w-5",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`${className} shrink-0`}
+    >
+      {children}
+    </svg>
+  );
+}
+
+function IconHome() {
+  return (
+    <IconBase>
+      <path d="M3 10.5L12 3l9 7.5" />
+      <path d="M5 9.5V20h14V9.5" />
+    </IconBase>
+  );
+}
+
+function IconUsers() {
+  return (
+    <IconBase>
+      <path d="M7.5 14a3.5 3.5 0 1 0-3.5-3.5A3.5 3.5 0 0 0 7.5 14Z" />
+      <path d="M2 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M16.5 14a3 3 0 1 0-3-3" />
+      <path d="M14 20a4 4 0 0 1 7 0" />
+    </IconBase>
+  );
+}
+
+function IconTag() {
+  return (
+    <IconBase>
+      <path d="M3 12l9 9 9-9-9-9H5a2 2 0 0 0-2 2Z" />
+      <circle cx="8" cy="8" r="1.5" />
+    </IconBase>
+  );
+}
+
+function IconShield() {
+  return (
+    <IconBase>
+      <path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6Z" />
+      <path d="M9 12l2 2 4-4" />
+    </IconBase>
+  );
+}
+
+function IconPulse() {
+  return (
+    <IconBase>
+      <path d="M3 12h4l2-5 4 10 2-5h4" />
+    </IconBase>
+  );
+}
+
+function IconFile() {
+  return (
+    <IconBase>
+      <path d="M6 3h7l5 5v13H6Z" />
+      <path d="M13 3v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
+    </IconBase>
+  );
+}
+
+function IconSettings() {
+  return (
+    <IconBase>
+      <path d="M12 8.5a3.5 3.5 0 1 0 3.5 3.5A3.5 3.5 0 0 0 12 8.5Z" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V22a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H2a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V2a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1H22a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z" />
+    </IconBase>
+  );
+}
+
+function IconChevronLeft() {
+  return (
+    <IconBase>
+      <path d="M15 6l-6 6 6 6" />
+    </IconBase>
+  );
+}
+
+function IconChevronRight() {
+  return (
+    <IconBase>
+      <path d="M9 6l6 6-6 6" />
+    </IconBase>
+  );
+}
+
+function IconBell() {
+  return (
+    <IconBase>
+      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </IconBase>
+  );
+}
+
+function IconMoon() {
+  return (
+    <IconBase>
+      <path d="M21 12.8A8.2 8.2 0 1 1 11.2 3a6.2 6.2 0 0 0 9.8 9.8Z" />
+    </IconBase>
+  );
+}
+
+function IconSun() {
+  return (
+    <IconBase>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="M4.9 4.9l1.4 1.4" />
+      <path d="M17.7 17.7l1.4 1.4" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="M4.9 19.1l1.4-1.4" />
+      <path d="M17.7 6.3l1.4-1.4" />
+    </IconBase>
+  );
+}
+
+function IconLogout() {
+  return (
+    <IconBase>
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      <path d="M10 17l5-5-5-5" />
+      <path d="M15 12H3" />
+    </IconBase>
+  );
+}
+
+function IconSearch() {
+  return (
+    <IconBase className="h-4 w-4">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </IconBase>
+  );
+}
+
+function IconMenu() {
+  return (
+    <IconBase>
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </IconBase>
   );
 }
