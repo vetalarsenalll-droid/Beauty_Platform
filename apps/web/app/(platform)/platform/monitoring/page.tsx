@@ -30,22 +30,22 @@ export default async function PlatformMonitoringPage() {
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
-            label: "Outbox pending",
+            label: "Outbox: в очереди",
             value: outboxPending,
             hint: "Ожидают обработки",
           },
           {
-            label: "Outbox failed",
+            label: "Outbox: ошибки",
             value: outboxFailed,
             hint: "Ошибки в outbox",
           },
           {
-            label: "Delivery failed",
+            label: "Доставки: ошибки",
             value: deliveryFailed,
             hint: "Проблемные доставки",
           },
           {
-            label: "Webhook failed",
+            label: "Webhooks: ошибки",
             value: webhookFailed,
             hint: "Ошибки webhooks",
           },
@@ -66,7 +66,7 @@ export default async function PlatformMonitoringPage() {
       </section>
 
       <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Healthchecks</h2>
+        <h2 className="text-lg font-semibold">Проверки</h2>
         {health.length === 0 ? (
           <p className="mt-3 text-sm text-[color:var(--bp-muted)]">
             Проверок пока нет.
@@ -79,7 +79,9 @@ export default async function PlatformMonitoringPage() {
                 className="flex items-center justify-between rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3"
               >
                 <div className="font-semibold">{row.name}</div>
-                <div className="text-[color:var(--bp-muted)]">{row.status}</div>
+                <div className="text-[color:var(--bp-muted)]">
+                  {row.status.toLowerCase() === "ok" ? "ОК" : row.status}
+                </div>
                 <div className="text-xs text-[color:var(--bp-muted)]">
                   {row.checkedAt.toLocaleString()}
                 </div>

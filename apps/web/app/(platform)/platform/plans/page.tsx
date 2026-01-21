@@ -1,7 +1,7 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
 import PlanCreateForm from "./plan-create-form";
-import PlanRowActions from "./plan-row-actions";
+import Link from "next/link";
 
 export default async function PlatformPlansPage() {
   await requirePlatformPermission("platform.plans");
@@ -34,7 +34,9 @@ export default async function PlatformPlansPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+        <h2 className="text-lg font-semibold">Список тарифов</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
         {plans.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6 text-sm text-[color:var(--bp-muted)]">
             Тарифов пока нет. Создайте первый тариф выше.
@@ -43,28 +45,32 @@ export default async function PlatformPlansPage() {
           plans.map((plan) => (
             <div
               key={plan.id}
-              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]"
+              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3"
             >
-              <div className="text-sm uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
-                {plan.name}
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-semibold">{plan.name}</div>
+                  <span className="rounded-full bg-[color:var(--bp-chip)] px-2 py-0.5 text-xs">
+                    {plan.isActive ? "Активен" : "Выключен"}
+                  </span>
+                  <span className="text-xs text-[color:var(--bp-muted)]">
+                    {plan.code}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                  {plan.priceMonthly.toString()} {plan.currency}
+                </div>
               </div>
-              <div className="mt-2 text-2xl font-semibold">
-                {plan.priceMonthly.toString()} {plan.currency}
-              </div>
-              <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-                {plan.description ?? "Описание не задано"}
-              </p>
-              <PlanRowActions
-                planId={plan.id}
-                initialName={plan.name}
-                initialCode={plan.code}
-                initialPrice={plan.priceMonthly.toString()}
-                initialCurrency={plan.currency}
-                initialActive={plan.isActive}
-              />
+              <Link
+                href={`/platform/plans/${plan.id}`}
+                className="rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-1 text-xs"
+              >
+                Профиль
+              </Link>
             </div>
           ))
         )}
+        </div>
       </section>
     </div>
   );

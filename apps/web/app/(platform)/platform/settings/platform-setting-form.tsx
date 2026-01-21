@@ -66,7 +66,7 @@ export default function PlatformSettingForm({
       <input
         value={key}
         onChange={(event) => setKey(event.target.value)}
-        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         placeholder="settings.key"
         required
       />
@@ -74,7 +74,7 @@ export default function PlatformSettingForm({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         rows={6}
-        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-mono"
+        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm font-mono text-[color:var(--bp-ink)]"
       />
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button

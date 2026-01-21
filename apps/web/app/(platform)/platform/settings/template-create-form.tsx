@@ -66,7 +66,7 @@ export default function TemplateCreateForm({ onCreated }: TemplateFormProps) {
           <select
             value={type}
             onChange={(event) => setType(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
           >
             <option value="NOTIFICATION">NOTIFICATION</option>
             <option value="SEO_PRESET">SEO_PRESET</option>
@@ -78,7 +78,7 @@ export default function TemplateCreateForm({ onCreated }: TemplateFormProps) {
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
             required
           />
         </label>
@@ -88,7 +88,7 @@ export default function TemplateCreateForm({ onCreated }: TemplateFormProps) {
         <input
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
       </label>
       <label className="flex flex-col gap-2 text-sm">
@@ -97,7 +97,7 @@ export default function TemplateCreateForm({ onCreated }: TemplateFormProps) {
           value={contentJson}
           onChange={(event) => setContentJson(event.target.value)}
           rows={6}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-mono"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm font-mono text-[color:var(--bp-ink)]"
         />
       </label>
       {error ? <div className="text-sm text-red-600">{error}</div> : null}

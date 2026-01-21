@@ -45,7 +45,7 @@ export default function PlanRowActions({
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const message =
-          payload?.error?.message ?? "Не удалось сохранить изменения.";
+          payload?.error?.message ?? "Не удалось обновить тариф.";
         alert(message);
         return;
       }
@@ -66,24 +66,24 @@ export default function PlanRowActions({
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
         <input
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <input
           value={price}
           onChange={(event) => setPrice(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
         <input
           value={currency}
           onChange={(event) => setCurrency(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
       </div>
       <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">

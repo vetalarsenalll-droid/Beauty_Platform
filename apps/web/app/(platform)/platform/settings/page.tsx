@@ -1,8 +1,8 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
-import PlatformSettingForm from "./platform-setting-form";
 import TemplateCreateForm from "./template-create-form";
 import TemplateRow from "./template-row";
+import PlatformSettingsPanels from "./platform-settings-panels";
 
 export default async function PlatformSettingsPage() {
   await requirePlatformPermission("platform.settings");
@@ -11,6 +11,14 @@ export default async function PlatformSettingsPage() {
     prisma.platformSetting.findMany({ orderBy: { key: "asc" } }),
     prisma.templateLibrary.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
+
+  const settingsMap = settings.reduce<Record<string, unknown>>(
+    (acc, item) => {
+      acc[item.key] = item.valueJson;
+      return acc;
+    },
+    {}
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -26,35 +34,7 @@ export default async function PlatformSettingsPage() {
         </p>
       </header>
 
-      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Новая настройка</h2>
-        <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Ключ и JSON-значение для глобальных настроек.
-        </p>
-        <div className="mt-4">
-          <PlatformSettingForm />
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Существующие настройки</h2>
-        {settings.length === 0 ? (
-          <p className="mt-3 text-sm text-[color:var(--bp-muted)]">
-            Настроек пока нет.
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-4">
-            {settings.map((setting) => (
-              <PlatformSettingForm
-                key={setting.id}
-                label={setting.key}
-                initialKey={setting.key}
-                initialValue={setting.valueJson}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      <PlatformSettingsPanels settings={settingsMap} />
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Новый шаблон</h2>

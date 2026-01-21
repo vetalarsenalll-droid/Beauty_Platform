@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Invalid JSON body", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
   const type = String(body.type ?? "").trim();

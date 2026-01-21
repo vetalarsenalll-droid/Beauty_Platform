@@ -14,21 +14,59 @@ type NavItem = {
   label: string;
   href: string;
   icon: React.ReactNode;
+  permission?: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Обзор", href: "/platform", icon: <IconHome /> },
-  { label: "Аккаунты", href: "/platform/accounts", icon: <IconUsers /> },
-  { label: "Тарифы", href: "/platform/plans", icon: <IconTag /> },
-  { label: "Модерация", href: "/platform/moderation", icon: <IconShield /> },
-  { label: "Мониторинг", href: "/platform/monitoring", icon: <IconPulse /> },
-  { label: "Аудит", href: "/platform/audit", icon: <IconFile /> },
-  { label: "Настройки", href: "/platform/settings", icon: <IconSettings /> },
+  {
+    label: "Аккаунты",
+    href: "/platform/accounts",
+    icon: <IconUsers />,
+    permission: "platform.accounts",
+  },
+  {
+    label: "Тарифы",
+    href: "/platform/plans",
+    icon: <IconTag />,
+    permission: "platform.plans",
+  },
+  {
+    label: "Оплаты",
+    href: "/platform/billing",
+    icon: <IconWallet />,
+    permission: "platform.plans",
+  },
+  {
+    label: "Модерация",
+    href: "/platform/moderation",
+    icon: <IconShield />,
+    permission: "platform.moderation",
+  },
+  {
+    label: "Мониторинг",
+    href: "/platform/monitoring",
+    icon: <IconPulse />,
+    permission: "platform.monitoring",
+  },
+  {
+    label: "Аудит",
+    href: "/platform/audit",
+    icon: <IconFile />,
+    permission: "platform.audit",
+  },
+  {
+    label: "Настройки",
+    href: "/platform/settings",
+    icon: <IconSettings />,
+    permission: "platform.settings",
+  },
 ];
 
 export default function PlatformShell({
   children,
   userEmail,
+  permissions,
 }: PlatformShellProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -36,9 +74,18 @@ export default function PlatformShell({
   const [darkMode, setDarkMode] = useState(false);
 
   const initials = useMemo(() => {
-    const base = userEmail?.split("@")[0] ?? "BP";
+    const base = userEmail?.split("@")[0] ?? "BS";
     return base.slice(0, 2).toUpperCase();
   }, [userEmail]);
+
+  const visibleItems = useMemo(() => {
+    if (permissions.includes("platform.all")) {
+      return NAV_ITEMS;
+    }
+    return NAV_ITEMS.filter(
+      (item) => !item.permission || permissions.includes(item.permission)
+    );
+  }, [permissions]);
 
   useEffect(() => {
     const stored = localStorage.getItem("bp-sidebar");
@@ -58,6 +105,14 @@ export default function PlatformShell({
     document.documentElement.classList.toggle("dark", darkMode);
     localStorage.setItem("bp-theme", darkMode ? "dark" : "light");
   }, [darkMode]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/platform/login";
+    }
+  };
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
@@ -102,7 +157,7 @@ export default function PlatformShell({
 
         <nav className="flex-1 overflow-y-auto px-3 pb-4 pt-2">
           <div className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => {
+            {visibleItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/platform" && pathname.startsWith(item.href));
@@ -162,6 +217,7 @@ export default function PlatformShell({
           </div>
           <button
             type="button"
+            onClick={handleLogout}
             className={`flex w-full items-center rounded-2xl text-sm font-medium text-[color:var(--bp-muted)] transition hover:bg-[color:var(--sidebar-item)] hover:text-[color:var(--bp-ink)] ${
               collapsed ? "justify-center px-2 py-2" : "px-3 py-2"
             }`}
@@ -189,7 +245,11 @@ export default function PlatformShell({
           collapsed ? "md:pl-[78px]" : "md:pl-[272px]"
         }`}
       >
-        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/90 px-4 shadow-[var(--bp-shadow)] backdrop-blur-[var(--glass-blur)] sm:px-6">
+        <header
+          className={`fixed top-0 z-30 flex h-16 items-center border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/90 px-4 shadow-[var(--bp-shadow)] backdrop-blur-[var(--glass-blur)] sm:px-6 ${
+            collapsed ? "md:left-[78px]" : "md:left-[272px]"
+          } left-0 right-0`}
+        >
           <button
             type="button"
             aria-label="Открыть меню"
@@ -238,7 +298,7 @@ export default function PlatformShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-[env(safe-area-inset-bottom)]">
+        <main className="flex-1 mt-16 px-4 pb-6 pt-6 sm:px-6 lg:px-8 pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto flex w-full max-w-[1240px] flex-col">
             {children}
           </div>
@@ -295,6 +355,17 @@ function IconTag() {
     <IconBase>
       <path d="M3 12l9 9 9-9-9-9H5a2 2 0 0 0-2 2Z" />
       <circle cx="8" cy="8" r="1.5" />
+    </IconBase>
+  );
+}
+
+function IconWallet() {
+  return (
+    <IconBase>
+      <path d="M4 7h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z" />
+      <path d="M4 7a2 2 0 0 1 2-2h10" />
+      <path d="M16 13h4" />
+      <circle cx="16" cy="13" r="1" />
     </IconBase>
   );
 }

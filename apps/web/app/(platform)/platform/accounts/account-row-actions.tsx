@@ -15,7 +15,11 @@ type AccountRowActionsProps = {
   plans: PlanOption[];
 };
 
-const statuses = ["ACTIVE", "SUSPENDED", "ARCHIVED"];
+const statusLabels: Record<string, string> = {
+  ACTIVE: "Активен",
+  SUSPENDED: "Приостановлен",
+  ARCHIVED: "Архив",
+};
 
 export default function AccountRowActions({
   accountId,
@@ -44,7 +48,8 @@ export default function AccountRowActions({
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const message =
-          payload?.error?.message ?? "Не удалось сохранить изменения.";
+          payload?.error?.message ??
+          "Не удалось обновить данные аккаунта.";
         alert(message);
         return;
       }
@@ -65,18 +70,18 @@ export default function AccountRowActions({
       <select
         value={currentStatus}
         onChange={(event) => setCurrentStatus(event.target.value)}
-        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-2 py-1 text-xs"
+        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs text-[color:var(--bp-ink)]"
       >
-        {statuses.map((item) => (
+        {Object.keys(statusLabels).map((item) => (
           <option key={item} value={item}>
-            {item}
+            {statusLabels[item] ?? item}
           </option>
         ))}
       </select>
       <select
         value={currentPlan}
         onChange={(event) => setCurrentPlan(event.target.value)}
-        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-2 py-1 text-xs"
+        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs text-[color:var(--bp-ink)]"
       >
         <option value="">Без тарифа</option>
         {plans.map((plan) => (

@@ -62,18 +62,18 @@ export default function TemplateRow({
         <input
           value={currentName}
           onChange={(event) => setCurrentName(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
         <input
           value={currentDescription}
           onChange={(event) => setCurrentDescription(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
         />
         <textarea
           value={currentContent}
           onChange={(event) => setCurrentContent(event.target.value)}
           rows={6}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-mono"
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm font-mono text-[color:var(--bp-ink)]"
         />
         <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
           <input

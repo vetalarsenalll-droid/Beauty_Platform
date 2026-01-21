@@ -10,17 +10,17 @@ type ActionCard = {
 const actions: ActionCard[] = [
   {
     title: "Настройки платформы",
-    text: "Глобальные шаблоны, пресеты и справочники.",
+    text: "Контакты, платежные реквизиты и базовые параметры.",
     href: "/platform/settings",
   },
   {
     title: "Мониторинг",
-    text: "Outbox, deliveries, webhooks, healthchecks.",
+    text: "Outbox, доставки, webhooks и healthchecks.",
     href: "/platform/monitoring",
   },
   {
     title: "Модерация",
-    text: "Проверка отзывов, медиа и профилей.",
+    text: "Черновики публичных профилей и заявки на публикацию.",
     href: "/platform/moderation",
   },
 ];
@@ -61,7 +61,7 @@ export default async function PlatformHome() {
     {
       label: "Активные аккаунты",
       value: String(activeAccounts),
-      hint: "Все активные бизнесы",
+      hint: "Все активные бизнес-аккаунты",
     },
     {
       label: "Новые регистрации",
@@ -69,9 +69,9 @@ export default async function PlatformHome() {
       hint: "За последние 7 дней",
     },
     {
-      label: "Outbox lag",
+      label: "Задержка Outbox",
       value: lagMinutes === null ? "—" : `${lagMinutes} мин`,
-      hint: "Средняя задержка",
+      hint: "Среднее время ожидания",
     },
     {
       label: "Системные алерты",
@@ -84,7 +84,7 @@ export default async function PlatformHome() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Платформа
+          Управление
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           Панель управления платформой

@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
+import {
+  applyAccessCookie,
+  requirePlatformApiPermission,
+} from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
+
+type Params = { params: Promise<{ id: string }> };
 
 type DbPlan = {
   id: number;
@@ -30,33 +35,26 @@ function mapPlan(plan: DbPlan) {
   };
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_request: Request, { params }: Params) {
   const auth = await requirePlatformApiPermission("platform.plans");
   if ("response" in auth) return auth.response;
 
   const { id } = await params;
   const planId = Number(id);
   if (!Number.isInteger(planId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid plan id", {
-      fields: [{ path: "id", issue: "invalid" }],
-    });
+    return jsonError("VALIDATION_FAILED", "Некорректный id тарифа", null, 400);
   }
+
   const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
   if (!plan) {
-    return jsonError("NOT_FOUND", "Plan not found", null, 404);
+    return jsonError("NOT_FOUND", "Тариф не найден", null, 404);
   }
 
   const response = jsonOk(mapPlan(plan as DbPlan));
   return applyAccessCookie(response, auth);
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: Request, { params }: Params) {
   const auth = await requirePlatformApiPermission("platform.plans");
   if ("response" in auth) return auth.response;
   const session = auth.session;
@@ -64,13 +62,12 @@ export async function PATCH(
   const { id } = await params;
   const planId = Number(id);
   if (!Number.isInteger(planId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid plan id", {
-      fields: [{ path: "id", issue: "invalid" }],
-    });
+    return jsonError("VALIDATION_FAILED", "Некорректный id тарифа", null, 400);
   }
+
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Invalid JSON body", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
   const data: {
@@ -84,15 +81,16 @@ export async function PATCH(
 
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.code !== undefined) data.code = String(body.code).trim();
-  if (body.description !== undefined)
+  if (body.description !== undefined) {
     data.description = body.description ? String(body.description).trim() : null;
+  }
   if (body.currency !== undefined) data.currency = String(body.currency).trim();
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
   if (body.priceMonthly !== undefined) {
     try {
       data.priceMonthly = new Prisma.Decimal(body.priceMonthly);
     } catch {
-      return jsonError("VALIDATION_FAILED", "Invalid price", {
+      return jsonError("VALIDATION_FAILED", "Некорректная цена", {
         fields: [{ path: "priceMonthly", issue: "invalid" }],
       });
     }
@@ -111,7 +109,9 @@ export async function PATCH(
       targetId: updated.id,
       diffJson: {
         ...data,
-        priceMonthly: data.priceMonthly ? data.priceMonthly.toString() : undefined,
+        priceMonthly: data.priceMonthly
+          ? data.priceMonthly.toString()
+          : undefined,
       },
     });
 
@@ -123,51 +123,13 @@ export async function PATCH(
         ? error.meta.target[0]
         : error?.meta?.target;
       const field = target === "name" ? "name" : "code";
-      const message = field === "name" ? "Name already exists" : "Code already exists";
+      const message =
+        field === "name" ? "Название уже используется" : "Код уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
     if (error?.code === "P2025") {
-      return jsonError("NOT_FOUND", "Plan not found", null, 404);
+      return jsonError("NOT_FOUND", "Тариф не найден", null, 404);
     }
-    return jsonError("SERVER_ERROR", "Failed to update plan", null, 500);
-  }
-}
-
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = await requirePlatformApiPermission("platform.plans");
-  if ("response" in auth) return auth.response;
-  const session = auth.session;
-
-  const { id } = await params;
-  const planId = Number(id);
-  if (!Number.isInteger(planId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid plan id", {
-      fields: [{ path: "id", issue: "invalid" }],
-    });
-  }
-  try {
-    const archived = await prisma.platformPlan.update({
-      where: { id: planId },
-      data: { isActive: false },
-    });
-
-    await logPlatformAudit({
-      adminId: session.adminId,
-      action: "Тариф отключен",
-      targetType: "plan",
-      targetId: archived.id,
-      diffJson: { isActive: false },
-    });
-
-    const response = jsonOk({ id: planId, isActive: false });
-    return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2025") {
-      return jsonError("NOT_FOUND", "Plan not found", null, 404);
-    }
-    return jsonError("SERVER_ERROR", "Failed to disable plan", null, 500);
+    return jsonError("SERVER_ERROR", "Не удалось обновить тариф", null, 500);
   }
 }

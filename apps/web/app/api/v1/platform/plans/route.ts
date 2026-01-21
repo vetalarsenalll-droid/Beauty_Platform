@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
+import {
+  applyAccessCookie,
+  requirePlatformApiPermission,
+} from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
 
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Invalid JSON body", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
   const name = String(body.name ?? "").trim();
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
 
   if (!name || !code || body.priceMonthly === undefined) {
-    return jsonError("VALIDATION_FAILED", "Name, code and price are required", {
+    return jsonError("VALIDATION_FAILED", "Название, код и цена обязательны", {
       fields: [
         { path: "name", issue: name ? null : "required" },
         { path: "code", issue: code ? null : "required" },
@@ -75,7 +78,7 @@ export async function POST(request: Request) {
   try {
     price = new Prisma.Decimal(body.priceMonthly);
   } catch {
-    return jsonError("VALIDATION_FAILED", "Invalid price", {
+    return jsonError("VALIDATION_FAILED", "Некорректная цена", {
       fields: [{ path: "priceMonthly", issue: "invalid" }],
     });
   }
@@ -115,9 +118,10 @@ export async function POST(request: Request) {
         ? error.meta.target[0]
         : error?.meta?.target;
       const field = target === "name" ? "name" : "code";
-      const message = field === "name" ? "Name already exists" : "Code already exists";
+      const message =
+        field === "name" ? "Название уже используется" : "Код уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
-    return jsonError("SERVER_ERROR", "Failed to create plan", null, 500);
+    return jsonError("SERVER_ERROR", "Не удалось создать тариф", null, 500);
   }
 }

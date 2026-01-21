@@ -58,35 +58,59 @@ export default function AccountCreateForm({ plans }: AccountCreateFormProps) {
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
             required
           />
         </label>
         <label className="flex flex-col gap-2 text-sm">
-          Slug
+          Публичная ссылка
           <input
             value={slug}
             onChange={(event) => setSlug(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
             required
           />
         </label>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
-          Таймзона
-          <input
+          Часовой пояс
+          <select
             value={timeZone}
             onChange={(event) => setTimeZone(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2"
-          />
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          >
+            <option value="Europe/Kaliningrad">
+              Калининград (UTC+2, Europe/Kaliningrad)
+            </option>
+            <option value="Europe/Moscow">
+              Москва (UTC+3, Europe/Moscow)
+            </option>
+            <option value="Europe/Samara">Самара (UTC+4, Europe/Samara)</option>
+            <option value="Asia/Yekaterinburg">
+              Екатеринбург (UTC+5, Asia/Yekaterinburg)
+            </option>
+            <option value="Asia/Omsk">Омск (UTC+6, Asia/Omsk)</option>
+            <option value="Asia/Krasnoyarsk">
+              Красноярск (UTC+7, Asia/Krasnoyarsk)
+            </option>
+            <option value="Asia/Irkutsk">Иркутск (UTC+8, Asia/Irkutsk)</option>
+            <option value="Asia/Yakutsk">Якутск (UTC+9, Asia/Yakutsk)</option>
+            <option value="Asia/Vladivostok">
+              Владивосток (UTC+10, Asia/Vladivostok)
+            </option>
+            <option value="Asia/Magadan">Магадан (UTC+11, Asia/Magadan)</option>
+            <option value="Asia/Kamchatka">
+              Камчатка (UTC+12, Asia/Kamchatka)
+            </option>
+          </select>
         </label>
         <label className="flex flex-col gap-2 text-sm">
           Тариф
           <select
             value={planId}
             onChange={(event) => setPlanId(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
           >
             <option value="">Без тарифа</option>
             {plans.map((plan) => (

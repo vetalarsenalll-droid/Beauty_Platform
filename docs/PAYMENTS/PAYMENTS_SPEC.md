@@ -42,3 +42,9 @@
 - /payments/intents
 - /payments/refunds
 - /payments/webhooks/{provider}
+
+7.10. Platform Billing (ручные оплаты)
+- Platform Admin выставляет счет (PlatformInvoice) по аккаунту.
+- Ручная отметка оплаты создает PlatformPayment и переводит счет в PAID.
+- При оплате подписка аккаунта становится ACTIVE, nextBillingAt = +1 месяц (MVP).
+- Статусы в UI показываются на русском.

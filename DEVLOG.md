@@ -391,3 +391,19 @@
 - Files: packages/db/prisma/schema.prisma, apps/web/lib/auth.ts, apps/web/lib/platform-api.ts, apps/web/app/api/v1/auth/login/route.ts, apps/web/app/api/v1/auth/refresh/route.ts, apps/web/app/api/v1/auth/logout/route.ts, apps/web/middleware.ts, apps/web/app/api/v1/platform/accounts/route.ts, apps/web/app/api/v1/platform/accounts/[id]/route.ts, apps/web/app/api/v1/platform/plans/route.ts, apps/web/app/api/v1/platform/plans/[id]/route.ts, apps/web/app/api/v1/platform/monitoring/outbox/route.ts, apps/web/app/api/v1/platform/monitoring/deliveries/route.ts, apps/web/app/api/v1/platform/monitoring/webhooks/route.ts, apps/web/app/api/v1/platform/audit/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/route.ts, apps/web/app/api/v1/platform/moderation/public-pages/[id]/route.ts, apps/web/app/api/v1/platform/settings/route.ts, apps/web/app/api/v1/platform/templates/route.ts, apps/web/app/api/v1/platform/templates/[id]/route.ts, apps/mobile/lib/api_client.dart, apps/mobile/lib/auth_service.dart, apps/mobile/lib/platform_api.dart, apps/mobile/lib/platform_login.dart, apps/mobile/lib/main_platform.dart, apps/mobile/lib/screens/platform_home.dart
 - Notes: Requires Prisma migration and re-login to create new sessions.
 - Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: Platform Billing (ручные счета и оплаты)
+- Summary: Added billing section with invoice list, manual payment action, and API routes for issuing invoices and marking them as paid; updated nav labels and platform docs.
+- Files: apps/web/app/(platform)/platform/billing/page.tsx, apps/web/app/(platform)/platform/billing/billing-create-invoice-form.tsx, apps/web/app/(platform)/platform/billing/billing-invoice-actions.tsx, apps/web/app/api/v1/platform/billing/invoices/route.ts, apps/web/app/api/v1/platform/billing/invoices/[id]/pay/route.ts, apps/web/app/(platform)/platform/platform-shell.tsx, docs/PRODUCT/PLATFORM_ADMIN.md, docs/PAYMENTS/PAYMENTS_SPEC.md
+- Notes: Manual payments set invoice to PAID and activate subscription (+1 month).
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: Platform settings UI
+- Summary: Replaced generic key/JSON settings with structured payment/SEO/contact forms and documented new settings keys.
+- Files: apps/web/app/(platform)/platform/settings/page.tsx, apps/web/app/(platform)/platform/settings/platform-settings-panels.tsx, docs/SETTINGS/PLATFORM_SETTINGS.md
+- Notes: Settings stored in platform.billing / platform.seo / platform.contacts keys.
+- Tests: Not run (manual only).

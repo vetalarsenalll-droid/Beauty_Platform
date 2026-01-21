@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
+import {
+  applyAccessCookie,
+  requirePlatformApiPermission,
+} from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 type DbAccount = {
@@ -38,7 +41,7 @@ export async function GET(
   const { id } = await params;
   const accountId = Number(id);
   if (!Number.isInteger(accountId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid account id", {
+    return jsonError("VALIDATION_FAILED", "Некорректный id аккаунта", {
       fields: [{ path: "id", issue: "invalid" }],
     });
   }
@@ -48,7 +51,7 @@ export async function GET(
   });
 
   if (!account) {
-    return jsonError("NOT_FOUND", "Account not found", null, 404);
+    return jsonError("NOT_FOUND", "Аккаунт не найден", null, 404);
   }
 
   const response = jsonOk(mapAccount(account as DbAccount));
@@ -66,13 +69,13 @@ export async function PATCH(
   const { id } = await params;
   const accountId = Number(id);
   if (!Number.isInteger(accountId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid account id", {
+    return jsonError("VALIDATION_FAILED", "Некорректный id аккаунта", {
       fields: [{ path: "id", issue: "invalid" }],
     });
   }
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Invalid JSON body", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
   const data: {
@@ -93,7 +96,7 @@ export async function PATCH(
     } else {
       const parsedPlanId = Number(body.planId);
       if (!Number.isInteger(parsedPlanId)) {
-        return jsonError("VALIDATION_FAILED", "Invalid planId", {
+        return jsonError("VALIDATION_FAILED", "Некорректный тариф", {
           fields: [{ path: "planId", issue: "invalid" }],
         });
       }
@@ -124,18 +127,21 @@ export async function PATCH(
         ? error.meta.target[0]
         : error?.meta?.target;
       const field = target === "slug" ? "slug" : "name";
-      const message = field === "slug" ? "Slug already exists" : "Name already exists";
+      const message =
+        field === "slug"
+          ? "Публичная ссылка уже используется"
+          : "Название уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
     if (error?.code === "P2003") {
-      return jsonError("VALIDATION_FAILED", "Plan not found", {
+      return jsonError("VALIDATION_FAILED", "Тариф не найден", {
         fields: [{ path: "planId", issue: "not_found" }],
       });
     }
     if (error?.code === "P2025") {
-      return jsonError("NOT_FOUND", "Account not found", null, 404);
+      return jsonError("NOT_FOUND", "Аккаунт не найден", null, 404);
     }
-    return jsonError("SERVER_ERROR", "Failed to update account", null, 500);
+    return jsonError("SERVER_ERROR", "Не удалось обновить аккаунт", null, 500);
   }
 }
 
@@ -150,7 +156,7 @@ export async function DELETE(
   const { id } = await params;
   const accountId = Number(id);
   if (!Number.isInteger(accountId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid account id", {
+    return jsonError("VALIDATION_FAILED", "Некорректный id аккаунта", {
       fields: [{ path: "id", issue: "invalid" }],
     });
   }
@@ -172,8 +178,8 @@ export async function DELETE(
     return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
-      return jsonError("NOT_FOUND", "Account not found", null, 404);
+      return jsonError("NOT_FOUND", "Аккаунт не найден", null, 404);
     }
-    return jsonError("SERVER_ERROR", "Failed to archive account", null, 500);
+    return jsonError("SERVER_ERROR", "Не удалось архивировать аккаунт", null, 500);
   }
 }

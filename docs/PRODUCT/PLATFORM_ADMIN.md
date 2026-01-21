@@ -11,6 +11,7 @@
 Разделы
 - Accounts
 - Plans / Billing
+- Billing (оплаты)
 - Moderation
 - Monitoring
 - Audit

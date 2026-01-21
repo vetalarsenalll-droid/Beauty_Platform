@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
-import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
+import {
+  applyAccessCookie,
+  requirePlatformApiPermission,
+} from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
 
 type DbAccount = {
@@ -37,7 +40,9 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  const response = jsonOk(accounts.map((account) => mapAccount(account as DbAccount)));
+  const response = jsonOk(
+    accounts.map((account) => mapAccount(account as DbAccount))
+  );
   return applyAccessCookie(response, auth);
 }
 
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Invalid JSON body", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
   const name = String(body.name ?? "").trim();
@@ -60,7 +65,7 @@ export async function POST(request: Request) {
       : null;
 
   if (!name || !slug) {
-    return jsonError("VALIDATION_FAILED", "Name and slug are required", {
+    return jsonError("VALIDATION_FAILED", "Название и ссылка обязательны", {
       fields: [
         { path: "name", issue: name ? null : "required" },
         { path: "slug", issue: slug ? null : "required" },
@@ -69,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   if (planId !== null && !Number.isInteger(planId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid planId", {
+    return jsonError("VALIDATION_FAILED", "Некорректный тариф", {
       fields: [{ path: "planId", issue: "invalid" }],
     });
   }
@@ -101,14 +106,17 @@ export async function POST(request: Request) {
         ? error.meta.target[0]
         : error?.meta?.target;
       const field = target === "slug" ? "slug" : "name";
-      const message = field === "slug" ? "Slug already exists" : "Name already exists";
+      const message =
+        field === "slug"
+          ? "Публичная ссылка уже используется"
+          : "Название уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
     if (error?.code === "P2003") {
-      return jsonError("VALIDATION_FAILED", "Plan not found", {
+      return jsonError("VALIDATION_FAILED", "Тариф не найден", {
         fields: [{ path: "planId", issue: "not_found" }],
       });
     }
-    return jsonError("SERVER_ERROR", "Failed to create account", null, 500);
+    return jsonError("SERVER_ERROR", "Не удалось создать аккаунт", null, 500);
   }
 }

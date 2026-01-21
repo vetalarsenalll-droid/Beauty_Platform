@@ -14,13 +14,13 @@ export async function PATCH(
   const { id } = await params;
   const pageId = Number(id);
   if (!Number.isInteger(pageId)) {
-    return jsonError("VALIDATION_FAILED", "Invalid public page id", {
+    return jsonError("VALIDATION_FAILED", "Некорректный id страницы", {
       fields: [{ path: "id", issue: "invalid" }],
     });
   }
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Invalid JSON body", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
   const status = String(body.status ?? "").trim();
@@ -52,8 +52,8 @@ export async function PATCH(
     return applyAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2025") {
-      return jsonError("NOT_FOUND", "Public page not found", null, 404);
+      return jsonError("NOT_FOUND", "Публичная страница не найдена", null, 404);
     }
-    return jsonError("SERVER_ERROR", "Failed to update status", null, 500);
+    return jsonError("SERVER_ERROR", "Не удалось обновить статус", null, 500);
   }
 }
