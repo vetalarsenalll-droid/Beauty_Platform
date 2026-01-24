@@ -159,6 +159,11 @@ enum IdentityProvider {
   MAX
 }
 
+enum SessionType {
+  PLATFORM
+  CRM
+}
+
 enum SubscriptionStatus {
   ACTIVE
   PAST_DUE
@@ -322,6 +327,24 @@ model PlatformAuditLog {
   @@index([adminId, createdAt])
 }
 
+model AccountAuditLog {
+  id Int @id @default(autoincrement())
+  accountId Int
+  userId Int
+  action     String
+  targetType String
+  targetId   String?
+  ipAddress  String?
+  diffJson   Json?
+  createdAt  DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([accountId, createdAt])
+  @@index([userId, createdAt])
+}
+
 model PlatformSetting {
   id Int @id @default(autoincrement())
   key       String   @unique
@@ -398,6 +421,7 @@ model Account {
   seoSettings       SeoSetting?
   mediaCollections  MediaCollection[]
   locations         Location[]
+  locationManagers  LocationManager[]
   services          Service[]
   serviceCategories ServiceCategory[]
   roles             Role[]
@@ -409,6 +433,7 @@ model Account {
   appointmentHolds  AppointmentHold[]
   scheduleTemplates ScheduleTemplate[]
   blockedSlots      BlockedSlot[]
+  userSessions      UserSession[]
   paymentIntents    PaymentIntent[]
   transactions      Transaction[]
   refunds           Refund[]
@@ -428,6 +453,7 @@ model Account {
   notificationPreferences NotificationPreference[]
   outboxItems       OutboxItem[]
   webhookEndpoints  WebhookEndpoint[]
+  audits            AccountAuditLog[]
 
   @@index([status, createdAt])
 }
@@ -707,6 +733,7 @@ model Location {
   exceptions  LocationException[]
   services    ServiceLocation[]
   specialists SpecialistLocation[]
+  managers    LocationManager[]
   appointments Appointment[]
   workingHours WorkingHour[]
   breaks       Break[]
@@ -762,6 +789,8 @@ model User {
   outboxItems         OutboxItem[]
   aiThreads           AiThread[]
   platformAdmin    PlatformAdmin?
+  accountAudits    AccountAuditLog[]
+  locationManagers LocationManager[]
 
   @@index([email])
 }
@@ -800,13 +829,18 @@ model UserIdentity {
 model UserSession {
   id Int @id @default(autoincrement())
   userId Int
+  sessionType SessionType @default(PLATFORM)
+  accountId Int?
   accessTokenHash  String   @unique
   accessExpiresAt  DateTime
   refreshTokenHash String   @unique
   refreshExpiresAt DateTime
   createdAt        DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
 }
 
 model UserNotificationChannelPreference {
@@ -1019,6 +1053,22 @@ model SpecialistLocation {
   location   Location          @relation(fields: [locationId], references: [id])
 
   @@unique([specialistId, locationId])
+}
+
+model LocationManager {
+  id Int @id @default(autoincrement())
+  accountId Int
+  locationId Int
+  userId Int
+  createdAt DateTime @default(now())
+
+  account  Account  @relation(fields: [accountId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([locationId, userId])
+  @@index([accountId])
+  @@index([userId])
 }
 
 model Client {

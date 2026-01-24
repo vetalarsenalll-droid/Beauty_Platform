@@ -90,7 +90,7 @@ class PlatformSectionView extends StatelessWidget {
       case PlatformSection.monitoring:
         return _PlatformMonitoring(onNavigate: onNavigate);
       case PlatformSection.audit:
-        return _PlatformAudit();
+        return const _PlatformAudit();
       case PlatformSection.settings:
         return _PlatformSettings(onNavigate: onNavigate);
     }
@@ -160,20 +160,18 @@ class _PlatformOverviewState extends State<_PlatformOverview> {
     }).length;
 
     final outbox = outboxResponse['data'] as Map<String, dynamic>? ?? {};
-    final recent = (outbox['recent'] as List<dynamic>? ?? [])
-        .cast<Map<String, dynamic>>();
+    final recent =
+        (outbox['recent'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
     final lagMinutes = recent.isEmpty
         ? null
-        : (recent
-                    .map((item) {
-                      final createdAt = DateTime.tryParse(
-                        item['createdAt']?.toString() ?? '',
-                      );
-                      return createdAt == null
-                          ? 0
-                          : now.difference(createdAt).inMinutes;
-                    })
-                    .reduce((a, b) => a + b) /
+        : (recent.map((item) {
+                  final createdAt = DateTime.tryParse(
+                    item['createdAt']?.toString() ?? '',
+                  );
+                  return createdAt == null
+                      ? 0
+                      : now.difference(createdAt).inMinutes;
+                }).reduce((a, b) => a + b) /
                 recent.length)
             .round();
 
@@ -213,7 +211,7 @@ class _PlatformOverviewState extends State<_PlatformOverview> {
               ),
               SummaryItem(
                 title: 'Outbox lag',
-                subtitle: _outboxLag == null ? '—' : '${_outboxLag} мин',
+                subtitle: _outboxLag == null ? '—' : '$_outboxLag мин',
               ),
               SummaryItem(
                 title: 'Системные алерты',
@@ -428,8 +426,8 @@ class _PlatformAccountsState extends State<_PlatformAccounts> {
                 final plan = account['plan'] as Map<String, dynamic>?;
                 return ListTile(
                   title: Text(account['name'].toString()),
-                  subtitle:
-                      Text('${account['slug']} · ${plan?['name'] ?? 'Без тарифа'}'),
+                  subtitle: Text(
+                      '${account['slug']} · ${plan?['name'] ?? 'Без тарифа'}'),
                   trailing: Text(account['status'].toString()),
                 );
               },

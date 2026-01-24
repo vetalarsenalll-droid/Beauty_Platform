@@ -10,19 +10,17 @@ ThemeData buildAppTheme() {
     onSecondary: Colors.white,
     error: Color(0xFFB91C1C),
     onError: Colors.white,
-    background: Color(0xFFF1EFF8),
-    onBackground: Color(0xFF1D1B2C),
     surface: Colors.white,
     onSurface: Color(0xFF1D1B2C),
   );
 
   return ThemeData(
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: colorScheme.background,
+    scaffoldBackgroundColor: colorScheme.surface,
     useMaterial3: true,
     textTheme: GoogleFonts.manropeTextTheme().apply(
-      bodyColor: colorScheme.onBackground,
-      displayColor: colorScheme.onBackground,
+      bodyColor: colorScheme.onSurface,
+      displayColor: colorScheme.onSurface,
     ),
     appBarTheme: const AppBarTheme(
       elevation: 0,

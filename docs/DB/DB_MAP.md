@@ -15,12 +15,13 @@ Platform
 Tenant
 - accounts, account_settings
 - branding, domains, public_pages, seo
+- account_audit_logs
 
 Marketplace
 - categories, tags, media_assets, reviews, favorites, search_index, geo_points
 
 Structure
-- locations, location_hours, location_exceptions
+- locations, location_hours, location_exceptions, location_managers
 
 People
 - users, roles, permissions, role_assignments

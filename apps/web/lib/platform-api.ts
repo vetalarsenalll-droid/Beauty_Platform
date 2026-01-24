@@ -39,7 +39,7 @@ export async function requirePlatformApiPermission(
     }
 
     if (!session && refreshToken) {
-      const refreshed = await refreshSession(refreshToken);
+      const refreshed = await refreshSession(refreshToken, "PLATFORM");
       if (refreshed) {
         session = await getPlatformSessionByToken(refreshed.accessToken);
         if (session) {

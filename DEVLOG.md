@@ -407,3 +407,123 @@
 - Files: apps/web/app/(platform)/platform/settings/page.tsx, apps/web/app/(platform)/platform/settings/platform-settings-panels.tsx, docs/SETTINGS/PLATFORM_SETTINGS.md
 - Notes: Settings stored in platform.billing / platform.seo / platform.contacts keys.
 - Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM auth + RBAC + locations/services base
+- Summary: Added CRM auth with account-scoped sessions, RBAC permissions catalog/seed, account audit logging, and CRUD UI+API for locations, service categories, and services; wired CRM shell to auth/permissions and updated OpenAPI.
+- Files: packages/db/prisma/schema.prisma, apps/web/lib/auth.ts, apps/web/lib/crm-api.ts, apps/web/lib/crm-audit.ts, apps/web/middleware.ts, apps/web/app/crm/login/page.tsx, apps/web/app/(crm)/layout.tsx, apps/web/app/(crm)/crm/crm-shell.tsx, apps/web/app/(crm)/crm/page.tsx, apps/web/app/(crm)/crm/locations/page.tsx, apps/web/app/(crm)/crm/locations/location-create-form.tsx, apps/web/app/(crm)/crm/locations/location-row-actions.tsx, apps/web/app/(crm)/crm/services/page.tsx, apps/web/app/(crm)/crm/services/service-create-form.tsx, apps/web/app/(crm)/crm/services/service-row-actions.tsx, apps/web/app/(crm)/crm/services/service-category-form.tsx, apps/web/app/(crm)/crm/services/service-category-row.tsx, apps/web/app/api/v1/crm/auth/login/route.ts, apps/web/app/api/v1/crm/auth/logout/route.ts, apps/web/app/api/v1/crm/auth/me/route.ts, apps/web/app/api/v1/crm/auth/refresh/route.ts, apps/web/app/api/v1/crm/locations/route.ts, apps/web/app/api/v1/crm/locations/[id]/route.ts, apps/web/app/api/v1/crm/services/route.ts, apps/web/app/api/v1/crm/services/[id]/route.ts, apps/web/app/api/v1/crm/service-categories/route.ts, apps/web/app/api/v1/crm/service-categories/[id]/route.ts, scripts/seed-crm-rbac.sql, docs/RBAC/PERMISSIONS_CATALOG.md, docs/DB/DB_MAP.md, packages/contracts/openapi.yaml, API_CHANGELOG.md, MIGRATIONS.md
+- Notes: CRM auth uses separate cookies (bp_crm_access/bp_crm_refresh). AccountAuditLog requires new migration.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: Fix CRM session relation for migration
+- Summary: Added missing Account relation on UserSession to satisfy Prisma validation.
+- Files: packages/db/prisma/schema.prisma
+- Notes: Migration still blocked because previously applied migration file was modified; requires reset or manual resolution.
+- Tests: Not run (blocked).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: Reset dev DB + CRM seeds + smoke-test setup
+- Summary: Reset dev database, applied CRM auth/audit migration, seeded platform admin + CRM RBAC, added CRM demo account/roles, and updated CRM API permission guard to honor crm.all; attempted Prisma generate and CRM smoke tests.
+- Files: apps/web/lib/crm-api.ts, packages/db/prisma/migrations/20260121184532_crm_auth_sessions_account_audit/migration.sql, scripts/seed-crm-account.sql, MIGRATIONS.md
+- Notes: Prisma generate fails with EPERM rename for query_engine DLL; CRM login endpoints return 500 until client generation is fixed. Admin dev password set to Beauty123! for smoke tests.
+- Tests: CRM login/location/category/service/audit smoke tests attempted; blocked by 500 responses.
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM smoke tests after Prisma generate fix
+- Summary: Regenerated Prisma client, started dev server, and verified CRM login plus create flows for location/category/service with audit entries; ensured OWNER role has crm.all.
+- Files: DEVLOG.md
+- Notes: CRM demo account slug is demo; admin password is Beauty123! for dev smoke tests.
+- Tests: CRM login, create location/category/service, verify AccountAuditLog entries (pass).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM login data for beauty-salon
+- Summary: Added CRM account `beauty-salon` with owner user `owner@beauty.local` and assigned OWNER role with crm.all.
+- Files: DEVLOG.md
+- Notes: Owner password set to Beauty123!.
+- Tests: Not run (seed only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM logout button
+- Summary: Added CRM sidebar logout action to match platform navigation.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: CRM logout posts to `/api/v1/crm/auth/logout` and redirects to `/crm/login`.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM specialists (employees)
+- Summary: Added specialist levels and specialists CRUD (API + UI), including role assignment for specialists and account audit logs.
+- Files: apps/web/app/(crm)/crm/specialists/page.tsx, apps/web/app/(crm)/crm/specialists/specialist-create-form.tsx, apps/web/app/(crm)/crm/specialists/specialist-row-actions.tsx, apps/web/app/(crm)/crm/specialists/specialist-level-form.tsx, apps/web/app/(crm)/crm/specialists/specialist-level-row.tsx, apps/web/app/api/v1/crm/specialists/route.ts, apps/web/app/api/v1/crm/specialists/[id]/route.ts, apps/web/app/api/v1/crm/specialist-levels/route.ts, apps/web/app/api/v1/crm/specialist-levels/[id]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md
+- Notes: Specialist delete disables user status; base levels (accountId null) are read-only.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM sample data for beauty-salon
+- Summary: Added location managers table and seeded two locations, eight specialists with levels, ten services across categories, two managers, and location/service/specialist bindings for the beauty-salon account.
+- Files: packages/db/prisma/schema.prisma, packages/db/prisma/migrations/20260121202652_location_managers/migration.sql, scripts/seed-crm-sample-data.sql, MIGRATIONS.md, docs/DB/DB_MAP.md
+- Notes: Services are shared across locations (8 shared, 1 per location). Managers are linked via LocationManager.
+- Tests: Not run (seed only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM staff submenu
+- Summary: Renamed Specialists menu to Staff with expandable submenu for Specialists and Managers; added Managers placeholder page.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx, apps/web/app/(crm)/crm/managers/page.tsx
+- Notes: Managers UI CRUD not implemented yet.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM menu labels encoding fix
+- Summary: Restored Russian labels for CRM sidebar navigation and staff submenu after encoding corruption.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: File is UTF-8; restart dev server if menu still shows gibberish.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM staff submenu hover in collapsed mode
+- Summary: Added hover flyout for staff submenu in collapsed sidebar and fixed toggle alignment/labels.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Flyout only shows on hover in collapsed state; toggle hidden when collapsed.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM sidebar encoding + JSX fix
+- Summary: Restored Russian labels in CRM sidebar and fixed broken JSX around staff submenu rendering.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Restart dev server after changes if errors persist.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM staff hover submenu
+- Summary: Enabled hover to reveal staff submenu in expanded sidebar and kept collapsed flyout clickable.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Submenu now appears on hover or toggle.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM collapsed submenu visibility
+- Summary: Allowed sidebar flyout to overflow the layout and kept main content clipped to avoid horizontal scroll.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Root container now allows overflow-x for submenu popover.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM mobile sidebar labels + submenu behavior
+- Summary: Ensured collapsed logic is ignored on mobile menu so labels render and submenu opens by click; hover flyout stays desktop-only.
+- Files: apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Collapsed state now uses effectiveCollapsed = collapsed && !mobileOpen.
+- Tests: Not run (manual only).

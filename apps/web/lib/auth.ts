@@ -3,10 +3,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 
-const ACCESS_COOKIE = "bp_access";
-const REFRESH_COOKIE = "bp_refresh";
+const PLATFORM_ACCESS_COOKIE = "bp_access";
+const PLATFORM_REFRESH_COOKIE = "bp_refresh";
+const CRM_ACCESS_COOKIE = "bp_crm_access";
+const CRM_REFRESH_COOKIE = "bp_crm_refresh";
 const ACCESS_TTL_MINUTES = 15;
 const REFRESH_TTL_DAYS = 30;
+
+type SessionType = "PLATFORM" | "CRM";
 
 type PlatformSession = {
   adminId: number;
@@ -15,11 +19,21 @@ type PlatformSession = {
   permissions: string[];
 };
 
+type CrmSession = {
+  userId: number;
+  email: string | null;
+  accountId: number;
+  role: string;
+  permissions: string[];
+};
+
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-function mapSession(session: Awaited<ReturnType<typeof findSessionByAccess>>) {
+function mapPlatformSession(
+  session: Awaited<ReturnType<typeof findSessionByAccess>>
+) {
   if (!session?.user?.platformAdmin) return null;
 
   const permissions =
@@ -35,9 +49,40 @@ function mapSession(session: Awaited<ReturnType<typeof findSessionByAccess>>) {
   };
 }
 
-async function findSessionByAccess(tokenHash: string) {
+function mapCrmSession(
+  session: Awaited<ReturnType<typeof findSessionByAccess>>
+): CrmSession | null {
+  if (!session?.accountId) return null;
+
+  const assignment = session.user?.roleAssignments.find(
+    (item) => item.accountId === session.accountId
+  );
+  if (!assignment) return null;
+
+  const permissions =
+    assignment.role.permissions.map(
+      (rolePermission) => rolePermission.permission.key
+    ) ?? [];
+
+  return {
+    userId: session.userId,
+    email: session.user?.email ?? null,
+    accountId: session.accountId,
+    role: assignment.role.name,
+    permissions,
+  };
+}
+
+async function findSessionByAccess(
+  tokenHash: string,
+  sessionType: SessionType
+) {
   return prisma.userSession.findFirst({
-    where: { accessTokenHash: tokenHash, accessExpiresAt: { gt: new Date() } },
+    where: {
+      accessTokenHash: tokenHash,
+      accessExpiresAt: { gt: new Date() },
+      sessionType,
+    },
     include: {
       user: {
         include: {
@@ -46,21 +91,46 @@ async function findSessionByAccess(tokenHash: string) {
               permissions: { include: { permission: true } },
             },
           },
+          roleAssignments: {
+            include: {
+              role: {
+                include: {
+                  permissions: { include: { permission: true } },
+                },
+              },
+            },
+          },
         },
       },
     },
   });
 }
 
-async function findSessionByRefresh(tokenHash: string) {
+async function findSessionByRefresh(
+  tokenHash: string,
+  sessionType: SessionType
+) {
   return prisma.userSession.findFirst({
-    where: { refreshTokenHash: tokenHash, refreshExpiresAt: { gt: new Date() } },
+    where: {
+      refreshTokenHash: tokenHash,
+      refreshExpiresAt: { gt: new Date() },
+      sessionType,
+    },
     include: {
       user: {
         include: {
           platformAdmin: {
             include: {
               permissions: { include: { permission: true } },
+            },
+          },
+          roleAssignments: {
+            include: {
+              role: {
+                include: {
+                  permissions: { include: { permission: true } },
+                },
+              },
             },
           },
         },
@@ -75,7 +145,12 @@ function createTokens() {
   return { token, tokenHash };
 }
 
-export async function createSession(userId: number) {
+export async function createSession(params: {
+  userId: number;
+  sessionType: SessionType;
+  accountId?: number | null;
+}) {
+  const { userId, sessionType, accountId } = params;
   const { token: accessToken, tokenHash: accessTokenHash } = createTokens();
   const { token: refreshToken, tokenHash: refreshTokenHash } = createTokens();
   const accessExpiresAt = new Date(Date.now() + ACCESS_TTL_MINUTES * 60 * 1000);
@@ -86,6 +161,8 @@ export async function createSession(userId: number) {
   await prisma.userSession.create({
     data: {
       userId,
+      sessionType,
+      accountId: accountId ?? null,
       accessTokenHash,
       accessExpiresAt,
       refreshTokenHash,
@@ -122,18 +199,24 @@ export async function verifyPassword(
 
 export async function getPlatformSession(): Promise<PlatformSession | null> {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
-  const refreshToken = cookieStore.get(REFRESH_COOKIE)?.value;
+  const accessToken = cookieStore.get(PLATFORM_ACCESS_COOKIE)?.value;
+  const refreshToken = cookieStore.get(PLATFORM_REFRESH_COOKIE)?.value;
 
   if (accessToken) {
-    const session = await findSessionByAccess(hashToken(accessToken));
-    const mapped = mapSession(session);
+    const session = await findSessionByAccess(
+      hashToken(accessToken),
+      "PLATFORM"
+    );
+    const mapped = mapPlatformSession(session);
     if (mapped) return mapped;
   }
 
   if (refreshToken) {
-    const session = await findSessionByRefresh(hashToken(refreshToken));
-    return mapSession(session);
+    const session = await findSessionByRefresh(
+      hashToken(refreshToken),
+      "PLATFORM"
+    );
+    return mapPlatformSession(session);
   }
 
   return null;
@@ -144,8 +227,8 @@ export async function getPlatformSessionByToken(
 ): Promise<PlatformSession | null> {
   if (!token) return null;
   const tokenHash = hashToken(token);
-  const session = await findSessionByAccess(tokenHash);
-  return mapSession(session);
+  const session = await findSessionByAccess(tokenHash, "PLATFORM");
+  return mapPlatformSession(session);
 }
 
 export async function getPlatformSessionByRefreshToken(
@@ -153,13 +236,53 @@ export async function getPlatformSessionByRefreshToken(
 ): Promise<PlatformSession | null> {
   if (!token) return null;
   const tokenHash = hashToken(token);
-  const session = await findSessionByRefresh(tokenHash);
-  return mapSession(session);
+  const session = await findSessionByRefresh(tokenHash, "PLATFORM");
+  return mapPlatformSession(session);
 }
 
-export async function refreshSession(refreshToken: string) {
+export async function getCrmSession(): Promise<CrmSession | null> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get(CRM_ACCESS_COOKIE)?.value;
+  const refreshToken = cookieStore.get(CRM_REFRESH_COOKIE)?.value;
+
+  if (accessToken) {
+    const session = await findSessionByAccess(hashToken(accessToken), "CRM");
+    const mapped = mapCrmSession(session);
+    if (mapped) return mapped;
+  }
+
+  if (refreshToken) {
+    const session = await findSessionByRefresh(hashToken(refreshToken), "CRM");
+    return mapCrmSession(session);
+  }
+
+  return null;
+}
+
+export async function getCrmSessionByToken(
+  token: string
+): Promise<CrmSession | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const session = await findSessionByAccess(tokenHash, "CRM");
+  return mapCrmSession(session);
+}
+
+export async function getCrmSessionByRefreshToken(
+  token: string
+): Promise<CrmSession | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const session = await findSessionByRefresh(tokenHash, "CRM");
+  return mapCrmSession(session);
+}
+
+export async function refreshSession(
+  refreshToken: string,
+  sessionType: SessionType
+) {
   const tokenHash = hashToken(refreshToken);
-  const session = await findSessionByRefresh(tokenHash);
+  const session = await findSessionByRefresh(tokenHash, sessionType);
   if (!session) return null;
 
   const { token: accessToken, tokenHash: accessTokenHash } = createTokens();
@@ -189,7 +312,17 @@ export async function refreshSession(refreshToken: string) {
 }
 
 export function getAuthCookies() {
-  return { ACCESS_COOKIE, REFRESH_COOKIE };
+  return {
+    ACCESS_COOKIE: PLATFORM_ACCESS_COOKIE,
+    REFRESH_COOKIE: PLATFORM_REFRESH_COOKIE,
+  };
+}
+
+export function getCrmAuthCookies() {
+  return {
+    ACCESS_COOKIE: CRM_ACCESS_COOKIE,
+    REFRESH_COOKIE: CRM_REFRESH_COOKIE,
+  };
 }
 
 export async function requirePlatformSession(): Promise<PlatformSession> {
@@ -209,4 +342,23 @@ export async function requirePlatformPermission(permission: string) {
     return session;
   }
   redirect("/platform/login?error=forbidden");
+}
+
+export async function requireCrmSession(): Promise<CrmSession> {
+  const session = await getCrmSession();
+  if (!session) {
+    redirect("/crm/login");
+  }
+  return session;
+}
+
+export async function requireCrmPermission(permission: string) {
+  const session = await requireCrmSession();
+  if (
+    session.permissions.includes("crm.all") ||
+    session.permissions.includes(permission)
+  ) {
+    return session;
+  }
+  redirect("/crm/login?error=forbidden");
 }

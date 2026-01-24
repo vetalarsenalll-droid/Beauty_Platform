@@ -436,6 +436,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmCalendarResponse'
+  /crm/auth/login:
+    post:
+      tags: [crm]
+      summary: CRM login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmAuthLoginRequest'
+      responses:
+        '200':
+          description: CRM login response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmAuthLoginResponse'
+  /crm/auth/me:
+    get:
+      tags: [crm]
+      summary: CRM session info
+      responses:
+        '200':
+          description: CRM session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmAuthMeResponse'
+  /crm/auth/refresh:
+    post:
+      tags: [crm]
+      summary: Refresh CRM session
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRefreshResponse'
+  /crm/auth/logout:
+    post:
+      tags: [crm]
+      summary: CRM logout
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+  /crm/locations:
+    get:
+      tags: [crm]
+      summary: List locations
+      responses:
+        '200':
+          description: Locations list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationsResponse'
+    post:
+      tags: [crm]
+      summary: Create location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmLocationCreateRequest'
+      responses:
+        '201':
+          description: Location created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationResponse'
+  /crm/locations/{id}:
+    get:
+      tags: [crm]
+      summary: Get location
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Location
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationResponse'
+    patch:
+      tags: [crm]
+      summary: Update location
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmLocationUpdateRequest'
+      responses:
+        '200':
+          description: Location updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationResponse'
+    delete:
+      tags: [crm]
+      summary: Delete location
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Location deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+  /crm/service-categories:
+    get:
+      tags: [crm]
+      summary: List service categories
+      responses:
+        '200':
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceCategoriesResponse'
+    post:
+      tags: [crm]
+      summary: Create service category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmServiceCategoryCreateRequest'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceCategoryResponse'
+  /crm/service-categories/{id}:
+    patch:
+      tags: [crm]
+      summary: Update service category
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmServiceCategoryUpdateRequest'
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceCategoryResponse'
+    delete:
+      tags: [crm]
+      summary: Delete service category
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Category deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
   /crm/schedule:
     get:
       tags: [crm]
@@ -513,6 +691,65 @@ paths:
       responses:
         '200':
           description: Service deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /crm/specialist-levels:
+    get:
+      tags: [crm]
+      summary: List specialist levels
+      responses:
+        '200':
+          description: Specialist levels list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistLevelsResponse'
+    post:
+      tags: [crm]
+      summary: Create specialist level
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmSpecialistLevelCreateRequest'
+      responses:
+        '201':
+          description: Specialist level created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistLevelResponse'
+  /crm/specialist-levels/{id}:
+    patch:
+      tags: [crm]
+      summary: Update specialist level
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmSpecialistLevelUpdateRequest'
+      responses:
+        '200':
+          description: Specialist level updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistLevelResponse'
+    delete:
+      tags: [crm]
+      summary: Delete specialist level
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Specialist level deleted
           content:
             application/json:
               schema:
@@ -1794,6 +2031,195 @@ components:
         data:
           $ref: '#/components/schemas/ClientSettings'
 
+    CrmAuthLoginRequest:
+      type: object
+      required: [email, password, accountSlug]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        accountSlug:
+          type: string
+    CrmAuthUserSummary:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+    CrmAccountSummary:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+    CrmAuthLoginResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [user, account, role, permissions, accessToken, refreshToken, accessExpiresAt, refreshExpiresAt]
+          properties:
+            user:
+              $ref: '#/components/schemas/CrmAuthUserSummary'
+            account:
+              $ref: '#/components/schemas/CrmAccountSummary'
+            role:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            accessExpiresAt:
+              type: string
+              format: date-time
+            refreshExpiresAt:
+              type: string
+              format: date-time
+    CrmAuthMeResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [user, accountId, role, permissions]
+          properties:
+            user:
+              $ref: '#/components/schemas/CrmAuthUserSummary'
+            accountId:
+              type: string
+            role:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+    CrmGeoPoint:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: float
+        lng:
+          type: number
+          format: float
+    CrmLocation:
+      type: object
+      required: [id, name, address, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+        geo:
+          $ref: '#/components/schemas/CrmGeoPoint'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CrmLocationsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmLocation'
+    CrmLocationResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmLocation'
+    CrmLocationCreateRequest:
+      type: object
+      required: [name, address]
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+        geo:
+          $ref: '#/components/schemas/CrmGeoPoint'
+    CrmLocationUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+        geo:
+          $ref: '#/components/schemas/CrmGeoPoint'
+    CrmServiceCategory:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CrmServiceCategoriesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmServiceCategory'
+    CrmServiceCategoryResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmServiceCategory'
+    CrmServiceCategoryCreateRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+    CrmServiceCategoryUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+
     CrmCalendarResponse:
       type: object
       required: [data]
@@ -1834,6 +2260,20 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/Specialist'
+    CrmSpecialistLevelsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmSpecialistLevel'
+    CrmSpecialistLevelResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmSpecialistLevel'
     CrmClientsResponse:
       type: object
       required: [data]
@@ -2094,14 +2534,65 @@ components:
           format: float
     Specialist:
       type: object
-      required: [id, name]
+      required: [id, email]
       properties:
         id:
+          type: integer
+        userId:
+          type: integer
+        email:
           type: string
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        level:
+          $ref: '#/components/schemas/CrmSpecialistLevel'
+        bio:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CrmSpecialistLevel:
+      type: object
+      required: [id, name, rank]
+      properties:
+        id:
+          type: integer
         name:
           type: string
-        level:
+        rank:
+          type: integer
+        createdAt:
           type: string
+          format: date-time
+    CrmSpecialistLevelCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        rank:
+          type: integer
+          nullable: true
+    CrmSpecialistLevelUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        rank:
+          type: integer
     Promotion:
       type: object
       required: [id, name, type]

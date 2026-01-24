@@ -53,9 +53,29 @@
 ## 2026-01-20 - auth_sessions_access_refresh
 - Date: 2026-01-20
 - Slug: auth_sessions_access_refresh
-- Prisma migration: pending
+- Prisma migration: packages/db/prisma/migrations/20260120_auth_sessions_access_refresh
 - Purpose: Split auth sessions into access/refresh tokens with independent TTLs.
 - Schema changes: UserSession now stores accessTokenHash/accessExpiresAt and refreshTokenHash/refreshExpiresAt with unique constraints.
 - Data migration: Existing sessions must be recreated (logout all users).
 - Rollback: Revert UserSession columns to refreshTokenHash/expiresAt.
 - Notes: Requires a new Prisma migration and redeploy.
+
+## 2026-01-21 - crm_auth_sessions_account_audit
+- Date: 2026-01-21
+- Slug: crm_auth_sessions_account_audit
+- Prisma migration: packages/db/prisma/migrations/20260121184532_crm_auth_sessions_account_audit
+- Purpose: Support CRM sessions per account and add account-level audit logging.
+- Schema changes: Added SessionType enum; UserSession now includes sessionType + accountId; added AccountAuditLog table and relations on Account/User.
+- Data migration: Existing sessions default to PLATFORM; no backfill required.
+- Rollback: Drop AccountAuditLog table and new UserSession columns/enum.
+- Notes: Requires a new Prisma migration and re-login for CRM sessions.
+
+## 2026-01-21 - location_managers
+- Date: 2026-01-21
+- Slug: location_managers
+- Prisma migration: packages/db/prisma/migrations/20260121202652_location_managers
+- Purpose: Track manager assignments per location.
+- Schema changes: Added LocationManager table + relations on Account/User/Location.
+- Data migration: None.
+- Rollback: Drop LocationManager table and relations.
+- Notes: Used for CRM manager-to-location binding.

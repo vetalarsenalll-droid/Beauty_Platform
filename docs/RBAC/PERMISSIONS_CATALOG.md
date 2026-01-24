@@ -11,7 +11,7 @@ Business roles
 - manager
 - specialist
 - readonly
-- admin роль не используем
+
 
 Policies
 - Specialist: только свое
@@ -20,3 +20,18 @@ Policies
 
 Permissions
 - CRUD по сущностям + действия confirm/cancel/refund/export
+
+CRM permissions (ключи)
+- crm.all
+- crm.locations.read/create/update/delete
+- crm.services.read/create/update/delete
+- crm.specialists.read/create/update/delete
+- crm.schedule.read/create/update/delete
+- crm.calendar.read
+- crm.appointments.create/update/confirm/cancel/reschedule
+- crm.clients.read/create/update/delete
+- crm.payments.read/refund/export
+- crm.promos.read/create/update/delete
+- crm.loyalty.read/create/update/delete
+- crm.analytics.read/export
+- crm.settings.read/update

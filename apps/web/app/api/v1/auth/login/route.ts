@@ -72,11 +72,11 @@ export async function POST(request: Request) {
   }
 
   await prisma.userSession.deleteMany({
-    where: { userId: identity.userId },
+    where: { userId: identity.userId, sessionType: "PLATFORM" },
   });
 
   const { accessToken, refreshToken, accessExpiresAt, refreshExpiresAt } =
-    await createSession(identity.userId);
+    await createSession({ userId: identity.userId, sessionType: "PLATFORM" });
 
   const cookieStore = await cookies();
   const { ACCESS_COOKIE, REFRESH_COOKIE } = getAuthCookies();

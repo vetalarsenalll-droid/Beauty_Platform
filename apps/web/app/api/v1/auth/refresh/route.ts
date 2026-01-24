@@ -21,7 +21,7 @@ export async function POST() {
     return jsonError("UNAUTHENTICATED", "Refresh token missing", null, 401);
   }
 
-  const refreshed = await refreshSession(refreshToken);
+  const refreshed = await refreshSession(refreshToken, "PLATFORM");
   if (!refreshed) {
     return jsonError("UNAUTHENTICATED", "Refresh token invalid", null, 401);
   }
