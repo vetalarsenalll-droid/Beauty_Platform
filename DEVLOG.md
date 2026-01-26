@@ -759,9 +759,30 @@
 - Files: apps/web/app/(crm)/crm/calendar/journal-view.tsx, DEVLOG.md
 - Tests: Not run.
 
+## 2026-01-27
+- Date: 2026-01-27
+- Task: Booking page searchParams fix
+- Summary: Read `searchParams` via async server component to pass account slug to booking client.
+- Files: apps/web/app/booking/page.tsx, DEVLOG.md
+- Tests: Not run.
+
 ## 2026-01-26
 - Date: 2026-01-26
 - Task: Public booking page uses live booking APIs
 - Summary: Built booking flow UI that loads locations/services/specialists/slots from public APIs and posts appointments; wired booking entry to BookingClient.
 - Files: apps/web/app/booking/booking-client.tsx, apps/web/app/booking/page.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-26
+- Date: 2026-01-26
+- Task: Fix BookingClient React node types
+- Summary: Switched to ReactNode import to avoid React namespace type errors in booking UI helpers.
+- Files: apps/web/app/booking/booking-client.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: Public booking location params
+- Summary: Awaited route params in public booking services/specialists APIs to fix invalid location errors.
+- Files: apps/web/app/api/v1/public/booking/locations/[id]/services/route.ts, apps/web/app/api/v1/public/booking/locations/[id]/specialists/route.ts, DEVLOG.md
 - Tests: Not run.

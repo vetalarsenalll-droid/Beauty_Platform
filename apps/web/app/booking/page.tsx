@@ -1,11 +1,12 @@
 import BookingClient from "./booking-client";
 
 type BookingEntryProps = {
-  searchParams?: {
+  searchParams: Promise<{
     account?: string;
-  };
+  }>;
 };
 
-export default function BookingEntry({ searchParams }: BookingEntryProps) {
-  return <BookingClient accountSlug={searchParams?.account} />;
+export default async function BookingEntry({ searchParams }: BookingEntryProps) {
+  const params = await searchParams;
+  return <BookingClient accountSlug={params?.account} />;
 }

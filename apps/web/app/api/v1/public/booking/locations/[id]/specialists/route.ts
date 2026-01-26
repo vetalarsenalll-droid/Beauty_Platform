@@ -19,7 +19,8 @@ export async function GET(
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
-  const locationId = Number(params.id);
+  const paramsValue = await Promise.resolve(params);
+  const locationId = Number(paramsValue.id);
   if (!Number.isInteger(locationId)) {
     return jsonError("INVALID_LOCATION", "Некорректная локация.", null, 400);
   }
