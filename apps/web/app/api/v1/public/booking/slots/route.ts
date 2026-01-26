@@ -18,11 +18,6 @@ const toRange = (startAt: Date, endAt: Date) => ({
   end: toLocalMinutes(endAt),
 });
 
-const toNumber = (value: unknown) => {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-};
-
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -80,14 +75,17 @@ export async function GET(request: Request) {
 
   const [scheduleEntries, appointments, blockedSlots, service] =
     await Promise.all([
+      // ✅ ВАЖНО: график только для выбранной локации (или общий locationId=null)
       prisma.scheduleEntry.findMany({
         where: {
           accountId: resolved.account.id,
           specialistId: { in: specialistIds },
           date: { gte: dayStart, lt: dayEnd },
+          OR: [{ locationId }, { locationId: null }],
         },
         include: { breaks: true },
       }),
+
       prisma.appointment.findMany({
         where: {
           accountId: resolved.account.id,
@@ -102,6 +100,7 @@ export async function GET(request: Request) {
           endAt: true,
         },
       }),
+
       prisma.blockedSlot.findMany({
         where: {
           accountId: resolved.account.id,
@@ -116,6 +115,7 @@ export async function GET(request: Request) {
           endAt: true,
         },
       }),
+
       Number.isInteger(serviceId)
         ? prisma.service.findFirst({
             where: { id: serviceId, accountId: resolved.account.id },
@@ -139,16 +139,28 @@ export async function GET(request: Request) {
         : Promise.resolve(null),
     ]);
 
-  const scheduleBySpecialist = new Map<number, typeof scheduleEntries[0]>();
+  // ✅ Выбор графика с приоритетом: locationId (точно) > null (общий)
+  const scheduleBySpecialist = new Map<number, (typeof scheduleEntries)[number]>();
   scheduleEntries.forEach((entry) => {
-    scheduleBySpecialist.set(entry.specialistId, entry);
+    const existing = scheduleBySpecialist.get(entry.specialistId);
+    if (!existing) {
+      scheduleBySpecialist.set(entry.specialistId, entry);
+      return;
+    }
+    const existingLoc = existing.locationId;
+    const nextLoc = entry.locationId;
+
+    // если сейчас в мапе "общий" (null), а пришел "точный" (locationId) — заменяем
+    if (existingLoc == null && nextLoc === locationId) {
+      scheduleBySpecialist.set(entry.specialistId, entry);
+    }
   });
 
   const appointmentsBySpecialist = new Map<number, Window[]>();
   appointments.forEach((appt) => {
-    const entry = appointmentsBySpecialist.get(appt.specialistId) ?? [];
-    entry.push(toRange(appt.startAt, appt.endAt));
-    appointmentsBySpecialist.set(appt.specialistId, entry);
+    const list = appointmentsBySpecialist.get(appt.specialistId) ?? [];
+    list.push(toRange(appt.startAt, appt.endAt));
+    appointmentsBySpecialist.set(appt.specialistId, list);
   });
 
   const blockedBySpecialist = new Map<number, Window[]>();
@@ -160,6 +172,7 @@ export async function GET(request: Request) {
       blockedBySpecialist.set(slot.specialistId, list);
       return;
     }
+    // location-wide блокировка: применяем ко всем специалистам в выборке
     specialists.forEach((item) => {
       const list = blockedBySpecialist.get(item.id) ?? [];
       list.push(window);
@@ -171,7 +184,11 @@ export async function GET(request: Request) {
 
   specialists.forEach((specialist) => {
     const entry = scheduleBySpecialist.get(specialist.id);
+
+    // ✅ Доп. защита: если entry всё же не совпал по локации — не используем
     if (!entry || entry.type !== "WORKING") return;
+    if (entry.locationId != null && entry.locationId !== locationId) return;
+
     const entryStart = toMinutes(entry.startTime ?? "");
     const entryEnd = toMinutes(entry.endTime ?? "");
     if (entryStart === null || entryEnd === null) return;
@@ -179,9 +196,8 @@ export async function GET(request: Request) {
     const durationMin = service
       ? service.specialists.find((item) => item.specialistId === specialist.id)
           ?.durationOverrideMin ??
-        service.levelConfigs.find(
-          (item) => item.levelId === specialist.levelId
-        )?.durationMin ??
+        service.levelConfigs.find((item) => item.levelId === specialist.levelId)
+          ?.durationMin ??
         service.baseDurationMin
       : SLOT_STEP_MIN;
 
@@ -203,10 +219,9 @@ export async function GET(request: Request) {
     ) {
       const candidate = { start, end: start + durationMin };
       if (breaks.some((br) => overlaps(candidate, br))) continue;
-      if (appointmentWindows.some((appt) => overlaps(candidate, appt)))
-        continue;
-      if (blockedWindows.some((blocked) => overlaps(candidate, blocked)))
-        continue;
+      if (appointmentWindows.some((appt) => overlaps(candidate, appt))) continue;
+      if (blockedWindows.some((blocked) => overlaps(candidate, blocked))) continue;
+
       slots.push({ time: minutesToTime(start), specialistId: specialist.id });
     }
   });

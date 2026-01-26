@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { AppointmentStatus, Prisma, ScheduleEntryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
 
@@ -12,12 +12,30 @@ type AppointmentPayload = {
   clientEmail?: string;
   startAt?: string;
   endAt?: string;
-  status?: string;
+  status?: AppointmentStatus;
   priceTotal?: string;
   serviceId?: number | null;
 };
 
-const NON_BLOCKING_STATUSES = ["CANCELLED", "NO_SHOW"] as const;
+const NON_BLOCKING_STATUSES: AppointmentStatus[] = [
+  AppointmentStatus.CANCELLED,
+  AppointmentStatus.NO_SHOW,
+];
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+const toStr = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
+
+const toNum = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const isAppointmentStatus = (v: unknown): v is AppointmentStatus =>
+  typeof v === "string" &&
+  (Object.values(AppointmentStatus) as string[]).includes(v);
 
 function toDateOnly(value: Date) {
   return new Date(
@@ -43,7 +61,7 @@ function serializeAppointment(appointment: {
   clientId: number;
   startAt: Date;
   endAt: Date;
-  status: string;
+  status: AppointmentStatus;
   source: string;
   priceTotal: Prisma.Decimal;
   durationTotalMin: number;
@@ -70,13 +88,49 @@ function serializeAppointment(appointment: {
   };
 }
 
+function parsePayload(raw: unknown): AppointmentPayload {
+  if (!isRecord(raw)) return {};
+
+  const staffId = toNum(raw.staffId) ?? undefined;
+  const locationId = toNum(raw.locationId) ?? undefined;
+  const clientId = raw.clientId === null ? null : (toNum(raw.clientId) ?? undefined);
+
+  const clientName = toStr(raw.clientName) ?? undefined;
+  const clientPhone = toStr(raw.clientPhone) ?? undefined;
+  const clientEmail = toStr(raw.clientEmail) ?? undefined;
+
+  const startAt = toStr(raw.startAt) ?? undefined;
+  const endAt = toStr(raw.endAt) ?? undefined;
+
+  const status = isAppointmentStatus(raw.status) ? raw.status : undefined;
+
+  const priceTotal = toStr(raw.priceTotal) ?? undefined;
+
+  const serviceId =
+    raw.serviceId === null ? null : (toNum(raw.serviceId) ?? undefined);
+
+  return {
+    staffId,
+    locationId,
+    clientId,
+    clientName,
+    clientPhone,
+    clientEmail,
+    startAt,
+    endAt,
+    status,
+    priceTotal,
+    serviceId,
+  };
+}
+
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const session = await requireCrmPermission("crm.calendar.read");
-  const { id } = await params;
-  const appointmentId = Number(id);
+
+  const appointmentId = Number(params.id);
   if (!Number.isInteger(appointmentId)) {
     return NextResponse.json(
       { message: "Некорректный идентификатор записи." },
@@ -89,19 +143,19 @@ export async function PATCH(
     include: { services: { include: { service: true } } },
   });
   if (!existing) {
-    return NextResponse.json(
-      { message: "Запись не найдена." },
-      { status: 404 }
-    );
+    return NextResponse.json({ message: "Запись не найдена." }, { status: 404 });
   }
 
-  const body = (await request.json()) as AppointmentPayload;
+  const bodyRaw: unknown = await request.json().catch(() => null);
+  const body = parsePayload(bodyRaw);
+
   const data: Prisma.AppointmentUpdateInput = {};
 
   const nextStaffId = body.staffId ?? existing.specialistId;
   const nextLocationId = body.locationId ?? existing.locationId;
   const nextStartAt = body.startAt ? new Date(body.startAt) : existing.startAt;
   const nextEndAt = body.endAt ? new Date(body.endAt) : existing.endAt;
+
   const shouldValidate =
     body.staffId != null ||
     body.locationId != null ||
@@ -121,10 +175,7 @@ export async function PATCH(
     select: { id: true, levelId: true },
   });
   if (!specialist) {
-    return NextResponse.json(
-      { message: "Специалист не найден." },
-      { status: 404 }
-    );
+    return NextResponse.json({ message: "Специалист не найден." }, { status: 404 });
   }
 
   let selectedService: {
@@ -138,19 +189,13 @@ export async function PATCH(
 
   if (body.serviceId) {
     selectedService = await prisma.service.findFirst({
-      where: {
-        id: body.serviceId,
-        accountId: session.accountId,
-        isActive: true,
-      },
+      where: { id: body.serviceId, accountId: session.accountId, isActive: true },
       include: { locations: true, specialists: true, levelConfigs: true },
     });
     if (!selectedService) {
-      return NextResponse.json(
-        { message: "Услуга не найдена." },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Услуга не найдена." }, { status: 404 });
     }
+
     const hasLocation = selectedService.locations.some(
       (item) => item.locationId === nextLocationId
     );
@@ -168,24 +213,19 @@ export async function PATCH(
   if (shouldValidate) {
     const scheduleDate = toDateOnly(nextStartAt);
     const scheduleEntry = await prisma.scheduleEntry.findUnique({
-      where: {
-        specialistId_date: {
-          specialistId: specialist.id,
-          date: scheduleDate,
-        },
-      },
+      where: { specialistId_date: { specialistId: specialist.id, date: scheduleDate } },
       include: { breaks: true },
     });
-    if (!scheduleEntry || scheduleEntry.type !== "WORKING") {
+
+    // ✅ если день не проставлен — он НЕ рабочий
+    if (!scheduleEntry || scheduleEntry.type !== ScheduleEntryType.WORKING) {
       return NextResponse.json(
         { message: "У специалиста нет рабочего дня на выбранную дату." },
         { status: 400 }
       );
     }
-    if (
-      scheduleEntry.locationId &&
-      scheduleEntry.locationId !== nextLocationId
-    ) {
+
+    if (scheduleEntry.locationId && scheduleEntry.locationId !== nextLocationId) {
       return NextResponse.json(
         { message: "Рабочий день специалиста настроен для другой локации." },
         { status: 400 }
@@ -200,15 +240,17 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    const startMinutes =
-      nextStartAt.getHours() * 60 + nextStartAt.getMinutes();
+
+    const startMinutes = nextStartAt.getHours() * 60 + nextStartAt.getMinutes();
     const endMinutes = nextEndAt.getHours() * 60 + nextEndAt.getMinutes();
+
     if (startMinutes < entryStart || endMinutes > entryEnd) {
       return NextResponse.json(
         { message: "Запись выходит за пределы рабочего времени специалиста." },
         { status: 400 }
       );
     }
+
     for (const entryBreak of scheduleEntry.breaks) {
       const breakStart = parseTimeToMinutes(entryBreak.startTime);
       const breakEnd = parseTimeToMinutes(entryBreak.endTime);
@@ -249,7 +291,7 @@ export async function PATCH(
         accountId: session.accountId,
         specialistId: specialist.id,
         id: { not: appointmentId },
-        status: { notIn: NON_BLOCKING_STATUSES as unknown as string[] },
+        status: { notIn: NON_BLOCKING_STATUSES },
         startAt: { lt: nextEndAt },
         endAt: { gt: nextStartAt },
       },
@@ -262,24 +304,14 @@ export async function PATCH(
     }
   }
 
-  if (body.staffId) {
-    data.specialist = { connect: { id: body.staffId } };
-  }
-  if (body.locationId) {
-    data.location = { connect: { id: body.locationId } };
-  }
-  if (body.clientId) {
-    data.client = { connect: { id: body.clientId } };
-  }
-  if (body.status) {
-    data.status = body.status as any;
-  }
-  if (body.startAt) {
-    data.startAt = nextStartAt;
-  }
-  if (body.endAt) {
-    data.endAt = nextEndAt;
-  }
+  if (body.staffId) data.specialist = { connect: { id: body.staffId } };
+  if (body.locationId) data.location = { connect: { id: body.locationId } };
+  if (body.clientId) data.client = { connect: { id: body.clientId } };
+
+  if (body.status) data.status = body.status;
+  if (body.startAt) data.startAt = nextStartAt;
+  if (body.endAt) data.endAt = nextEndAt;
+
   if (body.startAt || body.endAt) {
     data.durationTotalMin = Math.max(
       15,
@@ -296,18 +328,13 @@ export async function PATCH(
     );
     const levelConfig =
       specialist.levelId != null
-        ? selectedService.levelConfigs.find(
-            (item) => item.levelId === specialist.levelId
-          )
+        ? selectedService.levelConfigs.find((item) => item.levelId === specialist.levelId)
         : null;
+
     priceTotal =
-      override?.priceOverride ??
-      levelConfig?.price ??
-      selectedService.basePrice;
+      override?.priceOverride ?? levelConfig?.price ?? selectedService.basePrice;
   }
-  if (priceTotal) {
-    data.priceTotal = priceTotal;
-  }
+  if (priceTotal) data.priceTotal = priceTotal;
 
   const appointment = await prisma.appointment.update({
     where: { id: appointmentId },
@@ -316,9 +343,8 @@ export async function PATCH(
   });
 
   if (body.serviceId !== undefined) {
-    await prisma.appointmentService.deleteMany({
-      where: { appointmentId },
-    });
+    await prisma.appointmentService.deleteMany({ where: { appointmentId } });
+
     if (selectedService && priceTotal) {
       await prisma.appointmentService.create({
         data: {

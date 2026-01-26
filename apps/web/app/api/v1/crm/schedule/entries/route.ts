@@ -1,16 +1,39 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
+import { ScheduleEntryType } from "@prisma/client";
+
+type BreakPayload = { startTime: string; endTime: string };
+type EntryTypeInput = ScheduleEntryType | "DELETE";
 
 type EntryPayload = {
   specialistId: number;
-  date: string;
-  type: string;
+  locationId?: number | null;
+  date: string; // YYYY-MM-DD
+  type: EntryTypeInput;
   customTypeId?: number | null;
-  startTime?: string | null;
-  endTime?: string | null;
-  breaks?: { startTime: string; endTime: string }[];
+  startTime?: string | null; // HH:mm
+  endTime?: string | null; // HH:mm
+  breaks?: BreakPayload[];
 };
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+const toStr = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
+
+const toNum = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const isScheduleEntryType = (v: unknown): v is ScheduleEntryType =>
+  typeof v === "string" &&
+  (Object.values(ScheduleEntryType) as string[]).includes(v);
+
+const isEntryTypeInput = (v: unknown): v is EntryTypeInput =>
+  v === "DELETE" || isScheduleEntryType(v);
 
 function parseDate(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -18,12 +41,44 @@ function parseDate(value: string) {
   return date;
 }
 
-function normalizeEntry(entry: EntryPayload) {
+function parseEntry(raw: unknown): EntryPayload | null {
+  if (!isRecord(raw)) return null;
+
+  const specialistId = toNum(raw.specialistId);
+  const date = toStr(raw.date);
+  const typeRaw = raw.type;
+
+  if (!specialistId || !date || !isEntryTypeInput(typeRaw)) return null;
+
+  const locationId = toNum(raw.locationId);
+  const customTypeId = toNum(raw.customTypeId);
+
+  const startTime = toStr(raw.startTime);
+  const endTime = toStr(raw.endTime);
+
+  const breaksRaw = Array.isArray(raw.breaks) ? raw.breaks : [];
+  const breaks = breaksRaw
+    .map((b) => {
+      if (!isRecord(b)) return null;
+      const bs = toStr(b.startTime);
+      const be = toStr(b.endTime);
+      if (!bs || !be) return null;
+      return { startTime: bs, endTime: be };
+    })
+    .filter((x): x is BreakPayload => x !== null);
+
+  const type: EntryTypeInput = typeRaw;
+
   return {
-    ...entry,
-    startTime: entry.startTime ?? null,
-    endTime: entry.endTime ?? null,
-    breaks: entry.breaks ?? [],
+    specialistId,
+    locationId: locationId ?? null,
+    date,
+    type,
+    // customTypeId имеет смысл только при CUSTOM
+    customTypeId: type === "CUSTOM" ? (customTypeId ?? null) : null,
+    startTime: startTime ?? null,
+    endTime: endTime ?? null,
+    breaks,
   };
 }
 
@@ -44,24 +99,31 @@ export async function GET(request: Request) {
     return jsonError("INVALID_RANGE", "Invalid date range.", null, 400);
   }
 
+  const locationIdParam = searchParams.get("locationId");
+  const locationId = locationIdParam ? Number(locationIdParam) : null;
+  if (locationIdParam && !Number.isInteger(locationId)) {
+    return jsonError("INVALID_LOCATION", "Invalid locationId.", null, 400);
+  }
+
   const specialistIdsParam = searchParams.getAll("specialistId");
   const specialistIds =
     specialistIdsParam.length > 0
-      ? specialistIdsParam.flatMap((value) =>
-          value
-            .split(",")
-            .map((item) => Number(item))
-            .filter((item) => Number.isInteger(item))
-        )
+      ? specialistIdsParam
+          .flatMap((value) =>
+            value
+              .split(",")
+              .map((item) => Number(item))
+              .filter((item) => Number.isInteger(item))
+          )
+          .filter((n): n is number => typeof n === "number")
       : [];
 
   const entries = await prisma.scheduleEntry.findMany({
     where: {
       accountId: auth.session.accountId,
       date: { gte: startDate, lte: endDate },
-      ...(specialistIds.length
-        ? { specialistId: { in: specialistIds } }
-        : {}),
+      ...(specialistIds.length ? { specialistId: { in: specialistIds } } : {}),
+      ...(locationIdParam ? { locationId } : {}),
     },
     include: { breaks: true, customType: true },
     orderBy: [{ date: "asc" }, { specialistId: "asc" }],
@@ -90,6 +152,7 @@ export async function GET(request: Request) {
         : null,
     }))
   );
+
   return applyCrmAccessCookie(response, auth);
 }
 
@@ -97,34 +160,30 @@ export async function POST(request: Request) {
   const auth = await requireCrmApiPermission("crm.schedule.create");
   if ("response" in auth) return auth.response;
 
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") {
+  const body: unknown = await request.json().catch(() => null);
+  if (!body) {
     return jsonError("INVALID_BODY", "Invalid request body.", null, 400);
   }
 
-  const entries = Array.isArray(body.entries)
-    ? body.entries.map(normalizeEntry)
-    : [normalizeEntry(body as EntryPayload)];
+  const rawEntries =
+    isRecord(body) && Array.isArray(body.entries) ? body.entries : [body];
 
-  const toProcess = entries.filter(
-    (entry) => entry.specialistId && entry.date
-  );
-  if (toProcess.length === 0) {
+  const entries: EntryPayload[] = rawEntries
+    .map(parseEntry)
+    .filter((x): x is EntryPayload => x !== null);
+
+  if (entries.length === 0) {
     return jsonError("INVALID_BODY", "Entries are required.", null, 400);
   }
 
-  const specialistIds = Array.from(
-    new Set(toProcess.map((entry) => Number(entry.specialistId)))
-  );
+  const specialistIds = Array.from(new Set(entries.map((e) => e.specialistId)));
+
   const specialists = await prisma.specialistProfile.findMany({
-    where: {
-      accountId: auth.session.accountId,
-      id: { in: specialistIds },
-    },
+    where: { accountId: auth.session.accountId, id: { in: specialistIds } },
     select: { id: true },
   });
 
-  const validIds = new Set(specialists.map((item) => item.id));
+  const validIds = new Set(specialists.map((s) => s.id));
   const invalid = specialistIds.filter((id) => !validIds.has(id));
   if (invalid.length > 0) {
     return jsonError(
@@ -135,70 +194,159 @@ export async function POST(request: Request) {
     );
   }
 
-  const results = await prisma.$transaction(
-    toProcess.map((entry) => {
-      const date = parseDate(entry.date);
-      if (!date) {
-        throw new Error("INVALID_DATE");
-      }
-      if (entry.type === "DELETE") {
-        return prisma.scheduleEntry.deleteMany({
+  // ✅ НОВАЯ ЛОГИКА: запрет “перетирания” рабочего дня в другой локации
+  const accountId = auth.session.accountId;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      for (const entry of entries) {
+        const date = parseDate(entry.date);
+        if (!date) throw new Error("INVALID_DATE");
+
+        const requestedLocationId = entry.locationId ?? null;
+
+        // Ищем запись по уникальному ключу specialistId+date
+        const existing = await tx.scheduleEntry.findFirst({
           where: {
-            accountId: auth.session.accountId,
-            specialistId: Number(entry.specialistId),
+            accountId,
+            specialistId: entry.specialistId,
             date,
+          },
+          select: { id: true, locationId: true },
+        });
+
+        // ✅ DELETE: удаляем только если запись в ЭТОЙ локации
+        if (entry.type === "DELETE") {
+          if (!existing) continue;
+
+          if ((existing.locationId ?? null) !== requestedLocationId) {
+            const existingLoc =
+              existing.locationId == null
+                ? null
+                : await tx.location.findFirst({
+                    where: { accountId, id: existing.locationId },
+                    select: { id: true, name: true },
+                  });
+
+            throw {
+              kind: "LOCATION_CONFLICT",
+              specialistId: entry.specialistId,
+              date: entry.date,
+              existingLocationId: existing.locationId,
+              existingLocationName:
+                existing.locationId == null
+                  ? "Без локации"
+                  : existingLoc?.name ?? "Другая локация",
+              requestedLocationId,
+            };
+          }
+
+          await tx.scheduleEntry.deleteMany({
+            where: {
+              accountId,
+              specialistId: entry.specialistId,
+              date,
+              locationId: requestedLocationId,
+            },
+          });
+
+          continue;
+        }
+
+        // ✅ Любой НЕ-DELETE: если уже есть запись на дату и локация отличается — конфликт
+        if (existing && (existing.locationId ?? null) !== requestedLocationId) {
+          const existingLoc =
+            existing.locationId == null
+              ? null
+              : await tx.location.findFirst({
+                  where: { accountId, id: existing.locationId },
+                  select: { id: true, name: true },
+                });
+
+          throw {
+            kind: "LOCATION_CONFLICT",
+            specialistId: entry.specialistId,
+            date: entry.date,
+            existingLocationId: existing.locationId,
+            existingLocationName:
+              existing.locationId == null
+                ? "Без локации"
+                : existingLoc?.name ?? "Другая локация",
+            requestedLocationId,
+          };
+        }
+
+        // дальше обычный upsert (но только если нет конфликта)
+        const dbType: ScheduleEntryType = entry.type;
+        const isWorking = dbType === ScheduleEntryType.WORKING;
+
+        const startTime = isWorking ? entry.startTime ?? null : null;
+        const endTime = isWorking ? entry.endTime ?? null : null;
+        const breaks = isWorking ? entry.breaks ?? [] : [];
+        const customTypeId =
+          dbType === ScheduleEntryType.CUSTOM ? entry.customTypeId ?? null : null;
+
+        await tx.scheduleEntry.upsert({
+          where: {
+            specialistId_date: {
+              specialistId: entry.specialistId,
+              date,
+            },
+          },
+          create: {
+            accountId,
+            specialistId: entry.specialistId,
+            locationId: requestedLocationId,
+            date,
+            type: dbType,
+            customTypeId,
+            startTime,
+            endTime,
+            breaks: {
+              create: breaks.map((b) => ({
+                startTime: b.startTime,
+                endTime: b.endTime,
+              })),
+            },
+          },
+          update: {
+            locationId: requestedLocationId,
+            type: dbType,
+            customTypeId,
+            startTime,
+            endTime,
+            breaks: {
+              deleteMany: {},
+              create: breaks.map((b) => ({
+                startTime: b.startTime,
+                endTime: b.endTime,
+              })),
+            },
           },
         });
       }
+    });
 
-      const isWorking = entry.type === "WORKING";
-      const startTime = isWorking ? entry.startTime ?? null : null;
-      const endTime = isWorking ? entry.endTime ?? null : null;
-      const breaks = isWorking ? entry.breaks ?? [] : [];
-      const customTypeId =
-        entry.type === "CUSTOM" ? entry.customTypeId ?? null : null;
-
-      return prisma.scheduleEntry.upsert({
-        where: {
-          specialistId_date: {
-            specialistId: Number(entry.specialistId),
-            date,
+    const response = jsonOk({ updated: entries.length });
+    return applyCrmAccessCookie(response, auth);
+  } catch (err: any) {
+    if (err?.kind === "LOCATION_CONFLICT") {
+      return applyCrmAccessCookie(
+        jsonError(
+          "LOCATION_CONFLICT",
+          `Нельзя сохранить: у специалиста уже есть график на ${err.date} в локации "${err.existingLocationName}".`,
+          {
+            specialistId: err.specialistId,
+            date: err.date,
+            existingLocationId: err.existingLocationId,
+            existingLocationName: err.existingLocationName,
+            requestedLocationId: err.requestedLocationId,
           },
-        },
-        create: {
-          accountId: auth.session.accountId,
-          specialistId: Number(entry.specialistId),
-          date,
-          locationId: entry.locationId ?? null,
-          type: entry.type,
-          customTypeId,
-          startTime,
-          endTime,
-          breaks: {
-            create: breaks.map((item) => ({
-              startTime: item.startTime,
-              endTime: item.endTime,
-            })),
-          },
-        },
-        update: {
-          locationId: entry.locationId ?? null,
-          type: entry.type,
-          customTypeId,
-          startTime,
-          endTime,
-          breaks: {
-            deleteMany: {},
-            create: breaks.map((item) => ({
-              startTime: item.startTime,
-              endTime: item.endTime,
-            })),
-          },
-        },
-      });
-    })
-  );
-
-  const response = jsonOk({ updated: results.length });
-  return applyCrmAccessCookie(response, auth);
+          409
+        ),
+        auth
+      );
+    }
+    throw err;
+  }
 }

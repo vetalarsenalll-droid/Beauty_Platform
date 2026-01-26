@@ -12,33 +12,24 @@ function parseDateParam(value?: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-export default async function CrmCalendarPage({
-  searchParams,
-}: CrmCalendarPageProps) {
+function parseIntParam(value?: string) {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isInteger(n) ? n : null;
+}
+
+export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageProps) {
   const session = await requireCrmPermission("crm.calendar.read");
-  const dateParam =
-    typeof searchParams?.date === "string" ? searchParams.date : undefined;
+
+  const dateParam = typeof searchParams?.date === "string" ? searchParams.date : undefined;
   const initialDate = parseDateParam(dateParam) ?? new Date();
-  const monthStart = new Date(
-    initialDate.getFullYear(),
-    initialDate.getMonth(),
-    1,
-    0,
-    0,
-    0,
-    0
-  );
-  const monthEnd = new Date(
-    initialDate.getFullYear(),
-    initialDate.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-    999
-  );
+
+  const monthStart = new Date(initialDate.getFullYear(), initialDate.getMonth(), 1, 0, 0, 0, 0);
+  const monthEnd = new Date(initialDate.getFullYear(), initialDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
   const scheduleStart = new Date(monthStart);
   scheduleStart.setDate(scheduleStart.getDate() - 7);
+
   const scheduleEnd = new Date(monthEnd);
   scheduleEnd.setDate(scheduleEnd.getDate() + 7);
 
@@ -98,13 +89,18 @@ export default async function CrmCalendarPage({
     }),
   ]);
 
+  // initialLocationId: берем из query, если валидный и существует в списке
+  const locParam = typeof searchParams?.locationId === "string" ? searchParams.locationId : undefined;
+  const desiredLocId = parseIntParam(locParam);
+  const initialLocationId =
+    (desiredLocId && locations.some((l) => l.id === desiredLocId) ? desiredLocId : null) ??
+    locations[0]?.id ??
+    null;
+
   const staff = specialists.map((specialist) => {
     const firstName = specialist.user.profile?.firstName ?? "";
     const lastName = specialist.user.profile?.lastName ?? "";
-    const fullName =
-      `${firstName} ${lastName}`.trim() ||
-      specialist.user.email ||
-      "Без имени";
+    const fullName = `${firstName} ${lastName}`.trim() || specialist.user.email || "Без имени";
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     return {
       id: specialist.id,
@@ -140,6 +136,7 @@ export default async function CrmCalendarPage({
     <div className="w-full max-w-none">
       <JournalView
         initialDate={initialDate.toISOString()}
+        initialLocationId={initialLocationId}
         staff={staff}
         clients={clients.map((client) => {
           const firstName = client.firstName ?? "";

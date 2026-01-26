@@ -5,7 +5,7 @@ import ScheduleView from "./schedule-view";
 export default async function CrmSchedulePage() {
   const session = await requireCrmPermission("crm.schedule.read");
 
-  const [specialists, types] = await Promise.all([
+  const [specialists, types, locations] = await Promise.all([
     prisma.specialistProfile.findMany({
       where: {
         accountId: session.accountId,
@@ -18,15 +18,18 @@ export default async function CrmSchedulePage() {
       where: { accountId: session.accountId, isArchived: false },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.location.findMany({
+      where: { accountId: session.accountId, status: "ACTIVE" },
+      select: { id: true, name: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const staff = specialists.map((specialist) => {
     const firstName = specialist.user.profile?.firstName ?? "";
     const lastName = specialist.user.profile?.lastName ?? "";
     const fullName =
-      `${firstName} ${lastName}`.trim() ||
-      specialist.user.email ||
-      "Без имени";
+      `${firstName} ${lastName}`.trim() || specialist.user.email || "Без имени";
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
     return {
       id: specialist.id,
@@ -36,9 +39,14 @@ export default async function CrmSchedulePage() {
     };
   });
 
+  const locationOptions = locations.map((l) => ({ id: l.id, name: l.name }));
+  const initialLocationId = locationOptions[0]?.id ?? null;
+
   return (
     <ScheduleView
       staff={staff}
+      locations={locationOptions}
+      initialLocationId={initialLocationId}
       initialTypes={types.map((type) => ({
         id: type.id,
         name: type.name,

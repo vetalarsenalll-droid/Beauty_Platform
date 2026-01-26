@@ -9,6 +9,11 @@ type StaffMember = {
   initials: string;
 };
 
+type LocationOption = {
+  id: number;
+  name: string;
+};
+
 type BreakItem = {
   startTime: string;
   endTime: string;
@@ -23,6 +28,7 @@ type NonWorkingType = {
 type ScheduleEntry = {
   id: number;
   specialistId: number;
+  locationId: number | null;
   date: string;
   type: string;
   customTypeId: number | null;
@@ -35,6 +41,8 @@ type ScheduleEntry = {
 type ScheduleViewProps = {
   staff: StaffMember[];
   initialTypes: NonWorkingType[];
+  locations: LocationOption[];
+  initialLocationId: number | null;
 };
 
 type CellRef = {
@@ -50,7 +58,7 @@ const SCHEDULE_TYPES = [
   { value: "NO_SHOW", label: "Прогул" },
   { value: "PAID_OFF", label: "Оплачиваемый выходной" },
   { value: "CUSTOM", label: "Свой тип" },
-  { value: "DELETE", label: "Нерабочий день" },
+  { value: "DELETE", label: "Очистить день" },
 ];
 
 const TEMPLATE_OPTIONS = [
@@ -98,7 +106,7 @@ function getWeekDays(date: Date) {
 function getMonthDays(date: Date) {
   const start = startOfMonth(date);
   const end = endOfMonth(date);
-  const days = [];
+  const days: Date[] = [];
   let cursor = new Date(start);
   while (cursor <= end) {
     days.push(new Date(cursor));
@@ -193,18 +201,27 @@ function IconDots() {
   );
 }
 
-export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps) {
+export default function ScheduleView({
+  staff,
+  initialTypes,
+  locations,
+  initialLocationId,
+}: ScheduleViewProps) {
+  const [locationId, setLocationId] = useState<number | null>(initialLocationId);
+
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [selectedCells, setSelectedCells] = useState<CellRef[]>([]);
   const [activeCell, setActiveCell] = useState<CellRef | null>(null);
+
   const [scheduleType, setScheduleType] = useState<string>("WORKING");
   const [customTypeId, setCustomTypeId] = useState<number | null>(null);
   const [workStart, setWorkStart] = useState("10:00");
   const [workEnd, setWorkEnd] = useState("21:00");
   const [selectedBreaks, setSelectedBreaks] = useState<BreakItem[]>([]);
   const [pending, setPending] = useState(false);
+
   const [copyModal, setCopyModal] = useState<StaffMember | null>(null);
   const [copyRange, setCopyRange] = useState({
     start: toIsoDate(new Date()),
@@ -212,32 +229,29 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
   });
   const [selectedTargets, setSelectedTargets] = useState<number[]>([]);
   const [includeBreaks, setIncludeBreaks] = useState(true);
+
   const [templateMode, setTemplateMode] = useState("none");
-  const [templateWeekdays, setTemplateWeekdays] = useState<number[]>([
-    0, 1, 2, 3, 4,
-  ]);
+  const [templateWeekdays, setTemplateWeekdays] = useState<number[]>([0, 1, 2, 3, 4]);
   const [templateWeeks, setTemplateWeeks] = useState(4);
   const [shiftWorkDays, setShiftWorkDays] = useState(2);
   const [shiftOffDays, setShiftOffDays] = useState(2);
   const [shiftWeeks, setShiftWeeks] = useState(4);
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterRole, setFilterRole] = useState("all");
   const [filterQuery, setFilterQuery] = useState("");
+
   const [activeStaffMenu, setActiveStaffMenu] = useState<number | null>(null);
   const [nonWorkingTypes] = useState<NonWorkingType[]>(initialTypes);
-  const [mobileSection, setMobileSection] = useState<"schedule" | "staff">(
-    "schedule"
-  );
-  const [mobileStaffId, setMobileStaffId] = useState<number | null>(
-    staff[0]?.id ?? null
-  );
+
+  const [mobileSection, setMobileSection] = useState<"schedule" | "staff">("schedule");
+  const [mobileStaffId, setMobileStaffId] = useState<number | null>(staff[0]?.id ?? null);
+
   const showTotals = true;
   const showDayCounts = true;
 
   const days = useMemo(() => {
-    return viewMode === "month"
-      ? getMonthDays(currentDate)
-      : getWeekDays(currentDate);
+    return viewMode === "month" ? getMonthDays(currentDate) : getWeekDays(currentDate);
   }, [currentDate, viewMode]);
 
   const range = useMemo(() => {
@@ -303,16 +317,30 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
     return counts;
   }, [entries]);
 
+  // ✅ загрузка entries только по выбранной локации
   useEffect(() => {
+    if (!locationId) {
+      setEntries([]);
+      return;
+    }
+
     const params = new URLSearchParams({
       start: range.start,
       end: range.end,
+      locationId: String(locationId),
     });
+
     fetch(`/api/v1/crm/schedule/entries?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data) => setEntries(Array.isArray(data?.data) ? data.data : []))
       .catch(() => setEntries([]));
-  }, [range.end, range.start]);
+  }, [range.end, range.start, locationId]);
+
+  // ✅ если меняем локацию — сбрасываем выбор/панель
+  useEffect(() => {
+    setSelectedCells([]);
+    setActiveCell(null);
+  }, [locationId]);
 
   useEffect(() => {
     if (!activeCell) return;
@@ -357,9 +385,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
           ? -7
           : 7;
     if (viewMode === "month") {
-      setCurrentDate(
-        (prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1)
-      );
+      setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
     } else {
       setCurrentDate((prev) => addDays(prev, delta));
     }
@@ -382,35 +408,28 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
   };
 
   const selectedStaffIds = useMemo(() => {
-    const baseCells =
-      selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
+    const baseCells = selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
     return Array.from(new Set(baseCells.map((cell) => cell.staffId)));
   }, [activeCell, selectedCells]);
 
   const selectedDates = useMemo(() => {
-    const baseCells =
-      selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
+    const baseCells = selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
     return new Set(baseCells.map((cell) => cell.date));
   }, [activeCell, selectedCells]);
 
   const targetCells = useMemo(() => {
-    const baseCells =
-      selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
+    const baseCells = selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
     if (baseCells.length === 0) return [];
     if (templateMode === "none") return baseCells;
 
     const anchorDate = new Date(`${baseCells[0].date}T00:00:00`);
-    const staffIds = selectedStaffIds.length
-      ? selectedStaffIds
-      : [baseCells[0].staffId];
+    const staffIds = selectedStaffIds.length ? selectedStaffIds : [baseCells[0].staffId];
     const cells: CellRef[] = [];
 
     if (templateMode === "weekdays") {
       const start = startOfWeek(anchorDate);
       const weeks = Math.max(1, templateWeeks);
-      const weekdays = templateWeekdays.length
-        ? templateWeekdays
-        : [(start.getDay() + 6) % 7];
+      const weekdays = templateWeekdays.length ? templateWeekdays : [(start.getDay() + 6) % 7];
       for (let week = 0; week < weeks; week += 1) {
         weekdays.forEach((weekday) => {
           const date = addDays(start, week * 7 + weekday);
@@ -450,61 +469,103 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
   ]);
 
   const canSave =
+    !!locationId &&
     targetCells.length > 0 &&
     !pending &&
     (scheduleType !== "CUSTOM" || customTypeId !== null);
 
   const saveSchedule = async () => {
-    if (!canSave) return;
-    setPending(true);
-    try {
-      const payload = {
-        entries: targetCells.map((cell) => ({
-          specialistId: cell.staffId,
-          date: cell.date,
-          type: scheduleType,
-          customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
-          startTime: scheduleType === "WORKING" ? workStart : null,
-          endTime: scheduleType === "WORKING" ? workEnd : null,
-          breaks: scheduleType === "WORKING" ? selectedBreaks : [],
-        })),
-      };
-      const response = await fetch("/api/v1/crm/schedule/entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        return;
-      }
-      const refreshed = await fetch(
-        `/api/v1/crm/schedule/entries?start=${range.start}&end=${range.end}`
-      ).then((res) => res.json());
-      setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
-    } finally {
-      setPending(false);
-    }
-  };
+  if (!canSave || !locationId) return;
+  setPending(true);
 
-  const handleCopy = async () => {
-    if (!copyModal || selectedTargets.length === 0) return;
-    await fetch("/api/v1/crm/schedule/copy", {
+  try {
+    const payload = {
+      entries: targetCells.map((cell) => ({
+        specialistId: cell.staffId,
+        locationId, // ✅ текущая выбранная локация
+        date: cell.date,
+        type: scheduleType,
+        customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
+        startTime: scheduleType === "WORKING" ? workStart : null,
+        endTime: scheduleType === "WORKING" ? workEnd : null,
+        breaks: scheduleType === "WORKING" ? selectedBreaks : [],
+      })),
+    };
+
+    const response = await fetch("/api/v1/crm/schedule/entries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceSpecialistId: copyModal.id,
-        targetSpecialistIds: selectedTargets,
-        start: copyRange.start,
-        end: copyRange.end,
-        includeBreaks,
-      }),
+      body: JSON.stringify(payload),
     });
-    setCopyModal(null);
-    setSelectedTargets([]);
-  };
+
+    // ✅ покажем понятное предупреждение, если API вернул конфликт локации
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+
+      if (response.status === 409 && err?.error?.code === "LOCATION_CONFLICT") {
+        const date = err?.error?.details?.date ?? "";
+        const locName = err?.error?.details?.existingLocationName ?? "";
+        window.alert(
+          `Нельзя сохранить.\nУ специалиста уже есть график на ${date} в локации "${locName}".`
+        );
+        return;
+      }
+
+      window.alert(err?.error?.message ?? "Не удалось сохранить график.");
+      return;
+    }
+
+    const refreshed = await fetch(
+      `/api/v1/crm/schedule/entries?start=${range.start}&end=${range.end}&locationId=${locationId}`
+    ).then((res) => res.json());
+
+    setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
+  } finally {
+    setPending(false);
+  }
+};
+
+const handleCopy = async () => {
+  if (!copyModal || selectedTargets.length === 0 || !locationId) return;
+
+  const response = await fetch("/api/v1/crm/schedule/copy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      locationId, // ✅ работаем в рамках выбранной локации
+      sourceSpecialistId: copyModal.id,
+      targetSpecialistIds: selectedTargets,
+      start: copyRange.start,
+      end: copyRange.end,
+      includeBreaks,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+
+    if (response.status === 409 && err?.error?.code === "LOCATION_CONFLICT") {
+      const date = err?.error?.details?.date ?? "";
+      const locName = err?.error?.details?.existingLocationName ?? "";
+      window.alert(
+        `Нельзя скопировать.\nУ специалиста уже есть график на ${date} в локации "${locName}".`
+      );
+      return;
+    }
+
+    window.alert(err?.error?.message ?? "Не удалось скопировать график.");
+    return;
+  }
+
+  setCopyModal(null);
+  setSelectedTargets([]);
+};
+
 
   const typeLabel = (entry: ScheduleEntry | undefined) => {
-    if (!entry) return null;
+    // ✅ если запись не проставлена — значит не работает
+    if (!entry) return "Не работает";
+
     if (entry.type === "WORKING") {
       return `${entry.startTime ?? ""} - ${entry.endTime ?? ""}`;
     }
@@ -512,20 +573,20 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
       return entry.customType.name;
     }
     const match = SCHEDULE_TYPES.find((type) => type.value === entry.type);
-    return match?.label ?? "Нерабочий день";
+    return match?.label ?? "Не работает";
   };
 
   const entryStyles = (entry: ScheduleEntry | undefined) => {
-    if (!entry) return "border-dashed border-[color:var(--bp-stroke)]";
+    // ✅ пустая ячейка = не работает
+    if (!entry) return "bg-slate-50 border-slate-200 text-slate-500";
+
     if (entry.type === "WORKING") return "bg-emerald-50 border-emerald-200";
     if (entry.type === "SICK") return "bg-indigo-50 border-indigo-200";
     if (entry.type === "VACATION") return "bg-amber-50 border-amber-200";
     if (entry.type === "UNPAID_OFF") return "bg-slate-50 border-slate-200";
     if (entry.type === "NO_SHOW") return "bg-rose-50 border-rose-200";
     if (entry.type === "PAID_OFF") return "bg-yellow-50 border-yellow-200";
-    if (entry.type === "CUSTOM" && entry.customType?.color) {
-      return "border-transparent";
-    }
+    if (entry.type === "CUSTOM" && entry.customType?.color) return "border-transparent";
     return "bg-gray-50 border-gray-200";
   };
 
@@ -537,12 +598,8 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
         </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              График работы
-            </h1>
-            <p className="text-[color:var(--bp-muted)]">
-              Настройка графика работы сотрудников.
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">График работы</h1>
+            <p className="text-[color:var(--bp-muted)]">Настройка графика работы сотрудников.</p>
           </div>
           <button
             type="button"
@@ -555,6 +612,23 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
         <div className="flex flex-wrap items-center gap-3">
+          {/* ✅ Выбор локации */}
+          <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm">
+            <span className="text-[color:var(--bp-muted)]">Локация</span>
+            <select
+              value={locationId ?? ""}
+              onChange={(event) => setLocationId(Number(event.target.value) || null)}
+              className="bg-transparent outline-none"
+            >
+              <option value="">Выберите</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="relative" data-schedule-filters>
             <button
               type="button"
@@ -567,9 +641,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
             {filtersOpen ? (
               <div className="absolute left-0 top-full z-20 mt-2 w-72 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 text-sm shadow-[var(--bp-shadow)]">
                 <label className="flex flex-col gap-2">
-                  <span className="text-xs text-[color:var(--bp-muted)]">
-                    Сотрудники и должности
-                  </span>
+                  <span className="text-xs text-[color:var(--bp-muted)]">Сотрудники и должности</span>
                   <select
                     value={filterRole}
                     onChange={(event) => setFilterRole(event.target.value)}
@@ -584,9 +656,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                   </select>
                 </label>
                 <label className="mt-3 flex flex-col gap-2">
-                  <span className="text-xs text-[color:var(--bp-muted)]">
-                    Поиск
-                  </span>
+                  <span className="text-xs text-[color:var(--bp-muted)]">Поиск</span>
                   <input
                     type="text"
                     value={filterQuery}
@@ -598,25 +668,17 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
               </div>
             ) : null}
           </div>
+
           <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm">
-            <button
-              type="button"
-              onClick={() => movePeriod("prev")}
-              className="text-[color:var(--bp-muted)]"
-            >
+            <button type="button" onClick={() => movePeriod("prev")} className="text-[color:var(--bp-muted)]">
               <IconChevron direction="left" />
             </button>
-            <span className="min-w-[140px] text-center font-medium capitalize">
-              {formatMonth(currentDate)}
-            </span>
-            <button
-              type="button"
-              onClick={() => movePeriod("next")}
-              className="text-[color:var(--bp-muted)]"
-            >
+            <span className="min-w-[140px] text-center font-medium capitalize">{formatMonth(currentDate)}</span>
+            <button type="button" onClick={() => movePeriod("next")} className="text-[color:var(--bp-muted)]">
               <IconChevron direction="right" />
             </button>
           </div>
+
           <button
             type="button"
             onClick={() => setCurrentDate(new Date())}
@@ -624,52 +686,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
           >
             Сегодня
           </button>
-          <div className="flex w-full items-center gap-2 lg:hidden">
-            <div className="flex flex-1 rounded-2xl border border-[color:var(--bp-stroke)] p-1 text-sm">
-              <button
-                type="button"
-                onClick={() => setMobileSection("schedule")}
-                className={`flex-1 rounded-xl px-3 py-1 ${
-                  mobileSection === "schedule"
-                    ? "bg-[color:var(--bp-ink)] text-white"
-                    : "text-[color:var(--bp-muted)]"
-                }`}
-              >
-                График
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileSection("staff")}
-                className={`flex-1 rounded-xl px-3 py-1 ${
-                  mobileSection === "staff"
-                    ? "bg-[color:var(--bp-ink)] text-white"
-                    : "text-[color:var(--bp-muted)]"
-                }`}
-              >
-                Сотрудники
-              </button>
-            </div>
-          </div>
-          <div className="w-full lg:hidden">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-xs text-[color:var(--bp-muted)]">
-                Показать сотрудника
-              </span>
-              <select
-                value={mobileStaffId ?? ""}
-                onChange={(event) =>
-                  setMobileStaffId(Number(event.target.value) || null)
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
-              >
-                {filteredStaff.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+
           <div className="ml-auto flex items-center gap-2">
             <div className="flex rounded-2xl border border-[color:var(--bp-stroke)] p-1 text-sm">
               <button
@@ -696,8 +713,53 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
               </button>
             </div>
           </div>
+
+          <div className="flex w-full items-center gap-2 lg:hidden">
+            <div className="flex flex-1 rounded-2xl border border-[color:var(--bp-stroke)] p-1 text-sm">
+              <button
+                type="button"
+                onClick={() => setMobileSection("schedule")}
+                className={`flex-1 rounded-xl px-3 py-1 ${
+                  mobileSection === "schedule"
+                    ? "bg-[color:var(--bp-ink)] text-white"
+                    : "text-[color:var(--bp-muted)]"
+                }`}
+              >
+                График
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileSection("staff")}
+                className={`flex-1 rounded-xl px-3 py-1 ${
+                  mobileSection === "staff"
+                    ? "bg-[color:var(--bp-ink)] text-white"
+                    : "text-[color:var(--bp-muted)]"
+                }`}
+              >
+                Сотрудники
+              </button>
+            </div>
+          </div>
+
+          <div className="w-full lg:hidden">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="text-xs text-[color:var(--bp-muted)]">Показать сотрудника</span>
+              <select
+                value={mobileStaffId ?? ""}
+                onChange={(event) => setMobileStaffId(Number(event.target.value) || null)}
+                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
+              >
+                {filteredStaff.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
       </section>
+
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)]">
         <div className="flex flex-col lg:flex-row">
           <div
@@ -725,9 +787,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{person.name}</div>
-                        <div className="truncate text-xs text-[color:var(--bp-muted)]">
-                          {person.role}
-                        </div>
+                        <div className="truncate text-xs text-[color:var(--bp-muted)]">{person.role}</div>
                         {showTotals && totals ? (
                           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
                             {totals.days} дн · {formatMinutes(totals.minutes)}
@@ -738,9 +798,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                         <button
                           type="button"
                           onClick={() =>
-                            setActiveStaffMenu((prev) =>
-                              prev === person.id ? null : person.id
-                            )
+                            setActiveStaffMenu((prev) => (prev === person.id ? null : person.id))
                           }
                           className="flex h-8 w-8 items-center justify-center rounded-xl text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
                         >
@@ -774,11 +832,8 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
               })}
             </div>
           </div>
-          <div
-            className={`flex-1 overflow-auto ${
-              mobileSection === "schedule" ? "block" : "hidden"
-            } lg:block`}
-          >
+
+          <div className={`flex-1 overflow-auto ${mobileSection === "schedule" ? "block" : "hidden"} lg:block`}>
             <div className="min-w-[640px] sm:min-w-[980px]">
               <div
                 className="grid h-[64px] border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-xs font-medium text-[color:var(--bp-muted)]"
@@ -792,9 +847,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                     <div
                       key={iso}
                       className={`flex h-full flex-col items-center justify-center px-3 py-2 text-center ${
-                        selectedDates.has(iso)
-                          ? "bg-[color:var(--bp-accent-soft)]"
-                          : ""
+                        selectedDates.has(iso) ? "bg-[color:var(--bp-accent-soft)]" : ""
                       }`}
                     >
                       <div
@@ -816,366 +869,328 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                   );
                 })}
               </div>
+
               {filteredStaff.map((person) => {
-                const isMobileVisible =
-                  !mobileStaffId || person.id === mobileStaffId;
+                const isMobileVisible = !mobileStaffId || person.id === mobileStaffId;
                 return (
                   <div
                     key={person.id}
-                    className={`${
-                      isMobileVisible ? "grid" : "hidden"
-                    } h-[88px] border-b border-[color:var(--bp-stroke)] lg:grid`}
+                    className={`${isMobileVisible ? "grid" : "hidden"} h-[88px] border-b border-[color:var(--bp-stroke)] lg:grid`}
                     style={{
                       gridTemplateColumns: `repeat(${days.length}, minmax(90px, 1fr))`,
                     }}
                   >
-                  {days.map((day) => {
-                    const iso = toIsoDate(day);
-                    const entry = entryMap.get(`${person.id}-${iso}`);
-                    const label = typeLabel(entry);
-                    const isSelected = selectedCells.some(
-                      (cell) =>
-                        cell.staffId === person.id && cell.date === iso
-                    );
-                    const isDateSelected = selectedDates.has(iso);
-                    return (
-                      <button
-                        key={`${person.id}-${iso}`}
-                        type="button"
-                        onClick={(event) =>
-                          applySelection(
-                            { staffId: person.id, date: iso },
-                            event.shiftKey || event.ctrlKey || event.metaKey
-                          )
-                        }
-                        className={`flex h-full items-center justify-center border-r border-[color:var(--bp-stroke)] px-2 py-3 last:border-r-0 ${
-                          isDateSelected
-                            ? "bg-[color:var(--bp-accent-soft)]/40"
-                            : "bg-transparent"
-                        } ${isSelected ? "outline outline-2 outline-[color:var(--bp-accent)]/60" : ""}`}
-                      >
-                        {label ? (
-                          <div
-                            className={`w-full rounded-xl border px-2 py-2 text-xs ${entryStyles(
-                              entry
-                            )}`}
-                            style={
-                              entry?.type === "CUSTOM" && entry.customType?.color
-                                ? {
-                                    backgroundColor: entry.customType.color,
-                                    color: "#fff",
-                                  }
-                                : undefined
-                            }
-                          >
-                            <div className="truncate">{label}</div>
-                            {entry?.type === "WORKING" &&
-                            entry.breaks.length > 0 ? (
-                              <div className="mt-1 text-[10px] text-[color:var(--bp-muted)]">
-                                Перерывы: {entry.breaks.length}
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                    {days.map((day) => {
+                      const iso = toIsoDate(day);
+                      const entry = entryMap.get(`${person.id}-${iso}`);
+                      const label = typeLabel(entry);
+                      const isSelected = selectedCells.some(
+                        (cell) => cell.staffId === person.id && cell.date === iso
+                      );
+                      const isDateSelected = selectedDates.has(iso);
+
+                      return (
+                        <button
+                          key={`${person.id}-${iso}`}
+                          type="button"
+                          onClick={(event) =>
+                            applySelection(
+                              { staffId: person.id, date: iso },
+                              event.shiftKey || event.ctrlKey || event.metaKey
+                            )
+                          }
+                          className={`flex h-full items-center justify-center border-r border-[color:var(--bp-stroke)] px-2 py-3 last:border-r-0 ${
+                            isDateSelected ? "bg-[color:var(--bp-accent-soft)]/40" : "bg-transparent"
+                          } ${isSelected ? "outline outline-2 outline-[color:var(--bp-accent)]/60" : ""}`}
+                        >
+                          {label ? (
+                            <div
+                              className={`w-full rounded-xl border px-2 py-2 text-xs ${entryStyles(entry)}`}
+                              style={
+                                entry?.type === "CUSTOM" && entry.customType?.color
+                                  ? { backgroundColor: entry.customType.color, color: "#fff" }
+                                  : undefined
+                              }
+                            >
+                              <div className="truncate">{label}</div>
+                              {entry?.type === "WORKING" && entry.breaks.length > 0 ? (
+                                <div className="mt-1 text-[10px] text-[color:var(--bp-muted)]">
+                                  Перерывы: {entry.breaks.length}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })}
             </div>
           </div>
-          {activeCell || selectedCells.length > 0 ? (
+
+          {(activeCell || selectedCells.length > 0) && locationId ? (
             <aside
               className={`w-full border-t border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] p-4 lg:w-[360px] lg:border-l lg:border-t-0 ${
                 mobileSection === "schedule" ? "block" : "hidden"
               } lg:block`}
             >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Настройка графика</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCells([]);
-                  setActiveCell(null);
-                }}
-                className="text-sm text-[color:var(--bp-muted)]"
-                aria-label="Закрыть"
-                title="Закрыть"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="mt-4 space-y-4 text-sm">
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-[color:var(--bp-muted)]">
-                  Выбор шаблона
-                </span>
-                <select
-                  value={templateMode}
-                  onChange={(event) => setTemplateMode(event.target.value)}
-                  className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
-                >
-                  {TEMPLATE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {templateMode === "weekdays" ? (
-                <div className="space-y-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-                  <div className="text-xs text-[color:var(--bp-muted)]">
-                    Рабочие дни
-                  </div>
-                  <div className="grid grid-cols-7 gap-2 text-xs">
-                    {WEEKDAY_LABELS.map((label, index) => {
-                      const checked = templateWeekdays.includes(index);
-                      return (
-                        <label
-                          key={label}
-                          className={`flex items-center justify-center rounded-xl border px-2 py-1 ${
-                            checked
-                              ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-accent-soft)]"
-                              : "border-[color:var(--bp-stroke)]"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() =>
-                              setTemplateWeekdays((prev) =>
-                                checked
-                                  ? prev.filter((day) => day !== index)
-                                  : [...prev, index]
-                              )
-                            }
-                            className="sr-only"
-                          />
-                          {label}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <label className="flex items-center gap-2 text-xs">
-                    <span className="text-[color:var(--bp-muted)]">
-                      Интервал действия
-                    </span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={templateWeeks}
-                      onChange={(event) =>
-                        setTemplateWeeks(Number(event.target.value) || 1)
-                      }
-                      className="w-16 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
-                    />
-                    недель
-                  </label>
-                </div>
-              ) : null}
-
-              {templateMode === "shifts" ? (
-                <div className="space-y-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-                  <label className="flex items-center gap-2 text-xs">
-                    <span className="text-[color:var(--bp-muted)]">
-                      Рабочие / выходные
-                    </span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={shiftWorkDays}
-                      onChange={(event) =>
-                        setShiftWorkDays(Number(event.target.value) || 1)
-                      }
-                      className="w-14 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
-                    />
-                    через
-                    <input
-                      type="number"
-                      min={0}
-                      value={shiftOffDays}
-                      onChange={(event) =>
-                        setShiftOffDays(Number(event.target.value) || 0)
-                      }
-                      className="w-14 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
-                    />
-                  </label>
-                  <label className="flex items-center gap-2 text-xs">
-                    <span className="text-[color:var(--bp-muted)]">
-                      Интервал действия
-                    </span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={shiftWeeks}
-                      onChange={(event) =>
-                        setShiftWeeks(Number(event.target.value) || 1)
-                      }
-                      className="w-16 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
-                    />
-                    недель
-                  </label>
-                </div>
-              ) : null}
-
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-[color:var(--bp-muted)]">Тип</span>
-                <select
-                  value={scheduleType}
-                  onChange={(event) => setScheduleType(event.target.value)}
-                  className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
-                >
-                  {SCHEDULE_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {scheduleType === "CUSTOM" ? (
-                <label className="flex flex-col gap-1">
-                  <span className="text-xs text-[color:var(--bp-muted)]">
-                    Свой тип
-                  </span>
-                  <select
-                    value={customTypeId ?? ""}
-                    onChange={(event) =>
-                      setCustomTypeId(Number(event.target.value) || null)
-                    }
-                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
-                  >
-                    <option value="">Выберите тип</option>
-                    {nonWorkingTypes.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-
-              {scheduleType === "WORKING" ? (
-                <>
-                  <div>
-                    <div className="text-xs text-[color:var(--bp-muted)]">
-                      Рабочее время
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        type="time"
-                        value={workStart}
-                        onChange={(event) => setWorkStart(event.target.value)}
-                        className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
-                      />
-                      -
-                      <input
-                        type="time"
-                        value={workEnd}
-                        onChange={(event) => setWorkEnd(event.target.value)}
-                        className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-[color:var(--bp-muted)]">
-                      Перерывы
-                    </div>
-                    <div className="mt-2 flex flex-col gap-2">
-                      {selectedBreaks.map((item, index) => (
-                        <div
-                          key={`${item.startTime}-${index}`}
-                          className="flex items-center gap-2"
-                        >
-                          <input
-                            type="time"
-                            value={item.startTime}
-                            onChange={(event) =>
-                              setSelectedBreaks((prev) =>
-                                prev.map((value, idx) =>
-                                  idx === index
-                                    ? { ...value, startTime: event.target.value }
-                                    : value
-                                )
-                              )
-                            }
-                            className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
-                          />
-                          -
-                          <input
-                            type="time"
-                            value={item.endTime}
-                            onChange={(event) =>
-                              setSelectedBreaks((prev) =>
-                                prev.map((value, idx) =>
-                                  idx === index
-                                    ? { ...value, endTime: event.target.value }
-                                    : value
-                                )
-                              )
-                            }
-                            className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelectedBreaks((prev) =>
-                                prev.filter((_, idx) => idx !== index)
-                              )
-                            }
-                            className="text-xs text-[color:var(--bp-muted)]"
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedBreaks((prev) => [
-                            ...prev,
-                            { startTime: "12:00", endTime: "12:30" },
-                          ])
-                        }
-                        className="text-xs text-[color:var(--bp-muted)]"
-                      >
-                        + Добавить перерыв
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              <div className="text-xs text-[color:var(--bp-muted)]">
-                {scheduleType === "DELETE"
-                  ? `Удалится дней: ${targetCells.length}`
-                  : `Добавится дней: ${targetCells.length}`}
-              </div>
-
-              <div className="flex gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Настройка графика</h3>
                 <button
                   type="button"
                   onClick={() => {
                     setSelectedCells([]);
                     setActiveCell(null);
                   }}
-                  className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm"
+                  className="text-sm text-[color:var(--bp-muted)]"
+                  aria-label="Закрыть"
+                  title="Закрыть"
                 >
-                  Отменить
-                </button>
-                <button
-                  type="button"
-                  onClick={saveSchedule}
-                  disabled={!canSave}
-                  className="w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-                >
-                  Сохранить
+                  ✕
                 </button>
               </div>
-            </div>
-          </aside>
+
+              <div className="mt-4 space-y-4 text-sm">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-[color:var(--bp-muted)]">Выбор шаблона</span>
+                  <select
+                    value={templateMode}
+                    onChange={(event) => setTemplateMode(event.target.value)}
+                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
+                  >
+                    {TEMPLATE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {templateMode === "weekdays" ? (
+                  <div className="space-y-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+                    <div className="text-xs text-[color:var(--bp-muted)]">Рабочие дни</div>
+                    <div className="grid grid-cols-7 gap-2 text-xs">
+                      {WEEKDAY_LABELS.map((label, index) => {
+                        const checked = templateWeekdays.includes(index);
+                        return (
+                          <label
+                            key={label}
+                            className={`flex items-center justify-center rounded-xl border px-2 py-1 ${
+                              checked
+                                ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-accent-soft)]"
+                                : "border-[color:var(--bp-stroke)]"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setTemplateWeekdays((prev) =>
+                                  checked ? prev.filter((day) => day !== index) : [...prev, index]
+                                )
+                              }
+                              className="sr-only"
+                            />
+                            {label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-[color:var(--bp-muted)]">Интервал действия</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={templateWeeks}
+                        onChange={(event) => setTemplateWeeks(Number(event.target.value) || 1)}
+                        className="w-16 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
+                      />
+                      недель
+                    </label>
+                  </div>
+                ) : null}
+
+                {templateMode === "shifts" ? (
+                  <div className="space-y-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-[color:var(--bp-muted)]">Рабочие / выходные</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={shiftWorkDays}
+                        onChange={(event) => setShiftWorkDays(Number(event.target.value) || 1)}
+                        className="w-14 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
+                      />
+                      через
+                      <input
+                        type="number"
+                        min={0}
+                        value={shiftOffDays}
+                        onChange={(event) => setShiftOffDays(Number(event.target.value) || 0)}
+                        className="w-14 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="text-[color:var(--bp-muted)]">Интервал действия</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={shiftWeeks}
+                        onChange={(event) => setShiftWeeks(Number(event.target.value) || 1)}
+                        className="w-16 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1"
+                      />
+                      недель
+                    </label>
+                  </div>
+                ) : null}
+
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-[color:var(--bp-muted)]">Тип</span>
+                  <select
+                    value={scheduleType}
+                    onChange={(event) => setScheduleType(event.target.value)}
+                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
+                  >
+                    {SCHEDULE_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {scheduleType === "CUSTOM" ? (
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-[color:var(--bp-muted)]">Свой тип</span>
+                    <select
+                      value={customTypeId ?? ""}
+                      onChange={(event) => setCustomTypeId(Number(event.target.value) || null)}
+                      className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
+                    >
+                      <option value="">Выберите тип</option>
+                      {nonWorkingTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {scheduleType === "WORKING" ? (
+                  <>
+                    <div>
+                      <div className="text-xs text-[color:var(--bp-muted)]">Рабочее время</div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={workStart}
+                          onChange={(event) => setWorkStart(event.target.value)}
+                          className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                        />
+                        -
+                        <input
+                          type="time"
+                          value={workEnd}
+                          onChange={(event) => setWorkEnd(event.target.value)}
+                          className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-[color:var(--bp-muted)]">Перерывы</div>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {selectedBreaks.map((item, index) => (
+                          <div key={`${item.startTime}-${index}`} className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={item.startTime}
+                              onChange={(event) =>
+                                setSelectedBreaks((prev) =>
+                                  prev.map((value, idx) =>
+                                    idx === index ? { ...value, startTime: event.target.value } : value
+                                  )
+                                )
+                              }
+                              className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                            />
+                            -
+                            <input
+                              type="time"
+                              value={item.endTime}
+                              onChange={(event) =>
+                                setSelectedBreaks((prev) =>
+                                  prev.map((value, idx) =>
+                                    idx === index ? { ...value, endTime: event.target.value } : value
+                                  )
+                                )
+                              }
+                              className="w-24 rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedBreaks((prev) => prev.filter((_, idx) => idx !== index))
+                              }
+                              className="text-xs text-[color:var(--bp-muted)]"
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedBreaks((prev) => [...prev, { startTime: "12:00", endTime: "12:30" }])
+                          }
+                          className="text-xs text-[color:var(--bp-muted)]"
+                        >
+                          + Добавить перерыв
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+
+                <div className="text-xs text-[color:var(--bp-muted)]">
+                  {scheduleType === "DELETE"
+                    ? `Удалится дней: ${targetCells.length}`
+                    : `Добавится дней: ${targetCells.length}`}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCells([]);
+                      setActiveCell(null);
+                    }}
+                    className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm"
+                  >
+                    Отменить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveSchedule}
+                    disabled={!canSave}
+                    className="w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+            </aside>
+          ) : null}
+
+          {(activeCell || selectedCells.length > 0) && !locationId ? (
+            <aside className="w-full border-t border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] p-4 lg:w-[360px] lg:border-l lg:border-t-0">
+              <div className="text-sm font-semibold">Выберите локацию</div>
+              <div className="mt-2 text-sm text-[color:var(--bp-muted)]">
+                Чтобы редактировать график, сначала выберите локацию сверху.
+              </div>
+            </aside>
           ) : null}
         </div>
       </section>
@@ -1185,24 +1200,18 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
           <div className="w-full max-w-md rounded-2xl bg-[color:var(--bp-paper)] p-6 shadow-[var(--bp-shadow)]">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Копирование графика</h3>
-              <button
-                type="button"
-                onClick={() => setCopyModal(null)}
-                className="text-[color:var(--bp-muted)]"
-              >
+              <button type="button" onClick={() => setCopyModal(null)} className="text-[color:var(--bp-muted)]">
                 ✕
               </button>
             </div>
+
             <div className="mt-4 text-sm">
-              <div className="text-xs text-[color:var(--bp-muted)]">
-                Копируем от:
-              </div>
+              <div className="text-xs text-[color:var(--bp-muted)]">Копируем от:</div>
               <div className="mt-2 rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2">
                 {copyModal.name}
               </div>
-              <div className="mt-4 text-xs text-[color:var(--bp-muted)]">
-                Кому:
-              </div>
+
+              <div className="mt-4 text-xs text-[color:var(--bp-muted)]">Кому:</div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {staff
                   .filter((person) => person.id !== copyModal.id)
@@ -1218,9 +1227,7 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                           checked={checked}
                           onChange={() =>
                             setSelectedTargets((prev) =>
-                              checked
-                                ? prev.filter((id) => id !== person.id)
-                                : [...prev, person.id]
+                              checked ? prev.filter((id) => id !== person.id) : [...prev, person.id]
                             )
                           }
                         />
@@ -1229,34 +1236,24 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                     );
                   })}
               </div>
-              <div className="mt-4 text-xs text-[color:var(--bp-muted)]">
-                На период:
-              </div>
+
+              <div className="mt-4 text-xs text-[color:var(--bp-muted)]">На период:</div>
               <div className="mt-2 flex items-center gap-2">
                 <input
                   type="date"
                   value={copyRange.start}
-                  onChange={(event) =>
-                    setCopyRange((prev) => ({
-                      ...prev,
-                      start: event.target.value,
-                    }))
-                  }
+                  onChange={(event) => setCopyRange((prev) => ({ ...prev, start: event.target.value }))}
                   className="rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
                 />
                 -
                 <input
                   type="date"
                   value={copyRange.end}
-                  onChange={(event) =>
-                    setCopyRange((prev) => ({
-                      ...prev,
-                      end: event.target.value,
-                    }))
-                  }
+                  onChange={(event) => setCopyRange((prev) => ({ ...prev, end: event.target.value }))}
                   className="rounded-xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
                 />
               </div>
+
               <label className="mt-4 flex items-center gap-2 text-xs">
                 <input
                   type="checkbox"
@@ -1265,13 +1262,21 @@ export default function ScheduleView({ staff, initialTypes }: ScheduleViewProps)
                 />
                 Скопировать график с перерывами
               </label>
+
               <button
                 type="button"
                 onClick={handleCopy}
-                className="mt-4 w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white"
+                disabled={!locationId || selectedTargets.length === 0}
+                className="mt-4 w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
                 Скопировать график
               </button>
+
+              {!locationId ? (
+                <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                  Сначала выберите локацию вверху.
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

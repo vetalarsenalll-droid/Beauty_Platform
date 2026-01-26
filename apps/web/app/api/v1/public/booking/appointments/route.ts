@@ -2,10 +2,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicAccount, toMinutes } from "@/lib/public-booking";
 
-const SLOT_STEP_MIN = 15;
-
 type Window = { start: number; end: number };
-
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
 
 const toNumber = (value: unknown) => {
@@ -52,12 +49,7 @@ export async function POST(request: Request) {
   }
 
   if (!clientName && !clientPhone && !clientEmail) {
-    return jsonError(
-      "CLIENT_REQUIRED",
-      "Укажите данные клиента.",
-      null,
-      400
-    );
+    return jsonError("CLIENT_REQUIRED", "Укажите данные клиента.", null, 400);
   }
 
   const dayStart = new Date(`${dateValue}T00:00:00`);
@@ -72,7 +64,7 @@ export async function POST(request: Request) {
     return jsonError("INVALID_TIME", "Некорректное время.", null, 400);
   }
 
-  const [location, specialist, service, scheduleEntry] = await Promise.all([
+  const [location, specialist, service, scheduleCandidates] = await Promise.all([
     prisma.location.findFirst({
       where: {
         id: locationId,
@@ -116,11 +108,13 @@ export async function POST(request: Request) {
         },
       },
     }),
-    prisma.scheduleEntry.findFirst({
+    // ✅ график только выбранной локации (или общий null)
+    prisma.scheduleEntry.findMany({
       where: {
         accountId: resolved.account.id,
         specialistId,
         date: { gte: dayStart, lt: dayEnd },
+        OR: [{ locationId }, { locationId: null }],
       },
       include: { breaks: true },
     }),
@@ -130,16 +124,16 @@ export async function POST(request: Request) {
     return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
   }
   if (!specialist) {
-    return jsonError(
-      "SPECIALIST_NOT_FOUND",
-      "Специалист не найден.",
-      null,
-      404
-    );
+    return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
   }
   if (!service) {
     return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
   }
+
+  const scheduleEntry =
+    scheduleCandidates.find((e) => e.locationId === locationId) ??
+    scheduleCandidates.find((e) => e.locationId == null) ??
+    null;
 
   const override = service.specialists.find(
     (item) => item.specialistId === specialist.id
@@ -147,10 +141,12 @@ export async function POST(request: Request) {
   const levelConfig = specialist.levelId
     ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
     : null;
+
   const durationMin =
     override?.durationOverrideMin ??
     levelConfig?.durationMin ??
     service.baseDurationMin;
+
   const priceTotal =
     toNumber(override?.priceOverride) ||
     toNumber(levelConfig?.price) ||
@@ -168,9 +164,20 @@ export async function POST(request: Request) {
     );
   }
 
+  // ✅ если вдруг попал график “не той” локации — режем
+  if (scheduleEntry.locationId != null && scheduleEntry.locationId !== locationId) {
+    return jsonError(
+      "NO_WORKDAY",
+      "У специалиста нет рабочего дня в выбранной локации на эту дату.",
+      null,
+      400
+    );
+  }
+
   const entryStart = toMinutes(scheduleEntry.startTime ?? "");
   const entryEnd = toMinutes(scheduleEntry.endTime ?? "");
   const startMinutes = toMinutes(timeValue);
+
   if (
     entryStart === null ||
     entryEnd === null ||
@@ -186,10 +193,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const candidate: Window = {
-    start: startMinutes,
-    end: startMinutes + durationMin,
-  };
+  const candidate: Window = { start: startMinutes, end: startMinutes + durationMin };
 
   const breaks = scheduleEntry.breaks
     .map((item) => ({
@@ -197,6 +201,7 @@ export async function POST(request: Request) {
       end: toMinutes(item.endTime) ?? 0,
     }))
     .filter((item) => item.start < item.end);
+
   if (breaks.some((br) => overlaps(candidate, br))) {
     return jsonError(
       "OVERLAP_BREAK",
@@ -236,12 +241,7 @@ export async function POST(request: Request) {
       })
     )
   ) {
-    return jsonError(
-      "TIME_BUSY",
-      "Выбранное время уже занято.",
-      null,
-      409
-    );
+    return jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409);
   }
 
   if (
@@ -252,12 +252,7 @@ export async function POST(request: Request) {
       })
     )
   ) {
-    return jsonError(
-      "TIME_BLOCKED",
-      "Выбранное время недоступно.",
-      null,
-      409
-    );
+    return jsonError("TIME_BLOCKED", "Выбранное время недоступно.", null, 409);
   }
 
   let client =
@@ -307,7 +302,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return jsonOk({
-    appointmentId: appointment.id,
-  });
+  return jsonOk({ appointmentId: appointment.id });
 }

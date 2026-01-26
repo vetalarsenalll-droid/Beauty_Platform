@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { AppointmentStatus, Prisma, ScheduleEntryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
 
@@ -12,12 +12,30 @@ type AppointmentPayload = {
   clientEmail?: string;
   startAt: string;
   endAt: string;
-  status?: string;
+  status?: AppointmentStatus;
   priceTotal?: string;
   serviceId?: number | null;
 };
 
-const NON_BLOCKING_STATUSES = ["CANCELLED", "NO_SHOW"] as const;
+const NON_BLOCKING_STATUSES: AppointmentStatus[] = [
+  AppointmentStatus.CANCELLED,
+  AppointmentStatus.NO_SHOW,
+];
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+
+const toStr = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
+
+const toNum = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const isAppointmentStatus = (v: unknown): v is AppointmentStatus =>
+  typeof v === "string" &&
+  (Object.values(AppointmentStatus) as string[]).includes(v);
 
 function toDateOnly(value: Date) {
   return new Date(
@@ -43,7 +61,7 @@ function serializeAppointment(appointment: {
   clientId: number;
   startAt: Date;
   endAt: Date;
-  status: string;
+  status: AppointmentStatus;
   source: string;
   priceTotal: Prisma.Decimal;
   durationTotalMin: number;
@@ -70,11 +88,46 @@ function serializeAppointment(appointment: {
   };
 }
 
+function parsePayload(raw: unknown): AppointmentPayload | null {
+  if (!isRecord(raw)) return null;
+
+  const staffId = toNum(raw.staffId);
+  const locationId = toNum(raw.locationId);
+  const startAt = toStr(raw.startAt);
+  const endAt = toStr(raw.endAt);
+
+  if (!staffId || !locationId || !startAt || !endAt) return null;
+
+  const clientId = raw.clientId === null ? null : (toNum(raw.clientId) ?? undefined);
+  const clientName = toStr(raw.clientName) ?? undefined;
+  const clientPhone = toStr(raw.clientPhone) ?? undefined;
+  const clientEmail = toStr(raw.clientEmail) ?? undefined;
+  const status = isAppointmentStatus(raw.status) ? raw.status : undefined;
+  const priceTotal = toStr(raw.priceTotal) ?? undefined;
+  const serviceId = raw.serviceId === null ? null : (toNum(raw.serviceId) ?? undefined);
+
+  return {
+    staffId,
+    locationId,
+    clientId,
+    clientName,
+    clientPhone,
+    clientEmail,
+    startAt,
+    endAt,
+    status,
+    priceTotal,
+    serviceId,
+  };
+}
+
 export async function POST(request: Request) {
   const session = await requireCrmPermission("crm.calendar.read");
-  const body = (await request.json()) as AppointmentPayload;
 
-  if (!body.staffId || !body.locationId || !body.startAt || !body.endAt) {
+  const raw: unknown = await request.json().catch(() => null);
+  const body = parsePayload(raw);
+
+  if (!body) {
     return NextResponse.json(
       { message: "Не заполнены обязательные поля." },
       { status: 400 }
@@ -83,6 +136,7 @@ export async function POST(request: Request) {
 
   const startAt = new Date(body.startAt);
   const endAt = new Date(body.endAt);
+
   if (!(startAt.getTime() < endAt.getTime())) {
     return NextResponse.json(
       { message: "Некорректный интервал записи." },
@@ -95,28 +149,23 @@ export async function POST(request: Request) {
     select: { id: true, levelId: true },
   });
   if (!specialist) {
-    return NextResponse.json(
-      { message: "Специалист не найден." },
-      { status: 404 }
-    );
+    return NextResponse.json({ message: "Специалист не найден." }, { status: 404 });
   }
 
   const scheduleDate = toDateOnly(startAt);
   const scheduleEntry = await prisma.scheduleEntry.findUnique({
-    where: {
-      specialistId_date: {
-        specialistId: specialist.id,
-        date: scheduleDate,
-      },
-    },
+    where: { specialistId_date: { specialistId: specialist.id, date: scheduleDate } },
     include: { breaks: true },
   });
-  if (!scheduleEntry || scheduleEntry.type !== "WORKING") {
+
+  // ✅ если день не проставлен — он НЕ рабочий
+  if (!scheduleEntry || scheduleEntry.type !== ScheduleEntryType.WORKING) {
     return NextResponse.json(
       { message: "У специалиста нет рабочего дня на выбранную дату." },
       { status: 400 }
     );
   }
+
   if (scheduleEntry.locationId && scheduleEntry.locationId !== body.locationId) {
     return NextResponse.json(
       { message: "Рабочий день специалиста настроен для другой локации." },
@@ -132,14 +181,17 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
   const startMinutes = startAt.getHours() * 60 + startAt.getMinutes();
   const endMinutes = endAt.getHours() * 60 + endAt.getMinutes();
+
   if (startMinutes < entryStart || endMinutes > entryEnd) {
     return NextResponse.json(
       { message: "Запись выходит за пределы рабочего времени специалиста." },
       { status: 400 }
     );
   }
+
   for (const entryBreak of scheduleEntry.breaks) {
     const breakStart = parseTimeToMinutes(entryBreak.startTime);
     const breakEnd = parseTimeToMinutes(entryBreak.endTime);
@@ -179,7 +231,7 @@ export async function POST(request: Request) {
     where: {
       accountId: session.accountId,
       specialistId: specialist.id,
-      status: { notIn: NON_BLOCKING_STATUSES as unknown as string[] },
+      status: { notIn: NON_BLOCKING_STATUSES },
       startAt: { lt: endAt },
       endAt: { gt: startAt },
     },
@@ -202,19 +254,13 @@ export async function POST(request: Request) {
 
   if (body.serviceId) {
     selectedService = await prisma.service.findFirst({
-      where: {
-        id: body.serviceId,
-        accountId: session.accountId,
-        isActive: true,
-      },
+      where: { id: body.serviceId, accountId: session.accountId, isActive: true },
       include: { locations: true, specialists: true, levelConfigs: true },
     });
     if (!selectedService) {
-      return NextResponse.json(
-        { message: "Услуга не найдена." },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Услуга не найдена." }, { status: 404 });
     }
+
     const hasLocation = selectedService.locations.some(
       (item) => item.locationId === body.locationId
     );
@@ -234,6 +280,7 @@ export async function POST(request: Request) {
     const name = body.clientName?.trim() ?? "";
     const [firstName, ...rest] = name.split(" ").filter(Boolean);
     const lastName = rest.join(" ");
+
     const createdClient = await prisma.client.create({
       data: {
         accountId: session.accountId,
@@ -250,6 +297,7 @@ export async function POST(request: Request) {
     15,
     Math.round((endAt.getTime() - startAt.getTime()) / (60 * 1000))
   );
+
   let priceTotal = body.priceTotal
     ? new Prisma.Decimal(body.priceTotal)
     : new Prisma.Decimal(0);
@@ -260,17 +308,13 @@ export async function POST(request: Request) {
     );
     const levelConfig =
       specialist.levelId != null
-        ? selectedService.levelConfigs.find(
-            (item) => item.levelId === specialist.levelId
-          )
+        ? selectedService.levelConfigs.find((item) => item.levelId === specialist.levelId)
         : null;
+
     const computedPrice =
-      override?.priceOverride ??
-      levelConfig?.price ??
-      selectedService.basePrice;
-    priceTotal = body.priceTotal
-      ? new Prisma.Decimal(body.priceTotal)
-      : computedPrice;
+      override?.priceOverride ?? levelConfig?.price ?? selectedService.basePrice;
+
+    priceTotal = body.priceTotal ? new Prisma.Decimal(body.priceTotal) : computedPrice;
   }
 
   const appointment = await prisma.appointment.create({
@@ -281,7 +325,7 @@ export async function POST(request: Request) {
       clientId,
       startAt,
       endAt,
-      status: (body.status as any) || "NEW",
+      status: body.status ?? AppointmentStatus.NEW,
       priceTotal,
       durationTotalMin,
       source: "crm",
@@ -305,7 +349,5 @@ export async function POST(request: Request) {
     include: { client: true, services: { include: { service: true } } },
   });
 
-  return NextResponse.json(
-    serializeAppointment(updated ?? appointment)
-  );
+  return NextResponse.json(serializeAppointment(updated ?? appointment));
 }

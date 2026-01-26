@@ -55,12 +55,21 @@ type ServiceOption = {
   baseDurationMin: number;
   locationIds: number[];
   specialistIds: number[];
-  levelConfigs: { levelId: number; price: string | null; durationMin: number | null }[];
-  specialistOverrides: { specialistId: number; price: string | null; durationMin: number | null }[];
+  levelConfigs: {
+    levelId: number;
+    price: string | null;
+    durationMin: number | null;
+  }[];
+  specialistOverrides: {
+    specialistId: number;
+    price: string | null;
+    durationMin: number | null;
+  }[];
 };
 
 type JournalViewProps = {
   initialDate: string;
+  initialLocationId: number | null;
   staff: StaffItem[];
   clients: JournalClient[];
   locations: JournalLocation[];
@@ -75,41 +84,41 @@ const DAY_END = 21;
 const ZOOM_STEPS = [0.8, 1, 1.2, 1.4];
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-const STATUS_META: Record<
-  string,
-  { label: string; tone: string; badge: string }
-> = {
-  NEW: {
-    label: "Ожидание",
-    tone: "bg-[color:var(--bp-amber)]/20 text-[color:var(--bp-ink)]",
-    badge: "border border-[color:var(--bp-amber)]/40 text-[color:var(--bp-ink)]",
-  },
-  CONFIRMED: {
-    label: "Подтвердил",
-    tone: "bg-[color:var(--bp-lilac)]/20 text-[color:var(--bp-ink)]",
-    badge: "border border-[color:var(--bp-lilac)]/40 text-[color:var(--bp-ink)]",
-  },
-  IN_PROGRESS: {
-    label: "Пришел",
-    tone: "bg-emerald-100 text-emerald-900",
-    badge: "border border-emerald-200 text-emerald-900",
-  },
-  DONE: {
-    label: "Завершен",
-    tone: "bg-slate-200 text-slate-800",
-    badge: "border border-slate-300 text-slate-800",
-  },
-  CANCELLED: {
-    label: "Отменен",
-    tone: "bg-rose-100 text-rose-900",
-    badge: "border border-rose-200 text-rose-900",
-  },
-  NO_SHOW: {
-    label: "Не пришел",
-    tone: "bg-orange-100 text-orange-900",
-    badge: "border border-orange-200 text-orange-900",
-  },
-};
+const STATUS_META: Record<string, { label: string; tone: string; badge: string }> =
+  {
+    NEW: {
+      label: "Ожидание",
+      tone: "bg-[color:var(--bp-amber)]/20 text-[color:var(--bp-ink)]",
+      badge:
+        "border border-[color:var(--bp-amber)]/40 text-[color:var(--bp-ink)]",
+    },
+    CONFIRMED: {
+      label: "Подтвердил",
+      tone: "bg-[color:var(--bp-lilac)]/20 text-[color:var(--bp-ink)]",
+      badge:
+        "border border-[color:var(--bp-lilac)]/40 text-[color:var(--bp-ink)]",
+    },
+    IN_PROGRESS: {
+      label: "Пришел",
+      tone: "bg-emerald-100 text-emerald-900",
+      badge: "border border-emerald-200 text-emerald-900",
+    },
+    DONE: {
+      label: "Завершен",
+      tone: "bg-slate-200 text-slate-800",
+      badge: "border border-slate-300 text-slate-800",
+    },
+    CANCELLED: {
+      label: "Отменен",
+      tone: "bg-rose-100 text-rose-900",
+      badge: "border border-rose-200 text-rose-900",
+    },
+    NO_SHOW: {
+      label: "Не пришел",
+      tone: "bg-orange-100 text-orange-900",
+      badge: "border border-orange-200 text-orange-900",
+    },
+  };
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -175,9 +184,7 @@ function parseTimeToMinutes(value: string) {
 
 function addMinutesToTime(value: string, minutesToAdd: number) {
   const baseMinutes = parseTimeToMinutes(value);
-  if (baseMinutes === null || minutesToAdd <= 0) {
-    return "";
-  }
+  if (baseMinutes === null || minutesToAdd <= 0) return "";
   const total = baseMinutes + minutesToAdd;
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
@@ -204,9 +211,7 @@ function buildMonthMatrix(date: Date) {
   const start = new Date(year, month, 1);
   const startWeek = getWeekStart(start);
   const matrix: Date[] = [];
-  for (let i = 0; i < 42; i += 1) {
-    matrix.push(addDays(startWeek, i));
-  }
+  for (let i = 0; i < 42; i += 1) matrix.push(addDays(startWeek, i));
   return matrix;
 }
 
@@ -241,6 +246,7 @@ type EditorForm = {
 
 export default function JournalView({
   initialDate,
+  initialLocationId,
   staff,
   clients,
   locations,
@@ -248,16 +254,24 @@ export default function JournalView({
   scheduleEntries,
   appointments,
 }: JournalViewProps) {
-  const [appointmentItems, setAppointmentItems] = useState(appointments);
   const router = useRouter();
+
+  const [appointmentItems, setAppointmentItems] = useState(appointments);
+
   const [currentDate, setCurrentDate] = useState(() =>
     startOfDay(new Date(initialDate))
   );
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedStaffId, setSelectedStaffId] = useState(
-    staff[0]?.id ?? 0
-  );
+
+  const [selectedStaffId, setSelectedStaffId] = useState(staff[0]?.id ?? 0);
+
+  // ✅ выбранная локация
+  const [selectedLocationId, setSelectedLocationId] = useState<number>(() => {
+    const fallback = locations[0]?.id ?? 0;
+    return initialLocationId ?? fallback;
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -272,6 +286,14 @@ export default function JournalView({
   const sellRef = useRef<HTMLDivElement | null>(null);
   const summaryRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const pushUrl = (date: Date, locationId: number) => {
+    const params = new URLSearchParams({
+      date: formatDateKey(date),
+      locationId: String(locationId),
+    });
+    router.push(`/crm/calendar?${params.toString()}`);
+  };
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -303,16 +325,30 @@ export default function JournalView({
     setAppointmentItems(appointments);
   }, [appointments]);
 
+  // ✅ если текущая локация стала невалидной — берем первую
+  useEffect(() => {
+    if (!locations.some((l) => l.id === selectedLocationId)) {
+      setSelectedLocationId(locations[0]?.id ?? 0);
+    }
+  }, [locations, selectedLocationId]);
+
+  // ✅ при смене локации закрываем редактор
+  useEffect(() => {
+    setEditorState(null);
+  }, [selectedLocationId]);
+
   useEffect(() => {
     if (!editorState) {
       setEditorForm(null);
       return;
     }
+
     if (editorState.mode === "new") {
       const slot = editorState.slot;
       setEditorForm({
         staffId: slot.staffId,
-        locationId: slot.locationId ?? locations[0]?.id ?? 0,
+        locationId:
+          slot.locationId ?? selectedLocationId ?? locations[0]?.id ?? 0,
         clientId: null,
         date: formatDateInput(slot.startAt),
         startTime: formatTimeInput(slot.startAt),
@@ -330,6 +366,7 @@ export default function JournalView({
       const appointment = editorState.appointment;
       const startAt = new Date(appointment.startAt);
       const endAt = new Date(appointment.endAt);
+
       setEditorForm({
         staffId: appointment.specialistId,
         locationId: appointment.locationId,
@@ -347,32 +384,33 @@ export default function JournalView({
         clientEmail: "",
       });
     }
-  }, [editorState, locations]);
+  }, [editorState, locations, selectedLocationId]);
 
   useEffect(() => {
     if (!editorForm) return;
     if (!editorForm.startTime) return;
+
     if (editorForm.durationMin <= 0) {
       if (editorForm.endTime !== "") {
         setEditorForm((prev) => (prev ? { ...prev, endTime: "" } : prev));
       }
       return;
     }
+
     const computedEnd = addMinutesToTime(
       editorForm.startTime,
       editorForm.durationMin
     );
     if (computedEnd && computedEnd !== editorForm.endTime) {
-      setEditorForm((prev) =>
-        prev ? { ...prev, endTime: computedEnd } : prev
-      );
+      setEditorForm((prev) => (prev ? { ...prev, endTime: computedEnd } : prev));
     }
   }, [editorForm?.startTime, editorForm?.durationMin]);
 
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
-  }, [weekStart]);
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
+    [weekStart]
+  );
 
   const gridColumns = useMemo(() => {
     if (viewMode === "day") {
@@ -391,6 +429,7 @@ export default function JournalView({
 
   const slotCount = (DAY_END - DAY_START) * (60 / SLOT_MINUTES);
   const slotHeight = Math.round(24 * zoom);
+
   const timeSlots = useMemo(() => {
     return Array.from({ length: slotCount }, (_, index) => {
       const hours = DAY_START + Math.floor((index * SLOT_MINUTES) / 60);
@@ -399,14 +438,22 @@ export default function JournalView({
     });
   }, [slotCount]);
 
+  // ✅ фильтруем график по локации (универсальные + выбранная)
+  const scheduleEntriesForLocation = useMemo(() => {
+    if (!selectedLocationId) return scheduleEntries;
+    return scheduleEntries.filter(
+      (e) => e.locationId === null || e.locationId === selectedLocationId
+    );
+  }, [scheduleEntries, selectedLocationId]);
+
   const scheduleByKey = useMemo(() => {
     const map = new Map<string, ScheduleEntry>();
-    scheduleEntries.forEach((entry) => {
+    scheduleEntriesForLocation.forEach((entry) => {
       const key = `${entry.specialistId}:${formatDateKey(new Date(entry.date))}`;
       map.set(key, entry);
     });
     return map;
-  }, [scheduleEntries]);
+  }, [scheduleEntriesForLocation]);
 
   const getScheduleEntry = (staffId: number, date: Date) => {
     return scheduleByKey.get(`${staffId}:${formatDateKey(date)}`);
@@ -418,10 +465,22 @@ export default function JournalView({
     slotEnd: number
   ) => {
     if (!entry || entry.type !== "WORKING") return false;
+
+    // ✅ если у entry задана локация — она должна совпадать с выбранной
+    if (
+      selectedLocationId &&
+      entry.locationId &&
+      entry.locationId !== selectedLocationId
+    ) {
+      return false;
+    }
+
     const entryStart = parseTimeToMinutes(entry.startTime ?? "");
     const entryEnd = parseTimeToMinutes(entry.endTime ?? "");
     if (entryStart === null || entryEnd === null) return false;
+
     if (slotStart < entryStart || slotEnd > entryEnd) return false;
+
     for (const entryBreak of entry.breaks) {
       const breakStart = parseTimeToMinutes(entryBreak.startTime);
       const breakEnd = parseTimeToMinutes(entryBreak.endTime);
@@ -436,37 +495,44 @@ export default function JournalView({
     return true;
   };
 
+  // ✅ фильтруем записи по выбранной локации
   const filteredAppointments = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
+
     return appointmentItems.filter((appointment) => {
+      if (
+        selectedLocationId &&
+        appointment.locationId !== selectedLocationId
+      ) {
+        return false;
+      }
+
       const start = new Date(appointment.startAt);
+
       if (viewMode === "day") {
-        if (!isSameDay(start, currentDate)) {
-          return false;
-        }
+        if (!isSameDay(start, currentDate)) return false;
       } else {
         const endOfWeek = addDays(weekStart, 6);
-        if (start < weekStart || start > endOfWeek) {
-          return false;
-        }
+        if (start < weekStart || start > endOfWeek) return false;
         if (selectedStaffId && appointment.specialistId !== selectedStaffId) {
           return false;
         }
       }
-      if (statusFilter.length > 0 && !statusFilter.includes(appointment.status)) {
+
+      if (
+        statusFilter.length > 0 &&
+        !statusFilter.includes(appointment.status)
+      ) {
         return false;
       }
+
       if (search) {
-        const haystack = [
-          appointment.clientName,
-          ...appointment.serviceNames,
-        ]
+        const haystack = [appointment.clientName, ...appointment.serviceNames]
           .join(" ")
           .toLowerCase();
-        if (!haystack.includes(search)) {
-          return false;
-        }
+        if (!haystack.includes(search)) return false;
       }
+
       return true;
     });
   }, [
@@ -477,6 +543,7 @@ export default function JournalView({
     statusFilter,
     viewMode,
     weekStart,
+    selectedLocationId,
   ]);
 
   const dailyTotal = useMemo(() => {
@@ -486,7 +553,10 @@ export default function JournalView({
     }, 0);
   }, [filteredAppointments]);
 
-  const monthMatrix = useMemo(() => buildMonthMatrix(currentDate), [currentDate]);
+  const monthMatrix = useMemo(
+    () => buildMonthMatrix(currentDate),
+    [currentDate]
+  );
 
   const gridTemplateColumns = useMemo(() => {
     const count = Math.max(1, gridColumns.length);
@@ -501,25 +571,29 @@ export default function JournalView({
     return filteredAppointments.map((appointment) => {
       const start = new Date(appointment.startAt);
       const end = new Date(appointment.endAt);
+
       const dayIndex = weekDays.findIndex((day) => isSameDay(day, start));
       const columnIndex =
         viewMode === "day"
           ? staff.findIndex((item) => item.id === appointment.specialistId)
           : dayIndex;
-      if (columnIndex === -1) {
-        return null;
-      }
+
+      if (columnIndex === -1) return null;
+
       const rawSlotIndex =
-        ((start.getHours() - DAY_START) * 60 + start.getMinutes()) / SLOT_MINUTES;
+        ((start.getHours() - DAY_START) * 60 + start.getMinutes()) /
+        SLOT_MINUTES;
       const slotIndex = Math.max(0, Math.floor(rawSlotIndex));
-      const durationMinutes =
-        (end.getTime() - start.getTime()) / (60 * 1000);
+
+      const durationMinutes = (end.getTime() - start.getTime()) / (60 * 1000);
       const span = Math.max(1, Math.ceil(durationMinutes / SLOT_MINUTES));
+
       const statusMeta = STATUS_META[appointment.status] ?? STATUS_META.NEW;
       const sourceTone =
         appointment.source === "online"
           ? "bg-violet-200/60"
           : "bg-emerald-200/60";
+
       return {
         appointment,
         gridColumn: columnIndex + 2,
@@ -534,6 +608,7 @@ export default function JournalView({
     if (!editorForm) return [];
     const staffItem = staff.find((item) => item.id === editorForm.staffId);
     const staffLevelId = staffItem?.levelId ?? null;
+
     return services
       .filter(
         (service) =>
@@ -547,15 +622,14 @@ export default function JournalView({
         const levelConfig = staffLevelId
           ? service.levelConfigs.find((cfg) => cfg.levelId === staffLevelId)
           : null;
+
         const price =
-          override?.price ??
-          levelConfig?.price ??
-          service.basePrice ??
-          "0";
+          override?.price ?? levelConfig?.price ?? service.basePrice ?? "0";
         const durationMin =
           override?.durationMin ??
           levelConfig?.durationMin ??
           service.baseDurationMin;
+
         return {
           ...service,
           computedPrice: price,
@@ -568,32 +642,38 @@ export default function JournalView({
     const slotMinutes = rowIndex * SLOT_MINUTES;
     const hours = DAY_START + Math.floor(slotMinutes / 60);
     const minutes = slotMinutes % 60;
+
     const slotDate =
       viewMode === "day"
         ? currentDate
         : weekDays[Math.min(colIndex, weekDays.length - 1)];
+
     const staffItem =
-      viewMode === "day" ? staff[colIndex] : staff.find((s) => s.id === selectedStaffId);
-    if (!slotDate || !staffItem) {
-      return;
-    }
+      viewMode === "day"
+        ? staff[colIndex]
+        : staff.find((s) => s.id === selectedStaffId);
+
+    if (!slotDate || !staffItem) return;
+
     const slotStartMinutes = DAY_START * 60 + slotMinutes;
     const slotEndMinutes = slotStartMinutes + SLOT_MINUTES;
+
     const scheduleEntry = getScheduleEntry(staffItem.id, slotDate);
     const canBook = isSlotWorking(
       scheduleEntry,
       slotStartMinutes,
       slotEndMinutes
     );
-    if (!canBook) {
-      return;
-    }
+    if (!canBook) return;
+
     const startAt = new Date(slotDate);
     startAt.setHours(hours, minutes, 0, 0);
     const endAt = new Date(startAt);
     endAt.setMinutes(endAt.getMinutes() + SLOT_MINUTES);
-    const locationId =
-      scheduleEntry?.locationId ?? locations[0]?.id ?? 0;
+
+    // ✅ новая запись всегда в выбранной локации
+    const locationId = selectedLocationId || locations[0]?.id || 0;
+
     setEditorState({
       mode: "new",
       slot: {
@@ -617,12 +697,19 @@ export default function JournalView({
   const goToDate = (nextDate: Date) => {
     const normalized = startOfDay(nextDate);
     setCurrentDate(normalized);
-    router.push(`/crm/calendar?date=${formatDateKey(normalized)}`);
+    pushUrl(normalized, selectedLocationId || locations[0]?.id || 0);
+  };
+
+  const handleLocationChange = (nextId: number) => {
+    const safe = Number.isInteger(nextId) ? nextId : locations[0]?.id ?? 0;
+    setSelectedLocationId(safe);
+    pushUrl(currentDate, safe);
   };
 
   const handleEditorSave = async () => {
     if (!editorForm || !editorState) return;
     if (!editorForm.staffId || !editorForm.locationId) return;
+
     if (!editorForm.serviceId) {
       window.alert("Выберите услугу.");
       return;
@@ -638,11 +725,14 @@ export default function JournalView({
     ) {
       return;
     }
+
     const startAt = new Date(`${editorForm.date}T${editorForm.startTime}:00`);
     const endAt = new Date(`${editorForm.date}T${editorForm.endTime}:00`);
+
     const payload = {
       staffId: editorForm.staffId,
-      locationId: editorForm.locationId,
+      // ✅ фиксируем локацию на выбранной
+      locationId: selectedLocationId || editorForm.locationId,
       clientId: editorForm.clientId,
       clientName: editorForm.clientName,
       clientPhone: editorForm.clientPhone,
@@ -661,6 +751,7 @@ export default function JournalView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       if (response.ok) {
         const created = (await response.json()) as JournalAppointment;
         setAppointmentItems((prev) => [created, ...prev]);
@@ -680,6 +771,7 @@ export default function JournalView({
         body: JSON.stringify(payload),
       }
     );
+
     if (response.ok) {
       const updated = (await response.json()) as JournalAppointment;
       setAppointmentItems((prev) =>
@@ -692,15 +784,13 @@ export default function JournalView({
     }
   };
 
-  const handleQuickStatusChange = async (
-    appointmentId: number,
-    status: string
-  ) => {
+  const handleQuickStatusChange = async (appointmentId: number, status: string) => {
     const response = await fetch(`/api/v1/crm/appointments/${appointmentId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+
     if (response.ok) {
       const updated = (await response.json()) as JournalAppointment;
       setAppointmentItems((prev) =>
@@ -721,6 +811,7 @@ export default function JournalView({
           >
             <span className="text-lg">≡</span>
           </button>
+
           <button
             type="button"
             onClick={() => goToDate(startOfDay(new Date()))}
@@ -728,6 +819,7 @@ export default function JournalView({
           >
             Сегодня
           </button>
+
           <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-medium">
             <button
               type="button"
@@ -744,6 +836,22 @@ export default function JournalView({
             >
               →
             </button>
+          </div>
+
+          {/* ✅ ВЫБОР ЛОКАЦИИ (фильтр журнала) */}
+          <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-medium">
+            <span className="text-[color:var(--bp-muted)]">Локация</span>
+            <select
+              value={selectedLocationId}
+              onChange={(e) => handleLocationChange(Number(e.target.value))}
+              className="bg-transparent outline-none"
+            >
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-2">
@@ -769,6 +877,7 @@ export default function JournalView({
                 </div>
               ) : null}
             </div>
+
             <div className="relative" ref={summaryRef}>
               <button
                 type="button"
@@ -835,10 +944,13 @@ export default function JournalView({
                 </div>
               ) : null}
             </div>
+
             {viewMode === "week" ? (
               <select
                 value={selectedStaffId}
-                onChange={(event) => setSelectedStaffId(Number(event.target.value))}
+                onChange={(event) =>
+                  setSelectedStaffId(Number(event.target.value))
+                }
                 className="h-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm"
               >
                 {staff.map((item) => (
@@ -848,6 +960,7 @@ export default function JournalView({
                 ))}
               </select>
             ) : null}
+
             <button
               type="button"
               onClick={() =>
@@ -860,6 +973,7 @@ export default function JournalView({
             >
               A-
             </button>
+
             <button
               type="button"
               onClick={() =>
@@ -872,6 +986,7 @@ export default function JournalView({
             >
               A+
             </button>
+
             <input
               type="search"
               value={searchQuery}
@@ -879,18 +994,21 @@ export default function JournalView({
               placeholder="Поиск по журналу"
               className="h-10 w-[220px] rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm"
             />
+
             <button
               type="button"
               className="h-10 w-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
             >
               🔍
             </button>
+
             <button
               type="button"
               className="h-10 w-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
             >
               👤
             </button>
+
             <div className="ml-2 flex items-center gap-2">
               <button
                 type="button"
@@ -958,17 +1076,19 @@ export default function JournalView({
                 </button>
               </div>
             </div>
+
             <div className="grid grid-cols-7 gap-1 text-center text-xs text-[color:var(--bp-muted)]">
               {WEEKDAY_LABELS.map((label) => (
                 <span key={label}>{label}</span>
               ))}
             </div>
+
             <div className="grid grid-cols-7 gap-1 text-center text-sm">
               {monthMatrix.map((day) => {
-                const isCurrentMonth =
-                  day.getMonth() === currentDate.getMonth();
+                const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                 const isSelected = isSameDay(day, currentDate);
                 const isToday = isSameDay(day, new Date());
+
                 return (
                   <button
                     key={day.toISOString()}
@@ -1044,19 +1164,21 @@ export default function JournalView({
                   {timeSlots.map((_, rowIndex) =>
                     gridColumns.map((column, colIndex) => {
                       const staffId =
-                        viewMode === "day"
-                          ? staff[colIndex]?.id
-                          : selectedStaffId;
+                        viewMode === "day" ? staff[colIndex]?.id : selectedStaffId;
+
                       const slotDate =
                         viewMode === "day"
                           ? currentDate
                           : weekDays[Math.min(colIndex, weekDays.length - 1)];
+
                       const slotStart = DAY_START * 60 + rowIndex * SLOT_MINUTES;
                       const slotEnd = slotStart + SLOT_MINUTES;
+
                       const scheduleEntry =
                         staffId && slotDate
                           ? getScheduleEntry(staffId, slotDate)
                           : undefined;
+
                       const isWorking =
                         staffId && slotDate
                           ? isSlotWorking(scheduleEntry, slotStart, slotEnd)
@@ -1077,9 +1199,7 @@ export default function JournalView({
                             gridRow: rowIndex + 1,
                           }}
                           onClick={() => {
-                            if (isWorking) {
-                              handleSlotClick(rowIndex, colIndex);
-                            }
+                            if (isWorking) handleSlotClick(rowIndex, colIndex);
                           }}
                         />
                       );
@@ -1089,6 +1209,7 @@ export default function JournalView({
                   {appointmentCards.map((card) => {
                     if (!card) return null;
                     const statusMeta = card.statusMeta;
+
                     return (
                       <div
                         key={card.appointment.id}
@@ -1105,7 +1226,8 @@ export default function JournalView({
                         <div className="px-3 pb-2 pt-2 text-xs">
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-[color:var(--bp-ink)]">
-                              {formatTime(new Date(card.appointment.startAt))}–{formatTime(new Date(card.appointment.endAt))}
+                              {formatTime(new Date(card.appointment.startAt))}–
+                              {formatTime(new Date(card.appointment.endAt))}
                             </span>
                             <button
                               type="button"
@@ -1122,14 +1244,20 @@ export default function JournalView({
                               {statusMeta.label}
                             </button>
                           </div>
+
                           <div className="mt-1 font-semibold text-[color:var(--bp-ink)]">
                             {card.appointment.clientName}
                           </div>
+
                           <div className="mt-1 text-[11px] text-[color:var(--bp-muted)]">
                             {card.appointment.serviceNames.join(", ")}
                           </div>
+
                           <div className="mt-1 text-[11px] text-[color:var(--bp-muted)]">
-                            {Number(card.appointment.priceTotal).toLocaleString("ru-RU")} ₽
+                            {Number(card.appointment.priceTotal).toLocaleString(
+                              "ru-RU"
+                            )}{" "}
+                            ₽
                           </div>
                         </div>
 
@@ -1191,9 +1319,7 @@ export default function JournalView({
                     value={editorForm.staffId}
                     onChange={(event) =>
                       setEditorForm((prev) =>
-                        prev
-                          ? { ...prev, staffId: Number(event.target.value) }
-                          : prev
+                        prev ? { ...prev, staffId: Number(event.target.value) } : prev
                       )
                     }
                     className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
@@ -1205,6 +1331,7 @@ export default function JournalView({
                     ))}
                   </select>
                 </div>
+
                 <div className="space-y-3">
                   <label className="text-xs text-[color:var(--bp-muted)]">
                     Дата
@@ -1220,54 +1347,57 @@ export default function JournalView({
                     className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                   />
                 </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-[color:var(--bp-muted)]">
                       Начало
                     </label>
-                  <input
-                    type="time"
-                    value={editorForm.startTime}
-                    step={900}
-                    onChange={(event) =>
-                      setEditorForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              startTime: event.target.value,
-                              endTime:
-                                prev.durationMin > 0
-                                  ? addMinutesToTime(
-                                      event.target.value,
-                                      prev.durationMin
-                                    )
-                                  : "",
-                            }
-                          : prev
-                      )
-                    }
-                    className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                  />
+                    <input
+                      type="time"
+                      value={editorForm.startTime}
+                      step={900}
+                      onChange={(event) =>
+                        setEditorForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                startTime: event.target.value,
+                                endTime:
+                                  prev.durationMin > 0
+                                    ? addMinutesToTime(
+                                        event.target.value,
+                                        prev.durationMin
+                                      )
+                                    : "",
+                              }
+                            : prev
+                        )
+                      }
+                      className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    />
                   </div>
+
                   <div>
                     <label className="text-xs text-[color:var(--bp-muted)]">
                       Конец
                     </label>
-                  <input
-                    type="time"
-                    value={editorForm.endTime}
-                    step={900}
-                    readOnly
-                    disabled={editorForm.durationMin <= 0}
-                    onChange={(event) =>
-                      setEditorForm((prev) =>
-                        prev ? { ...prev, endTime: event.target.value } : prev
-                      )
-                    }
-                    className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                  />
+                    <input
+                      type="time"
+                      value={editorForm.endTime}
+                      step={900}
+                      readOnly
+                      disabled={editorForm.durationMin <= 0}
+                      onChange={(event) =>
+                        setEditorForm((prev) =>
+                          prev ? { ...prev, endTime: event.target.value } : prev
+                        )
+                      }
+                      className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    />
                   </div>
                 </div>
+
                 <div>
                   <label className="text-xs text-[color:var(--bp-muted)]">
                     Статус
@@ -1288,20 +1418,17 @@ export default function JournalView({
                     ))}
                   </select>
                 </div>
+
+                {/* ✅ ЛОКАЦИЯ В РЕДАКТОРЕ: фиксируем выбранной (и показываем) */}
                 <div>
                   <label className="text-xs text-[color:var(--bp-muted)]">
                     Локация
                   </label>
                   <select
-                    value={editorForm.locationId}
-                    onChange={(event) =>
-                      setEditorForm((prev) =>
-                        prev
-                          ? { ...prev, locationId: Number(event.target.value) }
-                          : prev
-                      )
-                    }
-                    className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    value={selectedLocationId || editorForm.locationId}
+                    disabled
+                    className="w-full cursor-not-allowed rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm opacity-80"
+                    title="Журнал отфильтрован по локации — запись создается/редактируется в выбранной локации."
                   >
                     {locations.map((location) => (
                       <option key={location.id} value={location.id}>
@@ -1341,14 +1468,16 @@ export default function JournalView({
                       <label className="text-xs text-[color:var(--bp-muted)]">
                         Услуга
                       </label>
-                        <select
+                      <select
                         value={editorForm.serviceId ?? ""}
                         onChange={(event) => {
                           const value = Number(event.target.value) || null;
                           const selected = availableServices.find(
                             (item) => item.id === value
                           );
-                          const durationMin = selected?.computedDurationMin ?? 0;
+                          const durationMin =
+                            selected?.computedDurationMin ?? 0;
+
                           setEditorForm((prev) =>
                             prev
                               ? {
@@ -1375,6 +1504,7 @@ export default function JournalView({
                         ))}
                       </select>
                     </div>
+
                     <div className="space-y-2">
                       <label className="text-xs text-[color:var(--bp-muted)]">
                         Цена
@@ -1391,6 +1521,7 @@ export default function JournalView({
                         className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] px-3 py-2 text-sm"
                       />
                     </div>
+
                     <div className="space-y-2">
                       <label className="text-xs text-[color:var(--bp-muted)]">
                         Длительность, мин
@@ -1439,6 +1570,7 @@ export default function JournalView({
 
               <aside className="flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
                 <div className="text-sm font-semibold">Клиент</div>
+
                 <select
                   value={editorForm.clientId ?? ""}
                   onChange={(event) => {
@@ -1465,6 +1597,7 @@ export default function JournalView({
                     </option>
                   ))}
                 </select>
+
                 <input
                   type="text"
                   value={editorForm.clientName}
@@ -1476,6 +1609,7 @@ export default function JournalView({
                   placeholder="Имя клиента"
                   className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                 />
+
                 <input
                   type="tel"
                   value={editorForm.clientPhone}
@@ -1487,6 +1621,7 @@ export default function JournalView({
                   placeholder="+7"
                   className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                 />
+
                 <input
                   type="email"
                   value={editorForm.clientEmail}
