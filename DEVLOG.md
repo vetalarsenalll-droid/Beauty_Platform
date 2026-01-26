@@ -527,3 +527,241 @@
 - Files: apps/web/app/(crm)/crm/crm-shell.tsx
 - Notes: Collapsed state now uses effectiveCollapsed = collapsed && !mobileOpen.
 - Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM location profile page
+- Summary: Added location profile page with full sections (details, photos, schedule, specialists, managers, services) and profile button from locations list.
+- Files: apps/web/app/(crm)/crm/locations/location-row-actions.tsx, apps/web/app/(crm)/crm/locations/[id]/page.tsx
+- Notes: Sections include current bindings; edit forms to be added later.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM locations list cleanup
+- Summary: Simplified location cards to show only name + profile/delete actions (details moved to profile).
+- Files: apps/web/app/(crm)/crm/locations/location-row-actions.tsx
+- Notes: Editing fields moved to location profile work.
+- Tests: Not run (manual only).
+
+## 2026-01-21
+- Date: 2026-01-21
+- Task: CRM location profile params fix
+- Summary: Fixed Next.js params Promise handling in location profile route.
+- Files: apps/web/app/(crm)/crm/locations/[id]/page.tsx
+- Notes: params now awaited before use.
+- Tests: Not run (manual only).
+
+## 2026-01-24
+- Date: 2026-01-24
+- Task: CRM location profile UI + bindings/media/hours endpoints
+- Summary: Restored Russian strings in CRM locations UI, added full location profile with editing, hours, media, bindings, tabs, and a header with cover photo. Added API routes for hours/bindings/media with OpenAPI updates.
+- Files: apps/web/app/(crm)/crm/locations/page.tsx, apps/web/app/(crm)/crm/locations/location-create-form.tsx, apps/web/app/(crm)/crm/locations/location-row-actions.tsx, apps/web/app/(crm)/crm/locations/[id]/page.tsx, apps/web/app/(crm)/crm/locations/[id]/location-profile-tabs.tsx, apps/web/app/(crm)/crm/locations/[id]/location-profile-form.tsx, apps/web/app/(crm)/crm/locations/[id]/location-hours-form.tsx, apps/web/app/(crm)/crm/locations/[id]/location-media-form.tsx, apps/web/app/(crm)/crm/locations/[id]/location-bindings-form.tsx, apps/web/app/api/v1/crm/locations/route.ts, apps/web/app/api/v1/crm/locations/[id]/route.ts, apps/web/app/api/v1/crm/locations/[id]/hours/route.ts, apps/web/app/api/v1/crm/locations/[id]/bindings/route.ts, apps/web/app/api/v1/crm/locations/[id]/media/route.ts, apps/web/app/api/v1/crm/locations/[id]/media/[linkId]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md, packages/db/prisma/schema.prisma, packages/db/prisma/migrations/20260124170000_media_link_sort_cover/migration.sql, apps/web/package.json, MIGRATIONS.md
+- Notes: Media uploads support multiple files, previews, ordering, cover selection, server-side compression/limits, and HEIC conversion. Location geo uses manual lat/lng input.
+- Tests: Not run.
+
+## 2026-01-24
+- Date: 2026-01-24
+- Task: CRM archive page and location archive action
+- Summary: Removed delete from location list, added archive action in location profile, added Archive menu/page with restore and delete actions, and added hard-delete API with safety checks.
+- Files: apps/web/app/(crm)/crm/locations/location-row-actions.tsx, apps/web/app/(crm)/crm/locations/[id]/location-profile-actions.tsx, apps/web/app/(crm)/crm/locations/[id]/page.tsx, apps/web/app/(crm)/crm/archive/page.tsx, apps/web/app/(crm)/crm/archive/archive-restore-button.tsx, apps/web/app/(crm)/crm/archive/archive-delete-button.tsx, apps/web/app/api/v1/crm/archive/route.ts, apps/web/app/api/v1/crm/promos/[id]/route.ts, apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Archive page supports restore and delete actions for locations/services/specialists/promos; clients archive pending.
+- Tests: Not run.
+
+## 2026-01-24
+- Date: 2026-01-24
+- Task: Location social and messenger links
+- Summary: Added social/messenger fields to Location model and CRM profile form with icon inputs. Added MAX and removed Facebook. Extended locations API and OpenAPI schema. Added auto-normalization for social URLs.
+- Files: packages/db/prisma/schema.prisma, packages/db/prisma/migrations/20260124223000_location_social_links/migration.sql, packages/db/prisma/migrations/20260124231000_location_social_links_max/migration.sql, MIGRATIONS.md, apps/web/app/api/v1/crm/locations/route.ts, apps/web/app/api/v1/crm/locations/[id]/route.ts, apps/web/app/(crm)/crm/locations/[id]/page.tsx, apps/web/app/(crm)/crm/locations/[id]/location-profile-tabs.tsx, apps/web/app/(crm)/crm/locations/[id]/location-profile-form.tsx, packages/contracts/openapi.yaml
+- Notes: Place PNG icons in `apps/web/public/assets/socials` (website, instagram, whatsapp, telegram, max, vk, viber, pinterest).
+- Tests: Not run.
+
+## 2026-01-24
+- Date: 2026-01-24
+- Task: CRM services page copy fix
+- Summary: Restored readable Russian UI text for CRM services page headings and empty states.
+- Files: apps/web/app/(crm)/crm/services/page.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM services profile and API
+- Summary: Added full service profile (general, photos, variants/levels, bindings), service media upload endpoints, and fixed services UI text/flow to use profile cards instead of inline edits.
+- Files: apps/web/app/(crm)/crm/services/page.tsx, apps/web/app/(crm)/crm/services/service-create-form.tsx, apps/web/app/(crm)/crm/services/service-row-actions.tsx, apps/web/app/(crm)/crm/services/service-category-form.tsx, apps/web/app/(crm)/crm/services/service-category-row.tsx, apps/web/app/(crm)/crm/services/[id]/page.tsx, apps/web/app/(crm)/crm/services/[id]/service-profile-tabs.tsx, apps/web/app/(crm)/crm/services/[id]/service-profile-form.tsx, apps/web/app/(crm)/crm/services/[id]/service-profile-actions.tsx, apps/web/app/(crm)/crm/services/[id]/service-media-form.tsx, apps/web/app/(crm)/crm/services/[id]/service-variants-form.tsx, apps/web/app/(crm)/crm/services/[id]/service-bindings-form.tsx, apps/web/app/api/v1/crm/services/route.ts, apps/web/app/api/v1/crm/services/[id]/route.ts, apps/web/app/api/v1/crm/services/[id]/bindings/route.ts, apps/web/app/api/v1/crm/services/[id]/media/route.ts, apps/web/app/api/v1/crm/services/[id]/media/[linkId]/route.ts, apps/web/app/api/v1/crm/services/[id]/variants/route.ts, apps/web/app/api/v1/crm/services/[id]/levels/route.ts, apps/web/app/api/v1/crm/service-categories/route.ts, apps/web/app/api/v1/crm/service-categories/[id]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM service levels-only UI
+- Summary: Reworked service "Варианты и уровни" tab to only manage specialist level pricing/duration (removed variants UI).
+- Files: apps/web/app/(crm)/crm/services/[id]/service-profile-tabs.tsx, apps/web/app/(crm)/crm/services/[id]/service-variants-form.tsx, apps/web/app/(crm)/crm/services/[id]/page.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM specialists profile
+- Summary: Reworked specialists list to use profile cards, added specialist profile page with general info and bindings, added bindings API, and fixed Russian copy in specialists UI/API.
+- Files: apps/web/app/(crm)/crm/specialists/page.tsx, apps/web/app/(crm)/crm/specialists/specialist-create-form.tsx, apps/web/app/(crm)/crm/specialists/specialist-level-form.tsx, apps/web/app/(crm)/crm/specialists/specialist-level-row.tsx, apps/web/app/(crm)/crm/specialists/specialist-row-actions.tsx, apps/web/app/(crm)/crm/specialists/[id]/page.tsx, apps/web/app/(crm)/crm/specialists/[id]/specialist-profile-tabs.tsx, apps/web/app/(crm)/crm/specialists/[id]/specialist-profile-form.tsx, apps/web/app/(crm)/crm/specialists/[id]/specialist-profile-actions.tsx, apps/web/app/(crm)/crm/specialists/[id]/specialist-bindings-form.tsx, apps/web/app/api/v1/crm/specialists/route.ts, apps/web/app/api/v1/crm/specialists/[id]/route.ts, apps/web/app/api/v1/crm/specialists/[id]/bindings/route.ts, apps/web/app/api/v1/crm/specialist-levels/route.ts, apps/web/app/api/v1/crm/specialist-levels/[id]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM specialist media tab
+- Summary: Added specialist media tab with photo uploads and API endpoints for specialist photo/work galleries.
+- Files: apps/web/app/(crm)/crm/specialists/[id]/specialist-profile-tabs.tsx, apps/web/app/(crm)/crm/specialists/[id]/specialist-media-form.tsx, apps/web/app/(crm)/crm/specialists/[id]/page.tsx, apps/web/app/api/v1/crm/specialists/[id]/media/route.ts, apps/web/app/api/v1/crm/specialists/[id]/media/[linkId]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM managers section
+- Summary: Added managers list/profile UI, bindings to locations, and managers API endpoints.
+- Files: apps/web/app/(crm)/crm/managers/page.tsx, apps/web/app/(crm)/crm/managers/manager-create-form.tsx, apps/web/app/(crm)/crm/managers/manager-row-actions.tsx, apps/web/app/(crm)/crm/managers/[id]/page.tsx, apps/web/app/(crm)/crm/managers/[id]/manager-profile-actions.tsx, apps/web/app/(crm)/crm/managers/[id]/manager-profile-form.tsx, apps/web/app/(crm)/crm/managers/[id]/manager-profile-tabs.tsx, apps/web/app/(crm)/crm/managers/[id]/manager-bindings-form.tsx, apps/web/app/api/v1/crm/managers/route.ts, apps/web/app/api/v1/crm/managers/[id]/route.ts, apps/web/app/api/v1/crm/managers/[id]/bindings/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM schedule UI and copy fixes
+- Summary: Rebuilt CRM work schedule page with toolbar, filters, grid, side panel, and copy modal; fixed Russian copy in CRM menu and locations page.
+- Files: apps/web/app/(crm)/crm/schedule/page.tsx, apps/web/app/(crm)/crm/schedule/schedule-view.tsx, apps/web/app/(crm)/crm/crm-shell.tsx, apps/web/app/(crm)/crm/locations/page.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы (логика + миграция)
+- Summary: Реализована логика графика работы (шаблоны, массовое применение, удаление, копирование, фильтры/счетчики) и добавлена миграция расписания; обновлены OpenAPI и changelog.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx, apps/web/app/(crm)/crm/schedule/page.tsx, packages/contracts/openapi.yaml, API_CHANGELOG.md, MIGRATIONS.md, packages/db/prisma/migrations/20260125134137_crm_schedule/migration.sql
+- Notes: Prisma migrate dev применен; `prisma generate` падает с EPERM на `query_engine-windows.dll.node` (нужно закрыть запущенные процессы и повторить генерацию).
+- Tests: Not run (Prisma generate blocked).
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы — UX правки
+- Summary: Панель настроек появляется только при выборе дня, счетчики смен/сотрудников всегда видимы, а меню и фильтры закрываются по клику вне блока; улучшена адаптация для мобильных экранов.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx
+- Notes: UI кнопка настроек удалена, counts всегда включены.
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы — выделение дня и выравнивание
+- Summary: Добавлено выделение выбранных дней, скрыты пустые круги в слотах, выровнены строки сотрудников с сеткой, добавлена кнопка закрытия панели и выставлено рабочее время 10:00–21:00.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx, apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Страница графика теперь разворачивается на всю ширину.
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы — мобильная адаптация
+- Summary: Добавлены мобильные вкладки (График/Сотрудники), выбор сотрудника на мобильных и скрытие лишних строк графика; улучшен горизонтальный скролл сетки.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы — выравнивание лент
+- Summary: Увеличена высота строк и выровнены отступы, чтобы строки сотрудников совпадали с лентами дней.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы — выравнивание заголовков
+- Summary: Выровнены высоты заголовка сотрудников и строки дней для аккуратного совпадения лент.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы — единые линии
+- Summary: Зафиксированы высоты строк и шапки (64/88px), чтобы горизонтальные линии совпадали по всей сетке.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM график работы - синхронные линии
+- Summary: Зафиксированы высоты строк сетки и слотов, чтобы горизонтальные линии совпадали у сотрудников и дней.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM clients list + profile
+- Summary: Added CRM clients list page with create form, client cards linking to profile, and CRM clients CRUD API with audit logs.
+- Files: apps/web/app/(crm)/crm/clients/page.tsx, apps/web/app/(crm)/crm/clients/client-create-form.tsx, apps/web/app/(crm)/crm/clients/client-row-actions.tsx, apps/web/app/(crm)/crm/clients/[id]/page.tsx, apps/web/app/api/v1/crm/clients/route.ts, apps/web/app/api/v1/crm/clients/[id]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md
+- Notes: Profile page is read-only for now; edit UI can be added next.
+- Tests: Not run.
+
+## 2026-01-25
+- Date: 2026-01-25
+- Task: CRM журнал записи (UI + данные)
+- Summary: Replaced calendar stub with Journal view, pulling real appointments for the current month and rendering day/week grids, filters, and status styling.
+- Files: apps/web/app/(crm)/crm/calendar/page.tsx, apps/web/app/(crm)/crm/calendar/journal-view.tsx, apps/web/app/(crm)/crm/crm-shell.tsx
+- Notes: Uses Appointment data; interactive UI only (no create/edit flows yet).
+- Tests: Not run.
+
+## 2026-01-26
+- Date: 2026-01-26
+- Task: CRM журнал записи — пересборка по инструкции
+- Summary: Собран новый журнал записи с полной шириной, тулбаром, мини-календарем, дневной/недельной сеткой, карточками визитов и окном редактирования; добавлены API создания/редактирования записей и схемы OpenAPI.
+- Files: apps/web/app/(crm)/crm/calendar/page.tsx, apps/web/app/(crm)/crm/calendar/journal-view.tsx, apps/web/app/api/v1/crm/appointments/route.ts, apps/web/app/api/v1/crm/appointments/[id]/route.ts, packages/contracts/openapi.yaml, API_CHANGELOG.md, DEVLOG.md
+- Notes: Привязка услуги делается по названию при совпадении; в остальном запись сохраняется без услуг.
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM журнал записи — валидации расписания и пересечений
+- Summary: Добавлены серверные проверки графика, перерывов, блокировок и пересечений записей; журнал передает serviceId и показывает ошибки сохранения.
+- Files: apps/web/app/api/v1/crm/appointments/route.ts, apps/web/app/api/v1/crm/appointments/[id]/route.ts, apps/web/app/(crm)/crm/calendar/journal-view.tsx, apps/web/app/(crm)/crm/calendar/page.tsx, packages/contracts/openapi.yaml
+- Notes: Запись теперь блокируется вне рабочего дня/перерывов и при пересечении активных записей.
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM журнал записи — шаг 15 минут, авто-окончание и визуализация графика
+- Summary: Починил определение рабочего дня по UTC-дате, добавил загрузку schedule entries в журнал, подсветку нерабочих слотов, авто-расчет окончания по длительности услуги и шаг времени 15 минут.
+- Files: apps/web/app/api/v1/crm/appointments/route.ts, apps/web/app/api/v1/crm/appointments/[id]/route.ts, apps/web/app/(crm)/crm/calendar/page.tsx, apps/web/app/(crm)/crm/calendar/journal-view.tsx, DEVLOG.md
+- Notes: В новом сеансе конец времени скрыт до выбора услуги; запись блокируется на нерабочих слотах.
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM журнал записи — синхронизация смены даты с данными графика
+- Summary: Перевел навигацию по датам на goToDate с push в `/crm/calendar?date=...`, чтобы при смене дня загружались актуальные рабочие часы и слоты не блокировались.
+- Files: apps/web/app/(crm)/crm/calendar/journal-view.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM график работы — нормализация дат
+- Summary: Исправил формирование ISO-даты в графике работы на локальную (YYYY-MM-DD), чтобы рабочие дни не сдвигались на сутки.
+- Files: apps/web/app/(crm)/crm/schedule/schedule-view.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM журнал записи — компактная шкала времени
+- Summary: Уменьшил высоту слота времени, чтобы сетка по времени была компактнее.
+- Files: apps/web/app/(crm)/crm/calendar/journal-view.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM журнал записи — еще плотнее
+- Summary: Дополнительно уменьшил высоту слота времени для более плотной шкалы.
+- Files: apps/web/app/(crm)/crm/calendar/journal-view.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-27
+- Date: 2026-01-27
+- Task: CRM журнал записи — шаги масштаба A-/A+
+- Summary: Перевел масштаб на 4 дискретных шага, чтобы от минимального до максимального было ровно 3 клика.
+- Files: apps/web/app/(crm)/crm/calendar/journal-view.tsx, DEVLOG.md
+- Tests: Not run.
+
+## 2026-01-26
+- Date: 2026-01-26
+- Task: Public booking page uses live booking APIs
+- Summary: Built booking flow UI that loads locations/services/specialists/slots from public APIs and posts appointments; wired booking entry to BookingClient.
+- Files: apps/web/app/booking/booking-client.tsx, apps/web/app/booking/page.tsx, DEVLOG.md
+- Tests: Not run.

@@ -11,7 +11,7 @@ function parseCategoryId(raw: string) {
     return {
       error: jsonError(
         "VALIDATION_FAILED",
-        "Некорректный id категории",
+        "Некорректный id категории.",
         { fields: [{ path: "id", issue: "invalid" }] },
         400
       ),
@@ -33,36 +33,49 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   if (!category || category.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Категория не найдена", null, 404);
+    return jsonError("NOT_FOUND", "Категория не найдена.", null, 404);
   }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "Некорректный формат запроса",
+      "Некорректный формат запроса.",
       null,
       400
     );
   }
 
-  const data: { name?: string; slug?: string } = {};
-  if (body.name !== undefined) data.name = String(body.name).trim();
-  if (body.slug !== undefined) data.slug = String(body.slug).trim();
+  const name = String(body.name ?? "").trim();
+  const slug = String(body.slug ?? "").trim();
+
+  if (!name || !slug) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Название и slug обязательны.",
+      {
+        fields: [
+          { path: "name", issue: name ? null : "required" },
+          { path: "slug", issue: slug ? null : "required" },
+        ],
+      },
+      400
+    );
+  }
 
   try {
     const updated = await prisma.serviceCategory.update({
       where: { id: category.id },
-      data,
+      data: { name, slug },
     });
 
     await logAccountAudit({
       accountId: auth.session.accountId,
       userId: auth.session.userId,
-      action: "Обновление категории услуги",
+      action: "Обновил категорию услуги",
       targetType: "service_category",
       targetId: updated.id,
-      diffJson: data,
+      diffJson: { name, slug },
     });
 
     const response = jsonOk({
@@ -74,9 +87,19 @@ export async function PATCH(request: Request, { params }: Params) {
     return applyCrmAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2002") {
-      return jsonError("DUPLICATE", "Slug уже используется", { field: "slug" }, 409);
+      return jsonError(
+        "DUPLICATE",
+        "Slug уже используется.",
+        { field: "slug" },
+        409
+      );
     }
-    return jsonError("SERVER_ERROR", "Не удалось обновить категорию", null, 500);
+    return jsonError(
+      "SERVER_ERROR",
+      "Не удалось обновить категорию.",
+      null,
+      500
+    );
   }
 }
 
@@ -93,18 +116,31 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   if (!category || category.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Категория не найдена", null, 404);
+    return jsonError("NOT_FOUND", "Категория не найдена.", null, 404);
   }
 
-  await prisma.serviceCategory.delete({ where: { id: category.id } });
+  const linked = await prisma.service.count({
+    where: { categoryId: category.id },
+  });
+  if (linked > 0) {
+    return jsonError(
+      "CONFLICT",
+      "Категория используется в услугах.",
+      null,
+      409
+    );
+  }
+
+  await prisma.serviceCategory.delete({
+    where: { id: category.id },
+  });
 
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Удаление категории услуги",
+    action: "Удалил категорию услуги",
     targetType: "service_category",
     targetId: category.id,
-    diffJson: { id: category.id },
   });
 
   const response = jsonOk({ id: category.id });

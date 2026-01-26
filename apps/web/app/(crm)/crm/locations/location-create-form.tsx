@@ -28,7 +28,7 @@ export default function LocationCreateForm() {
       const parsedLat = Number(lat);
       const parsedLng = Number(lng);
       if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-        setError("Координаты должны быть числом.");
+        setError("Широта и долгота должны быть числом.");
         setSaving(false);
         return;
       }
@@ -78,6 +78,26 @@ export default function LocationCreateForm() {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
+          Широта
+          <input
+            value={lat}
+            onChange={(event) => setLat(event.target.value)}
+            placeholder="55.7558"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Долгота
+          <input
+            value={lng}
+            onChange={(event) => setLng(event.target.value)}
+            placeholder="37.6176"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          />
+        </label>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-2 text-sm">
           Телефон
           <input
             value={phone}
@@ -97,33 +117,13 @@ export default function LocationCreateForm() {
           </select>
         </label>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm">
-          Широта
-          <input
-            value={lat}
-            onChange={(event) => setLat(event.target.value)}
-            placeholder="55.7558"
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Долгота
-          <input
-            value={lng}
-            onChange={(event) => setLng(event.target.value)}
-            placeholder="37.6176"
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          />
-        </label>
-      </div>
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"
         disabled={saving}
         className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-4 py-2 text-sm font-semibold"
       >
-        {saving ? "Сохранение..." : "Создать локацию"}
+        {saving ? "Сохраняем..." : "Создать локацию"}
       </button>
     </form>
   );

@@ -47,7 +47,12 @@ export async function GET(
   const { id } = await context.params;
   const specialistId = Number(id);
   if (!Number.isInteger(specialistId)) {
-    return jsonError("INVALID_ID", "Неверный идентификатор специалиста", null, 400);
+    return jsonError(
+      "INVALID_ID",
+      "Некорректный идентификатор специалиста.",
+      null,
+      400
+    );
   }
 
   const specialist = await prisma.specialistProfile.findFirst({
@@ -56,7 +61,7 @@ export async function GET(
   });
 
   if (!specialist) {
-    return jsonError("NOT_FOUND", "Специалист не найден", null, 404);
+    return jsonError("NOT_FOUND", "Специалист не найден.", null, 404);
   }
 
   const response = jsonOk(mapSpecialist(specialist as DbSpecialist));
@@ -73,12 +78,17 @@ export async function PATCH(
   const { id } = await context.params;
   const specialistId = Number(id);
   if (!Number.isInteger(specialistId)) {
-    return jsonError("INVALID_ID", "Неверный идентификатор специалиста", null, 400);
+    return jsonError(
+      "INVALID_ID",
+      "Некорректный идентификатор специалиста.",
+      null,
+      400
+    );
   }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Некорректный формат запроса", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса.", null, 400);
   }
 
   const firstName =
@@ -104,13 +114,18 @@ export async function PATCH(
     levelIdRaw !== undefined;
 
   if (!hasChanges) {
-    return jsonError("VALIDATION_FAILED", "Нет данных для обновления", null, 400);
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Нет данных для обновления.",
+      null,
+      400
+    );
   }
 
   if (firstName !== undefined && !firstName) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Имя обязательно",
+      "Имя обязательно.",
       { fields: [{ path: "firstName", issue: "required" }] },
       400
     );
@@ -119,7 +134,7 @@ export async function PATCH(
   if (email !== undefined && !email) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Email обязателен",
+      "Email обязателен.",
       { fields: [{ path: "email", issue: "required" }] },
       400
     );
@@ -128,7 +143,7 @@ export async function PATCH(
   if (status !== undefined && !["ACTIVE", "INVITED", "DISABLED"].includes(status)) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Некорректный статус",
+      "Некорректный статус.",
       { fields: [{ path: "status", issue: "invalid" }] },
       400
     );
@@ -144,7 +159,7 @@ export async function PATCH(
   if (levelId !== undefined && levelId !== null && !Number.isInteger(levelId)) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Некорректный уровень",
+      "Некорректный уровень.",
       { fields: [{ path: "levelId", issue: "invalid" }] },
       400
     );
@@ -161,7 +176,7 @@ export async function PATCH(
     if (!level) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Уровень не найден",
+        "Уровень не найден.",
         { fields: [{ path: "levelId", issue: "not_found" }] },
         400
       );
@@ -174,16 +189,12 @@ export async function PATCH(
   });
 
   if (!specialist) {
-    return jsonError("NOT_FOUND", "Специалист не найден", null, 404);
+    return jsonError("NOT_FOUND", "Специалист не найден.", null, 404);
   }
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
-      if (
-        email !== undefined ||
-        phone !== undefined ||
-        status !== undefined
-      ) {
+      if (email !== undefined || phone !== undefined || status !== undefined) {
         await tx.user.update({
           where: { id: specialist.userId },
           data: {
@@ -194,10 +205,7 @@ export async function PATCH(
         });
       }
 
-      if (
-        firstName !== undefined ||
-        lastName !== undefined
-      ) {
+      if (firstName !== undefined || lastName !== undefined) {
         if (specialist.user.profile) {
           await tx.userProfile.update({
             where: { id: specialist.user.profile.id },
@@ -238,7 +246,7 @@ export async function PATCH(
     await logAccountAudit({
       accountId: auth.session.accountId,
       userId: auth.session.userId,
-      action: "Обновление специалиста",
+      action: "Обновил специалиста",
       targetType: "specialist",
       targetId: updated.id,
       diffJson: {
@@ -256,9 +264,19 @@ export async function PATCH(
     return applyCrmAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2002") {
-      return jsonError("DUPLICATE", "Email уже используется", { field: "email" }, 409);
+      return jsonError(
+        "DUPLICATE",
+        "Email уже используется.",
+        { field: "email" },
+        409
+      );
     }
-    return jsonError("SERVER_ERROR", "Не удалось обновить специалиста", null, 500);
+    return jsonError(
+      "SERVER_ERROR",
+      "Не удалось обновить специалиста.",
+      null,
+      500
+    );
   }
 }
 
@@ -272,7 +290,12 @@ export async function DELETE(
   const { id } = await context.params;
   const specialistId = Number(id);
   if (!Number.isInteger(specialistId)) {
-    return jsonError("INVALID_ID", "Неверный идентификатор специалиста", null, 400);
+    return jsonError(
+      "INVALID_ID",
+      "Некорректный идентификатор специалиста.",
+      null,
+      400
+    );
   }
 
   const specialist = await prisma.specialistProfile.findFirst({
@@ -281,7 +304,7 @@ export async function DELETE(
   });
 
   if (!specialist) {
-    return jsonError("NOT_FOUND", "Специалист не найден", null, 404);
+    return jsonError("NOT_FOUND", "Специалист не найден.", null, 404);
   }
 
   await prisma.user.update({
@@ -292,7 +315,7 @@ export async function DELETE(
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Отключение специалиста",
+    action: "Переместил специалиста в архив",
     targetType: "specialist",
     targetId: specialist.id,
     diffJson: { status: "DISABLED" },

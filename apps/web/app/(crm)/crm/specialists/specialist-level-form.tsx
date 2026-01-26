@@ -10,19 +10,14 @@ export default function SpecialistLevelForm() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setSaving(true);
     setError(null);
-
-    const payload: Record<string, unknown> = { name };
-    if (rank.trim()) {
-      payload.rank = Number(rank);
-    }
+    setSaving(true);
 
     try {
       const response = await fetch("/api/v1/crm/specialist-levels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ name, rank: rank.trim() ? Number(rank) : null }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
@@ -38,32 +33,34 @@ export default function SpecialistLevelForm() {
   };
 
   return (
-    <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1.6fr_0.6fr]">
-      <label className="flex flex-col gap-2 text-sm">
-        Название уровня
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          required
-        />
-      </label>
-      <label className="flex flex-col gap-2 text-sm">
-        Ранг
-        <input
-          value={rank}
-          onChange={(event) => setRank(event.target.value)}
-          placeholder="1"
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-        />
-      </label>
-      {error ? <div className="md:col-span-2 text-sm text-red-600">{error}</div> : null}
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-2 text-sm">
+          Название
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Ранг
+          <input
+            value={rank}
+            onChange={(event) => setRank(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            placeholder="Например, 10"
+          />
+        </label>
+      </div>
+      {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"
         disabled={saving}
-        className="md:col-span-2 inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-4 py-2 text-sm font-semibold"
+        className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold"
       >
-        {saving ? "Сохраняем..." : "Создать уровень"}
+        {saving ? "Создание..." : "Создать уровень"}
       </button>
     </form>
   );

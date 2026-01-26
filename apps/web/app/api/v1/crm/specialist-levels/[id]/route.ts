@@ -29,12 +29,17 @@ export async function PATCH(
   const { id } = await context.params;
   const levelId = Number(id);
   if (!Number.isInteger(levelId)) {
-    return jsonError("INVALID_ID", "Неверный идентификатор уровня", null, 400);
+    return jsonError(
+      "INVALID_ID",
+      "Некорректный идентификатор уровня.",
+      null,
+      400
+    );
   }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Некорректный формат запроса", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса.", null, 400);
   }
 
   const name = body.name !== undefined ? String(body.name).trim() : undefined;
@@ -45,7 +50,7 @@ export async function PATCH(
     if (!name) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Название уровня обязательно",
+        "Название уровня обязательно.",
         { fields: [{ path: "name", issue: "required" }] },
         400
       );
@@ -57,7 +62,7 @@ export async function PATCH(
     if (rankInput === null || rankInput === "") {
       return jsonError(
         "VALIDATION_FAILED",
-        "Ранг должен быть целым числом",
+        "Ранг уровня должен быть числом.",
         { fields: [{ path: "rank", issue: "invalid" }] },
         400
       );
@@ -66,7 +71,7 @@ export async function PATCH(
     if (!Number.isInteger(parsedRank)) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Ранг должен быть целым числом",
+        "Ранг уровня должен быть числом.",
         { fields: [{ path: "rank", issue: "invalid" }] },
         400
       );
@@ -75,7 +80,7 @@ export async function PATCH(
   }
 
   if (Object.keys(data).length === 0) {
-    return jsonError("VALIDATION_FAILED", "Нет данных для обновления", null, 400);
+    return jsonError("VALIDATION_FAILED", "Нет данных для обновления.", null, 400);
   }
 
   const existing = await prisma.specialistLevel.findFirst({
@@ -86,13 +91,13 @@ export async function PATCH(
   });
 
   if (!existing) {
-    return jsonError("NOT_FOUND", "Уровень не найден", null, 404);
+    return jsonError("NOT_FOUND", "Уровень не найден.", null, 404);
   }
 
   if (existing.accountId === null) {
     return jsonError(
       "FORBIDDEN",
-      "Базовый уровень нельзя редактировать",
+      "Системный уровень нельзя редактировать.",
       null,
       403
     );
@@ -106,7 +111,7 @@ export async function PATCH(
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Обновление уровня специалиста",
+    action: "Обновил уровень специалиста",
     targetType: "specialist_level",
     targetId: updated.id,
     diffJson: data,
@@ -126,7 +131,12 @@ export async function DELETE(
   const { id } = await context.params;
   const levelId = Number(id);
   if (!Number.isInteger(levelId)) {
-    return jsonError("INVALID_ID", "Неверный идентификатор уровня", null, 400);
+    return jsonError(
+      "INVALID_ID",
+      "Некорректный идентификатор уровня.",
+      null,
+      400
+    );
   }
 
   const existing = await prisma.specialistLevel.findFirst({
@@ -137,13 +147,13 @@ export async function DELETE(
   });
 
   if (!existing) {
-    return jsonError("NOT_FOUND", "Уровень не найден", null, 404);
+    return jsonError("NOT_FOUND", "Уровень не найден.", null, 404);
   }
 
   if (existing.accountId === null) {
     return jsonError(
       "FORBIDDEN",
-      "Базовый уровень нельзя удалять",
+      "Системный уровень нельзя удалить.",
       null,
       403
     );
@@ -156,7 +166,7 @@ export async function DELETE(
   if (used > 0) {
     return jsonError(
       "LEVEL_IN_USE",
-      "Уровень используется у специалистов",
+      "Уровень используется специалистами.",
       null,
       409
     );
@@ -167,7 +177,7 @@ export async function DELETE(
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Удаление уровня специалиста",
+    action: "Удалил уровень специалиста",
     targetType: "specialist_level",
     targetId: levelId,
     diffJson: { id: levelId },

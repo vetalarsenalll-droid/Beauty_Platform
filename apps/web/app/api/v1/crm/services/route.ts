@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "Некорректный формат запроса",
+      "Некорректное тело запроса.",
       null,
       400
     );
@@ -64,7 +64,9 @@ export async function POST(request: Request) {
   const description = body.description ? String(body.description).trim() : null;
   const baseDurationMin = Number(body.baseDurationMin);
   const categoryId =
-    body.categoryId !== undefined && body.categoryId !== null && body.categoryId !== ""
+    body.categoryId !== undefined &&
+    body.categoryId !== null &&
+    body.categoryId !== ""
       ? Number(body.categoryId)
       : null;
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
   if (!name || !Number.isInteger(baseDurationMin)) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Название и длительность обязательны",
+      "Заполните название и длительность услуги.",
       {
         fields: [
           { path: "name", issue: name ? null : "required" },
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
   } catch {
     return jsonError(
       "VALIDATION_FAILED",
-      "Некорректная цена",
+      "Некорректная цена.",
       { fields: [{ path: "basePrice", issue: "invalid" }] },
       400
     );
@@ -106,7 +108,7 @@ export async function POST(request: Request) {
     if (!category) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Категория не найдена",
+        "Категория не найдена.",
         { fields: [{ path: "categoryId", issue: "not_found" }] },
         400
       );
@@ -129,7 +131,7 @@ export async function POST(request: Request) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Создание услуги",
+    action: "Создал услугу",
     targetType: "service",
     targetId: created.id,
     diffJson: {

@@ -109,7 +109,7 @@ export default function SpecialistCreateForm({
           >
             <option value="INVITED">Приглашен</option>
             <option value="ACTIVE">Активен</option>
-            <option value="DISABLED">Отключен</option>
+            <option value="DISABLED">В архиве</option>
           </select>
         </label>
         <label className="flex flex-col gap-2 text-sm">
@@ -142,7 +142,7 @@ export default function SpecialistCreateForm({
         disabled={saving}
         className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-4 py-2 text-sm font-semibold"
       >
-        {saving ? "Сохраняем..." : "Создать сотрудника"}
+        {saving ? "Создание..." : "Создать специалиста"}
       </button>
     </form>
   );

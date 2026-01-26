@@ -62,3 +62,84 @@
 - DTOs: Specialist, CrmSpecialistLevel, CrmSpecialistLevelCreateRequest, CrmSpecialistLevelUpdateRequest.
 - Examples: None.
 - Notes: Specialist delete disables the user account.
+
+## 2026-01-24 - v1
+- Date: 2026-01-24
+- Version: v1
+- Changes: Added CRM location profile endpoints for hours, bindings, and media (media uses file uploads with updates).
+- Endpoints: PATCH /crm/locations/{id}/hours, PATCH /crm/locations/{id}/bindings, POST /crm/locations/{id}/media, PATCH /crm/locations/{id}/media/{linkId}, DELETE /crm/locations/{id}/media/{linkId}.
+- DTOs: CrmLocationHour, CrmLocationHoursUpdateRequest/Response, CrmLocationBindingsRequest/Response, CrmLocationMediaUploadRequest/Response, CrmLocationMediaUpdateRequest/Response.
+- Examples: None.
+- Notes: Media uploads accept image files (including HEIC) and store them in server uploads. Locations use manual geo coordinates.
+
+## 2026-01-25 - v1
+- Date: 2026-01-25
+- Version: v1
+- Changes: Added CRM service profile endpoints for bindings, media uploads, variants, and level configs.
+- Endpoints: PATCH /crm/services/{id}/bindings, POST /crm/services/{id}/media, PATCH /crm/services/{id}/media/{linkId}, DELETE /crm/services/{id}/media/{linkId}, PATCH /crm/services/{id}/variants, PATCH /crm/services/{id}/levels.
+- DTOs: CrmServiceBindingsRequest/Response, CrmServiceMediaUploadRequest/Response, CrmServiceMediaUpdateRequest/Response, CrmServiceVariantsUpdateRequest/Response, CrmServiceLevelsUpdateRequest/Response.
+- Examples: None.
+- Notes: Service media uses file uploads and the same image constraints as locations.
+
+## 2026-01-25 - v1
+- Date: 2026-01-25
+- Version: v1
+- Changes: Added CRM specialist profile bindings endpoint.
+- Endpoints: PATCH /crm/specialists/{id}/bindings.
+- DTOs: CrmSpecialistBindingsRequest/Response.
+- Examples: None.
+- Notes: Specialist bindings manage services and locations.
+
+## 2026-01-25 - v1
+- Date: 2026-01-25
+- Version: v1
+- Changes: Added CRM specialist media endpoints.
+- Endpoints: POST /crm/specialists/{id}/media, PATCH /crm/specialists/{id}/media/{linkId}, DELETE /crm/specialists/{id}/media/{linkId}.
+- DTOs: CrmSpecialistMediaUploadRequest/Response, CrmSpecialistMediaUpdateRequest/Response.
+- Examples: None.
+- Notes: Media uploads accept images (HEIC supported) and store in server uploads.
+
+## 2026-01-25 - v1
+- Date: 2026-01-25
+- Version: v1
+- Changes: Added CRM managers CRUD and bindings endpoints.
+- Endpoints: GET/POST /crm/managers, GET/PATCH/DELETE /crm/managers/{id}, PATCH /crm/managers/{id}/bindings.
+- DTOs: CrmManager, CrmManagersResponse, CrmManagerResponse, CrmManagerCreateRequest, CrmManagerUpdateRequest, CrmManagerBindingsRequest/Response.
+- Examples: None.
+- Notes: Managers are users with MANAGER role assignment.
+
+## 2026-01-25 - v1
+- Date: 2026-01-25
+- Version: v1
+- Changes: Added CRM schedule entries, copy, and non-working types endpoints.
+- Endpoints: GET/POST /crm/schedule/entries, POST /crm/schedule/copy, GET/POST /crm/schedule/non-working-types, PATCH/DELETE /crm/schedule/non-working-types/{id}.
+- DTOs: CrmScheduleEntry, CrmScheduleEntryBreak, CrmScheduleEntriesCreateRequest, CrmScheduleEntriesResponse, CrmScheduleCopyRequest, CrmScheduleNonWorkingType* schemas.
+- Examples: None.
+- Notes: Schedule entries support mass upsert and delete (type=DELETE).
+
+## 2026-01-25 - v1
+- Date: 2026-01-25
+- Version: v1
+- Changes: Added CRM clients CRUD endpoints and schemas.
+- Endpoints: GET/POST /crm/clients, GET/PATCH/DELETE /crm/clients/{id}.
+- DTOs: CrmClient, CrmClientsResponse, CrmClientResponse, CrmClientCreateRequest, CrmClientUpdateRequest.
+- Examples: None.
+- Notes: Client operations are account-scoped and write audit logs.
+
+## 2026-01-26 - v1
+- Date: 2026-01-26
+- Version: v1
+- Changes: Added CRM appointments create/update endpoints for journal.
+- Endpoints: POST /crm/appointments, PATCH /crm/appointments/{id}.
+- DTOs: CrmAppointment, CrmAppointmentsResponse, CrmAppointmentResponse, CrmAppointmentCreateRequest, CrmAppointmentUpdateRequest.
+- Examples: None.
+- Notes: Appointment create/update is account-scoped; services link by name when matched.
+
+## 2026-01-27 - v1
+- Date: 2026-01-27
+- Version: v1
+- Changes: Appointment create/update now accepts serviceId and returns serviceIds; added schedule/overlap/blocked-slot validations.
+- Endpoints: POST /crm/appointments, PATCH /crm/appointments/{id}.
+- DTOs: CrmAppointment, CrmAppointmentCreateRequest, CrmAppointmentUpdateRequest.
+- Examples: None.
+- Notes: Записи блокируются вне рабочего дня и при пересечении активных визитов; отмененные/«не пришел» не блокируют запись.

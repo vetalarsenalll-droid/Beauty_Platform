@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "Некорректный формат запроса",
+      "Некорректный формат запроса.",
       null,
       400
     );
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   if (!name || !slug) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Название и slug обязательны",
+      "Название и slug обязательны.",
       {
         fields: [
           { path: "name", issue: name ? null : "required" },
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     await logAccountAudit({
       accountId: auth.session.accountId,
       userId: auth.session.userId,
-      action: "Создание категории услуги",
+      action: "Создал категорию услуги",
       targetType: "service_category",
       targetId: created.id,
       diffJson: { name, slug },
@@ -87,8 +87,18 @@ export async function POST(request: Request) {
     return applyCrmAccessCookie(response, auth);
   } catch (error: any) {
     if (error?.code === "P2002") {
-      return jsonError("DUPLICATE", "Slug уже используется", { field: "slug" }, 409);
+      return jsonError(
+        "DUPLICATE",
+        "Slug уже используется.",
+        { field: "slug" },
+        409
+      );
     }
-    return jsonError("SERVER_ERROR", "Не удалось создать категорию", null, 500);
+    return jsonError(
+      "SERVER_ERROR",
+      "Не удалось создать категорию.",
+      null,
+      500
+    );
   }
 }

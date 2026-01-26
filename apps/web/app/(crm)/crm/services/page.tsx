@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
 import ServiceCreateForm from "./service-create-form";
 import ServiceRowActions from "./service-row-actions";
@@ -10,7 +10,7 @@ export default async function CrmServicesPage() {
 
   const [services, categories] = await Promise.all([
     prisma.service.findMany({
-      where: { accountId: session.accountId },
+      where: { accountId: session.accountId, isActive: true },
       include: { category: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -60,7 +60,7 @@ export default async function CrmServicesPage() {
       </section>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Новая услуга</h2>
+        <h2 className="text-lg font-semibold">Карточка услуги</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
           Создайте услугу, задайте длительность и базовую цену.
         </p>
@@ -92,12 +92,8 @@ export default async function CrmServicesPage() {
                   baseDurationMin: service.baseDurationMin,
                   basePrice: service.basePrice.toString(),
                   isActive: service.isActive,
-                  categoryId: service.category?.id ?? null,
+                  categoryName: service.category?.name ?? null,
                 }}
-                categories={categories.map((category) => ({
-                  id: category.id,
-                  name: category.name,
-                }))}
               />
             ))}
           </div>

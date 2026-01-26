@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -60,7 +60,7 @@ export default function ServiceCategoryForm() {
         disabled={saving}
         className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold"
       >
-        {saving ? "Сохранение..." : "Создать категорию"}
+        {saving ? "Создание..." : "Создать категорию"}
       </button>
     </form>
   );

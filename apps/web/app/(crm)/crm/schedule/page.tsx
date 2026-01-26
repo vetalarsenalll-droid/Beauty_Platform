@@ -1,27 +1,49 @@
+import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
+import ScheduleView from "./schedule-view";
 
 export default async function CrmSchedulePage() {
-  await requireCrmPermission("crm.schedule.read");
-  return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM · Расписание
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Расписание</h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Шаблоны, рабочие часы, перерывы и исключения.
-        </p>
-      </header>
+  const session = await requireCrmPermission("crm.schedule.read");
 
-      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Что будет на экране</h2>
-        <div className="mt-3 grid gap-2 text-sm text-[color:var(--bp-muted)]">
-          <div>Шаблоны расписания и привязка к специалистам.</div>
-          <div>Рабочие часы, перерывы и отпуска.</div>
-          <div>Исключения и блокировки слотов.</div>
-        </div>
-      </section>
-    </div>
+  const [specialists, types] = await Promise.all([
+    prisma.specialistProfile.findMany({
+      where: {
+        accountId: session.accountId,
+        user: { status: { not: "DISABLED" } },
+      },
+      include: { user: { include: { profile: true } }, level: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.scheduleNonWorkingType.findMany({
+      where: { accountId: session.accountId, isArchived: false },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const staff = specialists.map((specialist) => {
+    const firstName = specialist.user.profile?.firstName ?? "";
+    const lastName = specialist.user.profile?.lastName ?? "";
+    const fullName =
+      `${firstName} ${lastName}`.trim() ||
+      specialist.user.email ||
+      "Без имени";
+    const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    return {
+      id: specialist.id,
+      name: fullName,
+      role: specialist.level?.name ?? "Специалист",
+      initials: initials || fullName.slice(0, 2).toUpperCase(),
+    };
+  });
+
+  return (
+    <ScheduleView
+      staff={staff}
+      initialTypes={types.map((type) => ({
+        id: type.id,
+        name: type.name,
+        color: type.color,
+      }))}
+    />
   );
 }

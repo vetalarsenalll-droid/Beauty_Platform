@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Некорректный формат запроса", null, 400);
+    return jsonError("INVALID_BODY", "Некорректное тело запроса.", null, 400);
   }
 
   const firstName = String(body.firstName ?? "").trim();
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   if (!firstName || !email) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Имя и email обязательны",
+      "Имя и email обязательны.",
       {
         fields: [
           { path: "firstName", issue: firstName ? null : "required" },
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   ) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Некорректный статус",
+      "Некорректный статус.",
       { fields: [{ path: "status", issue: "invalid" }] },
       400
     );
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
   if (levelId !== null && !Number.isInteger(levelId)) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Некорректный уровень",
+      "Некорректный уровень.",
       { fields: [{ path: "levelId", issue: "invalid" }] },
       400
     );
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     if (!level) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Уровень не найден",
+        "Уровень не найден.",
         { fields: [{ path: "levelId", issue: "not_found" }] },
         400
       );
@@ -226,7 +226,7 @@ export async function POST(request: Request) {
     await logAccountAudit({
       accountId: auth.session.accountId,
       userId: auth.session.userId,
-      action: "Создание специалиста",
+      action: "Создал специалиста",
       targetType: "specialist",
       targetId: result.id,
       diffJson: {
@@ -246,7 +246,7 @@ export async function POST(request: Request) {
     if (error?.message === "SPECIALIST_EXISTS") {
       return jsonError(
         "DUPLICATE",
-        "Специалист уже добавлен",
+        "Специалист с таким email уже существует.",
         { field: "email" },
         409
       );
@@ -254,14 +254,24 @@ export async function POST(request: Request) {
     if (error?.message === "USER_TYPE") {
       return jsonError(
         "VALIDATION_FAILED",
-        "Пользователь не является сотрудником",
+        "Пользователь с таким email не является сотрудником.",
         { field: "email" },
         400
       );
     }
     if (error?.code === "P2002") {
-      return jsonError("DUPLICATE", "Email уже используется", { field: "email" }, 409);
+      return jsonError(
+        "DUPLICATE",
+        "Email уже используется.",
+        { field: "email" },
+        409
+      );
     }
-    return jsonError("SERVER_ERROR", "Не удалось создать специалиста", null, 500);
+    return jsonError(
+      "SERVER_ERROR",
+      "Не удалось создать специалиста.",
+      null,
+      500
+    );
   }
 }

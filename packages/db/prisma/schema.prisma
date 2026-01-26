@@ -109,6 +109,16 @@ enum TemplateType {
   CONSTRUCTOR_PRESET
 }
 
+enum ScheduleEntryType {
+  WORKING
+  SICK
+  VACATION
+  UNPAID_OFF
+  NO_SHOW
+  PAID_OFF
+  CUSTOM
+}
+
 enum NotificationScope {
   PLATFORM
   ACCOUNT
@@ -429,10 +439,12 @@ model Account {
   clients           Client[]
   clientTags        ClientTag[]
   specialistProfiles SpecialistProfile[]
-  appointments      Appointment[]
-  appointmentHolds  AppointmentHold[]
-  scheduleTemplates ScheduleTemplate[]
-  blockedSlots      BlockedSlot[]
+    appointments      Appointment[]
+    appointmentHolds  AppointmentHold[]
+    scheduleTemplates ScheduleTemplate[]
+    scheduleEntries   ScheduleEntry[]
+    scheduleNonWorkingTypes ScheduleNonWorkingType[]
+    blockedSlots      BlockedSlot[]
   userSessions      UserSession[]
   paymentIntents    PaymentIntent[]
   transactions      Transaction[]
@@ -639,12 +651,15 @@ model MediaLink {
   collectionId Int?
   entityType   String
   entityId     String
+  sortOrder    Int     @default(0)
+  isCover      Boolean @default(false)
   createdAt    DateTime @default(now())
 
   asset      MediaAsset       @relation(fields: [assetId], references: [id])
   collection MediaCollection? @relation(fields: [collectionId], references: [id])
 
   @@index([entityType, entityId])
+  @@index([entityType, entityId, sortOrder])
 }
 
 model Review {
@@ -724,12 +739,21 @@ model Location {
   address     String
   phone       String?
   status      String @default("ACTIVE")
+  websiteUrl  String?
+  instagramUrl String?
+  whatsappUrl  String?
+  telegramUrl  String?
+  maxUrl       String?
+  vkUrl        String?
+  viberUrl     String?
+  pinterestUrl String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  account     Account            @relation(fields: [accountId], references: [id])
-  geoPoint    GeoPoint?
-  hours       LocationHour[]
+    account     Account            @relation(fields: [accountId], references: [id])
+    geoPoint    GeoPoint?
+    hours       LocationHour[]
+    scheduleEntries ScheduleEntry[]
   exceptions  LocationException[]
   services    ServiceLocation[]
   specialists SpecialistLocation[]
@@ -942,12 +966,13 @@ model SpecialistProfile {
   level       SpecialistLevel? @relation(fields: [levelId], references: [id])
   services    SpecialistService[]
   locations   SpecialistLocation[]
-  appointments Appointment[]
-  appointmentHolds AppointmentHold[]
-  workingHours WorkingHour[]
-  breaks      Break[]
-  vacations   Vacation[]
-  blockedSlots BlockedSlot[]
+    appointments Appointment[]
+    appointmentHolds AppointmentHold[]
+    workingHours WorkingHour[]
+    breaks      Break[]
+    vacations   Vacation[]
+    scheduleEntries ScheduleEntry[]
+    blockedSlots BlockedSlot[]
   levelHistory SpecialistLevelHistory[]
 
   @@unique([accountId, userId])
@@ -1286,6 +1311,58 @@ model Vacation {
 
   specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
   location   Location?          @relation(fields: [locationId], references: [id])
+}
+
+model ScheduleNonWorkingType {
+  id Int @id @default(autoincrement())
+  accountId Int
+  name   String
+  color  String
+  isArchived Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  entries ScheduleEntry[]
+
+  @@unique([accountId, name])
+  @@index([accountId, isArchived])
+}
+
+model ScheduleEntry {
+  id Int @id @default(autoincrement())
+  accountId Int
+  locationId Int?
+  specialistId Int
+  date DateTime
+  type ScheduleEntryType
+  customTypeId Int?
+  startTime String?
+  endTime   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account    Account            @relation(fields: [accountId], references: [id])
+  location   Location?          @relation(fields: [locationId], references: [id])
+  specialist SpecialistProfile  @relation(fields: [specialistId], references: [id])
+  customType ScheduleNonWorkingType? @relation(fields: [customTypeId], references: [id])
+  breaks     ScheduleEntryBreak[]
+
+  @@unique([specialistId, date])
+  @@index([accountId, date])
+  @@index([locationId, date])
+}
+
+model ScheduleEntryBreak {
+  id Int @id @default(autoincrement())
+  entryId Int
+  startTime String
+  endTime   String
+
+  entry ScheduleEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
 }
 
 model BlockedSlot {

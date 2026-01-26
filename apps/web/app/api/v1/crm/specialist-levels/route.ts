@@ -40,7 +40,12 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError("INVALID_BODY", "Некорректный формат запроса", null, 400);
+    return jsonError(
+      "INVALID_BODY",
+      "Некорректное тело запроса.",
+      null,
+      400
+    );
   }
 
   const name = String(body.name ?? "").trim();
@@ -49,7 +54,7 @@ export async function POST(request: Request) {
   if (!name) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Название уровня обязательно",
+      "Название уровня обязательно.",
       { fields: [{ path: "name", issue: "required" }] },
       400
     );
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
     if (!Number.isInteger(parsedRank)) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Ранг должен быть целым числом",
+        "Ранг уровня должен быть числом.",
         { fields: [{ path: "rank", issue: "invalid" }] },
         400
       );
@@ -88,7 +93,7 @@ export async function POST(request: Request) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Создание уровня специалиста",
+    action: "Создал уровень специалиста",
     targetType: "specialist_level",
     targetId: created.id,
     diffJson: { name, rank },

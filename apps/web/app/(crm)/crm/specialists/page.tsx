@@ -10,7 +10,10 @@ export default async function CrmSpecialistsPage() {
 
   const [specialists, levels] = await Promise.all([
     prisma.specialistProfile.findMany({
-      where: { accountId: session.accountId },
+      where: {
+        accountId: session.accountId,
+        user: { status: { not: "DISABLED" } },
+      },
       include: { user: { include: { profile: true } }, level: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -26,18 +29,18 @@ export default async function CrmSpecialistsPage() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM · Сотрудники
+          CRM · Специалисты
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Сотрудники</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Специалисты</h1>
         <p className="text-[color:var(--bp-muted)]">
-          Настройте команду, уровни специалистов и статус доступа.
+          Профили мастеров, уровни и привязки к услугам.
         </p>
       </header>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Уровни специалистов</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Используйте уровни для расчета стоимости и распределения нагрузки.
+          Уровни используются для градации специалистов.
         </p>
         <div className="mt-4">
           <SpecialistLevelForm />
@@ -64,9 +67,9 @@ export default async function CrmSpecialistsPage() {
       </section>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Добавить сотрудника</h2>
+        <h2 className="text-lg font-semibold">Карточка специалиста</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Создайте профиль специалиста и назначьте уровень.
+          Создайте профиль специалиста и задайте уровень.
         </p>
         <div className="mt-4">
           <SpecialistCreateForm
@@ -79,10 +82,10 @@ export default async function CrmSpecialistsPage() {
       </section>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Список сотрудников</h2>
+        <h2 className="text-lg font-semibold">Список специалистов</h2>
         {specialists.length === 0 ? (
           <p className="mt-3 text-sm text-[color:var(--bp-muted)]">
-            Сотрудников пока нет.
+            Специалистов пока нет.
           </p>
         ) : (
           <div className="mt-4 flex flex-col gap-3">
@@ -96,13 +99,8 @@ export default async function CrmSpecialistsPage() {
                   email: specialist.user.email,
                   phone: specialist.user.phone,
                   status: specialist.user.status,
-                  levelId: specialist.level?.id ?? null,
-                  bio: specialist.bio,
+                  levelName: specialist.level?.name ?? null,
                 }}
-                levels={levels.map((level) => ({
-                  id: level.id,
-                  name: level.name,
-                }))}
               />
             ))}
           </div>

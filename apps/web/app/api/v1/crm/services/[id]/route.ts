@@ -12,7 +12,7 @@ function parseServiceId(raw: string) {
     return {
       error: jsonError(
         "VALIDATION_FAILED",
-        "Некорректный id услуги",
+        "Некорректный id услуги.",
         { fields: [{ path: "id", issue: "invalid" }] },
         400
       ),
@@ -35,14 +35,14 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   if (!service || service.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Услуга не найдена", null, 404);
+    return jsonError("NOT_FOUND", "Услуга не найдена.", null, 404);
   }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "Некорректный формат запроса",
+      "Некорректное тело запроса.",
       null,
       400
     );
@@ -62,16 +62,16 @@ export async function PATCH(request: Request, { params }: Params) {
     data.description = body.description ? String(body.description).trim() : null;
   }
   if (body.baseDurationMin !== undefined) {
-    const parsed = Number(body.baseDurationMin);
-    if (!Number.isInteger(parsed)) {
+    const parsedDuration = Number(body.baseDurationMin);
+    if (!Number.isInteger(parsedDuration)) {
       return jsonError(
         "VALIDATION_FAILED",
-        "Некорректная длительность",
+        "Некорректная длительность услуги.",
         { fields: [{ path: "baseDurationMin", issue: "invalid" }] },
         400
       );
     }
-    data.baseDurationMin = parsed;
+    data.baseDurationMin = parsedDuration;
   }
   if (body.basePrice !== undefined) {
     try {
@@ -79,7 +79,7 @@ export async function PATCH(request: Request, { params }: Params) {
     } catch {
       return jsonError(
         "VALIDATION_FAILED",
-        "Некорректная цена",
+        "Некорректная цена.",
         { fields: [{ path: "basePrice", issue: "invalid" }] },
         400
       );
@@ -93,7 +93,7 @@ export async function PATCH(request: Request, { params }: Params) {
       if (!Number.isInteger(categoryId)) {
         return jsonError(
           "VALIDATION_FAILED",
-          "Некорректная категория",
+          "Некорректная категория.",
           { fields: [{ path: "categoryId", issue: "invalid" }] },
           400
         );
@@ -105,7 +105,7 @@ export async function PATCH(request: Request, { params }: Params) {
       if (!category) {
         return jsonError(
           "VALIDATION_FAILED",
-          "Категория не найдена",
+          "Категория не найдена.",
           { fields: [{ path: "categoryId", issue: "not_found" }] },
           400
         );
@@ -124,7 +124,7 @@ export async function PATCH(request: Request, { params }: Params) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Обновление услуги",
+    action: "Обновил услугу",
     targetType: "service",
     targetId: updated.id,
     diffJson: {
@@ -163,7 +163,7 @@ export async function GET(_request: Request, { params }: Params) {
   });
 
   if (!service || service.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Услуга не найдена", null, 404);
+    return jsonError("NOT_FOUND", "Услуга не найдена.", null, 404);
   }
 
   const response = jsonOk({
@@ -195,7 +195,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   if (!service || service.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Услуга не найдена", null, 404);
+    return jsonError("NOT_FOUND", "Услуга не найдена.", null, 404);
   }
 
   const archived = await prisma.service.update({
@@ -206,7 +206,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Удаление услуги",
+    action: "Переместил услугу в архив",
     targetType: "service",
     targetId: archived.id,
     diffJson: { isActive: false },

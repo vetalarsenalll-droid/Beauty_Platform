@@ -556,6 +556,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OkResponse'
+  /crm/locations/{id}/hours:
+    patch:
+      tags: [crm]
+      summary: Update location hours
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmLocationHoursUpdateRequest'
+      responses:
+        '200':
+          description: Location hours updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationHoursResponse'
+  /crm/locations/{id}/bindings:
+    patch:
+      tags: [crm]
+      summary: Update location bindings
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmLocationBindingsRequest'
+      responses:
+        '200':
+          description: Location bindings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationBindingsResponse'
+  /crm/locations/{id}/media:
+    post:
+      tags: [crm]
+      summary: Add location media
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CrmLocationMediaUploadRequest'
+      responses:
+        '200':
+          description: Media linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationMediaResponse'
+  /crm/locations/{id}/media/{linkId}:
+    delete:
+      tags: [crm]
+      summary: Delete location media
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/LinkId'
+      responses:
+        '200':
+          description: Media deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+    patch:
+      tags: [crm]
+      summary: Update location media
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/LinkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmLocationMediaUpdateRequest'
+      responses:
+        '200':
+          description: Media updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLocationMediaUpdateResponse'
   /crm/service-categories:
     get:
       tags: [crm]
@@ -625,6 +715,126 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmScheduleResponse'
+  /crm/schedule/entries:
+    get:
+      tags: [crm]
+      summary: List schedule entries
+      parameters:
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: specialistId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schedule entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmScheduleEntriesResponse'
+    post:
+      tags: [crm]
+      summary: Upsert schedule entries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmScheduleEntriesCreateRequest'
+      responses:
+        '200':
+          description: Schedule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+  /crm/schedule/copy:
+    post:
+      tags: [crm]
+      summary: Copy schedule entries to other staff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmScheduleCopyRequest'
+      responses:
+        '200':
+          description: Schedule copied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+  /crm/schedule/non-working-types:
+    get:
+      tags: [crm]
+      summary: List non-working day types
+      responses:
+        '200':
+          description: Non-working types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmScheduleNonWorkingTypesResponse'
+    post:
+      tags: [crm]
+      summary: Create non-working day type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmScheduleNonWorkingTypeCreateRequest'
+      responses:
+        '200':
+          description: Non-working type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmScheduleNonWorkingTypeResponse'
+  /crm/schedule/non-working-types/{id}:
+    patch:
+      tags: [crm]
+      summary: Update non-working day type
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmScheduleNonWorkingTypeUpdateRequest'
+      responses:
+        '200':
+          description: Non-working type updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmScheduleNonWorkingTypeResponse'
+    delete:
+      tags: [crm]
+      summary: Archive non-working day type
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Non-working type archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
   /crm/services:
     get:
       tags: [crm]
@@ -683,18 +893,127 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmServiceResponse'
-    delete:
+      delete:
+        tags: [crm]
+        summary: Delete service
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        responses:
+          '200':
+            description: Service deleted
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OkResponse'
+  /crm/services/{id}/bindings:
+    patch:
       tags: [crm]
-      summary: Delete service
+      summary: Update service bindings
       parameters:
         - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmServiceBindingsRequest'
       responses:
         '200':
-          description: Service deleted
+          description: Service bindings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceBindingsResponse'
+  /crm/services/{id}/media:
+    post:
+      tags: [crm]
+      summary: Add service media
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CrmServiceMediaUploadRequest'
+      responses:
+        '200':
+          description: Media linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceMediaResponse'
+  /crm/services/{id}/media/{linkId}:
+    delete:
+      tags: [crm]
+      summary: Delete service media
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/LinkId'
+      responses:
+        '200':
+          description: Media deleted
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OkResponse'
+    patch:
+      tags: [crm]
+      summary: Update service media
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/LinkId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmServiceMediaUpdateRequest'
+      responses:
+        '200':
+          description: Media updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceMediaUpdateResponse'
+  /crm/services/{id}/variants:
+    patch:
+      tags: [crm]
+      summary: Update service variants
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmServiceVariantsUpdateRequest'
+      responses:
+        '200':
+          description: Service variants updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceVariantsResponse'
+  /crm/services/{id}/levels:
+    patch:
+      tags: [crm]
+      summary: Update service levels
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmServiceLevelsUpdateRequest'
+      responses:
+        '200':
+          description: Service levels updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmServiceLevelsResponse'
 
   /crm/specialist-levels:
     get:
@@ -782,10 +1101,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmSpecialistResponse'
-  /crm/specialists/{id}:
-    get:
-      tags: [crm]
-      summary: Get specialist
+    /crm/specialists/{id}:
+      get:
+        tags: [crm]
+        summary: Get specialist
       parameters:
         - $ref: '#/components/parameters/Id'
       responses:
@@ -813,18 +1132,89 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmSpecialistResponse'
-    delete:
-      tags: [crm]
-      summary: Delete specialist
-      parameters:
-        - $ref: '#/components/parameters/Id'
-      responses:
-        '200':
-          description: Specialist deleted
+      delete:
+        tags: [crm]
+        summary: Delete specialist
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        responses:
+          '200':
+            description: Specialist deleted
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OkResponse'
+    /crm/specialists/{id}/bindings:
+      patch:
+        tags: [crm]
+        summary: Update specialist bindings
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        requestBody:
+          required: true
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OkResponse'
+                $ref: '#/components/schemas/CrmSpecialistBindingsRequest'
+        responses:
+          '200':
+            description: Specialist bindings updated
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmSpecialistBindingsResponse'
+    /crm/specialists/{id}/media:
+      post:
+        tags: [crm]
+        summary: Add specialist media
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        requestBody:
+          required: true
+          content:
+            multipart/form-data:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistMediaUploadRequest'
+        responses:
+          '200':
+            description: Media linked
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmSpecialistMediaResponse'
+    /crm/specialists/{id}/media/{linkId}:
+      delete:
+        tags: [crm]
+        summary: Delete specialist media
+        parameters:
+          - $ref: '#/components/parameters/Id'
+          - $ref: '#/components/parameters/LinkId'
+        responses:
+          '200':
+            description: Media deleted
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OkResponse'
+      patch:
+        tags: [crm]
+        summary: Update specialist media
+        parameters:
+          - $ref: '#/components/parameters/Id'
+          - $ref: '#/components/parameters/LinkId'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSpecialistMediaUpdateRequest'
+        responses:
+          '200':
+            description: Media updated
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmSpecialistMediaUpdateResponse'
 
   /crm/clients:
     get:
@@ -842,6 +1232,111 @@ paths:
       summary: Create client
       requestBody:
         required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmClientCreateRequest'
+      responses:
+        '200':
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientResponse'
+  /crm/appointments:
+    post:
+      tags: [crm]
+      summary: Create appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmAppointmentCreateRequest'
+      responses:
+        '200':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmAppointmentResponse'
+  /crm/appointments/{id}:
+    patch:
+      tags: [crm]
+      summary: Update appointment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmAppointmentUpdateRequest'
+      responses:
+        '200':
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmAppointmentResponse'
+  /crm/clients/{id}:
+    get:
+      tags: [crm]
+      summary: Get client
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientResponse'
+    patch:
+      tags: [crm]
+      summary: Update client
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmClientUpdateRequest'
+      responses:
+        '200':
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientResponse'
+    delete:
+      tags: [crm]
+      summary: Delete client
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Client deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+      get:
+        tags: [crm]
+        summary: List clients
+      responses:
+        '200':
+          description: Clients list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmClientsResponse'
+      post:
+        tags: [crm]
+        summary: Create client
+        requestBody:
+          required: true
         content:
           application/json:
             schema:
@@ -1344,6 +1839,12 @@ components:
   parameters:
     Id:
       name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    LinkId:
+      name: linkId
       in: path
       required: true
       schema:
@@ -2128,6 +2629,22 @@ components:
           type: string
         status:
           type: string
+        websiteUrl:
+          type: string
+        instagramUrl:
+          type: string
+        whatsappUrl:
+          type: string
+        telegramUrl:
+          type: string
+        maxUrl:
+          type: string
+        vkUrl:
+          type: string
+        viberUrl:
+          type: string
+        pinterestUrl:
+          type: string
         geo:
           $ref: '#/components/schemas/CrmGeoPoint'
         createdAt:
@@ -2162,6 +2679,22 @@ components:
           type: string
         status:
           type: string
+        websiteUrl:
+          type: string
+        instagramUrl:
+          type: string
+        whatsappUrl:
+          type: string
+        telegramUrl:
+          type: string
+        maxUrl:
+          type: string
+        vkUrl:
+          type: string
+        viberUrl:
+          type: string
+        pinterestUrl:
+          type: string
         geo:
           $ref: '#/components/schemas/CrmGeoPoint'
     CrmLocationUpdateRequest:
@@ -2175,8 +2708,409 @@ components:
           type: string
         status:
           type: string
+        websiteUrl:
+          type: string
+        instagramUrl:
+          type: string
+        whatsappUrl:
+          type: string
+        telegramUrl:
+          type: string
+        maxUrl:
+          type: string
+        vkUrl:
+          type: string
+        viberUrl:
+          type: string
+        pinterestUrl:
+          type: string
         geo:
           $ref: '#/components/schemas/CrmGeoPoint'
+    CrmLocationHour:
+      type: object
+      required: [dayOfWeek, startTime, endTime]
+      properties:
+        dayOfWeek:
+          type: integer
+        startTime:
+          type: string
+        endTime:
+          type: string
+    CrmLocationHoursUpdateRequest:
+      type: object
+      required: [hours]
+      properties:
+        hours:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmLocationHour'
+    CrmLocationHoursResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            hours:
+              type: array
+              items:
+                $ref: '#/components/schemas/CrmLocationHour'
+    CrmLocationBindingsRequest:
+      type: object
+      properties:
+        serviceIds:
+          type: array
+          items:
+            type: string
+        specialistIds:
+          type: array
+          items:
+            type: string
+        managerUserIds:
+          type: array
+          items:
+            type: string
+    CrmLocationBindingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            serviceIds:
+              type: array
+              items:
+                type: string
+            specialistIds:
+              type: array
+              items:
+                type: string
+            managerUserIds:
+              type: array
+              items:
+                type: string
+    CrmSpecialistBindingsRequest:
+      type: object
+      properties:
+        serviceIds:
+          type: array
+          items:
+            type: string
+        locationIds:
+          type: array
+          items:
+            type: string
+    CrmSpecialistBindingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            serviceIds:
+              type: array
+              items:
+                type: string
+            locationIds:
+              type: array
+              items:
+                type: string
+    CrmSpecialistMediaUploadRequest:
+      type: object
+      required: [file, type]
+      properties:
+        file:
+          type: string
+          format: binary
+        type:
+          type: string
+    CrmSpecialistMediaResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            url:
+              type: string
+            entityType:
+              type: string
+    CrmSpecialistMediaUpdateRequest:
+      type: object
+      properties:
+        sortOrder:
+          type: integer
+        isCover:
+          type: boolean
+    CrmSpecialistMediaUpdateResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            sortOrder:
+              type: integer
+            isCover:
+              type: boolean
+    CrmManager:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CrmManagersResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmManager'
+    CrmManagerResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmManager'
+    CrmManagerCreateRequest:
+      type: object
+      required: [firstName, email]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+    CrmManagerUpdateRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+    CrmManagerBindingsRequest:
+      type: object
+      properties:
+        locationIds:
+          type: array
+          items:
+            type: string
+    CrmManagerBindingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            locationIds:
+              type: array
+              items:
+                type: string
+    CrmLocationMediaUploadRequest:
+      type: object
+      required: [file, type]
+      properties:
+        file:
+          type: string
+          format: binary
+        type:
+          type: string
+    CrmLocationMediaResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            url:
+              type: string
+            entityType:
+              type: string
+    CrmLocationMediaUpdateRequest:
+      type: object
+      properties:
+        sortOrder:
+          type: integer
+        isCover:
+          type: boolean
+    CrmLocationMediaUpdateResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            sortOrder:
+              type: integer
+            isCover:
+              type: boolean
+    CrmServiceBindingsRequest:
+      type: object
+      properties:
+        locationIds:
+          type: array
+          items:
+            type: string
+        specialistIds:
+          type: array
+          items:
+            type: string
+    CrmServiceBindingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            locationIds:
+              type: array
+              items:
+                type: string
+            specialistIds:
+              type: array
+              items:
+                type: string
+    CrmServiceMediaUploadRequest:
+      type: object
+      required: [file, type]
+      properties:
+        file:
+          type: string
+          format: binary
+        type:
+          type: string
+    CrmServiceMediaResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            url:
+              type: string
+            entityType:
+              type: string
+    CrmServiceMediaUpdateRequest:
+      type: object
+      properties:
+        sortOrder:
+          type: integer
+        isCover:
+          type: boolean
+    CrmServiceMediaUpdateResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            sortOrder:
+              type: integer
+            isCover:
+              type: boolean
+    CrmServiceVariantsUpdateRequest:
+      type: object
+      required: [variants]
+      properties:
+        variants:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              durationMin:
+                type: integer
+              price:
+                type: string
+    CrmServiceVariantsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+    CrmServiceLevelsUpdateRequest:
+      type: object
+      required: [levels]
+      properties:
+        levels:
+          type: array
+          items:
+            type: object
+            properties:
+              levelId:
+                type: string
+              durationMin:
+                type: integer
+              price:
+                type: string
+    CrmServiceLevelsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
     CrmServiceCategory:
       type: object
       required: [id, name, slug]
@@ -2232,6 +3166,147 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/CrmSchedule'
+    CrmScheduleEntriesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmScheduleEntry'
+    CrmScheduleEntriesCreateRequest:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmScheduleEntryUpsert'
+    CrmScheduleEntryUpsert:
+      type: object
+      required: [specialistId, date, type]
+      properties:
+        specialistId:
+          type: integer
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+        customTypeId:
+          type: integer
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        breaks:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmScheduleEntryBreak'
+    CrmScheduleEntry:
+      type: object
+      required: [id, specialistId, date, type]
+      properties:
+        id:
+          type: integer
+        specialistId:
+          type: integer
+        locationId:
+          type: integer
+          nullable: true
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+        customTypeId:
+          type: integer
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        breaks:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmScheduleEntryBreak'
+        customType:
+          $ref: '#/components/schemas/CrmScheduleNonWorkingType'
+          nullable: true
+    CrmScheduleEntryBreak:
+      type: object
+      required: [startTime, endTime]
+      properties:
+        startTime:
+          type: string
+        endTime:
+          type: string
+    CrmScheduleCopyRequest:
+      type: object
+      required: [sourceSpecialistId, targetSpecialistIds, start, end]
+      properties:
+        sourceSpecialistId:
+          type: integer
+        targetSpecialistIds:
+          type: array
+          items:
+            type: integer
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        includeBreaks:
+          type: boolean
+    CrmScheduleNonWorkingType:
+      type: object
+      required: [id, name, color]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+        isArchived:
+          type: boolean
+    CrmScheduleNonWorkingTypesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmScheduleNonWorkingType'
+    CrmScheduleNonWorkingTypeResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmScheduleNonWorkingType'
+    CrmScheduleNonWorkingTypeCreateRequest:
+      type: object
+      required: [name, color]
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+    CrmScheduleNonWorkingTypeUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+        isArchived:
+          type: boolean
     CrmServicesResponse:
       type: object
       required: [data]
@@ -2281,13 +3356,186 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/ClientProfile'
+            $ref: '#/components/schemas/CrmClient'
     CrmClientResponse:
       type: object
       required: [data]
       properties:
         data:
-          $ref: '#/components/schemas/ClientProfile'
+          $ref: '#/components/schemas/CrmClient'
+    CrmClient:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CrmClientCreateRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+    CrmClientUpdateRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+    CrmAppointmentsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmAppointment'
+    CrmAppointmentResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmAppointment'
+    CrmAppointment:
+      type: object
+      required: [id, specialistId, locationId, clientId, startAt, endAt, status]
+      properties:
+        id:
+          type: integer
+        specialistId:
+          type: integer
+        locationId:
+          type: integer
+        clientId:
+          type: integer
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        source:
+          type: string
+        clientName:
+          type: string
+        serviceNames:
+          type: array
+          items:
+            type: string
+        serviceIds:
+          type: array
+          items:
+            type: integer
+        priceTotal:
+          type: string
+        durationMin:
+          type: integer
+    CrmAppointmentCreateRequest:
+      type: object
+      required: [staffId, locationId, startAt, endAt]
+      properties:
+        staffId:
+          type: integer
+        locationId:
+          type: integer
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+          nullable: true
+        clientPhone:
+          type: string
+          nullable: true
+        clientEmail:
+          type: string
+          nullable: true
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          nullable: true
+        priceTotal:
+          type: string
+          nullable: true
+        serviceId:
+          type: integer
+          nullable: true
+    CrmAppointmentUpdateRequest:
+      type: object
+      properties:
+        staffId:
+          type: integer
+        locationId:
+          type: integer
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+          nullable: true
+        clientPhone:
+          type: string
+          nullable: true
+        clientEmail:
+          type: string
+          nullable: true
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          nullable: true
+        priceTotal:
+          type: string
+          nullable: true
+        serviceId:
+          type: integer
+          nullable: true
     CrmPromotionsResponse:
       type: object
       required: [data]
@@ -2739,3 +3987,92 @@ components:
           type: string
         value:
           type: integer
+    /crm/managers:
+      get:
+        tags: [crm]
+        summary: List managers
+        responses:
+          '200':
+            description: Managers list
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmManagersResponse'
+      post:
+        tags: [crm]
+        summary: Create manager
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmManagerCreateRequest'
+        responses:
+          '201':
+            description: Manager created
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmManagerResponse'
+    /crm/managers/{id}:
+      get:
+        tags: [crm]
+        summary: Get manager
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        responses:
+          '200':
+            description: Manager
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmManagerResponse'
+      patch:
+        tags: [crm]
+        summary: Update manager
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmManagerUpdateRequest'
+        responses:
+          '200':
+            description: Manager updated
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmManagerResponse'
+      delete:
+        tags: [crm]
+        summary: Delete manager
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        responses:
+          '200':
+            description: Manager deleted
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OkResponse'
+    /crm/managers/{id}/bindings:
+      patch:
+        tags: [crm]
+        summary: Update manager bindings
+        parameters:
+          - $ref: '#/components/parameters/Id'
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmManagerBindingsRequest'
+        responses:
+          '200':
+            description: Manager bindings updated
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CrmManagerBindingsResponse'

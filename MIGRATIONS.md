@@ -79,3 +79,43 @@
 - Data migration: None.
 - Rollback: Drop LocationManager table and relations.
 - Notes: Used for CRM manager-to-location binding.
+
+## 2026-01-24 - media_link_sort_cover
+- Date: 2026-01-24
+- Slug: media_link_sort_cover
+- Prisma migration: packages/db/prisma/migrations/20260124170000_media_link_sort_cover
+- Purpose: Support media ordering and cover selection.
+- Schema changes: Added MediaLink.sortOrder and MediaLink.isCover with index by entity.
+- Data migration: None (defaults applied).
+- Rollback: Drop added columns and index.
+- Notes: Used for CRM media admin panel.
+
+## 2026-01-24 - location_social_links
+- Date: 2026-01-24
+- Slug: location_social_links
+- Prisma migration: packages/db/prisma/migrations/20260124223000_location_social_links
+- Purpose: Store location social and messenger links.
+- Schema changes: Added websiteUrl, instagramUrl, whatsappUrl, telegramUrl, vkUrl, viberUrl, pinterestUrl, facebookUrl on Location.
+- Data migration: None.
+- Rollback: Drop added columns.
+- Notes: Used in CRM location profile.
+
+## 2026-01-24 - location_social_links_max
+- Date: 2026-01-24
+- Slug: location_social_links_max
+- Prisma migration: packages/db/prisma/migrations/20260124231000_location_social_links_max
+- Purpose: Adjust social links (add MAX, remove Facebook).
+- Schema changes: Added Location.maxUrl; removed Location.facebookUrl.
+- Data migration: None.
+- Rollback: Re-add facebookUrl and drop maxUrl.
+- Notes: MAX replaces Facebook.
+
+## 2026-01-25 - crm_schedule
+- Date: 2026-01-25
+- Slug: crm_schedule
+- Prisma migration: packages/db/prisma/migrations/20260125134137_crm_schedule
+- Purpose: Add CRM schedule entities for work calendar and non-working types.
+- Schema changes: Added ScheduleEntryType enum, ScheduleEntry, ScheduleEntryBreak, ScheduleNonWorkingType, and relations to Account/Location/SpecialistProfile.
+- Data migration: None.
+- Rollback: Drop schedule tables and enum, remove relations.
+- Notes: Migration applied; Prisma client generation may fail if query engine is locked by running dev server.
