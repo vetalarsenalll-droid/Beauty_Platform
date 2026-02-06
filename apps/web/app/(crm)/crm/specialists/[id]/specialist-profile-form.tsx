@@ -38,12 +38,24 @@ export default function SpecialistProfileForm({
     specialist.levelId !== null ? String(specialist.levelId) : ""
   );
   const [bio, setBio] = useState(specialist.bio ?? "");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+
+    if (password && password.length < 6) {
+      setError("Пароль должен быть не короче 6 символов.");
+      return;
+    }
+    if (password && password !== passwordConfirm) {
+      setError("Пароли не совпадают.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -60,6 +72,7 @@ export default function SpecialistProfileForm({
             status,
             levelId: levelId ? Number(levelId) : null,
             bio: bio.trim() ? bio.trim() : null,
+            password: password || undefined,
           }),
         }
       );
@@ -69,6 +82,8 @@ export default function SpecialistProfileForm({
         return;
       }
       router.refresh();
+      setPassword("");
+      setPasswordConfirm("");
     } catch {
       setError("Не удалось сохранить специалиста.");
     } finally {
@@ -154,6 +169,27 @@ export default function SpecialistProfileForm({
           className="min-h-[110px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
         />
       </label>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-2 text-sm">
+          Новый пароль
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Минимум 6 символов"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Повторите пароль
+          <input
+            type="password"
+            value={passwordConfirm}
+            onChange={(event) => setPasswordConfirm(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          />
+        </label>
+      </div>
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"

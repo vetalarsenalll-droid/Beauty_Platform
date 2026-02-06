@@ -362,6 +362,36 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 }
 
+model PlatformLegalDocument {
+  id Int @id @default(autoincrement())
+  key String @unique
+  title String
+  description String?
+  isRequired Boolean @default(false)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions PlatformLegalDocumentVersion[]
+
+  @@index([sortOrder])
+}
+
+model PlatformLegalDocumentVersion {
+  id Int @id @default(autoincrement())
+  documentId Int
+  version Int
+  content String
+  publishedAt DateTime @default(now())
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  document PlatformLegalDocument @relation(fields: [documentId], references: [id])
+
+  @@unique([documentId, version])
+  @@index([documentId, isActive])
+}
+
 model TemplateLibrary {
   id Int @id @default(autoincrement())
   type        TemplateType
@@ -426,6 +456,7 @@ model Account {
   platformLimits   PlatformLimit[]
   settings          AccountSetting?
   branding          AccountBranding?
+  profile           AccountProfile?
   domains           AccountDomain[]
   publicPages       PublicPage[]
   seoSettings       SeoSetting?
@@ -464,6 +495,9 @@ model Account {
   notificationTemplates NotificationTemplate[]
   notificationPreferences NotificationPreference[]
   outboxItems       OutboxItem[]
+  idempotencyKeys   IdempotencyKey[]
+  legalDocuments    LegalDocument[]
+  legalAcceptances  LegalAcceptance[]
   webhookEndpoints  WebhookEndpoint[]
   audits            AccountAuditLog[]
 
@@ -497,6 +531,27 @@ model AccountBranding {
   themePreset    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model AccountProfile {
+  id Int @id @default(autoincrement())
+  accountId Int @unique
+  description String?
+  phone       String?
+  email       String?
+  address     String?
+  websiteUrl  String?
+  instagramUrl String?
+  whatsappUrl  String?
+  telegramUrl  String?
+  maxUrl       String?
+  vkUrl        String?
+  viberUrl     String?
+  pinterestUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
 }
@@ -599,6 +654,60 @@ model SeoSetting {
   updatedAt      DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
+}
+
+model LegalDocument {
+  id Int @id @default(autoincrement())
+  accountId Int
+  key String
+  title String
+  description String?
+  isRequired Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  versions LegalDocumentVersion[]
+
+  @@unique([accountId, key])
+  @@index([accountId, sortOrder])
+}
+
+model LegalDocumentVersion {
+  id Int @id @default(autoincrement())
+  documentId Int
+  version Int
+  content String
+  publishedAt DateTime @default(now())
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+
+  document LegalDocument @relation(fields: [documentId], references: [id])
+  acceptances LegalAcceptance[]
+
+  @@unique([documentId, version])
+  @@index([documentId, isActive])
+}
+
+model LegalAcceptance {
+  id Int @id @default(autoincrement())
+  accountId Int
+  documentVersionId Int
+  appointmentId Int?
+  clientId Int?
+  source String
+  ip String?
+  userAgent String?
+  acceptedAt DateTime @default(now())
+
+  account Account @relation(fields: [accountId], references: [id])
+  documentVersion LegalDocumentVersion @relation(fields: [documentVersionId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  client Client? @relation(fields: [clientId], references: [id])
+
+  @@index([accountId, acceptedAt])
+  @@index([appointmentId])
 }
 
 model Category {
@@ -1124,6 +1233,7 @@ model Client {
   paymentMethods   PaymentMethod[]
   membershipRedemptions MembershipRedemption[]
   aiThreads        AiThread[]
+  legalAcceptances LegalAcceptance[]
 
   @@index([accountId, createdAt])
 }
@@ -1200,6 +1310,7 @@ model Appointment {
   services   AppointmentService[]
   statusHistory AppointmentStatusHistory[]
   paymentIntents PaymentIntent[]
+  legalAcceptances LegalAcceptance[]
 
   @@index([accountId, startAt])
   @@index([specialistId, startAt])
@@ -1685,6 +1796,22 @@ model OutboxItem {
   deliveries DeliveryLog[]
 
   @@index([status, availableAt])
+}
+
+model IdempotencyKey {
+  id Int @id @default(autoincrement())
+  accountId Int
+  key String
+  requestHash String
+  status String @default("PROCESSING")
+  response Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, key])
+  @@index([accountId, createdAt])
 }
 
 model DeliveryLog {

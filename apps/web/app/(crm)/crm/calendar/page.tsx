@@ -3,7 +3,7 @@ import { requireCrmPermission } from "@/lib/auth";
 import JournalView from "./journal-view";
 
 type CrmCalendarPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function parseDateParam(value?: string) {
@@ -21,7 +21,9 @@ function parseIntParam(value?: string) {
 export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageProps) {
   const session = await requireCrmPermission("crm.calendar.read");
 
-  const dateParam = typeof searchParams?.date === "string" ? searchParams.date : undefined;
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const dateParam =
+    typeof resolvedSearchParams?.date === "string" ? resolvedSearchParams.date : undefined;
   const initialDate = parseDateParam(dateParam) ?? new Date();
 
   const monthStart = new Date(initialDate.getFullYear(), initialDate.getMonth(), 1, 0, 0, 0, 0);
@@ -90,7 +92,10 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
   ]);
 
   // initialLocationId: берем из query, если валидный и существует в списке
-  const locParam = typeof searchParams?.locationId === "string" ? searchParams.locationId : undefined;
+  const locParam =
+    typeof resolvedSearchParams?.locationId === "string"
+      ? resolvedSearchParams.locationId
+      : undefined;
   const desiredLocId = parseIntParam(locParam);
   const initialLocationId =
     (desiredLocId && locations.some((l) => l.id === desiredLocId) ? desiredLocId : null) ??

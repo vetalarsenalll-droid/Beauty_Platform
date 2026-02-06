@@ -8,7 +8,7 @@ Platform
 
 Tenant
 - accounts, account_settings (включая шаг слота)
-- branding, domains, public_pages, seo
+- account_profile, branding, domains, public_pages, seo
 
 Marketplace
 - categories, tags, media_assets, reviews, favorites, search_index, geo_points
@@ -31,6 +31,7 @@ Clients
 
 Booking
 - appointments, appointment_services, status_history, cancellation_reasons
+- legal_documents, legal_document_versions, legal_acceptances
 
 Schedule
 - working_hours, breaks, blocked_slots, vacations, schedule_templates

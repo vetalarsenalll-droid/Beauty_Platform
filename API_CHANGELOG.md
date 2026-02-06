@@ -18,6 +18,33 @@
 - Examples:
 - Notes:
 
+## 2026-02-05 - v1
+- Date: 2026-02-05
+- Version: v1
+- Changes: Added public booking API contract and DTOs; public booking context now includes slotStepMinutes; public booking create supports Idempotency-Key.
+- Endpoints: GET /public/booking/context, GET /public/booking/locations/{id}/services, GET /public/booking/locations/{id}/specialists, GET /public/booking/availability/specialists, GET /public/booking/availability/calendar, GET /public/booking/slots, GET /public/booking/offers, POST /public/booking/appointments.
+- DTOs: PublicAccount, PublicLocation, PublicService, PublicSpecialist, PublicSlot, PublicBooking* responses, PublicBookingAppointmentCreateRequest/Response.
+- Examples: None.
+- Notes: Public booking endpoints are unauthenticated and use `account` query param for account slug.
+
+## 2026-02-05 - v1
+- Date: 2026-02-05
+- Version: v1
+- Changes: Added CRM settings endpoints (booking/legal/seo/public page) and legal document consent support in public booking.
+- Endpoints: GET/PATCH /crm/settings/booking, /crm/settings/legal, /crm/settings/seo, /crm/settings/public-page; POST /public/booking/appointments now accepts legalVersionIds.
+- DTOs: CrmBookingSettings*, CrmLegalDocuments*, CrmSeoSettings*, CrmPublicPage*, PublicLegalDocument.
+- Examples: None.
+- Notes: Legal documents are versioned and require client consent for required docs.
+
+## 2026-02-05 - v1
+- Date: 2026-02-05
+- Version: v1
+- Changes: Added CRM account profile/branding endpoints, permissions editor, and account access update; added password update for specialist/manager profiles.
+- Endpoints: PATCH /crm/settings/account, GET/PATCH /crm/settings/permissions, PATCH /crm/settings/user, POST /crm/account/media, DELETE /crm/account/media/{linkId}, PATCH /crm/specialists/{id} (password), PATCH /crm/managers/{id} (password).
+- DTOs: AccountProfile, AccountBranding, PermissionRoleUpdate (inline), CrmUserAccessUpdate (inline).
+- Examples: None.
+- Notes: Account media uploads accept images and update account branding logo/cover URLs.
+
 ## 2026-01-16 - v1
 - Date: 2026-01-16
 - Version: v1

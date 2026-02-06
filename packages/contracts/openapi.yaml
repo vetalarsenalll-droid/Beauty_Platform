@@ -13,6 +13,7 @@ tags:
   - name: auth
   - name: marketplace
   - name: booking
+  - name: public-booking
   - name: client
   - name: crm
   - name: platform
@@ -319,6 +320,167 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentResponse'
+
+  /public/booking/context:
+    get:
+      tags: [public-booking]
+      summary: Public booking context (account + locations)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+      responses:
+        '200':
+          description: Public booking context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingContextResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/locations/{id}/services:
+    get:
+      tags: [public-booking]
+      summary: Public services list for location
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/SpecialistId'
+      responses:
+        '200':
+          description: Services list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingServicesResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/locations/{id}/specialists:
+    get:
+      tags: [public-booking]
+      summary: Public specialists list for location
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Specialists list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingSpecialistsResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/availability/specialists:
+    get:
+      tags: [public-booking]
+      summary: Specialists with workdays in range
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/Start'
+        - $ref: '#/components/parameters/Days'
+      responses:
+        '200':
+          description: Specialist ids
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingAvailabilitySpecialistsResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/availability/calendar:
+    get:
+      tags: [public-booking]
+      summary: Availability calendar (days -> time -> specialists)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+        - $ref: '#/components/parameters/Start'
+        - $ref: '#/components/parameters/Days'
+      responses:
+        '200':
+          description: Availability calendar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingAvailabilityCalendarResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/slots:
+    get:
+      tags: [public-booking]
+      summary: Slots for a date
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/SpecialistId'
+      responses:
+        '200':
+          description: Slots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingSlotsResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/offers:
+    get:
+      tags: [public-booking]
+      summary: Offers by time (time -> services -> specialists)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '#/components/parameters/Date'
+      responses:
+        '200':
+          description: Offers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingOffersResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
+  /public/booking/appointments:
+    post:
+      tags: [public-booking]
+      summary: Create public appointment
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicBookingAppointmentCreateRequest'
+      responses:
+        '200':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingAppointmentCreateResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
 
   /client/me:
     get:
@@ -1279,6 +1441,114 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmAppointmentResponse'
+  /crm/settings/booking:
+    get:
+      tags: [crm]
+      summary: Get booking settings
+      responses:
+        '200':
+          description: Booking settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmBookingSettingsResponse'
+    patch:
+      tags: [crm]
+      summary: Update booking settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmBookingSettingsUpdateRequest'
+      responses:
+        '200':
+          description: Booking settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmBookingSettingsResponse'
+  /crm/settings/legal:
+    get:
+      tags: [crm]
+      summary: Get legal documents
+      responses:
+        '200':
+          description: Legal documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLegalDocumentsResponse'
+    patch:
+      tags: [crm]
+      summary: Update legal documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmLegalDocumentsUpdateRequest'
+      responses:
+        '200':
+          description: Legal documents updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmLegalDocumentsResponse'
+  /crm/settings/seo:
+    get:
+      tags: [crm]
+      summary: Get SEO settings
+      responses:
+        '200':
+          description: SEO settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSeoSettingsResponse'
+    patch:
+      tags: [crm]
+      summary: Update SEO settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmSeoSettingsUpdateRequest'
+      responses:
+        '200':
+          description: SEO settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmSeoSettingsResponse'
+  /crm/settings/public-page:
+    get:
+      tags: [crm]
+      summary: Get public page draft
+      responses:
+        '200':
+          description: Public page data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmPublicPageResponse'
+    patch:
+      tags: [crm]
+      summary: Update public page draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrmPublicPageUpdateRequest'
+      responses:
+        '200':
+          description: Public page updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmPublicPageResponse'
   /crm/clients/{id}:
     get:
       tags: [crm]
@@ -1988,6 +2258,13 @@ components:
       required: false
       schema:
         type: string
+    PublicAccount:
+      name: account
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Public account slug
     FromDate:
       name: from
       in: query
@@ -2002,6 +2279,21 @@ components:
       schema:
         type: string
         format: date
+    Start:
+      name: start
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    Days:
+      name: days
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 60
     RangeFrom:
       name: rangeFrom
       in: query
@@ -2286,6 +2578,299 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SlotItem'
+
+    PublicBookingContextResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [account, locations]
+          properties:
+            account:
+              $ref: '#/components/schemas/PublicAccount'
+            locations:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicLocation'
+            legalDocuments:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicLegalDocument'
+
+    PublicBookingServicesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [services]
+          properties:
+            services:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicService'
+
+    PublicBookingSpecialistsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [specialists]
+          properties:
+            specialists:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicSpecialist'
+
+    PublicBookingSlotsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [slots]
+          properties:
+            slots:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicSlot'
+
+    PublicBookingAvailabilitySpecialistsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [specialistIds]
+          properties:
+            specialistIds:
+              type: array
+              items:
+                type: integer
+
+    PublicBookingAvailabilityCalendarResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [start, days]
+          properties:
+            start:
+              type: string
+              format: date
+            days:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicAvailabilityDay'
+
+    PublicBookingOffersResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [date, times]
+          properties:
+            date:
+              type: string
+              format: date
+            times:
+              type: array
+              items:
+                $ref: '#/components/schemas/PublicOfferTime'
+
+    PublicBookingAppointmentCreateRequest:
+      type: object
+      required: [locationId, specialistId, serviceId, date, time]
+      properties:
+        locationId:
+          type: integer
+        specialistId:
+          type: integer
+        serviceId:
+          type: integer
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          example: "13:30"
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        clientEmail:
+          type: string
+        comment:
+          type: string
+        legalVersionIds:
+          type: array
+          items:
+            type: integer
+
+    PublicBookingAppointmentCreateResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [appointmentId]
+          properties:
+            appointmentId:
+              type: integer
+
+    PublicAccount:
+      type: object
+      required: [id, name, slug, timeZone, slotStepMinutes]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        timeZone:
+          type: string
+        slotStepMinutes:
+          type: integer
+
+    PublicLocation:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+          nullable: true
+
+    PublicService:
+      type: object
+      required: [id, name, baseDurationMin, basePrice]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        baseDurationMin:
+          type: integer
+        basePrice:
+          type: number
+          format: float
+        computedDurationMin:
+          type: integer
+          nullable: true
+        computedPrice:
+          type: number
+          format: float
+          nullable: true
+        specialistIds:
+          type: array
+          items:
+            type: integer
+
+    PublicSpecialist:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+          nullable: true
+        levelId:
+          type: integer
+          nullable: true
+
+    PublicSlot:
+      type: object
+      required: [time, specialistId]
+      properties:
+        time:
+          type: string
+          example: "09:30"
+        specialistId:
+          type: integer
+
+    PublicAvailabilityDay:
+      type: object
+      required: [date, times]
+      properties:
+        date:
+          type: string
+          format: date
+        times:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicAvailabilityTime'
+
+    PublicAvailabilityTime:
+      type: object
+      required: [time, specialistIds]
+      properties:
+        time:
+          type: string
+          example: "10:00"
+        specialistIds:
+          type: array
+          items:
+            type: integer
+
+    PublicOfferTime:
+      type: object
+      required: [time, services]
+      properties:
+        time:
+          type: string
+          example: "11:00"
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicOfferService'
+
+    PublicOfferService:
+      type: object
+      required: [serviceId, specialistIds]
+      properties:
+        serviceId:
+          type: integer
+        specialistIds:
+          type: array
+          items:
+            type: integer
+
+    PublicLegalDocument:
+      type: object
+      required: [id, title, isRequired, versionId, version, content]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isRequired:
+          type: boolean
+        versionId:
+          type: integer
+        version:
+          type: integer
+        content:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
 
     MarketplaceCard:
       type: object
@@ -3536,6 +4121,161 @@ components:
         serviceId:
           type: integer
           nullable: true
+    CrmBookingSettings:
+      type: object
+      properties:
+        slotStepMinutes:
+          type: integer
+        requireDeposit:
+          type: boolean
+        requirePaymentToConfirm:
+          type: boolean
+        cancellationWindowHours:
+          type: integer
+          nullable: true
+        rescheduleWindowHours:
+          type: integer
+          nullable: true
+        holdTtlMinutes:
+          type: integer
+          nullable: true
+        defaultReminderHours:
+          type: integer
+          nullable: true
+    CrmBookingSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmBookingSettings'
+    CrmBookingSettingsUpdateRequest:
+      type: object
+      properties:
+        slotStepMinutes:
+          type: integer
+        requireDeposit:
+          type: boolean
+        requirePaymentToConfirm:
+          type: boolean
+        cancellationWindowHours:
+          type: integer
+          nullable: true
+        rescheduleWindowHours:
+          type: integer
+          nullable: true
+        holdTtlMinutes:
+          type: integer
+          nullable: true
+        defaultReminderHours:
+          type: integer
+          nullable: true
+    CrmLegalDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        isRequired:
+          type: boolean
+        sortOrder:
+          type: integer
+        versionId:
+          type: integer
+          nullable: true
+        version:
+          type: integer
+          nullable: true
+        content:
+          type: string
+    CrmLegalDocumentsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmLegalDocument'
+    CrmLegalDocumentsUpdateRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmLegalDocument'
+    CrmSeoSettings:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        ogImageUrl:
+          type: string
+        robots:
+          type: string
+        sitemapEnabled:
+          type: boolean
+        schemaJson:
+          type: object
+          additionalProperties: true
+          nullable: true
+    CrmSeoSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmSeoSettings'
+    CrmSeoSettingsUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        ogImageUrl:
+          type: string
+        robots:
+          type: string
+        sitemapEnabled:
+          type: boolean
+        schemaJson:
+          type: object
+          additionalProperties: true
+          nullable: true
+    CrmPublicPage:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        draftJson:
+          type: object
+          additionalProperties: true
+        publishedVersionId:
+          type: integer
+          nullable: true
+    CrmPublicPageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/CrmPublicPage'
+    CrmPublicPageUpdateRequest:
+      type: object
+      properties:
+        draftJson:
+          type: object
+          additionalProperties: true
+        publish:
+          type: boolean
     CrmPromotionsResponse:
       type: object
       required: [data]

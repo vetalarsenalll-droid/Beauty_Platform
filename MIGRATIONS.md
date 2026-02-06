@@ -20,6 +20,36 @@
 - Rollback:
 - Notes:
 
+## 2026-02-05 - public_booking_idempotency
+- Date: 2026-02-05
+- Slug: public_booking_idempotency
+- Prisma migration: packages/db/prisma/migrations/20260205_public_booking_idempotency
+- Purpose: Add idempotency keys storage for public booking.
+- Schema changes: New IdempotencyKey table with unique (accountId, key), response JSON, status.
+- Data migration: None.
+- Rollback: Drop IdempotencyKey table and related indexes.
+- Notes: Used by public booking create appointment for deduplication.
+
+## 2026-02-05 - legal_documents
+- Date: 2026-02-05
+- Slug: legal_documents
+- Prisma migration: packages/db/prisma/migrations/20260205_legal_documents
+- Purpose: Store legal documents, versions, and client acceptances.
+- Schema changes: Added LegalDocument, LegalDocumentVersion, LegalAcceptance with relations to Account/Appointment/Client.
+- Data migration: None.
+- Rollback: Drop legal document tables and indexes.
+- Notes: Used for public booking consent capture.
+
+## 2026-02-05 - account_profile
+- Date: 2026-02-05
+- Slug: account_profile
+- Prisma migration: packages/db/prisma/migrations/20260205200000_account_profile
+- Purpose: Add account profile and branding fields for public site/profile.
+- Schema changes: Added AccountProfile and AccountBranding tables with accountId unique relations.
+- Data migration: None.
+- Rollback: Drop AccountProfile and AccountBranding tables.
+- Notes: Migration initially failed due BOM in SQL; re-applied after cleanup.
+
 ## 2026-01-16 - init
 - Date: 2026-01-16
 - Slug: init

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -84,6 +84,9 @@ export default function AccountProfileForm({
             onChange={(event) => setSlug(event.target.value)}
             className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
           />
+          <span className="text-xs text-[color:var(--bp-muted)]">
+            Итоговый адрес: /{slug || "..."}_{account.id}
+          </span>
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-3">

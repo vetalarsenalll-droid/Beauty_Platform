@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { resolvePublicAccount } from "@/lib/public-booking";
 
 const buildSpecialistName = (profile: {
-  user: { email: string | null; profile: { firstName: string | null; lastName: string | null } | null };
+  user: {
+    email: string | null;
+    profile: { firstName: string | null; lastName: string | null } | null;
+  };
 }) => {
   const first = profile.user.profile?.firstName?.trim() ?? "";
   const last = profile.user.profile?.lastName?.trim() ?? "";
@@ -21,7 +24,7 @@ export async function GET(
 
   const paramsValue = await Promise.resolve(params);
   const locationId = Number(paramsValue.id);
-  if (!Number.isInteger(locationId)) {
+  if (!Number.isInteger(locationId) || locationId <= 0) {
     return jsonError("INVALID_LOCATION", "Некорректная локация.", null, 400);
   }
 
@@ -30,11 +33,7 @@ export async function GET(
   const serviceId = serviceIdParam ? Number(serviceIdParam) : null;
 
   const location = await prisma.location.findFirst({
-    where: {
-      id: locationId,
-      accountId: resolved.account.id,
-      status: "ACTIVE",
-    },
+    where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
     select: { id: true },
   });
 
@@ -46,7 +45,7 @@ export async function GET(
     where: {
       accountId: resolved.account.id,
       locations: { some: { locationId } },
-      ...(serviceId && Number.isInteger(serviceId)
+      ...(serviceId && Number.isInteger(serviceId) && serviceId > 0
         ? { services: { some: { serviceId } } }
         : {}),
     },

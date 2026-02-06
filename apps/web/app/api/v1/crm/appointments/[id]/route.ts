@@ -126,11 +126,12 @@ function parsePayload(raw: unknown): AppointmentPayload {
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireCrmPermission("crm.calendar.read");
 
-  const appointmentId = Number(params.id);
+  const resolvedParams = await params;
+  const appointmentId = Number(resolvedParams.id);
   if (!Number.isInteger(appointmentId)) {
     return NextResponse.json(
       { message: "Некорректный идентификатор записи." },

@@ -1,6 +1,16 @@
-import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { resolvePublicAccount, toMinutes } from "@/lib/public-booking";
+import { Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
+import { createHash } from "crypto";
+import {
+  resolvePublicAccount,
+  toMinutes,
+  zonedTimeToUtc,
+  zonedDayRangeUtc,
+  getNowInTimeZone,
+  isPastDateOrTimeInTz,
+} from "@/lib/public-booking";
 
 type Window = { start: number; end: number };
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
@@ -14,6 +24,9 @@ export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
+  const tz = resolved.account.timeZone;
+  const nowTz = getNowInTimeZone(tz);
+
   const body = (await request.json().catch(() => null)) as {
     locationId?: number;
     specialistId?: number;
@@ -23,6 +36,9 @@ export async function POST(request: Request) {
     clientName?: string;
     clientPhone?: string;
     clientEmail?: string;
+    comment?: string;
+    legalVersionIds?: number[];
+  
   } | null;
 
   if (!body) {
@@ -32,16 +48,26 @@ export async function POST(request: Request) {
   const locationId = Number(body.locationId);
   const specialistId = Number(body.specialistId);
   const serviceId = Number(body.serviceId);
-  const dateValue = String(body.date ?? "");
-  const timeValue = String(body.time ?? "");
+  const dateValue = String(body.date ?? "").trim(); // YYYY-MM-DD (в TZ аккаунта)
+  const timeValue = String(body.time ?? "").trim(); // HH:mm
+
   const clientName = String(body.clientName ?? "").trim();
   const clientPhone = String(body.clientPhone ?? "").trim();
   const clientEmail = String(body.clientEmail ?? "").trim();
+  const comment = String(body.comment ?? "").trim();
+  const legalVersionIds = Array.isArray(body.legalVersionIds)
+    ? body.legalVersionIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  
+  const rawIdempotencyKey =
+    request.headers.get("idempotency-key") ?? request.headers.get("Idempotency-Key");
+  const idempotencyKey = rawIdempotencyKey?.trim() || "";
+
 
   if (
-    !Number.isInteger(locationId) ||
-    !Number.isInteger(specialistId) ||
-    !Number.isInteger(serviceId) ||
+    !Number.isInteger(locationId) || locationId <= 0 ||
+    !Number.isInteger(specialistId) || specialistId <= 0 ||
+    !Number.isInteger(serviceId) || serviceId <= 0 ||
     !dateValue ||
     !timeValue
   ) {
@@ -52,27 +78,31 @@ export async function POST(request: Request) {
     return jsonError("CLIENT_REQUIRED", "Укажите данные клиента.", null, 400);
   }
 
-  const dayStart = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(dayStart.getTime())) {
+  // запрет прошлого (в TZ аккаунта)
+  if (dateValue < nowTz.ymd) {
+    return jsonError("PAST_DATE", "Нельзя записаться на прошедшую дату.", null, 400);
+  }
+  if (isPastDateOrTimeInTz(dateValue, timeValue, tz)) {
+    return jsonError("PAST_TIME", "Нельзя записаться на прошедшее время.", null, 400);
+  }
+
+  const range = zonedDayRangeUtc(dateValue, tz);
+  if (!range) {
     return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   }
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayStart.getDate() + 1);
+  const { dayStartUtc, dayEndUtc } = range;
 
-  const startAt = new Date(`${dateValue}T${timeValue}:00`);
-  if (Number.isNaN(startAt.getTime())) {
+  const startAtUtc = zonedTimeToUtc(dateValue, timeValue, tz);
+  if (!startAtUtc || Number.isNaN(startAtUtc.getTime())) {
     return jsonError("INVALID_TIME", "Некорректное время.", null, 400);
   }
 
-  const [location, specialist, service, scheduleCandidates] = await Promise.all([
+  const [location, specialist, service, scheduleEntry] = await Promise.all([
     prisma.location.findFirst({
-      where: {
-        id: locationId,
-        accountId: resolved.account.id,
-        status: "ACTIVE",
-      },
+      where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
       select: { id: true },
     }),
+
     prisma.specialistProfile.findFirst({
       where: {
         id: specialistId,
@@ -81,6 +111,7 @@ export async function POST(request: Request) {
       },
       select: { id: true, levelId: true },
     }),
+
     prisma.service.findFirst({
       where: {
         id: serviceId,
@@ -108,38 +139,26 @@ export async function POST(request: Request) {
         },
       },
     }),
-    // ✅ график только выбранной локации (или общий null)
-    prisma.scheduleEntry.findMany({
+
+    // ✅ ВАЖНО: график ТОЛЬКО выбранной локации (без locationId:null)
+    prisma.scheduleEntry.findFirst({
       where: {
         accountId: resolved.account.id,
         specialistId,
-        date: { gte: dayStart, lt: dayEnd },
-        OR: [{ locationId }, { locationId: null }],
+        locationId,
+        date: { gte: dayStartUtc, lt: dayEndUtc },
       },
       include: { breaks: true },
     }),
   ]);
 
-  if (!location) {
-    return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
-  }
-  if (!specialist) {
-    return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
-  }
-  if (!service) {
-    return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
-  }
+  if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
+  if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
+  if (!service) return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
 
-  const scheduleEntry =
-    scheduleCandidates.find((e) => e.locationId === locationId) ??
-    scheduleCandidates.find((e) => e.locationId == null) ??
-    null;
-
-  const override = service.specialists.find(
-    (item) => item.specialistId === specialist.id
-  );
+  const override = service.specialists.find((i) => i.specialistId === specialist.id);
   const levelConfig = specialist.levelId
-    ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
+    ? service.levelConfigs.find((i) => i.levelId === specialist.levelId)
     : null;
 
   const durationMin =
@@ -152,26 +171,14 @@ export async function POST(request: Request) {
     toNumber(levelConfig?.price) ||
     toNumber(service.basePrice);
 
-  const endAt = new Date(startAt);
-  endAt.setMinutes(endAt.getMinutes() + durationMin);
-
+  // график обязателен и должен быть рабочим
   if (!scheduleEntry || scheduleEntry.type !== "WORKING") {
-    return jsonError(
-      "NO_WORKDAY",
-      "У специалиста нет рабочего дня на выбранную дату.",
-      null,
-      400
-    );
+    return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня на выбранную дату.", null, 400);
   }
 
-  // ✅ если вдруг попал график “не той” локации — режем
-  if (scheduleEntry.locationId != null && scheduleEntry.locationId !== locationId) {
-    return jsonError(
-      "NO_WORKDAY",
-      "У специалиста нет рабочего дня в выбранной локации на эту дату.",
-      null,
-      400
-    );
+  // доп. защита
+  if (scheduleEntry.locationId !== locationId) {
+    return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня в выбранной локации на эту дату.", null, 400);
   }
 
   const entryStart = toMinutes(scheduleEntry.startTime ?? "");
@@ -179,128 +186,296 @@ export async function POST(request: Request) {
   const startMinutes = toMinutes(timeValue);
 
   if (
-    entryStart === null ||
-    entryEnd === null ||
-    startMinutes === null ||
+    entryStart == null ||
+    entryEnd == null ||
+    startMinutes == null ||
     startMinutes < entryStart ||
     startMinutes + durationMin > entryEnd
   ) {
-    return jsonError(
-      "OUT_OF_WORKING_HOURS",
-      "У специалиста нет рабочих часов на выбранное время.",
-      null,
-      400
-    );
+    return jsonError("OUT_OF_WORKING_HOURS", "У специалиста нет рабочих часов на выбранное время.", null, 400);
   }
 
-  const candidate: Window = { start: startMinutes, end: startMinutes + durationMin };
+  const candidateLocal: Window = { start: startMinutes, end: startMinutes + durationMin };
 
   const breaks = scheduleEntry.breaks
-    .map((item) => ({
-      start: toMinutes(item.startTime) ?? 0,
-      end: toMinutes(item.endTime) ?? 0,
+    .map((b) => ({
+      start: toMinutes(b.startTime) ?? 0,
+      end: toMinutes(b.endTime) ?? 0,
     }))
-    .filter((item) => item.start < item.end);
+    .filter((x) => x.start < x.end);
 
-  if (breaks.some((br) => overlaps(candidate, br))) {
-    return jsonError(
-      "OVERLAP_BREAK",
-      "Выбранное время попадает на перерыв.",
-      null,
-      400
-    );
+  if (breaks.some((br) => overlaps(candidateLocal, br))) {
+    return jsonError("OVERLAP_BREAK", "Выбранное время попадает на перерыв.", null, 400);
   }
 
-  const [appointments, blockedSlots] = await Promise.all([
-    prisma.appointment.findMany({
+  const endAtUtc = new Date(startAtUtc);
+  endAtUtc.setUTCMinutes(endAtUtc.getUTCMinutes() + durationMin);
+
+  const [requiredDocs, allowedVersions] = await Promise.all([
+    prisma.legalDocument.findMany({
+      where: { accountId: resolved.account.id, isRequired: true },
+      select: {
+        id: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    }),
+    legalVersionIds.length > 0
+      ? prisma.legalDocumentVersion.findMany({
+          where: {
+            id: { in: legalVersionIds },
+            isActive: true,
+            document: { accountId: resolved.account.id },
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const requiredVersionIds = requiredDocs
+    .map((doc) => doc.versions[0]?.id)
+    .filter((id): id is number => Number.isInteger(id));
+
+  const allowedSet = new Set(allowedVersions.map((v) => v.id));
+  const normalizedLegalVersionIds = legalVersionIds.filter((id) => allowedSet.has(id));
+
+  if (requiredVersionIds.length > 0) {
+    const provided = new Set(normalizedLegalVersionIds);
+    const missing = requiredVersionIds.filter((id) => !provided.has(id));
+    if (missing.length > 0) {
+      return jsonError(
+        "LEGAL_REQUIRED",
+        "Необходимо согласие с обязательными документами.",
+        { missingVersionIds: missing },
+        400
+      );
+    }
+  }
+
+  let idempotencyRecordId: number | null = null;
+  let requestHash: string | null = null;
+
+  if (idempotencyKey) {
+    requestHash = createHash("sha256")
+      .update(
+        JSON.stringify({
+          locationId,
+          specialistId,
+          serviceId,
+          date: dateValue,
+          time: timeValue,
+          clientName,
+          clientPhone,
+          clientEmail,
+          comment,
+        })
+      )
+      .digest("hex");
+
+    try {
+      const created = await prisma.idempotencyKey.create({
+        data: {
+          accountId: resolved.account.id,
+          key: idempotencyKey,
+          requestHash,
+          status: "PROCESSING",
+        },
+        select: { id: true },
+      });
+      idempotencyRecordId = created.id;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const existing = await prisma.idempotencyKey.findUnique({
+          where: {
+            accountId_key: {
+              accountId: resolved.account.id,
+              key: idempotencyKey,
+            },
+          },
+        });
+
+        if (!existing) {
+          return jsonError(
+            "IDEMPOTENCY_CONFLICT",
+            "Конфликт идемпотентности.",
+            null,
+            409
+          );
+        }
+
+        if (existing.requestHash !== requestHash) {
+          return jsonError(
+            "IDEMPOTENCY_CONFLICT",
+            "Другой запрос с тем же ключом идемпотентности.",
+            null,
+            409
+          );
+        }
+
+        if (existing.response) {
+          return NextResponse.json(existing.response);
+        }
+
+        return jsonError(
+          "IDEMPOTENCY_IN_PROGRESS",
+          "Запрос с этим ключом уже выполняется.",
+          null,
+          409
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  // Транзакция: проверка пересечений по UTC интервалам + создание
+  const result = await prisma.$transaction(async (tx) => {
+    const conflictAppt = await tx.appointment.findFirst({
       where: {
         accountId: resolved.account.id,
         locationId,
         specialistId,
-        startAt: { gte: dayStart, lt: dayEnd },
         status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        startAt: { lt: endAtUtc },
+        endAt: { gt: startAtUtc },
       },
-      select: { startAt: true, endAt: true },
-    }),
-    prisma.blockedSlot.findMany({
+      select: { id: true },
+    });
+
+    if (conflictAppt) {
+      return {
+        ok: false as const,
+        error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),
+      };
+    }
+
+    const conflictBlock = await tx.blockedSlot.findFirst({
       where: {
         accountId: resolved.account.id,
-        startAt: { lt: dayEnd },
-        endAt: { gt: dayStart },
+        startAt: { lt: endAtUtc },
+        endAt: { gt: startAtUtc },
         OR: [{ locationId }, { specialistId }],
       },
-      select: { startAt: true, endAt: true },
-    }),
-  ]);
+      select: { id: true },
+    });
 
-  if (
-    appointments.some((appt) =>
-      overlaps(candidate, {
-        start: appt.startAt.getHours() * 60 + appt.startAt.getMinutes(),
-        end: appt.endAt.getHours() * 60 + appt.endAt.getMinutes(),
-      })
-    )
-  ) {
-    return jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409);
-  }
+    if (conflictBlock) {
+      return {
+        ok: false as const,
+        error: jsonError("TIME_BLOCKED", "Выбранное время недоступно.", null, 409),
+      };
+    }
 
-  if (
-    blockedSlots.some((slot) =>
-      overlaps(candidate, {
-        start: slot.startAt.getHours() * 60 + slot.startAt.getMinutes(),
-        end: slot.endAt.getHours() * 60 + slot.endAt.getMinutes(),
-      })
-    )
-  ) {
-    return jsonError("TIME_BLOCKED", "Выбранное время недоступно.", null, 409);
-  }
+    let client =
+      (clientPhone
+        ? await tx.client.findFirst({
+            where: { accountId: resolved.account.id, phone: clientPhone },
+          })
+        : null) ??
+      (clientEmail
+        ? await tx.client.findFirst({
+            where: { accountId: resolved.account.id, email: clientEmail },
+          })
+        : null);
 
-  let client =
-    (clientPhone
-      ? await prisma.client.findFirst({
-          where: { accountId: resolved.account.id, phone: clientPhone },
-        })
-      : null) ??
-    (clientEmail
-      ? await prisma.client.findFirst({
-          where: { accountId: resolved.account.id, email: clientEmail },
-        })
-      : null);
+    if (!client) {
+      client = await tx.client.create({
+        data: {
+          accountId: resolved.account.id,
+          firstName: clientName || null,
+          phone: clientPhone || null,
+          email: clientEmail || null,
+        },
+      });
+    }
 
-  if (!client) {
-    client = await prisma.client.create({
+    const appointment = await tx.appointment.create({
       data: {
         accountId: resolved.account.id,
-        firstName: clientName || null,
-        phone: clientPhone || null,
-        email: clientEmail || null,
+        locationId,
+        specialistId,
+        clientId: client.id,
+        startAt: startAtUtc,
+        endAt: endAtUtc,
+        status: "NEW",
+        priceTotal,
+        durationTotalMin: durationMin,
+        source: "online",
+   
+        services: {
+          create: [
+            {
+              serviceId: service.id,
+              price: priceTotal,
+              durationMin,
+            },
+          ],
+        },
+      },
+      select: { id: true },
+    });
+
+    await tx.appointmentStatusHistory.create({
+      data: {
+        appointmentId: appointment.id,
+        actorType: "client",
+        actorId: null,
+        fromStatus: null,
+        toStatus: "NEW",
+        comment: comment || null,
+      },
+    });
+
+    if (normalizedLegalVersionIds.length > 0) {
+      const ip =
+        request.headers.get("x-forwarded-for") ??
+        request.headers.get("x-real-ip") ??
+        null;
+      const userAgent = request.headers.get("user-agent") ?? null;
+
+      await tx.legalAcceptance.createMany({
+        data: normalizedLegalVersionIds.map((versionId) => ({
+          accountId: resolved.account.id,
+          documentVersionId: versionId,
+          appointmentId: appointment.id,
+          clientId: client.id,
+          source: "public_booking",
+          ip,
+          userAgent,
+        })),
+      });
+    }
+
+    return { ok: true as const, appointmentId: appointment.id };
+  });
+
+  if (!result.ok) {
+    if (idempotencyRecordId) {
+      await prisma.idempotencyKey
+        .delete({ where: { id: idempotencyRecordId } })
+        .catch(() => {});
+    }
+    return result.error;
+  }
+
+  const responsePayload = { data: { appointmentId: result.appointmentId } };
+
+  if (idempotencyRecordId) {
+    await prisma.idempotencyKey.update({
+      where: { id: idempotencyRecordId },
+      data: {
+        status: "DONE",
+        response: responsePayload,
       },
     });
   }
 
-  const appointment = await prisma.appointment.create({
-    data: {
-      accountId: resolved.account.id,
-      locationId,
-      specialistId,
-      clientId: client.id,
-      startAt,
-      endAt,
-      status: "NEW",
-      priceTotal,
-      durationTotalMin: durationMin,
-      source: "online",
-      services: {
-        create: [
-          {
-            serviceId: service.id,
-            price: priceTotal,
-            durationMin,
-          },
-        ],
-      },
-    },
-  });
-
-  return jsonOk({ appointmentId: appointment.id });
+  return NextResponse.json(responsePayload);
 }

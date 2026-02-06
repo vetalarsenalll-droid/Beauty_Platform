@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
@@ -35,6 +36,11 @@ function mapSpecialist(item: DbSpecialist) {
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
   };
+}
+
+function hashPassword(password: string, saltHex: string) {
+  const salt = Buffer.from(saltHex, "hex");
+  return crypto.scryptSync(password, salt, 32).toString("hex");
 }
 
 export async function GET(
@@ -101,6 +107,8 @@ export async function PATCH(
   const bio = body.bio !== undefined ? String(body.bio).trim() : undefined;
   const status =
     body.status !== undefined ? String(body.status).trim() : undefined;
+  const password =
+    body.password !== undefined ? String(body.password) : undefined;
   const levelIdRaw =
     body.levelId !== undefined ? String(body.levelId).trim() : undefined;
 
@@ -111,7 +119,8 @@ export async function PATCH(
     phone !== undefined ||
     bio !== undefined ||
     status !== undefined ||
-    levelIdRaw !== undefined;
+    levelIdRaw !== undefined ||
+    password !== undefined;
 
   if (!hasChanges) {
     return jsonError(
@@ -145,6 +154,15 @@ export async function PATCH(
       "VALIDATION_FAILED",
       "Некорректный статус.",
       { fields: [{ path: "status", issue: "invalid" }] },
+      400
+    );
+  }
+
+  if (password !== undefined && password && password.length < 6) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Пароль должен быть не короче 6 символов.",
+      { fields: [{ path: "password", issue: "min_length" }] },
       400
     );
   }
@@ -205,6 +223,45 @@ export async function PATCH(
         });
       }
 
+      if (email !== undefined || password !== undefined) {
+        const identity = await tx.userIdentity.findFirst({
+          where: { userId: specialist.userId, provider: "EMAIL" },
+        });
+        if (password) {
+          const saltHex = crypto.randomBytes(16).toString("hex");
+          const passwordHash = hashPassword(password, saltHex);
+          if (identity) {
+            await tx.userIdentity.update({
+              where: { id: identity.id },
+              data: {
+                email: email ?? identity.email,
+                passwordHash,
+                passwordSalt: saltHex,
+                passwordAlgo: "scrypt",
+                passwordUpdatedAt: new Date(),
+              },
+            });
+          } else {
+            await tx.userIdentity.create({
+              data: {
+                userId: specialist.userId,
+                provider: "EMAIL",
+                email: email ?? specialist.user.email ?? null,
+                passwordHash,
+                passwordSalt: saltHex,
+                passwordAlgo: "scrypt",
+                passwordUpdatedAt: new Date(),
+              },
+            });
+          }
+        } else if (identity && email !== undefined && email !== identity.email) {
+          await tx.userIdentity.update({
+            where: { id: identity.id },
+            data: { email },
+          });
+        }
+      }
+
       if (firstName !== undefined || lastName !== undefined) {
         if (specialist.user.profile) {
           await tx.userProfile.update({
@@ -257,6 +314,7 @@ export async function PATCH(
         status,
         levelId,
         bio,
+        passwordUpdated: Boolean(password),
       },
     });
 

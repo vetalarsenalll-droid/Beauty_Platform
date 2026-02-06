@@ -16,21 +16,15 @@ export async function GET(
 
   const paramsValue = await Promise.resolve(params);
   const locationId = Number(paramsValue.id);
-  if (!Number.isInteger(locationId)) {
+  if (!Number.isInteger(locationId) || locationId <= 0) {
     return jsonError("INVALID_LOCATION", "Некорректная локация.", null, 400);
   }
 
-  const specialistIdParam = new URL(request.url).searchParams.get(
-    "specialistId"
-  );
+  const specialistIdParam = new URL(request.url).searchParams.get("specialistId");
   const specialistId = specialistIdParam ? Number(specialistIdParam) : null;
 
   const location = await prisma.location.findFirst({
-    where: {
-      id: locationId,
-      accountId: resolved.account.id,
-      status: "ACTIVE",
-    },
+    where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
     select: { id: true },
   });
 
@@ -39,7 +33,7 @@ export async function GET(
   }
 
   const specialist =
-    specialistId && Number.isInteger(specialistId)
+    specialistId && Number.isInteger(specialistId) && specialistId > 0
       ? await prisma.specialistProfile.findFirst({
           where: {
             id: specialistId,
@@ -81,9 +75,7 @@ export async function GET(
   });
 
   const output = services.map((service) => {
-    const specialistIds = service.specialists.map(
-      (item) => item.specialistId
-    );
+    const specialistIds = service.specialists.map((item) => item.specialistId);
     const basePrice = toNumber(service.basePrice);
     const baseDuration = service.baseDurationMin;
 
@@ -91,22 +83,16 @@ export async function GET(
     let computedDurationMin = baseDuration;
 
     if (specialist) {
-      const override = service.specialists.find(
-        (item) => item.specialistId === specialist.id
-      );
+      const override = service.specialists.find((i) => i.specialistId === specialist.id);
       const levelConfig = specialist.levelId
-        ? service.levelConfigs.find(
-            (item) => item.levelId === specialist.levelId
-          )
+        ? service.levelConfigs.find((i) => i.levelId === specialist.levelId)
         : null;
+
       computedPrice =
-        toNumber(override?.priceOverride) ||
-        toNumber(levelConfig?.price) ||
-        basePrice;
+        toNumber(override?.priceOverride) || toNumber(levelConfig?.price) || basePrice;
+
       computedDurationMin =
-        override?.durationOverrideMin ||
-        levelConfig?.durationMin ||
-        baseDuration;
+        override?.durationOverrideMin || levelConfig?.durationMin || baseDuration;
     }
 
     return {

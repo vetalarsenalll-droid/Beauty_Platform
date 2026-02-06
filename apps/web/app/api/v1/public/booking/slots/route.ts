@@ -1,50 +1,58 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
+  getAccountSlotStepMinutes,
   minutesToTime,
   resolvePublicAccount,
-  toLocalMinutes,
   toMinutes,
+  toZonedLocalMinutes,
+  zonedDayRangeUtc,
+  parsePositiveInt,
+  getNowInTimeZone,
 } from "@/lib/public-booking";
 
-const SLOT_STEP_MIN = 15;
-
 type Window = { start: number; end: number };
-
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
 
-const toRange = (startAt: Date, endAt: Date) => ({
-  start: toLocalMinutes(startAt),
-  end: toLocalMinutes(endAt),
+const toRangeInTz = (startAt: Date, endAt: Date, timeZone: string) => ({
+  start: toZonedLocalMinutes(startAt, timeZone),
+  end: toZonedLocalMinutes(endAt, timeZone),
 });
 
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
-  const { searchParams } = new URL(request.url);
-  const locationId = Number(searchParams.get("locationId"));
-  const dateValue = String(searchParams.get("date") ?? "");
-  const serviceId = Number(searchParams.get("serviceId") ?? "");
-  const specialistId = Number(searchParams.get("specialistId") ?? "");
+  const tz = resolved.account.timeZone;
+  const slotStepMinutes = await getAccountSlotStepMinutes(resolved.account.id);
+  const nowTz = getNowInTimeZone(tz);
 
-  if (!Number.isInteger(locationId) || !dateValue) {
+  const { searchParams } = new URL(request.url);
+
+  const locationId = parsePositiveInt(searchParams.get("locationId"));
+  const dateValue = String(searchParams.get("date") ?? "").trim();
+
+  // если параметр отсутствует -> null, а не 0
+  const serviceId = parsePositiveInt(searchParams.get("serviceId"));
+  const specialistId = parsePositiveInt(searchParams.get("specialistId"));
+
+  if (!locationId || !dateValue) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
 
-  const dayStart = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(dayStart.getTime())) {
+  const range = zonedDayRangeUtc(dateValue, tz);
+  if (!range) {
     return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   }
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayStart.getDate() + 1);
+  const { dayStartUtc, dayEndUtc } = range;
+
+  // серверная защита от прошлых дат
+  if (dateValue < nowTz.ymd) {
+    return jsonOk({ slots: [] });
+  }
 
   const location = await prisma.location.findFirst({
-    where: {
-      id: locationId,
-      accountId: resolved.account.id,
-      status: "ACTIVE",
-    },
+    where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
     select: { id: true },
   });
 
@@ -56,10 +64,8 @@ export async function GET(request: Request) {
     where: {
       accountId: resolved.account.id,
       locations: { some: { locationId } },
-      ...(Number.isInteger(serviceId)
-        ? { services: { some: { serviceId } } }
-        : {}),
-      ...(Number.isInteger(specialistId) ? { id: specialistId } : {}),
+      ...(serviceId ? { services: { some: { serviceId } } } : {}),
+      ...(specialistId ? { id: specialistId } : {}),
     },
     select: {
       id: true,
@@ -67,164 +73,138 @@ export async function GET(request: Request) {
     },
   });
 
-  if (!specialists.length) {
-    return jsonOk({ slots: [] });
+  if (!specialists.length) return jsonOk({ slots: [] });
+
+  const specialistIds = specialists.map((s) => s.id);
+
+  const [scheduleEntries, appointments, blockedSlots, service] = await Promise.all([
+    // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
+    prisma.scheduleEntry.findMany({
+      where: {
+        accountId: resolved.account.id,
+        specialistId: { in: specialistIds },
+        date: { gte: dayStartUtc, lt: dayEndUtc },
+        locationId,
+      },
+      include: { breaks: true },
+    }),
+
+    prisma.appointment.findMany({
+      where: {
+        accountId: resolved.account.id,
+        locationId,
+        specialistId: { in: specialistIds },
+        startAt: { gte: dayStartUtc, lt: dayEndUtc },
+        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      },
+      select: { specialistId: true, startAt: true, endAt: true },
+    }),
+
+    prisma.blockedSlot.findMany({
+      where: {
+        accountId: resolved.account.id,
+        startAt: { lt: dayEndUtc },
+        endAt: { gt: dayStartUtc },
+        OR: [
+          { locationId }, // блокировка на локацию
+          { specialistId: { in: specialistIds } }, // блокировка на мастера
+        ],
+      },
+      select: { locationId: true, specialistId: true, startAt: true, endAt: true },
+    }),
+
+    serviceId
+      ? prisma.service.findFirst({
+          where: { id: serviceId, accountId: resolved.account.id },
+          select: {
+            id: true,
+            baseDurationMin: true,
+            specialists: {
+              select: { specialistId: true, durationOverrideMin: true },
+            },
+            levelConfigs: {
+              select: { levelId: true, durationMin: true },
+            },
+          },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  // ✅ Теперь график строго по локации: на специалиста должен быть максимум один entry на день.
+  // Но на всякий случай оставим "последний победил" (если вдруг в БД дубликаты).
+  const scheduleBySpecialist = new Map<number, (typeof scheduleEntries)[number]>();
+  for (const entry of scheduleEntries) {
+    scheduleBySpecialist.set(entry.specialistId, entry);
   }
 
-  const specialistIds = specialists.map((item) => item.id);
-
-  const [scheduleEntries, appointments, blockedSlots, service] =
-    await Promise.all([
-      // ✅ ВАЖНО: график только для выбранной локации (или общий locationId=null)
-      prisma.scheduleEntry.findMany({
-        where: {
-          accountId: resolved.account.id,
-          specialistId: { in: specialistIds },
-          date: { gte: dayStart, lt: dayEnd },
-          OR: [{ locationId }, { locationId: null }],
-        },
-        include: { breaks: true },
-      }),
-
-      prisma.appointment.findMany({
-        where: {
-          accountId: resolved.account.id,
-          locationId,
-          specialistId: { in: specialistIds },
-          startAt: { gte: dayStart, lt: dayEnd },
-          status: { notIn: ["CANCELLED", "NO_SHOW"] },
-        },
-        select: {
-          specialistId: true,
-          startAt: true,
-          endAt: true,
-        },
-      }),
-
-      prisma.blockedSlot.findMany({
-        where: {
-          accountId: resolved.account.id,
-          startAt: { lt: dayEnd },
-          endAt: { gt: dayStart },
-          OR: [{ locationId }, { specialistId: { in: specialistIds } }],
-        },
-        select: {
-          locationId: true,
-          specialistId: true,
-          startAt: true,
-          endAt: true,
-        },
-      }),
-
-      Number.isInteger(serviceId)
-        ? prisma.service.findFirst({
-            where: { id: serviceId, accountId: resolved.account.id },
-            select: {
-              id: true,
-              baseDurationMin: true,
-              specialists: {
-                select: {
-                  specialistId: true,
-                  durationOverrideMin: true,
-                },
-              },
-              levelConfigs: {
-                select: {
-                  levelId: true,
-                  durationMin: true,
-                },
-              },
-            },
-          })
-        : Promise.resolve(null),
-    ]);
-
-  // ✅ Выбор графика с приоритетом: locationId (точно) > null (общий)
-  const scheduleBySpecialist = new Map<number, (typeof scheduleEntries)[number]>();
-  scheduleEntries.forEach((entry) => {
-    const existing = scheduleBySpecialist.get(entry.specialistId);
-    if (!existing) {
-      scheduleBySpecialist.set(entry.specialistId, entry);
-      return;
-    }
-    const existingLoc = existing.locationId;
-    const nextLoc = entry.locationId;
-
-    // если сейчас в мапе "общий" (null), а пришел "точный" (locationId) — заменяем
-    if (existingLoc == null && nextLoc === locationId) {
-      scheduleBySpecialist.set(entry.specialistId, entry);
-    }
-  });
-
   const appointmentsBySpecialist = new Map<number, Window[]>();
-  appointments.forEach((appt) => {
+  for (const appt of appointments) {
     const list = appointmentsBySpecialist.get(appt.specialistId) ?? [];
-    list.push(toRange(appt.startAt, appt.endAt));
+    list.push(toRangeInTz(appt.startAt, appt.endAt, tz));
     appointmentsBySpecialist.set(appt.specialistId, list);
-  });
+  }
 
   const blockedBySpecialist = new Map<number, Window[]>();
-  blockedSlots.forEach((slot) => {
-    const window = toRange(slot.startAt, slot.endAt);
-    if (slot.specialistId) {
-      const list = blockedBySpecialist.get(slot.specialistId) ?? [];
-      list.push(window);
-      blockedBySpecialist.set(slot.specialistId, list);
-      return;
+  for (const blk of blockedSlots) {
+    const w = toRangeInTz(blk.startAt, blk.endAt, tz);
+
+    if (blk.specialistId) {
+      const list = blockedBySpecialist.get(blk.specialistId) ?? [];
+      list.push(w);
+      blockedBySpecialist.set(blk.specialistId, list);
+      continue;
     }
-    // location-wide блокировка: применяем ко всем специалистам в выборке
-    specialists.forEach((item) => {
-      const list = blockedBySpecialist.get(item.id) ?? [];
-      list.push(window);
-      blockedBySpecialist.set(item.id, list);
-    });
-  });
+
+    // location-wide блокировка: применяем ко всем специалистам (в выбранной локации)
+    for (const sp of specialists) {
+      const list = blockedBySpecialist.get(sp.id) ?? [];
+      list.push(w);
+      blockedBySpecialist.set(sp.id, list);
+    }
+  }
 
   const slots: Array<{ time: string; specialistId: number }> = [];
 
-  specialists.forEach((specialist) => {
-    const entry = scheduleBySpecialist.get(specialist.id);
+  for (const sp of specialists) {
+    const entry = scheduleBySpecialist.get(sp.id);
+    if (!entry || entry.type !== "WORKING") continue;
 
-    // ✅ Доп. защита: если entry всё же не совпал по локации — не используем
-    if (!entry || entry.type !== "WORKING") return;
-    if (entry.locationId != null && entry.locationId !== locationId) return;
+    // доп.защита: entry должен быть именно по этой локации
+    if (entry.locationId !== locationId) continue;
 
     const entryStart = toMinutes(entry.startTime ?? "");
     const entryEnd = toMinutes(entry.endTime ?? "");
-    if (entryStart === null || entryEnd === null) return;
+    if (entryStart == null || entryEnd == null) continue;
 
     const durationMin = service
-      ? service.specialists.find((item) => item.specialistId === specialist.id)
-          ?.durationOverrideMin ??
-        service.levelConfigs.find((item) => item.levelId === specialist.levelId)
-          ?.durationMin ??
+      ? service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ??
+        service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ??
         service.baseDurationMin
-      : SLOT_STEP_MIN;
+      : slotStepMinutes;
 
     const breaks = entry.breaks
-      .map((item) => ({
-        start: toMinutes(item.startTime) ?? 0,
-        end: toMinutes(item.endTime) ?? 0,
+      .map((b) => ({
+        start: toMinutes(b.startTime) ?? 0,
+        end: toMinutes(b.endTime) ?? 0,
       }))
-      .filter((item) => item.start < item.end);
+      .filter((x) => x.start < x.end);
 
-    const appointmentWindows =
-      appointmentsBySpecialist.get(specialist.id) ?? [];
-    const blockedWindows = blockedBySpecialist.get(specialist.id) ?? [];
+    const apptWindows = appointmentsBySpecialist.get(sp.id) ?? [];
+    const blkWindows = blockedBySpecialist.get(sp.id) ?? [];
 
-    for (
-      let start = entryStart;
-      start + durationMin <= entryEnd;
-      start += SLOT_STEP_MIN
-    ) {
-      const candidate = { start, end: start + durationMin };
+    for (let start = entryStart; start + durationMin <= entryEnd; start += slotStepMinutes) {
+      const candidate: Window = { start, end: start + durationMin };
+
+      // запрет прошедшего времени на сегодня в TZ аккаунта
+      if (dateValue === nowTz.ymd && start <= nowTz.minutes) continue;
+
       if (breaks.some((br) => overlaps(candidate, br))) continue;
-      if (appointmentWindows.some((appt) => overlaps(candidate, appt))) continue;
-      if (blockedWindows.some((blocked) => overlaps(candidate, blocked))) continue;
+      if (apptWindows.some((w) => overlaps(candidate, w))) continue;
+      if (blkWindows.some((w) => overlaps(candidate, w))) continue;
 
-      slots.push({ time: minutesToTime(start), specialistId: specialist.id });
+      slots.push({ time: minutesToTime(start), specialistId: sp.id });
     }
-  });
+  }
 
   return jsonOk({ slots });
 }

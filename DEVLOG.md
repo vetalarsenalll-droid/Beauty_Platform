@@ -786,3 +786,11 @@
 - Summary: Awaited route params in public booking services/specialists APIs to fix invalid location errors.
 - Files: apps/web/app/api/v1/public/booking/locations/[id]/services/route.ts, apps/web/app/api/v1/public/booking/locations/[id]/specialists/route.ts, DEVLOG.md
 - Tests: Not run.
+
+## 2026-02-05
+- Date: 2026-02-05
+- Task: Public site builder + account profile + permissions UX
+- Summary: Built CRM site constructor (full-width, theme controls, block controls), public account pages by publicSlug, and booking URLs; added account profile page with tabs, branding upload, and access links; added CRM permissions editor with role tabs + Russian labels; fixed permission descriptions in DB; added account media API and account settings endpoints; added password change in specialist/manager profiles; added account access (email/password) block in account “Общее”.
+- Files: apps/web/app/(crm)/crm/site/site-client.tsx, apps/web/app/(crm)/crm/site/page.tsx, apps/web/app/(crm)/crm/site/seo/*, apps/web/app/(crm)/crm/crm-shell.tsx, apps/web/app/[publicSlug]/page.tsx, apps/web/app/[publicSlug]/booking/page.tsx, apps/web/app/[publicSlug]/legal/[versionId]/page.tsx, apps/web/app/booking/booking-client.tsx, apps/web/lib/site-builder.ts, apps/web/lib/booking-links.ts, apps/web/app/(crm)/crm/account/page.tsx, apps/web/app/(crm)/crm/account/account-profile-client.tsx, apps/web/app/api/v1/crm/account/media/route.ts, apps/web/app/api/v1/crm/account/media/[linkId]/route.ts, apps/web/app/api/v1/crm/settings/account/route.ts, apps/web/app/api/v1/crm/settings/permissions/route.ts, apps/web/app/api/v1/crm/settings/user/route.ts, apps/web/app/(crm)/crm/specialists/[id]/specialist-profile-form.tsx, apps/web/app/api/v1/crm/specialists/[id]/route.ts, apps/web/app/(crm)/crm/managers/[id]/manager-profile-form.tsx, apps/web/app/api/v1/crm/managers/[id]/route.ts, scripts/fix-permission-descriptions.js
+- Notes: Account profile now includes tabs (Общее/Брендинг/Профиль/Доступы) and public site/booking buttons; permission descriptions normalized to Russian.
+- Tests: Not run.

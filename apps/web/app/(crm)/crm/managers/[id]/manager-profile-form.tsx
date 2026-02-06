@@ -25,12 +25,24 @@ export default function ManagerProfileForm({
   const [email, setEmail] = useState(manager.email ?? "");
   const [phone, setPhone] = useState(manager.phone ?? "");
   const [status, setStatus] = useState(manager.status);
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+
+    if (password && password.length < 6) {
+      setError("Пароль должен быть не короче 6 символов.");
+      return;
+    }
+    if (password && password !== passwordConfirm) {
+      setError("Пароли не совпадают.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -43,6 +55,7 @@ export default function ManagerProfileForm({
           email,
           phone: phone.trim() ? phone.trim() : null,
           status,
+          password: password || undefined,
         }),
       });
       if (!response.ok) {
@@ -51,6 +64,8 @@ export default function ManagerProfileForm({
         return;
       }
       router.refresh();
+      setPassword("");
+      setPasswordConfirm("");
     } catch {
       setError("Не удалось сохранить менеджера.");
     } finally {
@@ -111,6 +126,27 @@ export default function ManagerProfileForm({
           <option value="DISABLED">В архиве</option>
         </select>
       </label>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-2 text-sm">
+          Новый пароль
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Минимум 6 символов"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Повторите пароль
+          <input
+            type="password"
+            value={passwordConfirm}
+            onChange={(event) => setPasswordConfirm(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          />
+        </label>
+      </div>
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"

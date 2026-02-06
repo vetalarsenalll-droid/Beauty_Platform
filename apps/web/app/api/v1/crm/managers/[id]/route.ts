@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
@@ -27,6 +28,11 @@ function mapManager(item: DbManager) {
     role: item.role.name,
     createdAt: item.createdAt.toISOString(),
   };
+}
+
+function hashPassword(password: string, saltHex: string) {
+  const salt = Buffer.from(saltHex, "hex");
+  return crypto.scryptSync(password, salt, 32).toString("hex");
 }
 
 export async function GET(
@@ -96,13 +102,16 @@ export async function PATCH(
     body.phone !== undefined ? String(body.phone).trim() : undefined;
   const status =
     body.status !== undefined ? String(body.status).trim() : undefined;
+  const password =
+    body.password !== undefined ? String(body.password) : undefined;
 
   const hasChanges =
     firstName !== undefined ||
     lastName !== undefined ||
     email !== undefined ||
     phone !== undefined ||
-    status !== undefined;
+    status !== undefined ||
+    password !== undefined;
 
   if (!hasChanges) {
     return jsonError(
@@ -140,6 +149,15 @@ export async function PATCH(
     );
   }
 
+  if (password !== undefined && password && password.length < 6) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Пароль должен быть не короче 6 символов.",
+      { fields: [{ path: "password", issue: "min_length" }] },
+      400
+    );
+  }
+
   const assignment = await prisma.roleAssignment.findFirst({
     where: {
       accountId: auth.session.accountId,
@@ -164,6 +182,45 @@ export async function PATCH(
             status,
           },
         });
+      }
+
+      if (email !== undefined || password !== undefined) {
+        const identity = await tx.userIdentity.findFirst({
+          where: { userId: assignment.userId, provider: "EMAIL" },
+        });
+        if (password) {
+          const saltHex = crypto.randomBytes(16).toString("hex");
+          const passwordHash = hashPassword(password, saltHex);
+          if (identity) {
+            await tx.userIdentity.update({
+              where: { id: identity.id },
+              data: {
+                email: email ?? identity.email,
+                passwordHash,
+                passwordSalt: saltHex,
+                passwordAlgo: "scrypt",
+                passwordUpdatedAt: new Date(),
+              },
+            });
+          } else {
+            await tx.userIdentity.create({
+              data: {
+                userId: assignment.userId,
+                provider: "EMAIL",
+                email: email ?? assignment.user.email ?? null,
+                passwordHash,
+                passwordSalt: saltHex,
+                passwordAlgo: "scrypt",
+                passwordUpdatedAt: new Date(),
+              },
+            });
+          }
+        } else if (identity && email !== undefined && email !== identity.email) {
+          await tx.userIdentity.update({
+            where: { id: identity.id },
+            data: { email },
+          });
+        }
       }
 
       if (firstName !== undefined || lastName !== undefined) {
@@ -204,6 +261,7 @@ export async function PATCH(
         email,
         phone,
         status,
+        passwordUpdated: Boolean(password),
       },
     });
 
