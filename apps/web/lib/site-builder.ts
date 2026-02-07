@@ -1,4 +1,4 @@
-export type SiteTheme = {
+export type SiteThemePalette = {
   fontHeading: string;
   fontBody: string;
   accentColor: string;
@@ -22,6 +22,12 @@ export type SiteTheme = {
   headingSize: number;
   subheadingSize: number;
   textSize: number;
+};
+
+export type SiteTheme = SiteThemePalette & {
+  mode: "light" | "dark";
+  lightPalette: SiteThemePalette;
+  darkPalette: SiteThemePalette;
 };
 
 export type SiteDraft = {
@@ -120,6 +126,7 @@ const createMenuBlock = (): SiteBlock => ({
     menuItems: ["home", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showButton: true,
+    showThemeToggle: false,
     ctaMode: "booking",
     phoneOverride: "",
     buttonText: "Записаться",
@@ -271,32 +278,54 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     },
   ];
 
+  const baseTheme: SiteThemePalette = {
+    fontHeading: "Prata, serif",
+    fontBody: "Manrope, sans-serif",
+    accentColor: "#111827",
+    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowSize: 18,
+    contentWidth: 1120,
+    gradientEnabled: false,
+    gradientDirection: "vertical",
+    gradientFrom: "#F7F3F0",
+    gradientTo: "#FFF7F2",
+    surfaceColor: "#F5F2F0",
+    panelColor: "#FFFFFF",
+    textColor: "#111827",
+    mutedColor: "#6B7280",
+    borderColor: "#E5E7EB",
+    buttonColor: "#111827",
+    buttonTextColor: "#FFFFFF",
+    radius: 28,
+    buttonRadius: 999,
+    blockSpacing: 28,
+    headingSize: 28,
+    subheadingSize: 18,
+    textSize: 14,
+  };
+
+  const darkTheme: SiteThemePalette = {
+    ...baseTheme,
+    accentColor: "#F3F4F6",
+    shadowColor: "rgba(0, 0, 0, 0.55)",
+    gradientFrom: "#0F1115",
+    gradientTo: "#1A1D24",
+    surfaceColor: "#0F1115",
+    panelColor: "#1A1D24",
+    textColor: "#F5F7FA",
+    mutedColor: "#A1A7B3",
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    buttonColor: "#F5F7FA",
+    buttonTextColor: "#0F1115",
+  };
+
   return {
     version: 1,
     theme: {
-      fontHeading: "Prata, serif",
-      fontBody: "Manrope, sans-serif",
-      accentColor: "#111827",
-      shadowColor: "rgba(17, 24, 39, 0.12)",
-      shadowSize: 18,
-      contentWidth: 1120,
-      gradientEnabled: false,
-      gradientDirection: "vertical",
-      gradientFrom: "#F7F3F0",
-      gradientTo: "#FFF7F2",
-      surfaceColor: "#F5F2F0",
-      panelColor: "#FFFFFF",
-      textColor: "#111827",
-      mutedColor: "#6B7280",
-      borderColor: "#E5E7EB",
-      buttonColor: "#111827",
-      buttonTextColor: "#FFFFFF",
-      radius: 28,
-      buttonRadius: 999,
-      blockSpacing: 28,
-      headingSize: 28,
-      subheadingSize: 18,
-      textSize: 14,
+      ...baseTheme,
+      mode: "light",
+      lightPalette: baseTheme,
+      darkPalette: darkTheme,
     },
     blocks: homeBlocks,
     pages: {
@@ -320,6 +349,54 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   }
   const fallbackTheme = createDefaultDraft("Салон красоты").theme;
   const theme = draft.theme ?? fallbackTheme;
+  const normalizePalette = (
+    palette: Partial<SiteThemePalette> | undefined,
+    fallback: SiteThemePalette
+  ): SiteThemePalette => ({
+    fontHeading: palette?.fontHeading || fallback.fontHeading,
+    fontBody: palette?.fontBody || fallback.fontBody,
+    accentColor: palette?.accentColor || fallback.accentColor,
+    shadowColor: palette?.shadowColor || fallback.shadowColor,
+    shadowSize: Number.isFinite(palette?.shadowSize)
+      ? (palette?.shadowSize as number)
+      : fallback.shadowSize,
+    contentWidth: Number.isFinite(palette?.contentWidth)
+      ? (palette?.contentWidth as number)
+      : fallback.contentWidth,
+    gradientEnabled:
+      typeof palette?.gradientEnabled === "boolean"
+        ? (palette?.gradientEnabled as boolean)
+        : fallback.gradientEnabled,
+    gradientDirection:
+      palette?.gradientDirection === "horizontal" || palette?.gradientDirection === "vertical"
+        ? (palette?.gradientDirection as "horizontal" | "vertical")
+        : fallback.gradientDirection,
+    gradientFrom: palette?.gradientFrom || fallback.gradientFrom,
+    gradientTo: palette?.gradientTo || fallback.gradientTo,
+    surfaceColor: palette?.surfaceColor || fallback.surfaceColor,
+    panelColor: palette?.panelColor || fallback.panelColor,
+    textColor: palette?.textColor || fallback.textColor,
+    mutedColor: palette?.mutedColor || fallback.mutedColor,
+    borderColor: palette?.borderColor || fallback.borderColor,
+    buttonColor: palette?.buttonColor || fallback.buttonColor,
+    buttonTextColor: palette?.buttonTextColor || fallback.buttonTextColor,
+    radius: Number.isFinite(palette?.radius) ? (palette?.radius as number) : fallback.radius,
+    buttonRadius: Number.isFinite(palette?.buttonRadius)
+      ? (palette?.buttonRadius as number)
+      : fallback.buttonRadius,
+    blockSpacing: Number.isFinite(palette?.blockSpacing)
+      ? (palette?.blockSpacing as number)
+      : fallback.blockSpacing,
+    headingSize: Number.isFinite(palette?.headingSize)
+      ? (palette?.headingSize as number)
+      : fallback.headingSize,
+    subheadingSize: Number.isFinite(palette?.subheadingSize)
+      ? (palette?.subheadingSize as number)
+      : fallback.subheadingSize,
+    textSize: Number.isFinite(palette?.textSize)
+      ? (palette?.textSize as number)
+      : fallback.textSize,
+  });
   const normalizeBlocks = (blocks: SiteBlock[]) =>
     blocks
       .filter((block) => block && typeof block === "object")
@@ -372,52 +449,24 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     pages.home = [createMenuBlock(), ...pages.home];
   }
 
+  const mode = theme.mode === "dark" ? "dark" : "light";
+  const lightPalette = normalizePalette(
+    theme.lightPalette ?? (mode === "light" ? theme : undefined),
+    fallbackTheme.lightPalette
+  );
+  const darkPalette = normalizePalette(
+    theme.darkPalette ?? (mode === "dark" ? theme : undefined),
+    fallbackTheme.darkPalette
+  );
+  const activePalette = mode === "dark" ? darkPalette : lightPalette;
+
   return {
     version: 1,
     theme: {
-      fontHeading: theme.fontHeading || fallbackTheme.fontHeading,
-      fontBody: theme.fontBody || fallbackTheme.fontBody,
-      accentColor: theme.accentColor || fallbackTheme.accentColor,
-      shadowColor: theme.shadowColor || fallbackTheme.shadowColor,
-      shadowSize: Number.isFinite(theme.shadowSize)
-        ? theme.shadowSize
-        : fallbackTheme.shadowSize,
-      contentWidth: Number.isFinite(theme.contentWidth)
-        ? theme.contentWidth
-        : fallbackTheme.contentWidth,
-      gradientEnabled:
-        typeof theme.gradientEnabled === "boolean"
-          ? theme.gradientEnabled
-          : fallbackTheme.gradientEnabled,
-      gradientDirection:
-        theme.gradientDirection === "horizontal" || theme.gradientDirection === "vertical"
-          ? theme.gradientDirection
-          : fallbackTheme.gradientDirection,
-      gradientFrom: theme.gradientFrom || fallbackTheme.gradientFrom,
-      gradientTo: theme.gradientTo || fallbackTheme.gradientTo,
-      surfaceColor: theme.surfaceColor || fallbackTheme.surfaceColor,
-      panelColor: theme.panelColor || fallbackTheme.panelColor,
-      textColor: theme.textColor || fallbackTheme.textColor,
-      mutedColor: theme.mutedColor || fallbackTheme.mutedColor,
-      borderColor: theme.borderColor || fallbackTheme.borderColor,
-      buttonColor: theme.buttonColor || fallbackTheme.buttonColor,
-      buttonTextColor: theme.buttonTextColor || fallbackTheme.buttonTextColor,
-      radius: Number.isFinite(theme.radius) ? theme.radius : fallbackTheme.radius,
-      buttonRadius: Number.isFinite(theme.buttonRadius)
-        ? theme.buttonRadius
-        : fallbackTheme.buttonRadius,
-      blockSpacing: Number.isFinite(theme.blockSpacing)
-        ? theme.blockSpacing
-        : fallbackTheme.blockSpacing,
-      headingSize: Number.isFinite(theme.headingSize)
-        ? theme.headingSize
-        : fallbackTheme.headingSize,
-      subheadingSize: Number.isFinite(theme.subheadingSize)
-        ? theme.subheadingSize
-        : fallbackTheme.subheadingSize,
-      textSize: Number.isFinite(theme.textSize)
-        ? theme.textSize
-        : fallbackTheme.textSize,
+      ...activePalette,
+      mode,
+      lightPalette,
+      darkPalette,
     },
     blocks: pages.home,
     pages,

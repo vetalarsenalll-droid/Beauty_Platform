@@ -1,6 +1,7 @@
 import { buildBookingLink } from "@/lib/booking-links";
 import MenuSearch from "@/components/menu-search";
-import type { SiteBlock } from "@/lib/site-builder";
+import SiteThemeToggle from "@/components/site-theme-toggle";
+import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type {
   AccountProfile,
   Branding,
@@ -138,13 +139,25 @@ export function renderBlock(
   specialists: SpecialistItem[],
   promos: PromoItem[],
   workPhotos: WorkPhotos,
-  current: CurrentEntity
+  current: CurrentEntity,
+  theme: SiteTheme
 ) {
   switch (block.type) {
     case "cover":
       return renderCover(block, accountName, publicSlug, branding, locations, services, specialists);
     case "menu":
-      return renderMenu(block, accountName, publicSlug, branding, profile, locations, services, specialists, promos);
+      return renderMenu(
+        block,
+        accountName,
+        publicSlug,
+        branding,
+        profile,
+        locations,
+        services,
+        specialists,
+        promos,
+        theme
+      );
     case "about":
       return renderAbout(block, accountName, profile);
     case "locations":
@@ -277,7 +290,8 @@ function renderMenu(
   locations: LocationItem[],
   services: ServiceItem[],
   specialists: SpecialistItem[],
-  promos: PromoItem[]
+  promos: PromoItem[],
+  theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block);
@@ -292,6 +306,7 @@ function renderMenu(
   const phoneValue = phoneOverride || profile.phone || "";
   const showSearch = Boolean(data.showSearch);
   const showAccount = Boolean(data.showAccount);
+  const showThemeToggle = Boolean(data.showThemeToggle);
   const accountLink = (data.accountLink as string) || "/c";
   const showSocials = Boolean(data.showSocials);
   const socialsMode = (data.socialsMode as string) || "auto";
@@ -415,12 +430,20 @@ function renderMenu(
       <IconUser />
     </a>
   ) : null;
+  const themeToggleNode = showThemeToggle ? (
+    <SiteThemeToggle
+      mode={theme.mode}
+      lightPalette={theme.lightPalette}
+      darkPalette={theme.darkPalette}
+    />
+  ) : null;
 
   const actions = (
     <div className="flex flex-wrap items-center gap-3">
       {searchNode}
       {socialsNode}
       {accountNode}
+      {themeToggleNode}
       {ctaNode}
     </div>
   );
@@ -430,6 +453,7 @@ function renderMenu(
       {searchNode}
       {socialsNode}
       {accountNode}
+      {themeToggleNode}
       {ctaNode}
     </div>
   );
@@ -514,6 +538,7 @@ function renderMenu(
           {logoNode}
           <div className="flex items-center gap-2">
             {accountNode}
+            {themeToggleNode}
             {ctaNode}
             <details className="relative">
               <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]">

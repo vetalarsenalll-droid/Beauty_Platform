@@ -74,6 +74,14 @@
   --bp-chip-text: var(--text);
 }
 
+[data-site-theme="light"] {
+  color-scheme: light;
+}
+
+[data-site-theme="dark"] {
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-background: var(--bp-surface);
   --color-foreground: var(--bp-ink);

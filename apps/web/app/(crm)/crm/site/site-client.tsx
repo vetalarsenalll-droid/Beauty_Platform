@@ -227,6 +227,7 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     menuItems: ["home", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showButton: true,
+    showThemeToggle: false,
     ctaMode: "booking",
     phoneOverride: "",
     buttonText: "Записаться",
@@ -473,10 +474,46 @@ export default function SiteClient({
     });
   };
 
+  const applyThemePatch = (prevTheme: SiteTheme, patch: Partial<SiteTheme>): SiteTheme => {
+    const nextMode = patch.mode ?? prevTheme.mode ?? "light";
+    const lightPalette = { ...prevTheme.lightPalette };
+    const darkPalette = { ...prevTheme.darkPalette };
+    if (patch.lightPalette) {
+      Object.assign(lightPalette, patch.lightPalette);
+    }
+    if (patch.darkPalette) {
+      Object.assign(darkPalette, patch.darkPalette);
+    }
+
+    const palettePatch: Partial<SiteTheme> = { ...patch };
+    delete (palettePatch as { mode?: string }).mode;
+    delete (palettePatch as { lightPalette?: SiteTheme }).lightPalette;
+    delete (palettePatch as { darkPalette?: SiteTheme }).darkPalette;
+
+    const targetPalette = nextMode === "dark" ? darkPalette : lightPalette;
+    Object.assign(targetPalette, palettePatch);
+
+    const activePalette = nextMode === "dark" ? darkPalette : lightPalette;
+    return {
+      ...prevTheme,
+      ...activePalette,
+      mode: nextMode,
+      lightPalette,
+      darkPalette,
+    };
+  };
+
   const updateTheme = (patch: Partial<SiteTheme>) => {
     setDraft((prev) => ({
       ...prev,
-      theme: { ...prev.theme, ...patch },
+      theme: applyThemePatch(prev.theme, patch),
+    }));
+  };
+
+  const setThemeMode = (mode: "light" | "dark") => {
+    setDraft((prev) => ({
+      ...prev,
+      theme: applyThemePatch(prev.theme, { mode }),
     }));
   };
 
@@ -619,6 +656,8 @@ export default function SiteClient({
   const mainGradient = draft.theme.gradientEnabled
     ? `linear-gradient(${draft.theme.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${draft.theme.gradientFrom}, ${draft.theme.gradientTo})`
     : "none";
+  const handleThemeToggle = () =>
+    setThemeMode(draft.theme.mode === "dark" ? "light" : "dark");
 
   return (
     <div className="flex flex-col gap-6">
@@ -626,7 +665,7 @@ export default function SiteClient({
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm shadow-[var(--bp-shadow)]"
+          className="fixed bottom-6 right-6 z-50 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm shadow-[var(--bp-shadow)]"
         >
           {message}
         </div>
@@ -650,7 +689,7 @@ export default function SiteClient({
               onClick={() =>
                 setLeftPanel((prev) => (prev === "pages" ? null : "pages"))
               }
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm"
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
             >
               Страницы сайта
             </button>
@@ -660,14 +699,14 @@ export default function SiteClient({
                 setInsertIndex(0);
                 setLeftPanel((prev) => (prev === "library" ? null : "library"));
               }}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm"
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
             >
               Библиотека блоков
             </button>
             <button
               type="button"
               onClick={() => setRightPanel("global")}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm"
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
             >
               Глобальные стили
             </button>
@@ -678,8 +717,8 @@ export default function SiteClient({
               onClick={() => setPreviewMode("desktop")}
               className={`flex h-10 w-10 items-center justify-center rounded-full border ${
                 previewMode === "desktop"
-                  ? "border-[color:var(--bp-accent)] bg-white"
-                  : "border-[color:var(--bp-stroke)] bg-white"
+                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
               }`}
               aria-label="Десктоп"
               title="Десктоп"
@@ -691,8 +730,8 @@ export default function SiteClient({
               onClick={() => setPreviewMode("mobile")}
               className={`flex h-10 w-10 items-center justify-center rounded-full border ${
                 previewMode === "mobile"
-                  ? "border-[color:var(--bp-accent)] bg-white"
-                  : "border-[color:var(--bp-stroke)] bg-white"
+                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
               }`}
               aria-label="Мобильный"
               title="Мобильный"
@@ -706,7 +745,7 @@ export default function SiteClient({
                 href={publicUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-5 py-2 text-sm"
+                className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-5 py-2 text-sm"
               >
                 Открыть сайт
               </a>
@@ -714,7 +753,7 @@ export default function SiteClient({
             <button
               type="button"
               onClick={() => savePublic(false)}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-5 py-2 text-sm"
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-5 py-2 text-sm"
               disabled={saving === "public"}
             >
               Сохранить черновик
@@ -776,6 +815,7 @@ export default function SiteClient({
                   workPhotos={workPhotos}
                   theme={draft.theme}
                   currentEntity={currentEntity}
+                  onThemeToggle={handleThemeToggle}
                   onSelect={() => setSelectedId(block.id)}
                   isSelected={block.id === selectedId}
                   onOpenContent={() => {
@@ -804,7 +844,7 @@ export default function SiteClient({
             );
             })}
             {displayBlocks.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] bg-white px-4 py-10 text-center text-sm text-[color:var(--bp-muted)]">
+              <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-10 text-center text-sm text-[color:var(--bp-muted)]">
                 Добавьте блок, чтобы начать собирать страницу.
               </div>
             )}
@@ -813,7 +853,7 @@ export default function SiteClient({
 
         {leftPanel && (
           <aside
-            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: "var(--crm-sidebar-width, 272px)", top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -845,8 +885,8 @@ export default function SiteClient({
                       }}
                       className={`rounded-xl border px-3 py-2 text-left text-sm ${
                         pageKey === activePage
-                          ? "border-[color:var(--bp-accent)] bg-white"
-                          : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                          ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                       }`}
                     >
                       {PAGE_LABELS[pageKey]}
@@ -879,8 +919,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "location" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -907,8 +947,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "service" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -935,8 +975,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "specialist" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -963,8 +1003,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "promo" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -987,8 +1027,8 @@ export default function SiteClient({
                       onClick={() => setLibraryBlock(type)}
                       className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
                         libraryBlock === type
-                          ? "border-[color:var(--bp-accent)] bg-white"
-                          : "border-[color:var(--bp-stroke)] bg-white"
+                          ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                       }`}
                     >
                       <span>{BLOCK_LABELS[type]}</span>
@@ -1005,7 +1045,7 @@ export default function SiteClient({
 
         {leftPanel === "library" && libraryBlock && (
           <aside
-            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: "calc(var(--crm-sidebar-width, 272px) + 320px)", top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1047,7 +1087,7 @@ export default function SiteClient({
 
         {rightPanel && (
           <aside
-            className="fixed right-0 z-30 w-[360px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed right-0 z-30 w-[360px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1105,6 +1145,19 @@ function ThemeEditor({
   return (
     <div className="mt-4 space-y-4">
       <label className="text-sm">
+        Тема
+        <select
+          value={theme.mode}
+          onChange={(event) =>
+            onChange({ mode: event.target.value as "light" | "dark" })
+          }
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+        >
+          <option value="light">Светлая</option>
+          <option value="dark">Темная</option>
+        </select>
+      </label>
+      <label className="text-sm">
         Пара шрифтов
         <select
           value={`${theme.fontHeading}||${theme.fontBody}`}
@@ -1112,7 +1165,7 @@ function ThemeEditor({
             const [heading, body] = event.target.value.split("||");
             onChange({ fontHeading: heading, fontBody: body });
           }}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           {THEME_FONTS.map((font) => (
             <option
@@ -1199,7 +1252,7 @@ function ThemeEditor({
                   gradientDirection: event.target.value as SiteTheme["gradientDirection"],
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="vertical">Сверху вниз</option>
               <option value="horizontal">Слева направо</option>
@@ -1298,7 +1351,7 @@ function ColorField({
   return (
     <label className="text-sm">
       {label}
-      <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2">
+      <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2">
         <input
           type="color"
           value={value}
@@ -1338,7 +1391,7 @@ function NumberField({
         max={max}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
       />
     </label>
   );
@@ -1393,7 +1446,7 @@ function BlockEditor({
               variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
             })
           }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           {variantOptions.map((variant) => (
             <option key={variant} value={variant}>
@@ -1429,6 +1482,14 @@ function BlockEditor({
             />
             Иконка входа
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showThemeToggle)}
+              onChange={(event) => updateData({ showThemeToggle: event.target.checked })}
+            />
+            Переключатель темы
+          </label>
           <FieldText
             label="Ссылка на кабинет"
             value={(block.data.accountLink as string) ?? "/c"}
@@ -1439,7 +1500,7 @@ function BlockEditor({
             <select
               value={(block.data.position as string) ?? "static"}
               onChange={(event) => updateData({ position: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="static">Статика</option>
               <option value="sticky">Фиксация при скролле</option>
@@ -1458,7 +1519,7 @@ function BlockEditor({
             <select
               value={(block.data.ctaMode as string) ?? "booking"}
               onChange={(event) => updateData({ ctaMode: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="booking">Запись</option>
               <option value="phone">Телефон</option>
@@ -1487,7 +1548,7 @@ function BlockEditor({
             <select
               value={(block.data.socialsMode as string) ?? "auto"}
               onChange={(event) => updateData({ socialsMode: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="auto">Из профиля аккаунта</option>
               <option value="custom">Ввести вручную</option>
@@ -1564,7 +1625,7 @@ function BlockEditor({
             <select
               value={(block.data.align as string) ?? "left"}
               onChange={(event) => updateData({ align: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="left">Слева</option>
               <option value="center">По центру</option>
@@ -1683,7 +1744,7 @@ function BlockEditor({
                     : null,
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="">Не выбрано</option>
               {locations.map((location) => (
@@ -1704,7 +1765,7 @@ function BlockEditor({
                     : null,
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="">Не выбрано</option>
               {specialists.map((specialist) => (
@@ -1766,7 +1827,7 @@ function BlockEditor({
                     : null,
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="">Не выбрано</option>
               {locations.map((location) => (
@@ -1817,7 +1878,7 @@ function BlockEditor({
             <select
               value={(block.data.source as string) ?? "locations"}
               onChange={(event) => updateData({ source: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="locations">Локации</option>
               <option value="specialists">Специалисты</option>
@@ -1870,7 +1931,7 @@ function BlockEditor({
                   limit: event.target.value ? Number(event.target.value) : 6,
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             />
           </label>
         </>
@@ -1899,7 +1960,7 @@ function BlockEditor({
                     : null,
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="">Не выбрано</option>
               {locations.map((location) => (
@@ -2102,7 +2163,7 @@ function BlockStyleEditor({
                   gradientDirection: event.target.value as BlockStyle["gradientDirection"],
                 })
               }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             >
               <option value="vertical">Сверху вниз</option>
               <option value="horizontal">Слева направо</option>
@@ -2129,7 +2190,7 @@ function BlockStyleEditor({
           onChange={(event) =>
             update({ textAlign: event.target.value as BlockStyle["textAlign"] })
           }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           <option value="left">Слева</option>
           <option value="center">По центру</option>
@@ -2141,7 +2202,7 @@ function BlockStyleEditor({
         <select
           value={style.fontHeading || ""}
           onChange={(event) => update({ fontHeading: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           <option value="">По умолчанию</option>
           {THEME_FONTS.map((font) => (
@@ -2156,7 +2217,7 @@ function BlockStyleEditor({
         <select
           value={style.fontBody || ""}
           onChange={(event) => update({ fontBody: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           <option value="">По умолчанию</option>
           {THEME_FONTS.map((font) => (
@@ -2292,7 +2353,7 @@ function FieldText({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
       />
     </label>
   );
@@ -2314,7 +2375,7 @@ function FieldTextarea({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={5}
-        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
       />
     </label>
   );
@@ -2367,14 +2428,14 @@ function EntityListEditor({
         <select
           value={mode}
           onChange={(event) => onChange({ mode: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           <option value="all">Все</option>
           <option value="selected">Выбранные</option>
         </select>
       </label>
       {mode === "selected" && (
-        <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-white p-3 text-xs">
+        <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-xs">
           <div className="mb-2 text-[color:var(--bp-muted)]">Выберите элементы</div>
           <div className="max-h-48 space-y-2 overflow-auto pr-2">
             {items.map((item) => {
@@ -2435,7 +2496,7 @@ function CoverImageEditor({
         <select
           value={imageSource.type ?? "account"}
           onChange={(event) => setSource({ type: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           <option value="account">Профиль аккаунта</option>
           <option value="location">Локация</option>
@@ -2457,7 +2518,7 @@ function CoverImageEditor({
                 id: event.target.value ? Number(event.target.value) : undefined,
               })
             }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
           >
             <option value="">Не выбрано</option>
             {locations.map((location) => (
@@ -2480,7 +2541,7 @@ function CoverImageEditor({
                 id: event.target.value ? Number(event.target.value) : undefined,
               })
             }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
           >
             <option value="">Не выбрано</option>
             {specialists.map((specialist) => (
@@ -2503,7 +2564,7 @@ function CoverImageEditor({
                 id: event.target.value ? Number(event.target.value) : undefined,
               })
             }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
           >
             <option value="">Не выбрано</option>
             {services.map((service) => (
@@ -2538,6 +2599,7 @@ function BlockPreview({
   workPhotos,
   theme,
   currentEntity,
+  onThemeToggle,
   onSelect,
   isSelected,
   onOpenContent,
@@ -2558,6 +2620,7 @@ function BlockPreview({
   workPhotos: WorkPhotos;
   theme: SiteTheme;
   currentEntity: CurrentEntity;
+  onThemeToggle: () => void;
   onSelect: () => void;
   isSelected: boolean;
   onOpenContent: () => void;
@@ -2632,7 +2695,7 @@ function BlockPreview({
               event.stopPropagation();
               onOpenContent();
             }}
-            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-white px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
             aria-label="Контент блока"
             title="Контент"
           >
@@ -2644,7 +2707,7 @@ function BlockPreview({
               event.stopPropagation();
               onOpenSettings();
             }}
-            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-white px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
             aria-label="Настройки блока"
             title="Настройки"
           >
@@ -2659,7 +2722,7 @@ function BlockPreview({
                 event.stopPropagation();
                 onMoveUp();
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-xs text-[color:var(--bp-ink)] shadow-sm"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-xs text-[color:var(--bp-ink)] shadow-sm"
               aria-label="Переместить вверх"
               title="Вверх"
             >
@@ -2671,7 +2734,7 @@ function BlockPreview({
                 event.stopPropagation();
                 onMoveDown();
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-xs text-[color:var(--bp-ink)] shadow-sm"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-xs text-[color:var(--bp-ink)] shadow-sm"
               aria-label="Переместить вниз"
               title="Вниз"
             >
@@ -2683,7 +2746,7 @@ function BlockPreview({
                 event.stopPropagation();
                 onRemove();
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-white text-xs text-red-600 shadow-sm"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-[color:var(--bp-paper)] text-xs text-red-600 shadow-sm"
               aria-label="Удалить блок"
               title="Удалить"
             >
@@ -2702,7 +2765,8 @@ function BlockPreview({
             promos,
             workPhotos,
             theme,
-            currentEntity
+            currentEntity,
+            onThemeToggle
           )}
       </div>
     </div>
@@ -2728,7 +2792,7 @@ function InsertSlot({
       <button
         type="button"
         onClick={onInsert}
-        className="absolute z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-sm text-[color:var(--bp-ink)] shadow-sm"
+        className="absolute z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm text-[color:var(--bp-ink)] shadow-sm"
         style={{ top, left: "50%", transform: "translate(-50%, -50%)" }}
         aria-label={`Добавить блок ${index}`}
         title="Добавить блок"
@@ -2750,7 +2814,8 @@ function renderBlock(
   promos: PromoItem[],
   workPhotos: WorkPhotos,
   theme: SiteTheme,
-  currentEntity: CurrentEntity
+  currentEntity: CurrentEntity,
+  onThemeToggle: () => void
 ) {
   const style = normalizeBlockStyle(block, theme);
   switch (block.type) {
@@ -2776,7 +2841,8 @@ function renderBlock(
         specialists,
         promos,
         theme,
-        style
+        style,
+        onThemeToggle
       );
     case "about":
       return renderAbout(block, account, accountProfile, theme, style);
@@ -2979,7 +3045,8 @@ function renderMenuBlock(
   specialists: SpecialistItem[],
   promos: PromoItem[],
   theme: SiteTheme,
-  style: BlockStyle
+  style: BlockStyle,
+  onThemeToggle: () => void
 ) {
   const data = block.data as Record<string, unknown>;
   const menuItems = Array.isArray(data.menuItems)
@@ -2987,6 +3054,7 @@ function renderMenuBlock(
     : PAGE_KEYS;
   const showLogo = data.showLogo !== false;
   const showButton = Boolean(data.showButton);
+  const showThemeToggle = Boolean(data.showThemeToggle);
   const ctaMode = (data.ctaMode as string) || "booking";
   const phoneValue =
     (data.phoneOverride as string) || accountProfile.phone || "";
@@ -3024,13 +3092,24 @@ function renderMenuBlock(
   const accountIcon = (
     <a
       href={accountLink}
-      className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-sm"
+      className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm"
       title="Личный кабинет"
       aria-label="Личный кабинет"
     >
       <IconUser />
     </a>
   );
+  const themeToggleNode = showThemeToggle ? (
+    <button
+      type="button"
+      onClick={onThemeToggle}
+      className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm"
+      aria-label="Переключить тему"
+      title="Переключить тему"
+    >
+      {theme.mode === "dark" ? "D" : "L"}
+    </button>
+  ) : null;
 
   const socialsAuto: Record<string, string | undefined> = {
     website: accountProfile.websiteUrl,
@@ -3064,7 +3143,7 @@ function renderMenuBlock(
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white"
+            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
             title={SOCIAL_LABELS[item.key]}
           >
             <img src={SOCIAL_ICONS[item.key]} alt="" className="h-7 w-7" />
@@ -3108,6 +3187,7 @@ function renderMenuBlock(
       searchNode={searchNode}
       socialsNode={socialsNode}
       accountNode={showAccount ? accountIcon : null}
+      themeToggleNode={themeToggleNode}
       ctaNode={ctaNode}
       position={position}
     />
@@ -3122,6 +3202,7 @@ function MenuPreview({
   searchNode,
   socialsNode,
   accountNode,
+  themeToggleNode,
   ctaNode,
   position,
 }: {
@@ -3132,6 +3213,7 @@ function MenuPreview({
   searchNode: React.ReactNode | null;
   socialsNode: React.ReactNode | null;
   accountNode: React.ReactNode | null;
+  themeToggleNode: React.ReactNode | null;
   ctaNode: React.ReactNode | null;
   position: "static" | "sticky";
 }) {
@@ -3142,6 +3224,7 @@ function MenuPreview({
       {searchNode}
       {socialsNode}
       {accountNode}
+      {themeToggleNode}
       {ctaNode}
     </div>
   );
@@ -3216,7 +3299,7 @@ function MenuPreview({
             {ctaNode}
             <button
               type="button"
-              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
               onClick={() => setMobileOpen((prev) => !prev)}
               aria-label="Меню"
             >
@@ -3225,7 +3308,7 @@ function MenuPreview({
           </div>
         </div>
         {mobileOpen && (
-          <div className="mt-4 space-y-3 rounded-xl border border-[color:var(--bp-stroke)] bg-white p-4">
+          <div className="mt-4 space-y-3 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
             {searchNode}
             <div className="flex flex-col gap-2">{navNode}</div>
             {socialsNode}
@@ -3769,3 +3852,4 @@ function renderContacts(
     </div>
   );
 }
+

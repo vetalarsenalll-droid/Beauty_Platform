@@ -37,6 +37,10 @@ export default async function PublicServicesPage({ params }: PageProps) {
     "--bp-ink": data.draft.theme.textColor,
     "--bp-muted": data.draft.theme.mutedColor,
     "--bp-stroke": data.draft.theme.borderColor,
+    "--site-surface": data.draft.theme.surfaceColor,
+    "--site-panel": data.draft.theme.panelColor,
+    "--site-text": data.draft.theme.textColor,
+    "--site-muted": data.draft.theme.mutedColor,
     "--site-font-heading": data.draft.theme.fontHeading,
     "--site-font-body": data.draft.theme.fontBody,
     "--site-border": data.draft.theme.borderColor,
@@ -50,19 +54,20 @@ export default async function PublicServicesPage({ params }: PageProps) {
     "--site-h1": `${data.draft.theme.headingSize}px`,
     "--site-h2": `${data.draft.theme.subheadingSize}px`,
     "--site-text-size": `${data.draft.theme.textSize}px`,
+    "--site-gradient": mainGradient,
   };
 
   return (
     <main
+      id="public-site-root"
+      data-site-theme={data.draft.theme.mode}
       className="min-h-screen pb-16"
       style={{
         ...themeStyle,
-        backgroundColor: data.draft.theme.gradientEnabled
-          ? data.draft.theme.gradientFrom
-          : data.draft.theme.surfaceColor,
-        backgroundImage: mainGradient,
-        color: data.draft.theme.textColor,
-        fontFamily: data.draft.theme.fontBody,
+        backgroundColor: "var(--site-surface)",
+        backgroundImage: "var(--site-gradient)",
+        color: "var(--site-text)",
+        fontFamily: "var(--site-font-body)",
       }}
     >
       <div className="mx-auto flex w-full flex-col px-6 py-12" style={{ gap: blockGap }}>
@@ -74,19 +79,17 @@ export default async function PublicServicesPage({ params }: PageProps) {
               : null;
           const isMenuSticky = block.type === "menu" && menuPosition === "sticky";
           const blockShadowSize =
-            typeof style.shadowSize === "number"
-              ? style.shadowSize
-              : shadowSize;
+            typeof style.shadowSize === "number" ? style.shadowSize : null;
           const blockShadowColor =
             typeof style.shadowColor === "string" && style.shadowColor
               ? style.shadowColor
-              : shadowColor;
+              : null;
           const radius =
-            typeof style.radius === "number" ? style.radius : data.draft.theme.radius;
+            typeof style.radius === "number" ? style.radius : "var(--site-radius)";
           const bg =
             typeof style.blockBg === "string" && style.blockBg
               ? style.blockBg
-              : data.draft.theme.panelColor;
+              : "var(--bp-panel)";
           const gradientEnabled = Boolean(style.gradientEnabled);
           const gradientDirection =
             style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
@@ -100,18 +103,19 @@ export default async function PublicServicesPage({ params }: PageProps) {
             typeof style.gradientTo === "string" && style.gradientTo
               ? style.gradientTo
               : data.draft.theme.gradientTo;
-          const borderColor =
+          const borderColorOverride =
             typeof style.borderColor === "string" && style.borderColor
               ? style.borderColor
-              : data.draft.theme.borderColor;
+              : null;
+          const borderColor = borderColorOverride ?? "var(--bp-stroke)";
           const textColor =
             typeof style.textColor === "string" && style.textColor
               ? style.textColor
-              : data.draft.theme.textColor;
+              : "var(--bp-ink)";
           const mutedColor =
             typeof style.mutedColor === "string" && style.mutedColor
               ? style.mutedColor
-              : data.draft.theme.mutedColor;
+              : "var(--bp-muted)";
           const blockWidth =
             typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
           return (
@@ -129,9 +133,9 @@ export default async function PublicServicesPage({ params }: PageProps) {
                   : "none",
                 borderColor,
                 boxShadow:
-                  blockShadowSize > 0
-                    ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor}`
-                    : "none",
+                  blockShadowSize !== null
+                    ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
+                    : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
                 marginTop: typeof style.marginTop === "number" ? style.marginTop : 0,
                 marginBottom:
                   typeof style.marginBottom === "number" ? style.marginBottom : 0,
@@ -142,8 +146,12 @@ export default async function PublicServicesPage({ params }: PageProps) {
                 boxSizing: "border-box",
                 color: textColor,
                 ["--bp-muted" as string]: mutedColor,
-                ["--bp-stroke" as string]: borderColor,
-                ["--site-border" as string]: borderColor,
+                ...(borderColorOverride
+                  ? {
+                      ["--bp-stroke" as string]: borderColorOverride,
+                      ["--site-border" as string]: borderColorOverride,
+                    }
+                  : {}),
               }}
             >
               {renderBlock(
@@ -157,7 +165,8 @@ export default async function PublicServicesPage({ params }: PageProps) {
                 data.specialists,
                 data.promos,
                 data.workPhotos,
-                null
+                null,
+                data.draft.theme
               )}
             </section>
           );
