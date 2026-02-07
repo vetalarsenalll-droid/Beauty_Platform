@@ -1,4 +1,5 @@
 import { buildBookingLink } from "@/lib/booking-links";
+import MenuSearch from "@/components/menu-search";
 import type { SiteBlock } from "@/lib/site-builder";
 import type {
   AccountProfile,
@@ -13,6 +14,50 @@ import type {
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
   | null;
+
+const PAGE_LABELS = {
+  home: "Главная",
+  locations: "Локации",
+  services: "Услуги",
+  specialists: "Специалисты",
+  promos: "Промо/скидки",
+} as const;
+
+type PageKey = keyof typeof PAGE_LABELS;
+
+const SOCIAL_ICONS: Record<string, string> = {
+  website: "/assets/socials/website.png",
+  instagram: "/assets/socials/instagram.png",
+  whatsapp: "/assets/socials/whatsapp.png",
+  telegram: "/assets/socials/telegram.png",
+  max: "/assets/socials/max.png",
+  vk: "/assets/socials/vk.png",
+  viber: "/assets/socials/viber.png",
+  pinterest: "/assets/socials/pinterest.png",
+  facebook: "/assets/socials/Facebook_black.png",
+  tiktok: "/assets/socials/TikTok_black.png",
+  youtube: "/assets/socials/YouTube_black.png",
+  twitter: "/assets/socials/Twitter_black.png",
+  dzen: "/assets/socials/Dzen_black.png",
+  ok: "/assets/socials/Ok_black.png",
+};
+
+const SOCIAL_LABELS: Record<string, string> = {
+  website: "Сайт",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+  telegram: "Telegram",
+  max: "MAX",
+  vk: "VK",
+  viber: "Viber",
+  pinterest: "Pinterest",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  twitter: "Twitter",
+  dzen: "Дзен",
+  ok: "Одноклассники",
+};
 
 type BlockStyle = {
   marginTop?: number;
@@ -98,6 +143,8 @@ export function renderBlock(
   switch (block.type) {
     case "cover":
       return renderCover(block, accountName, publicSlug, branding, locations, services, specialists);
+    case "menu":
+      return renderMenu(block, accountName, publicSlug, branding, profile, locations, services, specialists, promos);
     case "about":
       return renderAbout(block, accountName, profile);
     case "locations":
@@ -141,6 +188,7 @@ function renderCover(
   specialists: SpecialistItem[]
 ) {
   const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block);
   const title = (data.title as string) || accountName;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
@@ -169,7 +217,8 @@ function renderCover(
         {showButton && publicSlug && (
           <a
             href={buildBookingLink({ publicSlug })}
-            className="mt-5 inline-flex rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white"
+            className="mt-5 inline-flex rounded-full px-5 py-2 text-sm font-semibold"
+            style={buttonStyle(style)}
           >
             {buttonText}
           </a>
@@ -180,6 +229,306 @@ function renderCover(
           <img src={imageUrl} alt="" className="h-56 w-full object-cover" />
         </div>
       )}
+    </div>
+  );
+}
+
+function headingStyle(style: BlockStyle) {
+  return {
+    fontFamily: style.fontHeading || "var(--site-font-heading)",
+    fontSize: style.headingSize ? `${style.headingSize}px` : "var(--site-h1)",
+    textAlign: style.textAlign ?? "left",
+    color: style.textColor || "var(--bp-ink)",
+  } as const;
+}
+
+function subheadingStyle(style: BlockStyle) {
+  return {
+    fontFamily: style.fontBody || "var(--site-font-body)",
+    fontSize: style.subheadingSize ? `${style.subheadingSize}px` : "var(--site-h2)",
+    textAlign: style.textAlign ?? "left",
+    color: style.mutedColor || "var(--bp-muted)",
+  } as const;
+}
+
+function textStyle(style: BlockStyle) {
+  return {
+    fontFamily: style.fontBody || "var(--site-font-body)",
+    fontSize: style.textSize ? `${style.textSize}px` : "var(--site-text-size)",
+    textAlign: style.textAlign ?? "left",
+    color: style.mutedColor || "var(--bp-muted)",
+  } as const;
+}
+
+function buttonStyle(style: BlockStyle) {
+  return {
+    backgroundColor: style.buttonColor || "var(--site-button)",
+    color: style.buttonTextColor || "var(--site-button-text)",
+    borderRadius: style.buttonRadius !== null ? style.buttonRadius : "var(--site-button-radius)",
+  } as const;
+}
+
+function renderMenu(
+  block: SiteBlock,
+  accountName: string,
+  publicSlug: string,
+  branding: Branding,
+  profile: AccountProfile,
+  locations: LocationItem[],
+  services: ServiceItem[],
+  specialists: SpecialistItem[],
+  promos: PromoItem[]
+) {
+  const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block);
+  const menuItems = Array.isArray(data.menuItems)
+    ? (data.menuItems as PageKey[]).filter((item) => item in PAGE_LABELS)
+    : (Object.keys(PAGE_LABELS) as PageKey[]);
+  const showLogo = data.showLogo !== false;
+  const showButton = data.showButton !== false;
+  const ctaMode = (data.ctaMode as string) || "booking";
+  const phoneOverride =
+    typeof data.phoneOverride === "string" ? data.phoneOverride.trim() : "";
+  const phoneValue = phoneOverride || profile.phone || "";
+  const showSearch = Boolean(data.showSearch);
+  const showAccount = Boolean(data.showAccount);
+  const accountLink = (data.accountLink as string) || "/c";
+  const showSocials = Boolean(data.showSocials);
+  const socialsMode = (data.socialsMode as string) || "auto";
+  const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
+  const buttonText = (data.buttonText as string) || "Записаться";
+  const basePath = publicSlug ? `/${publicSlug}` : "#";
+
+  const logoNode = showLogo ? (
+    branding.logoUrl ? (
+      <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
+    ) : (
+      <div className="text-sm font-semibold">{accountName}</div>
+    )
+  ) : null;
+
+  const linkItems = menuItems.map((key) => {
+    const href =
+      key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
+    return (
+      <a
+        key={key}
+        href={href}
+        className="text-sm font-medium"
+        style={{ color: style.textColor || "var(--bp-ink)" }}
+      >
+        {PAGE_LABELS[key]}
+      </a>
+    );
+  });
+
+  const socialsAuto: Record<string, string | null | undefined> = {
+    website: profile.websiteUrl,
+    instagram: profile.instagramUrl,
+    whatsapp: profile.whatsappUrl,
+    telegram: profile.telegramUrl,
+    max: profile.maxUrl,
+    vk: profile.vkUrl,
+    viber: profile.viberUrl,
+    pinterest: profile.pinterestUrl,
+    facebook: profile.facebookUrl,
+    tiktok: profile.tiktokUrl,
+    youtube: profile.youtubeUrl,
+    twitter: profile.twitterUrl,
+    dzen: profile.dzenUrl,
+    ok: profile.okUrl,
+  };
+
+  const socialEntries = Object.keys(SOCIAL_ICONS)
+    .map((key) => {
+      const raw =
+        socialsMode === "custom" ? socialsCustom[key] : socialsAuto[key];
+      const value = typeof raw === "string" ? raw.trim() : "";
+      if (!value) return null;
+      const href = value.startsWith("http") ? value : `https://${value}`;
+      return { key, href };
+    })
+    .filter(Boolean) as Array<{ key: string; href: string }>;
+
+  const socialsNode =
+    showSocials && socialEntries.length > 0 ? (
+      <div className="flex flex-wrap items-center gap-2">
+        {socialEntries.map((item) => (
+          <a
+            key={item.key}
+            href={item.href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]"
+            title={SOCIAL_LABELS[item.key] ?? item.key}
+            aria-label={SOCIAL_LABELS[item.key] ?? item.key}
+          >
+            <img
+              src={SOCIAL_ICONS[item.key]}
+              alt={SOCIAL_LABELS[item.key] ?? item.key}
+              className="h-5 w-5"
+            />
+          </a>
+        ))}
+      </div>
+    ) : null;
+
+  const canBook = Boolean(publicSlug);
+  const canPhone = Boolean(phoneValue);
+  const usePhone = ctaMode === "phone" && canPhone;
+  const showCta = showButton && (canBook || canPhone);
+
+  const ctaNode = showCta ? (
+    <a
+      href={
+        usePhone
+          ? `tel:${phoneValue}`
+          : canBook
+            ? buildBookingLink({ publicSlug })
+            : "#"
+      }
+      className="inline-flex px-4 py-2 text-sm font-semibold"
+      style={buttonStyle(style)}
+    >
+      {usePhone ? phoneValue : buttonText}
+    </a>
+  ) : null;
+
+  const searchNode =
+    showSearch && publicSlug ? (
+      <MenuSearch
+        publicSlug={publicSlug}
+        locations={locations.map((item) => ({ id: item.id, name: item.name }))}
+        services={services.map((item) => ({ id: item.id, name: item.name }))}
+        specialists={specialists.map((item) => ({ id: item.id, name: item.name }))}
+        promos={promos.map((item) => ({ id: item.id, name: item.name }))}
+      />
+    ) : null;
+
+  const accountNode = showAccount ? (
+    <a
+      href={accountLink}
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]"
+      aria-label="Личный кабинет"
+      title="Личный кабинет"
+    >
+      <IconUser />
+    </a>
+  ) : null;
+
+  const actions = (
+    <div className="flex flex-wrap items-center gap-3">
+      {searchNode}
+      {socialsNode}
+      {accountNode}
+      {ctaNode}
+    </div>
+  );
+
+  const actionsCentered = (
+    <div className="flex flex-wrap items-center justify-center gap-3">
+      {searchNode}
+      {socialsNode}
+      {accountNode}
+      {ctaNode}
+    </div>
+  );
+
+  const navNode = (
+    <div className="flex flex-wrap items-center gap-4">{linkItems}</div>
+  );
+
+  const navPills = (
+    <div className="flex flex-wrap items-center gap-2">
+      {menuItems.map((key) => {
+        const href =
+          key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
+        return (
+          <a
+            key={key}
+            href={href}
+            className="rounded-full border border-[color:var(--site-border)] px-3 py-1 text-xs"
+          >
+            {PAGE_LABELS[key]}
+          </a>
+        );
+      })}
+    </div>
+  );
+
+  let desktopLayout = (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      {logoNode}
+      {navNode}
+      {actions}
+    </div>
+  );
+
+  if (block.variant === "v2") {
+    desktopLayout = (
+      <div className="flex flex-col items-center gap-4 text-center">
+        {logoNode}
+        {navNode}
+        {actionsCentered}
+      </div>
+    );
+  }
+
+  if (block.variant === "v3") {
+    desktopLayout = (
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {logoNode}
+          {navNode}
+        </div>
+        {actions}
+      </div>
+    );
+  }
+
+  if (block.variant === "v4") {
+    desktopLayout = (
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {logoNode}
+        {navPills}
+        {actions}
+      </div>
+    );
+  }
+
+  if (block.variant === "v5") {
+    desktopLayout = (
+      <div className="flex flex-col items-center gap-3">
+        {logoNode}
+        {navNode}
+        {actionsCentered}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      <div className="hidden md:block">{desktopLayout}</div>
+      <div className="md:hidden">
+        <div className="flex items-center justify-between gap-3">
+          {logoNode}
+          <div className="flex items-center gap-2">
+            {accountNode}
+            {ctaNode}
+            <details className="relative">
+              <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]">
+                <IconMenu />
+              </summary>
+              <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[color:var(--site-border)] bg-[color:var(--bp-panel)] p-4 shadow-lg">
+                {searchNode && <div className="mb-3">{searchNode}</div>}
+                <div className="flex flex-col gap-2">{linkItems}</div>
+                {socialsNode && <div className="mt-3">{socialsNode}</div>}
+                {ctaNode && <div className="mt-3">{ctaNode}</div>}
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -206,6 +555,41 @@ function resolveCoverImage(
   return null;
 }
 
+function IconUser() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" />
+      <path d="M4 20a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+function IconMenu() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+    >
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  );
+}
+
 function renderAbout(block: SiteBlock, accountName: string, profile: AccountProfile) {
   const data = block.data as Record<string, unknown>;
   const text = (data.text as string) || profile.description || "";
@@ -230,6 +614,7 @@ function renderLocations(
   current: CurrentEntity
 ) {
   const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block);
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
@@ -286,6 +671,7 @@ function renderLocations(
                   scenario: "serviceFirst",
                 })}
                 className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
+                style={buttonStyle(style)}
               >
                 {buttonText}
               </a>
@@ -309,6 +695,7 @@ function renderServices(
   current: CurrentEntity
 ) {
   const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block);
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
@@ -374,6 +761,7 @@ function renderServices(
                   scenario: specialistId ? "specialistFirst" : "serviceFirst",
                 })}
                 className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
+                style={buttonStyle(style)}
               >
                 {buttonText}
               </a>
@@ -397,6 +785,7 @@ function renderSpecialists(
   current: CurrentEntity
 ) {
   const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block);
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
@@ -454,6 +843,7 @@ function renderSpecialists(
                   scenario: "specialistFirst",
                 })}
                 className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
+                style={buttonStyle(style)}
               >
                 {buttonText}
               </a>
