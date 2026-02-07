@@ -14,6 +14,74 @@ export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
   | null;
 
+type BlockStyle = {
+  marginTop?: number;
+  marginBottom?: number;
+  blockWidth?: number | null;
+  useCustomWidth?: boolean;
+  radius?: number | null;
+  buttonRadius?: number | null;
+  blockBg?: string;
+  borderColor?: string;
+  buttonColor?: string;
+  buttonTextColor?: string;
+  textColor?: string;
+  mutedColor?: string;
+  shadowColor?: string;
+  shadowSize?: number | null;
+  gradientEnabled?: boolean;
+  gradientDirection?: "vertical" | "horizontal";
+  gradientFrom?: string;
+  gradientTo?: string;
+  textAlign?: "left" | "center" | "right";
+  fontHeading?: string;
+  fontBody?: string;
+  headingSize?: number | null;
+  subheadingSize?: number | null;
+  textSize?: number | null;
+};
+
+export function normalizeStyle(block: SiteBlock): BlockStyle {
+  const style = (block.data.style as BlockStyle) ?? {};
+  const numOrNull = (value?: number | string | null) => {
+    const parsed =
+      typeof value === "string" ? Number(value) : (value as number | null | undefined);
+    return Number.isFinite(parsed) ? (parsed as number) : null;
+  };
+  const useCustomWidth = style.useCustomWidth === true;
+  return {
+    marginTop: Number.isFinite(style.marginTop) ? (style.marginTop as number) : 0,
+    marginBottom: Number.isFinite(style.marginBottom)
+      ? (style.marginBottom as number)
+      : 0,
+    blockWidth: useCustomWidth ? numOrNull(style.blockWidth) : null,
+    useCustomWidth,
+    radius: numOrNull(style.radius),
+    buttonRadius: numOrNull(style.buttonRadius),
+    blockBg: style.blockBg ?? "",
+    borderColor: style.borderColor ?? "",
+    buttonColor: style.buttonColor ?? "",
+    buttonTextColor: style.buttonTextColor ?? "",
+    textColor: style.textColor ?? "",
+    mutedColor: style.mutedColor ?? "",
+    shadowColor: style.shadowColor ?? "",
+    shadowSize: numOrNull(style.shadowSize),
+    gradientEnabled: Boolean(style.gradientEnabled),
+    gradientDirection:
+      style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? style.gradientDirection
+        : "vertical",
+    gradientFrom: style.gradientFrom ?? "",
+    gradientTo: style.gradientTo ?? "",
+    textAlign: style.textAlign ?? "left",
+    fontHeading: style.fontHeading ?? "",
+    fontBody: style.fontBody ?? "",
+    headingSize: numOrNull(style.headingSize),
+    subheadingSize: numOrNull(style.subheadingSize),
+    textSize: numOrNull(style.textSize),
+  };
+}
+
 export function renderBlock(
   block: SiteBlock,
   accountName: string,

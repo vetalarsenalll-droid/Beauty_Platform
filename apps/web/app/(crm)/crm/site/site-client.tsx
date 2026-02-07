@@ -8,12 +8,19 @@ import {
   type BlockType,
   type SiteBlock,
   type SiteDraft,
+  type SitePages,
   type SiteTheme,
   makeBlockId,
   normalizeDraft,
   type SitePageKey,
 } from "@/lib/site-builder";
 import { buildBookingLink } from "@/lib/booking-links";
+import MenuSearch from "@/components/menu-search";
+
+type CurrentEntity =
+  | { type: "location" | "service" | "specialist" | "promo"; id: number }
+  | null;
+type EntityPageKey = Exclude<SitePageKey, "home">;
 
 type PublicPageData = {
   id: number;
@@ -59,7 +66,7 @@ type SpecialistItem = {
 type PromoItem = {
   id: number;
   name: string;
-  type: "PERCENT" | "FIXED";
+  type: "PERCENT" | "FIXED" | "BUNDLE";
   value: number;
   startsAt: string | null;
   endsAt: string | null;
@@ -82,6 +89,12 @@ type AccountProfile = {
   instagramUrl?: string;
   whatsappUrl?: string;
   telegramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
+  youtubeUrl?: string;
+  twitterUrl?: string;
+  dzenUrl?: string;
+  okUrl?: string;
   maxUrl?: string;
   vkUrl?: string;
   viberUrl?: string;
@@ -105,9 +118,12 @@ type SiteClientProps = {
   workPhotos: WorkPhotos;
 };
 
-const variantsLabel: Record<"v1" | "v2", string> = {
+const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
   v1: "Вариант 1",
   v2: "Вариант 2",
+  v3: "Вариант 3",
+  v4: "Вариант 4",
+  v5: "Вариант 5",
 };
 
 const PAGE_LABELS: Record<SitePageKey, string> = {
@@ -120,12 +136,80 @@ const PAGE_LABELS: Record<SitePageKey, string> = {
 
 const PAGE_KEYS = Object.keys(PAGE_LABELS) as SitePageKey[];
 
+const SOCIAL_ICONS: Record<string, string> = {
+  website: "/assets/socials/website.png",
+  instagram: "/assets/socials/instagram.png",
+  whatsapp: "/assets/socials/whatsapp.png",
+  telegram: "/assets/socials/telegram.png",
+  max: "/assets/socials/max.png",
+  vk: "/assets/socials/vk.png",
+  viber: "/assets/socials/viber.png",
+  pinterest: "/assets/socials/pinterest.png",
+  facebook: "/assets/socials/Facebook_black.png",
+  tiktok: "/assets/socials/TikTok_black.png",
+  youtube: "/assets/socials/YouTube_black.png",
+  twitter: "/assets/socials/Twitter_black.png",
+  dzen: "/assets/socials/Dzen_black.png",
+  ok: "/assets/socials/Ok_black.png",
+};
+
+const SOCIAL_LABELS: Record<string, string> = {
+  website: "Сайт",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+  telegram: "Telegram",
+  max: "MAX",
+  vk: "VK",
+  viber: "Viber",
+  pinterest: "Pinterest",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  twitter: "Twitter",
+  dzen: "Дзен",
+  ok: "Одноклассники",
+};
+
 const THEME_FONTS = [
   { label: "Prata", heading: "Prata, serif", body: "Manrope, sans-serif" },
   { label: "Playfair", heading: "\"Playfair Display\", serif", body: "Manrope, sans-serif" },
   { label: "Manrope", heading: "Manrope, sans-serif", body: "Manrope, sans-serif" },
   { label: "Montserrat", heading: "Montserrat, sans-serif", body: "Montserrat, sans-serif" },
+  { label: "Lora", heading: "Lora, serif", body: "Manrope, sans-serif" },
+  { label: "Cormorant", heading: "\"Cormorant Garamond\", serif", body: "Manrope, sans-serif" },
+  { label: "Raleway", heading: "Raleway, sans-serif", body: "Raleway, sans-serif" },
+  { label: "Nunito", heading: "Nunito, sans-serif", body: "Nunito, sans-serif" },
+  { label: "Oswald", heading: "Oswald, sans-serif", body: "Manrope, sans-serif" },
+  { label: "PT Serif", heading: "\"PT Serif\", serif", body: "PT Sans, sans-serif" },
+  { label: "Inter", heading: "Inter, sans-serif", body: "Inter, sans-serif" },
+  { label: "DM Sans", heading: "\"DM Sans\", sans-serif", body: "\"DM Sans\", sans-serif" },
 ];
+
+const defaultBlockStyle = {
+  marginTop: 0,
+  marginBottom: 0,
+  blockWidth: null,
+  radius: null,
+  buttonRadius: null,
+  blockBg: "",
+  borderColor: "",
+  buttonColor: "",
+  buttonTextColor: "",
+  textColor: "",
+  mutedColor: "",
+  shadowColor: "",
+  shadowSize: null,
+  gradientEnabled: false,
+  gradientDirection: "vertical",
+  gradientFrom: "",
+  gradientTo: "",
+  textAlign: "left",
+  fontHeading: "",
+  fontBody: "",
+  headingSize: null,
+  subheadingSize: null,
+  textSize: null,
+};
 
 const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
   cover: {
@@ -136,19 +220,58 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     showButton: true,
     align: "left",
     imageSource: { type: "account" },
+    style: defaultBlockStyle,
+  },
+  menu: {
+    title: "Меню",
+    menuItems: ["home", "locations", "services", "specialists", "promos"],
+    showLogo: true,
+    showButton: true,
+    ctaMode: "booking",
+    phoneOverride: "",
+    buttonText: "Записаться",
+    showSearch: false,
+    showAccount: false,
+    accountLink: "/c",
+    showSocials: false,
+    position: "static",
+    socialsMode: "auto",
+    socialsCustom: {
+      website: "",
+      instagram: "",
+      whatsapp: "",
+      telegram: "",
+      max: "",
+      vk: "",
+      viber: "",
+      pinterest: "",
+      facebook: "",
+      tiktok: "",
+      youtube: "",
+      twitter: "",
+      dzen: "",
+      ok: "",
+    },
+    align: "left",
+    style: defaultBlockStyle,
   },
   about: {
     title: "О нас",
     text: "",
     showContacts: true,
+    style: defaultBlockStyle,
   },
   locations: {
     title: "Локации",
     subtitle: "Выберите удобное место",
     mode: "all",
     ids: [],
+    showAddress: true,
+    showPhone: true,
+    showContacts: false,
     showButton: true,
     buttonText: "Записаться",
+    style: defaultBlockStyle,
   },
   services: {
     title: "Услуги",
@@ -161,6 +284,7 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     buttonText: "Записаться",
     locationId: null,
     specialistId: null,
+    style: defaultBlockStyle,
   },
   specialists: {
     title: "Специалисты",
@@ -170,6 +294,7 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     locationId: null,
     showButton: true,
     buttonText: "Записаться",
+    style: defaultBlockStyle,
   },
   works: {
     title: "Работы",
@@ -177,17 +302,21 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     source: "locations",
     mode: "all",
     ids: [],
+    useCurrent: false,
+    style: defaultBlockStyle,
   },
   reviews: {
     title: "Отзывы",
     subtitle: "Что говорят клиенты",
     limit: 6,
+    style: defaultBlockStyle,
   },
   contacts: {
     title: "Контакты",
     subtitle: "Связаться с нами",
     locationId: null,
     showMap: false,
+    style: defaultBlockStyle,
   },
   promos: {
     title: "Промо и скидки",
@@ -197,15 +326,23 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     useCurrent: false,
     showButton: false,
     buttonText: "Записаться",
+    style: defaultBlockStyle,
   },
 };
 
 function createBlock(type: BlockType): SiteBlock {
+  const base = defaultBlockData[type];
   return {
     id: makeBlockId(),
     type,
     variant: "v1",
-    data: { ...defaultBlockData[type] },
+    data: {
+      ...base,
+      style: {
+        ...defaultBlockStyle,
+        ...(typeof base.style === "object" && base.style ? base.style : {}),
+      },
+    },
   };
 }
 
@@ -225,34 +362,114 @@ export default function SiteClient({
     normalizeDraft(initialPublicPage.draftJson)
   );
   const [activePage, setActivePage] = useState<SitePageKey>("home");
-  const activeBlocks = draft.pages?.[activePage] ?? draft.blocks;
+  const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
+
+  const ensurePages = (value: SiteDraft): SitePages =>
+    value.pages ?? {
+      home: value.blocks,
+      locations: [],
+      services: [],
+      specialists: [],
+      promos: [],
+    };
+
+  const ensureEntityPages = (
+    value: SiteDraft
+  ): Record<EntityPageKey, Record<string, SiteBlock[]>> =>
+    ({
+      locations: value.entityPages?.locations ?? {},
+      services: value.entityPages?.services ?? {},
+      specialists: value.entityPages?.specialists ?? {},
+      promos: value.entityPages?.promos ?? {},
+    }) as Record<EntityPageKey, Record<string, SiteBlock[]>>;
+
+  const resolveEntityPageKey = (entity: CurrentEntity): EntityPageKey | null => {
+    if (!entity) return null;
+    if (entity.type === "location") return "locations";
+    if (entity.type === "service") return "services";
+    if (entity.type === "specialist") return "specialists";
+    if (entity.type === "promo") return "promos";
+    return null;
+  };
+
+  const homeBlocks = draft.pages?.home ?? draft.blocks;
+  const entityPageKey = resolveEntityPageKey(currentEntity);
+  const entityId = currentEntity ? String(currentEntity.id) : null;
+  const entityBlocks =
+    entityPageKey && entityId ? draft.entityPages?.[entityPageKey]?.[entityId] : null;
+  const activePageKey: SitePageKey = entityPageKey ?? activePage;
+  const pageBlocks: SiteBlock[] = entityPageKey
+    ? entityBlocks ?? []
+    : draft.pages?.[activePageKey] ?? draft.blocks;
+  const sharedMenuBlock =
+    activePage === "home" ? null : homeBlocks.find((block) => block.type === "menu") ?? null;
+  const displayBlocks: SiteBlock[] = sharedMenuBlock
+    ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.id !== sharedMenuBlock.id)]
+    : pageBlocks;
   const [selectedId, setSelectedId] = useState<string | null>(
-    activeBlocks[0]?.id ?? null
+    displayBlocks[0]?.id ?? null
   );
+  const [leftPanel, setLeftPanel] = useState<"pages" | "library" | null>(null);
+  const [libraryBlock, setLibraryBlock] = useState<BlockType | null>(null);
+  const [rightPanel, setRightPanel] = useState<"global" | "content" | "settings" | null>(
+    null
+  );
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!activeBlocks.length) {
+    if (!displayBlocks.length) {
       setSelectedId(null);
       return;
     }
-    if (!selectedId || !activeBlocks.some((block) => block.id === selectedId)) {
-      setSelectedId(activeBlocks[0]?.id ?? null);
+    if (!selectedId || !displayBlocks.some((block) => block.id === selectedId)) {
+      setSelectedId(displayBlocks[0]?.id ?? null);
     }
-  }, [activeBlocks, selectedId]);
+  }, [displayBlocks, selectedId]);
   const [message, setMessage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => setMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }, [message]);
 
-  const selectedBlock = activeBlocks.find((block) => block.id === selectedId) ?? null;
+  const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
+
 
   const updateBlock = (id: string, updater: (block: SiteBlock) => SiteBlock) => {
     setDraft((prev) => {
-      const current = prev.pages?.[activePage] ?? prev.blocks;
-      const nextBlocks = current.map((block) =>
-        block.id === id ? updater(block) : block
-      );
-      const pages = { ...(prev.pages ?? {}), [activePage]: nextBlocks };
-      const homeBlocks = pages.home ?? prev.blocks;
-      return { ...prev, pages, blocks: homeBlocks };
+      const pages = { ...ensurePages(prev) };
+      const entityPages = { ...ensureEntityPages(prev) };
+      const entityPageKey = resolveEntityPageKey(currentEntity);
+      const pageKey: SitePageKey = entityPageKey ?? activePage;
+      const entityId = currentEntity ? String(currentEntity.id) : null;
+      const prevHome = pages.home ?? prev.blocks;
+      const prevPage =
+        entityId && entityPageKey && entityPages[entityPageKey]?.[entityId]
+          ? entityPages[entityPageKey][entityId]
+          : pages[pageKey] ?? prev.blocks;
+
+      const updateList = (blocks: SiteBlock[]) =>
+        blocks.map((block) => (block.id === id ? updater(block) : block));
+
+      const nextHome = prevHome.some((block) => block.id === id)
+        ? updateList(prevHome)
+        : prevHome;
+      const nextPage = prevPage.some((block) => block.id === id)
+        ? updateList(prevPage)
+        : prevPage;
+
+      pages.home = nextHome;
+      if (entityId && entityPageKey) {
+        const nextEntityForKey = { ...(entityPages[entityPageKey] ?? {}) };
+        nextEntityForKey[entityId] = nextPage;
+        entityPages[entityPageKey] = nextEntityForKey;
+      } else {
+        pages[pageKey] = pageKey === "home" ? nextHome : nextPage;
+      }
+
+      return { ...prev, pages, entityPages, blocks: pages.home ?? prev.blocks };
     });
   };
 
@@ -265,30 +482,82 @@ export default function SiteClient({
 
   const updateBlocks = (nextBlocks: SiteBlock[]) => {
     setDraft((prev) => {
-      const pages = { ...(prev.pages ?? {}), [activePage]: nextBlocks };
-      const homeBlocks = pages.home ?? prev.blocks;
-      return { ...prev, pages, blocks: homeBlocks };
+      const pages = { ...ensurePages(prev) };
+      const entityPages = { ...ensureEntityPages(prev) };
+      const entityPageKey = resolveEntityPageKey(currentEntity);
+      const pageKey: SitePageKey = entityPageKey ?? activePage;
+      const entityId = currentEntity ? String(currentEntity.id) : null;
+
+      if (entityId && entityPageKey) {
+        const nextEntityForKey = { ...(entityPages[entityPageKey] ?? {}) };
+        nextEntityForKey[entityId] = nextBlocks;
+        entityPages[entityPageKey] = nextEntityForKey;
+      } else {
+        pages[pageKey] = nextBlocks;
+      }
+
+      if (pageKey === "home") {
+        pages.home = nextBlocks;
+      }
+      const home = pages.home ?? prev.blocks;
+      return { ...prev, pages, entityPages, blocks: home };
     });
   };
 
-  const addBlock = (type: BlockType) => {
+  const insertBlock = (
+    type: BlockType,
+    index?: number,
+    variant?: "v1" | "v2" | "v3" | "v4" | "v5"
+  ) => {
     const block = createBlock(type);
-    updateBlocks([...(draft.pages?.[activePage] ?? draft.blocks), block]);
+    if (variant) block.variant = variant;
+
+    if (type === "menu" && activePage !== "home") {
+      const existingMenu = homeBlocks.find((item) => item.type === "menu");
+      if (!existingMenu) {
+        const nextHome = [block, ...homeBlocks];
+        setDraft((prev) => ({
+          ...prev,
+          pages: { ...ensurePages(prev), home: nextHome },
+          blocks: nextHome,
+        }));
+        setSelectedId(block.id);
+      } else {
+        setSelectedId(existingMenu.id);
+      }
+      setInsertIndex(null);
+      return;
+    }
+
+    const next = [...pageBlocks];
+    const offset = sharedMenuBlock ? 1 : 0;
+    const rawIndex =
+      typeof index === "number" && index >= 0 ? index : next.length + offset;
+    const targetIndex = Math.max(0, Math.min(rawIndex - offset, next.length));
+    next.splice(targetIndex, 0, block);
+    updateBlocks(next);
     setSelectedId(block.id);
+    setInsertIndex(null);
   };
 
   const removeBlock = (id: string) => {
-    updateBlocks(activeBlocks.filter((block) => block.id !== id));
+    if (sharedMenuBlock && sharedMenuBlock.id === id && activePage !== "home") {
+      return;
+    }
+    updateBlocks(pageBlocks.filter((block) => block.id !== id));
     if (selectedId === id) {
-      const next = activeBlocks.find((block) => block.id !== id);
+      const next = displayBlocks.find((block) => block.id !== id);
       setSelectedId(next?.id ?? null);
     }
   };
 
   const moveBlock = (id: string, dir: "up" | "down") => {
-    const idx = activeBlocks.findIndex((block) => block.id === id);
+    if (sharedMenuBlock && sharedMenuBlock.id === id && activePage !== "home") {
+      return;
+    }
+    const idx = pageBlocks.findIndex((block) => block.id === id);
     if (idx < 0) return;
-    const next = [...activeBlocks];
+    const next = [...pageBlocks];
     const target = dir === "up" ? idx - 1 : idx + 1;
     if (target < 0 || target >= next.length) return;
     [next[idx], next[target]] = [next[target], next[idx]];
@@ -325,6 +594,7 @@ export default function SiteClient({
     "--bp-panel": draft.theme.panelColor,
     "--bp-ink": draft.theme.textColor,
     "--bp-muted": draft.theme.mutedColor,
+    "--bp-stroke": draft.theme.borderColor,
     "--site-accent": draft.theme.accentColor,
     "--site-surface": draft.theme.surfaceColor,
     "--site-panel": draft.theme.panelColor,
@@ -332,28 +602,103 @@ export default function SiteClient({
     "--site-muted": draft.theme.mutedColor,
     "--site-font-heading": draft.theme.fontHeading,
     "--site-font-body": draft.theme.fontBody,
+    "--site-border": draft.theme.borderColor,
+    "--site-button": draft.theme.buttonColor,
+    "--site-button-text": draft.theme.buttonTextColor,
+    "--site-shadow-color": draft.theme.shadowColor,
+    "--site-shadow-size": `${draft.theme.shadowSize}px`,
+    "--site-radius": `${draft.theme.radius}px`,
+    "--site-button-radius": `${draft.theme.buttonRadius}px`,
+    "--site-gap": `${draft.theme.blockSpacing}px`,
+    "--site-h1": `${draft.theme.headingSize}px`,
+    "--site-h2": `${draft.theme.subheadingSize}px`,
+    "--site-text-size": `${draft.theme.textSize}px`,
   };
+  const contentWidth =
+    previewMode === "mobile" ? 420 : draft.theme.contentWidth;
+  const mainGradient = draft.theme.gradientEnabled
+    ? `linear-gradient(${draft.theme.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${draft.theme.gradientFrom}, ${draft.theme.gradientTo})`
+    : "none";
 
   return (
-    <div className="flex h-[calc(100vh-160px)] min-h-[640px] flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {message && (
-        <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm shadow-[var(--bp-shadow)]"
+        >
           {message}
         </div>
       )}
 
-      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+      <div className="relative">
+        <div className="h-12" />
+        <div className="fixed top-16 left-0 right-0 z-30 border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-4 shadow-[var(--bp-shadow)] md:left-[var(--crm-sidebar-width)] sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Конструктор сайта</h2>
+            <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+              Конструктор сайта
+            </div>
             <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
               Статус: {publicPage.status}
             </div>
-            {publicUrl && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                Публичная ссылка: {publicUrl}
-              </div>
-            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                setLeftPanel((prev) => (prev === "pages" ? null : "pages"))
+              }
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm"
+            >
+              Страницы сайта
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInsertIndex(0);
+                setLeftPanel((prev) => (prev === "library" ? null : "library"));
+              }}
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm"
+            >
+              Библиотека блоков
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightPanel("global")}
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm"
+            >
+              Глобальные стили
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPreviewMode("desktop")}
+              className={`flex h-10 w-10 items-center justify-center rounded-full border ${
+                previewMode === "desktop"
+                  ? "border-[color:var(--bp-accent)] bg-white"
+                  : "border-[color:var(--bp-stroke)] bg-white"
+              }`}
+              aria-label="Десктоп"
+              title="Десктоп"
+            >
+              ПК
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewMode("mobile")}
+              className={`flex h-10 w-10 items-center justify-center rounded-full border ${
+                previewMode === "mobile"
+                  ? "border-[color:var(--bp-accent)] bg-white"
+                  : "border-[color:var(--bp-stroke)] bg-white"
+              }`}
+              aria-label="Мобильный"
+              title="Мобильный"
+            >
+              М
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {publicUrl && (
@@ -361,7 +706,7 @@ export default function SiteClient({
                 href={publicUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-5 py-2 text-sm"
+                className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-5 py-2 text-sm"
               >
                 Открыть сайт
               </a>
@@ -369,129 +714,96 @@ export default function SiteClient({
             <button
               type="button"
               onClick={() => savePublic(false)}
-              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-5 py-2 text-sm"
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-5 py-2 text-sm"
               disabled={saving === "public"}
             >
-              {saving === "public" ? "Сохранение..." : "Сохранить черновик"}
+              Сохранить черновик
             </button>
             <button
               type="button"
               onClick={() => savePublic(true)}
-              className="rounded-2xl bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white"
+              className="rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white"
               disabled={saving === "public"}
             >
               Опубликовать
             </button>
           </div>
         </div>
-      </section>
+        </div>
+      </div>
 
-        <div className="grid h-full gap-6 lg:grid-cols-[280px_minmax(0,1fr)_340px]">
-          <aside className="space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-              <div className="text-sm font-semibold">Страницы сайта</div>
-              <div className="mt-3 flex flex-col gap-2">
-                {PAGE_KEYS.map((pageKey) => {
-                  const active = pageKey === activePage;
-                  return (
-                    <button
-                      key={pageKey}
-                      type="button"
-                      onClick={() => setActivePage(pageKey)}
-                      className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
-                        active
-                          ? "border-[color:var(--bp-accent)] bg-white text-[color:var(--bp-ink)]"
-                          : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
-                      }`}
-                    >
-                      {PAGE_LABELS[pageKey]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-              <div className="text-sm font-semibold">Библиотека блоков</div>
-              <div className="mt-3 flex flex-col gap-2">
-              {(Object.keys(BLOCK_LABELS) as BlockType[]).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => addBlock(type)}
-                  className="flex items-center justify-between rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                >
-                  <span>{BLOCK_LABELS[type]}</span>
-                  <span className="text-xs text-[color:var(--bp-muted)]">Добавить</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-            <div className="text-sm font-semibold">Структура страницы</div>
-            <div className="mt-3 space-y-2">
-              {activeBlocks.map((block, index) => (
-                <div
-                  key={block.id}
-                  className={`rounded-xl border px-3 py-2 text-sm ${
-                    block.id === selectedId
-                      ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-panel)]"
-                      : "border-[color:var(--bp-stroke)] bg-white"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(block.id)}
-                    className="flex w-full items-center justify-between"
-                  >
-                    <span>{BLOCK_LABELS[block.type]}</span>
-                    <span className="text-xs text-[color:var(--bp-muted)]">
-                      {index + 1}
-                    </span>
-                  </button>
-                </div>
-              ))}
-              {activeBlocks.length === 0 && (
-                <div className="text-xs text-[color:var(--bp-muted)]">
-                  Блоков пока нет. Добавьте первый блок.
-                </div>
-              )}
-            </div>
-          </div>
-        </aside>
-
+      <div className="relative">
         <main
-          className="h-full overflow-y-auto rounded-[32px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-6 shadow-[var(--bp-shadow)]"
+          className="w-full"
           style={{
             ...themeStyle,
-            backgroundColor: draft.theme.surfaceColor,
+            backgroundColor: draft.theme.gradientEnabled
+              ? draft.theme.gradientFrom
+              : draft.theme.surfaceColor,
+            backgroundImage: mainGradient,
             color: draft.theme.textColor,
             fontFamily: draft.theme.fontBody,
           }}
         >
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-            {activeBlocks.map((block) => (
-              <BlockPreview
-                key={block.id}
-                block={block}
-                account={account}
-                accountProfile={accountProfile}
-                branding={branding}
-                locations={locations}
-                services={services}
-                specialists={specialists}
-                promos={promos}
-                workPhotos={workPhotos}
-                theme={draft.theme}
-                onSelect={() => setSelectedId(block.id)}
-                isSelected={block.id === selectedId}
-                onMoveUp={() => moveBlock(block.id, "up")}
-                onMoveDown={() => moveBlock(block.id, "down")}
-                onRemove={() => removeBlock(block.id)}
-              />
-            ))}
-            {activeBlocks.length === 0 && (
+          <div
+            className="mx-auto flex w-full flex-col"
+            style={{ padding: 24, maxWidth: contentWidth }}
+          >
+            <InsertSlot
+              index={0}
+              spacing={draft.theme.blockSpacing}
+              onInsert={() => {
+                setInsertIndex(0);
+                setLeftPanel("library");
+                setLibraryBlock(null);
+              }}
+            />
+            {displayBlocks.map((block: SiteBlock, index: number) => {
+              const isSharedMenu = Boolean(
+                sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
+              );
+              return (
+              <div key={block.id} className="relative">
+                <BlockPreview
+                  block={block}
+                  account={account}
+                  accountProfile={accountProfile}
+                  branding={branding}
+                  locations={locations}
+                  services={services}
+                  specialists={specialists}
+                  promos={promos}
+                  workPhotos={workPhotos}
+                  theme={draft.theme}
+                  currentEntity={currentEntity}
+                  onSelect={() => setSelectedId(block.id)}
+                  isSelected={block.id === selectedId}
+                  onOpenContent={() => {
+                    setSelectedId(block.id);
+                    setRightPanel("content");
+                  }}
+                  onOpenSettings={() => {
+                    setSelectedId(block.id);
+                    setRightPanel("settings");
+                  }}
+                  onMoveUp={() => moveBlock(block.id, "up")}
+                  onMoveDown={() => moveBlock(block.id, "down")}
+                  onRemove={() => removeBlock(block.id)}
+                  disableActions={isSharedMenu}
+                />
+                <InsertSlot
+                  index={index + 1}
+                  spacing={draft.theme.blockSpacing}
+                  onInsert={() => {
+                    setInsertIndex(index + 1);
+                    setLeftPanel("library");
+                    setLibraryBlock(null);
+                  }}
+                />
+              </div>
+            );
+            })}
+            {displayBlocks.length === 0 && (
               <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] bg-white px-4 py-10 text-center text-sm text-[color:var(--bp-muted)]">
                 Добавьте блок, чтобы начать собирать страницу.
               </div>
@@ -499,29 +811,285 @@ export default function SiteClient({
           </div>
         </main>
 
-        <aside className="space-y-4 overflow-y-auto pr-1">
-          <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-            <div className="text-sm font-semibold">Глобальные стили</div>
-            <ThemeEditor theme={draft.theme} onChange={updateTheme} />
-          </div>
-          <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-            <div className="text-sm font-semibold">Настройки блока</div>
-            {selectedBlock ? (
-              <BlockEditor
-                block={selectedBlock}
-                locations={locations}
-                services={services}
-                specialists={specialists}
-                promos={promos}
-                onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-              />
-            ) : (
-              <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
-                Выберите блок, чтобы изменить настройки.
+        {leftPanel && (
+          <aside
+            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            style={{ left: "var(--crm-sidebar-width, 272px)", top: 64, bottom: 0 }}
+          >
+            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
+              <div className="text-sm font-semibold">
+                {leftPanel === "pages" ? "Страницы сайта" : "Библиотека блоков"}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLeftPanel(null);
+                  setLibraryBlock(null);
+                }}
+                className="text-xs text-[color:var(--bp-muted)]"
+              >
+                Закрыть
+              </button>
+            </div>
+            {leftPanel === "pages" && (
+              <div className="p-4">
+                <div className="flex flex-col gap-2">
+                  {PAGE_KEYS.map((pageKey) => (
+                    <button
+                      key={pageKey}
+                      type="button"
+                      onClick={() => {
+                        setActivePage(pageKey);
+                        setCurrentEntity(null);
+                        setLeftPanel(null);
+                      }}
+                      className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                        pageKey === activePage
+                          ? "border-[color:var(--bp-accent)] bg-white"
+                          : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                      }`}
+                    >
+                      {PAGE_LABELS[pageKey]}
+                    </button>
+                  ))}
+                </div>
+                {(locations.length > 0 ||
+                  services.length > 0 ||
+                  specialists.length > 0 ||
+                  promos.length > 0) && (
+                  <div className="mt-5 border-t border-[color:var(--bp-stroke)] pt-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+                      Профили
+                    </div>
+                    {locations.length > 0 && (
+                      <div className="mt-3">
+                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
+                          Локации
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {locations.map((item) => (
+                            <button
+                              key={`location-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("locations");
+                                setCurrentEntity({ type: "location", id: item.id });
+                                setLeftPanel(null);
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "location" &&
+                                currentEntity.id === item.id
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {services.length > 0 && (
+                      <div className="mt-4">
+                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
+                          Услуги
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {services.map((item) => (
+                            <button
+                              key={`service-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("services");
+                                setCurrentEntity({ type: "service", id: item.id });
+                                setLeftPanel(null);
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "service" &&
+                                currentEntity.id === item.id
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {specialists.length > 0 && (
+                      <div className="mt-4">
+                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
+                          Специалисты
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {specialists.map((item) => (
+                            <button
+                              key={`specialist-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("specialists");
+                                setCurrentEntity({ type: "specialist", id: item.id });
+                                setLeftPanel(null);
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "specialist" &&
+                                currentEntity.id === item.id
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {promos.length > 0 && (
+                      <div className="mt-4">
+                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
+                          Промо
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {promos.map((item) => (
+                            <button
+                              key={`promo-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("promos");
+                                setCurrentEntity({ type: "promo", id: item.id });
+                                setLeftPanel(null);
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "promo" &&
+                                currentEntity.id === item.id
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </aside>
+            {leftPanel === "library" && (
+              <div className="p-4">
+                <div className="flex flex-col gap-2">
+                  {(Object.keys(BLOCK_LABELS) as BlockType[]).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setLibraryBlock(type)}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
+                        libraryBlock === type
+                          ? "border-[color:var(--bp-accent)] bg-white"
+                          : "border-[color:var(--bp-stroke)] bg-white"
+                      }`}
+                    >
+                      <span>{BLOCK_LABELS[type]}</span>
+                      <span className="text-xs text-[color:var(--bp-muted)]">
+                        Варианты
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
+
+        {leftPanel === "library" && libraryBlock && (
+          <aside
+            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            style={{ left: "calc(var(--crm-sidebar-width, 272px) + 320px)", top: 64, bottom: 0 }}
+          >
+            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
+              <div className="text-sm font-semibold">
+                {BLOCK_LABELS[libraryBlock]}
+              </div>
+              <button
+                type="button"
+                onClick={() => setLibraryBlock(null)}
+                className="text-xs text-[color:var(--bp-muted)]"
+              >
+                Назад
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              {BLOCK_VARIANTS[libraryBlock].map((variant) => (
+                <button
+                  key={variant}
+                  type="button"
+                  onClick={() => {
+                    insertBlock(libraryBlock, insertIndex ?? displayBlocks.length, variant);
+                    setLeftPanel(null);
+                    setLibraryBlock(null);
+                  }}
+                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-left"
+                >
+                  <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+                    {BLOCK_LABELS[libraryBlock]}
+                  </div>
+                  <div className="mt-2 text-sm font-semibold">{variantsLabel[variant]}</div>
+                  <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                    Выберите вариант дизайна
+                  </div>
+                </button>
+              ))}
+            </div>
+          </aside>
+        )}
+
+        {rightPanel && (
+          <aside
+            className="fixed right-0 z-30 w-[360px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            style={{ top: 64, bottom: 0 }}
+          >
+            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
+              <div className="text-sm font-semibold">
+                {rightPanel === "global"
+                  ? "Глобальные стили"
+                  : rightPanel === "settings"
+                    ? "Настройки блока"
+                    : "Контент блока"}
+              </div>
+              <button
+                type="button"
+                onClick={() => setRightPanel(null)}
+                className="text-xs text-[color:var(--bp-muted)]"
+              >
+                Закрыть
+              </button>
+            </div>
+            <div className="p-4">
+              {rightPanel === "global" && (
+                <ThemeEditor theme={draft.theme} onChange={updateTheme} />
+              )}
+              {rightPanel === "content" && selectedBlock && (
+                <BlockEditor
+                  block={selectedBlock}
+                  locations={locations}
+                  services={services}
+                  specialists={specialists}
+                  promos={promos}
+                  onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                />
+              )}
+              {rightPanel === "settings" && selectedBlock && (
+                <BlockStyleEditor
+                  block={selectedBlock}
+                  theme={draft.theme}
+                  onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                />
+              )}
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );
@@ -558,9 +1126,23 @@ function ThemeEditor({
       </label>
       <div className="grid grid-cols-2 gap-3">
         <ColorField
-          label="Акцент"
-          value={theme.accentColor}
-          onChange={(value) => onChange({ accentColor: value })}
+          label="Тень"
+          value={theme.shadowColor}
+          onChange={(value) => onChange({ shadowColor: value })}
+        />
+        <NumberField
+          label="Размер тени"
+          value={theme.shadowSize}
+          min={0}
+          max={40}
+          onChange={(value) => onChange({ shadowSize: value })}
+        />
+        <NumberField
+          label="Ширина сайта"
+          value={theme.contentWidth}
+          min={720}
+          max={1600}
+          onChange={(value) => onChange({ contentWidth: value })}
         />
         <ColorField
           label="Фон"
@@ -577,19 +1159,129 @@ function ThemeEditor({
           value={theme.textColor}
           onChange={(value) => onChange({ textColor: value })}
         />
+        <ColorField
+          label="Обводка"
+          value={theme.borderColor}
+          onChange={(value) => onChange({ borderColor: value })}
+        />
+        <ColorField
+          label="Кнопка"
+          value={theme.buttonColor}
+          onChange={(value) => onChange({ buttonColor: value })}
+        />
+        <ColorField
+          label="Текст кнопки"
+          value={theme.buttonTextColor}
+          onChange={(value) => onChange({ buttonTextColor: value })}
+        />
+        <ColorField
+          label="Вторичный текст"
+          value={theme.mutedColor}
+          onChange={(value) => onChange({ mutedColor: value })}
+        />
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={theme.gradientEnabled}
+          onChange={(event) => onChange({ gradientEnabled: event.target.checked })}
+        />
+        Градиент фона
+      </label>
+      {theme.gradientEnabled && (
+        <>
+          <label className="text-sm">
+            Направление градиента
+            <select
+              value={theme.gradientDirection}
+              onChange={(event) =>
+                onChange({
+                  gradientDirection: event.target.value as SiteTheme["gradientDirection"],
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            >
+              <option value="vertical">Сверху вниз</option>
+              <option value="horizontal">Слева направо</option>
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <ColorField
+              label="Цвет 1"
+              value={theme.gradientFrom}
+              onChange={(value) => onChange({ gradientFrom: value })}
+            />
+            <ColorField
+              label="Цвет 2"
+              value={theme.gradientTo}
+              onChange={(value) => onChange({ gradientTo: value })}
+            />
+          </div>
+        </>
+      )}
       <label className="text-sm">
         Радиус блоков: {theme.radius}px
         <input
           type="range"
-          min={8}
+          min={0}
           max={40}
-          step={2}
+          step={1}
           value={theme.radius}
           onChange={(event) => onChange({ radius: Number(event.target.value) })}
           className="mt-2 w-full"
         />
       </label>
+      <label className="text-sm">
+        Радиус кнопок: {theme.buttonRadius}px
+        <input
+          type="range"
+          min={0}
+          max={40}
+          step={1}
+          value={theme.buttonRadius}
+          onChange={(event) =>
+            onChange({ buttonRadius: Number(event.target.value) })
+          }
+          className="mt-2 w-full"
+        />
+      </label>
+      <label className="text-sm">
+        Межблоковое расстояние: {theme.blockSpacing}px
+        <input
+          type="range"
+          min={0}
+          max={120}
+          step={2}
+          value={theme.blockSpacing}
+          onChange={(event) =>
+            onChange({ blockSpacing: Number(event.target.value) })
+          }
+          className="mt-2 w-full"
+        />
+      </label>
+      <div className="grid grid-cols-3 gap-3">
+        <NumberField
+          label="Заголовок"
+          value={theme.headingSize}
+          min={18}
+          max={56}
+          onChange={(value) => onChange({ headingSize: value })}
+        />
+        <NumberField
+          label="Подзаголовок"
+          value={theme.subheadingSize}
+          min={12}
+          max={36}
+          onChange={(value) => onChange({ subheadingSize: value })}
+        />
+        <NumberField
+          label="Текст"
+          value={theme.textSize}
+          min={10}
+          max={28}
+          onChange={(value) => onChange({ textSize: value })}
+        />
+      </div>
     </div>
   );
 }
@@ -624,6 +1316,34 @@ function ColorField({
   );
 }
 
+function NumberField({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="text-sm">
+      {label}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+      />
+    </label>
+  );
+}
+
 function BlockEditor({
   block,
   locations,
@@ -639,6 +1359,22 @@ function BlockEditor({
   promos: PromoItem[];
   onChange: (next: SiteBlock) => void;
 }) {
+  type SocialKey =
+    | "website"
+    | "instagram"
+    | "whatsapp"
+    | "telegram"
+    | "max"
+    | "vk"
+    | "viber"
+    | "pinterest"
+    | "facebook"
+    | "tiktok"
+    | "youtube"
+    | "twitter"
+    | "dzen"
+    | "ok";
+
   const updateData = (patch: Record<string, unknown>) => {
     onChange({ ...block, data: { ...block.data, ...patch } });
   };
@@ -654,7 +1390,7 @@ function BlockEditor({
           onChange={(event) =>
             onChange({
               ...block,
-              variant: event.target.value as "v1" | "v2",
+              variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
             })
           }
           className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
@@ -666,6 +1402,145 @@ function BlockEditor({
           ))}
         </select>
       </label>
+
+      {block.type === "menu" && (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.showLogo !== false}
+              onChange={(event) => updateData({ showLogo: event.target.checked })}
+            />
+            Показывать логотип
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showSearch)}
+              onChange={(event) => updateData({ showSearch: event.target.checked })}
+            />
+            Показывать поиск
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showAccount)}
+              onChange={(event) => updateData({ showAccount: event.target.checked })}
+            />
+            Иконка входа
+          </label>
+          <FieldText
+            label="Ссылка на кабинет"
+            value={(block.data.accountLink as string) ?? "/c"}
+            onChange={(value) => updateData({ accountLink: value })}
+          />
+          <label className="text-sm">
+            Позиция меню
+            <select
+              value={(block.data.position as string) ?? "static"}
+              onChange={(event) => updateData({ position: event.target.value })}
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            >
+              <option value="static">Статика</option>
+              <option value="sticky">Фиксация при скролле</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showButton)}
+              onChange={(event) => updateData({ showButton: event.target.checked })}
+            />
+            Показывать кнопку записи
+          </label>
+          <label className="text-sm">
+            Действие кнопки
+            <select
+              value={(block.data.ctaMode as string) ?? "booking"}
+              onChange={(event) => updateData({ ctaMode: event.target.value })}
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            >
+              <option value="booking">Запись</option>
+              <option value="phone">Телефон</option>
+            </select>
+          </label>
+          <FieldText
+            label="Телефон для кнопки"
+            value={(block.data.phoneOverride as string) ?? ""}
+            onChange={(value) => updateData({ phoneOverride: value })}
+          />
+          <FieldText
+            label="Текст кнопки"
+            value={(block.data.buttonText as string) ?? "Записаться"}
+            onChange={(value) => updateData({ buttonText: value })}
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showSocials)}
+              onChange={(event) => updateData({ showSocials: event.target.checked })}
+            />
+            Показывать соцсети
+          </label>
+          <label className="text-sm">
+            Соцсети
+            <select
+              value={(block.data.socialsMode as string) ?? "auto"}
+              onChange={(event) => updateData({ socialsMode: event.target.value })}
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            >
+              <option value="auto">Из профиля аккаунта</option>
+              <option value="custom">Ввести вручную</option>
+            </select>
+          </label>
+          {block.data.socialsMode === "custom" && (
+            <div className="space-y-3">
+              {(Object.keys(SOCIAL_LABELS) as SocialKey[]).map((key) => {
+                const socials = (block.data.socialsCustom as Record<string, string>) ?? {};
+                return (
+                  <FieldText
+                    key={key}
+                    label={SOCIAL_LABELS[key]}
+                    value={socials[key] ?? ""}
+                    onChange={(value) =>
+                      updateData({
+                        socialsCustom: {
+                          ...socials,
+                          [key]: value,
+                        },
+                      })
+                    }
+                  />
+                );
+              })}
+            </div>
+          )}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">Пункты меню</div>
+            {PAGE_KEYS.map((key) => {
+              const items = Array.isArray(block.data.menuItems)
+                ? (block.data.menuItems as SitePageKey[])
+                : [];
+              const checked = items.includes(key);
+              return (
+                <label key={key} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...items, key]
+                        : items.filter((item) => item !== key);
+                      updateData({ menuItems: next });
+                    }}
+                  />
+                  {PAGE_LABELS[key]}
+                </label>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {block.type === "cover" && (
         <>
@@ -693,6 +1568,7 @@ function BlockEditor({
             >
               <option value="left">Слева</option>
               <option value="center">По центру</option>
+              <option value="right">Справа</option>
             </select>
           </label>
           <label className="flex items-center gap-2 text-sm">
@@ -743,11 +1619,50 @@ function BlockEditor({
       )}
 
       {block.type === "locations" && (
-        <EntityListEditor
-          block={block}
-          items={locations.map((item) => ({ id: item.id, label: item.name }))}
-          onChange={updateData}
-        />
+        <>
+          <EntityListEditor
+            block={block}
+            items={locations.map((item) => ({ id: item.id, label: item.name }))}
+            onChange={updateData}
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.showAddress !== false}
+              onChange={(event) => updateData({ showAddress: event.target.checked })}
+            />
+            Показывать адрес
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.showPhone !== false}
+              onChange={(event) => updateData({ showPhone: event.target.checked })}
+            />
+            Показывать телефон
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showContacts)}
+              onChange={(event) => updateData({ showContacts: event.target.checked })}
+            />
+            Показывать соцсети аккаунта
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showButton)}
+              onChange={(event) => updateData({ showButton: event.target.checked })}
+            />
+            Показывать кнопку записи
+          </label>
+          <FieldText
+            label="Текст кнопки"
+            value={(block.data.buttonText as string) ?? ""}
+            onChange={(value) => updateData({ buttonText: value })}
+          />
+        </>
       )}
 
       {block.type === "services" && (
@@ -817,6 +1732,19 @@ function BlockEditor({
             />
             Показывать длительность
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showButton)}
+              onChange={(event) => updateData({ showButton: event.target.checked })}
+            />
+            Показывать кнопку записи
+          </label>
+          <FieldText
+            label="Текст кнопки"
+            value={(block.data.buttonText as string) ?? ""}
+            onChange={(value) => updateData({ buttonText: value })}
+          />
         </>
       )}
 
@@ -848,6 +1776,19 @@ function BlockEditor({
               ))}
             </select>
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.showButton)}
+              onChange={(event) => updateData({ showButton: event.target.checked })}
+            />
+            Показывать кнопку записи
+          </label>
+          <FieldText
+            label="Текст кнопки"
+            value={(block.data.buttonText as string) ?? ""}
+            onChange={(value) => updateData({ buttonText: value })}
+          />
         </>
       )}
 
@@ -882,6 +1823,14 @@ function BlockEditor({
               <option value="specialists">Специалисты</option>
               <option value="services">Услуги</option>
             </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.useCurrent)}
+              onChange={(event) => updateData({ useCurrent: event.target.checked })}
+            />
+            Использовать текущую страницу
           </label>
           <EntityListEditor
             block={block}
@@ -963,7 +1912,8 @@ function BlockEditor({
         </>
       )}
 
-      {block.type !== "cover" &&
+      {block.type !== "menu" &&
+        block.type !== "cover" &&
         block.type !== "about" &&
         block.type !== "works" &&
         block.type !== "reviews" &&
@@ -998,6 +1948,333 @@ function BlockEditor({
         )}
     </div>
   );
+}
+
+function BlockStyleEditor({
+  block,
+  theme,
+  onChange,
+}: {
+  block: SiteBlock;
+  theme: SiteTheme;
+  onChange: (next: SiteBlock) => void;
+}) {
+  const style = normalizeBlockStyle(block, theme);
+  const update = (patch: Partial<BlockStyle>) => {
+    onChange(updateBlockStyle(block, patch));
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="text-sm">
+        Отступ сверху: {style.marginTop}px
+        <input
+          type="range"
+          min={0}
+          max={120}
+          step={2}
+          value={style.marginTop}
+          onChange={(event) => update({ marginTop: Number(event.target.value) })}
+          className="mt-2 w-full"
+        />
+      </label>
+      <label className="text-sm">
+        Отступ снизу: {style.marginBottom}px
+        <input
+          type="range"
+          min={0}
+          max={120}
+          step={2}
+          value={style.marginBottom}
+          onChange={(event) => update({ marginBottom: Number(event.target.value) })}
+          className="mt-2 w-full"
+        />
+      </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={style.useCustomWidth}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+              update({
+                useCustomWidth: enabled,
+                blockWidth: enabled ? style.blockWidth ?? theme.contentWidth : null,
+              });
+            }}
+          />
+          Своя ширина блока
+        </label>
+        {style.useCustomWidth && (
+          <NumberField
+            label="Ширина блока"
+            value={style.blockWidth ?? theme.contentWidth}
+            min={360}
+            max={1600}
+            onChange={(value) => update({ blockWidth: value })}
+          />
+        )}
+      <label className="text-sm">
+        Радиус блока: {style.radius ?? theme.radius}px
+        <input
+          type="range"
+          min={0}
+          max={40}
+          step={1}
+          value={style.radius ?? theme.radius}
+          onChange={(event) => update({ radius: Number(event.target.value) })}
+          className="mt-2 w-full"
+        />
+      </label>
+      <label className="text-sm">
+        Радиус кнопки: {style.buttonRadius ?? theme.buttonRadius}px
+        <input
+          type="range"
+          min={0}
+          max={40}
+          step={1}
+          value={style.buttonRadius ?? theme.buttonRadius}
+          onChange={(event) =>
+            update({ buttonRadius: Number(event.target.value) })
+          }
+          className="mt-2 w-full"
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <ColorField
+          label="Цвет блока"
+          value={style.blockBg || theme.panelColor}
+          onChange={(value) => update({ blockBg: value })}
+        />
+        <ColorField
+          label="Цвет обводки"
+          value={style.borderColor || theme.borderColor}
+          onChange={(value) => update({ borderColor: value })}
+        />
+        <ColorField
+          label="Цвет кнопки"
+          value={style.buttonColor || theme.buttonColor}
+          onChange={(value) => update({ buttonColor: value })}
+        />
+        <ColorField
+          label="Текст кнопки"
+          value={style.buttonTextColor || theme.buttonTextColor}
+          onChange={(value) => update({ buttonTextColor: value })}
+        />
+        <ColorField
+          label="Текст"
+          value={style.textColor || theme.textColor}
+          onChange={(value) => update({ textColor: value })}
+        />
+        <ColorField
+          label="Вторичный текст"
+          value={style.mutedColor || theme.mutedColor}
+          onChange={(value) => update({ mutedColor: value })}
+        />
+        <ColorField
+          label="Тень"
+          value={style.shadowColor || theme.shadowColor}
+          onChange={(value) => update({ shadowColor: value })}
+        />
+        <NumberField
+          label="Размер тени"
+          value={style.shadowSize ?? theme.shadowSize}
+          min={0}
+          max={40}
+          onChange={(value) => update({ shadowSize: value })}
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={style.gradientEnabled}
+          onChange={(event) => update({ gradientEnabled: event.target.checked })}
+        />
+        Градиент блока
+      </label>
+      {style.gradientEnabled && (
+        <>
+          <label className="text-sm">
+            Направление градиента
+            <select
+              value={style.gradientDirection}
+              onChange={(event) =>
+                update({
+                  gradientDirection: event.target.value as BlockStyle["gradientDirection"],
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+            >
+              <option value="vertical">Сверху вниз</option>
+              <option value="horizontal">Слева направо</option>
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <ColorField
+              label="Цвет 1"
+              value={style.gradientFrom || theme.gradientFrom}
+              onChange={(value) => update({ gradientFrom: value })}
+            />
+            <ColorField
+              label="Цвет 2"
+              value={style.gradientTo || theme.gradientTo}
+              onChange={(value) => update({ gradientTo: value })}
+            />
+          </div>
+        </>
+      )}
+      <label className="text-sm">
+        Выравнивание текста
+        <select
+          value={style.textAlign}
+          onChange={(event) =>
+            update({ textAlign: event.target.value as BlockStyle["textAlign"] })
+          }
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+        >
+          <option value="left">Слева</option>
+          <option value="center">По центру</option>
+          <option value="right">Справа</option>
+        </select>
+      </label>
+      <label className="text-sm">
+        Шрифт заголовка
+        <select
+          value={style.fontHeading || ""}
+          onChange={(event) => update({ fontHeading: event.target.value })}
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+        >
+          <option value="">По умолчанию</option>
+          {THEME_FONTS.map((font) => (
+            <option key={font.label} value={font.heading}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="text-sm">
+        Шрифт текста
+        <select
+          value={style.fontBody || ""}
+          onChange={(event) => update({ fontBody: event.target.value })}
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+        >
+          <option value="">По умолчанию</option>
+          {THEME_FONTS.map((font) => (
+            <option key={font.label} value={font.body}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="grid grid-cols-3 gap-3">
+        <NumberField
+          label="Заголовок"
+          value={style.headingSize ?? theme.headingSize}
+          min={18}
+          max={56}
+          onChange={(value) => update({ headingSize: value })}
+        />
+        <NumberField
+          label="Подзаголовок"
+          value={style.subheadingSize ?? theme.subheadingSize}
+          min={12}
+          max={36}
+          onChange={(value) => update({ subheadingSize: value })}
+        />
+        <NumberField
+          label="Текст"
+          value={style.textSize ?? theme.textSize}
+          min={10}
+          max={28}
+          onChange={(value) => update({ textSize: value })}
+        />
+      </div>
+    </div>
+  );
+}
+
+type BlockStyle = {
+  marginTop: number;
+  marginBottom: number;
+  blockWidth: number | null;
+  useCustomWidth: boolean;
+  radius: number | null;
+  buttonRadius: number | null;
+  blockBg: string;
+  borderColor: string;
+  buttonColor: string;
+  buttonTextColor: string;
+  textColor: string;
+  mutedColor: string;
+  shadowColor: string;
+  shadowSize: number | null;
+  gradientEnabled: boolean;
+  gradientDirection: "vertical" | "horizontal";
+  gradientFrom: string;
+  gradientTo: string;
+  textAlign: "left" | "center" | "right";
+  fontHeading: string;
+  fontBody: string;
+  headingSize: number | null;
+  subheadingSize: number | null;
+  textSize: number | null;
+};
+
+function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
+  const style = (block.data.style as Partial<BlockStyle>) ?? {};
+  const toNumber = (value: unknown) => {
+    const parsed =
+      typeof value === "string" ? Number(value) : (value as number | null | undefined);
+    return Number.isFinite(parsed) ? (parsed as number) : null;
+  };
+  const useCustomWidth = style.useCustomWidth === true;
+  return {
+    marginTop: toNumber(style.marginTop) ?? 0,
+    marginBottom: toNumber(style.marginBottom) ?? 0,
+    blockWidth: useCustomWidth ? toNumber(style.blockWidth) : null,
+    useCustomWidth,
+    radius: toNumber(style.radius),
+    buttonRadius: toNumber(style.buttonRadius),
+    blockBg: typeof style.blockBg === "string" ? style.blockBg : "",
+    borderColor: typeof style.borderColor === "string" ? style.borderColor : "",
+    buttonColor: typeof style.buttonColor === "string" ? style.buttonColor : "",
+    buttonTextColor:
+      typeof style.buttonTextColor === "string" ? style.buttonTextColor : "",
+    textColor: typeof style.textColor === "string" ? style.textColor : "",
+    mutedColor: typeof style.mutedColor === "string" ? style.mutedColor : "",
+    shadowColor: typeof style.shadowColor === "string" ? style.shadowColor : "",
+    shadowSize: toNumber(style.shadowSize),
+    gradientEnabled: Boolean(style.gradientEnabled),
+    gradientDirection:
+      style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? style.gradientDirection
+        : "vertical",
+    gradientFrom: typeof style.gradientFrom === "string" ? style.gradientFrom : "",
+    gradientTo: typeof style.gradientTo === "string" ? style.gradientTo : "",
+    textAlign:
+      style.textAlign === "center" || style.textAlign === "right"
+        ? style.textAlign
+        : "left",
+    fontHeading: typeof style.fontHeading === "string" ? style.fontHeading : "",
+    fontBody: typeof style.fontBody === "string" ? style.fontBody : "",
+    headingSize: toNumber(style.headingSize),
+    subheadingSize: toNumber(style.subheadingSize),
+    textSize: toNumber(style.textSize),
+  };
+}
+
+function updateBlockStyle(
+  block: SiteBlock,
+  patch: Partial<BlockStyle>
+): SiteBlock {
+  const current = (block.data.style as Record<string, unknown>) ?? {};
+  return {
+    ...block,
+    data: {
+      ...block.data,
+      style: { ...current, ...patch },
+    },
+  };
 }
 
 function FieldText({
@@ -1260,11 +2537,15 @@ function BlockPreview({
   promos,
   workPhotos,
   theme,
+  currentEntity,
   onSelect,
   isSelected,
+  onOpenContent,
+  onOpenSettings,
   onMoveUp,
   onMoveDown,
   onRemove,
+  disableActions = false,
 }: {
   block: SiteBlock;
   account: AccountInfo;
@@ -1276,12 +2557,34 @@ function BlockPreview({
   promos: PromoItem[];
   workPhotos: WorkPhotos;
   theme: SiteTheme;
+  currentEntity: CurrentEntity;
   onSelect: () => void;
   isSelected: boolean;
+  onOpenContent: () => void;
+  onOpenSettings: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
+  disableActions?: boolean;
 }) {
+  const style = normalizeBlockStyle(block, theme);
+  const blockRadius =
+    style.radius !== null && Number.isFinite(style.radius)
+      ? style.radius
+      : theme.radius;
+  const blockBg = style.blockBg || theme.panelColor;
+  const borderColor = style.borderColor || theme.borderColor;
+  const shadowSize = style.shadowSize ?? theme.shadowSize ?? 0;
+  const shadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const textColor = style.textColor || theme.textColor;
+  const mutedColor = style.mutedColor || theme.mutedColor;
+  const blockWidth = style.blockWidth ?? theme.contentWidth;
+  const gradientFrom = style.gradientFrom || theme.gradientFrom;
+  const gradientTo = style.gradientTo || theme.gradientTo;
+  const gradientDirection =
+    style.gradientDirection || theme.gradientDirection || "vertical";
+  const gradientEnabled = style.gradientEnabled;
+  const blockFont = style.fontBody || theme.fontBody;
   const containerClass = `border ${
     isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
   } p-6 shadow-[var(--bp-shadow-soft)]`;
@@ -1297,55 +2600,97 @@ function BlockPreview({
           onSelect();
         }
       }}
-      className="text-left"
+      className="text-left relative"
+      style={{
+        maxWidth: blockWidth ? `${blockWidth}px` : undefined,
+        marginLeft: "auto",
+        marginRight: "auto",
+      }}
     >
       <div
         className={`${containerClass} relative`}
         style={{
-          borderRadius: theme.radius,
-          backgroundColor: theme.panelColor,
-          color: theme.textColor,
-          fontFamily: theme.fontBody,
+          borderRadius: blockRadius,
+          backgroundColor: gradientEnabled ? gradientFrom : blockBg,
+          backgroundImage: gradientEnabled
+            ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
+            : "none",
+          color: textColor,
+          fontFamily: blockFont,
+          borderColor,
+          marginTop: style.marginTop,
+          marginBottom: style.marginBottom,
+          boxShadow: shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
+          ["--bp-muted" as string]: mutedColor,
+          ["--bp-stroke" as string]: borderColor,
         }}
       >
-        <div className="absolute right-4 top-4 flex items-center gap-2">
+        <div className="absolute left-4 -top-6 flex items-center gap-2">
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onMoveUp();
+              onOpenContent();
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-xs text-[color:var(--bp-ink)] shadow-sm"
-            aria-label="Переместить вверх"
-            title="Вверх"
+            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-white px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+            aria-label="Контент блока"
+            title="Контент"
           >
-            ↑
+            Контент
           </button>
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onMoveDown();
+              onOpenSettings();
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-xs text-[color:var(--bp-ink)] shadow-sm"
-            aria-label="Переместить вниз"
-            title="Вниз"
+            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-white px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+            aria-label="Настройки блока"
+            title="Настройки"
           >
-            ↓
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove();
-            }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-white text-xs text-red-600 shadow-sm"
-            aria-label="Удалить блок"
-            title="Удалить"
-          >
-            ×
+            Настройки
           </button>
         </div>
+        {!disableActions && (
+          <div className="absolute right-4 -top-6 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onMoveUp();
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-xs text-[color:var(--bp-ink)] shadow-sm"
+              aria-label="Переместить вверх"
+              title="Вверх"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onMoveDown();
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-xs text-[color:var(--bp-ink)] shadow-sm"
+              aria-label="Переместить вниз"
+              title="Вниз"
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove();
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-white text-xs text-red-600 shadow-sm"
+              aria-label="Удалить блок"
+              title="Удалить"
+            >
+              ×
+            </button>
+          </div>
+        )}
           {renderBlock(
             block,
             account,
@@ -1355,9 +2700,41 @@ function BlockPreview({
             services,
             specialists,
             promos,
-            workPhotos
+            workPhotos,
+            theme,
+            currentEntity
           )}
       </div>
+    </div>
+  );
+}
+
+function InsertSlot({
+  index,
+  spacing,
+  onInsert,
+}: {
+  index: number;
+  spacing: number;
+  onInsert: () => void;
+}) {
+  const slotHeight = Math.max(0, spacing);
+  const top = slotHeight === 0 ? 0 : "50%";
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ height: slotHeight }}
+    >
+      <button
+        type="button"
+        onClick={onInsert}
+        className="absolute z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-sm text-[color:var(--bp-ink)] shadow-sm"
+        style={{ top, left: "50%", transform: "translate(-50%, -50%)" }}
+        aria-label={`Добавить блок ${index}`}
+        title="Добавить блок"
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -1371,27 +2748,60 @@ function renderBlock(
   services: ServiceItem[],
   specialists: SpecialistItem[],
   promos: PromoItem[],
-  workPhotos: WorkPhotos
+  workPhotos: WorkPhotos,
+  theme: SiteTheme,
+  currentEntity: CurrentEntity
 ) {
+  const style = normalizeBlockStyle(block, theme);
   switch (block.type) {
     case "cover":
-      return renderCover(block, account, branding, locations, services, specialists);
+      return renderCover(
+        block,
+        account,
+        branding,
+        locations,
+        services,
+        specialists,
+        theme,
+        style
+      );
+    case "menu":
+      return renderMenuBlock(
+        block,
+        account,
+        accountProfile,
+        branding,
+        locations,
+        services,
+        specialists,
+        promos,
+        theme,
+        style
+      );
     case "about":
-      return renderAbout(block, account, accountProfile);
+      return renderAbout(block, account, accountProfile, theme, style);
     case "locations":
-      return renderLocations(block, account, locations);
+      return renderLocations(
+        block,
+        account,
+        accountProfile,
+        locations,
+        theme,
+        style,
+        currentEntity
+      );
     case "services":
-      return renderServices(block, account, services);
+      return renderServices(block, account, services, theme, style, currentEntity);
     case "specialists":
-      return renderSpecialists(block, account, specialists);
+      return renderSpecialists(block, account, specialists, theme, style, currentEntity);
     case "promos":
-      return renderPromos(block, promos);
+      return renderPromos(block, promos, theme, style, currentEntity);
     case "works":
-      return renderWorks(block, workPhotos);
+      return renderWorks(block, workPhotos, theme, style, currentEntity);
     case "reviews":
-      return renderReviews(block);
+      return renderReviews(block, theme, style);
     case "contacts":
-      return renderContacts(block, account, accountProfile, locations);
+      return renderContacts(block, account, accountProfile, locations, theme, style);
     default:
       return null;
   }
@@ -1409,19 +2819,78 @@ function resolveEntities<T extends { id: number }>(
   return items;
 }
 
+function headingStyle(style: BlockStyle, theme: SiteTheme) {
+  return {
+    fontFamily: style.fontHeading || theme.fontHeading,
+    fontSize: style.headingSize ?? theme.headingSize,
+    textAlign: style.textAlign,
+    color: style.textColor || theme.textColor,
+  } as const;
+}
+
+function subheadingStyle(style: BlockStyle, theme: SiteTheme) {
+  return {
+    fontFamily: style.fontBody || theme.fontBody,
+    fontSize: style.subheadingSize ?? theme.subheadingSize,
+    textAlign: style.textAlign,
+    color: style.mutedColor || theme.mutedColor,
+  } as const;
+}
+
+function textStyle(style: BlockStyle, theme: SiteTheme) {
+  return {
+    fontFamily: style.fontBody || theme.fontBody,
+    fontSize: style.textSize ?? theme.textSize,
+    textAlign: style.textAlign,
+    color: style.mutedColor || theme.mutedColor,
+  } as const;
+}
+
+function buttonStyle(style: BlockStyle, theme: SiteTheme) {
+  return {
+    backgroundColor: style.buttonColor || theme.buttonColor,
+    color: style.buttonTextColor || theme.buttonTextColor,
+    borderRadius:
+      style.buttonRadius !== null ? style.buttonRadius : theme.buttonRadius,
+  } as const;
+}
+
+function IconUser() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M4 20a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+function IconMenu() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  );
+}
+
 function renderCover(
   block: SiteBlock,
   account: AccountInfo,
   branding: Branding,
   locations: LocationItem[],
   services: ServiceItem[],
-  specialists: SpecialistItem[]
+  specialists: SpecialistItem[],
+  theme: SiteTheme,
+  style: BlockStyle
 ) {
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || account.name;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
-  const align = (data.align as string) === "center" ? "center" : "left";
+  const align = (data.align as "left" | "center" | "right") ?? style.textAlign;
+  const alignClass =
+    align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
@@ -1431,25 +2900,42 @@ function renderCover(
 
   return (
     <div className={`grid gap-6 ${imageUrl ? "md:grid-cols-[1.2fr_1fr]" : ""}`}>
-      <div className={align === "center" ? "text-center" : "text-left"}>
+      <div className={alignClass}>
         <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
           Сайт {account.name}
         </div>
         <h2
-          className="mt-3 text-3xl font-semibold"
-          style={{ fontFamily: "var(--site-font-heading)" }}
+          className="mt-3 font-semibold"
+          style={{ ...headingStyle(style, theme), textAlign: align }}
         >
           {title}
         </h2>
-        {subtitle && <p className="mt-2 text-lg text-[color:var(--bp-muted)]">{subtitle}</p>}
-        {description && <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{description}</p>}
-        {showButton && account.publicSlug && (
-          <a
-            href={buildBookingLink({ publicSlug: account.publicSlug })}
-            className="mt-5 inline-flex rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white"
+        {subtitle && (
+          <p
+            className="mt-2 text-[color:var(--bp-muted)]"
+            style={{ ...subheadingStyle(style, theme), textAlign: align }}
           >
-            {buttonText}
-          </a>
+            {subtitle}
+          </p>
+        )}
+        {description && (
+          <p
+            className="mt-3 text-[color:var(--bp-muted)]"
+            style={{ ...textStyle(style, theme), textAlign: align }}
+          >
+            {description}
+          </p>
+        )}
+        {showButton && account.publicSlug && (
+          <div className="mt-5" style={{ textAlign: align }}>
+            <a
+              href={buildBookingLink({ publicSlug: account.publicSlug })}
+              className="inline-flex px-5 py-2 text-sm font-semibold"
+              style={buttonStyle(style, theme)}
+            >
+              {buttonText}
+            </a>
+          </div>
         )}
       </div>
       {imageUrl && (
@@ -1483,19 +2969,293 @@ function resolveCoverImage(
   return null;
 }
 
-function renderAbout(block: SiteBlock, account: AccountInfo, accountProfile: AccountProfile) {
+function renderMenuBlock(
+  block: SiteBlock,
+  account: AccountInfo,
+  accountProfile: AccountProfile,
+  branding: Branding,
+  locations: LocationItem[],
+  services: ServiceItem[],
+  specialists: SpecialistItem[],
+  promos: PromoItem[],
+  theme: SiteTheme,
+  style: BlockStyle
+) {
+  const data = block.data as Record<string, unknown>;
+  const menuItems = Array.isArray(data.menuItems)
+    ? (data.menuItems as SitePageKey[]).filter((item) => item in PAGE_LABELS)
+    : PAGE_KEYS;
+  const showLogo = data.showLogo !== false;
+  const showButton = Boolean(data.showButton);
+  const ctaMode = (data.ctaMode as string) || "booking";
+  const phoneValue =
+    (data.phoneOverride as string) || accountProfile.phone || "";
+  const buttonText = (data.buttonText as string) || "Записаться";
+  const showSearch = Boolean(data.showSearch);
+  const showAccount = Boolean(data.showAccount);
+  const accountLink = (data.accountLink as string) || "/c";
+  const position = data.position === "sticky" ? "sticky" : "static";
+  const showSocials = Boolean(data.showSocials);
+  const socialsMode = (data.socialsMode as string) || "auto";
+  const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
+  const align = (style.textAlign ?? "left") as "left" | "center" | "right";
+  const alignClass =
+    align === "center"
+      ? "justify-center text-center"
+      : align === "right"
+        ? "justify-end text-right"
+        : "justify-start text-left";
+  const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
+  const logoNode = branding.logoUrl ? (
+    <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
+  ) : (
+    <div className="text-sm font-semibold">{account.name}</div>
+  );
+  const linkItems = menuItems.map((key) => {
+    const href =
+      key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
+    return (
+      <a key={key} href={href} className="text-sm font-medium">
+        {PAGE_LABELS[key]}
+      </a>
+    );
+  });
+
+  const accountIcon = (
+    <a
+      href={accountLink}
+      className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white text-sm"
+      title="Личный кабинет"
+      aria-label="Личный кабинет"
+    >
+      <IconUser />
+    </a>
+  );
+
+  const socialsAuto: Record<string, string | undefined> = {
+    website: accountProfile.websiteUrl,
+    instagram: accountProfile.instagramUrl,
+    whatsapp: accountProfile.whatsappUrl,
+    telegram: accountProfile.telegramUrl,
+    max: accountProfile.maxUrl,
+    vk: accountProfile.vkUrl,
+    viber: accountProfile.viberUrl,
+    pinterest: accountProfile.pinterestUrl,
+    facebook: accountProfile.facebookUrl,
+    tiktok: accountProfile.tiktokUrl,
+    youtube: accountProfile.youtubeUrl,
+    twitter: accountProfile.twitterUrl,
+    dzen: accountProfile.dzenUrl,
+    ok: accountProfile.okUrl,
+  };
+
+  const socialEntries = Object.keys(SOCIAL_LABELS).map((key) => {
+    const url =
+      socialsMode === "custom" ? socialsCustom[key] : socialsAuto[key];
+    return url ? { key, url } : null;
+  }).filter(Boolean) as Array<{ key: string; url: string }>;
+
+  const socialsNode =
+    showSocials && socialEntries.length ? (
+      <div className="flex items-center gap-2">
+        {socialEntries.map((item) => (
+          <a
+            key={item.key}
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white"
+            title={SOCIAL_LABELS[item.key]}
+          >
+            <img src={SOCIAL_ICONS[item.key]} alt="" className="h-7 w-7" />
+          </a>
+        ))}
+      </div>
+    ) : null;
+
+  const ctaNode =
+    showButton && account.publicSlug && (ctaMode === "booking" || phoneValue) ? (
+      <a
+        href={
+          ctaMode === "phone" && phoneValue
+            ? `tel:${phoneValue}`
+            : buildBookingLink({ publicSlug: account.publicSlug })
+        }
+        className="inline-flex px-4 py-2 text-sm font-semibold"
+        style={buttonStyle(style, theme)}
+      >
+        {ctaMode === "phone" && phoneValue ? phoneValue : buttonText}
+      </a>
+    ) : null;
+
+  const searchNode =
+    showSearch && account.publicSlug ? (
+      <MenuSearch
+        publicSlug={account.publicSlug}
+        locations={locations}
+        services={services}
+        specialists={specialists}
+        promos={promos}
+      />
+    ) : null;
+
+  return (
+    <MenuPreview
+      variant={block.variant}
+      alignClass={alignClass}
+      logoNode={showLogo ? logoNode : null}
+      navNode={<div className="flex flex-wrap items-center gap-4">{linkItems}</div>}
+      searchNode={searchNode}
+      socialsNode={socialsNode}
+      accountNode={showAccount ? accountIcon : null}
+      ctaNode={ctaNode}
+      position={position}
+    />
+  );
+}
+
+function MenuPreview({
+  variant,
+  alignClass,
+  logoNode,
+  navNode,
+  searchNode,
+  socialsNode,
+  accountNode,
+  ctaNode,
+  position,
+}: {
+  variant: "v1" | "v2" | "v3" | "v4" | "v5";
+  alignClass: string;
+  logoNode: React.ReactNode | null;
+  navNode: React.ReactNode;
+  searchNode: React.ReactNode | null;
+  socialsNode: React.ReactNode | null;
+  accountNode: React.ReactNode | null;
+  ctaNode: React.ReactNode | null;
+  position: "static" | "sticky";
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const actions = (
+    <div className="flex flex-wrap items-center gap-4">
+      {searchNode}
+      {socialsNode}
+      {accountNode}
+      {ctaNode}
+    </div>
+  );
+
+  let desktopLayout: React.ReactNode = (
+    <div className="flex flex-wrap items-center justify-between gap-6">
+      <div className="flex items-center gap-4">{logoNode}</div>
+      <div className={`flex flex-1 flex-wrap items-center gap-5 ${alignClass}`}>
+        {navNode}
+      </div>
+      {actions}
+    </div>
+  );
+
+  if (variant === "v2") {
+    desktopLayout = (
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="flex items-center gap-3">{logoNode}</div>
+        <div className="flex flex-1 justify-center">{navNode}</div>
+        {actions}
+      </div>
+    );
+  }
+
+  if (variant === "v3") {
+    desktopLayout = (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">{logoNode}</div>
+          {actions}
+        </div>
+        <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
+      </div>
+    );
+  }
+
+  if (variant === "v4") {
+    desktopLayout = (
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">{logoNode}</div>
+        <div className="flex flex-wrap items-center gap-2">{navNode}</div>
+        <div className="flex flex-wrap items-center gap-3">{actions}</div>
+      </div>
+    );
+  }
+
+  if (variant === "v5") {
+    desktopLayout = (
+      <div className="flex flex-col items-center gap-4 text-center">
+        {logoNode}
+        {navNode}
+        {actions}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="w-full"
+      style={
+        position === "sticky"
+          ? { position: "sticky", top: 12, zIndex: 20 }
+          : undefined
+      }
+    >
+      <div className="hidden md:block">{desktopLayout}</div>
+      <div className="md:hidden">
+        <div className="flex items-center justify-between gap-3">
+          {logoNode}
+          <div className="flex items-center gap-2">
+            {accountNode}
+            {ctaNode}
+            <button
+              type="button"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-white"
+              onClick={() => setMobileOpen((prev) => !prev)}
+              aria-label="Меню"
+            >
+              <IconMenu />
+            </button>
+          </div>
+        </div>
+        {mobileOpen && (
+          <div className="mt-4 space-y-3 rounded-xl border border-[color:var(--bp-stroke)] bg-white p-4">
+            {searchNode}
+            <div className="flex flex-col gap-2">{navNode}</div>
+            {socialsNode}
+            {ctaNode}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function renderAbout(
+  block: SiteBlock,
+  account: AccountInfo,
+  accountProfile: AccountProfile,
+  theme: SiteTheme,
+  style: BlockStyle
+) {
   const data = block.data as Record<string, unknown>;
   const profileText = accountProfile.description || "";
   const showContacts = Boolean(data.showContacts);
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "О нас"}
       </h3>
-      <p className="mt-3 text-sm text-[color:var(--bp-muted)]">
+      <p className="mt-3 text-[color:var(--bp-muted)]" style={textStyle(style, theme)}>
         {(data.text as string) || profileText || "Заполните описание в профиле аккаунта или прямо здесь."}
       </p>
       {showContacts && (
@@ -1507,13 +3267,30 @@ function renderAbout(block: SiteBlock, account: AccountInfo, accountProfile: Acc
     </div>
   );
 }
-function renderLocations(block: SiteBlock, account: AccountInfo, locations: LocationItem[]) {
+function renderLocations(
+  block: SiteBlock,
+  account: AccountInfo,
+  accountProfile: AccountProfile,
+  locations: LocationItem[],
+  theme: SiteTheme,
+  style: BlockStyle,
+  currentEntity: CurrentEntity
+) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
-  const items = useCurrent ? locations.slice(0, 1) : resolveEntities(mode, ids, locations);
+  const currentId = currentEntity?.type === "location" ? currentEntity.id : null;
+  const items =
+    useCurrent && currentId
+      ? locations.filter((item) => item.id === currentId)
+      : useCurrent
+        ? locations.slice(0, 1)
+        : resolveEntities(mode, ids, locations);
   const showButton = Boolean(data.showButton);
+  const showPhone = data.showPhone !== false;
+  const showAddress = data.showAddress !== false;
+  const showContacts = Boolean(data.showContacts);
   const buttonText = (data.buttonText as string) || "Записаться";
   const subtitle =
     typeof data.subtitle === "string"
@@ -1525,22 +3302,40 @@ function renderLocations(block: SiteBlock, account: AccountInfo, locations: Loca
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "Локации"}
       </h3>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+          {subtitle}
+        </p>
+      )}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {items.map((location) => (
-          <div key={location.id} className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+          <div
+            key={location.id}
+            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
+            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
+          >
             {location.coverUrl && (
               <img src={location.coverUrl} alt="" className="mb-3 h-32 w-full rounded-xl object-cover" />
             )}
             <div className="text-base font-semibold">{location.name}</div>
-            <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
-            {location.phone && (
+            {showAddress && (
+              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
+            )}
+            {showPhone && location.phone && (
               <div className="mt-1 text-xs text-[color:var(--bp-muted)]">Телефон: {location.phone}</div>
+            )}
+            {showContacts && (
+              <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                {accountProfile.telegramUrl ? "Telegram " : ""}
+                {accountProfile.whatsappUrl ? "WhatsApp " : ""}
+                {accountProfile.maxUrl ? "MAX " : ""}
+                {accountProfile.vkUrl ? "VK " : ""}
+              </div>
             )}
             {showButton && account.publicSlug && (
               <a
@@ -1549,7 +3344,8 @@ function renderLocations(block: SiteBlock, account: AccountInfo, locations: Loca
                   locationId: location.id,
                   scenario: "serviceFirst",
                 })}
-                className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
+                className="mt-3 inline-flex px-3 py-2 text-xs"
+                style={buttonStyle(style, theme)}
               >
                 {buttonText}
               </a>
@@ -1566,12 +3362,25 @@ function renderLocations(block: SiteBlock, account: AccountInfo, locations: Loca
   );
 }
 
-function renderServices(block: SiteBlock, account: AccountInfo, services: ServiceItem[]) {
+function renderServices(
+  block: SiteBlock,
+  account: AccountInfo,
+  services: ServiceItem[],
+  theme: SiteTheme,
+  style: BlockStyle,
+  currentEntity: CurrentEntity
+) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
-  const items = useCurrent ? services.slice(0, 1) : resolveEntities(mode, ids, services);
+  const currentId = currentEntity?.type === "service" ? currentEntity.id : null;
+  const items =
+    useCurrent && currentId
+      ? services.filter((item) => item.id === currentId)
+      : useCurrent
+        ? services.slice(0, 1)
+        : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const showPrice = data.showPrice !== false;
@@ -1588,15 +3397,23 @@ function renderServices(block: SiteBlock, account: AccountInfo, services: Servic
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "Услуги"}
       </h3>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+          {subtitle}
+        </p>
+      )}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {items.map((service) => (
-          <div key={service.id} className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+          <div
+            key={service.id}
+            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
+            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
+          >
             {service.coverUrl && (
               <img src={service.coverUrl} alt="" className="mb-3 h-32 w-full rounded-xl object-cover" />
             )}
@@ -1619,7 +3436,8 @@ function renderServices(block: SiteBlock, account: AccountInfo, services: Servic
                   serviceId: service.id,
                   scenario: specialistId ? "specialistFirst" : "serviceFirst",
                 })}
-                className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
+                className="mt-3 inline-flex px-3 py-2 text-xs"
+                style={buttonStyle(style, theme)}
               >
                 {buttonText}
               </a>
@@ -1636,12 +3454,25 @@ function renderServices(block: SiteBlock, account: AccountInfo, services: Servic
   );
 }
 
-function renderSpecialists(block: SiteBlock, account: AccountInfo, specialists: SpecialistItem[]) {
+function renderSpecialists(
+  block: SiteBlock,
+  account: AccountInfo,
+  specialists: SpecialistItem[],
+  theme: SiteTheme,
+  style: BlockStyle,
+  currentEntity: CurrentEntity
+) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
-  const items = useCurrent ? specialists.slice(0, 1) : resolveEntities(mode, ids, specialists);
+  const currentId = currentEntity?.type === "specialist" ? currentEntity.id : null;
+  const items =
+    useCurrent && currentId
+      ? specialists.filter((item) => item.id === currentId)
+      : useCurrent
+        ? specialists.slice(0, 1)
+        : resolveEntities(mode, ids, specialists);
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
@@ -1655,15 +3486,23 @@ function renderSpecialists(block: SiteBlock, account: AccountInfo, specialists: 
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "Специалисты"}
       </h3>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+          {subtitle}
+        </p>
+      )}
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         {items.map((specialist) => (
-          <div key={specialist.id} className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+          <div
+            key={specialist.id}
+            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
+            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
+          >
             {specialist.coverUrl && (
               <img src={specialist.coverUrl} alt="" className="mb-3 h-32 w-full rounded-xl object-cover" />
             )}
@@ -1679,7 +3518,8 @@ function renderSpecialists(block: SiteBlock, account: AccountInfo, specialists: 
                   specialistId: specialist.id,
                   scenario: "specialistFirst",
                 })}
-                className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
+                className="mt-3 inline-flex px-3 py-2 text-xs"
+                style={buttonStyle(style, theme)}
               >
                 {buttonText}
               </a>
@@ -1696,33 +3536,50 @@ function renderSpecialists(block: SiteBlock, account: AccountInfo, specialists: 
   );
 }
 
-function renderPromos(block: SiteBlock, promos: PromoItem[]) {
+function renderPromos(
+  block: SiteBlock,
+  promos: PromoItem[],
+  theme: SiteTheme,
+  style: BlockStyle,
+  currentEntity: CurrentEntity
+) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
+  const currentId = currentEntity?.type === "promo" ? currentEntity.id : null;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
-  const items = useCurrent ? promos.slice(0, 1) : resolveEntities(mode, ids, promos);
+  const items =
+    useCurrent && currentId
+      ? promos.filter((item) => item.id === currentId)
+      : useCurrent
+        ? promos.slice(0, 1)
+        : resolveEntities(mode, ids, promos);
 
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "Промо и скидки"}
       </h3>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+          {subtitle}
+        </p>
+      )}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {items.map((promo) => (
           <div
             key={promo.id}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm"
+            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4 text-sm"
+            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
           >
             <div className="text-base font-semibold">{promo.name}</div>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
@@ -1760,11 +3617,18 @@ function renderPromos(block: SiteBlock, promos: PromoItem[]) {
   );
 }
 
-function renderWorks(block: SiteBlock, workPhotos: WorkPhotos) {
+function renderWorks(
+  block: SiteBlock,
+  workPhotos: WorkPhotos,
+  theme: SiteTheme,
+  style: BlockStyle,
+  currentEntity: CurrentEntity
+) {
   const data = block.data as Record<string, unknown>;
   const source = (data.source as string) ?? "locations";
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
+  const useCurrent = Boolean(data.useCurrent);
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -1777,19 +3641,35 @@ function renderWorks(block: SiteBlock, workPhotos: WorkPhotos) {
       : source === "specialists"
         ? workPhotos.specialists
         : workPhotos.locations;
-  const filtered = mode === "selected" && ids.length > 0
-    ? items.filter((item) => ids.includes(Number(item.entityId)))
-    : items;
+  const currentId =
+    currentEntity?.type === "service" && source === "services"
+      ? currentEntity.id
+      : currentEntity?.type === "specialist" && source === "specialists"
+        ? currentEntity.id
+        : currentEntity?.type === "location" && source === "locations"
+          ? currentEntity.id
+          : null;
+  const filtered = useCurrent && currentId
+    ? items.filter((item) => Number(item.entityId) === currentId)
+    : useCurrent
+      ? items.slice(0, 6)
+      : mode === "selected" && ids.length > 0
+        ? items.filter((item) => ids.includes(Number(item.entityId)))
+        : items;
 
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "Работы"}
       </h3>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+          {subtitle}
+        </p>
+      )}
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         {filtered.slice(0, 8).map((item, idx) => (
           <img key={`${item.entityId}-${idx}`} src={item.url} alt="" className="h-28 w-full rounded-xl object-cover" />
@@ -1804,7 +3684,7 @@ function renderWorks(block: SiteBlock, workPhotos: WorkPhotos) {
   );
 }
 
-function renderReviews(block: SiteBlock) {
+function renderReviews(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
   const data = block.data as Record<string, unknown>;
   const subtitle =
     typeof data.subtitle === "string"
@@ -1815,15 +3695,23 @@ function renderReviews(block: SiteBlock) {
   return (
     <div>
       <h3
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+        className="font-semibold"
+        style={headingStyle(style, theme)}
       >
         {(data.title as string) || "Отзывы"}
       </h3>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+          {subtitle}
+        </p>
+      )}
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         {[1, 2, 3].map((idx) => (
-          <div key={idx} className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
+          <div
+            key={idx}
+            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]"
+            style={{ borderColor: theme.borderColor }}
+          >
             Отзывы будут отображаться здесь после их появления.
           </div>
         ))}
@@ -1836,7 +3724,9 @@ function renderContacts(
   block: SiteBlock,
   account: AccountInfo,
   accountProfile: AccountProfile,
-  locations: LocationItem[]
+  locations: LocationItem[],
+  theme: SiteTheme,
+  style: BlockStyle
 ) {
   const data = block.data as Record<string, unknown>;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
@@ -1854,13 +3744,17 @@ function renderContacts(
     <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
       <div>
         <h3
-          className="text-2xl font-semibold"
-          style={{ fontFamily: "var(--site-font-heading)" }}
+          className="font-semibold"
+          style={headingStyle(style, theme)}
         >
           {(data.title as string) || "Контакты"}
         </h3>
-        {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
-        <div className="mt-4 space-y-2 text-sm text-[color:var(--bp-muted)]">
+        {subtitle && (
+          <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+            {subtitle}
+          </p>
+        )}
+        <div className="mt-4 space-y-2 text-[color:var(--bp-muted)]" style={textStyle(style, theme)}>
           <div>Аккаунт: {account.name}</div>
           {accountProfile.phone && <div>Телефон: {accountProfile.phone}</div>}
           {accountProfile.email && <div>Email: {accountProfile.email}</div>}
@@ -1875,5 +3769,3 @@ function renderContacts(
     </div>
   );
 }
-
-

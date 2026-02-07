@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { parsePublicSlugId } from "@/lib/public-slug";
 import { normalizeDraft, type SiteDraft } from "@/lib/site-builder";
 
@@ -11,6 +11,12 @@ export type AccountProfile = {
   instagramUrl: string | null;
   whatsappUrl: string | null;
   telegramUrl: string | null;
+  facebookUrl: string | null;
+  tiktokUrl: string | null;
+  youtubeUrl: string | null;
+  twitterUrl: string | null;
+  dzenUrl: string | null;
+  okUrl: string | null;
   maxUrl: string | null;
   vkUrl: string | null;
   viberUrl: string | null;
@@ -51,7 +57,7 @@ export type SpecialistItem = {
 export type PromoItem = {
   id: number;
   name: string;
-  type: "PERCENT" | "FIXED";
+  type: "PERCENT" | "FIXED" | "BUNDLE";
   value: number;
   startsAt: string | null;
   endsAt: string | null;
@@ -215,6 +221,12 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     instagramUrl: profile?.instagramUrl ?? null,
     whatsappUrl: profile?.whatsappUrl ?? null,
     telegramUrl: profile?.telegramUrl ?? null,
+    facebookUrl: null,
+    tiktokUrl: null,
+    youtubeUrl: null,
+    twitterUrl: null,
+    dzenUrl: null,
+    okUrl: null,
     maxUrl: profile?.maxUrl ?? null,
     vkUrl: profile?.vkUrl ?? null,
     viberUrl: profile?.viberUrl ?? null,
@@ -284,3 +296,4 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     workPhotos,
   };
 }
+

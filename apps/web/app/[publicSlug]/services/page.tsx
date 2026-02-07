@@ -1,28 +1,22 @@
 import { notFound } from "next/navigation";
 
-import { loadPublicData } from "../../_shared/public-data";
-import { normalizeStyle, renderBlock } from "../../_shared/public-render";
+import { loadPublicData } from "../_shared/public-data";
+import { normalizeStyle, renderBlock } from "../_shared/public-render";
 
 type PageProps = {
-  params: Promise<{ publicSlug?: string; locationId?: string }>;
+  params: Promise<{ publicSlug?: string }>;
 };
 
-export default async function PublicLocationPage({ params }: PageProps) {
+export default async function PublicServicesPage({ params }: PageProps) {
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
-  const locationId = Number(resolvedParams.locationId);
-  if (!Number.isInteger(locationId)) return notFound();
 
   const data = await loadPublicData(publicSlug);
   if (!data) return notFound();
 
-  if (!data.locations.some((item) => item.id === locationId)) return notFound();
-
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
-  const entityBlocks =
-    data.draft.entityPages?.locations?.[String(locationId)] ?? null;
-  const pageBlocks = entityBlocks ?? [];
+  const pageBlocks = data.draft.pages?.services ?? data.draft.blocks;
   const blocks = menuBlock
     ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu")]
     : pageBlocks;
@@ -163,7 +157,7 @@ export default async function PublicLocationPage({ params }: PageProps) {
                 data.specialists,
                 data.promos,
                 data.workPhotos,
-                { type: "location", id: locationId }
+                null
               )}
             </section>
           );

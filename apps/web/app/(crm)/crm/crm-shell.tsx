@@ -240,7 +240,14 @@ const [collapsed, setCollapsed] = useState(false);
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-x-visible bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
+    <div
+      className="flex min-h-screen w-full overflow-x-visible bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]"
+      style={
+        {
+          "--crm-sidebar-width": effectiveCollapsed ? "78px" : "272px",
+        } as React.CSSProperties
+      }
+    >
       <div
         className={`fixed inset-0 z-30 bg-black/30 transition-opacity md:hidden ${
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
@@ -651,7 +658,11 @@ const [collapsed, setCollapsed] = useState(false);
           </div>
         </header>
 
-        <main className="flex-1 mt-16 px-4 pb-6 pt-6 sm:px-6 lg:px-8 pb-[env(safe-area-inset-bottom)]">
+        <main
+          className={`flex-1 mt-16 pb-[env(safe-area-inset-bottom)] ${
+            isSiteBuilderPage ? "px-0 pt-0 pb-0" : "px-4 pb-6 pt-6 sm:px-6 lg:px-8"
+          }`}
+        >
           <div
             className={`mx-auto flex w-full flex-col ${
               isSchedulePage || isSiteBuilderPage ? "max-w-none" : "max-w-[1240px]"

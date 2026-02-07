@@ -172,16 +172,6 @@ export default async function CrmSitePage() {
 
   return (
     <div className="flex flex-col gap-6">
-            <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM · Сайт
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Сайт</h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Конструктор страницы и публикация.
-        </p>
-      </header>
-
       <SiteClient
         initialPublicPage={{
           id: page.id,
