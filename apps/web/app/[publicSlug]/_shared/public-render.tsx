@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { buildBookingLink } from "@/lib/booking-links";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
+import type { CSSProperties } from "react";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type {
   AccountProfile,
@@ -68,11 +70,23 @@ type BlockStyle = {
   radius?: number | null;
   buttonRadius?: number | null;
   blockBg?: string;
+  blockBgLight?: string;
+  blockBgDark?: string;
   borderColor?: string;
+  borderColorLight?: string;
+  borderColorDark?: string;
   buttonColor?: string;
+  buttonColorLight?: string;
+  buttonColorDark?: string;
   buttonTextColor?: string;
+  buttonTextColorLight?: string;
+  buttonTextColorDark?: string;
   textColor?: string;
+  textColorLight?: string;
+  textColorDark?: string;
   mutedColor?: string;
+  mutedColorLight?: string;
+  mutedColorDark?: string;
   shadowColor?: string;
   shadowSize?: number | null;
   gradientEnabled?: boolean;
@@ -85,46 +99,187 @@ type BlockStyle = {
   headingSize?: number | null;
   subheadingSize?: number | null;
   textSize?: number | null;
+  blockBgLightResolved?: string;
+  blockBgDarkResolved?: string;
+  borderColorLightResolved?: string;
+  borderColorDarkResolved?: string;
+  buttonColorLightResolved?: string;
+  buttonColorDarkResolved?: string;
+  buttonTextColorLightResolved?: string;
+  buttonTextColorDarkResolved?: string;
+  textColorLightResolved?: string;
+  textColorDarkResolved?: string;
+  mutedColorLightResolved?: string;
+  mutedColorDarkResolved?: string;
+  gradientEnabledLight?: boolean;
+  gradientEnabledDark?: boolean;
+  gradientFromLightResolved?: string;
+  gradientToLightResolved?: string;
+  gradientFromDarkResolved?: string;
+  gradientToDarkResolved?: string;
+  gradientDirectionLight?: "vertical" | "horizontal";
+  gradientDirectionDark?: "vertical" | "horizontal";
 };
 
-export function normalizeStyle(block: SiteBlock): BlockStyle {
-  const style = (block.data.style as BlockStyle) ?? {};
+export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
+  const style = (block.data.style as Record<string, unknown>) ?? {};
   const numOrNull = (value?: number | string | null) => {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
     return Number.isFinite(parsed) ? (parsed as number) : null;
   };
+  const readColor = (key: string) =>
+    typeof style[key] === "string" ? (style[key] as string) : "";
+  const resolveColor = (lightKey: string, darkKey: string, legacyKey: string) => {
+    const light = readColor(lightKey) || readColor(legacyKey);
+    const dark = readColor(darkKey);
+    return theme.mode === "dark" ? dark || "" : light || "";
+  };
+  const resolvePair = (
+    lightKey: string,
+    darkKey: string,
+    legacyKey: string,
+    lightFallback: string,
+    darkFallback: string
+  ) => {
+    const lightRaw = readColor(lightKey) || readColor(legacyKey);
+    const darkRaw = readColor(darkKey);
+    const lightResolved =
+      lightRaw.toLowerCase() === "transparent" ? "transparent" : lightRaw || lightFallback;
+    const darkResolved =
+      darkRaw.toLowerCase() === "transparent" ? "transparent" : darkRaw || darkFallback;
+    return { lightResolved, darkResolved };
+  };
   const useCustomWidth = style.useCustomWidth === true;
+  const blockBgPair = resolvePair(
+    "blockBgLight",
+    "blockBgDark",
+    "blockBg",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
+  const borderPair = resolvePair(
+    "borderColorLight",
+    "borderColorDark",
+    "borderColor",
+    theme.lightPalette.borderColor,
+    theme.darkPalette.borderColor
+  );
+  const buttonPair = resolvePair(
+    "buttonColorLight",
+    "buttonColorDark",
+    "buttonColor",
+    theme.lightPalette.buttonColor,
+    theme.darkPalette.buttonColor
+  );
+  const buttonTextPair = resolvePair(
+    "buttonTextColorLight",
+    "buttonTextColorDark",
+    "buttonTextColor",
+    theme.lightPalette.buttonTextColor,
+    theme.darkPalette.buttonTextColor
+  );
+  const textPair = resolvePair(
+    "textColorLight",
+    "textColorDark",
+    "textColor",
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
+  );
+  const mutedPair = resolvePair(
+    "mutedColorLight",
+    "mutedColorDark",
+    "mutedColor",
+    theme.lightPalette.mutedColor,
+    theme.darkPalette.mutedColor
+  );
+  const gradientEnabledLight =
+    typeof style.gradientEnabledLight === "boolean"
+      ? (style.gradientEnabledLight as boolean)
+      : Boolean(style.gradientEnabled);
+  const gradientEnabledDark =
+    typeof style.gradientEnabledDark === "boolean"
+      ? (style.gradientEnabledDark as boolean)
+      : false;
+  const gradientDirectionLight =
+    style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
+      ? (style.gradientDirectionLight as "horizontal" | "vertical")
+      : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? (style.gradientDirection as "horizontal" | "vertical")
+        : "vertical";
+  const gradientDirectionDark =
+    style.gradientDirectionDark === "horizontal" || style.gradientDirectionDark === "vertical"
+      ? (style.gradientDirectionDark as "horizontal" | "vertical")
+      : "vertical";
+  const gradientFromLightResolved =
+    (style.gradientFromLight as string) ||
+    (style.gradientFrom as string) ||
+    theme.lightPalette.gradientFrom;
+  const gradientToLightResolved =
+    (style.gradientToLight as string) ||
+    (style.gradientTo as string) ||
+    theme.lightPalette.gradientTo;
+  const gradientFromDarkResolved =
+    (style.gradientFromDark as string) || theme.darkPalette.gradientFrom;
+  const gradientToDarkResolved =
+    (style.gradientToDark as string) || theme.darkPalette.gradientTo;
+
   return {
-    marginTop: Number.isFinite(style.marginTop) ? (style.marginTop as number) : 0,
-    marginBottom: Number.isFinite(style.marginBottom)
+    marginTop: Number.isFinite(style.marginTop as number)
+      ? (style.marginTop as number)
+      : 0,
+    marginBottom: Number.isFinite(style.marginBottom as number)
       ? (style.marginBottom as number)
       : 0,
-    blockWidth: useCustomWidth ? numOrNull(style.blockWidth) : null,
+    blockWidth: useCustomWidth ? numOrNull(style.blockWidth as number) : null,
     useCustomWidth,
-    radius: numOrNull(style.radius),
-    buttonRadius: numOrNull(style.buttonRadius),
-    blockBg: style.blockBg ?? "",
-    borderColor: style.borderColor ?? "",
-    buttonColor: style.buttonColor ?? "",
-    buttonTextColor: style.buttonTextColor ?? "",
-    textColor: style.textColor ?? "",
-    mutedColor: style.mutedColor ?? "",
-    shadowColor: style.shadowColor ?? "",
-    shadowSize: numOrNull(style.shadowSize),
+    radius: numOrNull(style.radius as number),
+    buttonRadius: numOrNull(style.buttonRadius as number),
+    blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
+    borderColor: resolveColor("borderColorLight", "borderColorDark", "borderColor"),
+    buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
+    buttonTextColor: resolveColor(
+      "buttonTextColorLight",
+      "buttonTextColorDark",
+      "buttonTextColor"
+    ),
+    textColor: resolveColor("textColorLight", "textColorDark", "textColor"),
+    mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    blockBgLightResolved: blockBgPair.lightResolved,
+    blockBgDarkResolved: blockBgPair.darkResolved,
+    borderColorLightResolved: borderPair.lightResolved,
+    borderColorDarkResolved: borderPair.darkResolved,
+    buttonColorLightResolved: buttonPair.lightResolved,
+    buttonColorDarkResolved: buttonPair.darkResolved,
+    buttonTextColorLightResolved: buttonTextPair.lightResolved,
+    buttonTextColorDarkResolved: buttonTextPair.darkResolved,
+    textColorLightResolved: textPair.lightResolved,
+    textColorDarkResolved: textPair.darkResolved,
+    mutedColorLightResolved: mutedPair.lightResolved,
+    mutedColorDarkResolved: mutedPair.darkResolved,
+    gradientEnabledLight,
+    gradientEnabledDark,
+    gradientFromLightResolved,
+    gradientToLightResolved,
+    gradientFromDarkResolved,
+    gradientToDarkResolved,
+    gradientDirectionLight,
+    gradientDirectionDark,
+    shadowColor: readColor("shadowColor"),
+    shadowSize: numOrNull(style.shadowSize as number),
     gradientEnabled: Boolean(style.gradientEnabled),
     gradientDirection:
       style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
-        ? style.gradientDirection
+        ? (style.gradientDirection as "horizontal" | "vertical")
         : "vertical",
-    gradientFrom: style.gradientFrom ?? "",
-    gradientTo: style.gradientTo ?? "",
-    textAlign: style.textAlign ?? "left",
-    fontHeading: style.fontHeading ?? "",
-    fontBody: style.fontBody ?? "",
-    headingSize: numOrNull(style.headingSize),
-    subheadingSize: numOrNull(style.subheadingSize),
-    textSize: numOrNull(style.textSize),
+    gradientFrom: (style.gradientFrom as string) ?? "",
+    gradientTo: (style.gradientTo as string) ?? "",
+    textAlign: (style.textAlign as "left" | "center" | "right") ?? "left",
+    fontHeading: (style.fontHeading as string) ?? "",
+    fontBody: (style.fontBody as string) ?? "",
+    headingSize: numOrNull(style.headingSize as number),
+    subheadingSize: numOrNull(style.subheadingSize as number),
+    textSize: numOrNull(style.textSize as number),
   };
 }
 
@@ -144,7 +299,16 @@ export function renderBlock(
 ) {
   switch (block.type) {
     case "cover":
-      return renderCover(block, accountName, publicSlug, branding, locations, services, specialists);
+      return renderCover(
+        block,
+        accountName,
+        publicSlug,
+        branding,
+        locations,
+        services,
+        specialists,
+        theme
+      );
     case "menu":
       return renderMenu(
         block,
@@ -159,15 +323,15 @@ export function renderBlock(
         theme
       );
     case "about":
-      return renderAbout(block, accountName, profile);
+      return renderAbout(block, accountName, profile, theme);
     case "locations":
-      return renderLocations(block, publicSlug, locations, current);
+      return renderLocations(block, publicSlug, locations, current, theme);
     case "services":
-      return renderServices(block, publicSlug, services, current);
+      return renderServices(block, publicSlug, services, current, theme);
     case "specialists":
-      return renderSpecialists(block, publicSlug, specialists, current);
+      return renderSpecialists(block, publicSlug, specialists, current, theme);
     case "promos":
-      return renderPromos(block, publicSlug, promos, current);
+      return renderPromos(block, publicSlug, promos, current, theme);
     case "works":
       return renderWorks(block, workPhotos);
     case "reviews":
@@ -198,10 +362,11 @@ function renderCover(
   branding: Branding,
   locations: LocationItem[],
   services: ServiceItem[],
-  specialists: SpecialistItem[]
+  specialists: SpecialistItem[],
+  theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
-  const style = normalizeStyle(block);
+  const style = normalizeStyle(block, theme);
   const title = (data.title as string) || accountName;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
@@ -228,13 +393,13 @@ function renderCover(
         {subtitle && <p className="mt-2 text-lg text-[color:var(--bp-muted)]">{subtitle}</p>}
         {description && <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{description}</p>}
         {showButton && publicSlug && (
-          <a
+          <Link
             href={buildBookingLink({ publicSlug })}
             className="mt-5 inline-flex rounded-full px-5 py-2 text-sm font-semibold"
             style={buttonStyle(style)}
           >
             {buttonText}
-          </a>
+          </Link>
         )}
       </div>
       {imageUrl && (
@@ -246,40 +411,108 @@ function renderCover(
   );
 }
 
-function headingStyle(style: BlockStyle) {
-  return {
-    fontFamily: style.fontHeading || "var(--site-font-heading)",
-    fontSize: style.headingSize ? `${style.headingSize}px` : "var(--site-h1)",
-    textAlign: style.textAlign ?? "left",
-    color: style.textColor || "var(--bp-ink)",
-  } as const;
-}
+  function headingStyle(style: BlockStyle) {
+    return {
+      fontFamily: style.fontHeading || "var(--site-font-heading)",
+      fontSize: style.headingSize ? `${style.headingSize}px` : "var(--site-h1)",
+      textAlign: style.textAlign ?? "left",
+      color: "var(--block-text, var(--bp-ink))",
+    } as const;
+  }
 
-function subheadingStyle(style: BlockStyle) {
-  return {
-    fontFamily: style.fontBody || "var(--site-font-body)",
-    fontSize: style.subheadingSize ? `${style.subheadingSize}px` : "var(--site-h2)",
-    textAlign: style.textAlign ?? "left",
-    color: style.mutedColor || "var(--bp-muted)",
-  } as const;
-}
+  function subheadingStyle(style: BlockStyle) {
+    return {
+      fontFamily: style.fontBody || "var(--site-font-body)",
+      fontSize: style.subheadingSize ? `${style.subheadingSize}px` : "var(--site-h2)",
+      textAlign: style.textAlign ?? "left",
+      color: "var(--block-muted, var(--bp-muted))",
+    } as const;
+  }
 
-function textStyle(style: BlockStyle) {
-  return {
-    fontFamily: style.fontBody || "var(--site-font-body)",
-    fontSize: style.textSize ? `${style.textSize}px` : "var(--site-text-size)",
-    textAlign: style.textAlign ?? "left",
-    color: style.mutedColor || "var(--bp-muted)",
-  } as const;
-}
+  function textStyle(style: BlockStyle) {
+    return {
+      fontFamily: style.fontBody || "var(--site-font-body)",
+      fontSize: style.textSize ? `${style.textSize}px` : "var(--site-text-size)",
+      textAlign: style.textAlign ?? "left",
+      color: "var(--block-muted, var(--bp-muted))",
+    } as const;
+  }
 
-function buttonStyle(style: BlockStyle) {
-  return {
-    backgroundColor: style.buttonColor || "var(--site-button)",
-    color: style.buttonTextColor || "var(--site-button-text)",
-    borderRadius: style.buttonRadius !== null ? style.buttonRadius : "var(--site-button-radius)",
-  } as const;
-}
+  function buttonStyle(style: BlockStyle) {
+    return {
+      backgroundColor: "var(--block-button, var(--site-button))",
+      color: "var(--block-button-text, var(--site-button-text))",
+      borderRadius: style.buttonRadius !== null ? style.buttonRadius : "var(--site-button-radius)",
+    } as const;
+  }
+
+  export function buildBlockWrapperStyle(
+    style: BlockStyle,
+    theme: SiteTheme,
+    blockWidth: number,
+    options: { isMenuSticky: boolean }
+  ) {
+    const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
+    const blockShadowColor =
+      typeof style.shadowColor === "string" && style.shadowColor
+        ? style.shadowColor
+        : null;
+    const radius = typeof style.radius === "number" ? style.radius : "var(--site-radius)";
+    const lightGradient = style.gradientEnabledLight
+      ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
+      : "none";
+    const darkGradient = style.gradientEnabledDark
+      ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
+      : "none";
+    const borderColorOverride =
+      typeof style.borderColor === "string" && style.borderColor ? style.borderColor : null;
+    return {
+      className: "site-block border border-[color:var(--bp-stroke)] p-8",
+      style: {
+        position: options.isMenuSticky ? "sticky" : undefined,
+        top: options.isMenuSticky ? 0 : undefined,
+        zIndex: options.isMenuSticky ? 40 : undefined,
+        borderRadius: radius,
+        backgroundColor: "var(--block-bg)",
+        backgroundImage: "var(--block-gradient)",
+        borderColor: "var(--block-border)",
+        boxShadow:
+          blockShadowSize !== null
+            ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
+            : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
+        marginTop: typeof style.marginTop === "number" ? style.marginTop : 0,
+        marginBottom: typeof style.marginBottom === "number" ? style.marginBottom : 0,
+        width: "100%",
+        maxWidth: blockWidth,
+        marginLeft: "auto",
+        marginRight: "auto",
+        boxSizing: "border-box",
+        color: "var(--block-text)",
+        ["--bp-ink" as string]: "var(--block-text)",
+        ["--bp-muted" as string]: "var(--block-muted)",
+        ["--block-bg-light" as string]: style.blockBgLightResolved,
+        ["--block-bg-dark" as string]: style.blockBgDarkResolved,
+        ["--block-border-light" as string]: style.borderColorLightResolved,
+        ["--block-border-dark" as string]: style.borderColorDarkResolved,
+        ["--block-text-light" as string]: style.textColorLightResolved,
+        ["--block-text-dark" as string]: style.textColorDarkResolved,
+        ["--block-muted-light" as string]: style.mutedColorLightResolved,
+        ["--block-muted-dark" as string]: style.mutedColorDarkResolved,
+        ["--block-button-light" as string]: style.buttonColorLightResolved,
+        ["--block-button-dark" as string]: style.buttonColorDarkResolved,
+        ["--block-button-text-light" as string]: style.buttonTextColorLightResolved,
+        ["--block-button-text-dark" as string]: style.buttonTextColorDarkResolved,
+        ["--block-gradient-light" as string]: lightGradient,
+        ["--block-gradient-dark" as string]: darkGradient,
+        ...(borderColorOverride
+          ? {
+              ["--bp-stroke" as string]: "var(--block-border)",
+              ["--site-border" as string]: "var(--block-border)",
+            }
+          : {}),
+        } as CSSProperties,
+      };
+  }
 
 function renderMenu(
   block: SiteBlock,
@@ -294,7 +527,7 @@ function renderMenu(
   theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
-  const style = normalizeStyle(block);
+  const style = normalizeStyle(block, theme);
   const menuItems = Array.isArray(data.menuItems)
     ? (data.menuItems as PageKey[]).filter((item) => item in PAGE_LABELS)
     : (Object.keys(PAGE_LABELS) as PageKey[]);
@@ -326,14 +559,14 @@ function renderMenu(
     const href =
       key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
-      <a
+      <Link
         key={key}
         href={href}
         className="text-sm font-medium"
-        style={{ color: style.textColor || "var(--bp-ink)" }}
+        style={{ color: "var(--block-text, var(--bp-ink))" }}
       >
         {PAGE_LABELS[key]}
-      </a>
+      </Link>
     );
   });
 
@@ -374,7 +607,7 @@ function renderMenu(
             href={item.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent"
             title={SOCIAL_LABELS[item.key] ?? item.key}
             aria-label={SOCIAL_LABELS[item.key] ?? item.key}
           >
@@ -423,7 +656,7 @@ function renderMenu(
   const accountNode = showAccount ? (
     <a
       href={accountLink}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
       aria-label="Личный кабинет"
       title="Личный кабинет"
     >
@@ -541,7 +774,7 @@ function renderMenu(
             {themeToggleNode}
             {ctaNode}
             <details className="relative">
-              <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)]">
+              <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]">
                 <IconMenu />
               </summary>
               <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[color:var(--site-border)] bg-[color:var(--bp-panel)] p-4 shadow-lg">
@@ -615,7 +848,12 @@ function IconMenu() {
   );
 }
 
-function renderAbout(block: SiteBlock, accountName: string, profile: AccountProfile) {
+function renderAbout(
+  block: SiteBlock,
+  accountName: string,
+  profile: AccountProfile,
+  _theme: SiteTheme
+) {
   const data = block.data as Record<string, unknown>;
   const text = (data.text as string) || profile.description || "";
   return (
@@ -636,10 +874,11 @@ function renderLocations(
   block: SiteBlock,
   publicSlug: string,
   locations: LocationItem[],
-  current: CurrentEntity
+  current: CurrentEntity,
+  theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
-  const style = normalizeStyle(block);
+  const style = normalizeStyle(block, theme);
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
@@ -676,12 +915,12 @@ function renderLocations(
                 className="mb-3 h-32 w-full rounded-xl object-cover"
               />
             )}
-            <a
+            <Link
               href={`/${publicSlug}/locations/${location.id}`}
               className="text-base font-semibold"
             >
               {location.name}
-            </a>
+            </Link>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
             {location.phone && (
               <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
@@ -689,7 +928,7 @@ function renderLocations(
               </div>
             )}
             {showButton && publicSlug && (
-              <a
+              <Link
                 href={buildBookingLink({
                   publicSlug,
                   locationId: location.id,
@@ -699,7 +938,7 @@ function renderLocations(
                 style={buttonStyle(style)}
               >
                 {buttonText}
-              </a>
+              </Link>
             )}
           </div>
         ))}
@@ -717,10 +956,11 @@ function renderServices(
   block: SiteBlock,
   publicSlug: string,
   services: ServiceItem[],
-  current: CurrentEntity
+  current: CurrentEntity,
+  theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
-  const style = normalizeStyle(block);
+  const style = normalizeStyle(block, theme);
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
@@ -761,12 +1001,12 @@ function renderServices(
                 className="mb-3 h-32 w-full rounded-xl object-cover"
               />
             )}
-            <a
+            <Link
               href={`/${publicSlug}/services/${service.id}`}
               className="text-base font-semibold"
             >
               {service.name}
-            </a>
+            </Link>
             {service.description && (
               <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
                 {service.description}
@@ -777,7 +1017,7 @@ function renderServices(
               {showPrice && <span>{service.basePrice} ₽</span>}
             </div>
             {showButton && publicSlug && (
-              <a
+              <Link
                 href={buildBookingLink({
                   publicSlug,
                   locationId,
@@ -789,7 +1029,7 @@ function renderServices(
                 style={buttonStyle(style)}
               >
                 {buttonText}
-              </a>
+              </Link>
             )}
           </div>
         ))}
@@ -807,10 +1047,11 @@ function renderSpecialists(
   block: SiteBlock,
   publicSlug: string,
   specialists: SpecialistItem[],
-  current: CurrentEntity
+  current: CurrentEntity,
+  theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
-  const style = normalizeStyle(block);
+  const style = normalizeStyle(block, theme);
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
@@ -848,17 +1089,17 @@ function renderSpecialists(
                 className="mb-3 h-32 w-full rounded-xl object-cover"
               />
             )}
-            <a
+            <Link
               href={`/${publicSlug}/specialists/${specialist.id}`}
               className="text-base font-semibold"
             >
               {specialist.name}
-            </a>
+            </Link>
             {specialist.level && (
               <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{specialist.level}</div>
             )}
             {showButton && publicSlug && (
-              <a
+              <Link
                 href={buildBookingLink({
                   publicSlug,
                   locationId:
@@ -871,7 +1112,7 @@ function renderSpecialists(
                 style={buttonStyle(style)}
               >
                 {buttonText}
-              </a>
+              </Link>
             )}
           </div>
         ))}
@@ -889,7 +1130,8 @@ function renderPromos(
   block: SiteBlock,
   publicSlug: string,
   promos: PromoItem[],
-  current: CurrentEntity
+  current: CurrentEntity,
+  _theme: SiteTheme
 ) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
@@ -919,12 +1161,12 @@ function renderPromos(
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {items.map((promo) => (
           <div key={promo.id} className="rounded-2xl border border-[color:var(--bp-stroke)] p-4">
-            <a
+            <Link
               href={`/${publicSlug}/promos/${promo.id}`}
               className="text-base font-semibold"
             >
               {promo.name}
-            </a>
+            </Link>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
               {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ₽`}
               {promo.startsAt || promo.endsAt ? " · " : ""}

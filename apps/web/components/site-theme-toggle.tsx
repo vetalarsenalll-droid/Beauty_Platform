@@ -50,27 +50,71 @@ export default function SiteThemeToggle({
   darkPalette,
   targetId = "public-site-root",
 }: SiteThemeToggleProps) {
+  const storageKey = "site-theme-mode";
+  const cookieKey = "site-theme-mode";
+  const getCookieMode = () => {
+    if (typeof document === "undefined") return null;
+    const match = document.cookie
+      .split("; ")
+      .find((item) => item.startsWith(`${cookieKey}=`));
+    if (!match) return null;
+    const value = decodeURIComponent(match.split("=")[1] ?? "");
+    return value === "light" || value === "dark" ? value : null;
+  };
+  const getStoredMode = () => {
+    if (typeof window === "undefined") return null;
+    const stored = window.localStorage.getItem(storageKey);
+    if (stored === "light" || stored === "dark") return stored;
+    return getCookieMode();
+  };
   const [currentMode, setCurrentMode] = useState<"light" | "dark">(mode);
   const lightVars = useMemo(() => paletteToVars(lightPalette), [lightPalette]);
   const darkVars = useMemo(() => paletteToVars(darkPalette), [darkPalette]);
 
-  useEffect(() => {
+  const applyMode = (nextMode: "light" | "dark") => {
     const target =
       document.getElementById(targetId) ?? document.documentElement;
-    const vars = currentMode === "dark" ? darkVars : lightVars;
+    const vars = nextMode === "dark" ? darkVars : lightVars;
     Object.entries(vars).forEach(([key, value]) => {
       target.style.setProperty(key, value);
     });
-    target.setAttribute("data-site-theme", currentMode);
+    target.setAttribute("data-site-theme", nextMode);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, nextMode);
+      document.cookie = `${cookieKey}=${nextMode}; path=/; max-age=31536000; SameSite=Lax`;
+    }
+  };
+
+  useEffect(() => {
+    const stored = getStoredMode();
+    if (stored && stored !== currentMode) {
+      setCurrentMode(stored);
+      applyMode(stored);
+      return;
+    }
+    applyMode(currentMode);
   }, [currentMode, darkVars, lightVars, targetId]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== storageKey || !event.newValue) return;
+      if (event.newValue === "light" || event.newValue === "dark") {
+        setCurrentMode(event.newValue);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   return (
     <button
       type="button"
-      onClick={() =>
-        setCurrentMode((prev) => (prev === "dark" ? "light" : "dark"))
-      }
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--site-border)] bg-[color:var(--bp-panel)] text-[color:var(--bp-ink)]"
+      onClick={() => {
+        const nextMode = currentMode === "dark" ? "light" : "dark";
+        applyMode(nextMode);
+        setCurrentMode(nextMode);
+      }}
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
       aria-label="Переключить тему"
       title="Переключить тему"
     >

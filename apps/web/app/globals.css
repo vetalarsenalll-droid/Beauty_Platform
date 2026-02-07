@@ -39,6 +39,26 @@
   --font-sans: var(--font-manrope);
 }
 
+#public-site-root .site-block {
+  --block-bg: var(--block-bg-light);
+  --block-border: var(--block-border-light);
+  --block-text: var(--block-text-light);
+  --block-muted: var(--block-muted-light);
+  --block-button: var(--block-button-light);
+  --block-button-text: var(--block-button-text-light);
+  --block-gradient: var(--block-gradient-light);
+}
+
+#public-site-root[data-site-theme="dark"] .site-block {
+  --block-bg: var(--block-bg-dark);
+  --block-border: var(--block-border-dark);
+  --block-text: var(--block-text-dark);
+  --block-muted: var(--block-muted-dark);
+  --block-button: var(--block-button-dark);
+  --block-button-text: var(--block-button-text-dark);
+  --block-gradient: var(--block-gradient-dark);
+}
+
 .dark {
   --bg: #0f1012;
   --surface: #14161a;

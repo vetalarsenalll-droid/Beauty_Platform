@@ -191,11 +191,23 @@ const defaultBlockStyle = {
   blockWidth: null,
   radius: null,
   buttonRadius: null,
+  blockBgLight: "",
+  blockBgDark: "",
   blockBg: "",
+  borderColorLight: "",
+  borderColorDark: "",
   borderColor: "",
+  buttonColorLight: "",
+  buttonColorDark: "",
   buttonColor: "",
+  buttonTextColorLight: "",
+  buttonTextColorDark: "",
   buttonTextColor: "",
+  textColorLight: "",
+  textColorDark: "",
   textColor: "",
+  mutedColorLight: "",
+  mutedColorDark: "",
   mutedColor: "",
   shadowColor: "",
   shadowSize: null,
@@ -493,6 +505,11 @@ export default function SiteClient({
     const targetPalette = nextMode === "dark" ? darkPalette : lightPalette;
     Object.assign(targetPalette, palettePatch);
 
+    // Keep these layout metrics in dark the same as light
+    darkPalette.radius = lightPalette.radius;
+    darkPalette.buttonRadius = lightPalette.buttonRadius;
+    darkPalette.blockSpacing = lightPalette.blockSpacing;
+
     const activePalette = nextMode === "dark" ? darkPalette : lightPalette;
     return {
       ...prevTheme,
@@ -628,6 +645,7 @@ export default function SiteClient({
   const themeStyle: Record<string, string> = {
     "--bp-accent": draft.theme.accentColor,
     "--bp-surface": draft.theme.surfaceColor,
+    "--bp-paper": draft.theme.panelColor,
     "--bp-panel": draft.theme.panelColor,
     "--bp-ink": draft.theme.textColor,
     "--bp-muted": draft.theme.mutedColor,
@@ -1343,26 +1361,46 @@ function ColorField({
   label,
   value,
   onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
+  placeholder,
+  }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+  }) {
+    const normalized = value?.trim() ?? "";
+    const isTransparent = normalized.toLowerCase() === "transparent";
+    const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
+    const placeholderValue = typeof placeholder === "string" ? placeholder : "";
+    const placeholderHex =
+      typeof placeholderValue === "string" &&
+      /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(placeholderValue)
+        ? placeholderValue
+        : "";
+    const displayValue =
+      isTransparent ? "#000000" : normalized === "" ? placeholderValue || "#000000" : normalized;
+    const colorValue = isHex
+      ? normalized
+      : isTransparent
+        ? "#000000"
+        : placeholderHex || "#000000";
   return (
     <label className="text-sm">
       {label}
       <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2">
         <input
           type="color"
-          value={value}
+          value={colorValue}
           onChange={(event) => onChange(event.target.value)}
           className="h-6 w-6 rounded"
         />
         <input
           type="text"
-          value={value}
+          value={displayValue}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full text-xs text-[color:var(--bp-muted)] outline-none"
+          onFocus={(event) => event.currentTarget.select()}
+          placeholder={placeholder}
+          className="w-full bg-transparent text-xs text-[color:var(--bp-ink)] outline-none selection:bg-[color:var(--bp-accent)] selection:text-[color:var(--bp-paper)]"
         />
       </div>
     </label>
@@ -2021,6 +2059,24 @@ function BlockStyleEditor({
   onChange: (next: SiteBlock) => void;
 }) {
   const style = normalizeBlockStyle(block, theme);
+  const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
+  const readRaw = (key: string) =>
+    typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
+  const toDisplay = (value: string) => value;
+  const toStore = (value: string) => (value.trim() === "" ? "transparent" : value.trim());
+  const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
+  const darkBlockBg = readRaw("blockBgDark");
+  const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
+  const darkBorderColor = readRaw("borderColorDark");
+  const lightButtonColor = readRaw("buttonColorLight") || readRaw("buttonColor");
+  const darkButtonColor = readRaw("buttonColorDark");
+  const lightButtonTextColor =
+    readRaw("buttonTextColorLight") || readRaw("buttonTextColor");
+  const darkButtonTextColor = readRaw("buttonTextColorDark");
+  const lightTextColor = readRaw("textColorLight") || readRaw("textColor");
+  const darkTextColor = readRaw("textColorDark");
+  const lightMutedColor = readRaw("mutedColorLight") || readRaw("mutedColor");
+  const darkMutedColor = readRaw("mutedColorDark");
   const update = (patch: Partial<BlockStyle>) => {
     onChange(updateBlockStyle(block, patch));
   };
@@ -2103,33 +2159,63 @@ function BlockStyleEditor({
       <div className="grid grid-cols-2 gap-3">
         <ColorField
           label="Цвет блока"
-          value={style.blockBg || theme.panelColor}
-          onChange={(value) => update({ blockBg: value })}
+          value={toDisplay(lightBlockBg)}
+          placeholder={theme.panelColor}
+          onChange={(value) =>
+            update({ blockBgLight: toStore(value), blockBg: toStore(value) })
+          }
         />
         <ColorField
           label="Цвет обводки"
-          value={style.borderColor || theme.borderColor}
-          onChange={(value) => update({ borderColor: value })}
+          value={toDisplay(lightBorderColor)}
+          placeholder={theme.borderColor}
+          onChange={(value) =>
+            update({
+              borderColorLight: toStore(value),
+              borderColor: toStore(value),
+            })
+          }
         />
         <ColorField
           label="Цвет кнопки"
-          value={style.buttonColor || theme.buttonColor}
-          onChange={(value) => update({ buttonColor: value })}
+          value={toDisplay(lightButtonColor)}
+          placeholder={theme.buttonColor}
+          onChange={(value) =>
+            update({
+              buttonColorLight: toStore(value),
+              buttonColor: toStore(value),
+            })
+          }
         />
         <ColorField
           label="Текст кнопки"
-          value={style.buttonTextColor || theme.buttonTextColor}
-          onChange={(value) => update({ buttonTextColor: value })}
+          value={toDisplay(lightButtonTextColor)}
+          placeholder={theme.buttonTextColor}
+          onChange={(value) =>
+            update({
+              buttonTextColorLight: toStore(value),
+              buttonTextColor: toStore(value),
+            })
+          }
         />
         <ColorField
           label="Текст"
-          value={style.textColor || theme.textColor}
-          onChange={(value) => update({ textColor: value })}
+          value={toDisplay(lightTextColor)}
+          placeholder={theme.textColor}
+          onChange={(value) =>
+            update({ textColorLight: toStore(value), textColor: toStore(value) })
+          }
         />
         <ColorField
           label="Вторичный текст"
-          value={style.mutedColor || theme.mutedColor}
-          onChange={(value) => update({ mutedColor: value })}
+          value={toDisplay(lightMutedColor)}
+          placeholder={theme.mutedColor}
+          onChange={(value) =>
+            update({
+              mutedColorLight: toStore(value),
+              mutedColor: toStore(value),
+            })
+          }
         />
         <ColorField
           label="Тень"
@@ -2143,6 +2229,49 @@ function BlockStyleEditor({
           max={40}
           onChange={(value) => update({ shadowSize: value })}
         />
+      </div>
+      <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+          Темная тема
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+            <ColorField
+              label="Цвет блока"
+              value={toDisplay(darkBlockBg)}
+              placeholder={theme.darkPalette.panelColor}
+              onChange={(value) => update({ blockBgDark: toStore(value) })}
+            />
+            <ColorField
+              label="Цвет обводки"
+              value={toDisplay(darkBorderColor)}
+              placeholder={theme.darkPalette.borderColor}
+              onChange={(value) => update({ borderColorDark: toStore(value) })}
+            />
+            <ColorField
+              label="Цвет кнопки"
+              value={toDisplay(darkButtonColor)}
+              placeholder={theme.darkPalette.buttonColor}
+              onChange={(value) => update({ buttonColorDark: toStore(value) })}
+            />
+            <ColorField
+              label="Текст кнопки"
+              value={toDisplay(darkButtonTextColor)}
+              placeholder={theme.darkPalette.buttonTextColor}
+              onChange={(value) => update({ buttonTextColorDark: toStore(value) })}
+            />
+            <ColorField
+              label="Текст"
+              value={toDisplay(darkTextColor)}
+              placeholder={theme.darkPalette.textColor}
+              onChange={(value) => update({ textColorDark: toStore(value) })}
+            />
+            <ColorField
+              label="Вторичный текст"
+              value={toDisplay(darkMutedColor)}
+              placeholder={theme.darkPalette.mutedColor}
+              onChange={(value) => update({ mutedColorDark: toStore(value) })}
+            />
+        </div>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -2261,11 +2390,23 @@ type BlockStyle = {
   useCustomWidth: boolean;
   radius: number | null;
   buttonRadius: number | null;
+  blockBgLight: string;
+  blockBgDark: string;
   blockBg: string;
+  borderColorLight: string;
+  borderColorDark: string;
   borderColor: string;
+  buttonColorLight: string;
+  buttonColorDark: string;
   buttonColor: string;
+  buttonTextColorLight: string;
+  buttonTextColorDark: string;
   buttonTextColor: string;
+  textColorLight: string;
+  textColorDark: string;
   textColor: string;
+  mutedColorLight: string;
+  mutedColorDark: string;
   mutedColor: string;
   shadowColor: string;
   shadowSize: number | null;
@@ -2282,11 +2423,18 @@ type BlockStyle = {
 };
 
 function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
-  const style = (block.data.style as Partial<BlockStyle>) ?? {};
+  const style = (block.data.style as Record<string, unknown>) ?? {};
   const toNumber = (value: unknown) => {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
     return Number.isFinite(parsed) ? (parsed as number) : null;
+  };
+  const readColor = (key: string) =>
+    typeof style[key] === "string" ? (style[key] as string) : "";
+  const resolveColor = (lightKey: string, darkKey: string, legacyKey: string) => {
+    const light = readColor(lightKey) || readColor(legacyKey);
+    const dark = readColor(darkKey);
+    return theme.mode === "dark" ? dark || "" : light || "";
   };
   const useCustomWidth = style.useCustomWidth === true;
   return {
@@ -2296,14 +2444,30 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     useCustomWidth,
     radius: toNumber(style.radius),
     buttonRadius: toNumber(style.buttonRadius),
-    blockBg: typeof style.blockBg === "string" ? style.blockBg : "",
-    borderColor: typeof style.borderColor === "string" ? style.borderColor : "",
-    buttonColor: typeof style.buttonColor === "string" ? style.buttonColor : "",
-    buttonTextColor:
-      typeof style.buttonTextColor === "string" ? style.buttonTextColor : "",
-    textColor: typeof style.textColor === "string" ? style.textColor : "",
-    mutedColor: typeof style.mutedColor === "string" ? style.mutedColor : "",
-    shadowColor: typeof style.shadowColor === "string" ? style.shadowColor : "",
+    blockBgLight: readColor("blockBgLight") || readColor("blockBg"),
+    blockBgDark: readColor("blockBgDark"),
+    blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
+    borderColorLight: readColor("borderColorLight") || readColor("borderColor"),
+    borderColorDark: readColor("borderColorDark"),
+    borderColor: resolveColor("borderColorLight", "borderColorDark", "borderColor"),
+    buttonColorLight: readColor("buttonColorLight") || readColor("buttonColor"),
+    buttonColorDark: readColor("buttonColorDark"),
+    buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
+    buttonTextColorLight:
+      readColor("buttonTextColorLight") || readColor("buttonTextColor"),
+    buttonTextColorDark: readColor("buttonTextColorDark"),
+    buttonTextColor: resolveColor(
+      "buttonTextColorLight",
+      "buttonTextColorDark",
+      "buttonTextColor"
+    ),
+    textColorLight: readColor("textColorLight") || readColor("textColor"),
+    textColorDark: readColor("textColorDark"),
+    textColor: resolveColor("textColorLight", "textColorDark", "textColor"),
+    mutedColorLight: readColor("mutedColorLight") || readColor("mutedColor"),
+    mutedColorDark: readColor("mutedColorDark"),
+    mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    shadowColor: readColor("shadowColor"),
     shadowSize: toNumber(style.shadowSize),
     gradientEnabled: Boolean(style.gradientEnabled),
     gradientDirection:
@@ -3090,23 +3254,23 @@ function renderMenuBlock(
   });
 
   const accountIcon = (
-    <a
-      href={accountLink}
-      className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm"
-      title="Личный кабинет"
-      aria-label="Личный кабинет"
-    >
+      <a
+        href={accountLink}
+        className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent text-sm text-[color:var(--bp-ink)]"
+        title="Личный кабинет"
+        aria-label="Личный кабинет"
+      >
       <IconUser />
     </a>
   );
-  const themeToggleNode = showThemeToggle ? (
-    <button
-      type="button"
-      onClick={onThemeToggle}
-      className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm"
-      aria-label="Переключить тему"
-      title="Переключить тему"
-    >
+    const themeToggleNode = showThemeToggle ? (
+      <button
+        type="button"
+        onClick={onThemeToggle}
+        className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent text-sm text-[color:var(--bp-ink)]"
+        aria-label="Переключить тему"
+        title="Переключить тему"
+      >
       {theme.mode === "dark" ? "D" : "L"}
     </button>
   ) : null;
@@ -3143,7 +3307,7 @@ function renderMenuBlock(
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent"
             title={SOCIAL_LABELS[item.key]}
           >
             <img src={SOCIAL_ICONS[item.key]} alt="" className="h-7 w-7" />
@@ -3299,7 +3463,7 @@ function MenuPreview({
             {ctaNode}
             <button
               type="button"
-              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               onClick={() => setMobileOpen((prev) => !prev)}
               aria-label="Меню"
             >
@@ -3399,7 +3563,7 @@ function renderLocations(
         {items.map((location) => (
           <div
             key={location.id}
-            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
+            className="rounded-2xl border p-4"
             style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
           >
             {location.coverUrl && (

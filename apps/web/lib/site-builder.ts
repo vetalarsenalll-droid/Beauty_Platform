@@ -307,7 +307,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
   const darkTheme: SiteThemePalette = {
     ...baseTheme,
     accentColor: "#F3F4F6",
-    shadowColor: "rgba(0, 0, 0, 0.55)",
+    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowSize: 0,
     gradientFrom: "#0F1115",
     gradientTo: "#1A1D24",
     surfaceColor: "#0F1115",
