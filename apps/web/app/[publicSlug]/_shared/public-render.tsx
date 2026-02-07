@@ -625,21 +625,27 @@ function renderMenu(
   const canPhone = Boolean(phoneValue);
   const usePhone = ctaMode === "phone" && canPhone;
   const showCta = showButton && (canBook || canPhone);
+  const isAccountExternal =
+    typeof accountLink === "string" && /^https?:\/\//.test(accountLink);
 
   const ctaNode = showCta ? (
-    <a
-      href={
-        usePhone
-          ? `tel:${phoneValue}`
-          : canBook
-            ? buildBookingLink({ publicSlug })
-            : "#"
-      }
-      className="inline-flex px-4 py-2 text-sm font-semibold"
-      style={buttonStyle(style)}
-    >
-      {usePhone ? phoneValue : buttonText}
-    </a>
+    usePhone ? (
+      <a
+        href={`tel:${phoneValue}`}
+        className="inline-flex px-4 py-2 text-sm font-semibold"
+        style={buttonStyle(style)}
+      >
+        {phoneValue}
+      </a>
+    ) : (
+      <Link
+        href={buildBookingLink({ publicSlug })}
+        className="inline-flex px-4 py-2 text-sm font-semibold"
+        style={buttonStyle(style)}
+      >
+        {buttonText}
+      </Link>
+    )
   ) : null;
 
   const searchNode =
@@ -654,14 +660,27 @@ function renderMenu(
     ) : null;
 
   const accountNode = showAccount ? (
-    <a
-      href={accountLink}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
-      aria-label="Личный кабинет"
-      title="Личный кабинет"
-    >
-      <IconUser />
-    </a>
+    isAccountExternal ? (
+      <a
+        href={accountLink}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+        aria-label="Личный кабинет"
+        title="Личный кабинет"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <IconUser />
+      </a>
+    ) : (
+      <Link
+        href={accountLink}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+        aria-label="Личный кабинет"
+        title="Личный кабинет"
+      >
+        <IconUser />
+      </Link>
+    )
   ) : null;
   const themeToggleNode = showThemeToggle ? (
     <SiteThemeToggle
@@ -701,13 +720,13 @@ function renderMenu(
         const href =
           key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
         return (
-          <a
+          <Link
             key={key}
             href={href}
             className="rounded-full border border-[color:var(--site-border)] px-3 py-1 text-xs"
           >
             {PAGE_LABELS[key]}
-          </a>
+          </Link>
         );
       })}
     </div>
@@ -1326,3 +1345,4 @@ function renderContacts(
     </div>
   );
 }
+
