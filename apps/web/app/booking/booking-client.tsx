@@ -1855,16 +1855,14 @@ export default function BookingClient({
                   Назад
                 </button>
 
-                {currentStepKey !== "details" && (
-                  <button
-                    type="button"
-                    onClick={goNext}
-                    disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                    className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-                  >
-                    Дальше
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
+                  className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                >
+                  Дальше
+                </button>
               </div>
             </div>
 
@@ -2154,7 +2152,7 @@ export default function BookingClient({
 
                 {currentStepKey === "details" && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4">
                       <SoftPanel className="p-4">
                         <div className="text-sm font-semibold">Контакты</div>
                         <div className="mt-3 space-y-3">
@@ -2300,6 +2298,7 @@ export default function BookingClient({
                         </div>
                       </SoftPanel>
 
+                      {false && (
                       <SoftPanel className="p-4">
                         <div className="text-sm font-semibold">Подтверждение</div>
                         <div className="mt-3 space-y-3">
@@ -2337,6 +2336,7 @@ export default function BookingClient({
                           </button>
                         </div>
                       </SoftPanel>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2360,22 +2360,14 @@ export default function BookingClient({
               <SummaryRow label="Время" value={timeChoice || "—"} />
               <SummaryRow label="Стоимость" value={servicePrice ? formatMoneyRub(servicePrice) : "—"} />
 
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-4 flex justify-start">
                 <button
                   type="button"
-                  onClick={goPrev}
-                  disabled={stepIndex === 0}
-                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  onClick={submitAppointment}
+                  disabled={!canNext || submitting}
+                  className="w-full max-w-[260px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40 sm:max-w-[280px] lg:max-w-[320px]"
                 >
-                  Назад
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                  className="w-full rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-                >
-                  Дальше
+                  {submitting ? "Сохранение..." : "Записаться"}
                 </button>
               </div>
 
