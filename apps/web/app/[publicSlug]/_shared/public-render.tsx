@@ -952,6 +952,7 @@ function renderLocations(
                   publicSlug,
                   locationId: location.id,
                   scenario: "serviceFirst",
+                  start: "scenario",
                 })}
                 className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
                 style={buttonStyle(style)}

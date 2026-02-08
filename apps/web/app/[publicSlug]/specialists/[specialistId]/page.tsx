@@ -84,7 +84,11 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
         fontFamily: "var(--site-font-body)",
       }}
     >
-      <div className="mx-auto flex w-full flex-col px-6 py-12" style={{ gap: blockGap }}>
+      <div
+        className="mx-auto flex w-full flex-col px-6 py-12"
+        style={{ gap: blockGap }}
+        suppressHydrationWarning
+      >
         {blocks.map((block) => {
           const style = normalizeStyle(block, themeForRender);
           const menuPosition =

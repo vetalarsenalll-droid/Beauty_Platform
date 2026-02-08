@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 type BookingClientProps = {
@@ -436,11 +436,10 @@ function DatePickerLike({
       }
       setViewYear(y);
       setViewMonth1(m);
-    } else {
-      const next = ymdAddDays(value, -7);
-      if (isPastYmd(next, disabledBeforeYmd)) return;
-      onChange(next);
+      return;
     }
+    const next = ymdAddDays(value, -7);
+    onChange(next);
   };
 
   const goNext = () => {
@@ -453,10 +452,10 @@ function DatePickerLike({
       }
       setViewYear(y);
       setViewMonth1(m);
-    } else {
-      const next = ymdAddDays(value, 7);
-      onChange(next);
+      return;
     }
+    const next = ymdAddDays(value, 7);
+    onChange(next);
   };
 
   const DayCell = ({ ymd, inMonth }: { ymd: string; inMonth: boolean }) => {
@@ -691,11 +690,13 @@ export default function BookingClient({
   accountPublicSlug,
 }: BookingClientProps) {
   const [scenario, setScenario] = useState<Scenario>("dateFirst");
+  const [startScenario, setStartScenario] = useState(false);
   const [initialParams, setInitialParams] = useState<{
     locationId: number | null;
     serviceId: number | null;
     specialistId: number | null;
     scenario: Scenario | null;
+    startScenario: boolean;
   } | null>(null);
   const [initialParamsApplied, setInitialParamsApplied] = useState(false);
   const [pendingServiceId, setPendingServiceId] = useState<number | null>(null);
@@ -758,12 +759,15 @@ export default function BookingClient({
     const locationParam = Number(params.get("locationId"));
     const serviceParam = Number(params.get("serviceId"));
     const specialistParam = Number(params.get("specialistId"));
+    const startParam = params.get("start");
+    const startScenarioValue = startParam === "scenario";
 
     setInitialParams({
       locationId: Number.isFinite(locationParam) ? locationParam : null,
       serviceId: Number.isFinite(serviceParam) ? serviceParam : null,
       specialistId: Number.isFinite(specialistParam) ? specialistParam : null,
       scenario: scenarioValue,
+      startScenario: startScenarioValue,
     });
   }, []);
 
@@ -827,6 +831,9 @@ export default function BookingClient({
     if (!initialParams || initialParamsApplied) return;
     if (initialParams.scenario) {
       setScenario(initialParams.scenario);
+    }
+    if (initialParams.startScenario) {
+      setStartScenario(true);
     }
     if (initialParams.locationId) {
       setLocationId(initialParams.locationId);
@@ -898,19 +905,21 @@ export default function BookingClient({
     ];
   }, [isDateFirst, isServiceFirst]);
 
+  const stepsWithScenario = startScenario
+    ? [{ key: "scenario", title: "\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439" }, ...steps]
+    : steps;
+
   const [stepIndex, setStepIndex] = useState(0);
-  const currentStepKey = steps[stepIndex]?.key;
+  const currentStepKey = stepsWithScenario[stepIndex]?.key;
 
   const gotoKey = (key: string) => {
-    const idx = steps.findIndex((s) => s.key === key);
+    const idx = stepsWithScenario.findIndex((s) => s.key === key);
     if (idx >= 0) setStepIndex(idx);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (currentStepKey !== "location") return;
     if (!locationId) return;
-    if (lastAutoAdvanceLocationRef.current === locationId) return;
-
     if (serviceId) {
       lastAutoAdvanceLocationRef.current = locationId;
       gotoKey("datetime");
@@ -921,6 +930,7 @@ export default function BookingClient({
       gotoKey("service");
       return;
     }
+    if (lastAutoAdvanceLocationRef.current === locationId) return;
     if (scenario === "serviceFirst") {
       lastAutoAdvanceLocationRef.current = locationId;
       gotoKey("service");
@@ -935,7 +945,18 @@ export default function BookingClient({
       lastAutoAdvanceLocationRef.current = locationId;
       gotoKey("datetime");
     }
-  }, [currentStepKey, locationId, serviceId, specialistId, scenario, steps]);
+  }, [currentStepKey, locationId, serviceId, specialistId, scenario, stepsWithScenario]);
+
+  useLayoutEffect(() => {
+    if (currentStepKey !== "service") return;
+    if (!serviceId) return;
+    if (isSpecialistFirst && !specialistId) return;
+    if (isDateFirst) {
+      gotoKey("specialist");
+      return;
+    }
+    gotoKey("datetime");
+  }, [currentStepKey, serviceId, specialistId, isDateFirst, isSpecialistFirst, stepsWithScenario]);
 
   // ---------- resets
   useEffect(() => {
@@ -984,15 +1005,6 @@ export default function BookingClient({
     // serviceFirst: мастер выбирается после времени, поэтому при смене услуги лучше сбросить мастера
     if (isServiceFirst) setSpecialistId(null);
   }, [serviceId, isDateFirst, isServiceFirst]);
-
-  useEffect(() => {
-    if (!isSpecialistFirst) return;
-    setServiceId(null);
-    setTimeChoice(null);
-    setCalendar(null);
-    setSubmitError(null);
-    setSubmitSuccess(false);
-  }, [isSpecialistFirst, specialistId]);
 
   // ---------- context
   useEffect(() => {
@@ -1188,8 +1200,10 @@ export default function BookingClient({
 
         const availableDates = new Set(next.days.map((d) => d.date));
         if (!availableDates.has(dateYmd)) {
-          const first = next.days[0]?.date ?? todayYmdTz;
-          setDateYmd(first);
+          if (!dateYmd || isPastYmd(dateYmd, todayYmdTz)) {
+            const first = next.days[0]?.date ?? todayYmdTz;
+            setDateYmd(first);
+          }
         }
       })
       .catch((e: Error) => {
@@ -1388,6 +1402,16 @@ export default function BookingClient({
     );
   }, [isSpecialistFirst, filteredServices, specialistId]);
 
+  useEffect(() => {
+    if (!isSpecialistFirst) return;
+    if (serviceId && servicesForSpecialistFirst.some((s) => s.id === serviceId)) return;
+    setServiceId(null);
+    setTimeChoice(null);
+    setCalendar(null);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+  }, [isSpecialistFirst, specialistId, serviceId, servicesForSpecialistFirst]);
+
   // dateFirst: only services that fit chosen time
   const servicesThatFitPickedTime = useMemo(() => {
     if (!isDateFirst) return filteredServices;
@@ -1484,6 +1508,8 @@ export default function BookingClient({
       requiredLegalIds.every((id) => legalConsents[id]);
 
     switch (currentStepKey) {
+      case "scenario":
+        return true;
       case "location":
         return !!locationId;
       case "datetime":
@@ -1517,7 +1543,7 @@ export default function BookingClient({
     timeChoice,
   ]);
 
-  const goNext = () => setStepIndex((v) => Math.min(steps.length - 1, v + 1));
+  const goNext = () => setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
   const goPrev = () => setStepIndex((v) => Math.max(0, v - 1));
 
   const resetAll = () => {
@@ -1582,7 +1608,10 @@ export default function BookingClient({
 
   const displayName = clientName.trim() ? clientName.trim() : "Гость";
   const displayPhone = clientPhone.trim() ? clientPhone.trim() : "—";
-  const progress = steps.length <= 1 ? 0 : stepIndex / (steps.length - 1);
+  const progress =
+    stepsWithScenario.length <= 1
+      ? 0
+      : stepIndex / (stepsWithScenario.length - 1);
 
   return (
     <div className="min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
@@ -1600,7 +1629,7 @@ export default function BookingClient({
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs">
-              {steps[stepIndex]?.title}
+              {stepsWithScenario[stepIndex]?.title}
             </div>
             <button
               type="button"
@@ -1653,7 +1682,7 @@ export default function BookingClient({
               <ProgressBar value={progress} />
             </div>
             <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-              Шаг {stepIndex + 1} из {steps.length}
+              Шаг {stepIndex + 1} из {stepsWithScenario.length}
             </div>
           </SoftPanel>
         </div>
@@ -1663,9 +1692,11 @@ export default function BookingClient({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm text-[color:var(--bp-muted)]">
-                  Шаг {stepIndex + 1} из {steps.length}
+                  Шаг {stepIndex + 1} из {stepsWithScenario.length}
                 </div>
-                <div className="text-lg font-semibold">{steps[stepIndex]?.title}</div>
+                <div className="text-lg font-semibold">
+                  {stepsWithScenario[stepIndex]?.title}
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1682,7 +1713,7 @@ export default function BookingClient({
                   <button
                     type="button"
                     onClick={goNext}
-                    disabled={!canNext || stepIndex === steps.length - 1}
+                    disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
                     className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                   >
                     Дальше
@@ -1693,6 +1724,17 @@ export default function BookingClient({
 
             <div className="mt-4 border-t border-[color:var(--bp-stroke)] pt-4">
               <div className="min-h-[620px]">
+                {currentStepKey === "scenario" && (
+                  <div className="space-y-3">
+                    <div className="text-sm text-[color:var(--bp-muted)]">
+                      {"\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u0437\u0430\u043f\u0438\u0441\u0438"}
+                    </div>
+                    <ScenarioTabs value={scenario} onChange={setScenario} />
+                    <div className="text-xs text-[color:var(--bp-muted)]">
+                      {"\u041c\u043e\u0436\u043d\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u043e\u0437\u0436\u0435"}
+                    </div>
+                  </div>
+                )}
                 {currentStepKey === "location" && (
                   <div className="space-y-3">
                     {loadingContext && <div className="text-sm">Загрузка локаций...</div>}
@@ -2286,7 +2328,7 @@ export default function BookingClient({
                 <button
                   type="button"
                   onClick={goNext}
-                  disabled={!canNext || stepIndex === steps.length - 1}
+                  disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
                   className="w-full rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                 >
                   Дальше
@@ -2294,7 +2336,7 @@ export default function BookingClient({
               </div>
 
               <div className="text-xs text-[color:var(--bp-muted)]">
-                Прогресс: {stepIndex + 1}/{steps.length}
+                Прогресс: {stepIndex + 1}/{stepsWithScenario.length}
               </div>
             </div>
           </SoftPanel>
@@ -2303,9 +2345,3 @@ export default function BookingClient({
     </div>
   );
 }
-
-
-
-
-
-

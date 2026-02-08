@@ -3591,6 +3591,7 @@ function renderLocations(
                   publicSlug: account.publicSlug,
                   locationId: location.id,
                   scenario: "serviceFirst",
+                  start: "scenario",
                 })}
                 className="mt-3 inline-flex px-3 py-2 text-xs"
                 style={buttonStyle(style, theme)}
