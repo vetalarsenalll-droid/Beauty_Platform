@@ -83,23 +83,36 @@ export default async function PublicAccountPage({ params }: PageProps) {
       }}
     >
       <div className="mx-auto flex w-full flex-col px-6 py-12" style={{ gap: blockGap }}>
-        {blocks.map((block) => {
+        {blocks.map((block, index) => {
           const style = normalizeStyle(block, themeForRender);
           const menuPosition =
             typeof (block.data as { position?: string })?.position === "string"
               ? (block.data as { position?: string }).position
               : null;
           const isMenuSticky = block.type === "menu" && menuPosition === "sticky";
-            const blockWidth =
-              typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
-            const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
-              isMenuSticky,
-            });
+          const blockWidth =
+            typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
+          const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
+            isMenuSticky,
+          });
+          const isBooking = block.type === "booking";
+          const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
+          const shouldCollapseGap = isBooking && index > 0 && (style.marginTop ?? 0) === 0;
+          const wrapperStyle = isBooking
+            ? {
+                ...wrapper.style,
+                padding: 0,
+                borderColor: "transparent",
+                backgroundColor: "transparent",
+                boxShadow: "none",
+                marginTop: shouldCollapseGap ? -(blockGap ?? 0) : wrapper.style.marginTop,
+              }
+            : wrapper.style;
             return (
               <section
                 key={block.id}
-                className={wrapper.className}
-                style={wrapper.style}
+                className={wrapperClassName}
+                style={wrapperStyle}
               >
               {renderBlock(
                 block,
@@ -114,7 +127,7 @@ export default async function PublicAccountPage({ params }: PageProps) {
                 data.promos,
                 data.workPhotos,
                 null,
-                data.draft.theme,
+                themeForRender,
                 accountLinkOverride
               )}
             </section>

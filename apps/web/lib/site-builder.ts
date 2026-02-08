@@ -42,6 +42,7 @@ export type BlockType =
   | "cover"
   | "menu"
   | "about"
+  | "booking"
   | "locations"
   | "services"
   | "specialists"
@@ -59,6 +60,7 @@ export type SiteBlock = {
 
 export type SitePageKey =
   | "home"
+  | "booking"
   | "locations"
   | "services"
   | "specialists"
@@ -77,6 +79,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   cover: "Главный экран",
   menu: "Меню",
   about: "О нас",
+  booking: "Онлайн-запись",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -93,6 +96,7 @@ export const BLOCK_VARIANTS: Record<
   cover: ["v1", "v2"],
   menu: ["v1", "v2", "v3", "v4", "v5"],
   about: ["v1", "v2"],
+  booking: ["v1"],
   locations: ["v1", "v2"],
   services: ["v1", "v2"],
   specialists: ["v1", "v2"],
@@ -123,7 +127,7 @@ const createMenuBlock = (): SiteBlock => ({
   variant: "v1",
   data: {
     title: "Меню",
-    menuItems: ["home", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showButton: true,
     showThemeToggle: false,
@@ -331,6 +335,16 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     blocks: homeBlocks,
     pages: {
       home: homeBlocks,
+      booking: [
+        {
+          id: makeBlockId(),
+          type: "booking",
+          variant: "v1",
+          data: {
+            style: {},
+          },
+        },
+      ],
       locations: detailBlocks("locations", "Локации"),
       services: detailBlocks("services", "Услуги"),
       specialists: detailBlocks("specialists", "Специалисты"),
@@ -417,6 +431,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
 
   const pages: SitePages = {
     home: normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home),
+    booking: normalizeBlocks(pagesInput.booking ?? fallbackPages.booking),
     locations: normalizeBlocks(pagesInput.locations ?? fallbackPages.locations),
     services: normalizeBlocks(pagesInput.services ?? fallbackPages.services),
     specialists: normalizeBlocks(pagesInput.specialists ?? fallbackPages.specialists),

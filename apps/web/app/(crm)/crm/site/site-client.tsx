@@ -16,6 +16,7 @@ import {
 } from "@/lib/site-builder";
 import { buildBookingLink } from "@/lib/booking-links";
 import MenuSearch from "@/components/menu-search";
+import BookingClient from "@/app/booking/booking-client";
 
 type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -129,6 +130,7 @@ const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
 
 const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
+  booking: "Онлайн-запись",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -237,7 +239,7 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
   },
   menu: {
     title: "Меню",
-    menuItems: ["home", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showButton: true,
     showThemeToggle: false,
@@ -268,6 +270,14 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     },
     align: "left",
     style: defaultBlockStyle,
+  },
+  booking: {
+    style: {
+      ...defaultBlockStyle,
+      headingSize: 18,
+      subheadingSize: 16,
+      textSize: 14,
+    },
   },
   about: {
     title: "О нас",
@@ -850,15 +860,24 @@ export default function SiteClient({
                   onRemove={() => removeBlock(block.id)}
                   disableActions={isSharedMenu}
                 />
-                <InsertSlot
-                  index={index + 1}
-                  spacing={draft.theme.blockSpacing}
-                  onInsert={() => {
-                    setInsertIndex(index + 1);
-                    setLeftPanel("library");
-                    setLibraryBlock(null);
-                  }}
-                />
+                {(() => {
+                  const nextBlock = displayBlocks[index + 1];
+                  const nextStyle = nextBlock ? normalizeBlockStyle(nextBlock, draft.theme) : null;
+                  const collapseGap =
+                    nextBlock?.type === "booking" && (nextStyle?.marginTop ?? 0) === 0;
+                  const slotSpacing = collapseGap ? 0 : draft.theme.blockSpacing;
+                  return (
+                    <InsertSlot
+                      index={index + 1}
+                      spacing={slotSpacing}
+                      onInsert={() => {
+                        setInsertIndex(index + 1);
+                        setLeftPanel("library");
+                        setLibraryBlock(null);
+                      }}
+                    />
+                  );
+                })()}
               </div>
             );
             })}
@@ -912,6 +931,7 @@ export default function SiteClient({
                     </button>
                   ))}
                 </div>
+
                 {(locations.length > 0 ||
                   services.length > 0 ||
                   specialists.length > 0 ||
@@ -1639,6 +1659,7 @@ function BlockEditor({
               );
             })}
           </div>
+
         </>
       )}
 
@@ -1762,6 +1783,7 @@ function BlockEditor({
             value={(block.data.buttonText as string) ?? ""}
             onChange={(value) => updateData({ buttonText: value })}
           />
+
         </>
       )}
 
@@ -1845,6 +1867,7 @@ function BlockEditor({
             value={(block.data.buttonText as string) ?? ""}
             onChange={(value) => updateData({ buttonText: value })}
           />
+
         </>
       )}
 
@@ -1889,6 +1912,7 @@ function BlockEditor({
             value={(block.data.buttonText as string) ?? ""}
             onChange={(value) => updateData({ buttonText: value })}
           />
+
         </>
       )}
 
@@ -2017,7 +2041,8 @@ function BlockEditor({
         block.type !== "about" &&
         block.type !== "works" &&
         block.type !== "reviews" &&
-        block.type !== "contacts" && (
+        block.type !== "contacts" &&
+        block.type !== "booking" && (
           <>
             <FieldText
               label="Заголовок"
@@ -2084,6 +2109,11 @@ function BlockStyleEditor({
 
   return (
     <div className="space-y-4">
+      {block.type === "booking" && (
+        <div className="text-sm text-[color:var(--bp-muted)]">
+          ????????? ??????? ??????-?????? ????????? ? ?????? "?????????".
+        </div>
+      )}
       <label className="text-sm">
         Отступ сверху: {style.marginTop}px
         <input
@@ -2108,7 +2138,7 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
-        <label className="flex items-center gap-2 text-sm">
+      <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={style.useCustomWidth}
@@ -2437,6 +2467,63 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     const dark = readColor(darkKey);
     return theme.mode === "dark" ? dark || "" : light || "";
   };
+  const resolvePair = (
+    lightKey: string,
+    darkKey: string,
+    legacyKey: string,
+    lightFallback: string,
+    darkFallback: string
+  ) => {
+    const lightRaw = readColor(lightKey) || readColor(legacyKey);
+    const darkRaw = readColor(darkKey);
+    const lightResolved =
+      lightRaw.toLowerCase() === "transparent" ? "transparent" : lightRaw || lightFallback;
+    const darkResolved =
+      darkRaw.toLowerCase() === "transparent" ? "transparent" : darkRaw || darkFallback;
+    return { lightResolved, darkResolved };
+  };
+  const blockBgPair = resolvePair(
+    "blockBgLight",
+    "blockBgDark",
+    "blockBg",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
+  const borderPair = resolvePair(
+    "borderColorLight",
+    "borderColorDark",
+    "borderColor",
+    theme.lightPalette.borderColor,
+    theme.darkPalette.borderColor
+  );
+  const buttonPair = resolvePair(
+    "buttonColorLight",
+    "buttonColorDark",
+    "buttonColor",
+    theme.lightPalette.buttonColor,
+    theme.darkPalette.buttonColor
+  );
+  const buttonTextPair = resolvePair(
+    "buttonTextColorLight",
+    "buttonTextColorDark",
+    "buttonTextColor",
+    theme.lightPalette.buttonTextColor,
+    theme.darkPalette.buttonTextColor
+  );
+  const textPair = resolvePair(
+    "textColorLight",
+    "textColorDark",
+    "textColor",
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
+  );
+  const mutedPair = resolvePair(
+    "mutedColorLight",
+    "mutedColorDark",
+    "mutedColor",
+    theme.lightPalette.mutedColor,
+    theme.darkPalette.mutedColor
+  );
   const useCustomWidth = style.useCustomWidth === true;
   return {
     marginTop: toNumber(style.marginTop) ?? 0,
@@ -2468,6 +2555,18 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     mutedColorLight: readColor("mutedColorLight") || readColor("mutedColor"),
     mutedColorDark: readColor("mutedColorDark"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    blockBgLightResolved: blockBgPair.lightResolved,
+    blockBgDarkResolved: blockBgPair.darkResolved,
+    borderColorLightResolved: borderPair.lightResolved,
+    borderColorDarkResolved: borderPair.darkResolved,
+    buttonColorLightResolved: buttonPair.lightResolved,
+    buttonColorDarkResolved: buttonPair.darkResolved,
+    buttonTextColorLightResolved: buttonTextPair.lightResolved,
+    buttonTextColorDarkResolved: buttonTextPair.darkResolved,
+    textColorLightResolved: textPair.lightResolved,
+    textColorDarkResolved: textPair.darkResolved,
+    mutedColorLightResolved: mutedPair.lightResolved,
+    mutedColorDarkResolved: mutedPair.darkResolved,
     shadowColor: readColor("shadowColor"),
     shadowSize: toNumber(style.shadowSize),
     gradientEnabled: Boolean(style.gradientEnabled),
@@ -2813,9 +2912,12 @@ function BlockPreview({
     style.gradientDirection || theme.gradientDirection || "vertical";
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
-  const containerClass = `border ${
-    isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
-  } p-6 shadow-[var(--bp-shadow-soft)]`;
+  const isBooking = block.type === "booking";
+  const containerClass = isBooking
+    ? "p-0"
+    : `border ${
+        isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
+      } p-6 shadow-[var(--bp-shadow-soft)]`;
 
   return (
     <div
@@ -2828,7 +2930,7 @@ function BlockPreview({
           onSelect();
         }
       }}
-      className="text-left relative"
+      className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
         maxWidth: blockWidth ? `${blockWidth}px` : undefined,
         marginLeft: "auto",
@@ -2839,16 +2941,25 @@ function BlockPreview({
         className={`${containerClass} relative`}
         style={{
           borderRadius: blockRadius,
-          backgroundColor: gradientEnabled ? gradientFrom : blockBg,
-          backgroundImage: gradientEnabled
-            ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
-            : "none",
+          backgroundColor: isBooking
+            ? "transparent"
+            : gradientEnabled
+              ? gradientFrom
+              : blockBg,
+          backgroundImage: isBooking
+            ? "none"
+            : gradientEnabled
+              ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
+              : "none",
           color: textColor,
           fontFamily: blockFont,
-          borderColor,
+          borderColor: isBooking ? "transparent" : borderColor,
           marginTop: style.marginTop,
           marginBottom: style.marginBottom,
-          boxShadow: shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
+          boxShadow:
+            isBooking || shadowSize <= 0
+              ? "none"
+              : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
           ["--bp-muted" as string]: mutedColor,
           ["--bp-stroke" as string]: borderColor,
         }}
@@ -3011,6 +3122,8 @@ function renderBlock(
       );
     case "about":
       return renderAbout(block, account, accountProfile, theme, style);
+    case "booking":
+      return renderBooking(block, account, theme, style);
     case "locations":
       return renderLocations(
         block,
@@ -3036,6 +3149,70 @@ function renderBlock(
     default:
       return null;
   }
+}
+
+function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
+  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
+  const blockWidth = style.blockWidth ?? palette.contentWidth ?? theme.contentWidth ?? 1120;
+  const radius = style.radius ?? palette.radius ?? theme.radius;
+  const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
+  const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
+  const shadowColor =
+    style.shadowColor || palette.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const textSize = style.textSize ?? palette.textSize ?? theme.textSize ?? 14;
+  const subheadingSize =
+    style.subheadingSize ?? palette.subheadingSize ?? theme.subheadingSize ?? textSize + 2;
+  const headingSize =
+    style.headingSize ?? palette.headingSize ?? theme.headingSize ?? subheadingSize + 2;
+  const sizeXs = Math.max(10, textSize - 2);
+  return {
+    "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
+    "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
+    "--booking-border-light": style.borderColorLightResolved || "var(--site-border)",
+    "--booking-border-dark": style.borderColorDarkResolved || "var(--site-border)",
+    "--booking-text-light": style.textColorLightResolved || "var(--site-text)",
+    "--booking-text-dark": style.textColorDarkResolved || "var(--site-text)",
+    "--booking-muted-light": style.mutedColorLightResolved || "var(--site-muted)",
+    "--booking-muted-dark": style.mutedColorDarkResolved || "var(--site-muted)",
+    "--booking-button-light": style.buttonColorLightResolved || "var(--site-button)",
+    "--booking-button-dark": style.buttonColorDarkResolved || "var(--site-button)",
+    "--booking-button-text-light":
+      style.buttonTextColorLightResolved || "var(--site-button-text)",
+    "--booking-button-text-dark":
+      style.buttonTextColorDarkResolved || "var(--site-button-text)",
+    "--bp-button-text": "var(--booking-button-text)",
+    "--bp-shadow-soft": shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
+    "--bp-radius": `${radius}px`,
+    "--bp-button-radius": `${buttonRadius}px`,
+    "--bp-font-heading": style.fontHeading || palette.fontHeading || theme.fontHeading,
+    "--bp-font-body": style.fontBody || palette.fontBody || theme.fontBody,
+    "--bp-text-size-xs": `${sizeXs}px`,
+    "--bp-text-size-sm": `${textSize}px`,
+    "--bp-text-size-base": `${subheadingSize}px`,
+    "--bp-text-size-lg": `${headingSize}px`,
+    "--bp-content-width": `${blockWidth}px`,
+  } as Record<string, string>;
+}
+
+function renderBooking(
+  block: SiteBlock,
+  account: AccountInfo,
+  theme: SiteTheme,
+  style: BlockStyle
+) {
+  const accountSlug = account.slug;
+  const accountPublicSlug = account.publicSlug ?? undefined;
+  const cssVars = buildBookingVars(style, theme);
+  return (
+    <div className="booking-root" style={cssVars}>
+      <div className="booking-bleed">
+        <BookingClient
+          accountSlug={accountSlug}
+          accountPublicSlug={accountPublicSlug}
+        />
+      </div>
+    </div>
+  );
 }
 
 function resolveEntities<T extends { id: number }>(
@@ -3246,7 +3423,11 @@ function renderMenuBlock(
   );
   const linkItems = menuItems.map((key) => {
     const href =
-      key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
+      key === "home"
+        ? basePath
+        : key === "booking"
+          ? `${basePath}/booking`
+          : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
       <a key={key} href={href} className="text-sm font-medium">
         {PAGE_LABELS[key]}

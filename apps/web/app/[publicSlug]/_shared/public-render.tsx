@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { buildBookingLink } from "@/lib/booking-links";
+import BookingClient from "@/app/booking/booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import type { CSSProperties } from "react";
@@ -20,6 +21,7 @@ export type CurrentEntity =
 
 const PAGE_LABELS = {
   home: "Главная",
+  booking: "Онлайн-запись",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -328,6 +330,8 @@ export function renderBlock(
       );
     case "about":
       return renderAbout(block, accountName, profile, theme);
+    case "booking":
+      return renderBooking(block, accountSlug, publicSlug, theme);
     case "locations":
       return renderLocations(block, publicSlug, locations, current, theme);
     case "services":
@@ -345,6 +349,69 @@ export function renderBlock(
     default:
       return null;
   }
+}
+
+function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
+  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
+  const blockWidth = style.blockWidth ?? palette.contentWidth ?? theme.contentWidth ?? 1120;
+  const radius = style.radius ?? palette.radius ?? theme.radius;
+  const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
+  const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
+  const shadowColor =
+    style.shadowColor || palette.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const textSize = style.textSize ?? palette.textSize ?? theme.textSize ?? 14;
+  const subheadingSize =
+    style.subheadingSize ?? palette.subheadingSize ?? theme.subheadingSize ?? textSize + 2;
+  const headingSize =
+    style.headingSize ?? palette.headingSize ?? theme.headingSize ?? subheadingSize + 2;
+  const sizeXs = Math.max(10, textSize - 2);
+  return {
+    "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
+    "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
+    "--booking-border-light": style.borderColorLightResolved || "var(--site-border)",
+    "--booking-border-dark": style.borderColorDarkResolved || "var(--site-border)",
+    "--booking-text-light": style.textColorLightResolved || "var(--site-text)",
+    "--booking-text-dark": style.textColorDarkResolved || "var(--site-text)",
+    "--booking-muted-light": style.mutedColorLightResolved || "var(--site-muted)",
+    "--booking-muted-dark": style.mutedColorDarkResolved || "var(--site-muted)",
+    "--booking-button-light": style.buttonColorLightResolved || "var(--site-button)",
+    "--booking-button-dark": style.buttonColorDarkResolved || "var(--site-button)",
+    "--booking-button-text-light":
+      style.buttonTextColorLightResolved || "var(--site-button-text)",
+    "--booking-button-text-dark":
+      style.buttonTextColorDarkResolved || "var(--site-button-text)",
+    "--bp-button-text": "var(--booking-button-text)",
+    "--bp-shadow-soft": shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
+    "--bp-radius": `${radius}px`,
+    "--bp-button-radius": `${buttonRadius}px`,
+    "--bp-font-heading": style.fontHeading || palette.fontHeading || theme.fontHeading,
+    "--bp-font-body": style.fontBody || palette.fontBody || theme.fontBody,
+    "--bp-text-size-xs": `${sizeXs}px`,
+    "--bp-text-size-sm": `${textSize}px`,
+    "--bp-text-size-base": `${subheadingSize}px`,
+    "--bp-text-size-lg": `${headingSize}px`,
+    "--bp-content-width": `${blockWidth}px`,
+  } as Record<string, string>;
+}
+
+function renderBooking(
+  block: SiteBlock,
+  accountSlug: string,
+  publicSlug: string,
+  theme: SiteTheme
+) {
+  const style = normalizeStyle(block, theme);
+  const cssVars = buildBookingVars(style, theme);
+  return (
+    <div className="booking-root" style={cssVars}>
+      <div className="booking-bleed">
+        <BookingClient
+          accountSlug={accountSlug}
+          accountPublicSlug={publicSlug}
+        />
+      </div>
+    </div>
+  );
 }
 
 function resolveEntities<T extends { id: number }>(
@@ -571,7 +638,11 @@ function renderMenu(
 
   const linkItems = menuItems.map((key) => {
     const href =
-      key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
+      key === "home"
+        ? basePath
+        : key === "booking"
+          ? `${basePath}/booking`
+          : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
       <Link
         key={key}

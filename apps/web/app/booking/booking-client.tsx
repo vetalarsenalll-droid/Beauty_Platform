@@ -364,7 +364,7 @@ function ScenarioTabs({
               "rounded-2xl border px-3 py-2 text-xs font-medium transition",
               "hover:-translate-y-[1px] hover:shadow-sm",
               active
-                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-white"
+                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                 : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
             )}
           >
@@ -601,7 +601,7 @@ function TimeBucketPicker({
             className={cn(
               "rounded-2xl border px-3 py-2 text-xs font-medium transition hover:-translate-y-[1px] hover:shadow-sm",
               active
-                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-white"
+                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                 : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
             )}
           >
@@ -658,7 +658,7 @@ function TimeGrid({
                 "h-10 rounded-2xl border text-sm font-medium transition",
                 "hover:-translate-y-[1px] hover:shadow-sm",
                 active
-                  ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-white"
+                  ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                   : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
               )}
             >
@@ -1736,11 +1736,14 @@ export default function BookingClient({
       ? 0
       : stepIndex / (stepsWithScenario.length - 1);
   return (
-    <div className="min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
-      <div className="mx-auto w-full max-w-5xl p-3 sm:p-6">
+    <div className="booking-root min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
+      <div className="mx-auto w-full p-0" style={{ maxWidth: "var(--bp-content-width, 1024px)" }}>
         <div className="h-0" />
 
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.55fr_0.95fr] lg:grid-rows-[auto_auto]">
+        <div
+          className="grid grid-cols-1 gap-4 lg:grid-cols-[1.55fr_0.95fr] lg:grid-rows-[auto_auto]"
+          style={{ marginTop: "var(--booking-top-gap, 1rem)" }}
+        >
           <SoftPanel className="p-4 lg:col-start-1 lg:row-start-1">
             <div className="flex flex-col gap-4">
               <div className="w-full space-y-3">
@@ -1764,7 +1767,7 @@ export default function BookingClient({
                           className={cn(
                             "flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition",
                             active
-                              ? "bg-[color:var(--bp-accent)] text-white"
+                              ? "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                               : "text-[color:var(--bp-muted)] hover:bg-black/5"
                           )}
                         >
@@ -1820,7 +1823,7 @@ export default function BookingClient({
                   type="button"
                   onClick={goNext}
                   disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                  className="min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  className="min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                 >
                   Далее
                 </button>
@@ -1868,7 +1871,7 @@ export default function BookingClient({
                                     className={cn(
                                       "rounded-2xl border px-2 py-1 text-xs",
                                       active
-                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-white"
+                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                                         : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                                     )}
                                   >
@@ -2083,7 +2086,7 @@ export default function BookingClient({
                                     className={cn(
                                       "rounded-2xl border px-2 py-1 text-xs",
                                       active
-                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-white"
+                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                                         : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                                     )}
                                   >
@@ -2284,7 +2287,7 @@ export default function BookingClient({
                             type="button"
                             onClick={submitAppointment}
                             disabled={!canNext || submitting}
-                            className="h-11 w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                            className="h-11 w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                           >
                             {submitting ? "Сохранение..." : "Записаться"}
                           </button>
@@ -2319,7 +2322,7 @@ export default function BookingClient({
                   type="button"
                   onClick={submitAppointment}
                   disabled={!canNext || submitting}
-                  className="w-full max-w-[260px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40 sm:max-w-[280px] lg:max-w-[320px]"
+                  className="w-full max-w-[260px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40 sm:max-w-[280px] lg:max-w-[320px]"
                 >
                   {submitting ? "Сохранение..." : "Записаться"}
                 </button>
