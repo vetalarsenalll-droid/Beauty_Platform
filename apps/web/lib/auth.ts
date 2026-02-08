@@ -7,10 +7,12 @@ const PLATFORM_ACCESS_COOKIE = "bp_access";
 const PLATFORM_REFRESH_COOKIE = "bp_refresh";
 const CRM_ACCESS_COOKIE = "bp_crm_access";
 const CRM_REFRESH_COOKIE = "bp_crm_refresh";
+const CLIENT_ACCESS_COOKIE = "bp_client_access";
+const CLIENT_REFRESH_COOKIE = "bp_client_refresh";
 const ACCESS_TTL_MINUTES = 15;
 const REFRESH_TTL_DAYS = 30;
 
-type SessionType = "PLATFORM" | "CRM";
+type SessionType = "PLATFORM" | "CRM" | "CLIENT";
 
 type PlatformSession = {
   adminId: number;
@@ -25,6 +27,22 @@ type CrmSession = {
   accountId: number;
   role: string;
   permissions: string[];
+};
+
+type ClientSession = {
+  userId: number;
+  email: string | null;
+  avatarUrl: string | null;
+  clients: Array<{
+    clientId: number;
+    accountId: number;
+    accountSlug: string;
+    accountName: string;
+    firstName: string | null;
+    lastName: string | null;
+    phone: string | null;
+    email: string | null;
+  }>;
 };
 
 function hashToken(token: string) {
@@ -73,6 +91,29 @@ function mapCrmSession(
   };
 }
 
+function mapClientSession(
+  session: Awaited<ReturnType<typeof findSessionByAccess>>
+): ClientSession | null {
+  if (!session?.user) return null;
+  const clients =
+    session.user.clientProfiles?.map((client) => ({
+      clientId: client.id,
+      accountId: client.accountId,
+      accountSlug: client.account?.slug ?? "",
+      accountName: client.account?.name ?? "",
+      firstName: client.firstName ?? null,
+      lastName: client.lastName ?? null,
+      phone: client.phone ?? null,
+      email: client.email ?? null,
+    })) ?? [];
+  return {
+    userId: session.userId,
+    email: session.user?.email ?? null,
+    avatarUrl: session.user?.profile?.avatarUrl ?? null,
+    clients,
+  };
+}
+
 async function findSessionByAccess(
   tokenHash: string,
   sessionType: SessionType
@@ -86,6 +127,7 @@ async function findSessionByAccess(
     include: {
       user: {
         include: {
+          profile: true,
           platformAdmin: {
             include: {
               permissions: { include: { permission: true } },
@@ -100,6 +142,7 @@ async function findSessionByAccess(
               },
             },
           },
+          clientProfiles: { include: { account: true } },
         },
       },
     },
@@ -119,6 +162,7 @@ async function findSessionByRefresh(
     include: {
       user: {
         include: {
+          profile: true,
           platformAdmin: {
             include: {
               permissions: { include: { permission: true } },
@@ -133,6 +177,7 @@ async function findSessionByRefresh(
               },
             },
           },
+          clientProfiles: { include: { account: true } },
         },
       },
     },
@@ -259,6 +304,25 @@ export async function getCrmSession(): Promise<CrmSession | null> {
   return null;
 }
 
+export async function getClientSession(): Promise<ClientSession | null> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get(CLIENT_ACCESS_COOKIE)?.value;
+  const refreshToken = cookieStore.get(CLIENT_REFRESH_COOKIE)?.value;
+
+  if (accessToken) {
+    const session = await findSessionByAccess(hashToken(accessToken), "CLIENT");
+    const mapped = mapClientSession(session);
+    if (mapped) return mapped;
+  }
+
+  if (refreshToken) {
+    const session = await findSessionByRefresh(hashToken(refreshToken), "CLIENT");
+    return mapClientSession(session);
+  }
+
+  return null;
+}
+
 export async function getCrmSessionByToken(
   token: string
 ): Promise<CrmSession | null> {
@@ -268,6 +332,15 @@ export async function getCrmSessionByToken(
   return mapCrmSession(session);
 }
 
+export async function getClientSessionByToken(
+  token: string
+): Promise<ClientSession | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const session = await findSessionByAccess(tokenHash, "CLIENT");
+  return mapClientSession(session);
+}
+
 export async function getCrmSessionByRefreshToken(
   token: string
 ): Promise<CrmSession | null> {
@@ -275,6 +348,15 @@ export async function getCrmSessionByRefreshToken(
   const tokenHash = hashToken(token);
   const session = await findSessionByRefresh(tokenHash, "CRM");
   return mapCrmSession(session);
+}
+
+export async function getClientSessionByRefreshToken(
+  token: string
+): Promise<ClientSession | null> {
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const session = await findSessionByRefresh(tokenHash, "CLIENT");
+  return mapClientSession(session);
 }
 
 export async function refreshSession(
@@ -325,6 +407,13 @@ export function getCrmAuthCookies() {
   };
 }
 
+export function getClientAuthCookies() {
+  return {
+    ACCESS_COOKIE: CLIENT_ACCESS_COOKIE,
+    REFRESH_COOKIE: CLIENT_REFRESH_COOKIE,
+  };
+}
+
 export async function requirePlatformSession(): Promise<PlatformSession> {
   const session = await getPlatformSession();
   if (!session) {
@@ -348,6 +437,14 @@ export async function requireCrmSession(): Promise<CrmSession> {
   const session = await getCrmSession();
   if (!session) {
     redirect("/crm/login");
+  }
+  return session;
+}
+
+export async function requireClientSession(): Promise<ClientSession> {
+  const session = await getClientSession();
+  if (!session) {
+    redirect("/c/login");
   }
   return session;
 }

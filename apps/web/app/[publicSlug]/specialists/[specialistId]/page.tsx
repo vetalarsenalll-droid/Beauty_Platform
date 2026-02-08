@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getClientSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 
 import { loadPublicData } from "../../_shared/public-data";
@@ -16,6 +17,11 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
 
   const data = await loadPublicData(publicSlug);
   if (!data) return notFound();
+  const clientSession = await getClientSession();
+  const accountLinkOverride = clientSession
+    ? `/c?account=${data.account.slug}`
+    : `/c/login?account=${data.account.slug}`;
+
 
   if (!data.specialists.some((item) => item.id === specialistId)) return notFound();
 
@@ -110,6 +116,7 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
               {renderBlock(
                 block,
                 data.account.name,
+                data.account.slug,
                 publicSlug,
                 data.branding,
                 data.accountProfile,
@@ -119,7 +126,8 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
                 data.promos,
                 data.workPhotos,
                 { type: "specialist", id: specialistId },
-                data.draft.theme
+                data.draft.theme,
+                accountLinkOverride
               )}
             </section>
           );

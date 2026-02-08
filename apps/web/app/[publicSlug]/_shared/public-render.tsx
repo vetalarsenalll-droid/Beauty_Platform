@@ -286,6 +286,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
 export function renderBlock(
   block: SiteBlock,
   accountName: string,
+  accountSlug: string,
   publicSlug: string,
   branding: Branding,
   profile: AccountProfile,
@@ -295,7 +296,8 @@ export function renderBlock(
   promos: PromoItem[],
   workPhotos: WorkPhotos,
   current: CurrentEntity,
-  theme: SiteTheme
+  theme: SiteTheme,
+  accountLinkOverride?: string
 ) {
   switch (block.type) {
     case "cover":
@@ -313,6 +315,7 @@ export function renderBlock(
       return renderMenu(
         block,
         accountName,
+        accountSlug,
         publicSlug,
         branding,
         profile,
@@ -320,7 +323,8 @@ export function renderBlock(
         services,
         specialists,
         promos,
-        theme
+        theme,
+        accountLinkOverride
       );
     case "about":
       return renderAbout(block, accountName, profile, theme);
@@ -517,6 +521,7 @@ function renderCover(
 function renderMenu(
   block: SiteBlock,
   accountName: string,
+  accountSlug: string,
   publicSlug: string,
   branding: Branding,
   profile: AccountProfile,
@@ -524,7 +529,8 @@ function renderMenu(
   services: ServiceItem[],
   specialists: SpecialistItem[],
   promos: PromoItem[],
-  theme: SiteTheme
+  theme: SiteTheme,
+  accountLinkOverride?: string
 ) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
@@ -540,7 +546,15 @@ function renderMenu(
   const showSearch = Boolean(data.showSearch);
   const showAccount = Boolean(data.showAccount);
   const showThemeToggle = Boolean(data.showThemeToggle);
-  const accountLink = (data.accountLink as string) || "/c";
+  const rawAccountLink = (data.accountLink as string) ?? "";
+  const accountLink =
+    rawAccountLink && rawAccountLink !== "/c"
+      ? rawAccountLink
+      : accountLinkOverride && accountLinkOverride.trim().length > 0
+        ? accountLinkOverride
+        : accountSlug
+          ? `/c/login?account=${accountSlug}`
+          : "/c/login";
   const showSocials = Boolean(data.showSocials);
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};

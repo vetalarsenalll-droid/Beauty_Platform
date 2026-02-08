@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getClientSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 
 import { loadPublicData } from "./_shared/public-data";
@@ -13,6 +14,11 @@ export default async function PublicAccountPage({ params }: PageProps) {
   const publicSlug = resolvedParams.publicSlug ?? "";
   const data = await loadPublicData(publicSlug);
   if (!data) return notFound();
+  const clientSession = await getClientSession();
+  const accountLinkOverride = clientSession
+    ? `/c?account=${data.account.slug}`
+    : `/c/login?account=${data.account.slug}`;
+
 
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
@@ -98,6 +104,7 @@ export default async function PublicAccountPage({ params }: PageProps) {
               {renderBlock(
                 block,
                 data.account.name,
+                data.account.slug,
                 publicSlug,
                 data.branding,
                 data.accountProfile,
@@ -107,7 +114,8 @@ export default async function PublicAccountPage({ params }: PageProps) {
                 data.promos,
                 data.workPhotos,
                 null,
-                data.draft.theme
+                data.draft.theme,
+                accountLinkOverride
               )}
             </section>
           );

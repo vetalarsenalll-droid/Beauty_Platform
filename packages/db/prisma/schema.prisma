@@ -172,6 +172,7 @@ enum IdentityProvider {
 enum SessionType {
   PLATFORM
   CRM
+  CLIENT
 }
 
 enum SubscriptionStatus {

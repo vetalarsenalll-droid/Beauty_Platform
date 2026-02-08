@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -61,6 +61,14 @@ type SpecialistsData = {
 
 type SlotsData = {
   slots: Slot[];
+};
+
+type ClientProfile = {
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  avatarUrl: string | null;
 };
 
 type AvailabilityCalendar = {
@@ -729,6 +737,10 @@ export default function BookingClient({
   const [offersByTime, setOffersByTime] = useState<Record<string, number[]>>({});
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [offersError, setOffersError] = useState<string | null>(null);
+  const [dateFirstAvailableDates, setDateFirstAvailableDates] = useState<
+    Set<string> | undefined
+  >(undefined);
+  const [loadingDateFirstAvailability, setLoadingDateFirstAvailability] = useState(false);
 
   // serviceFirst/specialistFirst: календарь доступности (у тебя уже есть endpoint)
   const [calendar, setCalendar] = useState<AvailabilityCalendar | null>(null);
@@ -792,6 +804,10 @@ export default function BookingClient({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
+  const [loadingClientProfile, setLoadingClientProfile] = useState(false);
+  const calendarKeyRef = useRef<string | null>(null);
+
   const accountTz = context?.account.timeZone || "UTC";
   const slotStepMinutes = context?.account.slotStepMinutes ?? 15;
   const legalDocs = context?.legalDocuments ?? [];
@@ -800,7 +816,6 @@ export default function BookingClient({
   const todayYmdTz = nowTz.ymd;
 
   const idempotencyKeyRef = useRef<string | null>(null);
-  const lastAutoAdvanceLocationRef = useRef<number | null>(null);
   useEffect(() => {
     idempotencyKeyRef.current = null;
   }, [locationId, serviceId, specialistId, dateYmd, timeChoice, clientName, clientPhone, clientEmail, comment]);
@@ -917,46 +932,7 @@ export default function BookingClient({
     if (idx >= 0) setStepIndex(idx);
   };
 
-  useLayoutEffect(() => {
-    if (currentStepKey !== "location") return;
-    if (!locationId) return;
-    if (serviceId) {
-      lastAutoAdvanceLocationRef.current = locationId;
-      gotoKey("datetime");
-      return;
-    }
-    if (specialistId) {
-      lastAutoAdvanceLocationRef.current = locationId;
-      gotoKey("service");
-      return;
-    }
-    if (lastAutoAdvanceLocationRef.current === locationId) return;
-    if (scenario === "serviceFirst") {
-      lastAutoAdvanceLocationRef.current = locationId;
-      gotoKey("service");
-      return;
-    }
-    if (scenario === "specialistFirst") {
-      lastAutoAdvanceLocationRef.current = locationId;
-      gotoKey("specialist");
-      return;
-    }
-    if (scenario === "dateFirst") {
-      lastAutoAdvanceLocationRef.current = locationId;
-      gotoKey("datetime");
-    }
-  }, [currentStepKey, locationId, serviceId, specialistId, scenario, stepsWithScenario]);
-
-  useLayoutEffect(() => {
-    if (currentStepKey !== "service") return;
-    if (!serviceId) return;
-    if (isSpecialistFirst && !specialistId) return;
-    if (isDateFirst) {
-      gotoKey("specialist");
-      return;
-    }
-    gotoKey("datetime");
-  }, [currentStepKey, serviceId, specialistId, isDateFirst, isSpecialistFirst, stepsWithScenario]);
+  // Auto-advance is disabled: переходы только по кнопке "Далее".
 
   // ---------- resets
   useEffect(() => {
@@ -964,6 +940,7 @@ export default function BookingClient({
     setSpecialistId(null);
     setTimeChoice(null);
     setOffersByTime({});
+    setDateFirstAvailableDates(undefined);
     setCalendar(null);
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
@@ -977,6 +954,7 @@ export default function BookingClient({
     setSpecialistId(null);
     setTimeChoice(null);
     setOffersByTime({});
+    setDateFirstAvailableDates(undefined);
     setCalendar(null);
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
@@ -1036,6 +1014,64 @@ export default function BookingClient({
       mounted = false;
     };
   }, [accountSlug]);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoadingClientProfile(true);
+    const url = accountSlug
+      ? `/api/v1/auth/client/me?account=${encodeURIComponent(accountSlug)}`
+      : "/api/v1/auth/client/me";
+
+    fetch(url)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!mounted) return;
+        const data = payload?.data ?? null;
+        let next = data?.client ?? null;
+        if (!next && Array.isArray(data?.clients)) {
+          next =
+            (accountSlug
+              ? data.clients.find((item: { accountSlug?: string }) => item.accountSlug === accountSlug)
+              : null) ??
+            data.clients[0] ??
+            null;
+        }
+        if (!next && data?.user?.email) {
+          next = {
+            firstName: null,
+            lastName: null,
+            phone: null,
+            email: data.user.email,
+            avatarUrl: null,
+          };
+        }
+        setClientProfile(next);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setClientProfile(null);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoadingClientProfile(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [accountSlug]);
+
+  useEffect(() => {
+    if (!clientProfile) return;
+
+    setClientName((prev) => {
+      if (prev.trim()) return prev;
+      const composed = `${clientProfile.firstName ?? ""} ${clientProfile.lastName ?? ""}`.trim();
+      return composed;
+    });
+    setClientPhone((prev) => (prev.trim() ? prev : clientProfile.phone ?? ""));
+    setClientEmail((prev) => (prev.trim() ? prev : clientProfile.email ?? ""));
+  }, [clientProfile]);
 
   // ---------- specialists (full list for location)
   useEffect(() => {
@@ -1160,6 +1196,20 @@ export default function BookingClient({
   // ---------- serviceFirst/specialistFirst: availability calendar
   useEffect(() => {
     const safeLocationId = Number(locationId);
+    const calendarKey = [
+      isDateFirst ? "date" : "other",
+      isServiceFirst ? "service" : "",
+      isSpecialistFirst ? "specialist" : "",
+      safeLocationId,
+      serviceId ?? "",
+      specialistId ?? "",
+      accountSlug ?? "",
+      todayYmdTz,
+      nowTz.minutes,
+    ].join("|");
+
+    if (calendarKeyRef.current === calendarKey) return;
+    calendarKeyRef.current = calendarKey;
 
     setCalendar(null);
     setCalendarError(null);
@@ -1308,6 +1358,62 @@ export default function BookingClient({
     };
   }, [isDateFirst, locationId, dateYmd, services, accountSlug, todayYmdTz, nowTz]);
 
+  // ---------- dateFirst: available dates (any service) for next 31 days
+  useEffect(() => {
+    const safeLocationId = Number(locationId);
+    if (!isDateFirst) {
+      setDateFirstAvailableDates(undefined);
+      setLoadingDateFirstAvailability(false);
+      return;
+    }
+    if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
+      setDateFirstAvailableDates(undefined);
+      return;
+    }
+    if (!services.length) {
+      setDateFirstAvailableDates(undefined);
+      return;
+    }
+
+    let mounted = true;
+    setDateFirstAvailableDates(new Set());
+    setLoadingDateFirstAvailability(true);
+
+    const tasks = services.map((s) => () =>
+      fetchJson<AvailabilityCalendar>(
+        buildUrl("/api/v1/public/booking/availability/calendar", {
+          locationId: safeLocationId,
+          serviceId: s.id,
+          start: todayYmdTz,
+          days: 31,
+          account: accountSlug ?? "",
+        })
+      ).then((d) => d.days ?? [])
+    );
+
+    (async () => {
+      try {
+        const results = await runBatches(tasks, 4);
+        if (!mounted) return;
+
+        const set = new Set<string>();
+        for (const days of results) {
+          for (const day of days) {
+            if (day?.date) set.add(day.date);
+          }
+        }
+        setDateFirstAvailableDates(set);
+      } finally {
+        if (!mounted) return;
+        setLoadingDateFirstAvailability(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isDateFirst, locationId, services, accountSlug, todayYmdTz]);
+
   // ---------- dateFirst: slots by chosen service to filter specialists by timeChoice
   useEffect(() => {
     const safeLocationId = Number(locationId);
@@ -1404,13 +1510,14 @@ export default function BookingClient({
 
   useEffect(() => {
     if (!isSpecialistFirst) return;
+    if (loadingServices) return;
     if (serviceId && servicesForSpecialistFirst.some((s) => s.id === serviceId)) return;
     setServiceId(null);
     setTimeChoice(null);
     setCalendar(null);
     setSubmitError(null);
     setSubmitSuccess(false);
-  }, [isSpecialistFirst, specialistId, serviceId, servicesForSpecialistFirst]);
+  }, [isSpecialistFirst, specialistId, serviceId, servicesForSpecialistFirst, loadingServices]);
 
   // dateFirst: only services that fit chosen time
   const servicesThatFitPickedTime = useMemo(() => {
@@ -1546,13 +1653,26 @@ export default function BookingClient({
   const goNext = () => setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
   const goPrev = () => setStepIndex((v) => Math.max(0, v - 1));
 
+  const getContactDefaults = () => {
+    if (!clientProfile) {
+      return { name: "", phone: "", email: "" };
+    }
+    const name = `${clientProfile.firstName ?? ""} ${clientProfile.lastName ?? ""}`.trim();
+    return {
+      name,
+      phone: clientProfile.phone ?? "",
+      email: clientProfile.email ?? "",
+    };
+  };
+
   const resetAll = () => {
+    const defaults = getContactDefaults();
     setServiceId(null);
     setSpecialistId(null);
     setTimeChoice(null);
-    setClientName("");
-    setClientPhone("");
-    setClientEmail("");
+    setClientName(defaults.name);
+    setClientPhone(defaults.phone);
+    setClientEmail(defaults.email);
     setComment("");
     setLegalConsents({});
     setSubmitError(null);
@@ -1561,6 +1681,7 @@ export default function BookingClient({
     setTimeBucket("all");
     setQuery("");
     setOffersByTime({});
+    setDateFirstAvailableDates(undefined);
     setCalendar(null);
     setStepIndex(0);
   };
@@ -1612,77 +1733,73 @@ export default function BookingClient({
     stepsWithScenario.length <= 1
       ? 0
       : stepIndex / (stepsWithScenario.length - 1);
+  const clientDisplayName = clientProfile
+    ? `${clientProfile.firstName ?? ""} ${clientProfile.lastName ?? ""}`.trim() ||
+      clientProfile.phone ||
+      clientProfile.email ||
+      "Клиент"
+    : null;
+  const clientHref = clientProfile
+    ? accountSlug
+      ? `/c?account=${accountSlug}`
+      : "/c"
+    : accountSlug
+      ? `/c/login?account=${accountSlug}`
+      : "/c/login";
 
   return (
     <div className="min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
       <div className="mx-auto w-full max-w-5xl p-3 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm text-[color:var(--bp-muted)]">Публичная запись</div>
-            <div className="text-xl font-semibold">
-              {context?.account.name || "Beauty Platform"}
-            </div>
-            <div className="text-sm text-[color:var(--bp-muted)]">
-              Онлайн запись · 3 сценария · шаг {slotStepMinutes} минут · TZ: {accountTz}
-            </div>
-          </div>
+        <div className="h-0" />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs">
-              {stepsWithScenario[stepIndex]?.title}
-            </div>
-            <button
-              type="button"
-              onClick={resetAll}
-              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
-            >
-              Сбросить
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr]">
-          <SoftPanel className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm font-semibold">
-                  {displayName === "Гость" ? "G" : initials(displayName)}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{displayName}</div>
-                  <div className="text-xs text-[color:var(--bp-muted)]">Телефон: {displayPhone}</div>
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.55fr_0.95fr]">
+          <SoftPanel className="p-4 lg:col-span-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-center gap-3 sm:max-w-[220px]">
+                <a
+                  href={clientHref}
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm font-semibold"
+                  aria-label={
+                    clientProfile
+                      ? "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442"
+                      : "\u0412\u0445\u043e\u0434"
+                  }
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4 text-[color:var(--bp-muted)]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 21a8 8 0 0 0-16 0" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </a>
+                <div className="min-h-[1.25rem] text-sm font-semibold">
+                  {!loadingClientProfile ? clientDisplayName ?? "\u0412\u0445\u043e\u0434" : null}
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => gotoKey("details")}
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
-              >
-                Редактировать
-              </button>
-            </div>
-
-            <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
-              Контакты сохранятся после подтверждения записи.
-            </div>
-          </SoftPanel>
-
-          <SoftPanel className="p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm text-[color:var(--bp-muted)]">Сценарий записи</div>
-                <div className="text-xs text-[color:var(--bp-muted)]">
-                  Порядок шагов меняется, результат один
+              <div className="flex-1">
+                <ScenarioTabs value={scenario} onChange={setScenario} />
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex-1">
+                    <ProgressBar value={progress} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetAll}
+                    className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
+                  >
+                    Сбросить
+                  </button>
+                </div>
+                <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                  Шаг {stepIndex + 1} из {stepsWithScenario.length}
                 </div>
               </div>
-              <ScenarioTabs value={scenario} onChange={setScenario} />
-            </div>
-            <div className="mt-3">
-              <ProgressBar value={progress} />
-            </div>
-            <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-              Шаг {stepIndex + 1} из {stepsWithScenario.length}
             </div>
           </SoftPanel>
         </div>
@@ -1794,9 +1911,6 @@ export default function BookingClient({
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="text-xs text-[color:var(--bp-muted)]">
-                          {accountTz}
-                        </div>
                       </div>
                       <div className="text-xs text-[color:var(--bp-muted)]">
                         {prettyDayYmd(dateYmd, todayYmdTz)} · {dateYmd}
@@ -1808,7 +1922,9 @@ export default function BookingClient({
                       value={dateYmd}
                       timeZone={accountTz}
                       disabledBeforeYmd={todayYmdTz}
-                      availableDates={!isDateFirst ? calendarAvailableDates : undefined}
+                      availableDates={
+                        isDateFirst ? dateFirstAvailableDates : calendarAvailableDates
+                      }
                       onChange={(ymd) => {
                         if (isPastYmd(ymd, todayYmdTz)) return;
                         setDateYmd(ymd);
