@@ -1,8 +1,17 @@
 import { requireClientSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { buildPublicSlugId } from "@/lib/public-slug";
+import { renderPublicMenu } from "@/app/[publicSlug]/_shared/menu-render";
 import LogoutButton from "./logout-button";
 
-export default async function ClientHome() {
+type ClientHomeProps = {
+  searchParams?: Promise<{ account?: string }> | { account?: string };
+};
+
+export default async function ClientHome({ searchParams }: ClientHomeProps) {
   const session = await requireClientSession();
+  const resolvedParams = await Promise.resolve(searchParams ?? {});
+  const accountSlugParam = resolvedParams?.account?.trim();
 
   const primaryClient = session.clients[0] ?? null;
   const fullName = `${primaryClient?.firstName ?? ""} ${primaryClient?.lastName ?? ""}`.trim();
@@ -13,8 +22,26 @@ export default async function ClientHome() {
     session.email ||
     "Клиент";
 
+  const accountSlug = accountSlugParam || primaryClient?.accountSlug || null;
+  let menuNode: JSX.Element | null = null;
+  if (accountSlug) {
+    const account = await prisma.account.findUnique({
+      where: { slug: accountSlug },
+      select: { id: true, slug: true },
+    });
+    if (account) {
+      const publicSlug = buildPublicSlugId(account.slug, account.id);
+      menuNode = await renderPublicMenu(
+        publicSlug,
+        `/c?account=${account.slug}`
+      );
+    }
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-16">
+    <>
+      {menuNode}
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-16">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">
           {"Личный кабинет"}
@@ -51,6 +78,7 @@ export default async function ClientHome() {
           {"Пока нет салонов, где вы записывались."}
         </div>
       )}
-    </main>
+      </main>
+    </>
   );
 }

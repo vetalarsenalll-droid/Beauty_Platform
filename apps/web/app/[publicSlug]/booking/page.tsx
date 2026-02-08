@@ -1,7 +1,9 @@
 ﻿import BookingClient from "@/app/booking/booking-client";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getClientSession } from "@/lib/auth";
 import { buildPublicSlugId, parsePublicSlugId } from "@/lib/public-slug";
+import { renderPublicMenu } from "../_shared/menu-render";
 
 type PageProps = {
   params: Promise<{ publicSlug: string }> | { publicSlug: string };
@@ -28,10 +30,19 @@ export default async function PublicBookingPage({ params }: PageProps) {
     redirect(`/${canonicalSlug}/booking`);
   }
 
+  const clientSession = await getClientSession();
+  const accountLinkOverride = clientSession
+    ? `/c?account=${account.slug}`
+    : `/c/login?account=${account.slug}`;
+  const menuNode = await renderPublicMenu(canonicalSlug, accountLinkOverride);
+
   return (
-    <BookingClient
-      accountSlug={account.slug}
-      accountPublicSlug={canonicalSlug}
-    />
+    <div className="w-full">
+      {menuNode}
+      <BookingClient
+        accountSlug={account.slug}
+        accountPublicSlug={canonicalSlug}
+      />
+    </div>
   );
 }

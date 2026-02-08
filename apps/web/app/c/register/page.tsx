@@ -1,128 +1,35 @@
-"use client";
+import { prisma } from "@/lib/prisma";
+import { buildPublicSlugId } from "@/lib/public-slug";
+import { renderPublicMenu } from "@/app/[publicSlug]/_shared/menu-render";
+import ClientRegisterPage from "./register-client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+type PageProps = {
+  searchParams?: Promise<{ account?: string }> | { account?: string };
+};
 
-export default function ClientRegisterPage() {
-  const params = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [accountSlug, setAccountSlug] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export default async function ClientRegisterPageWrapper({ searchParams }: PageProps) {
+  const resolved = await Promise.resolve(searchParams ?? {});
+  const accountSlug = resolved?.account?.trim();
 
-  useEffect(() => {
-    const account = params.get("account");
-    if (account) setAccountSlug(account);
-  }, [params]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    const response = await fetch("/api/v1/auth/client/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        firstName,
-        lastName,
-        phone,
-        accountSlug,
-      }),
+  let menuNode: JSX.Element | null = null;
+  if (accountSlug) {
+    const account = await prisma.account.findUnique({
+      where: { slug: accountSlug },
+      select: { id: true, slug: true },
     });
-
-    setLoading(false);
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setError(payload?.error?.message ?? "Ошибка регистрации.");
-      return;
+    if (account) {
+      const publicSlug = buildPublicSlugId(account.slug, account.id);
+      menuNode = await renderPublicMenu(
+        publicSlug,
+        `/c/register?account=${account.slug}`
+      );
     }
-
-    const target = accountSlug ? `/c?account=${accountSlug}` : "/c";
-    window.location.href = target;
-  };
+  }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-xl items-center">
-      <div className="w-full rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
-        <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Личный кабинет
-        </div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Регистрация</h1>
-        <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit}>
-          <label className="text-sm font-medium">
-            Имя
-            <input
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
-            />
-          </label>
-          <label className="text-sm font-medium">
-            Фамилия
-            <input
-              value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
-            />
-          </label>
-          <label className="text-sm font-medium">
-            Телефон
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
-            />
-          </label>
-          <label className="text-sm font-medium">
-            Эл. почта
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="example@mail.ru"
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
-              required
-            />
-          </label>
-          <label className="text-sm font-medium">
-            Пароль
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
-              required
-            />
-          </label>
-          {error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-              {error}
-            </div>
-          ) : null}
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 inline-flex items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-sm font-semibold text-white shadow-[var(--bp-shadow)] transition hover:bg-[color:var(--bp-accent-strong)] disabled:opacity-60"
-          >
-            {loading ? "Создание..." : "Создать аккаунт"}
-          </button>
-          <a
-            href={accountSlug ? `/c/login?account=${accountSlug}` : "/c/login"}
-            className="text-center text-sm text-[color:var(--bp-muted)] underline"
-          >
-            Уже есть аккаунт?
-          </a>
-        </form>
-      </div>
-    </div>
+    <>
+      {menuNode}
+      <ClientRegisterPage />
+    </>
   );
 }

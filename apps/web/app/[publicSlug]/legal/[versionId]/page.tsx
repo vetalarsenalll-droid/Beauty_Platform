@@ -1,4 +1,4 @@
-﻿import { notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId, parsePublicSlugId } from "@/lib/public-slug";
 

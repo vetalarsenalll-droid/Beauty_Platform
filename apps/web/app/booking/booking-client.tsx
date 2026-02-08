@@ -1600,6 +1600,8 @@ export default function BookingClient({
 
   const servicePrice =
     selectedService?.computedPrice ?? selectedService?.basePrice ?? null;
+  const servicePriceLabel =
+    servicePrice != null ? formatMoneyRub(servicePrice) : "—";
 
   const slotEnd = useMemo(() => {
     if (!timeChoice || !serviceDuration) return "";
@@ -1733,108 +1735,67 @@ export default function BookingClient({
     stepsWithScenario.length <= 1
       ? 0
       : stepIndex / (stepsWithScenario.length - 1);
-  const clientDisplayName = clientProfile
-    ? `${clientProfile.firstName ?? ""} ${clientProfile.lastName ?? ""}`.trim() ||
-      clientProfile.phone ||
-      clientProfile.email ||
-      "Клиент"
-    : null;
-  const clientHref = clientProfile
-    ? accountSlug
-      ? `/c?account=${accountSlug}`
-      : "/c"
-    : accountSlug
-      ? `/c/login?account=${accountSlug}`
-      : "/c/login";
-
   return (
     <div className="min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
       <div className="mx-auto w-full max-w-5xl p-3 sm:p-6">
         <div className="h-0" />
 
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.55fr_0.95fr]">
-          <SoftPanel className="p-4 lg:col-span-2">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex w-full items-center gap-3 lg:w-1/2">
-                <a
-                  href={clientHref}
-                  className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm font-semibold"
-                  aria-label={
-                    clientProfile
-                      ? "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442"
-                      : "\u0412\u0445\u043e\u0434"
-                  }
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4 text-[color:var(--bp-muted)]"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 21a8 8 0 0 0-16 0" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </a>
-                <div className="min-w-0">
-                  <div className="text-xs text-[color:var(--bp-muted)]">
-                    {clientProfile ? "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442" : "\u0412\u0445\u043e\u0434"}
-                  </div>
-                  <div className="min-h-[1.25rem] truncate text-sm font-semibold">
-                    {!loadingClientProfile ? clientDisplayName ?? "\u0412\u0445\u043e\u0434" : null}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.55fr_0.95fr] lg:grid-rows-[auto_auto]">
+          <SoftPanel className="p-4 lg:col-start-1 lg:row-start-1">
+            <div className="flex flex-col gap-4">
+              <div className="w-full space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-[110px] text-right text-xs text-[color:var(--bp-muted)]">Сценарий записи</div>
+                  <div className="text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
+                </div>
+                <div className="flex flex-wrap justify-start lg:justify-end">
+                  <div className="flex w-full flex-wrap gap-1 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-1">
+                    {[
+                      { key: "dateFirst", label: "Дата/время" },
+                      { key: "serviceFirst", label: "Услуга" },
+                      { key: "specialistFirst", label: "Специалист" },
+                    ].map((item) => {
+                      const active = scenario === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => setScenario(item.key as Scenario)}
+                          className={cn(
+                            "flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition",
+                            active
+                              ? "bg-[color:var(--bp-accent)] text-white"
+                              : "text-[color:var(--bp-muted)] hover:bg-black/5"
+                          )}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
-              <div className="w-full space-y-3 lg:w-1/2">
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { key: "dateFirst", label: "Дата/время" },
-                    { key: "serviceFirst", label: "Услуга" },
-                    { key: "specialistFirst", label: "Специалист" },
-                  ].map((item) => {
-                    const active = scenario === item.key;
-                    return (
-                      <button
-                        key={item.key}
-                        type="button"
-                        onClick={() => setScenario(item.key as Scenario)}
-                        className={cn(
-                          "rounded-2xl border px-3 py-2 text-left text-sm font-medium transition",
-                          "hover:-translate-y-[1px] hover:shadow-sm",
-                          active
-                            ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
-                            : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
-                        )}
-                      >
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
 
-                <ProgressBar value={progress} />
-
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs text-[color:var(--bp-muted)]">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <ProgressBar value={progress} />
+                  </div>
+                  <div className="w-[120px] shrink-0 text-right text-xs text-[color:var(--bp-muted)]">
                     Шаг {stepIndex + 1} из {stepsWithScenario.length}
                   </div>
                   <button
                     type="button"
                     onClick={resetAll}
-                    className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
+                    className="w-[120px] shrink-0 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
                   >
                     Сбросить
                   </button>
                 </div>
               </div>
+
             </div>
           </SoftPanel>
-        </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1.55fr_0.95fr]">
-          <SoftPanel className="p-4 sm:p-6">
+          <SoftPanel className="p-4 sm:p-6 lg:col-start-1 lg:row-start-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm text-[color:var(--bp-muted)]">
@@ -1850,7 +1811,7 @@ export default function BookingClient({
                   type="button"
                   onClick={goPrev}
                   disabled={stepIndex === 0}
-                  className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  className="min-w-[70px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                 >
                   Назад
                 </button>
@@ -1859,9 +1820,9 @@ export default function BookingClient({
                   type="button"
                   onClick={goNext}
                   disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                  className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  className="min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                 >
-                  Дальше
+                  Далее
                 </button>
               </div>
             </div>
@@ -1929,13 +1890,6 @@ export default function BookingClient({
 
                 {currentStepKey === "datetime" && (
                   <div className="space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div />
-                      <div className="text-xs text-[color:var(--bp-muted)]">
-                        {prettyDayYmd(dateYmd, todayYmdTz)}
-                      </div>
-                    </div>
-
                     {/* ✅ Новый календарь как на примере (без теней, выбор — черная обводка) */}
                     <DatePickerLike
                       value={dateYmd}
@@ -2038,7 +1992,7 @@ export default function BookingClient({
                                 </div>
                                 <div className="shrink-0 text-right">
                                   <div className="text-sm font-semibold">{formatMoneyRub(price)}</div>
-                                  <div className="text-xs text-[color:var(--bp-muted)]">{duration} мин</div>
+                                  <div className="w-[110px] text-right text-xs text-[color:var(--bp-muted)]">{duration} мин</div>
                                 </div>
                               </div>
                             </button>
@@ -2312,7 +2266,7 @@ export default function BookingClient({
                           />
                           <SummaryRow
                             label="Стоимость"
-                            value={servicePrice ? formatMoneyRub(servicePrice) : "—"}
+                            value={servicePriceLabel}
                           />
 
                           {submitError && (
@@ -2344,7 +2298,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="p-4 sm:p-5 lg:sticky lg:top-6">
+          <SoftPanel className="p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold">Сводка</div>
               <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 py-1 text-xs text-[color:var(--bp-muted)]">
@@ -2355,10 +2309,10 @@ export default function BookingClient({
             <div className="mt-4 space-y-3">
               <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
               <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
-              <SummaryRow label="специалист" value={selectedSpecialist?.name || "—"} />
+              <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
               <SummaryRow label="Дата" value={dateYmd} />
               <SummaryRow label="Время" value={timeChoice || "—"} />
-              <SummaryRow label="Стоимость" value={servicePrice ? formatMoneyRub(servicePrice) : "—"} />
+              <SummaryRow label="Стоимость" value={servicePriceLabel} />
 
               <div className="mt-4 flex justify-start">
                 <button
@@ -2370,11 +2324,17 @@ export default function BookingClient({
                   {submitting ? "Сохранение..." : "Записаться"}
                 </button>
               </div>
-
             </div>
           </SoftPanel>
+
         </div>
       </div>
     </div>
   );
 }
+
+
+
+
+
+
