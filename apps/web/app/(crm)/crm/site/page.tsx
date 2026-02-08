@@ -41,6 +41,7 @@ export default async function CrmSitePage() {
     prisma.service.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
+      include: { locations: { select: { locationId: true } } },
     }),
     prisma.specialistProfile.findMany({
       where: { accountId: session.accountId },
@@ -214,13 +215,14 @@ export default async function CrmSitePage() {
             : null,
           coverUrl: locationCoverMap.get(String(location.id)) ?? null,
         }))}
-        services={services.map((service: { id: number; name: string; description: string | null; baseDurationMin: number; basePrice: unknown }) => ({
+        services={services.map((service: { id: number; name: string; description: string | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
           id: service.id,
           name: service.name,
           description: service.description,
           baseDurationMin: service.baseDurationMin,
           basePrice: Number(service.basePrice),
           coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
+          locationIds: service.locations.map((item) => item.locationId),
         }))}
         specialists={specialists.map((specialist: { id: number; user: { email: string | null; profile: { firstName: string | null; lastName: string | null } | null }; level: { name: string } | null; locations: Array<{ locationId: number }> }) => {
           const profile = specialist.user.profile;

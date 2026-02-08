@@ -796,6 +796,7 @@ export default function BookingClient({
   const todayYmdTz = nowTz.ymd;
 
   const idempotencyKeyRef = useRef<string | null>(null);
+  const lastAutoAdvanceLocationRef = useRef<number | null>(null);
   useEffect(() => {
     idempotencyKeyRef.current = null;
   }, [locationId, serviceId, specialistId, dateYmd, timeChoice, clientName, clientPhone, clientEmail, comment]);
@@ -827,14 +828,19 @@ export default function BookingClient({
     if (initialParams.scenario) {
       setScenario(initialParams.scenario);
     }
-    if (context?.locations?.length && initialParams.locationId) {
-      const exists = context.locations.some((item) => item.id === initialParams.locationId);
-      if (exists) setLocationId(initialParams.locationId);
+    if (initialParams.locationId) {
+      setLocationId(initialParams.locationId);
     }
     if (initialParams.serviceId) setPendingServiceId(initialParams.serviceId);
     if (initialParams.specialistId) setPendingSpecialistId(initialParams.specialistId);
     setInitialParamsApplied(true);
   }, [initialParams, initialParamsApplied, context?.locations]);
+
+  useEffect(() => {
+    if (!locationId || !context?.locations?.length) return;
+    const exists = context.locations.some((item) => item.id === locationId);
+    if (!exists) setLocationId(null);
+  }, [locationId, context?.locations]);
 
   useEffect(() => {
     if (!pendingServiceId) return;
@@ -899,6 +905,37 @@ export default function BookingClient({
     const idx = steps.findIndex((s) => s.key === key);
     if (idx >= 0) setStepIndex(idx);
   };
+
+  useEffect(() => {
+    if (currentStepKey !== "location") return;
+    if (!locationId) return;
+    if (lastAutoAdvanceLocationRef.current === locationId) return;
+
+    if (serviceId) {
+      lastAutoAdvanceLocationRef.current = locationId;
+      gotoKey("datetime");
+      return;
+    }
+    if (specialistId) {
+      lastAutoAdvanceLocationRef.current = locationId;
+      gotoKey("service");
+      return;
+    }
+    if (scenario === "serviceFirst") {
+      lastAutoAdvanceLocationRef.current = locationId;
+      gotoKey("service");
+      return;
+    }
+    if (scenario === "specialistFirst") {
+      lastAutoAdvanceLocationRef.current = locationId;
+      gotoKey("specialist");
+      return;
+    }
+    if (scenario === "dateFirst") {
+      lastAutoAdvanceLocationRef.current = locationId;
+      gotoKey("datetime");
+    }
+  }, [currentStepKey, locationId, serviceId, specialistId, scenario, steps]);
 
   // ---------- resets
   useEffect(() => {
@@ -969,7 +1006,7 @@ export default function BookingClient({
       .then((data) => {
         if (!mounted) return;
         setContext(data);
-        if (data.locations.length > 0) {
+        if (data.locations.length === 1) {
           const firstId = Number(data.locations[0].id);
           setLocationId(Number.isInteger(firstId) ? firstId : null);
         }

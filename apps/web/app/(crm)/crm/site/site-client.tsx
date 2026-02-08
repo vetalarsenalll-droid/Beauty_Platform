@@ -1,4 +1,4 @@
-﻿
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -53,6 +53,7 @@ type ServiceItem = {
   baseDurationMin: number;
   basePrice: number;
   coverUrl: string | null;
+  locationIds: number[];
 };
 
 type SpecialistItem = {
@@ -3634,6 +3635,9 @@ function renderServices(
   const showDuration = data.showDuration !== false;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const specialistId = typeof data.specialistId === "number" ? data.specialistId : null;
+  const currentLocationId = currentEntity?.type === "location" ? currentEntity.id : null;
+  const currentSpecialistId = currentEntity?.type === "specialist" ? currentEntity.id : null;
+  const effectiveSpecialistId = currentSpecialistId ?? specialistId;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -3678,10 +3682,13 @@ function renderServices(
               <a
                 href={buildBookingLink({
                   publicSlug: account.publicSlug,
-                  locationId,
-                  specialistId,
+                  locationId:
+                    currentLocationId ??
+                    locationId ??
+                    (service.locationIds.length === 1 ? service.locationIds[0] : null),
+                  specialistId: effectiveSpecialistId,
                   serviceId: service.id,
-                  scenario: specialistId ? "specialistFirst" : "serviceFirst",
+                  scenario: effectiveSpecialistId ? "specialistFirst" : "serviceFirst",
                 })}
                 className="mt-3 inline-flex px-3 py-2 text-xs"
                 style={buttonStyle(style, theme)}
@@ -3723,6 +3730,10 @@ function renderSpecialists(
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
+  const currentLocationId = currentEntity?.type === "location" ? currentEntity.id : null;
+  const visibleItems = currentLocationId
+    ? items.filter((item) => item.locationIds.includes(currentLocationId))
+    : items;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -3744,7 +3755,7 @@ function renderSpecialists(
         </p>
       )}
       <div className="mt-4 grid gap-4 md:grid-cols-3">
-        {items.map((specialist) => (
+        {visibleItems.map((specialist) => (
           <div
             key={specialist.id}
             className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
@@ -3761,7 +3772,10 @@ function renderSpecialists(
               <a
                 href={buildBookingLink({
                   publicSlug: account.publicSlug,
-                  locationId,
+                  locationId:
+                    currentLocationId ??
+                    locationId ??
+                    (specialist.locationIds.length === 1 ? specialist.locationIds[0] : null),
                   specialistId: specialist.id,
                   scenario: "specialistFirst",
                 })}
@@ -3773,7 +3787,7 @@ function renderSpecialists(
             )}
           </div>
         ))}
-        {items.length === 0 && (
+        {visibleItems.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
             Нет специалистов для отображения.
           </div>

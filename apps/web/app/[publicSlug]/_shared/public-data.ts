@@ -44,6 +44,7 @@ export type ServiceItem = {
   baseDurationMin: number;
   basePrice: number;
   coverUrl: string | null;
+  locationIds: number[];
 };
 
 export type SpecialistItem = {
@@ -109,6 +110,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     prisma.service.findMany({
       where: { accountId: account.id },
       orderBy: { name: "asc" },
+      include: { locations: { select: { locationId: true } } },
     }),
     prisma.specialistProfile.findMany({
       where: { accountId: account.id },
@@ -256,6 +258,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     baseDurationMin: service.baseDurationMin,
     basePrice: Number(service.basePrice),
     coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
+    locationIds: service.locations.map((item) => item.locationId),
   }));
 
   const specialistItems: SpecialistItem[] = specialists.map((specialist) => {
