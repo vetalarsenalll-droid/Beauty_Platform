@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -1790,9 +1790,9 @@ export default function BookingClient({
               <div className="w-full space-y-3 lg:w-1/2">
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { key: "dateFirst", label: "Дата \u2192 время" },
-                    { key: "serviceFirst", label: "Услуга \u2192 время" },
-                    { key: "specialistFirst", label: "Специалист \u2192 время" },
+                    { key: "dateFirst", label: "Дата/время" },
+                    { key: "serviceFirst", label: "Услуга" },
+                    { key: "specialistFirst", label: "Специалист" },
                   ].map((item) => {
                     const active = scenario === item.key;
                     return (
