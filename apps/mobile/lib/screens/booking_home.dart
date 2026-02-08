@@ -12,13 +12,13 @@ class BookingHome extends StatelessWidget {
       children: const [
         SectionHeader(
           title: 'Онлайн-запись',
-          subtitle: 'Выбор услуги, мастера и времени.',
+          subtitle: 'Выбор услуги, специалиста и времени.',
         ),
         SizedBox(height: 16),
         SummaryGrid(
           items: [
             SummaryItem(title: 'Услуги', subtitle: 'Каталог и варианты'),
-            SummaryItem(title: 'Мастера', subtitle: 'Уровни и портфолио'),
+            SummaryItem(title: 'специалисты', subtitle: 'Уровни и портфолио'),
             SummaryItem(title: 'Слоты', subtitle: 'Доступность и время'),
             SummaryItem(title: 'Оплата', subtitle: 'Депозит и онлайн'),
           ],

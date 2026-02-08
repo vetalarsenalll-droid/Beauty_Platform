@@ -107,7 +107,7 @@ export async function GET(request: Request) {
         endAt: { gt: dayStartUtc },
         OR: [
           { locationId }, // блокировка на локацию
-          { specialistId: { in: specialistIds } }, // блокировка на мастера
+          { specialistId: { in: specialistIds } }, // блокировка на специалиста
         ],
       },
       select: { locationId: true, specialistId: true, startAt: true, endAt: true },

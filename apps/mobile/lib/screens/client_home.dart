@@ -19,7 +19,7 @@ class ClientHome extends StatelessWidget {
           items: [
             SummaryItem(title: 'Мои записи', subtitle: 'Перенос и отмена'),
             SummaryItem(title: 'Оплаты', subtitle: 'Чеки и возвраты'),
-            SummaryItem(title: 'Избранное', subtitle: 'Салоны и мастера'),
+            SummaryItem(title: 'Избранное', subtitle: 'Салоны и специалисты'),
             SummaryItem(title: 'Лояльность', subtitle: 'Баланс и уровни'),
           ],
         ),

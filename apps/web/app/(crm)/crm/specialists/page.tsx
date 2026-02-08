@@ -33,7 +33,7 @@ export default async function CrmSpecialistsPage() {
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Специалисты</h1>
         <p className="text-[color:var(--bp-muted)]">
-          Профили мастеров, уровни и привязки к услугам.
+          Профили специалистов, уровни и привязки к услугам.
         </p>
       </header>
 

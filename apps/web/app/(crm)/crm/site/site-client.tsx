@@ -227,8 +227,8 @@ const defaultBlockStyle = {
 const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
   cover: {
     title: "Салон красоты",
-    subtitle: "Онлайн-запись и лучшие мастера рядом",
-    description: "Выберите услугу, мастера и удобное время.",
+    subtitle: "Онлайн-запись и лучшие специалисты рядом",
+    description: "Выберите услугу, специалиста и удобное время.",
     buttonText: "Записаться",
     showButton: true,
     align: "left",

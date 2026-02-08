@@ -165,9 +165,9 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       variant: "v1",
       data: {
         title: accountName || "Салон красоты",
-        subtitle: "Онлайн-запись и лучшие мастера рядом с вами",
+        subtitle: "Онлайн-запись и лучшие специалистЫ рядом с вами",
         description:
-          "Удобно записывайтесь онлайн, выбирайте мастеров и услуги в пару кликов.",
+          "Удобно записывайтесь онлайн, выбирайте специалистов и услуги в пару кликов.",
         buttonText: "Записаться",
         showButton: true,
         align: "left",
@@ -218,7 +218,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       variant: "v1",
       data: {
         title: "Специалисты",
-        subtitle: "Выберите мастера",
+        subtitle: "Выберите специалиста",
         mode: "all",
         ids: [],
         locationId: null,

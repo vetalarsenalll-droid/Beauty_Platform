@@ -346,9 +346,9 @@ function ScenarioTabs({
   onChange: (next: Scenario) => void;
 }) {
   const tabs: Array<{ key: Scenario; label: string }> = [
-    { key: "dateFirst", label: "Дата → время" },
-    { key: "serviceFirst", label: "Услуга → время" },
-    { key: "specialistFirst", label: "Мастер → время" },
+    { key: "dateFirst", label: "Дата/время" },
+    { key: "serviceFirst", label: "Услуга" },
+    { key: "specialistFirst", label: "Специалист" },
   ];
 
   return (
@@ -642,7 +642,7 @@ function TimeGrid({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-[color:var(--bp-muted)]">Выберите время</div>
+        <div />
         <TimeBucketPicker value={timeBucket} onChange={onBucket} />
       </div>
 
@@ -728,7 +728,7 @@ export default function BookingClient({
   const [loadingSpecialists, setLoadingSpecialists] = useState(false);
   const [specialistsError, setSpecialistsError] = useState<string | null>(null);
 
-  // specialistFirst: только мастера с рабочими днями
+  // specialistFirst: только специалиста с рабочими днями
   const [workdaySpecialistIds, setWorkdaySpecialistIds] = useState<Set<number> | null>(null);
   const [loadingWorkdaySpecs, setLoadingWorkdaySpecs] = useState(false);
   const [workdaySpecsError, setWorkdaySpecsError] = useState<string | null>(null);
@@ -747,7 +747,7 @@ export default function BookingClient({
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
 
-  // dateFirst: слоты по выбранной услуге на дату (для выбора мастера на timeChoice)
+  // dateFirst: слоты по выбранной услуге на дату (для выбора специалиста на timeChoice)
   const [dateFirstServiceSlots, setDateFirstServiceSlots] = useState<Slot[]>([]);
   const [loadingDateFirstServiceSlots, setLoadingDateFirstServiceSlots] = useState(false);
   const [dateFirstServiceSlotsError, setDateFirstServiceSlotsError] = useState<string | null>(null);
@@ -891,14 +891,14 @@ export default function BookingClient({
   const steps = useMemo(() => {
     const common = [{ key: "location", title: "Локация" }];
     const dt = { key: "datetime", title: "Дата и время" };
-    const details = { key: "details", title: "Контакты и подтверждение" };
+    const details = { key: "details", title: "Контакты" };
 
     if (isDateFirst) {
       return [
         ...common,
         dt,
         { key: "service", title: "Услуга" },
-        { key: "specialist", title: "Мастер" },
+        { key: "specialist", title: "Специалист" },
         details,
       ];
     }
@@ -907,13 +907,13 @@ export default function BookingClient({
         ...common,
         { key: "service", title: "Услуга" },
         dt,
-        { key: "specialist", title: "Мастер" },
+        { key: "specialist", title: "Специалист" },
         details,
       ];
     }
     return [
       ...common,
-      { key: "specialist", title: "Мастер" },
+      { key: "specialist", title: "Специалист" },
       { key: "service", title: "Услуга" },
       dt,
       details,
@@ -980,7 +980,7 @@ export default function BookingClient({
     setSubmitError(null);
     setSubmitSuccess(false);
 
-    // serviceFirst: мастер выбирается после времени, поэтому при смене услуги лучше сбросить мастера
+    // serviceFirst: специалист выбирается после времени, поэтому при смене услуги лучше сбросить специалиста
     if (isServiceFirst) setSpecialistId(null);
   }, [serviceId, isDateFirst, isServiceFirst]);
 
@@ -1166,7 +1166,7 @@ export default function BookingClient({
     setLoadingServices(true);
     setServicesError(null);
 
-    // specialistFirst: computedPrice/duration под выбранного мастера
+    // specialistFirst: computedPrice/duration под выбранного специалиста
     const specialistForPricing = isSpecialistFirst && specialistId ? specialistId : null;
 
     fetchJson<ServicesData>(
@@ -1202,7 +1202,7 @@ export default function BookingClient({
       isSpecialistFirst ? "specialist" : "",
       safeLocationId,
       serviceId ?? "",
-      specialistId ?? "",
+      isSpecialistFirst ? specialistId ?? "" : "",
       accountSlug ?? "",
       todayYmdTz,
       nowTz.minutes,
@@ -1754,8 +1754,8 @@ export default function BookingClient({
 
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.55fr_0.95fr]">
           <SoftPanel className="p-4 lg:col-span-2">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-center gap-3 sm:max-w-[220px]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex w-full items-center gap-3 lg:w-1/2">
                 <a
                   href={clientHref}
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm font-semibold"
@@ -1778,15 +1778,47 @@ export default function BookingClient({
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                 </a>
-                <div className="min-h-[1.25rem] text-sm font-semibold">
-                  {!loadingClientProfile ? clientDisplayName ?? "\u0412\u0445\u043e\u0434" : null}
+                <div className="min-w-0">
+                  <div className="text-xs text-[color:var(--bp-muted)]">
+                    {clientProfile ? "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442" : "\u0412\u0445\u043e\u0434"}
+                  </div>
+                  <div className="min-h-[1.25rem] truncate text-sm font-semibold">
+                    {!loadingClientProfile ? clientDisplayName ?? "\u0412\u0445\u043e\u0434" : null}
+                  </div>
                 </div>
               </div>
-              <div className="flex-1">
-                <ScenarioTabs value={scenario} onChange={setScenario} />
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <ProgressBar value={progress} />
+              <div className="w-full space-y-3 lg:w-1/2">
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: "dateFirst", label: "Дата \u2192 время" },
+                    { key: "serviceFirst", label: "Услуга \u2192 время" },
+                    { key: "specialistFirst", label: "Специалист \u2192 время" },
+                  ].map((item) => {
+                    const active = scenario === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setScenario(item.key as Scenario)}
+                        className={cn(
+                          "rounded-2xl border px-3 py-2 text-left text-sm font-medium transition",
+                          "hover:-translate-y-[1px] hover:shadow-sm",
+                          active
+                            ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
+                            : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                        )}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <ProgressBar value={progress} />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-[color:var(--bp-muted)]">
+                    Шаг {stepIndex + 1} из {stepsWithScenario.length}
                   </div>
                   <button
                     type="button"
@@ -1795,9 +1827,6 @@ export default function BookingClient({
                   >
                     Сбросить
                   </button>
-                </div>
-                <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-                  Шаг {stepIndex + 1} из {stepsWithScenario.length}
                 </div>
               </div>
             </div>
@@ -1843,13 +1872,7 @@ export default function BookingClient({
               <div className="min-h-[620px]">
                 {currentStepKey === "scenario" && (
                   <div className="space-y-3">
-                    <div className="text-sm text-[color:var(--bp-muted)]">
-                      {"\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u0437\u0430\u043f\u0438\u0441\u0438"}
-                    </div>
                     <ScenarioTabs value={scenario} onChange={setScenario} />
-                    <div className="text-xs text-[color:var(--bp-muted)]">
-                      {"\u041c\u043e\u0436\u043d\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u043e\u0437\u0436\u0435"}
-                    </div>
                   </div>
                 )}
                 {currentStepKey === "location" && (
@@ -1859,7 +1882,6 @@ export default function BookingClient({
 
                     {!loadingContext && !contextError && (
                       <div className="space-y-3">
-                        <div className="text-sm text-[color:var(--bp-muted)]">Выберите локацию</div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {context?.locations.map((location) => {
                             const active = location.id === locationId;
@@ -1910,10 +1932,9 @@ export default function BookingClient({
                 {currentStepKey === "datetime" && (
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                      </div>
+                      <div />
                       <div className="text-xs text-[color:var(--bp-muted)]">
-                        {prettyDayYmd(dateYmd, todayYmdTz)} · {dateYmd}
+                        {prettyDayYmd(dateYmd, todayYmdTz)}
                       </div>
                     </div>
 
@@ -1930,47 +1951,6 @@ export default function BookingClient({
                         setDateYmd(ymd);
                       }}
                     />
-
-                    {isServiceFirst && !serviceId && (
-                      <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
-                        Чтобы показать доступные дни и время, сначала выберите услугу.
-                        <div className="mt-3">
-                          <button
-                            type="button"
-                            onClick={() => gotoKey("service")}
-                            className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm"
-                          >
-                            Перейти к выбору услуги
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {isSpecialistFirst && (!specialistId || !serviceId) && (
-                      <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
-                        Чтобы показать доступные дни и время, выберите мастера и услугу.
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {!specialistId && (
-                            <button
-                              type="button"
-                              onClick={() => gotoKey("specialist")}
-                              className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm"
-                            >
-                              Выбрать мастера
-                            </button>
-                          )}
-                          {specialistId && !serviceId && (
-                            <button
-                              type="button"
-                              onClick={() => gotoKey("service")}
-                              className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm"
-                            >
-                              Выбрать услугу
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     {isDateFirst && (
                       <>
@@ -2009,37 +1989,6 @@ export default function BookingClient({
                           />
                         )}
 
-                        {isDateFirst && timeChoice && (
-                          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
-                            Вы выбрали время:{" "}
-                            <span className="font-semibold text-[color:var(--bp-ink)]">{timeChoice}</span>
-                            <div className="mt-3">
-                              <button
-                                type="button"
-                                onClick={() => gotoKey("service")}
-                                className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm"
-                              >
-                                Выбрать услугу
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {isServiceFirst && timeChoice && (
-                          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
-                            Вы выбрали время:{" "}
-                            <span className="font-semibold text-[color:var(--bp-ink)]">{timeChoice}</span>
-                            <div className="mt-3">
-                              <button
-                                type="button"
-                                onClick={() => gotoKey("specialist")}
-                                className="rounded-2xl bg-[color:var(--bp-accent)] px-3 py-2 text-xs font-semibold text-white transition hover:-translate-y-[1px] hover:shadow-sm"
-                              >
-                                Выбрать мастера
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -2048,16 +1997,7 @@ export default function BookingClient({
                 {currentStepKey === "service" && (
                   <div className="space-y-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm text-[color:var(--bp-muted)]">Выберите услугу</div>
-                        <div className="text-xs text-[color:var(--bp-muted)]">
-                          {isDateFirst
-                            ? "Показываем только услуги, которые помещаются в выбранные дату+время"
-                            : isSpecialistFirst
-                              ? "Показываем услуги выбранного мастера"
-                              : "Длительность и цена могут зависеть от уровня специалиста"}
-                        </div>
-                      </div>
+                      <div />
                       <input
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -2112,7 +2052,7 @@ export default function BookingClient({
                             {isDateFirst && timeChoice
                               ? "Нет услуг, которые помещаются в выбранное время."
                               : isSpecialistFirst && specialistId
-                                ? "У выбранного мастера нет услуг (или они не найдены)."
+                                ? "У выбранного специалиста нет услуг (или они не найдены)."
                                 : "Услуги не найдены."}
                           </div>
                         )}
@@ -2123,21 +2063,14 @@ export default function BookingClient({
 
                 {currentStepKey === "specialist" && (
                   <div className="space-y-3">
-                    <div>
-                      <div className="text-sm text-[color:var(--bp-muted)]">Выберите мастера</div>
-                      <div className="text-xs text-[color:var(--bp-muted)]">
-                        {isSpecialistFirst
-                          ? "Показываем только мастеров, у которых есть рабочие дни"
-                          : "Показываем только мастеров, доступных под выбранные условия"}
-                      </div>
-                    </div>
+                    <div />
 
                     {loadingSpecialists && <div className="text-sm">Загрузка...</div>}
                     {specialistsError && <div className="text-sm text-red-600">{specialistsError}</div>}
 
                     {isSpecialistFirst && (
                       <>
-                        {loadingWorkdaySpecs && <div className="text-sm">Проверяем график мастеров...</div>}
+                        {loadingWorkdaySpecs && <div className="text-sm">Проверяем график Специалистов...</div>}
                         {workdaySpecsError && <div className="text-sm text-red-600">{workdaySpecsError}</div>}
                       </>
                     )}
@@ -2146,12 +2079,12 @@ export default function BookingClient({
                       <>
                         {!serviceId || !timeChoice ? (
                           <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
-                            Чтобы выбрать мастера, сначала выберите дату+время и услугу.
+                            Чтобы выбрать Специалиста, сначала выберите дату+время и услугу.
                           </div>
                         ) : (
                           <>
                             {loadingDateFirstServiceSlots && (
-                              <div className="text-sm">Проверяем доступность мастеров...</div>
+                              <div className="text-sm">Проверяем доступность Специалистов...</div>
                             )}
                             {dateFirstServiceSlotsError && (
                               <div className="text-sm text-red-600">{dateFirstServiceSlotsError}</div>
@@ -2211,7 +2144,7 @@ export default function BookingClient({
 
                           {specialistsForSpecialistStep.length === 0 && (
                             <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)] sm:col-span-2">
-                              Нет мастеров по выбранным условиям.
+                              Нет специалистов по выбранным условиям.
                             </div>
                           )}
                         </div>
@@ -2221,11 +2154,6 @@ export default function BookingClient({
 
                 {currentStepKey === "details" && (
                   <div className="space-y-4">
-                    <div>
-                      <div className="text-sm text-[color:var(--bp-muted)]">Контакты и подтверждение</div>
-                      <div className="text-xs text-[color:var(--bp-muted)]">Проверь детали и нажми «Записаться»</div>
-                    </div>
-
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <SoftPanel className="p-4">
                         <div className="text-sm font-semibold">Контакты</div>
@@ -2377,7 +2305,7 @@ export default function BookingClient({
                         <div className="mt-3 space-y-3">
                           <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
                           <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
-                          <SummaryRow label="Мастер" value={selectedSpecialist?.name || "—"} />
+                          <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
                           <SummaryRow label="Дата" value={dateYmd} />
                           <SummaryRow
                             label="Время"
@@ -2425,11 +2353,11 @@ export default function BookingClient({
             </div>
 
             <div className="mt-4 space-y-3">
-              <SummaryRow label="Локация" value={selectedLocation?.name || "Выберите"} />
-              <SummaryRow label="Услуга" value={selectedService?.name || "Выберите"} />
-              <SummaryRow label="Мастер" value={selectedSpecialist?.name || "Выберите"} />
+              <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
+              <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
+              <SummaryRow label="специалист" value={selectedSpecialist?.name || "—"} />
               <SummaryRow label="Дата" value={dateYmd} />
-              <SummaryRow label="Время" value={timeChoice || "Выберите"} />
+              <SummaryRow label="Время" value={timeChoice || "—"} />
               <SummaryRow label="Стоимость" value={servicePrice ? formatMoneyRub(servicePrice) : "—"} />
 
               <div className="mt-4 flex items-center gap-2">
@@ -2451,9 +2379,6 @@ export default function BookingClient({
                 </button>
               </div>
 
-              <div className="text-xs text-[color:var(--bp-muted)]">
-                Прогресс: {stepIndex + 1}/{stepsWithScenario.length}
-              </div>
             </div>
           </SoftPanel>
         </div>
