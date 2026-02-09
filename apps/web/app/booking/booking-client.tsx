@@ -316,7 +316,7 @@ function SoftPanel({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]",
+        "booking-panel rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]",
         // тени оставляем в проекте как были, пользователь попросил убрать тени у календаря
         "shadow-[var(--bp-shadow-soft)]",
         className

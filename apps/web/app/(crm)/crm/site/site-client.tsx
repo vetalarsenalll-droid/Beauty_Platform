@@ -2101,11 +2101,6 @@ function BlockStyleEditor({
 
   return (
     <div className="space-y-4">
-      {block.type === "booking" && (
-        <div className="text-sm text-[color:var(--bp-muted)]">
-          ????????? ??????? ??????-?????? ????????? ? ?????? "?????????".
-        </div>
-      )}
       <label className="text-sm">
         Отступ сверху: {style.marginTop}px
         <input
@@ -3169,6 +3164,9 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const headingSize =
     style.headingSize ?? palette.headingSize ?? theme.headingSize ?? subheadingSize + 2;
   const sizeXs = Math.max(10, textSize - 2);
+  const bookingGradient = style.gradientEnabled
+    ? `linear-gradient(${style.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFrom}, ${style.gradientTo})`
+    : "none";
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
     "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
@@ -3185,6 +3183,7 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--booking-button-text-dark":
       style.buttonTextColorDarkResolved || "var(--site-button-text)",
     "--bp-button-text": "var(--booking-button-text)",
+    "--booking-gradient": bookingGradient,
     "--bp-shadow-soft": shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
     "--bp-radius": `${radius}px`,
     "--bp-button-radius": `${buttonRadius}px`,

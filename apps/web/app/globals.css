@@ -60,6 +60,12 @@
   --input-bg: var(--booking-bg);
 }
 
+.booking-root .booking-panel {
+  background-image: var(--booking-gradient, none);
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
 .site-block .booking-root {
   --bp-surface: transparent;
 }
