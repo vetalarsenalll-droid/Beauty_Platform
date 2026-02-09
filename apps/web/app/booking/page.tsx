@@ -23,10 +23,12 @@ export default async function BookingEntry({ searchParams }: BookingEntryProps) 
 
   if (!account) {
     notFound();
+    return null;
   }
 
-  const publicSlug = buildPublicSlugId(account.slug, account.id);
+  const accountRecord = account;
+  const publicSlug = buildPublicSlugId(accountRecord.slug, accountRecord.id);
   redirect(`/${publicSlug}/booking`);
 
-  return <BookingClient accountSlug={account.slug} accountPublicSlug={publicSlug} />;
+  return null;
 }

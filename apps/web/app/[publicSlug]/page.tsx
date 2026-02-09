@@ -97,7 +97,6 @@ export default async function PublicAccountPage({ params }: PageProps) {
           });
           const isBooking = block.type === "booking";
           const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
-          const shouldCollapseGap = isBooking && index > 0 && (style.marginTop ?? 0) === 0;
           const wrapperStyle = isBooking
             ? {
                 ...wrapper.style,
@@ -105,7 +104,6 @@ export default async function PublicAccountPage({ params }: PageProps) {
                 borderColor: "transparent",
                 backgroundColor: "transparent",
                 boxShadow: "none",
-                marginTop: shouldCollapseGap ? -(blockGap ?? 0) : wrapper.style.marginTop,
               }
             : wrapper.style;
             return (

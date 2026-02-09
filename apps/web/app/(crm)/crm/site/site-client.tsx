@@ -21,7 +21,7 @@ import BookingClient from "@/app/booking/booking-client";
 type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
   | null;
-type EntityPageKey = Exclude<SitePageKey, "home">;
+type EntityPageKey = Exclude<SitePageKey, "home" | "booking">;
 
 type PublicPageData = {
   id: number;
@@ -391,6 +391,7 @@ export default function SiteClient({
   const ensurePages = (value: SiteDraft): SitePages =>
     value.pages ?? {
       home: value.blocks,
+      booking: [],
       locations: [],
       services: [],
       specialists: [],
@@ -860,24 +861,15 @@ export default function SiteClient({
                   onRemove={() => removeBlock(block.id)}
                   disableActions={isSharedMenu}
                 />
-                {(() => {
-                  const nextBlock = displayBlocks[index + 1];
-                  const nextStyle = nextBlock ? normalizeBlockStyle(nextBlock, draft.theme) : null;
-                  const collapseGap =
-                    nextBlock?.type === "booking" && (nextStyle?.marginTop ?? 0) === 0;
-                  const slotSpacing = collapseGap ? 0 : draft.theme.blockSpacing;
-                  return (
-                    <InsertSlot
-                      index={index + 1}
-                      spacing={slotSpacing}
-                      onInsert={() => {
-                        setInsertIndex(index + 1);
-                        setLeftPanel("library");
-                        setLibraryBlock(null);
-                      }}
-                    />
-                  );
-                })()}
+                <InsertSlot
+                  index={index + 1}
+                  spacing={draft.theme.blockSpacing}
+                  onInsert={() => {
+                    setInsertIndex(index + 1);
+                    setLeftPanel("library");
+                    setLibraryBlock(null);
+                  }}
+                />
               </div>
             );
             })}
@@ -2451,6 +2443,18 @@ type BlockStyle = {
   headingSize: number | null;
   subheadingSize: number | null;
   textSize: number | null;
+  blockBgLightResolved: string;
+  blockBgDarkResolved: string;
+  borderColorLightResolved: string;
+  borderColorDarkResolved: string;
+  buttonColorLightResolved: string;
+  buttonColorDarkResolved: string;
+  buttonTextColorLightResolved: string;
+  buttonTextColorDarkResolved: string;
+  textColorLightResolved: string;
+  textColorDarkResolved: string;
+  mutedColorLightResolved: string;
+  mutedColorDarkResolved: string;
 };
 
 function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {

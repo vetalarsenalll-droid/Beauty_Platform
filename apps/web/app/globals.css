@@ -99,8 +99,32 @@
   --booking-top-gap: 0px;
 }
 
+.booking-preview .booking-root {
+  min-height: auto !important;
+}
+
+.booking-preview .booking-root .min-h-dvh {
+  min-height: auto !important;
+}
+
+.booking-preview .booking-root .min-h-\[620px\] {
+  min-height: auto !important;
+}
+
 .site-block-booking .booking-root {
   --booking-top-gap: 0px;
+}
+
+.site-block-booking .booking-root {
+  min-height: auto !important;
+}
+
+.site-block-booking .booking-root .min-h-dvh {
+  min-height: auto !important;
+}
+
+.site-block-booking .booking-root .min-h-\[620px\] {
+  min-height: auto !important;
 }
 
 .booking-root .text-xs {
