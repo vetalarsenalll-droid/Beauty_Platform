@@ -42,20 +42,21 @@ export default async function PublicAccountPage({ params }: PageProps) {
   const contentWidth = Number.isFinite(Number(contentWidthRaw))
     ? Number(contentWidthRaw)
     : 1120;
+  const globalBorderColor = palette.borderColor?.trim() || "transparent";
   const themeStyle: Record<string, string> = {
     "--bp-accent": palette.accentColor,
     "--bp-surface": palette.surfaceColor,
     "--bp-panel": palette.panelColor,
     "--bp-ink": palette.textColor,
     "--bp-muted": palette.mutedColor,
-    "--bp-stroke": palette.borderColor,
+    "--bp-stroke": globalBorderColor,
     "--site-surface": palette.surfaceColor,
     "--site-panel": palette.panelColor,
     "--site-text": palette.textColor,
     "--site-muted": palette.mutedColor,
     "--site-font-heading": palette.fontHeading,
     "--site-font-body": palette.fontBody,
-    "--site-border": palette.borderColor,
+    "--site-border": globalBorderColor,
     "--site-button": palette.buttonColor,
     "--site-button-text": palette.buttonTextColor,
     "--site-shadow-color": shadowColor,

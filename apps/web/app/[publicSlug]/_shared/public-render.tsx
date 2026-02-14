@@ -158,6 +158,16 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
       darkRaw.toLowerCase() === "transparent" ? "transparent" : darkRaw || darkFallback;
     return { lightResolved, darkResolved };
   };
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(style, key);
+  const hasBorderOverride =
+    hasOwn("borderColor") || hasOwn("borderColorLight") || hasOwn("borderColorDark");
+  const borderClearedExplicitly =
+    hasBorderOverride &&
+    !readColor("borderColor").trim() &&
+    !readColor("borderColorLight").trim() &&
+    !readColor("borderColorDark").trim();
+  const themeBorderLight = theme.lightPalette.borderColor?.trim() || "transparent";
+  const themeBorderDark = theme.darkPalette.borderColor?.trim() || "transparent";
   const subBlockBgPair = resolvePair(
     "subBlockBgLight",
     "subBlockBgDark",
@@ -177,8 +187,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     "borderColorLight",
     "borderColorDark",
     "borderColor",
-    theme.lightPalette.borderColor,
-    theme.darkPalette.borderColor
+    themeBorderLight,
+    themeBorderDark
   );
   const buttonPair = resolvePair(
     "buttonColorLight",
@@ -240,6 +250,15 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     (style.gradientFromDark as string) || theme.darkPalette.gradientFrom;
   const gradientToDarkResolved =
     (style.gradientToDark as string) || theme.darkPalette.gradientTo;
+  const resolvedBorderPair = borderClearedExplicitly
+    ? { lightResolved: "transparent", darkResolved: "transparent" }
+    : {
+        lightResolved: borderPair.lightResolved || "transparent",
+        darkResolved: borderPair.darkResolved || "transparent",
+      };
+  const resolvedBorder =
+    (resolveColor("borderColorLight", "borderColorDark", "borderColor") || "").trim() ||
+    (theme.mode === "dark" ? resolvedBorderPair.darkResolved : resolvedBorderPair.lightResolved);
 
   return {
     marginTop: Number.isFinite(style.marginTop as number)
@@ -254,7 +273,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     buttonRadius: numOrNull(style.buttonRadius as number),
     subBlockBg: resolveColor("subBlockBgLight", "subBlockBgDark", "subBlockBg"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
-    borderColor: resolveColor("borderColorLight", "borderColorDark", "borderColor"),
+    borderColor: resolvedBorder,
     buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
     buttonTextColor: resolveColor(
       "buttonTextColorLight",
@@ -267,8 +286,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     subBlockBgDarkResolved: subBlockBgPair.darkResolved,
     blockBgLightResolved: blockBgPair.lightResolved,
     blockBgDarkResolved: blockBgPair.darkResolved,
-    borderColorLightResolved: borderPair.lightResolved,
-    borderColorDarkResolved: borderPair.darkResolved,
+    borderColorLightResolved: resolvedBorderPair.lightResolved,
+    borderColorDarkResolved: resolvedBorderPair.darkResolved,
     buttonColorLightResolved: buttonPair.lightResolved,
     buttonColorDarkResolved: buttonPair.darkResolved,
     buttonTextColorLightResolved: buttonTextPair.lightResolved,
@@ -392,14 +411,22 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     const bookingGradientLight = style.gradientEnabledLight
       ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
       : "none";
-    const bookingGradientDark = style.gradientEnabledDark
-      ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
-      : "none";
+  const bookingGradientDark = style.gradientEnabledDark
+    ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
+    : "none";
+  const bookingBorderLight =
+    style.borderColorLight?.trim() || style.borderColor?.trim()
+      ? style.borderColorLightResolved || "var(--site-border)"
+      : "transparent";
+  const bookingBorderDark =
+    style.borderColorDark?.trim() || style.borderColor?.trim()
+      ? style.borderColorDarkResolved || "var(--site-border)"
+      : "transparent";
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
     "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
-    "--booking-border-light": style.borderColorLightResolved || "var(--site-border)",
-    "--booking-border-dark": style.borderColorDarkResolved || "var(--site-border)",
+    "--booking-border-light": bookingBorderLight,
+    "--booking-border-dark": bookingBorderDark,
     "--booking-text-light": style.textColorLightResolved || "var(--site-text)",
     "--booking-text-dark": style.textColorDarkResolved || "var(--site-text)",
     "--booking-muted-light": style.mutedColorLightResolved || "var(--site-muted)",
@@ -572,6 +599,7 @@ function renderCover(
       : "none";
     const borderColorOverride =
       typeof style.borderColor === "string" && style.borderColor ? style.borderColor : null;
+    const hasVisibleBorder = style.borderColor !== "transparent";
     return {
       className: "site-block border border-[color:var(--bp-stroke)] p-8",
       style: {
@@ -582,6 +610,7 @@ function renderCover(
         backgroundColor: "var(--block-bg)",
         backgroundImage: "var(--block-gradient)",
         borderColor: "var(--block-border)",
+        borderWidth: hasVisibleBorder ? 1 : 0,
         boxShadow:
           blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
