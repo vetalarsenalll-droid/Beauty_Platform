@@ -32,6 +32,9 @@ const paletteToVars = (palette: SiteThemePalette) => {
     "--site-border": palette.borderColor,
     "--site-button": palette.buttonColor,
     "--site-button-text": palette.buttonTextColor,
+    "--site-client-card-bg": palette.clientCardBg,
+    "--site-client-button": palette.clientButtonColor,
+    "--site-client-button-text": palette.clientButtonTextColor,
     "--site-shadow-color": palette.shadowColor,
     "--site-shadow-size": `${palette.shadowSize}px`,
     "--site-radius": `${palette.radius}px`,
@@ -78,6 +81,25 @@ export default function SiteThemeToggle({
     Object.entries(vars).forEach(([key, value]) => {
       target.style.setProperty(key, value);
     });
+    const suffix = nextMode === "dark" ? "dark" : "light";
+    const clientCard = target.style
+      .getPropertyValue(`--site-client-card-bg-${suffix}`)
+      .trim();
+    const clientButton = target.style
+      .getPropertyValue(`--site-client-button-${suffix}`)
+      .trim();
+    const clientButtonText = target.style
+      .getPropertyValue(`--site-client-button-text-${suffix}`)
+      .trim();
+    const siteRadius = target.style.getPropertyValue(`--site-radius-${suffix}`).trim();
+    const siteButtonRadius = target.style
+      .getPropertyValue(`--site-button-radius-${suffix}`)
+      .trim();
+    if (clientCard) target.style.setProperty("--site-client-card-bg", clientCard);
+    if (clientButton) target.style.setProperty("--site-client-button", clientButton);
+    if (clientButtonText) target.style.setProperty("--site-client-button-text", clientButtonText);
+    if (siteRadius) target.style.setProperty("--site-radius", siteRadius);
+    if (siteButtonRadius) target.style.setProperty("--site-button-radius", siteButtonRadius);
     target.setAttribute("data-site-theme", nextMode);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(storageKey, nextMode);

@@ -3,14 +3,18 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function ClientRegisterPage() {
+type ClientRegisterPageProps = {
+  initialAccountSlug?: string;
+};
+
+export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRegisterPageProps) {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [accountSlug, setAccountSlug] = useState("");
+  const [accountSlug, setAccountSlug] = useState(initialAccountSlug);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +58,7 @@ export default function ClientRegisterPage() {
       className="mx-auto flex min-h-[70vh] w-full items-center"
       style={{ maxWidth: "var(--site-client-auth-width, 560px)" }}
     >
-      <div className="w-full rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
+      <div className="w-full rounded-[var(--site-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
         <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
           Личный кабинет
         </div>
@@ -65,7 +69,7 @@ export default function ClientRegisterPage() {
             <input
               value={firstName}
               onChange={(event) => setFirstName(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
+              className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]"
             />
           </label>
           <label className="text-sm font-medium">
@@ -73,7 +77,7 @@ export default function ClientRegisterPage() {
             <input
               value={lastName}
               onChange={(event) => setLastName(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
+              className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]"
             />
           </label>
           <label className="text-sm font-medium">
@@ -81,7 +85,7 @@ export default function ClientRegisterPage() {
             <input
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
+              className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]"
             />
           </label>
           <label className="text-sm font-medium">
@@ -91,7 +95,7 @@ export default function ClientRegisterPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="example@mail.ru"
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
+              className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]"
               required
             />
           </label>
@@ -102,7 +106,7 @@ export default function ClientRegisterPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
-              className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
+              className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]"
               required
             />
           </label>
@@ -114,7 +118,7 @@ export default function ClientRegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 inline-flex items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-sm font-semibold text-[color:var(--site-client-button-text)] shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
+            className="mt-2 inline-flex items-center justify-center rounded-[var(--site-button-radius)] bg-[color:var(--site-client-button)] px-5 py-3 text-sm font-semibold text-[color:var(--site-client-button-text)] shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
           >
             {loading ? "Создание..." : "Создать аккаунт"}
           </button>

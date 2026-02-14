@@ -47,6 +47,7 @@ export type BlockType =
   | "cover"
   | "menu"
   | "about"
+  | "client"
   | "booking"
   | "locations"
   | "services"
@@ -85,6 +86,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   cover: "Главный экран",
   menu: "Меню",
   about: "О нас",
+  client: "Личный кабинет",
   booking: "Онлайн-запись",
   locations: "Локации",
   services: "Услуги",
@@ -102,6 +104,7 @@ export const BLOCK_VARIANTS: Record<
   cover: ["v1", "v2"],
   menu: ["v1", "v2", "v3", "v4", "v5"],
   about: ["v1", "v2"],
+  client: ["v1"],
   booking: ["v1"],
   locations: ["v1", "v2"],
   services: ["v1", "v2"],
@@ -133,7 +136,7 @@ const createMenuBlock = (): SiteBlock => ({
   variant: "v1",
   data: {
     title: "Меню",
-    menuItems: ["home", "booking", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showButton: true,
     showThemeToggle: false,
@@ -359,7 +362,23 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
           },
         },
       ],
-      client: [],
+      client: [
+        {
+          id: makeBlockId(),
+          type: "client",
+          variant: "v1",
+          data: {
+            title: "Личный кабинет",
+            subtitle: "Ваши данные и история записей",
+            salonsTitle: "Ваши салоны",
+            emptyText: "Пока нет салонов, где вы записывались.",
+            style: {
+              useCustomWidth: false,
+              blockWidth: null,
+            },
+          },
+        },
+      ],
       locations: detailBlocks("locations", "Локации"),
       services: detailBlocks("services", "Услуги"),
       specialists: detailBlocks("specialists", "Специалисты"),
@@ -439,12 +458,29 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   const normalizeBlocks = (blocks: SiteBlock[]) =>
     blocks
       .filter((block) => block && typeof block === "object")
-      .map((block) => ({
-        id: block.id || makeBlockId(),
-        type: block.type,
-        variant: block.variant ?? "v1",
-        data: typeof block.data === "object" && block.data ? block.data : {},
-      }))
+      .map((block) => {
+        const safeData =
+          typeof block.data === "object" && block.data ? { ...block.data } : {};
+        if (block.type === "menu") {
+          const menuItems = Array.isArray(safeData.menuItems)
+            ? (safeData.menuItems as SitePageKey[]).filter((item) =>
+                ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
+              )
+            : [];
+          if (!menuItems.includes("client")) {
+            menuItems.splice(2, 0, "client");
+          }
+          safeData.menuItems = menuItems.length
+            ? menuItems
+            : ["home", "booking", "client", "locations", "services", "specialists", "promos"];
+        }
+        return {
+          id: block.id || makeBlockId(),
+          type: block.type,
+          variant: block.variant ?? "v1",
+          data: safeData,
+        };
+      })
       .filter((block) => block.type in BLOCK_LABELS);
 
   const fallbackPages = createDefaultDraft("Салон красоты").pages!;
@@ -489,6 +525,41 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   if (!pages.home.some((block) => block.type === "menu")) {
     pages.home = [createMenuBlock(), ...pages.home];
   }
+  if (!pages.client.some((block) => block.type === "client")) {
+    pages.client = [
+      {
+        id: makeBlockId(),
+        type: "client",
+        variant: "v1",
+        data: {
+          title: "Личный кабинет",
+          subtitle: "Ваши данные и история записей",
+          salonsTitle: "Ваши салоны",
+          emptyText: "Пока нет салонов, где вы записывались.",
+          style: {
+            useCustomWidth: false,
+            blockWidth: null,
+          },
+        },
+      },
+      ...pages.client,
+    ];
+  }
+
+  pages.client = pages.client.map((block) => {
+    if (block.type !== "client") return block;
+    const data = (block.data ?? {}) as Record<string, unknown>;
+    const style =
+      data.style && typeof data.style === "object"
+        ? ({ ...(data.style as Record<string, unknown>) } as Record<string, unknown>)
+        : {};
+    if (style.useCustomWidth === true && Number(style.blockWidth) === 980) {
+      style.useCustomWidth = false;
+      style.blockWidth = null;
+      return { ...block, data: { ...data, style } };
+    }
+    return block;
+  });
 
   const mode = theme.mode === "dark" ? "dark" : "light";
   const lightPalette = normalizePalette(

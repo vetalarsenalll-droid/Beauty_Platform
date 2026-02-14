@@ -69,6 +69,26 @@
   background-repeat: no-repeat;
 }
 
+.booking-root input,
+.booking-root textarea,
+.booking-root select {
+  background-color: var(--booking-sub-bg);
+  color: var(--booking-text);
+  border-color: var(--booking-border);
+}
+
+.booking-root input::placeholder,
+.booking-root textarea::placeholder {
+  color: var(--booking-muted);
+}
+
+.booking-root input:focus,
+.booking-root textarea:focus,
+.booking-root select:focus {
+  outline: none;
+  border-color: var(--booking-border);
+}
+
 .site-block .booking-root {
   --bp-surface: transparent;
 }

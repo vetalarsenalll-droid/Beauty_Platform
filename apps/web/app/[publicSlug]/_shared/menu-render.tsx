@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
+import type { SiteBlock } from "@/lib/site-builder";
 import { loadPublicData } from "./public-data";
 import { buildBlockWrapperStyle, normalizeStyle, renderBlock } from "./public-render";
 
@@ -8,6 +9,7 @@ export type PublicMenuFrame = {
   blockGap: number;
   themeStyle: Record<string, string>;
   menuNode: ReactNode;
+  clientPageBlock: SiteBlock | null;
 };
 
 export async function renderPublicMenuFrame(
@@ -61,20 +63,86 @@ export async function renderPublicMenuFrame(
     "--site-shadow-size": `${shadowSize}px`,
     "--site-radius": `${palette.radius}px`,
     "--site-button-radius": `${palette.buttonRadius}px`,
+    "--site-radius-light": `${data.draft.theme.lightPalette.radius}px`,
+    "--site-radius-dark": `${data.draft.theme.darkPalette.radius}px`,
+    "--site-button-radius-light": `${data.draft.theme.lightPalette.buttonRadius}px`,
+    "--site-button-radius-dark": `${data.draft.theme.darkPalette.buttonRadius}px`,
     "--site-gap": `${palette.blockSpacing}px`,
     "--site-h1": `${palette.headingSize}px`,
     "--site-h2": `${palette.subheadingSize}px`,
     "--site-text-size": `${palette.textSize}px`,
-    "--site-client-content-width": `${palette.clientContentWidth}px`,
+    "--site-client-content-width": `${contentWidth}px`,
     "--site-client-auth-width": `${palette.clientAuthWidth}px`,
     "--site-client-card-bg": palette.clientCardBg,
     "--site-client-button": palette.clientButtonColor,
     "--site-client-button-text": palette.clientButtonTextColor,
+    "--site-client-card-bg-light": data.draft.theme.lightPalette.clientCardBg,
+    "--site-client-card-bg-dark": data.draft.theme.darkPalette.clientCardBg,
+    "--site-client-button-light": data.draft.theme.lightPalette.clientButtonColor,
+    "--site-client-button-dark": data.draft.theme.darkPalette.clientButtonColor,
+    "--site-client-button-text-light": data.draft.theme.lightPalette.clientButtonTextColor,
+    "--site-client-button-text-dark": data.draft.theme.darkPalette.clientButtonTextColor,
     "--site-gradient": mainGradient,
   };
   const blockGap = palette.blockSpacing ?? 0;
 
   const style = normalizeStyle(menuBlock, themeForRender);
+  const clientPageBlock = (data.draft.pages?.client ?? [])[0] ?? null;
+  if (clientPageBlock) {
+    const clientStyle = normalizeStyle(clientPageBlock, themeForRender);
+    const clientBgLight = clientStyle.blockBgLightResolved || data.draft.theme.lightPalette.clientCardBg;
+    const clientBgDark = clientStyle.blockBgDarkResolved || data.draft.theme.darkPalette.clientCardBg;
+    const clientButtonLight =
+      clientStyle.buttonColorLightResolved || data.draft.theme.lightPalette.clientButtonColor;
+    const clientButtonDark =
+      clientStyle.buttonColorDarkResolved || data.draft.theme.darkPalette.clientButtonColor;
+    const clientButtonTextLight =
+      clientStyle.buttonTextColorLightResolved ||
+      data.draft.theme.lightPalette.clientButtonTextColor;
+    const clientButtonTextDark =
+      clientStyle.buttonTextColorDarkResolved ||
+      data.draft.theme.darkPalette.clientButtonTextColor;
+    const clientBg =
+      themeForRender.mode === "dark"
+        ? clientBgDark
+        : clientBgLight;
+    const clientButton =
+      themeForRender.mode === "dark"
+        ? clientButtonDark
+        : clientButtonLight;
+    const clientButtonText =
+      themeForRender.mode === "dark"
+        ? clientButtonTextDark
+        : clientButtonTextLight;
+    if (clientStyle.useCustomWidth && clientStyle.blockWidth) {
+      themeStyle["--site-client-content-width"] = `${clientStyle.blockWidth}px`;
+    }
+    if (clientBg) {
+      themeStyle["--site-client-card-bg"] = clientBg;
+    }
+    if (clientButton) {
+      themeStyle["--site-client-button"] = clientButton;
+    }
+    if (clientButtonText) {
+      themeStyle["--site-client-button-text"] = clientButtonText;
+    }
+    if (Number.isFinite(clientStyle.radius)) {
+      themeStyle["--site-radius"] = `${clientStyle.radius}px`;
+      themeStyle["--site-radius-light"] = `${clientStyle.radius}px`;
+      themeStyle["--site-radius-dark"] = `${clientStyle.radius}px`;
+    }
+    if (Number.isFinite(clientStyle.buttonRadius)) {
+      themeStyle["--site-button-radius"] = `${clientStyle.buttonRadius}px`;
+      themeStyle["--site-button-radius-light"] = `${clientStyle.buttonRadius}px`;
+      themeStyle["--site-button-radius-dark"] = `${clientStyle.buttonRadius}px`;
+    }
+    themeStyle["--site-client-card-bg-light"] = clientBgLight;
+    themeStyle["--site-client-card-bg-dark"] = clientBgDark;
+    themeStyle["--site-client-button-light"] = clientButtonLight;
+    themeStyle["--site-client-button-dark"] = clientButtonDark;
+    themeStyle["--site-client-button-text-light"] = clientButtonTextLight;
+    themeStyle["--site-client-button-text-dark"] = clientButtonTextDark;
+  }
   const menuPosition =
     typeof (menuBlock.data as { position?: string })?.position === "string"
       ? (menuBlock.data as { position?: string }).position
@@ -90,6 +158,7 @@ export async function renderPublicMenuFrame(
     initialMode,
     blockGap,
     themeStyle,
+    clientPageBlock,
     menuNode: (
       <section className={wrapper.className} style={wrapper.style as CSSProperties}>
         {renderBlock(

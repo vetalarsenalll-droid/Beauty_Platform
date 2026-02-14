@@ -22,7 +22,7 @@ export type CurrentEntity =
 const PAGE_LABELS = {
   home: "Главная",
   booking: "Онлайн-запись",
-  client: "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442",
+  client: "Личный кабинет",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",

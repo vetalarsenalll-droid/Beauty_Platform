@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+﻿import type { CSSProperties, ReactNode } from "react";
 import { requireClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -29,6 +29,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
   const accountSlug = accountSlugParam || primaryClient?.accountSlug || null;
   let menuNode: ReactNode = null;
   let themeFrame: PublicMenuFrame | null = null;
+  let clientPageData: Record<string, unknown> | null = null;
+
   if (accountSlug) {
     const account = await prisma.account.findUnique({
       where: { slug: accountSlug },
@@ -36,13 +38,21 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     });
     if (account) {
       const publicSlug = buildPublicSlugId(account.slug, account.id);
-      themeFrame = await renderPublicMenuFrame(
-        publicSlug,
-        `/c?account=${account.slug}`
-      );
+      themeFrame = await renderPublicMenuFrame(publicSlug, `/c?account=${account.slug}`);
       menuNode = themeFrame?.menuNode ?? null;
+      clientPageData =
+        themeFrame?.clientPageBlock &&
+        typeof themeFrame.clientPageBlock.data === "object" &&
+        themeFrame.clientPageBlock.data
+          ? (themeFrame.clientPageBlock.data as Record<string, unknown>)
+          : null;
     }
   }
+
+  const clientTitle = (clientPageData?.title as string) || "Личный кабинет";
+  const clientSalonsTitle = (clientPageData?.salonsTitle as string) || "Ваши салоны";
+  const clientEmptyText =
+    (clientPageData?.emptyText as string) || "Пока нет салонов, где вы записывались.";
 
   const pageStyle = themeFrame
     ? ({
@@ -86,23 +96,19 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           }}
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {"Личный кабинет"}
-            </h1>
-            <LogoutButton />
+            <h1 className="text-3xl font-semibold tracking-tight">{clientTitle}</h1>
+            <LogoutButton accountSlug={accountSlug} />
           </div>
           <div className="text-[color:var(--bp-muted)]">{displayName}</div>
+
           {session.clients.length > 0 ? (
             <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6">
-              <div className="text-sm font-semibold">{"Ваши салоны"}</div>
+              <div className="text-sm font-semibold">{clientSalonsTitle}</div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {session.clients.map((client) => {
                   const name = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
                   const label =
-                    name ||
-                    client.phone ||
-                    client.email ||
-                    `Клиент #${client.clientId}`;
+                    name || client.phone || client.email || `Клиент #${client.clientId}`;
                   return (
                     <a
                       key={client.clientId}
@@ -117,9 +123,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
               </div>
             </div>
           ) : (
-            <div className="text-sm text-[color:var(--bp-muted)]">
-              {"Пока нет салонов, где вы записывались."}
-            </div>
+            <div className="text-sm text-[color:var(--bp-muted)]">{clientEmptyText}</div>
           )}
         </section>
       </div>

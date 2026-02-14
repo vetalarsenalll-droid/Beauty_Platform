@@ -131,7 +131,7 @@ const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
 const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
-  client: "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442",
+  client: "Личный кабинет",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -286,6 +286,17 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
     showContacts: true,
     style: defaultBlockStyle,
   },
+  client: {
+    title: "Личный кабинет",
+    subtitle: "Ваши данные и история записей",
+    salonsTitle: "Ваши салоны",
+    emptyText: "Пока нет салонов, где вы записывались.",
+    style: {
+      ...defaultBlockStyle,
+      useCustomWidth: false,
+      blockWidth: null,
+    },
+  },
   locations: {
     title: "Локации",
     subtitle: "Выберите удобное место",
@@ -425,6 +436,7 @@ export default function SiteClient({
   const entityBlocks =
     entityPageKey && entityId ? draft.entityPages?.[entityPageKey]?.[entityId] : null;
   const activePageKey: SitePageKey = entityPageKey ?? activePage;
+  const isClientSystemPage = !entityPageKey && activePageKey === "client";
   const pageBlocks: SiteBlock[] = entityPageKey
     ? entityBlocks ?? []
     : draft.pages?.[activePageKey] ?? draft.blocks;
@@ -806,6 +818,7 @@ export default function SiteClient({
       <div className="relative">
         <main
           className="w-full"
+          data-site-theme={draft.theme.mode}
           style={{
             ...themeStyle,
             backgroundColor: draft.theme.gradientEnabled
@@ -820,21 +833,31 @@ export default function SiteClient({
             className="mx-auto flex w-full flex-col"
             style={{ padding: 24, maxWidth: contentWidth }}
           >
-            <InsertSlot
-              index={0}
-              spacing={draft.theme.blockSpacing}
-              onInsert={() => {
-                setInsertIndex(0);
-                setLeftPanel("library");
-                setLibraryBlock(null);
-              }}
-            />
+            {!isClientSystemPage && (
+              <InsertSlot
+                index={0}
+                spacing={draft.theme.blockSpacing}
+                onInsert={() => {
+                  setInsertIndex(0);
+                  setLeftPanel("library");
+                  setLibraryBlock(null);
+                }}
+              />
+            )}
             {displayBlocks.map((block: SiteBlock, index: number) => {
               const isSharedMenu = Boolean(
                 sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
               );
               return (
-              <div key={block.id} className="relative">
+              <div
+                key={block.id}
+                className="relative"
+                style={
+                  isClientSystemPage && index > 0
+                    ? { marginTop: draft.theme.blockSpacing }
+                    : undefined
+                }
+              >
                 <BlockPreview
                   block={block}
                   account={account}
@@ -861,17 +884,19 @@ export default function SiteClient({
                   onMoveUp={() => moveBlock(block.id, "up")}
                   onMoveDown={() => moveBlock(block.id, "down")}
                   onRemove={() => removeBlock(block.id)}
-                  disableActions={isSharedMenu}
+                  disableActions={isSharedMenu || (isClientSystemPage && block.type === "client")}
                 />
-                <InsertSlot
-                  index={index + 1}
-                  spacing={draft.theme.blockSpacing}
-                  onInsert={() => {
-                    setInsertIndex(index + 1);
-                    setLeftPanel("library");
-                    setLibraryBlock(null);
-                  }}
-                />
+                {!isClientSystemPage && (
+                  <InsertSlot
+                    index={index + 1}
+                    spacing={draft.theme.blockSpacing}
+                    onInsert={() => {
+                      setInsertIndex(index + 1);
+                      setLeftPanel("library");
+                      setLibraryBlock(null);
+                    }}
+                  />
+                )}
               </div>
             );
             })}
@@ -1053,7 +1078,9 @@ export default function SiteClient({
             {leftPanel === "library" && (
               <div className="p-4">
                 <div className="flex flex-col gap-2">
-                  {(Object.keys(BLOCK_LABELS) as BlockType[]).map((type) => (
+                  {(Object.keys(BLOCK_LABELS) as BlockType[])
+                    .filter((type) => type !== "client")
+                    .map((type) => (
                     <button
                       key={type}
                       type="button"
@@ -1489,25 +1516,27 @@ function BlockEditor({
 
   return (
     <div className="mt-4 space-y-4">
-      <label className="text-sm">
-        Вариант
-        <select
-          value={block.variant}
-          onChange={(event) =>
-            onChange({
-              ...block,
-              variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
-            })
-          }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          {variantOptions.map((variant) => (
-            <option key={variant} value={variant}>
-              {variantsLabel[variant]}
-            </option>
-          ))}
-        </select>
-      </label>
+      {variantOptions.length > 1 && (
+        <label className="text-sm">
+          Вариант
+          <select
+            value={block.variant}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
+              })
+            }
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+          >
+            {variantOptions.map((variant) => (
+              <option key={variant} value={variant}>
+                {variantsLabel[variant]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {block.type === "menu" && (
         <>
@@ -2033,6 +2062,7 @@ function BlockEditor({
       {block.type !== "menu" &&
         block.type !== "cover" &&
         block.type !== "about" &&
+        block.type !== "client" &&
         block.type !== "works" &&
         block.type !== "reviews" &&
         block.type !== "contacts" &&
@@ -2104,7 +2134,7 @@ function BlockStyleEditor({
   return (
     <div className="space-y-4">
       <label className="text-sm">
-        Отступ сверху: {style.marginTop}px
+        Межблоковое расстояние сверху: {style.marginTop}px
         <input
           type="range"
           min={0}
@@ -2116,7 +2146,7 @@ function BlockStyleEditor({
         />
       </label>
       <label className="text-sm">
-        Отступ снизу: {style.marginBottom}px
+        Межблоковое расстояние снизу: {style.marginBottom}px
         <input
           type="range"
           min={0}
@@ -3123,6 +3153,8 @@ function renderBlock(
       );
     case "about":
       return renderAbout(block, account, accountProfile, theme, style);
+    case "client":
+      return renderClient(block, account, theme, style);
     case "booking":
       return renderBooking(block, account, theme, style);
     case "locations":
@@ -3700,6 +3732,45 @@ function renderAbout(
         </div>
       )}
       <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Аккаунт: {account.name}</div>
+    </div>
+  );
+}
+
+function renderClient(block: SiteBlock, account: AccountInfo, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const title = (data.title as string) || "Личный кабинет";
+  const subtitle = (data.subtitle as string) || "Ваши данные и история записей";
+  const salonsTitle = (data.salonsTitle as string) || "Ваши салоны";
+  const emptyText = (data.emptyText as string) || "Пока нет салонов, где вы записывались.";
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold" style={headingStyle(style, theme)}>
+            {title}
+          </h3>
+          <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+            {subtitle}
+          </p>
+        </div>
+        <button className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm">
+          Выйти
+        </button>
+      </div>
+      <div className="mt-5 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+        <div className="text-sm font-semibold">{salonsTitle}</div>
+        <div className="mt-2 text-sm text-[color:var(--bp-muted)]" style={textStyle(style, theme)}>
+          {emptyText}
+        </div>
+        <a
+          href={account.publicSlug ? `/${account.publicSlug}/booking` : "#"}
+          className="mt-4 inline-flex rounded-xl px-4 py-2 text-sm font-semibold"
+          style={buttonStyle(style, theme)}
+        >
+          Записаться
+        </a>
+      </div>
     </div>
   );
 }

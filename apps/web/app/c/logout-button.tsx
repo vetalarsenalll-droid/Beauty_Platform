@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
-export default function LogoutButton() {
+type LogoutButtonProps = {
+  accountSlug?: string | null;
+};
+
+export default function LogoutButton({ accountSlug }: LogoutButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const onLogout = async () => {
@@ -11,7 +15,10 @@ export default function LogoutButton() {
     try {
       await fetch("/api/v1/auth/client/logout", { method: "POST" });
     } finally {
-      window.location.href = "/c/login";
+      const slugFromQuery =
+        new URLSearchParams(window.location.search).get("account") ?? "";
+      const slug = (accountSlug ?? slugFromQuery).trim();
+      window.location.href = slug ? `/c/login?account=${encodeURIComponent(slug)}` : "/c/login";
     }
   };
 
@@ -20,7 +27,7 @@ export default function LogoutButton() {
       type="button"
       onClick={onLogout}
       disabled={loading}
-      className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm transition hover:-translate-y-[1px] hover:shadow-sm"
+      className="rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm transition hover:-translate-y-[1px] hover:shadow-sm"
     >
       {"Выйти"}
     </button>

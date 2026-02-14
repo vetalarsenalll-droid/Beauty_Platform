@@ -13,7 +13,14 @@ type PageProps = {
 
 export default async function ClientRegisterPageWrapper({ searchParams }: PageProps) {
   const resolved = await Promise.resolve(searchParams ?? {});
-  const accountSlug = resolved?.account?.trim();
+  let accountSlug = resolved?.account?.trim();
+  if (!accountSlug) {
+    const fallbackAccount = await prisma.account.findFirst({
+      orderBy: { id: "asc" },
+      select: { slug: true },
+    });
+    accountSlug = fallbackAccount?.slug ?? undefined;
+  }
 
   let menuNode: ReactNode = null;
   let themeFrame: PublicMenuFrame | null = null;
@@ -65,7 +72,7 @@ export default async function ClientRegisterPageWrapper({ searchParams }: PagePr
         style={themeFrame ? { gap: themeFrame.blockGap } : undefined}
       >
         {menuNode}
-        <ClientRegisterPage />
+        <ClientRegisterPage initialAccountSlug={accountSlug ?? ""} />
       </div>
     </main>
   );
