@@ -49,6 +49,7 @@
   --booking-button: var(--booking-button-light, var(--site-button));
   --booking-button-text: var(--booking-button-text-light, var(--site-button-text));
   --booking-gradient: var(--booking-gradient-light, none);
+  --booking-border-width: var(--booking-border-width-light, 1px);
   --bp-surface: var(--site-surface);
   --bp-paper: var(--booking-sub-bg);
   --bp-panel: var(--booking-sub-bg);
@@ -67,6 +68,10 @@
   background-image: var(--booking-gradient, none);
   background-size: cover;
   background-repeat: no-repeat;
+}
+
+.booking-root [class*="border-[color:var(--bp-stroke)]"] {
+  border-width: var(--booking-border-width, 1px);
 }
 
 .booking-root input,
@@ -126,7 +131,7 @@
 
 .booking-preview .booking-root {
   --booking-top-gap: 0px;
-  --bp-surface: var(--site-surface);
+  --bp-surface: transparent;
 }
 
 .booking-preview .booking-root {
@@ -227,6 +232,7 @@
   --booking-button: var(--booking-button-dark, var(--site-button));
   --booking-button-text: var(--booking-button-text-dark, var(--site-button-text));
   --booking-gradient: var(--booking-gradient-dark, none);
+  --booking-border-width: var(--booking-border-width-dark, 1px);
 }
 
 .dark {

@@ -414,19 +414,23 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const bookingGradientDark = style.gradientEnabledDark
     ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
     : "none";
-  const bookingBorderLight =
-    style.borderColorLight?.trim() || style.borderColor?.trim()
-      ? style.borderColorLightResolved || "var(--site-border)"
-      : "transparent";
-  const bookingBorderDark =
-    style.borderColorDark?.trim() || style.borderColor?.trim()
-      ? style.borderColorDarkResolved || "var(--site-border)"
-      : "transparent";
+  const bookingBorderLight = style.borderColorLight?.trim()
+    ? style.borderColorLightResolved || "transparent"
+    : "transparent";
+  const bookingBorderDark = style.borderColorDark?.trim()
+    ? style.borderColorDarkResolved || "transparent"
+    : "transparent";
+  const bookingBorderWidthLight = bookingBorderLight === "transparent" ? "0px" : "1px";
+  const bookingBorderWidthDark = bookingBorderDark === "transparent" ? "0px" : "1px";
+  const bookingBorderWidth = theme.mode === "dark" ? bookingBorderWidthDark : bookingBorderWidthLight;
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
     "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
     "--booking-border-light": bookingBorderLight,
     "--booking-border-dark": bookingBorderDark,
+    "--booking-border-width-light": bookingBorderWidthLight,
+    "--booking-border-width-dark": bookingBorderWidthDark,
+    "--booking-border-width": bookingBorderWidth,
     "--booking-text-light": style.textColorLightResolved || "var(--site-text)",
     "--booking-text-dark": style.textColorDarkResolved || "var(--site-text)",
     "--booking-muted-light": style.mutedColorLightResolved || "var(--site-muted)",

@@ -436,7 +436,8 @@ export default function SiteClient({
   const entityBlocks =
     entityPageKey && entityId ? draft.entityPages?.[entityPageKey]?.[entityId] : null;
   const activePageKey: SitePageKey = entityPageKey ?? activePage;
-  const isClientSystemPage = !entityPageKey && activePageKey === "client";
+  const isSystemPage =
+    !entityPageKey && (activePageKey === "client" || activePageKey === "booking");
   const pageBlocks: SiteBlock[] = entityPageKey
     ? entityBlocks ?? []
     : draft.pages?.[activePageKey] ?? draft.blocks;
@@ -624,6 +625,15 @@ export default function SiteClient({
     if (sharedMenuBlock && sharedMenuBlock.id === id && activePage !== "home") {
       return;
     }
+    if (
+      !entityPageKey &&
+      (activePage === "client" || activePage === "booking") &&
+      pageBlocks.some(
+        (block) => block.id === id && (block.type === "client" || block.type === "booking")
+      )
+    ) {
+      return;
+    }
     updateBlocks(pageBlocks.filter((block) => block.id !== id));
     if (selectedId === id) {
       const next = displayBlocks.find((block) => block.id !== id);
@@ -633,6 +643,15 @@ export default function SiteClient({
 
   const moveBlock = (id: string, dir: "up" | "down") => {
     if (sharedMenuBlock && sharedMenuBlock.id === id && activePage !== "home") {
+      return;
+    }
+    if (
+      !entityPageKey &&
+      (activePage === "client" || activePage === "booking") &&
+      pageBlocks.some(
+        (block) => block.id === id && (block.type === "client" || block.type === "booking")
+      )
+    ) {
       return;
     }
     const idx = pageBlocks.findIndex((block) => block.id === id);
@@ -834,7 +853,7 @@ export default function SiteClient({
             className="mx-auto flex w-full flex-col"
             style={{ padding: 24, maxWidth: contentWidth }}
           >
-            {!isClientSystemPage && (
+            {!isSystemPage && (
               <InsertSlot
                 index={0}
                 spacing={draft.theme.blockSpacing}
@@ -854,7 +873,7 @@ export default function SiteClient({
                 key={block.id}
                 className="relative"
                 style={
-                  isClientSystemPage && index > 0
+                  isSystemPage && index > 0
                     ? { marginTop: draft.theme.blockSpacing }
                     : undefined
                 }
@@ -885,9 +904,12 @@ export default function SiteClient({
                   onMoveUp={() => moveBlock(block.id, "up")}
                   onMoveDown={() => moveBlock(block.id, "down")}
                   onRemove={() => removeBlock(block.id)}
-                  disableActions={isSharedMenu || (isClientSystemPage && block.type === "client")}
+                  disableActions={
+                    isSharedMenu ||
+                    (isSystemPage && (block.type === "client" || block.type === "booking"))
+                  }
                 />
-                {!isClientSystemPage && (
+                {!isSystemPage && (
                   <InsertSlot
                     index={index + 1}
                     spacing={draft.theme.blockSpacing}
@@ -1080,7 +1102,7 @@ export default function SiteClient({
               <div className="p-4">
                 <div className="flex flex-col gap-2">
                   {(Object.keys(BLOCK_LABELS) as BlockType[])
-                    .filter((type) => type !== "client")
+                    .filter((type) => type !== "client" && type !== "booking")
                     .map((type) => (
                     <button
                       key={type}
@@ -1411,6 +1433,7 @@ function ColorField({
     onChange: (value: string) => void;
     placeholder?: string;
   }) {
+    const EMPTY_COLOR_LABEL = "Цвет не выбран";
     const normalized = value?.trim() ?? "";
     const isTransparent = normalized.toLowerCase() === "transparent";
     const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
@@ -1420,13 +1443,16 @@ function ColorField({
       /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(placeholderValue)
         ? placeholderValue
         : "";
-    const displayValue =
-      isTransparent ? "#000000" : normalized === "" ? placeholderValue || "#000000" : normalized;
+    const displayValue = isTransparent
+      ? EMPTY_COLOR_LABEL
+      : normalized === ""
+        ? placeholderValue || "#ffffff"
+        : normalized;
     const colorValue = isHex
       ? normalized
       : isTransparent
-        ? "#000000"
-        : placeholderHex || "#000000";
+        ? "#ffffff"
+        : placeholderHex || "#ffffff";
   return (
     <label className="text-sm">
       {label}
@@ -1440,7 +1466,19 @@ function ColorField({
         <input
           type="text"
           value={displayValue}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            const lowered = next.trim().toLowerCase();
+            if (lowered === "transparent" || lowered === EMPTY_COLOR_LABEL.toLowerCase()) {
+              onChange("transparent");
+              return;
+            }
+            if (next.trim() === "") {
+              onChange("transparent");
+              return;
+            }
+            onChange(next);
+          }}
           onFocus={(event) => event.currentTarget.select()}
           placeholder={placeholder}
           className="w-full bg-transparent text-xs text-[color:var(--bp-ink)] outline-none selection:bg-[color:var(--bp-accent)] selection:text-[color:var(--bp-paper)]"
@@ -2114,7 +2152,10 @@ function BlockStyleEditor({
   const readRaw = (key: string) =>
     typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
   const toDisplay = (value: string) => value;
-  const toStore = (value: string) => (value.trim() === "" ? "transparent" : value.trim());
+  const toStore = (value: string) =>
+    value.trim() === "" || value.trim().toLowerCase() === "transparent"
+      ? "transparent"
+      : value.trim();
   const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
   const darkBlockBg = readRaw("blockBgDark");
   const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
@@ -3293,19 +3334,23 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
     : "none";
   const bookingGradient = theme.mode === "dark" ? bookingGradientDark : bookingGradientLight;
-  const bookingBorderLight =
-    style.borderColorLight.trim() || style.borderColor.trim()
-      ? style.borderColorLightResolved || "var(--site-border)"
-      : "transparent";
-  const bookingBorderDark =
-    style.borderColorDark.trim() || style.borderColor.trim()
-      ? style.borderColorDarkResolved || "var(--site-border)"
-      : "transparent";
+  const bookingBorderLight = style.borderColorLight.trim()
+    ? style.borderColorLightResolved || "transparent"
+    : "transparent";
+  const bookingBorderDark = style.borderColorDark.trim()
+    ? style.borderColorDarkResolved || "transparent"
+    : "transparent";
+  const bookingBorderWidthLight = bookingBorderLight === "transparent" ? "0px" : "1px";
+  const bookingBorderWidthDark = bookingBorderDark === "transparent" ? "0px" : "1px";
+  const bookingBorderWidth = theme.mode === "dark" ? bookingBorderWidthDark : bookingBorderWidthLight;
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
     "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
     "--booking-border-light": bookingBorderLight,
     "--booking-border-dark": bookingBorderDark,
+    "--booking-border-width-light": bookingBorderWidthLight,
+    "--booking-border-width-dark": bookingBorderWidthDark,
+    "--booking-border-width": bookingBorderWidth,
     "--booking-text-light": style.textColorLightResolved || "var(--site-text)",
     "--booking-text-dark": style.textColorDarkResolved || "var(--site-text)",
     "--booking-muted-light": style.mutedColorLightResolved || "var(--site-muted)",

@@ -525,6 +525,19 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   if (!pages.home.some((block) => block.type === "menu")) {
     pages.home = [createMenuBlock(), ...pages.home];
   }
+  if (!pages.booking.some((block) => block.type === "booking")) {
+    pages.booking = [
+      {
+        id: makeBlockId(),
+        type: "booking",
+        variant: "v1",
+        data: {
+          style: {},
+        },
+      },
+      ...pages.booking,
+    ];
+  }
   if (!pages.client.some((block) => block.type === "client")) {
     pages.client = [
       {
