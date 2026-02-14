@@ -139,6 +139,8 @@ const PAGE_LABELS: Record<SitePageKey, string> = {
 };
 
 const PAGE_KEYS = Object.keys(PAGE_LABELS) as SitePageKey[];
+const isSystemBlockType = (type: unknown): type is "client" | "booking" =>
+  type === "client" || type === "booking";
 
 const SOCIAL_ICONS: Record<string, string> = {
   website: "/assets/socials/website.png",
@@ -227,7 +229,7 @@ const defaultBlockStyle = {
   textSize: null,
 };
 
-const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
+const defaultBlockData: Record<string, Record<string, unknown>> = {
   cover: {
     title: "Салон красоты",
     subtitle: "Онлайн-запись и лучшие специалисты рядом",
@@ -367,7 +369,7 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
 };
 
 function createBlock(type: BlockType): SiteBlock {
-  const base = defaultBlockData[type];
+  const base = defaultBlockData[type] ?? {};
   return {
     id: makeBlockId(),
     type,
@@ -629,7 +631,7 @@ export default function SiteClient({
       !entityPageKey &&
       (activePage === "client" || activePage === "booking") &&
       pageBlocks.some(
-        (block) => block.id === id && (block.type === "client" || block.type === "booking")
+        (block) => block.id === id && isSystemBlockType(block.type)
       )
     ) {
       return;
@@ -649,7 +651,7 @@ export default function SiteClient({
       !entityPageKey &&
       (activePage === "client" || activePage === "booking") &&
       pageBlocks.some(
-        (block) => block.id === id && (block.type === "client" || block.type === "booking")
+        (block) => block.id === id && isSystemBlockType(block.type)
       )
     ) {
       return;
@@ -906,7 +908,7 @@ export default function SiteClient({
                   onRemove={() => removeBlock(block.id)}
                   disableActions={
                     isSharedMenu ||
-                    (isSystemPage && (block.type === "client" || block.type === "booking"))
+                    (isSystemPage && isSystemBlockType(block.type))
                   }
                 />
                 {!isSystemPage && (
@@ -1102,7 +1104,7 @@ export default function SiteClient({
               <div className="p-4">
                 <div className="flex flex-col gap-2">
                   {(Object.keys(BLOCK_LABELS) as BlockType[])
-                    .filter((type) => type !== "client" && type !== "booking")
+                    .filter((type) => !isSystemBlockType(type))
                     .map((type) => (
                     <button
                       key={type}
@@ -2101,11 +2103,10 @@ function BlockEditor({
       {block.type !== "menu" &&
         block.type !== "cover" &&
         block.type !== "about" &&
-        block.type !== "client" &&
+        !isSystemBlockType(block.type) &&
         block.type !== "works" &&
         block.type !== "reviews" &&
-        block.type !== "contacts" &&
-        block.type !== "booking" && (
+        block.type !== "contacts" && (
           <>
             <FieldText
               label="Заголовок"
@@ -2157,7 +2158,9 @@ function BlockStyleEditor({
       ? "transparent"
       : value.trim();
   const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
+  const lightSubBlockBg = readRaw("subBlockBgLight") || readRaw("subBlockBg");
   const darkBlockBg = readRaw("blockBgDark");
+  const darkSubBlockBg = readRaw("subBlockBgDark");
   const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
   const darkBorderColor = readRaw("borderColorDark");
   const lightButtonColor = readRaw("buttonColorLight") || readRaw("buttonColor");
@@ -2257,6 +2260,19 @@ function BlockStyleEditor({
             update({ blockBgLight: toStore(value), blockBg: toStore(value) })
           }
         />
+        {block.type === "booking" && (
+          <ColorField
+            label="Цвет подблока"
+            value={toDisplay(lightSubBlockBg)}
+            placeholder={theme.panelColor}
+            onChange={(value) =>
+              update({
+                subBlockBgLight: toStore(value),
+                subBlockBg: toStore(value),
+              })
+            }
+          />
+        )}
         <ColorField
           label="Цвет обводки"
           value={toDisplay(lightBorderColor)}
@@ -2333,6 +2349,14 @@ function BlockStyleEditor({
               placeholder={theme.darkPalette.panelColor}
               onChange={(value) => update({ blockBgDark: toStore(value) })}
             />
+            {block.type === "booking" && (
+              <ColorField
+                label="Цвет подблока"
+                value={toDisplay(darkSubBlockBg)}
+                placeholder={theme.darkPalette.panelColor}
+                onChange={(value) => update({ subBlockBgDark: toStore(value) })}
+              />
+            )}
             <ColorField
               label="Цвет обводки"
               value={toDisplay(darkBorderColor)}
@@ -3249,7 +3273,8 @@ function renderBlock(
   onThemeToggle: () => void
 ) {
   const style = normalizeBlockStyle(block, theme);
-  switch (block.type) {
+  const blockType = String(block.type);
+  switch (blockType) {
     case "cover":
       return renderCover(
         block,

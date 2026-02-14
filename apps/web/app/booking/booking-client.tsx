@@ -483,7 +483,7 @@ function DatePickerLike({
           "relative h-9 rounded-full text-[14px] font-medium transition",
           "focus:outline-none focus:ring-2 focus:ring-black/30",
           selected
-            ? "border-2 border-black bg-transparent text-[color:var(--bp-ink)]"
+            ? "border-2 border-[color:var(--bp-accent)] bg-transparent text-[color:var(--bp-ink)]"
             : "border border-transparent bg-transparent hover:bg-black/5",
           inMonth ? "text-[color:var(--bp-ink)]" : "text-[color:var(--bp-muted)] opacity-60",
           disabled && "opacity-30 hover:bg-transparent"
