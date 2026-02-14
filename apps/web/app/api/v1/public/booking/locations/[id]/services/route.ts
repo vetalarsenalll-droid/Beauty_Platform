@@ -1,6 +1,7 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicAccount } from "@/lib/public-booking";
+import { NextRequest } from "next/server";
 
 const toNumber = (value: unknown) => {
   const num = Number(value);
@@ -8,13 +9,13 @@ const toNumber = (value: unknown) => {
 };
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
-  const paramsValue = await Promise.resolve(params);
+  const paramsValue = await params;
   const locationId = Number(paramsValue.id);
   if (!Number.isInteger(locationId) || locationId <= 0) {
     return jsonError("INVALID_LOCATION", "Некорректная локация.", null, 400);

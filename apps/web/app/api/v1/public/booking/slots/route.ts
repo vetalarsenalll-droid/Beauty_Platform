@@ -77,7 +77,7 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
-  const [scheduleEntries, appointments, blockedSlots, service] = await Promise.all([
+  const [scheduleEntries, appointments, blockedSlots, holds, service] = await Promise.all([
     // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
     prisma.scheduleEntry.findMany({
       where: {
@@ -111,6 +111,16 @@ export async function GET(request: Request) {
         ],
       },
       select: { locationId: true, specialistId: true, startAt: true, endAt: true },
+    }),
+    prisma.appointmentHold.findMany({
+      where: {
+        accountId: resolved.account.id,
+        specialistId: { in: specialistIds },
+        expiresAt: { gt: new Date() },
+        startAt: { lt: dayEndUtc },
+        endAt: { gt: dayStartUtc },
+      },
+      select: { specialistId: true, startAt: true, endAt: true },
     }),
 
     serviceId
@@ -163,6 +173,13 @@ export async function GET(request: Request) {
     }
   }
 
+  const holdsBySpecialist = new Map<number, Window[]>();
+  for (const item of holds) {
+    const list = holdsBySpecialist.get(item.specialistId) ?? [];
+    list.push(toRangeInTz(item.startAt, item.endAt, tz));
+    holdsBySpecialist.set(item.specialistId, list);
+  }
+
   const slots: Array<{ time: string; specialistId: number }> = [];
 
   for (const sp of specialists) {
@@ -191,6 +208,7 @@ export async function GET(request: Request) {
 
     const apptWindows = appointmentsBySpecialist.get(sp.id) ?? [];
     const blkWindows = blockedBySpecialist.get(sp.id) ?? [];
+    const holdWindows = holdsBySpecialist.get(sp.id) ?? [];
 
     for (let start = entryStart; start + durationMin <= entryEnd; start += slotStepMinutes) {
       const candidate: Window = { start, end: start + durationMin };
@@ -201,6 +219,7 @@ export async function GET(request: Request) {
       if (breaks.some((br) => overlaps(candidate, br))) continue;
       if (apptWindows.some((w) => overlaps(candidate, w))) continue;
       if (blkWindows.some((w) => overlaps(candidate, w))) continue;
+      if (holdWindows.some((w) => overlaps(candidate, w))) continue;
 
       slots.push({ time: minutesToTime(start), specialistId: sp.id });
     }

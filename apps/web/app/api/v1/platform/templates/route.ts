@@ -1,3 +1,4 @@
+import { Prisma, TemplateType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
@@ -27,6 +28,10 @@ function mapTemplate(template: DbTemplate) {
   };
 }
 
+function isTemplateType(value: string): value is TemplateType {
+  return Object.values(TemplateType).includes(value as TemplateType);
+}
+
 export async function GET() {
   const auth = await requirePlatformApiPermission("platform.settings");
   if ("response" in auth) return auth.response;
@@ -49,20 +54,31 @@ export async function POST(request: Request) {
     return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
-  const type = String(body.type ?? "").trim();
+  const typeRaw = String(body.type ?? "").trim();
   const name = String(body.name ?? "").trim();
   const description = body.description ? String(body.description).trim() : null;
-  const contentJson = body.contentJson ?? null;
+  const contentJson =
+    body.contentJson === undefined
+      ? Prisma.JsonNull
+      : body.contentJson === null
+        ? Prisma.JsonNull
+        : (body.contentJson as Prisma.InputJsonValue);
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
 
-  if (!type || !name) {
+  if (!typeRaw || !name) {
     return jsonError("VALIDATION_FAILED", "Type and name are required", {
       fields: [
-        { path: "type", issue: type ? null : "required" },
+        { path: "type", issue: typeRaw ? null : "required" },
         { path: "name", issue: name ? null : "required" },
       ],
     });
   }
+  if (!isTemplateType(typeRaw)) {
+    return jsonError("VALIDATION_FAILED", "Invalid template type", {
+      fields: [{ path: "type", issue: "invalid" }],
+    });
+  }
+  const type = typeRaw as TemplateType;
 
   const created = await prisma.templateLibrary.create({
     data: {

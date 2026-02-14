@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function PlatformLoginPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto min-h-[70vh] w-full max-w-xl" />}>
+      <PlatformLoginPageContent />
+    </Suspense>
+  );
+}
+
+function PlatformLoginPageContent() {
   const [email, setEmail] = useState("admin@beauty.local");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -1,8 +1,16 @@
 import { cookies } from "next/headers";
+import type { CSSProperties, ReactNode } from "react";
 import { loadPublicData } from "./public-data";
 import { buildBlockWrapperStyle, normalizeStyle, renderBlock } from "./public-render";
 
-export async function renderPublicMenu(
+export type PublicMenuFrame = {
+  initialMode: "light" | "dark";
+  blockGap: number;
+  themeStyle: Record<string, string>;
+  menuNode: ReactNode;
+};
+
+export async function renderPublicMenuFrame(
   publicSlug: string,
   accountLinkOverride?: string | null
 ) {
@@ -57,8 +65,14 @@ export async function renderPublicMenu(
     "--site-h1": `${palette.headingSize}px`,
     "--site-h2": `${palette.subheadingSize}px`,
     "--site-text-size": `${palette.textSize}px`,
+    "--site-client-content-width": `${palette.clientContentWidth}px`,
+    "--site-client-auth-width": `${palette.clientAuthWidth}px`,
+    "--site-client-card-bg": palette.clientCardBg,
+    "--site-client-button": palette.clientButtonColor,
+    "--site-client-button-text": palette.clientButtonTextColor,
     "--site-gradient": mainGradient,
   };
+  const blockGap = palette.blockSpacing ?? 0;
 
   const style = normalizeStyle(menuBlock, themeForRender);
   const menuPosition =
@@ -72,37 +86,56 @@ export async function renderPublicMenu(
     isMenuSticky,
   });
 
+  return {
+    initialMode,
+    blockGap,
+    themeStyle,
+    menuNode: (
+      <section className={wrapper.className} style={wrapper.style as CSSProperties}>
+        {renderBlock(
+          menuBlock,
+          data.account.name,
+          data.account.slug,
+          data.publicSlug,
+          data.branding,
+          data.accountProfile,
+          data.locations,
+          data.services,
+          data.specialists,
+          data.promos,
+          data.workPhotos,
+          null,
+          themeForRender,
+          accountLinkOverride ?? undefined
+        )}
+      </section>
+    ),
+  } satisfies PublicMenuFrame;
+}
+
+export async function renderPublicMenu(
+  publicSlug: string,
+  accountLinkOverride?: string | null
+) {
+  const frame = await renderPublicMenuFrame(publicSlug, accountLinkOverride);
+  if (!frame) return null;
+
   return (
-    <div
+    <main
+      id="public-site-root"
+      data-site-theme={frame.initialMode}
       className="w-full"
       style={{
-        ...themeStyle,
+        ...frame.themeStyle,
         backgroundColor: "var(--site-surface)",
         backgroundImage: "var(--site-gradient)",
         color: "var(--site-text)",
         fontFamily: "var(--site-font-body)",
       }}
     >
-      <div className="mx-auto flex w-full flex-col px-6 py-6">
-        <section className={wrapper.className} style={wrapper.style}>
-          {renderBlock(
-            menuBlock,
-            data.account.name,
-            data.account.slug,
-            data.publicSlug,
-            data.branding,
-            data.accountProfile,
-            data.locations,
-            data.services,
-            data.specialists,
-            data.promos,
-            data.workPhotos,
-            null,
-            data.draft.theme,
-            accountLinkOverride ?? null
-          )}
-        </section>
+      <div className="mx-auto flex w-full flex-col px-6 py-12" style={{ gap: frame.blockGap }}>
+        {frame.menuNode}
       </div>
-    </div>
+    </main>
   );
 }

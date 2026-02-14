@@ -1,4 +1,4 @@
-
+﻿
 "use client";
 
 import { useEffect, useState } from "react";
@@ -21,7 +21,7 @@ import BookingClient from "@/app/booking/booking-client";
 type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
   | null;
-type EntityPageKey = Exclude<SitePageKey, "home" | "booking">;
+type EntityPageKey = Exclude<SitePageKey, "home" | "booking" | "client">;
 
 type PublicPageData = {
   id: number;
@@ -131,6 +131,7 @@ const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
 const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
+  client: "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -239,7 +240,7 @@ const defaultBlockData: Record<BlockType, Record<string, unknown>> = {
   },
   menu: {
     title: "Меню",
-    menuItems: ["home", "booking", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showButton: true,
     showThemeToggle: false,
@@ -392,6 +393,7 @@ export default function SiteClient({
     value.pages ?? {
       home: value.blocks,
       booking: [],
+      client: [],
       locations: [],
       services: [],
       specialists: [],
@@ -3430,7 +3432,9 @@ function renderMenuBlock(
         ? basePath
         : key === "booking"
           ? `${basePath}/booking`
-          : `${basePath}/${key === "promos" ? "promos" : key}`;
+          : key === "client"
+            ? `/c?account=${account.slug}`
+            : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
       <a key={key} href={href} className="text-sm font-medium">
         {PAGE_LABELS[key]}
@@ -4215,4 +4219,6 @@ function renderContacts(
     </div>
   );
 }
+
+
 

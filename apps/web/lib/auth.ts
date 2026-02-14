@@ -62,7 +62,7 @@ function mapPlatformSession(
   return {
     adminId: session.user.platformAdmin.id,
     userId: session.userId,
-    email: session.user.email ?? session.user.platformAdmin.userId,
+    email: session.user.email ?? null,
     permissions,
   };
 }

@@ -1,7 +1,11 @@
+import type { CSSProperties, ReactNode } from "react";
 import { requireClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { renderPublicMenu } from "@/app/[publicSlug]/_shared/menu-render";
+import {
+  renderPublicMenuFrame,
+  type PublicMenuFrame,
+} from "@/app/[publicSlug]/_shared/menu-render";
 import LogoutButton from "./logout-button";
 
 type ClientHomeProps = {
@@ -23,7 +27,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     "Клиент";
 
   const accountSlug = accountSlugParam || primaryClient?.accountSlug || null;
-  let menuNode: JSX.Element | null = null;
+  let menuNode: ReactNode = null;
+  let themeFrame: PublicMenuFrame | null = null;
   if (accountSlug) {
     const account = await prisma.account.findUnique({
       where: { slug: accountSlug },
@@ -31,54 +36,93 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     });
     if (account) {
       const publicSlug = buildPublicSlugId(account.slug, account.id);
-      menuNode = await renderPublicMenu(
+      themeFrame = await renderPublicMenuFrame(
         publicSlug,
         `/c?account=${account.slug}`
       );
+      menuNode = themeFrame?.menuNode ?? null;
     }
   }
 
+  const pageStyle = themeFrame
+    ? ({
+        ...themeFrame.themeStyle,
+        backgroundColor: "var(--site-surface)",
+        backgroundImage: "var(--site-gradient)",
+        color: "var(--site-text)",
+        fontFamily: "var(--site-font-body)",
+        "--bp-paper": "var(--site-client-card-bg)",
+        "--bp-panel": "var(--site-client-card-bg)",
+        "--bp-surface": "var(--site-surface)",
+        "--bp-stroke": "var(--site-border)",
+        "--bp-ink": "var(--site-text)",
+        "--bp-muted": "var(--site-muted)",
+        "--bp-accent": "var(--site-client-button)",
+        "--bp-accent-strong": "var(--site-client-button)",
+        "--site-button-text": "var(--site-client-button-text)",
+        "--bp-shadow":
+          "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
+      } as CSSProperties)
+    : undefined;
+
   return (
-    <>
-      {menuNode}
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-16">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {"Личный кабинет"}
-        </h1>
-        <LogoutButton />
-      </div>
-      <div className="text-[color:var(--bp-muted)]">{displayName}</div>
-      {session.clients.length > 0 ? (
-        <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6">
-          <div className="text-sm font-semibold">{"Ваши салоны"}</div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {session.clients.map((client) => {
-              const name = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
-              const label =
-                name ||
-                client.phone ||
-                client.email ||
-                `Клиент #${client.clientId}`;
-              return (
-                <a
-                  key={client.clientId}
-                  href={`/c?account=${client.accountSlug}`}
-                  className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm transition hover:-translate-y-[1px] hover:shadow-sm"
-                >
-                  <div className="font-semibold">{client.accountName}</div>
-                  <div className="text-xs text-[color:var(--bp-muted)]">{label}</div>
-                </a>
-              );
-            })}
+    <main
+      id={themeFrame ? "public-site-root" : undefined}
+      data-site-theme={themeFrame?.initialMode}
+      className="min-h-screen pb-16"
+      style={pageStyle}
+    >
+      <div
+        className="mx-auto flex w-full flex-col px-6 py-12"
+        style={themeFrame ? { gap: themeFrame.blockGap } : undefined}
+      >
+        {menuNode}
+        <section
+          className="mx-auto flex w-full flex-col gap-6 rounded-[var(--site-radius)] border border-[color:var(--site-border)] bg-[color:var(--site-client-card-bg)] px-6 py-10 md:px-8"
+          style={{
+            maxWidth: "var(--site-client-content-width)",
+            boxShadow:
+              "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
+          }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              {"Личный кабинет"}
+            </h1>
+            <LogoutButton />
           </div>
-        </div>
-      ) : (
-        <div className="text-sm text-[color:var(--bp-muted)]">
-          {"Пока нет салонов, где вы записывались."}
-        </div>
-      )}
-      </main>
-    </>
+          <div className="text-[color:var(--bp-muted)]">{displayName}</div>
+          {session.clients.length > 0 ? (
+            <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6">
+              <div className="text-sm font-semibold">{"Ваши салоны"}</div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {session.clients.map((client) => {
+                  const name = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
+                  const label =
+                    name ||
+                    client.phone ||
+                    client.email ||
+                    `Клиент #${client.clientId}`;
+                  return (
+                    <a
+                      key={client.clientId}
+                      href={`/c?account=${client.accountSlug}`}
+                      className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-card-bg)] px-4 py-3 text-sm transition hover:-translate-y-[1px] hover:shadow-sm"
+                    >
+                      <div className="font-semibold">{client.accountName}</div>
+                      <div className="text-xs text-[color:var(--bp-muted)]">{label}</div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-[color:var(--bp-muted)]">
+              {"Пока нет салонов, где вы записывались."}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

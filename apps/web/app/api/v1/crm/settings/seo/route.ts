@@ -1,4 +1,5 @@
-﻿import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
 
@@ -24,7 +25,7 @@ export async function PATCH(request: Request) {
   const session = await requireCrmPermission("crm.settings.update");
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) {
-    return NextResponse.json({ message: "Некорректный запрос." }, { status: 400 });
+    return NextResponse.json({ message: "Invalid request." }, { status: 400 });
   }
 
   const data = {
@@ -36,8 +37,8 @@ export async function PATCH(request: Request) {
       typeof body.sitemapEnabled === "boolean" ? body.sitemapEnabled : true,
     schemaJson:
       typeof body.schemaJson === "object" && body.schemaJson !== null
-        ? (body.schemaJson as object)
-        : null,
+        ? (body.schemaJson as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
   };
 
   const updated = await prisma.seoSetting.upsert({
@@ -48,4 +49,3 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ data: updated });
 }
-

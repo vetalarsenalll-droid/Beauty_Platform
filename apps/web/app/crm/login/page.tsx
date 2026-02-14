@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function CrmLoginPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto min-h-[70vh] w-full max-w-xl" />}>
+      <CrmLoginPageContent />
+    </Suspense>
+  );
+}
+
+function CrmLoginPageContent() {
   const [email, setEmail] = useState("owner@beauty.local");
   const [password, setPassword] = useState("");
   const [accountSlug, setAccountSlug] = useState("");

@@ -1,15 +1,15 @@
+import { createHash } from "crypto";
+import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
-import { NextResponse } from "next/server";
-import { createHash } from "crypto";
 import {
-  resolvePublicAccount,
-  toMinutes,
-  zonedTimeToUtc,
-  zonedDayRangeUtc,
   getNowInTimeZone,
   isPastDateOrTimeInTz,
+  resolvePublicAccount,
+  toMinutes,
+  zonedDayRangeUtc,
+  zonedTimeToUtc,
 } from "@/lib/public-booking";
 
 type Window = { start: number; end: number };
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     clientEmail?: string;
     comment?: string;
     legalVersionIds?: number[];
-  
+    holdId?: number;
   } | null;
 
   if (!body) {
@@ -48,37 +48,46 @@ export async function POST(request: Request) {
   const locationId = Number(body.locationId);
   const specialistId = Number(body.specialistId);
   const serviceId = Number(body.serviceId);
-  const dateValue = String(body.date ?? "").trim(); // YYYY-MM-DD (в TZ аккаунта)
-  const timeValue = String(body.time ?? "").trim(); // HH:mm
+  const dateValue = String(body.date ?? "").trim();
+  const timeValue = String(body.time ?? "").trim();
 
   const clientName = String(body.clientName ?? "").trim();
   const clientPhone = String(body.clientPhone ?? "").trim();
   const clientEmail = String(body.clientEmail ?? "").trim();
   const comment = String(body.comment ?? "").trim();
+  const holdId = Number.isInteger(Number(body.holdId)) ? Number(body.holdId) : null;
+
   const legalVersionIds = Array.isArray(body.legalVersionIds)
-    ? body.legalVersionIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+    ? body.legalVersionIds
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
     : [];
-  
+  const requestedLegalVersionIds = Array.from(new Set(legalVersionIds)).sort((a, b) => a - b);
+
   const rawIdempotencyKey =
     request.headers.get("idempotency-key") ?? request.headers.get("Idempotency-Key");
   const idempotencyKey = rawIdempotencyKey?.trim() || "";
 
-
   if (
-    !Number.isInteger(locationId) || locationId <= 0 ||
-    !Number.isInteger(specialistId) || specialistId <= 0 ||
-    !Number.isInteger(serviceId) || serviceId <= 0 ||
+    !Number.isInteger(locationId) ||
+    locationId <= 0 ||
+    !Number.isInteger(specialistId) ||
+    specialistId <= 0 ||
+    !Number.isInteger(serviceId) ||
+    serviceId <= 0 ||
     !dateValue ||
     !timeValue
   ) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
-
-  if (!clientName && !clientPhone && !clientEmail) {
-    return jsonError("CLIENT_REQUIRED", "Укажите данные клиента.", null, 400);
+  if (!holdId) {
+    return jsonError("HOLD_REQUIRED", "Сначала зарезервируйте слот.", null, 400);
   }
 
-  // запрет прошлого (в TZ аккаунта)
+  if (clientName.length < 2 || clientPhone.length < 8) {
+    return jsonError("CLIENT_REQUIRED", "Укажите корректные имя и телефон клиента.", null, 400);
+  }
+
   if (dateValue < nowTz.ymd) {
     return jsonError("PAST_DATE", "Нельзя записаться на прошедшую дату.", null, 400);
   }
@@ -102,7 +111,6 @@ export async function POST(request: Request) {
       where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
       select: { id: true },
     }),
-
     prisma.specialistProfile.findFirst({
       where: {
         id: specialistId,
@@ -111,7 +119,6 @@ export async function POST(request: Request) {
       },
       select: { id: true, levelId: true },
     }),
-
     prisma.service.findFirst({
       where: {
         id: serviceId,
@@ -139,8 +146,6 @@ export async function POST(request: Request) {
         },
       },
     }),
-
-    // ✅ ВАЖНО: график ТОЛЬКО выбранной локации (без locationId:null)
     prisma.scheduleEntry.findFirst({
       where: {
         accountId: resolved.account.id,
@@ -156,29 +161,30 @@ export async function POST(request: Request) {
   if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
   if (!service) return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
 
-  const override = service.specialists.find((i) => i.specialistId === specialist.id);
+  const override = service.specialists.find((item) => item.specialistId === specialist.id);
   const levelConfig = specialist.levelId
-    ? service.levelConfigs.find((i) => i.levelId === specialist.levelId)
+    ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
     : null;
 
   const durationMin =
-    override?.durationOverrideMin ??
-    levelConfig?.durationMin ??
-    service.baseDurationMin;
+    override?.durationOverrideMin ?? levelConfig?.durationMin ?? service.baseDurationMin;
 
   const priceTotal =
     toNumber(override?.priceOverride) ||
     toNumber(levelConfig?.price) ||
     toNumber(service.basePrice);
 
-  // график обязателен и должен быть рабочим
   if (!scheduleEntry || scheduleEntry.type !== "WORKING") {
     return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня на выбранную дату.", null, 400);
   }
 
-  // доп. защита
   if (scheduleEntry.locationId !== locationId) {
-    return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня в выбранной локации на эту дату.", null, 400);
+    return jsonError(
+      "NO_WORKDAY",
+      "У специалиста нет рабочего дня в выбранной локации на эту дату.",
+      null,
+      400
+    );
   }
 
   const entryStart = toMinutes(scheduleEntry.startTime ?? "");
@@ -198,11 +204,11 @@ export async function POST(request: Request) {
   const candidateLocal: Window = { start: startMinutes, end: startMinutes + durationMin };
 
   const breaks = scheduleEntry.breaks
-    .map((b) => ({
-      start: toMinutes(b.startTime) ?? 0,
-      end: toMinutes(b.endTime) ?? 0,
+    .map((item) => ({
+      start: toMinutes(item.startTime) ?? 0,
+      end: toMinutes(item.endTime) ?? 0,
     }))
-    .filter((x) => x.start < x.end);
+    .filter((item) => item.start < item.end);
 
   if (breaks.some((br) => overlaps(candidateLocal, br))) {
     return jsonError("OVERLAP_BREAK", "Выбранное время попадает на перерыв.", null, 400);
@@ -224,10 +230,10 @@ export async function POST(request: Request) {
         },
       },
     }),
-    legalVersionIds.length > 0
+    requestedLegalVersionIds.length > 0
       ? prisma.legalDocumentVersion.findMany({
           where: {
-            id: { in: legalVersionIds },
+            id: { in: requestedLegalVersionIds },
             isActive: true,
             document: { accountId: resolved.account.id },
           },
@@ -241,7 +247,7 @@ export async function POST(request: Request) {
     .filter((id): id is number => Number.isInteger(id));
 
   const allowedSet = new Set(allowedVersions.map((v) => v.id));
-  const normalizedLegalVersionIds = legalVersionIds.filter((id) => allowedSet.has(id));
+  const normalizedLegalVersionIds = requestedLegalVersionIds.filter((id) => allowedSet.has(id));
 
   if (requiredVersionIds.length > 0) {
     const provided = new Set(normalizedLegalVersionIds);
@@ -272,6 +278,7 @@ export async function POST(request: Request) {
           clientPhone,
           clientEmail,
           comment,
+          legalVersionIds: requestedLegalVersionIds,
         })
       )
       .digest("hex");
@@ -302,12 +309,7 @@ export async function POST(request: Request) {
         });
 
         if (!existing) {
-          return jsonError(
-            "IDEMPOTENCY_CONFLICT",
-            "Конфликт идемпотентности.",
-            null,
-            409
-          );
+          return jsonError("IDEMPOTENCY_CONFLICT", "Конфликт идемпотентности.", null, 409);
         }
 
         if (existing.requestHash !== requestHash) {
@@ -335,147 +337,214 @@ export async function POST(request: Request) {
     }
   }
 
-  // Транзакция: проверка пересечений по UTC интервалам + создание
-  const result = await prisma.$transaction(async (tx) => {
-    const conflictAppt = await tx.appointment.findFirst({
-      where: {
-        accountId: resolved.account.id,
-        locationId,
-        specialistId,
-        status: { notIn: ["CANCELLED", "NO_SHOW"] },
-        startAt: { lt: endAtUtc },
-        endAt: { gt: startAtUtc },
-      },
-      select: { id: true },
-    });
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const conflictAppt = await tx.appointment.findFirst({
+        where: {
+          accountId: resolved.account.id,
+          locationId,
+          specialistId,
+          status: { notIn: ["CANCELLED", "NO_SHOW"] },
+          startAt: { lt: endAtUtc },
+          endAt: { gt: startAtUtc },
+        },
+        select: { id: true },
+      });
 
-    if (conflictAppt) {
-      return {
-        ok: false as const,
-        error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),
-      };
-    }
+      if (conflictAppt) {
+        return {
+          ok: false as const,
+          error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),
+        };
+      }
 
-    const conflictBlock = await tx.blockedSlot.findFirst({
-      where: {
-        accountId: resolved.account.id,
-        startAt: { lt: endAtUtc },
-        endAt: { gt: startAtUtc },
-        OR: [{ locationId }, { specialistId }],
-      },
-      select: { id: true },
-    });
+      const conflictBlock = await tx.blockedSlot.findFirst({
+        where: {
+          accountId: resolved.account.id,
+          startAt: { lt: endAtUtc },
+          endAt: { gt: startAtUtc },
+          OR: [{ locationId }, { specialistId }],
+        },
+        select: { id: true },
+      });
 
-    if (conflictBlock) {
-      return {
-        ok: false as const,
-        error: jsonError("TIME_BLOCKED", "Выбранное время недоступно.", null, 409),
-      };
-    }
+      if (conflictBlock) {
+        return {
+          ok: false as const,
+          error: jsonError("TIME_BLOCKED", "Выбранное время недоступно.", null, 409),
+        };
+      }
 
-    let client =
-      (clientPhone
+      const conflictHold = await tx.appointmentHold.findFirst({
+        where: {
+          accountId: resolved.account.id,
+          specialistId,
+          expiresAt: { gt: new Date() },
+          startAt: { lt: endAtUtc },
+          endAt: { gt: startAtUtc },
+          ...(holdId ? { id: { not: holdId } } : {}),
+        },
+        select: { id: true },
+      });
+
+      if (conflictHold) {
+        return {
+          ok: false as const,
+          error: jsonError("TIME_HELD", "Это время сейчас резервируется другим клиентом.", null, 409),
+        };
+      }
+
+      if (holdId) {
+        const ownHold = await tx.appointmentHold.findFirst({
+          where: {
+            id: holdId,
+            accountId: resolved.account.id,
+            specialistId,
+            startAt: startAtUtc,
+            endAt: endAtUtc,
+            expiresAt: { gt: new Date() },
+          },
+          select: { id: true },
+        });
+
+        if (!ownHold) {
+          return {
+            ok: false as const,
+            error: jsonError("HOLD_EXPIRED", "Резерв времени истек или не найден.", null, 409),
+          };
+        }
+      }
+
+      const clientByPhone = clientPhone
         ? await tx.client.findFirst({
             where: { accountId: resolved.account.id, phone: clientPhone },
           })
-        : null) ??
-      (clientEmail
+        : null;
+      const clientByEmail = clientEmail
         ? await tx.client.findFirst({
             where: { accountId: resolved.account.id, email: clientEmail },
           })
-        : null);
+        : null;
 
-    if (!client) {
-      client = await tx.client.create({
+      if (clientByPhone && clientByEmail && clientByPhone.id !== clientByEmail.id) {
+        return {
+          ok: false as const,
+          error: jsonError(
+            "CLIENT_CONFLICT",
+            "Телефон и email принадлежат разным клиентам. Проверьте контактные данные.",
+            null,
+            409
+          ),
+        };
+      }
+
+      let client = clientByPhone ?? clientByEmail;
+      if (!client) {
+        client = await tx.client.create({
+          data: {
+            accountId: resolved.account.id,
+            firstName: clientName || null,
+            phone: clientPhone || null,
+            email: clientEmail || null,
+          },
+        });
+      } else {
+        await tx.client.update({
+          where: { id: client.id },
+          data: {
+            firstName: client.firstName ?? (clientName || null),
+            phone: client.phone ?? (clientPhone || null),
+            email: client.email ?? (clientEmail || null),
+          },
+        });
+      }
+
+      const appointment = await tx.appointment.create({
         data: {
           accountId: resolved.account.id,
-          firstName: clientName || null,
-          phone: clientPhone || null,
-          email: clientEmail || null,
-        },
-      });
-    }
-
-    const appointment = await tx.appointment.create({
-      data: {
-        accountId: resolved.account.id,
-        locationId,
-        specialistId,
-        clientId: client.id,
-        startAt: startAtUtc,
-        endAt: endAtUtc,
-        status: "NEW",
-        priceTotal,
-        durationTotalMin: durationMin,
-        source: "online",
-   
-        services: {
-          create: [
-            {
-              serviceId: service.id,
-              price: priceTotal,
-              durationMin,
-            },
-          ],
-        },
-      },
-      select: { id: true },
-    });
-
-    await tx.appointmentStatusHistory.create({
-      data: {
-        appointmentId: appointment.id,
-        actorType: "client",
-        actorId: null,
-        fromStatus: null,
-        toStatus: "NEW",
-        comment: comment || null,
-      },
-    });
-
-    if (normalizedLegalVersionIds.length > 0) {
-      const ip =
-        request.headers.get("x-forwarded-for") ??
-        request.headers.get("x-real-ip") ??
-        null;
-      const userAgent = request.headers.get("user-agent") ?? null;
-
-      await tx.legalAcceptance.createMany({
-        data: normalizedLegalVersionIds.map((versionId) => ({
-          accountId: resolved.account.id,
-          documentVersionId: versionId,
-          appointmentId: appointment.id,
+          locationId,
+          specialistId,
           clientId: client.id,
-          source: "public_booking",
-          ip,
-          userAgent,
-        })),
+          startAt: startAtUtc,
+          endAt: endAtUtc,
+          status: "NEW",
+          priceTotal,
+          durationTotalMin: durationMin,
+          source: "online",
+          services: {
+            create: [
+              {
+                serviceId: service.id,
+                price: priceTotal,
+                durationMin,
+              },
+            ],
+          },
+        },
+        select: { id: true },
+      });
+
+      await tx.appointmentStatusHistory.create({
+        data: {
+          appointmentId: appointment.id,
+          actorType: "client",
+          actorId: null,
+          fromStatus: null,
+          toStatus: "NEW",
+          comment: comment || null,
+        },
+      });
+
+      if (normalizedLegalVersionIds.length > 0) {
+        const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? null;
+        const userAgent = request.headers.get("user-agent") ?? null;
+
+        await tx.legalAcceptance.createMany({
+          data: normalizedLegalVersionIds.map((versionId) => ({
+            accountId: resolved.account.id,
+            documentVersionId: versionId,
+            appointmentId: appointment.id,
+            clientId: client.id,
+            source: "public_booking",
+            ip,
+            userAgent,
+          })),
+        });
+      }
+
+      if (holdId) {
+        await tx.appointmentHold.deleteMany({
+          where: { id: holdId, accountId: resolved.account.id },
+        });
+      }
+
+      return { ok: true as const, appointmentId: appointment.id };
+    });
+
+    if (!result.ok) {
+      if (idempotencyRecordId) {
+        await prisma.idempotencyKey.delete({ where: { id: idempotencyRecordId } }).catch(() => {});
+      }
+      return result.error;
+    }
+
+    const responsePayload = { data: { appointmentId: result.appointmentId } };
+
+    if (idempotencyRecordId) {
+      await prisma.idempotencyKey.update({
+        where: { id: idempotencyRecordId },
+        data: {
+          status: "DONE",
+          response: responsePayload,
+        },
       });
     }
 
-    return { ok: true as const, appointmentId: appointment.id };
-  });
-
-  if (!result.ok) {
+    return NextResponse.json(responsePayload);
+  } catch (error) {
     if (idempotencyRecordId) {
-      await prisma.idempotencyKey
-        .delete({ where: { id: idempotencyRecordId } })
-        .catch(() => {});
+      await prisma.idempotencyKey.delete({ where: { id: idempotencyRecordId } }).catch(() => {});
     }
-    return result.error;
+    throw error;
   }
-
-  const responsePayload = { data: { appointmentId: result.appointmentId } };
-
-  if (idempotencyRecordId) {
-    await prisma.idempotencyKey.update({
-      where: { id: idempotencyRecordId },
-      data: {
-        status: "DONE",
-        response: responsePayload,
-      },
-    });
-  }
-
-  return NextResponse.json(responsePayload);
 }

@@ -741,6 +741,7 @@ export default function BookingClient({
     Set<string> | undefined
   >(undefined);
   const [loadingDateFirstAvailability, setLoadingDateFirstAvailability] = useState(false);
+  const [dateFirstAvailabilityError, setDateFirstAvailabilityError] = useState<string | null>(null);
 
   // serviceFirst/specialistFirst: календарь доступности (у тебя уже есть endpoint)
   const [calendar, setCalendar] = useState<AvailabilityCalendar | null>(null);
@@ -818,7 +819,18 @@ export default function BookingClient({
   const idempotencyKeyRef = useRef<string | null>(null);
   useEffect(() => {
     idempotencyKeyRef.current = null;
-  }, [locationId, serviceId, specialistId, dateYmd, timeChoice, clientName, clientPhone, clientEmail, comment]);
+  }, [
+    locationId,
+    serviceId,
+    specialistId,
+    dateYmd,
+    timeChoice,
+    clientName,
+    clientPhone,
+    clientEmail,
+    comment,
+    legalConsents,
+  ]);
 
   const getIdempotencyKey = () => {
     if (!idempotencyKeyRef.current) {
@@ -1364,20 +1376,24 @@ export default function BookingClient({
     if (!isDateFirst) {
       setDateFirstAvailableDates(undefined);
       setLoadingDateFirstAvailability(false);
+      setDateFirstAvailabilityError(null);
       return;
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setDateFirstAvailableDates(undefined);
+      setDateFirstAvailabilityError(null);
       return;
     }
     if (!services.length) {
       setDateFirstAvailableDates(undefined);
+      setDateFirstAvailabilityError(null);
       return;
     }
 
     let mounted = true;
     setDateFirstAvailableDates(new Set());
     setLoadingDateFirstAvailability(true);
+    setDateFirstAvailabilityError(null);
 
     const tasks = services.map((s) => () =>
       fetchJson<AvailabilityCalendar>(
@@ -1403,6 +1419,10 @@ export default function BookingClient({
           }
         }
         setDateFirstAvailableDates(set);
+      } catch (e: any) {
+        if (!mounted) return;
+        setDateFirstAvailableDates(undefined);
+        setDateFirstAvailabilityError(e?.message || "Failed to load available dates.");
       } finally {
         if (!mounted) return;
         setLoadingDateFirstAvailability(false);
@@ -1608,7 +1628,7 @@ export default function BookingClient({
     return addMinutes(timeChoice, serviceDuration);
   }, [timeChoice, serviceDuration]);
 
-  const canNext = useMemo(() => {
+  const canSubmit = useMemo(() => {
     const requiredLegalIds = legalDocs
       .filter((doc) => doc.isRequired)
       .map((doc) => doc.versionId);
@@ -1616,6 +1636,27 @@ export default function BookingClient({
       requiredLegalIds.length === 0 ||
       requiredLegalIds.every((id) => legalConsents[id]);
 
+    return (
+      clientName.trim().length >= 2 &&
+      clientPhone.trim().length >= 8 &&
+      !!locationId &&
+      !!serviceId &&
+      !!specialistId &&
+      !!timeChoice &&
+      legalOk
+    );
+  }, [
+    legalDocs,
+    legalConsents,
+    clientName,
+    clientPhone,
+    locationId,
+    serviceId,
+    specialistId,
+    timeChoice,
+  ]);
+
+  const canNext = useMemo(() => {
     switch (currentStepKey) {
       case "scenario":
         return true;
@@ -1628,24 +1669,13 @@ export default function BookingClient({
       case "specialist":
         return !!specialistId;
       case "details":
-        return (
-          clientName.trim().length >= 2 &&
-          clientPhone.trim().length >= 8 &&
-          !!locationId &&
-          !!serviceId &&
-          !!specialistId &&
-          !!timeChoice &&
-          legalOk
-        );
+        return canSubmit;
       default:
         return true;
     }
   }, [
-    legalDocs,
-    legalConsents,
-    clientName,
-    clientPhone,
     currentStepKey,
+    canSubmit,
     locationId,
     serviceId,
     specialistId,
@@ -1689,13 +1719,35 @@ export default function BookingClient({
   };
 
   const submitAppointment = async () => {
-    if (!locationId || !serviceId || !specialistId || !timeChoice) return;
-    if (isPastYmd(dateYmd, todayYmdTz)) return;
-    if (isPastTimeOnDate(dateYmd, timeChoice, nowTz)) return;
+    if (!canSubmit) {
+      setSubmitError("Fill required fields and accept required agreements.");
+      return;
+    }
+    if (isPastYmd(dateYmd, todayYmdTz) || isPastTimeOnDate(dateYmd, timeChoice!, nowTz)) {
+      setSubmitError("Choose a valid date and time.");
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const hold = await fetchJson<{ holdId: number; expiresAt: string }>(
+        buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" }),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            locationId,
+            specialistId,
+            serviceId,
+            date: dateYmd,
+            time: timeChoice,
+          }),
+        }
+      );
+
       await fetchJson<{ appointmentId: number }>(
         buildUrl("/api/v1/public/booking/appointments", { account: accountSlug ?? "" }),
         {
@@ -1714,6 +1766,7 @@ export default function BookingClient({
             clientPhone: clientPhone.trim(),
             clientEmail: clientEmail.trim() || undefined,
             comment: comment.trim() || undefined,
+            holdId: hold.holdId,
             legalVersionIds: Object.entries(legalConsents)
               .filter(([, checked]) => checked)
               .map(([id]) => Number(id)),
@@ -1909,6 +1962,8 @@ export default function BookingClient({
 
                     {isDateFirst && (
                       <>
+                        {loadingDateFirstAvailability && <div className="text-sm">Loading available dates...</div>}
+                        {dateFirstAvailabilityError && <div className="text-sm text-red-600">{dateFirstAvailabilityError}</div>}
                         {loadingOffers && <div className="text-sm">Загрузка времени...</div>}
                         {offersError && <div className="text-sm text-red-600">{offersError}</div>}
                       </>
@@ -2286,7 +2341,7 @@ export default function BookingClient({
                           <button
                             type="button"
                             onClick={submitAppointment}
-                            disabled={!canNext || submitting}
+                            disabled={!canSubmit || submitting}
                             className="h-11 w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                           >
                             {submitting ? "Сохранение..." : "Записаться"}
@@ -2317,14 +2372,25 @@ export default function BookingClient({
               <SummaryRow label="Время" value={timeChoice || "—"} />
               <SummaryRow label="Стоимость" value={servicePriceLabel} />
 
+              {submitError && (
+                <div className="rounded-3xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {submitError}
+                </div>
+              )}
+              {submitSuccess && (
+                <div className="px-1 text-sm font-medium text-[color:var(--bp-ink)]">
+                  Запись оформлена
+                </div>
+              )}
+
               <div className="mt-4 flex justify-start">
                 <button
                   type="button"
-                  onClick={submitAppointment}
-                  disabled={!canNext || submitting}
+                  onClick={submitSuccess ? resetAll : submitAppointment}
+                  disabled={submitSuccess ? submitting : !canSubmit || submitting}
                   className="w-full max-w-[260px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40 sm:max-w-[280px] lg:max-w-[320px]"
                 >
-                  {submitting ? "Сохранение..." : "Записаться"}
+                  {submitting ? "Сохранение..." : submitSuccess ? "Новая запись" : "Записаться"}
                 </button>
               </div>
             </div>

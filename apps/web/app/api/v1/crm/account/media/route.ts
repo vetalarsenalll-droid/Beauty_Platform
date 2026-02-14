@@ -82,11 +82,12 @@ export async function POST(request: Request) {
         format: "JPEG";
         quality: number;
       }) => Promise<Buffer>;
-      inputBuffer = await convert({
+      const converted = await convert({
         buffer: inputBuffer,
         format: "JPEG",
         quality: 0.9,
       });
+      inputBuffer = Buffer.from(converted);
     } catch {
       return jsonError(
         "VALIDATION_FAILED",

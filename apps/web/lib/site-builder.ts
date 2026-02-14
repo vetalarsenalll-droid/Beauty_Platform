@@ -1,4 +1,4 @@
-export type SiteThemePalette = {
+﻿export type SiteThemePalette = {
   fontHeading: string;
   fontBody: string;
   accentColor: string;
@@ -22,6 +22,11 @@ export type SiteThemePalette = {
   headingSize: number;
   subheadingSize: number;
   textSize: number;
+  clientContentWidth: number;
+  clientAuthWidth: number;
+  clientCardBg: string;
+  clientButtonColor: string;
+  clientButtonTextColor: string;
 };
 
 export type SiteTheme = SiteThemePalette & {
@@ -61,6 +66,7 @@ export type SiteBlock = {
 export type SitePageKey =
   | "home"
   | "booking"
+  | "client"
   | "locations"
   | "services"
   | "specialists"
@@ -306,6 +312,11 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     headingSize: 28,
     subheadingSize: 18,
     textSize: 14,
+    clientContentWidth: 1120,
+    clientAuthWidth: 560,
+    clientCardBg: "#FFFFFF",
+    clientButtonColor: "#111827",
+    clientButtonTextColor: "#FFFFFF",
   };
 
   const darkTheme: SiteThemePalette = {
@@ -322,6 +333,9 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     borderColor: "rgba(255, 255, 255, 0.12)",
     buttonColor: "#F5F7FA",
     buttonTextColor: "#0F1115",
+    clientCardBg: "#1A1D24",
+    clientButtonColor: "#F5F7FA",
+    clientButtonTextColor: "#0F1115",
   };
 
   return {
@@ -345,6 +359,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
           },
         },
       ],
+      client: [],
       locations: detailBlocks("locations", "Локации"),
       services: detailBlocks("services", "Услуги"),
       specialists: detailBlocks("specialists", "Специалисты"),
@@ -411,6 +426,15 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     textSize: Number.isFinite(palette?.textSize)
       ? (palette?.textSize as number)
       : fallback.textSize,
+    clientContentWidth: Number.isFinite(palette?.clientContentWidth)
+      ? (palette?.clientContentWidth as number)
+      : fallback.clientContentWidth,
+    clientAuthWidth: Number.isFinite(palette?.clientAuthWidth)
+      ? (palette?.clientAuthWidth as number)
+      : fallback.clientAuthWidth,
+    clientCardBg: palette?.clientCardBg || fallback.clientCardBg,
+    clientButtonColor: palette?.clientButtonColor || fallback.clientButtonColor,
+    clientButtonTextColor: palette?.clientButtonTextColor || fallback.clientButtonTextColor,
   });
   const normalizeBlocks = (blocks: SiteBlock[]) =>
     blocks
@@ -432,6 +456,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   const pages: SitePages = {
     home: normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home),
     booking: normalizeBlocks(pagesInput.booking ?? fallbackPages.booking),
+    client: normalizeBlocks(pagesInput.client ?? fallbackPages.client),
     locations: normalizeBlocks(pagesInput.locations ?? fallbackPages.locations),
     services: normalizeBlocks(pagesInput.services ?? fallbackPages.services),
     specialists: normalizeBlocks(pagesInput.specialists ?? fallbackPages.specialists),
@@ -489,3 +514,5 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     entityPages,
   };
 };
+
+

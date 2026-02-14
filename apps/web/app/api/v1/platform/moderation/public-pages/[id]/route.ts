@@ -1,3 +1,4 @@
+import { PublicPageStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
@@ -23,12 +24,18 @@ export async function PATCH(
     return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
-  const status = String(body.status ?? "").trim();
-  if (!status) {
+  const statusRaw = String(body.status ?? "").trim();
+  if (!statusRaw) {
     return jsonError("VALIDATION_FAILED", "Status is required", {
       fields: [{ path: "status", issue: "required" }],
     });
   }
+  if (!Object.values(PublicPageStatus).includes(statusRaw as PublicPageStatus)) {
+    return jsonError("VALIDATION_FAILED", "Invalid status", {
+      fields: [{ path: "status", issue: "invalid" }],
+    });
+  }
+  const status = statusRaw as PublicPageStatus;
 
   try {
     const updated = await prisma.publicPage.update({

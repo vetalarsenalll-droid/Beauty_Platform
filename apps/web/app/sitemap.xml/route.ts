@@ -26,14 +26,14 @@ export async function GET(request: Request) {
     return { loc, lastmod };
   });
 
-  const body = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n${urls
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
     .map(
       (item) =>
         `  <url>\n    <loc>${item.loc}</loc>\n    <lastmod>${item.lastmod}</lastmod>\n  </url>`
     )
-    .join(\"\\n\")}\n</urlset>\n`;
+    .join("\n")}\n</urlset>\n`;
 
   return new NextResponse(body, {
-    headers: { \"Content-Type\": \"application/xml; charset=utf-8\" },
+    headers: { "Content-Type": "application/xml; charset=utf-8" },
   });
 }

@@ -482,6 +482,29 @@ paths:
         '400':
           $ref: '#/components/responses/ErrorResponse'
 
+  /public/booking/holds:
+    post:
+      tags: [public-booking]
+      summary: Create temporary hold for a booking slot
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/PublicAccount'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicBookingHoldCreateRequest'
+      responses:
+        '200':
+          description: Hold created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicBookingHoldCreateResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+
   /client/me:
     get:
       tags: [client]
@@ -2710,6 +2733,9 @@ components:
           type: array
           items:
             type: integer
+        holdId:
+          type: integer
+          description: Optional hold id obtained from /public/booking/holds
 
     PublicBookingAppointmentCreateResponse:
       type: object
@@ -2721,6 +2747,41 @@ components:
           properties:
             appointmentId:
               type: integer
+
+    PublicBookingHoldCreateRequest:
+      type: object
+      required: [locationId, specialistId, serviceId, date, time]
+      properties:
+        locationId:
+          type: integer
+        specialistId:
+          type: integer
+        serviceId:
+          type: integer
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          example: "13:30"
+
+    PublicBookingHoldCreateResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [holdId, expiresAt]
+          properties:
+            holdId:
+              type: integer
+            expiresAt:
+              type: string
+              format: date-time
+            durationMin:
+              type: integer
+            priceTotal:
+              type: number
 
     PublicAccount:
       type: object

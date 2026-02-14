@@ -191,7 +191,10 @@ export default async function AuditDetailPage({ params }: PageProps) {
                 </div>
                 <div className="text-[color:var(--bp-muted)]">
                   {key === "planId"
-                    ? planMap.get(Number(value)) ?? (value ?? "Без тарифа")
+                    ? planMap.get(Number(value)) ??
+                      (typeof value === "number" || typeof value === "string"
+                        ? String(value)
+                        : "Без тарифа")
                     : key === "key" && typeof value === "string"
                       ? limitLabels[value] ?? value
                       : key === "status" && typeof value === "string"

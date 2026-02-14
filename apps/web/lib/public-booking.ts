@@ -28,7 +28,7 @@ export async function resolvePublicAccount(request: Request): Promise<ResolveRes
   let account =
     accountSlug.length > 0
       ? await prisma.account.findFirst({
-          where: { slug: accountSlug },
+          where: { slug: accountSlug, status: "ACTIVE" },
           select: { id: true, name: true, slug: true, timeZone: true },
         })
       : null;
@@ -39,7 +39,7 @@ export async function resolvePublicAccount(request: Request): Promise<ResolveRes
       include: { account: true },
     });
 
-    if (domain?.account) {
+    if (domain?.account?.status === "ACTIVE") {
       account = {
         id: domain.account.id,
         name: domain.account.name,

@@ -8,7 +8,7 @@ type SeoSettings = {
   ogImageUrl: string;
   robots: string;
   sitemapEnabled: boolean;
-  schemaJson: object | null;
+  schemaJson: unknown | null;
 };
 
 type SeoClientProps = {

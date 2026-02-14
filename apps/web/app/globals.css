@@ -36,31 +36,34 @@
   --bp-chip: var(--sidebar-item);
   --bp-chip-text: var(--text);
   --bp-success: #1f8a6f;
-  --font-sans: var(--font-manrope);
+  --font-sans: var(--font-manrope, "Manrope");
 }
 
 .booking-root {
   font-family: var(--bp-font-body, inherit);
   --booking-bg: var(--booking-bg-light, var(--site-panel));
+  --booking-sub-bg: var(--booking-sub-bg-light, var(--booking-bg));
   --booking-border: var(--booking-border-light, var(--site-border));
   --booking-text: var(--booking-text-light, var(--site-text));
   --booking-muted: var(--booking-muted-light, var(--site-muted));
   --booking-button: var(--booking-button-light, var(--site-button));
   --booking-button-text: var(--booking-button-text-light, var(--site-button-text));
+  --booking-gradient: var(--booking-gradient-light, none);
   --bp-surface: var(--site-surface);
-  --bp-paper: var(--booking-bg);
-  --bp-panel: var(--booking-bg);
-  --bp-panel-strong: var(--booking-bg);
+  --bp-paper: var(--booking-sub-bg);
+  --bp-panel: var(--booking-sub-bg);
+  --bp-panel-strong: var(--booking-sub-bg);
   --bp-accent: var(--booking-button);
   --bp-accent-strong: var(--booking-button);
   --bp-stroke: var(--booking-border);
   --bp-ink: var(--booking-text);
   --bp-muted: var(--booking-muted);
   --bp-button-text: var(--booking-button-text);
-  --input-bg: var(--booking-bg);
+  --input-bg: var(--booking-sub-bg);
 }
 
 .booking-root .booking-panel {
+  background-color: var(--booking-bg);
   background-image: var(--booking-gradient, none);
   background-size: cover;
   background-repeat: no-repeat;
@@ -196,11 +199,13 @@
 
 [data-site-theme="dark"] .booking-root {
   --booking-bg: var(--booking-bg-dark, var(--site-panel));
+  --booking-sub-bg: var(--booking-sub-bg-dark, var(--booking-bg));
   --booking-border: var(--booking-border-dark, var(--site-border));
   --booking-text: var(--booking-text-dark, var(--site-text));
   --booking-muted: var(--booking-muted-dark, var(--site-muted));
   --booking-button: var(--booking-button-dark, var(--site-button));
   --booking-button-text: var(--booking-button-text-dark, var(--site-button-text));
+  --booking-gradient: var(--booking-gradient-dark, none);
 }
 
 .dark {
@@ -249,8 +254,8 @@
 @theme inline {
   --color-background: var(--bp-surface);
   --color-foreground: var(--bp-ink);
-  --font-sans: var(--font-manrope);
-  --font-mono: var(--font-manrope);
+  --font-sans: var(--font-manrope, "Manrope");
+  --font-mono: var(--font-manrope, "Manrope");
 }
 
 body {

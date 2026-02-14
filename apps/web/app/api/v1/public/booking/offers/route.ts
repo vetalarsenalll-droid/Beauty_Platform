@@ -104,13 +104,13 @@ export async function GET(request: Request) {
   for (const s of services) serviceById.set(s.id, s);
 
   // график + записи + блокировки
-  const [scheduleEntries, appointments, blockedSlots] = await Promise.all([
+  const [scheduleEntries, appointments, blockedSlots, holds] = await Promise.all([
     prisma.scheduleEntry.findMany({
       where: {
         accountId: resolved.account.id,
         specialistId: { in: specialistIds },
         date: { gte: dayStartUtc, lt: dayEndUtc },
-        OR: [{ locationId }, { locationId: null }],
+        locationId,
       },
       include: { breaks: true },
     }),
@@ -133,15 +133,21 @@ export async function GET(request: Request) {
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
+    prisma.appointmentHold.findMany({
+      where: {
+        accountId: resolved.account.id,
+        specialistId: { in: specialistIds },
+        expiresAt: { gt: new Date() },
+        startAt: { lt: dayEndUtc },
+        endAt: { gt: dayStartUtc },
+      },
+      select: { specialistId: true, startAt: true, endAt: true },
+    }),
   ]);
 
   // график locationId > null
   const scheduleBySpecialist = new Map<number, (typeof scheduleEntries)[number]>();
-  for (const e of scheduleEntries) {
-    const ex = scheduleBySpecialist.get(e.specialistId);
-    if (!ex) scheduleBySpecialist.set(e.specialistId, e);
-    else if (ex.locationId == null && e.locationId === locationId) scheduleBySpecialist.set(e.specialistId, e);
-  }
+  for (const e of scheduleEntries) scheduleBySpecialist.set(e.specialistId, e);
 
   const apptBySp = new Map<number, Window[]>();
   for (const a of appointments) {
@@ -173,13 +179,23 @@ export async function GET(request: Request) {
     }
   }
 
+  const holdsBySp = new Map<number, Window[]>();
+  for (const item of holds) {
+    const list = holdsBySp.get(item.specialistId) ?? [];
+    list.push({
+      start: toZonedLocalMinutes(item.startAt, tz),
+      end: toZonedLocalMinutes(item.endAt, tz),
+    });
+    holdsBySp.set(item.specialistId, list);
+  }
+
   // ВЫХОД: time -> serviceId -> specialistIds
   const offers = new Map<number, Map<number, Set<number>>>();
 
   for (const sp of specialists) {
     const entry = scheduleBySpecialist.get(sp.id);
     if (!entry || entry.type !== "WORKING") continue;
-    if (entry.locationId != null && entry.locationId !== locationId) continue;
+    if (entry.locationId !== locationId) continue;
 
     const entryStart = toMinutes(entry.startTime ?? "");
     const entryEnd = toMinutes(entry.endTime ?? "");
@@ -211,9 +227,10 @@ export async function GET(request: Request) {
 
     const appts = apptBySp.get(sp.id) ?? [];
     const blks = blkBySp.get(sp.id) ?? [];
+    const holdsWindows = holdsBySp.get(sp.id) ?? [];
 
     const blocked = mergeWindows(
-      [...breaks, ...appts, ...blks]
+      [...breaks, ...appts, ...blks, ...holdsWindows]
         .map((w) => ({
           start: Math.max(entryStart, w.start),
           end: Math.min(entryEnd, w.end),

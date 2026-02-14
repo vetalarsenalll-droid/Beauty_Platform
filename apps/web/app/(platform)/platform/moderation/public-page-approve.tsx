@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 type PublicPageApproveProps = {
-  pageId: string;
+  pageId: number | string;
 };
 
 export default function PublicPageApprove({ pageId }: PublicPageApproveProps) {

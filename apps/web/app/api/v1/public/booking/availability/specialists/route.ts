@@ -1,28 +1,52 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { resolvePublicAccount, parseUtcDate } from "@/lib/public-booking";
+import {
+  getNowInTimeZone,
+  resolvePublicAccount,
+  zonedDayRangeUtc,
+} from "@/lib/public-booking";
+
+function addDaysYmd(ymd: string, days: number) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const base = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0, 0));
+  base.setUTCDate(base.getUTCDate() + days);
+  const ny = base.getUTCFullYear();
+  const nmo = String(base.getUTCMonth() + 1).padStart(2, "0");
+  const nd = String(base.getUTCDate()).padStart(2, "0");
+  return `${ny}-${nmo}-${nd}`;
+}
 
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
+  const tz = resolved.account.timeZone;
+  const nowTz = getNowInTimeZone(tz);
+
   const { searchParams } = new URL(request.url);
 
   const locationId = Number(searchParams.get("locationId"));
-  const start = String(searchParams.get("start") ?? "").trim(); // YYYY-MM-DD
+  const startRaw = String(searchParams.get("start") ?? "").trim();
   const days = Math.min(60, Math.max(1, Number(searchParams.get("days") ?? "30")));
 
-  if (!Number.isInteger(locationId) || locationId <= 0 || !start) {
+  if (!Number.isInteger(locationId) || locationId <= 0 || !startRaw) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
 
-  const dayStart = parseUtcDate(start);
-  if (!dayStart) return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
+  const safeStart = startRaw < nowTz.ymd ? nowTz.ymd : startRaw;
+  const endYmd = addDaysYmd(safeStart, days);
+  if (!endYmd) return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
 
-  const dayEnd = new Date(dayStart);
-  dayEnd.setUTCDate(dayEnd.getUTCDate() + days);
+  const startRange = zonedDayRangeUtc(safeStart, tz);
+  const endRange = zonedDayRangeUtc(endYmd, tz);
+  if (!startRange || !endRange) {
+    return jsonError("INVALID_DATE", "Некорректный диапазон дат.", null, 400);
+  }
 
-  // Проверяем локацию
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
     select: { id: true },
@@ -31,7 +55,6 @@ export async function GET(request: Request) {
     return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
   }
 
-  // Специалисты локации
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: resolved.account.id,
@@ -44,15 +67,13 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
-  // ВАЖНО: только график этой локации (без locationId:null),
-  // чтобы совпадало с твоим экраном "График работы" по выбранной локации.
   const entries = await prisma.scheduleEntry.findMany({
     where: {
       accountId: resolved.account.id,
       locationId,
       specialistId: { in: specialistIds },
       type: "WORKING",
-      date: { gte: dayStart, lt: dayEnd },
+      date: { gte: startRange.dayStartUtc, lt: endRange.dayStartUtc },
     },
     select: { specialistId: true },
   });

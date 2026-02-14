@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { buildBookingLink } from "@/lib/booking-links";
 import BookingClient from "@/app/booking/booking-client";
 import MenuSearch from "@/components/menu-search";
@@ -22,6 +22,7 @@ export type CurrentEntity =
 const PAGE_LABELS = {
   home: "Главная",
   booking: "Онлайн-запись",
+  client: "\u041b\u0438\u0447\u043d\u044b\u0439 \u043a\u0430\u0431\u0438\u043d\u0435\u0442",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -71,6 +72,9 @@ type BlockStyle = {
   useCustomWidth?: boolean;
   radius?: number | null;
   buttonRadius?: number | null;
+  subBlockBg?: string;
+  subBlockBgLight?: string;
+  subBlockBgDark?: string;
   blockBg?: string;
   blockBgLight?: string;
   blockBgDark?: string;
@@ -101,6 +105,8 @@ type BlockStyle = {
   headingSize?: number | null;
   subheadingSize?: number | null;
   textSize?: number | null;
+  subBlockBgLightResolved?: string;
+  subBlockBgDarkResolved?: string;
   blockBgLightResolved?: string;
   blockBgDarkResolved?: string;
   borderColorLightResolved?: string;
@@ -152,6 +158,13 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
       darkRaw.toLowerCase() === "transparent" ? "transparent" : darkRaw || darkFallback;
     return { lightResolved, darkResolved };
   };
+  const subBlockBgPair = resolvePair(
+    "subBlockBgLight",
+    "subBlockBgDark",
+    "subBlockBg",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
   const useCustomWidth = style.useCustomWidth === true;
   const blockBgPair = resolvePair(
     "blockBgLight",
@@ -202,7 +215,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const gradientEnabledDark =
     typeof style.gradientEnabledDark === "boolean"
       ? (style.gradientEnabledDark as boolean)
-      : false;
+      : Boolean(style.gradientEnabled);
   const gradientDirectionLight =
     style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
       ? (style.gradientDirectionLight as "horizontal" | "vertical")
@@ -212,7 +225,9 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const gradientDirectionDark =
     style.gradientDirectionDark === "horizontal" || style.gradientDirectionDark === "vertical"
       ? (style.gradientDirectionDark as "horizontal" | "vertical")
-      : "vertical";
+      : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? (style.gradientDirection as "horizontal" | "vertical")
+        : "vertical";
   const gradientFromLightResolved =
     (style.gradientFromLight as string) ||
     (style.gradientFrom as string) ||
@@ -237,6 +252,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     useCustomWidth,
     radius: numOrNull(style.radius as number),
     buttonRadius: numOrNull(style.buttonRadius as number),
+    subBlockBg: resolveColor("subBlockBgLight", "subBlockBgDark", "subBlockBg"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
     borderColor: resolveColor("borderColorLight", "borderColorDark", "borderColor"),
     buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
@@ -247,6 +263,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     ),
     textColor: resolveColor("textColorLight", "textColorDark", "textColor"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    subBlockBgLightResolved: subBlockBgPair.lightResolved,
+    subBlockBgDarkResolved: subBlockBgPair.darkResolved,
     blockBgLightResolved: blockBgPair.lightResolved,
     blockBgDarkResolved: blockBgPair.darkResolved,
     borderColorLightResolved: borderPair.lightResolved,
@@ -365,9 +383,18 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const headingSize =
     style.headingSize ?? palette.headingSize ?? theme.headingSize ?? subheadingSize + 2;
   const sizeXs = Math.max(10, textSize - 2);
-  const bookingGradient = style.gradientEnabled
-    ? `linear-gradient(${style.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFrom}, ${style.gradientTo})`
-    : "none";
+  const subBlockLight =
+    style.subBlockBgLightResolved || style.blockBgLightResolved || "var(--site-panel)";
+  const subBlockDark =
+    style.subBlockBgDarkResolved || style.blockBgDarkResolved || "var(--site-panel)";
+  const subBlockCurrent =
+    theme.mode === "dark" ? subBlockDark : subBlockLight;
+    const bookingGradientLight = style.gradientEnabledLight
+      ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
+      : "none";
+    const bookingGradientDark = style.gradientEnabledDark
+      ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
+      : "none";
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
     "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
@@ -383,8 +410,12 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
       style.buttonTextColorLightResolved || "var(--site-button-text)",
     "--booking-button-text-dark":
       style.buttonTextColorDarkResolved || "var(--site-button-text)",
+    "--booking-sub-bg-light": subBlockLight,
+    "--booking-sub-bg-dark": subBlockDark,
+    "--booking-sub-bg": subBlockCurrent,
     "--bp-button-text": "var(--booking-button-text)",
-    "--booking-gradient": bookingGradient,
+    "--booking-gradient-light": bookingGradientLight,
+    "--booking-gradient-dark": bookingGradientDark,
     "--bp-shadow-soft": shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
     "--bp-radius": `${radius}px`,
     "--bp-button-radius": `${buttonRadius}px`,
@@ -646,7 +677,11 @@ function renderMenu(
         ? basePath
         : key === "booking"
           ? `${basePath}/booking`
-          : `${basePath}/${key === "promos" ? "promos" : key}`;
+          : key === "client"
+            ? accountSlug
+              ? `/c?account=${accountSlug}`
+              : "/c"
+            : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
       <Link
         key={key}
@@ -807,7 +842,15 @@ function renderMenu(
     <div className="flex flex-wrap items-center gap-2">
       {menuItems.map((key) => {
         const href =
-          key === "home" ? basePath : `${basePath}/${key === "promos" ? "promos" : key}`;
+          key === "home"
+            ? basePath
+            : key === "booking"
+              ? `${basePath}/booking`
+              : key === "client"
+                ? accountSlug
+                  ? `/c?account=${accountSlug}`
+                  : "/c"
+                : `${basePath}/${key === "promos" ? "promos" : key}`;
         return (
           <Link
             key={key}
@@ -1446,6 +1489,8 @@ function renderContacts(
     </div>
   );
 }
+
+
 
 
 

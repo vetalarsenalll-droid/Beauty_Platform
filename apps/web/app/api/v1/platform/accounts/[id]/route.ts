@@ -1,3 +1,4 @@
+import { AccountStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
@@ -29,6 +30,10 @@ function mapAccount(account: DbAccount) {
     createdAt: account.createdAt.toISOString(),
     updatedAt: account.updatedAt.toISOString(),
   };
+}
+
+function isAccountStatus(value: string): value is AccountStatus {
+  return value === "ACTIVE" || value === "SUSPENDED" || value === "ARCHIVED";
 }
 
 export async function GET(
@@ -78,21 +83,23 @@ export async function PATCH(
     return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
-  const data: {
-    name?: string;
-    slug?: string;
-    status?: string;
-    timeZone?: string;
-    planId?: number | null;
-  } = {};
+  const data: Prisma.AccountUpdateInput = {};
 
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.slug !== undefined) data.slug = String(body.slug).trim();
-  if (body.status !== undefined) data.status = String(body.status).trim();
+  if (body.status !== undefined) {
+    const parsedStatus = String(body.status).trim();
+    if (!isAccountStatus(parsedStatus)) {
+      return jsonError("VALIDATION_FAILED", "Некорректный статус", {
+        fields: [{ path: "status", issue: "invalid" }],
+      });
+    }
+    data.status = parsedStatus;
+  }
   if (body.timeZone !== undefined) data.timeZone = String(body.timeZone).trim();
   if (body.planId !== undefined) {
     if (body.planId === null || body.planId === "") {
-      data.planId = null;
+      data.plan = { disconnect: true };
     } else {
       const parsedPlanId = Number(body.planId);
       if (!Number.isInteger(parsedPlanId)) {
@@ -100,7 +107,7 @@ export async function PATCH(
           fields: [{ path: "planId", issue: "invalid" }],
         });
       }
-      data.planId = parsedPlanId;
+      data.plan = { connect: { id: parsedPlanId } };
     }
   }
 

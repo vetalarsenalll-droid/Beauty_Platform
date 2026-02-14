@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
+import { UserStatus } from "@prisma/client";
 
 type DbManager = {
   userId: number;
@@ -27,6 +28,10 @@ function mapManager(item: DbManager) {
     role: item.role.name,
     createdAt: item.createdAt.toISOString(),
   };
+}
+
+function isUserStatus(value: string): value is UserStatus {
+  return value === "ACTIVE" || value === "INVITED" || value === "DISABLED";
 }
 
 export async function GET() {
@@ -60,8 +65,19 @@ export async function POST(request: Request) {
   const email = String(body.email ?? "").trim();
   const phoneInput =
     body.phone !== undefined ? String(body.phone).trim() : undefined;
-  const statusInput =
-    body.status !== undefined ? String(body.status).trim() : undefined;
+  let statusInput: UserStatus | undefined;
+  if (body.status !== undefined) {
+    const parsedStatus = String(body.status).trim();
+    if (!isUserStatus(parsedStatus)) {
+      return jsonError(
+        "VALIDATION_FAILED",
+        "Некорректный статус.",
+        { fields: [{ path: "status", issue: "invalid" }] },
+        400
+      );
+    }
+    statusInput = parsedStatus;
+  }
 
   if (!firstName || !email) {
     return jsonError(
@@ -73,18 +89,6 @@ export async function POST(request: Request) {
           { path: "email", issue: email ? null : "required" },
         ],
       },
-      400
-    );
-  }
-
-  if (
-    statusInput !== undefined &&
-    !["ACTIVE", "INVITED", "DISABLED"].includes(statusInput)
-  ) {
-    return jsonError(
-      "VALIDATION_FAILED",
-      "Некорректный статус.",
-      { fields: [{ path: "status", issue: "invalid" }] },
       400
     );
   }

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
@@ -74,7 +75,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const limit = await prisma.platformLimit.upsert({
     where: { accountId_key: { accountId: parsed.accountId, key } },
-    update: { valueInt, valueJson: null },
+    update: { valueInt, valueJson: Prisma.JsonNull },
     create: { accountId: parsed.accountId, key, valueInt },
   });
 

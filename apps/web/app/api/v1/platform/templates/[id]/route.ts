@@ -1,3 +1,4 @@
+import { Prisma, TemplateType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
@@ -25,6 +26,10 @@ function mapTemplate(template: DbTemplate) {
     createdAt: template.createdAt.toISOString(),
     updatedAt: template.updatedAt.toISOString(),
   };
+}
+
+function isTemplateType(value: string): value is TemplateType {
+  return Object.values(TemplateType).includes(value as TemplateType);
 }
 
 export async function GET(
@@ -73,19 +78,26 @@ export async function PATCH(
     return jsonError("INVALID_BODY", "Некорректное тело запроса", null, 400);
   }
 
-  const data: {
-    type?: string;
-    name?: string;
-    description?: string | null;
-    contentJson?: unknown;
-    isActive?: boolean;
-  } = {};
+  const data: Prisma.TemplateLibraryUpdateInput = {};
 
-  if (body.type !== undefined) data.type = String(body.type).trim();
+  if (body.type !== undefined) {
+    const parsedType = String(body.type).trim();
+    if (!isTemplateType(parsedType)) {
+      return jsonError("VALIDATION_FAILED", "Invalid template type", {
+        fields: [{ path: "type", issue: "invalid" }],
+      });
+    }
+    data.type = parsedType;
+  }
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.description !== undefined)
     data.description = body.description ? String(body.description).trim() : null;
-  if (body.contentJson !== undefined) data.contentJson = body.contentJson;
+  if (body.contentJson !== undefined) {
+    data.contentJson =
+      body.contentJson === null
+        ? Prisma.JsonNull
+        : (body.contentJson as Prisma.InputJsonValue);
+  }
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
 
   try {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
+import { NextRequest } from "next/server";
 
 function parseId(param: string) {
   const id = Number(param);
@@ -8,13 +9,14 @@ function parseId(param: string) {
 }
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireCrmApiPermission("crm.schedule.update");
   if ("response" in auth) return auth.response;
 
-  const id = parseId(params.id);
+  const resolvedParams = await params;
+  const id = parseId(resolvedParams.id);
   if (!id) {
     return jsonError("INVALID_ID", "Invalid non-working type id.", null, 400);
   }
@@ -47,13 +49,14 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireCrmApiPermission("crm.schedule.delete");
   if ("response" in auth) return auth.response;
 
-  const id = parseId(params.id);
+  const resolvedParams = await params;
+  const id = parseId(resolvedParams.id);
   if (!id) {
     return jsonError("INVALID_ID", "Invalid non-working type id.", null, 400);
   }

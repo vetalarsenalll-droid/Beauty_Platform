@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type AuditInput = {
@@ -20,7 +21,10 @@ export async function logPlatformAudit(entry: AuditInput) {
           ? null
           : String(entry.targetId),
       ipAddress: entry.ipAddress ?? null,
-      diffJson: entry.diffJson ?? null,
+      diffJson:
+        entry.diffJson === undefined || entry.diffJson === null
+          ? Prisma.JsonNull
+          : (entry.diffJson as Prisma.InputJsonValue),
     },
   });
 }

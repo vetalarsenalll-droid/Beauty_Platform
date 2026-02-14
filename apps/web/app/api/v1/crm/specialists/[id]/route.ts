@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
@@ -41,6 +42,10 @@ function mapSpecialist(item: DbSpecialist) {
 function hashPassword(password: string, saltHex: string) {
   const salt = Buffer.from(saltHex, "hex");
   return crypto.scryptSync(password, salt, 32).toString("hex");
+}
+
+function isUserStatus(value: string): value is UserStatus {
+  return value === "ACTIVE" || value === "INVITED" || value === "DISABLED";
 }
 
 export async function GET(
@@ -105,8 +110,19 @@ export async function PATCH(
   const phone =
     body.phone !== undefined ? String(body.phone).trim() : undefined;
   const bio = body.bio !== undefined ? String(body.bio).trim() : undefined;
-  const status =
-    body.status !== undefined ? String(body.status).trim() : undefined;
+  let status: UserStatus | undefined;
+  if (body.status !== undefined) {
+    const parsedStatus = String(body.status).trim();
+    if (!isUserStatus(parsedStatus)) {
+      return jsonError(
+        "VALIDATION_FAILED",
+        "Некорректный статус.",
+        { fields: [{ path: "status", issue: "invalid" }] },
+        400
+      );
+    }
+    status = parsedStatus;
+  }
   const password =
     body.password !== undefined ? String(body.password) : undefined;
   const levelIdRaw =
@@ -145,15 +161,6 @@ export async function PATCH(
       "VALIDATION_FAILED",
       "Email обязателен.",
       { fields: [{ path: "email", issue: "required" }] },
-      400
-    );
-  }
-
-  if (status !== undefined && !["ACTIVE", "INVITED", "DISABLED"].includes(status)) {
-    return jsonError(
-      "VALIDATION_FAILED",
-      "Некорректный статус.",
-      { fields: [{ path: "status", issue: "invalid" }] },
       400
     );
   }

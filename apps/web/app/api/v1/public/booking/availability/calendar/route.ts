@@ -149,7 +149,7 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
-  const [scheduleEntries, appointments, blockedSlots] = await Promise.all([
+  const [scheduleEntries, appointments, blockedSlots, holds] = await Promise.all([
     // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
     prisma.scheduleEntry.findMany({
       where: {
@@ -179,6 +179,16 @@ export async function GET(request: Request) {
         startAt: { lt: rangeEndUtc },
         endAt: { gt: rangeStartUtc },
         OR: [{ locationId }, { specialistId: { in: specialistIds } }],
+      },
+      select: { specialistId: true, startAt: true, endAt: true },
+    }),
+    prisma.appointmentHold.findMany({
+      where: {
+        accountId: resolved.account.id,
+        specialistId: { in: specialistIds },
+        expiresAt: { gt: new Date() },
+        startAt: { lt: rangeEndUtc },
+        endAt: { gt: rangeStartUtc },
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
@@ -237,6 +247,29 @@ export async function GET(request: Request) {
           blockedBySpDay.set(key, list);
         }
       }
+    }
+  }
+
+  for (const hold of holds) {
+    for (let i = 0; i < days; i++) {
+      const ymd = addDaysYmd(safeStart, i);
+      if (!ymd) continue;
+      if (ymd < nowTz.ymd) continue;
+
+      const dayRange = zonedDayRangeUtc(ymd, tz);
+      if (!dayRange) continue;
+
+      const start = Math.max(hold.startAt.getTime(), dayRange.dayStartUtc.getTime());
+      const end = Math.min(hold.endAt.getTime(), dayRange.dayEndUtc.getTime());
+      if (end <= start) continue;
+
+      const key = `${hold.specialistId}:${ymd}`;
+      const list = blockedBySpDay.get(key) ?? [];
+      list.push({
+        start: toZonedLocalMinutes(new Date(start), tz),
+        end: toZonedLocalMinutes(new Date(end), tz),
+      });
+      blockedBySpDay.set(key, list);
     }
   }
 
