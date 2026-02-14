@@ -480,12 +480,17 @@ function DatePickerLike({
           onChange(ymd);
         }}
         className={cn(
-          "relative h-9 rounded-full text-[14px] font-medium transition",
-          "focus:outline-none focus:ring-2 focus:ring-black/30",
+          "relative h-9 rounded-full text-[14px] font-medium transition shadow-none",
+          !selected && "booking-soft-accent-hover",
+          "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 hover:shadow-none",
           selected
-            ? "border-2 border-[color:var(--bp-accent)] bg-transparent text-[color:var(--bp-ink)]"
-            : "border border-transparent bg-transparent hover:bg-black/5",
-          inMonth ? "text-[color:var(--bp-ink)]" : "text-[color:var(--bp-muted)] opacity-60",
+            ? "border border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] hover:translate-y-0"
+            : "border border-transparent bg-transparent",
+          selected
+            ? "text-[color:var(--bp-button-text)]"
+            : inMonth
+              ? "text-[color:var(--bp-ink)]"
+              : "text-[color:var(--bp-muted)] opacity-60",
           disabled && "opacity-30 hover:bg-transparent"
         )}
       >
@@ -495,17 +500,17 @@ function DatePickerLike({
   };
 
   return (
-    <div className="w-full max-w-[520px] rounded-[18px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+    <div className="w-full rounded-[18px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
       {/* Header row */}
       <div className="flex items-center justify-between px-4 pt-4">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            "inline-flex items-center gap-2 rounded-[12px]",
-            "border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2",
-            "transition hover:-translate-y-[1px]",
-            "focus:outline-none focus:ring-2 focus:ring-black/30"
+            "booking-soft-accent-hover inline-flex items-center gap-2 rounded-[12px]",
+            "border border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] px-3 py-2",
+            "shadow-none transition hover:-translate-y-[1px] hover:shadow-none",
+            "focus:outline-none focus:ring-0 focus-visible:ring-0"
           )}
           aria-expanded={expanded}
         >
@@ -518,26 +523,26 @@ function DatePickerLike({
             type="button"
             onClick={goPrev}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-full",
-              "bg-transparent transition hover:bg-black/5",
-              "focus:outline-none focus:ring-2 focus:ring-black/30"
+              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--bp-accent)] shadow-none",
+              "bg-transparent transition hover:shadow-none",
+              "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             )}
             aria-label={expanded ? "Предыдущий месяц" : "Предыдущая неделя"}
           >
-            <span className="text-[16px] leading-none text-[color:var(--bp-muted)]">‹</span>
+            <span className="text-[16px] leading-none text-[color:var(--bp-accent)]">‹</span>
           </button>
 
           <button
             type="button"
             onClick={goNext}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-full",
-              "bg-transparent transition hover:bg-black/5",
-              "focus:outline-none focus:ring-2 focus:ring-black/30"
+              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--bp-accent)] shadow-none",
+              "bg-transparent transition hover:shadow-none",
+              "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             )}
             aria-label={expanded ? "Следующий месяц" : "Следующая неделя"}
           >
-            <span className="text-[16px] leading-none text-[color:var(--bp-muted)]">›</span>
+            <span className="text-[16px] leading-none text-[color:var(--bp-accent)]">›</span>
           </button>
         </div>
       </div>
@@ -600,8 +605,9 @@ function TimeBucketPicker({
             onClick={() => onChange(option.key)}
             className={cn(
               "rounded-2xl border px-3 py-2 text-xs font-medium transition hover:-translate-y-[1px] hover:shadow-sm",
+              !active && "booking-soft-accent-hover",
               active
-                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] hover:translate-y-0 hover:shadow-none"
                 : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
             )}
           >
@@ -656,9 +662,10 @@ function TimeGrid({
               onClick={() => onSelect(t)}
               className={cn(
                 "h-10 rounded-2xl border text-sm font-medium transition",
+                !active && "booking-soft-accent-hover",
                 "hover:-translate-y-[1px] hover:shadow-sm",
                 active
-                  ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                  ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] hover:translate-y-0 hover:shadow-none"
                   : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
               )}
             >
@@ -1854,9 +1861,6 @@ export default function BookingClient({
           <SoftPanel className="p-4 sm:p-6 lg:col-start-1 lg:row-start-2">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm text-[color:var(--bp-muted)]">
-                  Шаг {stepIndex + 1} из {stepsWithScenario.length}
-                </div>
                 <div className="text-lg font-semibold">
                   {stepsWithScenario[stepIndex]?.title}
                 </div>
@@ -2359,9 +2363,6 @@ export default function BookingClient({
           <SoftPanel className="p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold">Сводка</div>
-              <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 py-1 text-xs text-[color:var(--bp-muted)]">
-                Live
-              </div>
             </div>
 
             <div className="mt-4 space-y-3">

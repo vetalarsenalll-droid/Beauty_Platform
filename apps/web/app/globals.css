@@ -94,6 +94,16 @@
   border-color: var(--booking-border);
 }
 
+.booking-soft-accent-hover {
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.booking-soft-accent-hover:hover {
+  background-color: var(--bp-accent) !important;
+  background-color: color-mix(in srgb, var(--bp-accent) 14%, var(--bp-paper)) !important;
+  border-color: var(--bp-accent) !important;
+}
+
 .site-block .booking-root {
   --bp-surface: transparent;
 }
