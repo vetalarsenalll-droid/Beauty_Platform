@@ -2443,6 +2443,9 @@ type BlockStyle = {
   blockBgLight: string;
   blockBgDark: string;
   blockBg: string;
+  subBlockBgLight: string;
+  subBlockBgDark: string;
+  subBlockBg: string;
   borderColorLight: string;
   borderColorDark: string;
   borderColor: string;
@@ -2461,9 +2464,17 @@ type BlockStyle = {
   shadowColor: string;
   shadowSize: number | null;
   gradientEnabled: boolean;
+  gradientEnabledLight: boolean;
+  gradientEnabledDark: boolean;
   gradientDirection: "vertical" | "horizontal";
+  gradientDirectionLight: "vertical" | "horizontal";
+  gradientDirectionDark: "vertical" | "horizontal";
   gradientFrom: string;
   gradientTo: string;
+  gradientFromLightResolved: string;
+  gradientToLightResolved: string;
+  gradientFromDarkResolved: string;
+  gradientToDarkResolved: string;
   textAlign: "left" | "center" | "right";
   fontHeading: string;
   fontBody: string;
@@ -2472,6 +2483,8 @@ type BlockStyle = {
   textSize: number | null;
   blockBgLightResolved: string;
   blockBgDarkResolved: string;
+  subBlockBgLightResolved: string;
+  subBlockBgDarkResolved: string;
   borderColorLightResolved: string;
   borderColorDarkResolved: string;
   buttonColorLightResolved: string;
@@ -2520,6 +2533,13 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.panelColor,
     theme.darkPalette.panelColor
   );
+  const subBlockBgPair = resolvePair(
+    "subBlockBgLight",
+    "subBlockBgDark",
+    "subBlockBg",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
   const borderPair = resolvePair(
     "borderColorLight",
     "borderColorDark",
@@ -2555,6 +2575,38 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.mutedColor,
     theme.darkPalette.mutedColor
   );
+  const gradientEnabledLight =
+    typeof style.gradientEnabledLight === "boolean"
+      ? (style.gradientEnabledLight as boolean)
+      : Boolean(style.gradientEnabled);
+  const gradientEnabledDark =
+    typeof style.gradientEnabledDark === "boolean"
+      ? (style.gradientEnabledDark as boolean)
+      : Boolean(style.gradientEnabled);
+  const gradientDirectionLight =
+    style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
+      ? (style.gradientDirectionLight as "horizontal" | "vertical")
+      : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? (style.gradientDirection as "horizontal" | "vertical")
+        : "vertical";
+  const gradientDirectionDark =
+    style.gradientDirectionDark === "horizontal" || style.gradientDirectionDark === "vertical"
+      ? (style.gradientDirectionDark as "horizontal" | "vertical")
+      : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? (style.gradientDirection as "horizontal" | "vertical")
+        : "vertical";
+  const gradientFromLightRaw = readColor("gradientFromLight") || readColor("gradientFrom");
+  const gradientToLightRaw = readColor("gradientToLight") || readColor("gradientTo");
+  const gradientFromDarkRaw = readColor("gradientFromDark");
+  const gradientToDarkRaw = readColor("gradientToDark");
+  const gradientFromLightResolved = gradientFromLightRaw || theme.lightPalette.gradientFrom;
+  const gradientToLightResolved = gradientToLightRaw || theme.lightPalette.gradientTo;
+  const gradientFromDarkResolved = gradientFromDarkRaw || theme.darkPalette.gradientFrom;
+  const gradientToDarkResolved = gradientToDarkRaw || theme.darkPalette.gradientTo;
+  const gradientEnabled = theme.mode === "dark" ? gradientEnabledDark : gradientEnabledLight;
+  const gradientDirection = theme.mode === "dark" ? gradientDirectionDark : gradientDirectionLight;
+  const gradientFrom = theme.mode === "dark" ? gradientFromDarkResolved : gradientFromLightResolved;
+  const gradientTo = theme.mode === "dark" ? gradientToDarkResolved : gradientToLightResolved;
   const useCustomWidth = style.useCustomWidth === true;
   return {
     marginTop: toNumber(style.marginTop) ?? 0,
@@ -2566,6 +2618,9 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     blockBgLight: readColor("blockBgLight") || readColor("blockBg"),
     blockBgDark: readColor("blockBgDark"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
+    subBlockBgLight: readColor("subBlockBgLight") || readColor("subBlockBg"),
+    subBlockBgDark: readColor("subBlockBgDark"),
+    subBlockBg: resolveColor("subBlockBgLight", "subBlockBgDark", "subBlockBg"),
     borderColorLight: readColor("borderColorLight") || readColor("borderColor"),
     borderColorDark: readColor("borderColorDark"),
     borderColor: resolveColor("borderColorLight", "borderColorDark", "borderColor"),
@@ -2588,6 +2643,8 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
     blockBgLightResolved: blockBgPair.lightResolved,
     blockBgDarkResolved: blockBgPair.darkResolved,
+    subBlockBgLightResolved: subBlockBgPair.lightResolved,
+    subBlockBgDarkResolved: subBlockBgPair.darkResolved,
     borderColorLightResolved: borderPair.lightResolved,
     borderColorDarkResolved: borderPair.darkResolved,
     buttonColorLightResolved: buttonPair.lightResolved,
@@ -2600,13 +2657,18 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     mutedColorDarkResolved: mutedPair.darkResolved,
     shadowColor: readColor("shadowColor"),
     shadowSize: toNumber(style.shadowSize),
-    gradientEnabled: Boolean(style.gradientEnabled),
-    gradientDirection:
-      style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
-        ? style.gradientDirection
-        : "vertical",
-    gradientFrom: typeof style.gradientFrom === "string" ? style.gradientFrom : "",
-    gradientTo: typeof style.gradientTo === "string" ? style.gradientTo : "",
+    gradientEnabled,
+    gradientEnabledLight,
+    gradientEnabledDark,
+    gradientDirection,
+    gradientDirectionLight,
+    gradientDirectionDark,
+    gradientFrom,
+    gradientTo,
+    gradientFromLightResolved,
+    gradientToLightResolved,
+    gradientFromDarkResolved,
+    gradientToDarkResolved,
     textAlign:
       style.textAlign === "center" || style.textAlign === "right"
         ? style.textAlign
@@ -3198,9 +3260,18 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const headingSize =
     style.headingSize ?? palette.headingSize ?? theme.headingSize ?? subheadingSize + 2;
   const sizeXs = Math.max(10, textSize - 2);
-  const bookingGradient = style.gradientEnabled
-    ? `linear-gradient(${style.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFrom}, ${style.gradientTo})`
+  const subBlockLight =
+    style.subBlockBgLightResolved || style.blockBgLightResolved || "var(--site-panel)";
+  const subBlockDark =
+    style.subBlockBgDarkResolved || style.blockBgDarkResolved || "var(--site-panel)";
+  const subBlockCurrent = theme.mode === "dark" ? subBlockDark : subBlockLight;
+  const bookingGradientLight = style.gradientEnabledLight
+    ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
     : "none";
+  const bookingGradientDark = style.gradientEnabledDark
+    ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
+    : "none";
+  const bookingGradient = theme.mode === "dark" ? bookingGradientDark : bookingGradientLight;
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
     "--booking-bg-dark": style.blockBgDarkResolved || "var(--site-panel)",
@@ -3216,7 +3287,12 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
       style.buttonTextColorLightResolved || "var(--site-button-text)",
     "--booking-button-text-dark":
       style.buttonTextColorDarkResolved || "var(--site-button-text)",
+    "--booking-sub-bg-light": subBlockLight,
+    "--booking-sub-bg-dark": subBlockDark,
+    "--booking-sub-bg": subBlockCurrent,
     "--bp-button-text": "var(--booking-button-text)",
+    "--booking-gradient-light": bookingGradientLight,
+    "--booking-gradient-dark": bookingGradientDark,
     "--booking-gradient": bookingGradient,
     "--bp-shadow-soft": shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
     "--bp-radius": `${radius}px`,
