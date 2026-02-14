@@ -126,6 +126,7 @@
 
 .booking-preview .booking-root {
   --booking-top-gap: 0px;
+  --bp-surface: var(--site-surface);
 }
 
 .booking-preview .booking-root {
