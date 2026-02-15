@@ -4,6 +4,7 @@ import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
 
 type Params = { params: Promise<{ id: string }> };
+const LOCATION_STATUSES = new Set(["ACTIVE", "INACTIVE"]);
 
 function parseLocationId(raw: string) {
   const locationId = Number(raw);
@@ -110,7 +111,18 @@ export async function PATCH(request: Request, { params }: Params) {
   if (body.address !== undefined) data.address = String(body.address).trim();
   if (body.phone !== undefined)
     data.phone = body.phone ? String(body.phone).trim() : null;
-  if (body.status !== undefined) data.status = String(body.status).trim();
+  if (body.status !== undefined) {
+    const status = String(body.status).trim().toUpperCase();
+    if (!LOCATION_STATUSES.has(status)) {
+      return jsonError(
+        "VALIDATION_FAILED",
+        "Некорректный статус локации. Допустимые: ACTIVE, INACTIVE.",
+        { fields: [{ path: "status", issue: "invalid" }] },
+        400
+      );
+    }
+    data.status = status;
+  }
   if (body.websiteUrl !== undefined)
     data.websiteUrl = normalizeWebsite(
       body.websiteUrl ? String(body.websiteUrl).trim() : null

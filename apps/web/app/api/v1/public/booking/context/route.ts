@@ -19,6 +19,23 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         address: true,
+        hours: {
+          select: {
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+          },
+          orderBy: { dayOfWeek: "asc" },
+        },
+        exceptions: {
+          select: {
+            date: true,
+            isClosed: true,
+            startTime: true,
+            endTime: true,
+          },
+          orderBy: { date: "asc" },
+        },
       },
     }),
     prisma.legalDocument.findMany({
@@ -81,6 +98,12 @@ export async function GET(request: Request) {
   const locations = locationsRaw.map((location) => ({
     ...location,
     coverUrl: locationCoverMap.get(String(location.id)) ?? null,
+    exceptions: location.exceptions.map((item) => ({
+      date: item.date.toISOString().slice(0, 10),
+      isClosed: item.isClosed,
+      startTime: item.startTime,
+      endTime: item.endTime,
+    })),
   }));
 
   const legalDocuments = legalDocs

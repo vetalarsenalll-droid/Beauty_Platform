@@ -173,6 +173,9 @@ export default function LocationProfileForm({
             <option value="ACTIVE">Активна</option>
             <option value="INACTIVE">Неактивна</option>
           </select>
+          <span className="text-xs text-[color:var(--bp-muted)]">
+            Неактивная локация не показывается в онлайн-записи.
+          </span>
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-2">

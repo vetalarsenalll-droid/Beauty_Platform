@@ -21,6 +21,17 @@ type Location = {
   name: string;
   address: string | null;
   coverUrl?: string | null;
+  hours?: Array<{
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }>;
+  exceptions?: Array<{
+    date: string; // YYYY-MM-DD in account TZ
+    isClosed: boolean;
+    startTime: string | null;
+    endTime: string | null;
+  }>;
 };
 
 type Service = {
@@ -253,6 +264,42 @@ function uniqSortedTimes(times: string[]) {
   return Array.from(new Set(times)).sort((a, b) =>
     a > b ? 1 : a < b ? -1 : 0
   );
+}
+
+function getLocationOpenStatus(
+  location: Location,
+  now: { ymd: string; minutes: number },
+  timeZone: string
+) {
+  const parseRangeStatus = (startRaw: string | null, endRaw: string | null) => {
+    const start = startRaw ? timeToMinutes(startRaw) : null;
+    const end = endRaw ? timeToMinutes(endRaw) : null;
+    if (start === null || end === null || start >= end) {
+      return { label: "График уточняется", open: false };
+    }
+    if (now.minutes < start) {
+      return { label: `Откроется в ${startRaw}`, open: false };
+    }
+    if (now.minutes >= end) {
+      return { label: "Закрыто", open: false };
+    }
+    return { label: `Открыто до ${endRaw}`, open: true };
+  };
+
+  const todayException = location.exceptions?.find((item) => item.date === now.ymd);
+  if (todayException) {
+    if (todayException.isClosed) {
+      return { label: "Сегодня выходной", open: false };
+    }
+    return parseRangeStatus(todayException.startTime, todayException.endTime);
+  }
+
+  const todayMon0 = weekdayIndexMon0InTz(now.ymd, timeZone);
+  const todayHours = location.hours?.find((item) => item.dayOfWeek === todayMon0);
+  if (!todayHours) {
+    return { label: "Сегодня выходной", open: false };
+  }
+  return parseRangeStatus(todayHours.startTime, todayHours.endTime);
 }
 
 const weekdayIndexSun0InTz = (ymd: string, timeZone: string) => {
@@ -1905,6 +1952,11 @@ export default function BookingClient({
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {context?.locations.map((location) => {
                             const active = location.id === locationId;
+                            const openStatus = getLocationOpenStatus(
+                              location,
+                              nowTz,
+                              accountTz
+                            );
                             const locationProfileHref = accountPublicSlug
                               ? `/${accountPublicSlug}/locations/${location.id}`
                               : "#";
@@ -1929,21 +1981,43 @@ export default function BookingClient({
                                 )}
                               >
                                 <div className="space-y-3">
-                                  {location.coverUrl ? (
-                                    <div className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
-                                      <img
-                                        src={location.coverUrl}
-                                        alt={location.name}
-                                        className="h-28 w-full object-cover"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="flex h-28 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
-                                      <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
-                                        {initials(location.name)}
+                                  <div className="relative">
+                                    {location.coverUrl ? (
+                                      <div className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
+                                        <img
+                                          src={location.coverUrl}
+                                          alt={location.name}
+                                          className="aspect-video w-full object-cover"
+                                        />
                                       </div>
-                                    </div>
-                                  )}
+                                    ) : (
+                                      <div className="flex aspect-video items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                        <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
+                                          {initials(location.name)}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <span
+                                      aria-hidden
+                                      className="pointer-events-none absolute -right-2 -top-2 z-[1] h-8 w-8 rounded-full bg-[color:var(--bp-paper)]"
+                                    />
+
+                                    <a
+                                      href={locationProfileHref}
+                                      onClick={(event) => event.stopPropagation()}
+                                      className={cn(
+                                        "absolute -right-1 -top-1 z-[2] inline-flex h-6 w-6 items-center justify-center rounded-full",
+                                        "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] transition hover:opacity-90"
+                                      )}
+                                      aria-label={`Информация о локации ${location.name}`}
+                                      title="Информация о локации"
+                                    >
+                                      <span className="inline-flex items-center justify-center text-[11px] font-semibold leading-none">
+                                        i
+                                      </span>
+                                    </a>
+                                  </div>
 
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
@@ -1951,36 +2025,26 @@ export default function BookingClient({
                                       <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
                                         {location.address || "Адрес не указан"}
                                       </div>
+                                      <div
+                                        className={cn(
+                                          "mt-1 text-xs text-[color:var(--bp-muted)]"
+                                        )}
+                                      >
+                                        {openStatus.label}
+                                      </div>
                                     </div>
                                     <div
                                       className={cn(
                                         "rounded-2xl border px-2 py-1 text-xs",
                                         active
                                           ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                                       )}
                                     >
-                                      {active ? "Выбрано" : "Открыто"}
+                                      {active ? "Выбрано" : "Выбрать"}
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div className="text-xs text-[color:var(--bp-muted)]">
-                                      Нажмите, чтобы выбрать локацию
-                                    </div>
-                                    <a
-                                      href={locationProfileHref}
-                                      onClick={(event) => event.stopPropagation()}
-                                      className="inline-flex h-8 items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] hover:bg-black/5"
-                                      aria-label={`Информация о локации ${location.name}`}
-                                      title="Информация о локации"
-                                    >
-                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] text-[10px] font-semibold">
-                                        i
-                                      </span>
-                                      Инфо
-                                    </a>
-                                  </div>
                                 </div>
                               </article>
                             );

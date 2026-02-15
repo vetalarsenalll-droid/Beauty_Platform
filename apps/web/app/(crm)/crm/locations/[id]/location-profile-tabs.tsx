@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import LocationProfileForm from "./location-profile-form";
 import LocationHoursForm from "./location-hours-form";
@@ -89,28 +89,6 @@ export default function LocationProfileTabs({
 }: LocationProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("general");
 
-  const exceptionRows = useMemo(() => {
-    if (exceptions.length === 0) {
-      return (
-        <div className="text-sm text-[color:var(--bp-muted)]">
-          Исключений нет.
-        </div>
-      );
-    }
-    return (
-      <div className="grid gap-2 text-sm text-[color:var(--bp-muted)]">
-        {exceptions.map((exception) => (
-          <div key={exception.id}>
-            {exception.date}{" "}
-            {exception.isClosed
-              ? "— выходной"
-              : `${exception.startTime ?? "--:--"}–${exception.endTime ?? "--:--"}`}
-          </div>
-        ))}
-      </div>
-    );
-  }, [exceptions]);
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-2" role="tablist">
@@ -174,13 +152,11 @@ export default function LocationProfileTabs({
             </Link>
           </div>
           <div className="mt-4">
-            <LocationHoursForm locationId={location.id} hours={hours} />
-          </div>
-          <div className="mt-6">
-            <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
-              Исключения
-            </div>
-            <div className="mt-2">{exceptionRows}</div>
+            <LocationHoursForm
+              locationId={location.id}
+              hours={hours}
+              exceptions={exceptions}
+            />
           </div>
         </section>
       ) : null}

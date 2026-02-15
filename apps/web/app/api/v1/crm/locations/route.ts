@@ -21,6 +21,7 @@ type DbLocation = {
   updatedAt: Date;
   geoPoint: { lat: number; lng: number } | null;
 };
+const LOCATION_STATUSES = new Set(["ACTIVE", "INACTIVE"]);
 
 function mapLocation(location: DbLocation) {
   return {
@@ -122,7 +123,16 @@ export async function POST(request: Request) {
   const name = String(body.name ?? "").trim();
   const address = String(body.address ?? "").trim();
   const phone = body.phone ? String(body.phone).trim() : null;
-  const status = body.status ? String(body.status).trim() : "ACTIVE";
+  const statusRaw = body.status ? String(body.status).trim().toUpperCase() : "ACTIVE";
+  if (!LOCATION_STATUSES.has(statusRaw)) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Некорректный статус локации. Допустимые: ACTIVE, INACTIVE.",
+      { fields: [{ path: "status", issue: "invalid" }] },
+      400
+    );
+  }
+  const status = statusRaw;
   const geo = body.geo as { lat?: number; lng?: number } | undefined;
   const websiteUrl =
     body.websiteUrl !== undefined ? String(body.websiteUrl).trim() : null;
