@@ -91,10 +91,11 @@ export async function POST(request: Request) {
     body.levelId !== undefined && body.levelId !== null && body.levelId !== ""
       ? Number(body.levelId)
       : null;
-  const categoryIdsRaw = Array.isArray((body as any).categoryIds)
-    ? (body as any).categoryIds
+  const categoryIdsInput = (body as { categoryIds?: unknown }).categoryIds;
+  const categoryIdsRaw: unknown[] | undefined = Array.isArray(categoryIdsInput)
+    ? categoryIdsInput
     : undefined;
-  const categoryIds =
+  const categoryIds: number[] =
     categoryIdsRaw !== undefined
       ? Array.from(
           new Set(
