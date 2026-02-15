@@ -43,12 +43,15 @@ type Service = {
   computedDurationMin?: number | null;
   computedPrice?: number | null;
   specialistIds?: number[];
+  coverUrl?: string | null;
 };
 
 type Specialist = {
   id: number;
   name: string;
   role: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
 };
 
 type Slot = {
@@ -1906,7 +1909,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="p-4 sm:p-6 lg:col-start-1 lg:row-start-2">
+          <SoftPanel className="p-4 sm:p-6 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">
@@ -1935,8 +1938,8 @@ export default function BookingClient({
               </div>
             </div>
 
-            <div className="mt-4 border-t border-[color:var(--bp-stroke)] pt-4">
-              <div className="min-h-[620px]">
+            <div className="mt-4 border-t border-[color:var(--bp-stroke)] pt-4 lg:min-h-0 lg:flex-1">
+              <div className="min-h-[620px] px-1 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:auto] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                 {currentStepKey === "scenario" && (
                   <div className="space-y-3">
                     <ScenarioTabs value={scenario} onChange={setScenario} />
@@ -1949,7 +1952,14 @@ export default function BookingClient({
 
                     {!loadingContext && !contextError && (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div
+                          className={cn(
+                            "grid gap-3",
+                            context.locations.length === 1
+                              ? "grid-cols-1"
+                              : "grid-cols-1 sm:grid-cols-2"
+                          )}
+                        >
                           {context?.locations.map((location) => {
                             const active = location.id === locationId;
                             const openStatus = getLocationOpenStatus(
@@ -2131,11 +2141,14 @@ export default function BookingClient({
                     {servicesError && <div className="text-sm text-red-600">{servicesError}</div>}
 
                     {!loadingServices && !servicesError && (
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {servicesForServiceStep.map((service) => {
                           const price = service.computedPrice ?? service.basePrice ?? 0;
                           const duration = service.computedDurationMin ?? service.baseDurationMin ?? 0;
                           const active = service.id === serviceId;
+                          const serviceProfileHref = accountPublicSlug
+                            ? `/${accountPublicSlug}/services/${service.id}`
+                            : "#";
 
                           return (
                             <button
@@ -2143,25 +2156,75 @@ export default function BookingClient({
                               type="button"
                               onClick={() => setServiceId(service.id)}
                               className={cn(
-                                "w-full rounded-3xl border p-4 text-left transition",
+                                "rounded-3xl border p-4 text-left transition",
                                 "hover:-translate-y-[1px] hover:shadow-sm",
                                 active
                                   ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
                                   : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                               )}
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-base font-semibold">{service.name}</div>
-                                  {service.description && (
-                                    <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
-                                      {service.description}
+                              <div className="space-y-3">
+                                <div className="relative">
+                                  {service.coverUrl ? (
+                                    <div className="aspect-video overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <img
+                                        src={service.coverUrl}
+                                        alt={service.name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="flex aspect-video items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
+                                        {initials(service.name)}
+                                      </div>
                                     </div>
                                   )}
+
+                                  <span
+                                    aria-hidden
+                                    className="pointer-events-none absolute -right-2 -top-2 z-[1] h-8 w-8 rounded-full bg-[color:var(--bp-paper)]"
+                                  />
+
+                                  <a
+                                    href={serviceProfileHref}
+                                    onClick={(event) => event.stopPropagation()}
+                                    className={cn(
+                                      "absolute -right-1 -top-1 z-[2] inline-flex h-6 w-6 items-center justify-center rounded-full",
+                                      "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] transition hover:opacity-90"
+                                    )}
+                                    aria-label={`Информация об услуге ${service.name}`}
+                                    title="Информация об услуге"
+                                  >
+                                    <span className="inline-flex items-center justify-center text-[11px] font-semibold leading-none">
+                                      i
+                                    </span>
+                                  </a>
                                 </div>
-                                <div className="shrink-0 text-right">
-                                  <div className="text-sm font-semibold">{formatMoneyRub(price)}</div>
-                                  <div className="w-[110px] text-right text-xs text-[color:var(--bp-muted)]">{duration} мин</div>
+
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-base font-semibold">{service.name}</div>
+                                    {service.description && (
+                                      <div className="mt-1 line-clamp-2 text-sm text-[color:var(--bp-muted)]">
+                                        {service.description}
+                                      </div>
+                                    )}
+                                    <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{duration} мин</div>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <div className="text-sm font-semibold">{formatMoneyRub(price)}</div>
+                                    <div
+                                      className={cn(
+                                        "mt-2 rounded-2xl border px-2 py-1 text-xs",
+                                        active
+                                          ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                      )}
+                                    >
+                                      {active ? "Выбрано" : "Выбрать"}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </button>
@@ -2169,7 +2232,7 @@ export default function BookingClient({
                         })}
 
                         {!servicesForServiceStep.length && (
-                          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
+                          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)] sm:col-span-2">
                             {isDateFirst && timeChoice
                               ? "Нет услуг, которые помещаются в выбранное время."
                               : isSpecialistFirst && specialistId
@@ -2222,6 +2285,9 @@ export default function BookingClient({
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {specialistsForSpecialistStep.map((sp) => {
                             const active = sp.id === specialistId;
+                            const specialistProfileHref = accountPublicSlug
+                              ? `/${accountPublicSlug}/specialists/${sp.id}`
+                              : "#";
                             return (
                               <button
                                 key={sp.id}
@@ -2235,28 +2301,65 @@ export default function BookingClient({
                                     : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                                 )}
                               >
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="flex min-w-0 items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm font-semibold">
-                                      {initials(sp.name)}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="truncate text-base font-semibold">{sp.name}</div>
-                                      <div className="text-sm text-[color:var(--bp-muted)]">
-                                        {sp.role || "Специалист"}
+                                <div className="space-y-3">
+                                  <div className="relative">
+                                    {sp.coverUrl || sp.avatarUrl ? (
+                                      <div className="aspect-[4/5] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                        <img
+                                          src={sp.coverUrl ?? sp.avatarUrl ?? ""}
+                                          alt={sp.name}
+                                          className="h-full w-full object-cover object-top"
+                                        />
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div className="flex aspect-[4/5] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                        <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
+                                          {initials(sp.name)}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <span
+                                      aria-hidden
+                                      className="pointer-events-none absolute -right-2 -top-2 z-[1] h-8 w-8 rounded-full bg-[color:var(--bp-paper)]"
+                                    />
+
+                                    <a
+                                      href={specialistProfileHref}
+                                      onClick={(event) => event.stopPropagation()}
+                                      className={cn(
+                                        "absolute -right-1 -top-1 z-[2] inline-flex h-6 w-6 items-center justify-center rounded-full",
+                                        "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] transition hover:opacity-90"
+                                      )}
+                                      aria-label={`Информация о специалисте ${sp.name}`}
+                                      title="Информация о специалисте"
+                                    >
+                                      <span className="inline-flex items-center justify-center text-[11px] font-semibold leading-none">
+                                        i
+                                      </span>
+                                    </a>
                                   </div>
 
-                                  <div
-                                    className={cn(
-                                      "rounded-2xl border px-2 py-1 text-xs",
-                                      active
-                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
-                                    )}
-                                  >
-                                    {active ? "Выбрано" : "Открыто"}
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="truncate text-base font-semibold">{sp.name}</div>
+                                      <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
+                                        {sp.role || "Специалист"}
+                                      </div>
+                                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                                        Доступен для записи
+                                      </div>
+                                    </div>
+                                    <div
+                                      className={cn(
+                                        "rounded-2xl border px-2 py-1 text-xs",
+                                        active
+                                          ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                      )}
+                                    >
+                                      {active ? "Выбрано" : "Выбрать"}
+                                    </div>
                                   </div>
                                 </div>
                               </button>
@@ -2467,12 +2570,12 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <SoftPanel className="p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:flex-col">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold">Сводка</div>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto [scrollbar-gutter:stable_both-edges] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
               <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
               <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
               <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />

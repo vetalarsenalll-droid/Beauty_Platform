@@ -75,6 +75,22 @@ export async function GET(
     },
   });
 
+  const serviceIds = services.map((item) => String(item.id));
+  const servicePhotos = serviceIds.length
+    ? await prisma.mediaLink.findMany({
+        where: { entityType: "service.photo", entityId: { in: serviceIds } },
+        include: { asset: true },
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+      })
+    : [];
+
+  const serviceCoverMap = new Map<string, string>();
+  servicePhotos.forEach((item) => {
+    if (!serviceCoverMap.has(item.entityId)) {
+      serviceCoverMap.set(item.entityId, item.asset.url);
+    }
+  });
+
   const output = services.map((service) => {
     const specialistIds = service.specialists.map((item) => item.specialistId);
     const basePrice = toNumber(service.basePrice);
@@ -105,6 +121,7 @@ export async function GET(
       computedDurationMin,
       computedPrice,
       specialistIds,
+      coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
     };
   });
 

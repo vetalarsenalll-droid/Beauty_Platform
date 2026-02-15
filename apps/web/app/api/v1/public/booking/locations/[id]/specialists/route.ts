@@ -58,10 +58,26 @@ export async function GET(
       user: {
         select: {
           email: true,
-          profile: { select: { firstName: true, lastName: true } },
+          profile: { select: { firstName: true, lastName: true, avatarUrl: true } },
         },
       },
     },
+  });
+
+  const specialistIds = specialists.map((item) => String(item.id));
+  const specialistPhotos = specialistIds.length
+    ? await prisma.mediaLink.findMany({
+        where: { entityType: "specialist.photo", entityId: { in: specialistIds } },
+        include: { asset: true },
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+      })
+    : [];
+
+  const specialistCoverMap = new Map<string, string>();
+  specialistPhotos.forEach((item) => {
+    if (!specialistCoverMap.has(item.entityId)) {
+      specialistCoverMap.set(item.entityId, item.asset.url);
+    }
   });
 
   const output = specialists.map((item) => ({
@@ -69,6 +85,8 @@ export async function GET(
     name: buildSpecialistName(item),
     role: item.level?.name ?? null,
     levelId: item.levelId,
+    avatarUrl: item.user.profile?.avatarUrl ?? null,
+    coverUrl: specialistCoverMap.get(String(item.id)) ?? null,
   }));
 
   return jsonOk({ specialists: output });
