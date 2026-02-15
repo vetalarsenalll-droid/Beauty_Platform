@@ -4,11 +4,13 @@ import SpecialistCreateForm from "./specialist-create-form";
 import SpecialistRowActions from "./specialist-row-actions";
 import SpecialistLevelForm from "./specialist-level-form";
 import SpecialistLevelRow from "./specialist-level-row";
+import SpecialistCategoryForm from "./specialist-category-form";
+import SpecialistCategoryRow from "./specialist-category-row";
 
 export default async function CrmSpecialistsPage() {
   const session = await requireCrmPermission("crm.specialists.read");
 
-  const [specialists, levels] = await Promise.all([
+  const [specialists, levels, categories] = await Promise.all([
     prisma.specialistProfile.findMany({
       where: {
         accountId: session.accountId,
@@ -23,6 +25,10 @@ export default async function CrmSpecialistsPage() {
       },
       orderBy: [{ rank: "asc" }, { createdAt: "desc" }],
     }),
+    prisma.specialistCategory.findMany({
+      where: { accountId: session.accountId },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   return (
@@ -33,7 +39,7 @@ export default async function CrmSpecialistsPage() {
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Специалисты</h1>
         <p className="text-[color:var(--bp-muted)]">
-          Профили специалистов, уровни и привязки к услугам.
+          Профили специалистов, уровни, категории и привязки к услугам.
         </p>
       </header>
 
@@ -67,15 +73,46 @@ export default async function CrmSpecialistsPage() {
       </section>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+        <h2 className="text-lg font-semibold">Категории специалистов</h2>
+        <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
+          Категории используются для фильтрации специалистов в онлайн-записи.
+        </p>
+        <div className="mt-4">
+          <SpecialistCategoryForm />
+        </div>
+        <div className="mt-4 flex flex-col gap-3">
+          {categories.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] px-4 py-6 text-sm text-[color:var(--bp-muted)]">
+              Категорий пока нет.
+            </div>
+          ) : (
+            categories.map((category) => (
+              <SpecialistCategoryRow
+                key={category.id}
+                category={{
+                  id: category.id,
+                  name: category.name,
+                }}
+              />
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Карточка специалиста</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Создайте профиль специалиста и задайте уровень.
+          Создайте профиль специалиста, задайте уровень и категории.
         </p>
         <div className="mt-4">
           <SpecialistCreateForm
             levels={levels.map((level) => ({
               id: level.id,
               name: level.name,
+            }))}
+            categories={categories.map((category) => ({
+              id: category.id,
+              name: category.name,
             }))}
           />
         </div>

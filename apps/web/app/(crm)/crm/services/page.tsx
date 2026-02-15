@@ -51,7 +51,6 @@ export default async function CrmServicesPage() {
                 category={{
                   id: category.id,
                   name: category.name,
-                  slug: category.slug,
                 }}
               />
             ))

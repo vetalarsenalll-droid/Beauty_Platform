@@ -466,6 +466,7 @@ model Account {
   locationManagers  LocationManager[]
   services          Service[]
   serviceCategories ServiceCategory[]
+  specialistCategories SpecialistCategory[]
   roles             Role[]
   users             RoleAssignment[]
   clients           Client[]
@@ -1076,6 +1077,7 @@ model SpecialistProfile {
   level       SpecialistLevel? @relation(fields: [levelId], references: [id])
   services    SpecialistService[]
   locations   SpecialistLocation[]
+  categories  SpecialistCategoryLink[]
     appointments Appointment[]
     appointmentHolds AppointmentHold[]
     workingHours WorkingHour[]
@@ -1097,6 +1099,29 @@ model SpecialistLevelHistory {
   specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
   level      SpecialistLevel   @relation(fields: [levelId], references: [id])
 }
+
+model SpecialistCategory {
+  id Int @id @default(autoincrement())
+  accountId Int?
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+
+  account Account? @relation(fields: [accountId], references: [id])
+  specialists SpecialistCategoryLink[]
+}
+
+model SpecialistCategoryLink {
+  id Int @id @default(autoincrement())
+  specialistId Int
+  categoryId Int
+
+  specialist SpecialistProfile  @relation(fields: [specialistId], references: [id])
+  category   SpecialistCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([specialistId, categoryId])
+}
+
 model ServiceCategory {
   id Int @id @default(autoincrement())
   accountId Int?

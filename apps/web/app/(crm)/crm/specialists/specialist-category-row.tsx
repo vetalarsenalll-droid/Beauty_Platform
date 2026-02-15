@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -7,13 +7,13 @@ type CategoryItem = {
   name: string;
 };
 
-type ServiceCategoryRowProps = {
+type SpecialistCategoryRowProps = {
   category: CategoryItem;
 };
 
-export default function ServiceCategoryRow({
+export default function SpecialistCategoryRow({
   category,
-}: ServiceCategoryRowProps) {
+}: SpecialistCategoryRowProps) {
   const [name, setName] = useState(category.name);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function ServiceCategoryRow({
     setError(null);
     try {
       const response = await fetch(
-        `/api/v1/crm/service-categories/${category.id}`,
+        `/api/v1/crm/specialist-categories/${category.id}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -47,7 +47,7 @@ export default function ServiceCategoryRow({
     setError(null);
     try {
       const response = await fetch(
-        `/api/v1/crm/service-categories/${category.id}`,
+        `/api/v1/crm/specialist-categories/${category.id}`,
         {
           method: "DELETE",
         }

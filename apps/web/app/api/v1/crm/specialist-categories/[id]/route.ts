@@ -30,7 +30,7 @@ async function ensureUniqueSlug(accountId: number, base: string, excludeId: numb
   let slug = base;
   let i = 2;
   while (
-    await prisma.serviceCategory.findFirst({
+    await prisma.specialistCategory.findFirst({
       where: { accountId, slug, id: { not: excludeId } },
       select: { id: true },
     })
@@ -56,14 +56,14 @@ function parseCategoryId(raw: string) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const auth = await requireCrmApiPermission("crm.services.update");
+  const auth = await requireCrmApiPermission("crm.specialists.update");
   if ("response" in auth) return auth.response;
 
   const { id } = await params;
   const parsed = parseCategoryId(id);
   if ("error" in parsed) return parsed.error;
 
-  const category = await prisma.serviceCategory.findUnique({
+  const category = await prisma.specialistCategory.findUnique({
     where: { id: parsed.categoryId },
   });
 
@@ -90,7 +90,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const baseSlug = toSlug(name);
     const slug = await ensureUniqueSlug(auth.session.accountId, baseSlug, category.id);
 
-    const updated = await prisma.serviceCategory.update({
+    const updated = await prisma.specialistCategory.update({
       where: { id: category.id },
       data: { name, slug },
     });
@@ -98,8 +98,8 @@ export async function PATCH(request: Request, { params }: Params) {
     await logAccountAudit({
       accountId: auth.session.accountId,
       userId: auth.session.userId,
-      action: "Обновил категорию услуги",
-      targetType: "service_category",
+      action: "Обновил категорию специалиста",
+      targetType: "specialist_category",
       targetId: updated.id,
       diffJson: { name, slug },
     });
@@ -117,14 +117,14 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const auth = await requireCrmApiPermission("crm.services.delete");
+  const auth = await requireCrmApiPermission("crm.specialists.delete");
   if ("response" in auth) return auth.response;
 
   const { id } = await params;
   const parsed = parseCategoryId(id);
   if ("error" in parsed) return parsed.error;
 
-  const category = await prisma.serviceCategory.findUnique({
+  const category = await prisma.specialistCategory.findUnique({
     where: { id: parsed.categoryId },
   });
 
@@ -132,22 +132,27 @@ export async function DELETE(_request: Request, { params }: Params) {
     return jsonError("NOT_FOUND", "Категория не найдена.", null, 404);
   }
 
-  const linked = await prisma.service.count({
+  const linked = await prisma.specialistCategoryLink.count({
     where: { categoryId: category.id },
   });
   if (linked > 0) {
-    return jsonError("CONFLICT", "Категория используется в услугах.", null, 409);
+    return jsonError(
+      "CONFLICT",
+      "Категория используется в карточках специалистов.",
+      null,
+      409
+    );
   }
 
-  await prisma.serviceCategory.delete({
+  await prisma.specialistCategory.delete({
     where: { id: category.id },
   });
 
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Удалил категорию услуги",
-    targetType: "service_category",
+    action: "Удалил категорию специалиста",
+    targetType: "specialist_category",
     targetId: category.id,
   });
 

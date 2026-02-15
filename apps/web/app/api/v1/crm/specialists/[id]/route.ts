@@ -13,6 +13,9 @@ type DbSpecialist = {
   createdAt: Date;
   updatedAt: Date;
   level: { id: number; name: string; rank: number } | null;
+  categories: Array<{
+    category: { id: number; name: string; slug: string };
+  }>;
   user: {
     email: string | null;
     phone: string | null;
@@ -33,6 +36,11 @@ function mapSpecialist(item: DbSpecialist) {
     level: item.level
       ? { id: item.level.id, name: item.level.name, rank: item.level.rank }
       : null,
+    categories: item.categories.map((item) => ({
+      id: item.category.id,
+      name: item.category.name,
+      slug: item.category.slug,
+    })),
     bio: item.bio,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
@@ -68,7 +76,13 @@ export async function GET(
 
   const specialist = await prisma.specialistProfile.findFirst({
     where: { id: specialistId, accountId: auth.session.accountId },
-    include: { user: { include: { profile: true } }, level: true },
+    include: {
+      user: { include: { profile: true } },
+      level: true,
+      categories: {
+        include: { category: { select: { id: true, name: true, slug: true } } },
+      },
+    },
   });
 
   if (!specialist) {
@@ -127,6 +141,19 @@ export async function PATCH(
     body.password !== undefined ? String(body.password) : undefined;
   const levelIdRaw =
     body.levelId !== undefined ? String(body.levelId).trim() : undefined;
+  const categoryIdsRaw = Array.isArray((body as any).categoryIds)
+    ? (body as any).categoryIds
+    : undefined;
+  const categoryIds =
+    categoryIdsRaw !== undefined
+      ? Array.from(
+          new Set(
+            categoryIdsRaw
+              .map((item: unknown) => Number(item))
+              .filter((item: number) => Number.isInteger(item) && item > 0)
+          )
+        )
+      : undefined;
 
   const hasChanges =
     firstName !== undefined ||
@@ -136,6 +163,7 @@ export async function PATCH(
     bio !== undefined ||
     status !== undefined ||
     levelIdRaw !== undefined ||
+    categoryIdsRaw !== undefined ||
     password !== undefined;
 
   if (!hasChanges) {
@@ -208,9 +236,39 @@ export async function PATCH(
     }
   }
 
+  if (categoryIdsRaw !== undefined) {
+    if (!categoryIds || categoryIds.length !== categoryIdsRaw.length) {
+      return jsonError(
+        "VALIDATION_FAILED",
+        "Некорректные категории специалиста.",
+        { fields: [{ path: "categoryIds", issue: "invalid" }] },
+        400
+      );
+    }
+
+    if (categoryIds.length > 0) {
+      const existingCategories = await prisma.specialistCategory.findMany({
+        where: { accountId: auth.session.accountId, id: { in: categoryIds } },
+        select: { id: true },
+      });
+      if (existingCategories.length !== categoryIds.length) {
+        return jsonError(
+          "VALIDATION_FAILED",
+          "Одна или несколько категорий не найдены.",
+          { fields: [{ path: "categoryIds", issue: "not_found" }] },
+          400
+        );
+      }
+    }
+  }
+
   const specialist = await prisma.specialistProfile.findFirst({
     where: { id: specialistId, accountId: auth.session.accountId },
-    include: { user: { include: { profile: true } }, level: true },
+    include: {
+      user: { include: { profile: true } },
+      level: true,
+      categories: { select: { categoryId: true } },
+    },
   });
 
   if (!specialist) {
@@ -294,16 +352,39 @@ export async function PATCH(
       if (bio !== undefined) profileUpdate.bio = bio || null;
 
       if (Object.keys(profileUpdate).length > 0) {
-        return tx.specialistProfile.update({
+        await tx.specialistProfile.update({
           where: { id: specialistId },
           data: profileUpdate,
-          include: { user: { include: { profile: true } }, level: true },
         });
+      }
+
+      if (categoryIds !== undefined) {
+        const currentIds = new Set(specialist.categories.map((item) => item.categoryId));
+        const nextIds = new Set(categoryIds);
+        const toDelete = Array.from(currentIds).filter((id) => !nextIds.has(id));
+        const toCreate = Array.from(nextIds).filter((id) => !currentIds.has(id));
+
+        if (toDelete.length > 0) {
+          await tx.specialistCategoryLink.deleteMany({
+            where: { specialistId, categoryId: { in: toDelete } },
+          });
+        }
+        if (toCreate.length > 0) {
+          await tx.specialistCategoryLink.createMany({
+            data: toCreate.map((categoryId) => ({ specialistId, categoryId })),
+          });
+        }
       }
 
       return tx.specialistProfile.findFirstOrThrow({
         where: { id: specialistId },
-        include: { user: { include: { profile: true } }, level: true },
+        include: {
+          user: { include: { profile: true } },
+          level: true,
+          categories: {
+            include: { category: { select: { id: true, name: true, slug: true } } },
+          },
+        },
       });
     });
 
@@ -320,6 +401,7 @@ export async function PATCH(
         phone,
         status,
         levelId,
+        categoryIds,
         bio,
         passwordUpdated: Boolean(password),
       },

@@ -19,6 +19,7 @@ type SpecialistSummary = {
   status: string;
   levelId: number | null;
   bio: string | null;
+  categoryIds: number[];
 };
 
 type OptionItem = {
@@ -37,6 +38,7 @@ type MediaItem = {
 type SpecialistProfileTabsProps = {
   specialist: SpecialistSummary;
   levels: LevelOption[];
+  categories: LevelOption[];
   services: OptionItem[];
   locations: OptionItem[];
   specialistPhotoItems: MediaItem[];
@@ -56,6 +58,7 @@ type TabId = (typeof tabs)[number]["id"];
 export default function SpecialistProfileTabs({
   specialist,
   levels,
+  categories,
   services,
   locations,
   specialistPhotoItems,
@@ -90,7 +93,11 @@ export default function SpecialistProfileTabs({
         <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
           <h2 className="text-lg font-semibold">Профиль специалиста</h2>
           <div className="mt-4">
-            <SpecialistProfileForm specialist={specialist} levels={levels} />
+            <SpecialistProfileForm
+              specialist={specialist}
+              levels={levels}
+              categories={categories}
+            />
           </div>
         </section>
       ) : null}
@@ -133,3 +140,4 @@ export default function SpecialistProfileTabs({
     </div>
   );
 }
+

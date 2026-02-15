@@ -30,15 +30,14 @@ export default async function SpecialistProfilePage({
       level: true,
       services: { select: { serviceId: true } },
       locations: { select: { locationId: true } },
+      categories: { select: { categoryId: true } },
     },
   });
 
   if (!specialist) {
     return (
       <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6">
-        <p className="text-sm text-[color:var(--bp-muted)]">
-          Специалист не найден.
-        </p>
+        <p className="text-sm text-[color:var(--bp-muted)]">Специалист не найден.</p>
         <div className="mt-4">
           <Link
             href="/crm/specialists"
@@ -51,40 +50,44 @@ export default async function SpecialistProfilePage({
     );
   }
 
-  const [services, locations, levels, specialistPhotos, workPhotos] =
+  const [services, locations, levels, categories, specialistPhotos, workPhotos] =
     await Promise.all([
-    prisma.service.findMany({
-      where: { accountId: session.accountId, isActive: true },
-      include: { category: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.location.findMany({
-      where: { accountId: session.accountId, status: "ACTIVE" },
-      orderBy: { name: "asc" },
-    }),
-    prisma.specialistLevel.findMany({
-      where: {
-        OR: [{ accountId: session.accountId }, { accountId: null }],
-      },
-      orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
-    }),
-    prisma.mediaLink.findMany({
-      where: {
-        entityType: "specialist.photo",
-        entityId: String(specialist.id),
-      },
-      include: { asset: true },
-      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-    }),
-    prisma.mediaLink.findMany({
-      where: {
-        entityType: "specialist.work",
-        entityId: String(specialist.id),
-      },
-      include: { asset: true },
-      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-    }),
-  ]);
+      prisma.service.findMany({
+        where: { accountId: session.accountId, isActive: true },
+        include: { category: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.location.findMany({
+        where: { accountId: session.accountId, status: "ACTIVE" },
+        orderBy: { name: "asc" },
+      }),
+      prisma.specialistLevel.findMany({
+        where: {
+          OR: [{ accountId: session.accountId }, { accountId: null }],
+        },
+        orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
+      }),
+      prisma.specialistCategory.findMany({
+        where: { accountId: session.accountId },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.mediaLink.findMany({
+        where: {
+          entityType: "specialist.photo",
+          entityId: String(specialist.id),
+        },
+        include: { asset: true },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      }),
+      prisma.mediaLink.findMany({
+        where: {
+          entityType: "specialist.work",
+          entityId: String(specialist.id),
+        },
+        include: { asset: true },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      }),
+    ]);
 
   const serviceOptions = services.map((service) => ({
     id: service.id,
@@ -103,6 +106,11 @@ export default async function SpecialistProfilePage({
     name: level.name,
   }));
 
+  const categoryOptions = categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+  }));
+
   const specialistPhotoItems = specialistPhotos.map((item) => ({
     id: item.id,
     url: item.asset.url,
@@ -118,9 +126,7 @@ export default async function SpecialistProfilePage({
   }));
 
   const profile = specialist.user.profile;
-  const fullName = [profile?.firstName, profile?.lastName]
-    .filter(Boolean)
-    .join(" ");
+  const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
 
   return (
     <div className="flex flex-col gap-6">
@@ -172,17 +178,18 @@ export default async function SpecialistProfilePage({
           status: specialist.user.status,
           levelId: specialist.level?.id ?? null,
           bio: specialist.bio,
+          categoryIds: specialist.categories.map((item) => item.categoryId),
         }}
         levels={levelOptions}
+        categories={categoryOptions}
         services={serviceOptions}
         locations={locationOptions}
         specialistPhotoItems={specialistPhotoItems}
         workPhotoItems={workPhotoItems}
         selectedServiceIds={specialist.services.map((item) => item.serviceId)}
-        selectedLocationIds={specialist.locations.map(
-          (item) => item.locationId
-        )}
+        selectedLocationIds={specialist.locations.map((item) => item.locationId)}
       />
     </div>
   );
 }
+

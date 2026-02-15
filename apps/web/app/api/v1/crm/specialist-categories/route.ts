@@ -44,7 +44,7 @@ async function ensureUniqueSlug(accountId: number, base: string) {
   let slug = base;
   let i = 2;
   while (
-    await prisma.serviceCategory.findFirst({
+    await prisma.specialistCategory.findFirst({
       where: { accountId, slug },
       select: { id: true },
     })
@@ -55,10 +55,10 @@ async function ensureUniqueSlug(accountId: number, base: string) {
 }
 
 export async function GET() {
-  const auth = await requireCrmApiPermission("crm.services.read");
+  const auth = await requireCrmApiPermission("crm.specialists.read");
   if ("response" in auth) return auth.response;
 
-  const categories = await prisma.serviceCategory.findMany({
+  const categories = await prisma.specialistCategory.findMany({
     where: { accountId: auth.session.accountId },
     orderBy: { createdAt: "desc" },
   });
@@ -70,7 +70,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireCrmApiPermission("crm.services.create");
+  const auth = await requireCrmApiPermission("crm.specialists.create");
   if ("response" in auth) return auth.response;
 
   const body = await request.json().catch(() => null);
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     const baseSlug = toSlug(name);
     const slug = await ensureUniqueSlug(auth.session.accountId, baseSlug);
 
-    const created = await prisma.serviceCategory.create({
+    const created = await prisma.specialistCategory.create({
       data: {
         accountId: auth.session.accountId,
         name,
@@ -104,8 +104,8 @@ export async function POST(request: Request) {
     await logAccountAudit({
       accountId: auth.session.accountId,
       userId: auth.session.userId,
-      action: "Создал категорию услуги",
-      targetType: "service_category",
+      action: "Создал категорию специалиста",
+      targetType: "specialist_category",
       targetId: created.id,
       diffJson: { name, slug },
     });

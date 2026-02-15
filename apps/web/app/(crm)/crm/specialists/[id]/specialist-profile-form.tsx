@@ -8,6 +8,11 @@ type LevelOption = {
   name: string;
 };
 
+type CategoryOption = {
+  id: number;
+  name: string;
+};
+
 type SpecialistSummary = {
   id: number;
   firstName: string | null;
@@ -17,16 +22,19 @@ type SpecialistSummary = {
   status: string;
   levelId: number | null;
   bio: string | null;
+  categoryIds: number[];
 };
 
 type SpecialistProfileFormProps = {
   specialist: SpecialistSummary;
   levels: LevelOption[];
+  categories: CategoryOption[];
 };
 
 export default function SpecialistProfileForm({
   specialist,
   levels,
+  categories,
 }: SpecialistProfileFormProps) {
   const router = useRouter();
   const [firstName, setFirstName] = useState(specialist.firstName ?? "");
@@ -37,6 +45,7 @@ export default function SpecialistProfileForm({
   const [levelId, setLevelId] = useState(
     specialist.levelId !== null ? String(specialist.levelId) : ""
   );
+  const [categoryIds, setCategoryIds] = useState<number[]>(specialist.categoryIds);
   const [bio, setBio] = useState(specialist.bio ?? "");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -59,23 +68,21 @@ export default function SpecialistProfileForm({
     setSaving(true);
 
     try {
-      const response = await fetch(
-        `/api/v1/crm/specialists/${specialist.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName,
-            lastName: lastName.trim() ? lastName.trim() : null,
-            email,
-            phone: phone.trim() ? phone.trim() : null,
-            status,
-            levelId: levelId ? Number(levelId) : null,
-            bio: bio.trim() ? bio.trim() : null,
-            password: password || undefined,
-          }),
-        }
-      );
+      const response = await fetch(`/api/v1/crm/specialists/${specialist.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName,
+          lastName: lastName.trim() ? lastName.trim() : null,
+          email,
+          phone: phone.trim() ? phone.trim() : null,
+          status,
+          levelId: levelId ? Number(levelId) : null,
+          categoryIds,
+          bio: bio.trim() ? bio.trim() : null,
+          password: password || undefined,
+        }),
+      });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
         setError(body?.error?.message ?? "Не удалось сохранить специалиста.");
@@ -161,6 +168,31 @@ export default function SpecialistProfileForm({
           </select>
         </label>
       </div>
+      <div className="flex flex-col gap-2 text-sm">
+        <span>Категории специалиста</span>
+        <div className="grid gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] p-3 md:grid-cols-2">
+          {categories.length === 0 ? (
+            <span className="text-[color:var(--bp-muted)]">Категорий пока нет.</span>
+          ) : (
+            categories.map((category) => (
+              <label key={category.id} className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={categoryIds.includes(category.id)}
+                  onChange={(event) => {
+                    setCategoryIds((current) =>
+                      event.target.checked
+                        ? [...current, category.id]
+                        : current.filter((item) => item !== category.id)
+                    );
+                  }}
+                />
+                <span>{category.name}</span>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
       <label className="flex flex-col gap-2 text-sm">
         Описание
         <textarea
@@ -201,3 +233,4 @@ export default function SpecialistProfileForm({
     </form>
   );
 }
+

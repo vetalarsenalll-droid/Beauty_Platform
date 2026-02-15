@@ -12,6 +12,9 @@ type DbSpecialist = {
   createdAt: Date;
   updatedAt: Date;
   level: { id: number; name: string; rank: number } | null;
+  categories: Array<{
+    category: { id: number; name: string; slug: string };
+  }>;
   user: {
     email: string | null;
     phone: string | null;
@@ -32,6 +35,11 @@ function mapSpecialist(item: DbSpecialist) {
     level: item.level
       ? { id: item.level.id, name: item.level.name, rank: item.level.rank }
       : null,
+    categories: item.categories.map((item) => ({
+      id: item.category.id,
+      name: item.category.name,
+      slug: item.category.slug,
+    })),
     bio: item.bio,
     createdAt: item.createdAt.toISOString(),
     updatedAt: item.updatedAt.toISOString(),
@@ -51,6 +59,9 @@ export async function GET() {
     include: {
       user: { include: { profile: true } },
       level: true,
+      categories: {
+        include: { category: { select: { id: true, name: true, slug: true } } },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -80,6 +91,19 @@ export async function POST(request: Request) {
     body.levelId !== undefined && body.levelId !== null && body.levelId !== ""
       ? Number(body.levelId)
       : null;
+  const categoryIdsRaw = Array.isArray((body as any).categoryIds)
+    ? (body as any).categoryIds
+    : undefined;
+  const categoryIds =
+    categoryIdsRaw !== undefined
+      ? Array.from(
+          new Set(
+            categoryIdsRaw
+              .map((item: unknown) => Number(item))
+              .filter((item: number) => Number.isInteger(item) && item > 0)
+          )
+        )
+      : [];
   let statusInput: UserStatus | undefined;
   if (body.status !== undefined) {
     const parsedStatus = String(body.status).trim();
@@ -130,6 +154,30 @@ export async function POST(request: Request) {
         "VALIDATION_FAILED",
         "Уровень не найден.",
         { fields: [{ path: "levelId", issue: "not_found" }] },
+        400
+      );
+    }
+  }
+
+  if (categoryIdsRaw !== undefined && categoryIds.length !== categoryIdsRaw.length) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Некорректные категории специалиста.",
+      { fields: [{ path: "categoryIds", issue: "invalid" }] },
+      400
+    );
+  }
+
+  if (categoryIds.length > 0) {
+    const existingCategories = await prisma.specialistCategory.findMany({
+      where: { accountId: auth.session.accountId, id: { in: categoryIds } },
+      select: { id: true },
+    });
+    if (existingCategories.length !== categoryIds.length) {
+      return jsonError(
+        "VALIDATION_FAILED",
+        "Одна или несколько категорий не найдены.",
+        { fields: [{ path: "categoryIds", issue: "not_found" }] },
         400
       );
     }
@@ -221,10 +269,31 @@ export async function POST(request: Request) {
         include: {
           user: { include: { profile: true } },
           level: true,
+          categories: {
+            include: { category: { select: { id: true, name: true, slug: true } } },
+          },
         },
       });
 
-      return created;
+      if (categoryIds.length > 0) {
+        await tx.specialistCategoryLink.createMany({
+          data: categoryIds.map((categoryId) => ({
+            specialistId: created.id,
+            categoryId,
+          })),
+        });
+      }
+
+      return tx.specialistProfile.findFirstOrThrow({
+        where: { id: created.id },
+        include: {
+          user: { include: { profile: true } },
+          level: true,
+          categories: {
+            include: { category: { select: { id: true, name: true, slug: true } } },
+          },
+        },
+      });
     });
 
     await logAccountAudit({
@@ -239,6 +308,7 @@ export async function POST(request: Request) {
         email,
         phone: result.user.phone ?? null,
         levelId,
+        categoryIds,
         bio,
         status: result.user.status,
       },

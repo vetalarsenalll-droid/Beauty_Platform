@@ -54,6 +54,11 @@ type Specialist = {
   role: string | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
+  categories?: Array<{
+    id: number;
+    name: string;
+    slug: string;
+  }>;
 };
 
 type Slot = {
@@ -399,7 +404,7 @@ function ScenarioTabs({
   onChange: (next: Scenario) => void;
 }) {
   const tabs: Array<{ key: Scenario; label: string }> = [
-    { key: "dateFirst", label: "Дата/время" },
+    { key: "dateFirst", label: "Дата" },
     { key: "serviceFirst", label: "Услуга" },
     { key: "specialistFirst", label: "Специалист" },
   ];
@@ -855,6 +860,8 @@ export default function BookingClient({
   const [timeBucket, setTimeBucket] = useState<TimeBucket>("all");
   const [query, setQuery] = useState("");
   const [selectedServiceCategory, setSelectedServiceCategory] = useState("all");
+  const [specialistQuery, setSpecialistQuery] = useState("");
+  const [selectedSpecialistCategory, setSelectedSpecialistCategory] = useState("all");
 
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -1696,6 +1703,43 @@ export default function BookingClient({
     calendarByDate,
   ]);
 
+  const specialistCategoryTabs = useMemo(() => {
+    const categories = new Map<string, string>();
+    for (const specialist of specialistsForSpecialistStep) {
+      for (const category of specialist.categories ?? []) {
+        if (!categories.has(category.slug)) {
+          categories.set(category.slug, category.name);
+        }
+      }
+    }
+    return [{ key: "all", label: "Все" }, ...Array.from(categories, ([key, label]) => ({ key, label }))];
+  }, [specialistsForSpecialistStep]);
+
+  useEffect(() => {
+    if (selectedSpecialistCategory === "all") return;
+    if (!specialistCategoryTabs.some((tab) => tab.key === selectedSpecialistCategory)) {
+      setSelectedSpecialistCategory("all");
+    }
+  }, [selectedSpecialistCategory, specialistCategoryTabs]);
+
+  const specialistsByCategory = useMemo(() => {
+    if (selectedSpecialistCategory === "all") return specialistsForSpecialistStep;
+    return specialistsForSpecialistStep.filter((specialist) =>
+      (specialist.categories ?? []).some(
+        (category) => category.slug === selectedSpecialistCategory
+      )
+    );
+  }, [specialistsForSpecialistStep, selectedSpecialistCategory]);
+
+  const specialistsForSpecialistStepFiltered = useMemo(() => {
+    const value = specialistQuery.trim().toLowerCase();
+    if (!value) return specialistsByCategory;
+    return specialistsByCategory.filter((specialist) => {
+      const haystack = `${specialist.name} ${specialist.role ?? ""}`.toLowerCase();
+      return haystack.includes(value);
+    });
+  }, [specialistsByCategory, specialistQuery]);
+
   const serviceDuration =
     selectedService?.computedDurationMin ?? selectedService?.baseDurationMin ?? null;
 
@@ -1875,10 +1919,10 @@ export default function BookingClient({
         <div className="h-0" />
 
         <div
-          className="grid grid-cols-1 gap-4 lg:grid-cols-[1.55fr_0.95fr] lg:grid-rows-[auto_auto]"
+          className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_auto]"
           style={{ marginTop: "var(--booking-top-gap, 1rem)" }}
         >
-          <SoftPanel className="p-4 lg:col-start-1 lg:row-start-1">
+          <SoftPanel className="min-w-0 p-4 lg:col-start-1 lg:row-start-1">
             <div className="flex flex-col gap-4">
               <div className="w-full space-y-3">
                 <div className="flex items-center justify-between">
@@ -1888,7 +1932,7 @@ export default function BookingClient({
                 <div className="flex flex-wrap justify-start lg:justify-end">
                   <div className="flex w-full flex-wrap gap-1 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-1">
                     {[
-                      { key: "dateFirst", label: "Дата/время" },
+                      { key: "dateFirst", label: "Дата" },
                       { key: "serviceFirst", label: "Услуга" },
                       { key: "specialistFirst", label: "Специалист" },
                     ].map((item) => {
@@ -1932,7 +1976,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="p-4 sm:p-6 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
+          <SoftPanel className="min-w-0 p-4 sm:p-6 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">
@@ -2150,9 +2194,10 @@ export default function BookingClient({
 
                 {currentStepKey === "service" && (
                   <div className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="-mx-1 min-w-0 px-1 sm:mx-0 sm:px-0">
-                        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="min-w-0 flex-1">
+                        <div className="-mx-1 overflow-hidden px-1 sm:mx-0 sm:px-0">
+                          <div className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                           {serviceCategoryTabs.map((tab) => {
                             const active = selectedServiceCategory === tab.key;
                             return (
@@ -2171,13 +2216,14 @@ export default function BookingClient({
                               </button>
                             );
                           })}
+                          </div>
                         </div>
                       </div>
                       <input
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder="Поиск услуги"
-                        className="h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm sm:w-[280px]"
+                        className="h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm sm:w-[280px] sm:flex-none"
                       />
                     </div>
 
@@ -2286,7 +2332,38 @@ export default function BookingClient({
 
                 {currentStepKey === "specialist" && (
                   <div className="space-y-3">
-                    <div />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="min-w-0 flex-1">
+                        <div className="-mx-1 overflow-hidden px-1 sm:mx-0 sm:px-0">
+                          <div className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+                          {specialistCategoryTabs.map((tab) => {
+                            const active = selectedSpecialistCategory === tab.key;
+                            return (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setSelectedSpecialistCategory(tab.key)}
+                                className={cn(
+                                  "whitespace-nowrap rounded-2xl border px-3 py-1.5 text-xs transition",
+                                  active
+                                    ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                )}
+                              >
+                                {tab.label}
+                              </button>
+                            );
+                          })}
+                          </div>
+                        </div>
+                      </div>
+                      <input
+                        value={specialistQuery}
+                        onChange={(event) => setSpecialistQuery(event.target.value)}
+                        placeholder="Поиск специалиста"
+                        className="h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm sm:w-[280px] sm:flex-none"
+                      />
+                    </div>
 
                     {loadingSpecialists && <div className="text-sm">Загрузка...</div>}
                     {specialistsError && <div className="text-sm text-red-600">{specialistsError}</div>}
@@ -2322,7 +2399,7 @@ export default function BookingClient({
                       (isSpecialistFirst || (!isSpecialistFirst && !!serviceId && !!timeChoice)) &&
                       (!isDateFirst || (!loadingDateFirstServiceSlots && !!serviceId && !!timeChoice)) && (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {specialistsForSpecialistStep.map((sp) => {
+                          {specialistsForSpecialistStepFiltered.map((sp) => {
                             const active = sp.id === specialistId;
                             const specialistProfileHref = accountPublicSlug
                               ? `/${accountPublicSlug}/specialists/${sp.id}`
@@ -2405,7 +2482,7 @@ export default function BookingClient({
                             );
                           })}
 
-                          {specialistsForSpecialistStep.length === 0 && (
+                          {specialistsForSpecialistStepFiltered.length === 0 && (
                             <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)] sm:col-span-2">
                               Нет специалистов по выбранным условиям.
                             </div>
@@ -2609,7 +2686,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:flex-col">
+          <SoftPanel className="min-w-0 p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:flex-col">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-semibold">Сводка</div>
             </div>

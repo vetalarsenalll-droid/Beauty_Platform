@@ -7,12 +7,19 @@ type LevelOption = {
   name: string;
 };
 
+type CategoryOption = {
+  id: number;
+  name: string;
+};
+
 type SpecialistCreateFormProps = {
   levels: LevelOption[];
+  categories: CategoryOption[];
 };
 
 export default function SpecialistCreateForm({
   levels,
+  categories,
 }: SpecialistCreateFormProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -20,6 +27,7 @@ export default function SpecialistCreateForm({
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("INVITED");
   const [levelId, setLevelId] = useState("");
+  const [categoryIds, setCategoryIds] = useState<number[]>([]);
   const [bio, setBio] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +44,7 @@ export default function SpecialistCreateForm({
       phone: phone.trim() ? phone.trim() : null,
       status,
       levelId: levelId ? Number(levelId) : null,
+      categoryIds,
       bio: bio.trim() ? bio.trim() : null,
     };
 
@@ -128,6 +137,31 @@ export default function SpecialistCreateForm({
           </select>
         </label>
       </div>
+      <div className="flex flex-col gap-2 text-sm">
+        <span>Категории специалиста</span>
+        <div className="grid gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] p-3 md:grid-cols-2">
+          {categories.length === 0 ? (
+            <span className="text-[color:var(--bp-muted)]">Категорий пока нет.</span>
+          ) : (
+            categories.map((category) => (
+              <label key={category.id} className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={categoryIds.includes(category.id)}
+                  onChange={(event) => {
+                    setCategoryIds((current) =>
+                      event.target.checked
+                        ? [...current, category.id]
+                        : current.filter((item) => item !== category.id)
+                    );
+                  }}
+                />
+                <span>{category.name}</span>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
       <label className="flex flex-col gap-2 text-sm">
         Описание
         <textarea
@@ -147,3 +181,4 @@ export default function SpecialistCreateForm({
     </form>
   );
 }
+

@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
-export default function ServiceCategoryForm() {
+export default function SpecialistCategoryForm() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export default function ServiceCategoryForm() {
     setSaving(true);
 
     try {
-      const response = await fetch("/api/v1/crm/service-categories", {
+      const response = await fetch("/api/v1/crm/specialist-categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),

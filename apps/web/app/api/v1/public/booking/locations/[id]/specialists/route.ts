@@ -55,6 +55,9 @@ export async function GET(
       id: true,
       levelId: true,
       level: { select: { name: true } },
+      categories: {
+        include: { category: { select: { id: true, name: true, slug: true } } },
+      },
       user: {
         select: {
           email: true,
@@ -87,6 +90,11 @@ export async function GET(
     levelId: item.levelId,
     avatarUrl: item.user.profile?.avatarUrl ?? null,
     coverUrl: specialistCoverMap.get(String(item.id)) ?? null,
+    categories: item.categories.map((entry) => ({
+      id: entry.category.id,
+      name: entry.category.name,
+      slug: entry.category.slug,
+    })),
   }));
 
   return jsonOk({ specialists: output });
