@@ -141,10 +141,11 @@ export async function PATCH(
     body.password !== undefined ? String(body.password) : undefined;
   const levelIdRaw =
     body.levelId !== undefined ? String(body.levelId).trim() : undefined;
-  const categoryIdsRaw = Array.isArray((body as any).categoryIds)
-    ? (body as any).categoryIds
+  const categoryIdsInput = (body as { categoryIds?: unknown }).categoryIds;
+  const categoryIdsRaw: unknown[] | undefined = Array.isArray(categoryIdsInput)
+    ? categoryIdsInput
     : undefined;
-  const categoryIds =
+  const categoryIds: number[] | undefined =
     categoryIdsRaw !== undefined
       ? Array.from(
           new Set(
@@ -361,8 +362,8 @@ export async function PATCH(
       if (categoryIds !== undefined) {
         const currentIds = new Set(specialist.categories.map((item) => item.categoryId));
         const nextIds = new Set(categoryIds);
-        const toDelete = Array.from(currentIds).filter((id) => !nextIds.has(id));
-        const toCreate = Array.from(nextIds).filter((id) => !currentIds.has(id));
+        const toDelete: number[] = Array.from(currentIds).filter((id) => !nextIds.has(id));
+        const toCreate: number[] = Array.from(nextIds).filter((id) => !currentIds.has(id));
 
         if (toDelete.length > 0) {
           await tx.specialistCategoryLink.deleteMany({

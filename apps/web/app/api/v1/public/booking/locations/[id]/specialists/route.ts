@@ -16,6 +16,11 @@ const buildSpecialistName = (profile: {
   return profile.user.email ?? "Специалист";
 };
 
+const toNumber = (value: unknown) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -67,6 +72,44 @@ export async function GET(
     },
   });
 
+  const selectedService =
+    serviceId && Number.isInteger(serviceId) && serviceId > 0
+      ? await prisma.service.findFirst({
+          where: {
+            id: serviceId,
+            accountId: resolved.account.id,
+            isActive: true,
+            locations: { some: { locationId } },
+          },
+          select: {
+            id: true,
+            baseDurationMin: true,
+            basePrice: true,
+            specialists: {
+              select: {
+                specialistId: true,
+                priceOverride: true,
+                durationOverrideMin: true,
+              },
+            },
+            levelConfigs: {
+              select: {
+                levelId: true,
+                price: true,
+                durationMin: true,
+              },
+            },
+          },
+        })
+      : null;
+
+  const selectedServiceOverridesBySpecialistId = new Map(
+    (selectedService?.specialists ?? []).map((item) => [item.specialistId, item])
+  );
+  const selectedServiceLevelConfigByLevelId = new Map(
+    (selectedService?.levelConfigs ?? []).map((item) => [item.levelId, item])
+  );
+
   const specialistIds = specialists.map((item) => String(item.id));
   const specialistPhotos = specialistIds.length
     ? await prisma.mediaLink.findMany({
@@ -83,19 +126,39 @@ export async function GET(
     }
   });
 
-  const output = specialists.map((item) => ({
-    id: item.id,
-    name: buildSpecialistName(item),
-    role: item.level?.name ?? null,
-    levelId: item.levelId,
-    avatarUrl: item.user.profile?.avatarUrl ?? null,
-    coverUrl: specialistCoverMap.get(String(item.id)) ?? null,
-    categories: item.categories.map((entry) => ({
-      id: entry.category.id,
-      name: entry.category.name,
-      slug: entry.category.slug,
-    })),
-  }));
+  const output = specialists.map((item) => {
+    const override = selectedServiceOverridesBySpecialistId.get(item.id);
+    const levelConfig = item.levelId
+      ? selectedServiceLevelConfigByLevelId.get(item.levelId)
+      : null;
+
+    const servicePrice = selectedService
+      ? toNumber(override?.priceOverride) ||
+        toNumber(levelConfig?.price) ||
+        toNumber(selectedService.basePrice)
+      : null;
+    const serviceDurationMin = selectedService
+      ? override?.durationOverrideMin ||
+        levelConfig?.durationMin ||
+        selectedService.baseDurationMin
+      : null;
+
+    return {
+      id: item.id,
+      name: buildSpecialistName(item),
+      role: item.level?.name ?? null,
+      levelId: item.levelId,
+      avatarUrl: item.user.profile?.avatarUrl ?? null,
+      coverUrl: specialistCoverMap.get(String(item.id)) ?? null,
+      servicePrice,
+      serviceDurationMin,
+      categories: item.categories.map((entry) => ({
+        id: entry.category.id,
+        name: entry.category.name,
+        slug: entry.category.slug,
+      })),
+    };
+  });
 
   return jsonOk({ specialists: output });
 }

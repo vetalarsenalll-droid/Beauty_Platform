@@ -672,19 +672,24 @@ export default function SiteClient({
       ...draft,
       blocks: draft.pages?.home ?? draft.blocks,
     };
-    const response = await fetch("/api/v1/crm/settings/public-page", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ draftJson: payloadDraft, publish }),
-    });
-    if (response.ok) {
-      const data = await response.json();
-      setPublicPage(data.data);
-      setMessage(publish ? "Страница опубликована." : "Черновик сохранен.");
-    } else {
+    try {
+      const response = await fetch("/api/v1/crm/settings/public-page", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftJson: payloadDraft, publish }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPublicPage(data.data);
+        setMessage(publish ? "Страница опубликована." : "Черновик сохранен.");
+      } else {
+        setMessage("Не удалось сохранить страницу.");
+      }
+    } catch {
       setMessage("Не удалось сохранить страницу.");
+    } finally {
+      setSaving(null);
     }
-    setSaving(null);
   };
 
   const publicUrl = account.publicSlug ? `/${account.publicSlug}` : null;

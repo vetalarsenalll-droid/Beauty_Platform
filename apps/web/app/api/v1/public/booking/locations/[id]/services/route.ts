@@ -18,7 +18,7 @@ export async function GET(
   const paramsValue = await params;
   const locationId = Number(paramsValue.id);
   if (!Number.isInteger(locationId) || locationId <= 0) {
-    return jsonError("INVALID_LOCATION", "Некорректная локация.", null, 400);
+    return jsonError("INVALID_LOCATION", "\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u0430\u044f \u043b\u043e\u043a\u0430\u0446\u0438\u044f.", null, 400);
   }
 
   const specialistIdParam = new URL(request.url).searchParams.get("specialistId");
@@ -30,7 +30,7 @@ export async function GET(
   });
 
   if (!location) {
-    return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
+    return jsonError("LOCATION_NOT_FOUND", "\u041b\u043e\u043a\u0430\u0446\u0438\u044f \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u0430.", null, 404);
   }
 
   const specialist =

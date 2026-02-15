@@ -509,7 +509,7 @@ function renderCover(
   const description = (data.description as string) || "";
   const align = (data.align as string) === "center" ? "center" : "left";
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
+  const buttonText = (data.buttonText as string) || "Записаться";
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };

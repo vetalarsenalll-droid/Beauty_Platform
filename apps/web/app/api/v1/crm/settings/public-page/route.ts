@@ -15,6 +15,14 @@ const parseJson = (value: unknown) => {
   return null;
 };
 
+const MAX_PUBLISH_RETRIES = 3;
+
+const isRetryablePublishError = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: string }).code;
+  return code === "P2002" || code === "P2034";
+};
+
 async function ensurePage(accountId: number) {
   const existing = await prisma.publicPage.findFirst({
     where: { accountId },
@@ -28,6 +36,48 @@ async function ensurePage(accountId: number) {
       draftJson: {},
     },
   });
+}
+
+async function publishPage(pageId: number, draftJson: object) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < MAX_PUBLISH_RETRIES; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const lastVersion = await tx.publicPageVersion.findFirst({
+            where: { publicPageId: pageId },
+            orderBy: { version: "desc" },
+          });
+          const nextVersion = (lastVersion?.version ?? 0) + 1;
+          const version = await tx.publicPageVersion.create({
+            data: {
+              publicPageId: pageId,
+              version: nextVersion,
+              contentJson: draftJson,
+            },
+          });
+
+          return tx.publicPage.update({
+            where: { id: pageId },
+            data: {
+              draftJson,
+              status: "PUBLISHED",
+              publishedVersionId: version.id,
+            },
+          });
+        },
+        { isolationLevel: "Serializable" }
+      );
+    } catch (error) {
+      lastError = error;
+      if (!isRetryablePublishError(error) || attempt === MAX_PUBLISH_RETRIES - 1) {
+        throw error;
+      }
+    }
+  }
+
+  throw (lastError as Error) ?? new Error("Publish failed");
 }
 
 export async function GET() {
@@ -51,36 +101,15 @@ export async function PATCH(request: Request) {
   }
 
   const page = await ensurePage(session.accountId);
-  const draftJson = parseJson(body.draftJson) ?? page.draftJson ?? {};
+  const draftJson = parseJson(body.draftJson) ?? parseJson(page.draftJson) ?? {};
   const publish = body.publish === true;
 
-  const updated = await prisma.publicPage.update({
-    where: { id: page.id },
-    data: {
-      draftJson,
-      status: publish ? "PUBLISHED" : page.status,
-    },
-  });
-
-  if (publish) {
-    const lastVersion = await prisma.publicPageVersion.findFirst({
-      where: { publicPageId: page.id },
-      orderBy: { version: "desc" },
-    });
-    const nextVersion = (lastVersion?.version ?? 0) + 1;
-    const version = await prisma.publicPageVersion.create({
-      data: {
-        publicPageId: page.id,
-        version: nextVersion,
-        contentJson: draftJson,
-      },
-    });
-
-    await prisma.publicPage.update({
-      where: { id: page.id },
-      data: { publishedVersionId: version.id, status: "PUBLISHED" },
-    });
-  }
+  const updated = publish
+    ? await publishPage(page.id, draftJson)
+    : await prisma.publicPage.update({
+        where: { id: page.id },
+        data: { draftJson },
+      });
 
   return NextResponse.json({
     data: {

@@ -44,6 +44,8 @@ type Service = {
   basePrice: number;
   computedDurationMin?: number | null;
   computedPrice?: number | null;
+  minDurationMin?: number | null;
+  minPrice?: number | null;
   specialistIds?: number[];
   coverUrl?: string | null;
 };
@@ -54,6 +56,8 @@ type Specialist = {
   role: string | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
+  servicePrice?: number | null;
+  serviceDurationMin?: number | null;
   categories?: Array<{
     id: number;
     name: string;
@@ -358,6 +362,12 @@ const prettyDayYmd = (ymd: string, todayYmd: string) => {
   const dd = Number(ymd.slice(8, 10));
   const mm = Number(ymd.slice(5, 7));
   return `${pad2(dd)}.${pad2(mm)}`;
+};
+
+const formatDateRu = (ymd: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!match) return ymd;
+  return `${match[3]}.${match[2]}.${match[1]}`;
 };
 
 // ============================================================================
@@ -1167,6 +1177,7 @@ export default function BookingClient({
 
     fetchJson<SpecialistsData>(
       buildUrl(`/api/v1/public/booking/locations/${safeLocationId}/specialists`, {
+        serviceId: serviceId ?? "",
         account: accountSlug ?? "",
       })
     )
@@ -1186,7 +1197,7 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [locationId, accountSlug]);
+  }, [locationId, accountSlug, serviceId]);
 
   // ---------- specialistFirst: load “has workdays” specialist ids
   useEffect(() => {
@@ -1246,8 +1257,8 @@ export default function BookingClient({
     setLoadingServices(true);
     setServicesError(null);
 
-    // specialistFirst: computedPrice/duration под выбранного специалиста
-    const specialistForPricing = isSpecialistFirst && specialistId ? specialistId : null;
+    // При выбранном специалисте всегда возвращаем computedPrice/duration под него
+    const specialistForPricing = specialistId ?? null;
 
     fetchJson<ServicesData>(
       buildUrl(`/api/v1/public/booking/locations/${safeLocationId}/services`, {
@@ -1271,7 +1282,7 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [locationId, accountSlug, isSpecialistFirst, specialistId]);
+  }, [locationId, accountSlug, specialistId]);
 
   // ---------- serviceFirst/specialistFirst: availability calendar
   useEffect(() => {
@@ -1740,13 +1751,28 @@ export default function BookingClient({
     });
   }, [specialistsByCategory, specialistQuery]);
 
+  const showFromServiceMetrics = !specialistId && (isServiceFirst || isDateFirst);
+
   const serviceDuration =
-    selectedService?.computedDurationMin ?? selectedService?.baseDurationMin ?? null;
+    selectedService == null
+      ? null
+      : showFromServiceMetrics
+        ? selectedService.minDurationMin ?? selectedService.baseDurationMin ?? null
+        : selectedService.computedDurationMin ?? selectedService.baseDurationMin ?? null;
 
   const servicePrice =
-    selectedService?.computedPrice ?? selectedService?.basePrice ?? null;
+    selectedService == null
+      ? null
+      : showFromServiceMetrics
+        ? selectedService.minPrice ?? selectedService.basePrice ?? null
+        : selectedService.computedPrice ?? selectedService.basePrice ?? null;
   const servicePriceLabel =
-    servicePrice != null ? formatMoneyRub(servicePrice) : "—";
+    servicePrice != null
+      ? `${showFromServiceMetrics ? "от " : ""}${formatMoneyRub(servicePrice)}`
+      : "—";
+  const serviceDurationLabel =
+    serviceDuration != null ? `${showFromServiceMetrics ? "от " : ""}${serviceDuration} мин` : "—";
+  const summaryDateLabel = formatDateRu(dateYmd);
 
   const slotEnd = useMemo(() => {
     if (!timeChoice || !serviceDuration) return "";
@@ -2050,14 +2076,14 @@ export default function BookingClient({
                                   }
                                 }}
                                 className={cn(
-                                  "cursor-pointer rounded-3xl border p-4 text-left transition",
+                                  "h-full cursor-pointer rounded-3xl border p-4 text-left transition",
                                   "hover:-translate-y-[1px] hover:shadow-sm",
                                   active
                                     ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
                                     : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                                 )}
                               >
-                                <div className="space-y-3">
+                                <div className="flex h-full flex-col gap-3">
                                   <div className="relative">
                                     {location.coverUrl ? (
                                       <div className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
@@ -2096,7 +2122,7 @@ export default function BookingClient({
                                     </a>
                                   </div>
 
-                                  <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-end justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="truncate text-base font-semibold">{location.name}</div>
                                       <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
@@ -2112,7 +2138,7 @@ export default function BookingClient({
                                     </div>
                                     <div
                                       className={cn(
-                                        "rounded-2xl border px-2 py-1 text-xs",
+                                        "shrink-0 rounded-2xl border px-2 py-1 text-xs",
                                         active
                                           ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                                         : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
@@ -2121,7 +2147,6 @@ export default function BookingClient({
                                       {active ? "Выбрано" : "Выбрать"}
                                     </div>
                                   </div>
-
                                 </div>
                               </article>
                             );
@@ -2233,8 +2258,12 @@ export default function BookingClient({
                     {!loadingServices && !servicesError && (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {servicesForServiceStep.map((service) => {
-                          const price = service.computedPrice ?? service.basePrice ?? 0;
-                          const duration = service.computedDurationMin ?? service.baseDurationMin ?? 0;
+                          const price = showFromServiceMetrics
+                            ? service.minPrice ?? service.basePrice ?? 0
+                            : service.computedPrice ?? service.basePrice ?? 0;
+                          const duration = showFromServiceMetrics
+                            ? service.minDurationMin ?? service.baseDurationMin ?? 0
+                            : service.computedDurationMin ?? service.baseDurationMin ?? 0;
                           const active = service.id === serviceId;
                           const serviceProfileHref = accountPublicSlug
                             ? `/${accountPublicSlug}/services/${service.id}`
@@ -2292,16 +2321,22 @@ export default function BookingClient({
                                   </a>
                                 </div>
 
-                                <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-end justify-between gap-3">
                                   <div className="min-w-0">
                                     <div className="truncate text-base font-semibold">{service.name}</div>
-                                    <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{duration} мин</div>
+                                    <div className="mt-1 text-sm font-semibold">
+                                      {showFromServiceMetrics
+                                        ? `от ${formatMoneyRub(price)}`
+                                        : formatMoneyRub(price)}
+                                    </div>
+                                    <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                                      {showFromServiceMetrics ? `от ${duration} мин` : `${duration} мин`}
+                                    </div>
                                   </div>
                                   <div className="shrink-0 text-right">
-                                    <div className="text-sm font-semibold">{formatMoneyRub(price)}</div>
                                     <div
                                       className={cn(
-                                        "mt-2 rounded-2xl border px-2 py-1 text-xs",
+                                        "rounded-2xl border px-2 py-1 text-xs",
                                         active
                                           ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                                           : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
@@ -2404,6 +2439,16 @@ export default function BookingClient({
                             const specialistProfileHref = accountPublicSlug
                               ? `/${accountPublicSlug}/specialists/${sp.id}`
                               : "#";
+                            const specialistServiceDuration =
+                              sp.serviceDurationMin ??
+                              selectedService?.computedDurationMin ??
+                              selectedService?.baseDurationMin ??
+                              null;
+                            const specialistServicePrice =
+                              sp.servicePrice ??
+                              selectedService?.computedPrice ??
+                              selectedService?.basePrice ??
+                              null;
                             return (
                               <button
                                 key={sp.id}
@@ -2417,10 +2462,10 @@ export default function BookingClient({
                                     : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                                 )}
                               >
-                                <div className="space-y-3">
+                                <div className="flex flex-col gap-3">
                                   <div className="relative">
                                     {sp.coverUrl || sp.avatarUrl ? (
-                                      <div className="aspect-[8/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <img
                                           src={sp.coverUrl ?? sp.avatarUrl ?? ""}
                                           alt={sp.name}
@@ -2428,7 +2473,7 @@ export default function BookingClient({
                                         />
                                       </div>
                                     ) : (
-                                      <div className="flex aspect-[8/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="flex aspect-[8.5/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
                                           {initials(sp.name)}
                                         </div>
@@ -2456,16 +2501,27 @@ export default function BookingClient({
                                     </a>
                                   </div>
 
-                                  <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-end justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="truncate text-base font-semibold">{sp.name}</div>
                                       <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
                                         {sp.role || "Специалист"}
                                       </div>
+                                      {selectedService && (
+                                        <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                                          {specialistServiceDuration != null
+                                            ? `${specialistServiceDuration} мин`
+                                            : "—"}
+                                          {" · "}
+                                          {specialistServicePrice != null
+                                            ? formatMoneyRub(specialistServicePrice)
+                                            : "—"}
+                                        </div>
+                                      )}
                                     </div>
                                     <div
                                       className={cn(
-                                        "rounded-2xl border px-2 py-1 text-xs",
+                                        "shrink-0 rounded-2xl border px-2 py-1 text-xs",
                                         active
                                           ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                                           : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
@@ -2644,7 +2700,7 @@ export default function BookingClient({
                           <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
                           <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
                           <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
-                          <SummaryRow label="Дата" value={dateYmd} />
+                          <SummaryRow label="Дата" value={summaryDateLabel} />
                           <SummaryRow
                             label="Время"
                             value={timeChoice ? `${timeChoice}${slotEnd ? ` – ${slotEnd}` : ""}` : "—"}
@@ -2653,6 +2709,7 @@ export default function BookingClient({
                             label="Стоимость"
                             value={servicePriceLabel}
                           />
+                          <SummaryRow label="Длительность" value={serviceDurationLabel} />
 
                           {submitError && (
                             <div className="rounded-3xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -2692,9 +2749,10 @@ export default function BookingClient({
               <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
               <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
               <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
-              <SummaryRow label="Дата" value={dateYmd} />
+              <SummaryRow label="Дата" value={summaryDateLabel} />
               <SummaryRow label="Время" value={timeChoice || "—"} />
               <SummaryRow label="Стоимость" value={servicePriceLabel} />
+              <SummaryRow label="Длительность" value={serviceDurationLabel} />
 
               {submitError && (
                 <div className="rounded-3xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
