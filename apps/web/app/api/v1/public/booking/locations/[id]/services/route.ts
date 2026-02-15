@@ -56,6 +56,7 @@ export async function GET(
       id: true,
       name: true,
       description: true,
+      category: { select: { name: true, slug: true } },
       baseDurationMin: true,
       basePrice: true,
       specialists: {
@@ -122,6 +123,8 @@ export async function GET(
       computedPrice,
       specialistIds,
       coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
+      categoryName: service.category?.name ?? null,
+      categorySlug: service.category?.slug ?? null,
     };
   });
 

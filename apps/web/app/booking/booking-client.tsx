@@ -38,6 +38,8 @@ type Service = {
   id: number;
   name: string;
   description: string | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
   baseDurationMin: number;
   basePrice: number;
   computedDurationMin?: number | null;
@@ -852,6 +854,7 @@ export default function BookingClient({
 
   const [timeBucket, setTimeBucket] = useState<TimeBucket>("all");
   const [query, setQuery] = useState("");
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState("all");
 
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -1568,23 +1571,13 @@ export default function BookingClient({
     [specialists, specialistId]
   );
 
-  const filteredServices = useMemo(() => {
-    const value = query.trim().toLowerCase();
-    if (!value) return services;
-    return services.filter((service) => {
-      const haystack = `${service.name} ${service.description ?? ""}`.toLowerCase();
-      return haystack.includes(value);
-    });
-  }, [services, query]);
-
-  // specialistFirst: services of chosen specialist
   const servicesForSpecialistFirst = useMemo(() => {
-    if (!isSpecialistFirst) return filteredServices;
+    if (!isSpecialistFirst) return services;
     if (!specialistId) return [];
-    return filteredServices.filter((s) =>
+    return services.filter((s) =>
       Array.isArray(s.specialistIds) ? s.specialistIds.includes(specialistId) : true
     );
-  }, [isSpecialistFirst, filteredServices, specialistId]);
+  }, [isSpecialistFirst, services, specialistId]);
 
   useEffect(() => {
     if (!isSpecialistFirst) return;
@@ -1597,19 +1590,49 @@ export default function BookingClient({
     setSubmitSuccess(false);
   }, [isSpecialistFirst, specialistId, serviceId, servicesForSpecialistFirst, loadingServices]);
 
-  // dateFirst: only services that fit chosen time
   const servicesThatFitPickedTime = useMemo(() => {
-    if (!isDateFirst) return filteredServices;
+    if (!isDateFirst) return services;
     if (!timeChoice) return [];
     const allowedIds = new Set<number>(offersByTime[timeChoice] ?? []);
-    return filteredServices.filter((s) => allowedIds.has(s.id));
-  }, [isDateFirst, filteredServices, timeChoice, offersByTime]);
+    return services.filter((s) => allowedIds.has(s.id));
+  }, [isDateFirst, services, timeChoice, offersByTime]);
 
-  const servicesForServiceStep = useMemo(() => {
+  const baseServicesForServiceStep = useMemo(() => {
     if (isDateFirst) return servicesThatFitPickedTime;
     if (isSpecialistFirst) return servicesForSpecialistFirst;
-    return filteredServices;
-  }, [isDateFirst, isSpecialistFirst, servicesThatFitPickedTime, servicesForSpecialistFirst, filteredServices]);
+    return services;
+  }, [isDateFirst, isSpecialistFirst, servicesThatFitPickedTime, servicesForSpecialistFirst, services]);
+
+  const serviceCategoryTabs = useMemo(() => {
+    const categories = new Map<string, string>();
+    for (const service of baseServicesForServiceStep) {
+      const key = service.categorySlug?.trim() || "__uncategorized";
+      const label = service.categoryName?.trim() || "Без категории";
+      if (!categories.has(key)) categories.set(key, label);
+    }
+    return [{ key: "all", label: "Все" }, ...Array.from(categories, ([key, label]) => ({ key, label }))];
+  }, [baseServicesForServiceStep]);
+
+  useEffect(() => {
+    if (selectedServiceCategory === "all") return;
+    if (!serviceCategoryTabs.some((tab) => tab.key === selectedServiceCategory)) {
+      setSelectedServiceCategory("all");
+    }
+  }, [selectedServiceCategory, serviceCategoryTabs]);
+
+  const servicesByCategory = useMemo(() => {
+    if (selectedServiceCategory === "all") return baseServicesForServiceStep;
+    return baseServicesForServiceStep.filter((service) => {
+      const key = service.categorySlug?.trim() || "__uncategorized";
+      return key === selectedServiceCategory;
+    });
+  }, [baseServicesForServiceStep, selectedServiceCategory]);
+
+  const servicesForServiceStep = useMemo(() => {
+    const value = query.trim().toLowerCase();
+    if (!value) return servicesByCategory;
+    return servicesByCategory.filter((service) => service.name.toLowerCase().includes(value));
+  }, [servicesByCategory, query]);
 
   // calendar map
   const calendarByDate = useMemo(() => {
@@ -2128,7 +2151,28 @@ export default function BookingClient({
                 {currentStepKey === "service" && (
                   <div className="space-y-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div />
+                      <div className="-mx-1 min-w-0 px-1 sm:mx-0 sm:px-0">
+                        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+                          {serviceCategoryTabs.map((tab) => {
+                            const active = selectedServiceCategory === tab.key;
+                            return (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setSelectedServiceCategory(tab.key)}
+                                className={cn(
+                                  "whitespace-nowrap rounded-2xl border px-3 py-1.5 text-xs transition",
+                                  active
+                                    ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                )}
+                              >
+                                {tab.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                       <input
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -2205,11 +2249,6 @@ export default function BookingClient({
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <div className="truncate text-base font-semibold">{service.name}</div>
-                                    {service.description && (
-                                      <div className="mt-1 line-clamp-2 text-sm text-[color:var(--bp-muted)]">
-                                        {service.description}
-                                      </div>
-                                    )}
                                     <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{duration} мин</div>
                                   </div>
                                   <div className="shrink-0 text-right">
