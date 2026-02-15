@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -20,6 +20,7 @@ type Location = {
   id: number;
   name: string;
   address: string | null;
+  coverUrl?: string | null;
 };
 
 type Service = {
@@ -377,7 +378,7 @@ function ScenarioTabs({
 }
 
 // ============================================================================
-// DatePickerLike (как на твоём примере) — БЕЗ ТЕНЕЙ, выбор — ЧЕРНАЯ ОБВОДКА
+// DatePickerLike (как на твоём примере) — БЕЗ ТЕНЕЙ, выбор — ?????? ОБВОДКА
 // - expanded: сетка месяца (42)
 // - collapsed: только неделя выбранной даты
 // - month pill слева + стрелки справа
@@ -990,7 +991,7 @@ export default function BookingClient({
   }, [dateYmd, isDateFirst]);
 
   useEffect(() => {
-    // ✅ В dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
+    // ✅ Р’ dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
     if (isDateFirst) return;
 
     // ✅ Для serviceFirst/specialistFirst смена услуги меняет доступность времени
@@ -1904,42 +1905,84 @@ export default function BookingClient({
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           {context?.locations.map((location) => {
                             const active = location.id === locationId;
+                            const locationProfileHref = accountPublicSlug
+                              ? `/${accountPublicSlug}/locations/${location.id}`
+                              : "#";
                             return (
-                              <button
+                              <article
                                 key={location.id}
-                                type="button"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setLocationId(location.id)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setLocationId(location.id);
+                                  }
+                                }}
                                 className={cn(
-                                  "rounded-3xl border p-4 text-left transition",
+                                  "cursor-pointer rounded-3xl border p-4 text-left transition",
                                   "hover:-translate-y-[1px] hover:shadow-sm",
                                   active
                                     ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
                                     : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                                 )}
                               >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div>
-                                    <div className="text-base font-semibold">{location.name}</div>
-                                    <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
-                                      {location.address || "Адрес не указан"}
+                                <div className="space-y-3">
+                                  {location.coverUrl ? (
+                                    <div className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
+                                      <img
+                                        src={location.coverUrl}
+                                        alt={location.name}
+                                        className="h-28 w-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="flex h-28 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
+                                        {initials(location.name)}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="truncate text-base font-semibold">{location.name}</div>
+                                      <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
+                                        {location.address || "Адрес не указан"}
+                                      </div>
+                                    </div>
+                                    <div
+                                      className={cn(
+                                        "rounded-2xl border px-2 py-1 text-xs",
+                                        active
+                                          ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                      )}
+                                    >
+                                      {active ? "Выбрано" : "Открыто"}
                                     </div>
                                   </div>
-                                  <div
-                                    className={cn(
-                                      "rounded-2xl border px-2 py-1 text-xs",
-                                      active
-                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
-                                    )}
-                                  >
-                                    {active ? "Выбрано" : "Открыто"}
+
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="text-xs text-[color:var(--bp-muted)]">
+                                      Нажмите, чтобы выбрать локацию
+                                    </div>
+                                    <a
+                                      href={locationProfileHref}
+                                      onClick={(event) => event.stopPropagation()}
+                                      className="inline-flex h-8 items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] hover:bg-black/5"
+                                      aria-label={`Информация о локации ${location.name}`}
+                                      title="Информация о локации"
+                                    >
+                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] text-[10px] font-semibold">
+                                        i
+                                      </span>
+                                      Инфо
+                                    </a>
                                   </div>
                                 </div>
-
-                                <div className="mt-3 rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-xs text-[color:var(--bp-muted)]">
-                                  Мини-карта (заглушка) · {location.name}
-                                </div>
-                              </button>
+                              </article>
                             );
                           })}
                         </div>
@@ -2173,7 +2216,7 @@ export default function BookingClient({
                         <div className="text-sm font-semibold">Контакты</div>
                         <div className="mt-3 space-y-3">
                           <div>
-                            <div className="text-xs font-medium text-[color:var(--bp-muted)]">Имя</div>
+                            <div className="text-xs font-medium text-[color:var(--bp-muted)]">???</div>
                             <input
                               value={clientName}
                               onChange={(event) => setClientName(event.target.value)}
@@ -2402,6 +2445,8 @@ export default function BookingClient({
     </div>
   );
 }
+
+
 
 
 

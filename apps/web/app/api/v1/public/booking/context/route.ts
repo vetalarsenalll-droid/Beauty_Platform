@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const slotStepMinutes = await getAccountSlotStepMinutes(account.id);
   const publicAccount = { ...account, slotStepMinutes };
 
-  const [locations, legalDocs, platformLegalDocs] = await Promise.all([
+  const [locationsRaw, legalDocs, platformLegalDocs] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: account.id, status: "ACTIVE" },
       orderBy: { createdAt: "asc" },
@@ -63,6 +63,25 @@ export async function GET(request: Request) {
       },
     }),
   ]);
+
+  const locationIds = locationsRaw.map((item) => String(item.id));
+  const locationPhotos = await prisma.mediaLink.findMany({
+    where: { entityType: "location.photo", entityId: { in: locationIds } },
+    include: { asset: true },
+    orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+  });
+
+  const locationCoverMap = new Map<string, string>();
+  locationPhotos.forEach((item) => {
+    if (!locationCoverMap.has(item.entityId)) {
+      locationCoverMap.set(item.entityId, item.asset.url);
+    }
+  });
+
+  const locations = locationsRaw.map((location) => ({
+    ...location,
+    coverUrl: locationCoverMap.get(String(location.id)) ?? null,
+  }));
 
   const legalDocuments = legalDocs
     .map((doc) => {
