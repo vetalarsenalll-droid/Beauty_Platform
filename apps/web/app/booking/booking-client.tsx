@@ -2022,12 +2022,12 @@ export default function BookingClient({
                         <div
                           className={cn(
                             "grid gap-3",
-                            context.locations.length === 1
+                            (context?.locations?.length ?? 0) === 1
                               ? "grid-cols-1"
                               : "grid-cols-1 sm:grid-cols-2"
                           )}
                         >
-                          {context?.locations.map((location) => {
+                          {(context?.locations ?? []).map((location) => {
                             const active = location.id === locationId;
                             const openStatus = getLocationOpenStatus(
                               location,
@@ -2420,7 +2420,7 @@ export default function BookingClient({
                                 <div className="space-y-3">
                                   <div className="relative">
                                     {sp.coverUrl || sp.avatarUrl ? (
-                                      <div className="aspect-[4/5] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="aspect-[8/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <img
                                           src={sp.coverUrl ?? sp.avatarUrl ?? ""}
                                           alt={sp.name}
@@ -2428,7 +2428,7 @@ export default function BookingClient({
                                         />
                                       </div>
                                     ) : (
-                                      <div className="flex aspect-[4/5] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="flex aspect-[8/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
                                           {initials(sp.name)}
                                         </div>
@@ -2461,9 +2461,6 @@ export default function BookingClient({
                                       <div className="truncate text-base font-semibold">{sp.name}</div>
                                       <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
                                         {sp.role || "Специалист"}
-                                      </div>
-                                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                                        Доступен для записи
                                       </div>
                                     </div>
                                     <div
