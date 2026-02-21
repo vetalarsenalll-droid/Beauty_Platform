@@ -696,11 +696,11 @@ export function buildBlockWrapperStyle(
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
-    const percentWidth =
-      (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns))) /
-        MAX_BLOCK_COLUMNS) *
-      100;
     const isMenu = options.blockType === "menu";
+    const menuWidth =
+      blockOuterColumns >= MAX_BLOCK_COLUMNS
+        ? "100%"
+        : responsiveBlockWidthCss(blockOuterColumns, false);
     return {
       className: "site-block border border-[color:var(--bp-stroke)] p-8",
       style: {
@@ -718,9 +718,7 @@ export function buildBlockWrapperStyle(
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop: typeof style.marginTop === "number" ? style.marginTop : 0,
         marginBottom: typeof style.marginBottom === "number" ? style.marginBottom : 0,
-        width: isMenu
-          ? `${percentWidth}%`
-          : responsiveBlockWidthCss(blockOuterColumns, true),
+        width: isMenu ? menuWidth : responsiveBlockWidthCss(blockOuterColumns, true),
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
