@@ -1,6 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { buildBookingLink } from "@/lib/booking-links";
-import BookingClient from "@/app/booking/booking-client";
+import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import type { CSSProperties } from "react";
@@ -69,6 +69,7 @@ type BlockStyle = {
   marginTop?: number;
   marginBottom?: number;
   blockWidth?: number | null;
+  blockWidthColumns?: number | null;
   useCustomWidth?: boolean;
   radius?: number | null;
   buttonRadius?: number | null;
@@ -129,6 +130,15 @@ type BlockStyle = {
   gradientDirectionDark?: "vertical" | "horizontal";
 };
 
+const DEFAULT_BLOCK_WIDTH = 1000;
+const MIN_BLOCK_WIDTH = 800;
+const MAX_BLOCK_WIDTH = 2400;
+const BLOCK_WIDTH_STEP = 100;
+const LEGACY_WIDTH_REFERENCE = 2400;
+const DEFAULT_BLOCK_COLUMNS = 6;
+const MIN_BLOCK_COLUMNS = 1;
+const MAX_BLOCK_COLUMNS = 12;
+
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
   const numOrNull = (value?: number | string | null) => {
@@ -175,7 +185,41 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.panelColor,
     theme.darkPalette.panelColor
   );
-  const useCustomWidth = style.useCustomWidth === true;
+  const rawBlockWidth = numOrNull(style.blockWidth as number);
+  const rawBlockWidthColumns = numOrNull(style.blockWidthColumns as number);
+  const normalizedBlockWidth =
+    rawBlockWidth === null
+      ? null
+      : Math.min(
+          MAX_BLOCK_WIDTH,
+          Math.max(
+            MIN_BLOCK_WIDTH,
+            Math.round(rawBlockWidth / BLOCK_WIDTH_STEP) * BLOCK_WIDTH_STEP
+          )
+        );
+  const normalizedBlockWidthColumns =
+    rawBlockWidthColumns === null
+      ? null
+      : Math.min(
+          MAX_BLOCK_COLUMNS,
+          Math.max(MIN_BLOCK_COLUMNS, Math.round(rawBlockWidthColumns))
+        );
+  const legacyColumnsFromPx =
+    normalizedBlockWidth === null
+      ? null
+      : Math.min(
+          MAX_BLOCK_COLUMNS,
+          Math.max(
+            MIN_BLOCK_COLUMNS,
+            Math.round((normalizedBlockWidth / LEGACY_WIDTH_REFERENCE) * MAX_BLOCK_COLUMNS)
+          )
+        );
+  const resolvedBlockWidthColumns =
+    normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS;
+  const useCustomWidth =
+    style.useCustomWidth === true ||
+    normalizedBlockWidth !== null ||
+    normalizedBlockWidthColumns !== null;
   const blockBgPair = resolvePair(
     "blockBgLight",
     "blockBgDark",
@@ -267,7 +311,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     marginBottom: Number.isFinite(style.marginBottom as number)
       ? (style.marginBottom as number)
       : 0,
-    blockWidth: useCustomWidth ? numOrNull(style.blockWidth as number) : null,
+    blockWidth: useCustomWidth ? normalizedBlockWidth ?? DEFAULT_BLOCK_WIDTH : null,
+    blockWidthColumns: useCustomWidth ? resolvedBlockWidthColumns : null,
     useCustomWidth,
     radius: numOrNull(style.radius as number),
     buttonRadius: numOrNull(style.buttonRadius as number),
@@ -390,7 +435,14 @@ export function renderBlock(
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
-  const blockWidth = style.blockWidth ?? palette.contentWidth ?? theme.contentWidth ?? 1120;
+  const blockWidthColumns = style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS;
+  const blockWidthPercent =
+    (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, blockWidthColumns)) /
+      MAX_BLOCK_COLUMNS) *
+    100;
+  const blockWidth = Math.round(
+    ((palette.contentWidth ?? theme.contentWidth ?? 1120) * blockWidthPercent) / 100
+  );
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
   const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
@@ -471,7 +523,7 @@ function renderBooking(
   return (
     <div className="booking-root" style={cssVars}>
       <div className="booking-bleed">
-        <BookingClient
+        <PublicBookingClient
           accountSlug={accountSlug}
           accountPublicSlug={publicSlug}
         />
@@ -583,12 +635,12 @@ function renderCover(
     } as const;
   }
 
-  export function buildBlockWrapperStyle(
-    style: BlockStyle,
-    theme: SiteTheme,
-    blockWidth: number,
-    options: { isMenuSticky: boolean }
-  ) {
+export function buildBlockWrapperStyle(
+  style: BlockStyle,
+  theme: SiteTheme,
+  blockWidth: number,
+  options: { isMenuSticky: boolean }
+) {
     const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
     const blockShadowColor =
       typeof style.shadowColor === "string" && style.shadowColor
@@ -604,6 +656,16 @@ function renderCover(
     const borderColorOverride =
       typeof style.borderColor === "string" && style.borderColor ? style.borderColor : null;
     const hasVisibleBorder = style.borderColor !== "transparent";
+    const blockColumns =
+      typeof style.blockWidthColumns === "number"
+        ? style.blockWidthColumns
+        : blockWidth > 0 && blockWidth <= MAX_BLOCK_COLUMNS
+          ? blockWidth
+          : DEFAULT_BLOCK_COLUMNS;
+    const blockWidthPercent =
+      (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns))) /
+        MAX_BLOCK_COLUMNS) *
+      100;
     return {
       className: "site-block border border-[color:var(--bp-stroke)] p-8",
       style: {
@@ -621,8 +683,8 @@ function renderCover(
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop: typeof style.marginTop === "number" ? style.marginTop : 0,
         marginBottom: typeof style.marginBottom === "number" ? style.marginBottom : 0,
-        width: "100%",
-        maxWidth: blockWidth,
+        width: `${blockWidthPercent}%`,
+        maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
         boxSizing: "border-box",

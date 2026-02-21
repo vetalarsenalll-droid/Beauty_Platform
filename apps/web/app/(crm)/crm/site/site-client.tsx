@@ -191,10 +191,21 @@ const THEME_FONTS = [
   { label: "DM Sans", heading: "\"DM Sans\", sans-serif", body: "\"DM Sans\", sans-serif" },
 ];
 
+const DEFAULT_BLOCK_WIDTH = 1000;
+const MIN_BLOCK_WIDTH = 800;
+const MAX_BLOCK_WIDTH = 2400;
+const BLOCK_WIDTH_STEP = 100;
+const LEGACY_WIDTH_REFERENCE = 2400;
+const DEFAULT_BLOCK_COLUMNS = 6;
+const MIN_BLOCK_COLUMNS = 1;
+const MAX_BLOCK_COLUMNS = 12;
+
 const defaultBlockStyle = {
   marginTop: 0,
   marginBottom: 0,
-  blockWidth: null,
+  blockWidth: DEFAULT_BLOCK_WIDTH,
+  blockWidthColumns: DEFAULT_BLOCK_COLUMNS,
+  useCustomWidth: true,
   radius: null,
   buttonRadius: null,
   blockBgLight: "",
@@ -293,11 +304,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     subtitle: "Ваши данные и история записей",
     salonsTitle: "Ваши салоны",
     emptyText: "Пока нет салонов, где вы записывались.",
-    style: {
-      ...defaultBlockStyle,
-      useCustomWidth: false,
-      blockWidth: null,
-    },
+    style: defaultBlockStyle,
   },
   locations: {
     title: "Локации",
@@ -722,8 +729,7 @@ export default function SiteClient({
     "--site-h2": `${draft.theme.subheadingSize}px`,
     "--site-text-size": `${draft.theme.textSize}px`,
   };
-  const contentWidth =
-    previewMode === "mobile" ? 420 : draft.theme.contentWidth;
+  const previewCanvasWidth = previewMode === "mobile" ? 420 : undefined;
   const mainGradient = draft.theme.gradientEnabled
     ? `linear-gradient(${draft.theme.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${draft.theme.gradientFrom}, ${draft.theme.gradientTo})`
     : "none";
@@ -842,7 +848,15 @@ export default function SiteClient({
         </div>
       </div>
 
-      <div className="relative">
+      <div
+        className="relative"
+        style={{
+          backgroundColor: draft.theme.gradientEnabled
+            ? draft.theme.gradientFrom
+            : draft.theme.surfaceColor,
+          backgroundImage: mainGradient,
+        }}
+      >
         <main
           className="w-full"
           data-site-theme={draft.theme.mode}
@@ -858,7 +872,13 @@ export default function SiteClient({
         >
           <div
             className="mx-auto flex w-full flex-col"
-            style={{ padding: 24, maxWidth: contentWidth }}
+            style={{
+              paddingTop: 24,
+              paddingBottom: 24,
+              paddingLeft: 0,
+              paddingRight: 0,
+              maxWidth: previewCanvasWidth,
+            }}
           >
             {!isSystemPage && (
               <InsertSlot
@@ -1279,13 +1299,6 @@ function ThemeEditor({
           min={0}
           max={40}
           onChange={(value) => onChange({ shadowSize: value })}
-        />
-        <NumberField
-          label="Ширина сайта"
-          value={theme.contentWidth}
-          min={720}
-          max={1600}
-          onChange={(value) => onChange({ contentWidth: value })}
         />
         <ColorField
           label="Фон"
@@ -2154,6 +2167,10 @@ function BlockStyleEditor({
   onChange: (next: SiteBlock) => void;
 }) {
   const style = normalizeBlockStyle(block, theme);
+  const resolvedBlockColumns = Math.min(
+    MAX_BLOCK_COLUMNS,
+    Math.max(MIN_BLOCK_COLUMNS, Math.round(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS))
+  );
   const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
   const readRaw = (key: string) =>
     typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
@@ -2207,29 +2224,31 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
-      <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={style.useCustomWidth}
-            onChange={(event) => {
-              const enabled = event.target.checked;
-              update({
-                useCustomWidth: enabled,
-                blockWidth: enabled ? style.blockWidth ?? theme.contentWidth : null,
-              });
-            }}
-          />
-          Своя ширина блока
-        </label>
-        {style.useCustomWidth && (
-          <NumberField
-            label="Ширина блока"
-            value={style.blockWidth ?? theme.contentWidth}
-            min={360}
-            max={1600}
-            onChange={(value) => update({ blockWidth: value })}
-          />
-        )}
+      <label className="text-sm">
+        Ширина блока: {resolvedBlockColumns}/12
+        <input
+          type="range"
+          min={MIN_BLOCK_COLUMNS}
+          max={MAX_BLOCK_COLUMNS}
+          step={1}
+          value={resolvedBlockColumns}
+          onChange={(event) => {
+            const nextColumns = Math.min(
+              MAX_BLOCK_COLUMNS,
+              Math.max(MIN_BLOCK_COLUMNS, Number(event.target.value))
+            );
+            const nextWidth = Math.round(
+              (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
+            );
+            update({
+              useCustomWidth: true,
+              blockWidth: nextWidth,
+              blockWidthColumns: nextColumns,
+            });
+          }}
+          className="mt-2 w-full"
+        />
+      </label>
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -2508,6 +2527,7 @@ type BlockStyle = {
   marginTop: number;
   marginBottom: number;
   blockWidth: number | null;
+  blockWidthColumns: number | null;
   useCustomWidth: boolean;
   radius: number | null;
   buttonRadius: number | null;
@@ -2688,7 +2708,41 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const gradientDirection = theme.mode === "dark" ? gradientDirectionDark : gradientDirectionLight;
   const gradientFrom = theme.mode === "dark" ? gradientFromDarkResolved : gradientFromLightResolved;
   const gradientTo = theme.mode === "dark" ? gradientToDarkResolved : gradientToLightResolved;
-  const useCustomWidth = style.useCustomWidth === true;
+  const rawBlockWidth = toNumber(style.blockWidth);
+  const rawBlockWidthColumns = toNumber(style.blockWidthColumns);
+  const normalizedBlockWidth =
+    rawBlockWidth === null
+      ? null
+      : Math.min(
+          MAX_BLOCK_WIDTH,
+          Math.max(
+            MIN_BLOCK_WIDTH,
+            Math.round(rawBlockWidth / BLOCK_WIDTH_STEP) * BLOCK_WIDTH_STEP
+          )
+        );
+  const normalizedBlockWidthColumns =
+    rawBlockWidthColumns === null
+      ? null
+      : Math.min(
+          MAX_BLOCK_COLUMNS,
+          Math.max(MIN_BLOCK_COLUMNS, Math.round(rawBlockWidthColumns))
+        );
+  const legacyColumnsFromPx =
+    normalizedBlockWidth === null
+      ? null
+      : Math.min(
+          MAX_BLOCK_COLUMNS,
+          Math.max(
+            MIN_BLOCK_COLUMNS,
+            Math.round((normalizedBlockWidth / LEGACY_WIDTH_REFERENCE) * MAX_BLOCK_COLUMNS)
+          )
+        );
+  const resolvedBlockWidthColumns =
+    normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS;
+  const useCustomWidth =
+    style.useCustomWidth === true ||
+    normalizedBlockWidth !== null ||
+    normalizedBlockWidthColumns !== null;
   const resolvedBorderPair = borderClearedExplicitly
     ? { lightResolved: "transparent", darkResolved: "transparent" }
     : {
@@ -2701,7 +2755,8 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   return {
     marginTop: toNumber(style.marginTop) ?? 0,
     marginBottom: toNumber(style.marginBottom) ?? 0,
-    blockWidth: useCustomWidth ? toNumber(style.blockWidth) : null,
+    blockWidth: useCustomWidth ? normalizedBlockWidth ?? DEFAULT_BLOCK_WIDTH : null,
+    blockWidthColumns: useCustomWidth ? resolvedBlockWidthColumns : null,
     useCustomWidth,
     radius: toNumber(style.radius),
     buttonRadius: toNumber(style.buttonRadius),
@@ -3088,7 +3143,11 @@ function BlockPreview({
   const shadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
   const textColor = style.textColor || theme.textColor;
   const mutedColor = style.mutedColor || theme.mutedColor;
-  const blockWidth = style.blockWidth ?? theme.contentWidth;
+  const blockWidthColumns = style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS;
+  const blockWidthPercent =
+    (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, blockWidthColumns)) /
+      MAX_BLOCK_COLUMNS) *
+    100;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
   const gradientTo = style.gradientTo || theme.gradientTo;
   const gradientDirection =
@@ -3115,7 +3174,8 @@ function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        maxWidth: blockWidth ? `${blockWidth}px` : undefined,
+        width: `${blockWidthPercent}%`,
+        maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
       }}
@@ -3340,7 +3400,14 @@ function renderBlock(
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
-  const blockWidth = style.blockWidth ?? palette.contentWidth ?? theme.contentWidth ?? 1120;
+  const blockWidthColumns = style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS;
+  const blockWidthPercent =
+    (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, blockWidthColumns)) /
+      MAX_BLOCK_COLUMNS) *
+    100;
+  const blockWidth = Math.round(
+    ((palette.contentWidth ?? theme.contentWidth ?? 1120) * blockWidthPercent) / 100
+  );
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
   const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;

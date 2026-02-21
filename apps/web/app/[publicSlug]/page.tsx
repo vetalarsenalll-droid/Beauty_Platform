@@ -74,6 +74,7 @@ export default async function PublicAccountPage({ params }: PageProps) {
     <main
       id="public-site-root"
       data-site-theme={initialMode}
+      suppressHydrationWarning
       className="min-h-screen pb-16"
       style={{
         ...themeStyle,
@@ -83,7 +84,7 @@ export default async function PublicAccountPage({ params }: PageProps) {
         fontFamily: "var(--site-font-body)",
       }}
     >
-      <div className="mx-auto flex w-full flex-col px-6 py-12" style={{ gap: blockGap }}>
+      <div suppressHydrationWarning className="flex w-full flex-col py-12" style={{ gap: blockGap }}>
         {blocks.map((block, index) => {
           const style = normalizeStyle(block, themeForRender);
           const menuPosition =
