@@ -102,7 +102,8 @@ export default async function PublicServicePage({ params }: PageProps) {
               typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
             const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
               isMenuSticky,
-            });
+            blockType: block.type,
+          });
             return (
               <section
                 key={block.id}
@@ -132,6 +133,7 @@ export default async function PublicServicePage({ params }: PageProps) {
     </main>
   );
 }
+
 
 
 

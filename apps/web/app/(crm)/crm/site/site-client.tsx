@@ -199,6 +199,35 @@ const LEGACY_WIDTH_REFERENCE = 2400;
 const DEFAULT_BLOCK_COLUMNS = 6;
 const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
+const BOOKING_MIN_BLOCK_COLUMNS = 10;
+const BOOKING_MAX_BLOCK_COLUMNS = 12;
+const BOOKING_MIN_PRESET = 1;
+const BOOKING_MAX_PRESET = 3;
+
+function clampBlockColumns(columns: number, blockType: BlockType | string): number {
+  if (blockType === "booking") {
+    return Math.min(
+      BOOKING_MAX_BLOCK_COLUMNS,
+      Math.max(BOOKING_MIN_BLOCK_COLUMNS, Math.round(columns))
+    );
+  }
+  return Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(columns)));
+}
+
+function bookingPresetFromColumns(columns: number): number {
+  return Math.min(
+    BOOKING_MAX_PRESET,
+    Math.max(BOOKING_MIN_PRESET, Math.round(columns) - (BOOKING_MIN_BLOCK_COLUMNS - 1))
+  );
+}
+
+function bookingColumnsFromPreset(preset: number): number {
+  return clampBlockColumns(BOOKING_MIN_BLOCK_COLUMNS + Math.round(preset) - 1, "booking");
+}
+
+function bookingContentColumns(columns: number): number {
+  return clampBlockColumns(columns, "booking");
+}
 
 const defaultBlockStyle = {
   marginTop: 0,
@@ -288,6 +317,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
   booking: {
     style: {
       ...defaultBlockStyle,
+      blockWidth: LEGACY_WIDTH_REFERENCE,
+      blockWidthColumns: MAX_BLOCK_COLUMNS,
       headingSize: 18,
       subheadingSize: 16,
       textSize: 14,
@@ -2167,10 +2198,11 @@ function BlockStyleEditor({
   onChange: (next: SiteBlock) => void;
 }) {
   const style = normalizeBlockStyle(block, theme);
-  const resolvedBlockColumns = Math.min(
-    MAX_BLOCK_COLUMNS,
-    Math.max(MIN_BLOCK_COLUMNS, Math.round(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS))
+  const resolvedBlockColumns = clampBlockColumns(
+    style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
+    block.type
   );
+  const bookingPreset = bookingPresetFromColumns(resolvedBlockColumns);
   const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
   const readRaw = (key: string) =>
     typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
@@ -2225,18 +2257,20 @@ function BlockStyleEditor({
         />
       </label>
       <label className="text-sm">
-        Ширина блока: {resolvedBlockColumns}/12
+        {block.type === "booking"
+          ? `Ширина контейнера: ${bookingPreset}`
+          : `Ширина блока: ${resolvedBlockColumns}/12`}
         <input
           type="range"
-          min={MIN_BLOCK_COLUMNS}
-          max={MAX_BLOCK_COLUMNS}
+          min={block.type === "booking" ? BOOKING_MIN_PRESET : MIN_BLOCK_COLUMNS}
+          max={block.type === "booking" ? BOOKING_MAX_PRESET : MAX_BLOCK_COLUMNS}
           step={1}
-          value={resolvedBlockColumns}
+          value={block.type === "booking" ? bookingPreset : resolvedBlockColumns}
           onChange={(event) => {
-            const nextColumns = Math.min(
-              MAX_BLOCK_COLUMNS,
-              Math.max(MIN_BLOCK_COLUMNS, Number(event.target.value))
-            );
+            const nextColumns =
+              block.type === "booking"
+                ? bookingColumnsFromPreset(Number(event.target.value))
+                : clampBlockColumns(Number(event.target.value), block.type);
             const nextWidth = Math.round(
               (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
             );
@@ -2723,22 +2757,18 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const normalizedBlockWidthColumns =
     rawBlockWidthColumns === null
       ? null
-      : Math.min(
-          MAX_BLOCK_COLUMNS,
-          Math.max(MIN_BLOCK_COLUMNS, Math.round(rawBlockWidthColumns))
-        );
+      : clampBlockColumns(rawBlockWidthColumns, block.type);
   const legacyColumnsFromPx =
     normalizedBlockWidth === null
       ? null
-      : Math.min(
-          MAX_BLOCK_COLUMNS,
-          Math.max(
-            MIN_BLOCK_COLUMNS,
-            Math.round((normalizedBlockWidth / LEGACY_WIDTH_REFERENCE) * MAX_BLOCK_COLUMNS)
-          )
+      : clampBlockColumns(
+          (normalizedBlockWidth / LEGACY_WIDTH_REFERENCE) * MAX_BLOCK_COLUMNS,
+          block.type
         );
-  const resolvedBlockWidthColumns =
-    normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS;
+  const resolvedBlockWidthColumns = clampBlockColumns(
+    normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS,
+    block.type
+  );
   const useCustomWidth =
     style.useCustomWidth === true ||
     normalizedBlockWidth !== null ||
@@ -3143,18 +3173,25 @@ function BlockPreview({
   const shadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
   const textColor = style.textColor || theme.textColor;
   const mutedColor = style.mutedColor || theme.mutedColor;
-  const blockWidthColumns = style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS;
+  const isBooking = block.type === "booking";
+  const blockWidthColumns = clampBlockColumns(
+    style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
+    block.type
+  );
+  const bookingInnerColumns = bookingContentColumns(blockWidthColumns);
   const blockWidthPercent =
-    (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, blockWidthColumns)) /
-      MAX_BLOCK_COLUMNS) *
-    100;
+    ((isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns) / MAX_BLOCK_COLUMNS) * 100;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
   const gradientTo = style.gradientTo || theme.gradientTo;
   const gradientDirection =
     style.gradientDirection || theme.gradientDirection || "vertical";
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
-  const isBooking = block.type === "booking";
+  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
+  const bookingContentWidth = Math.round(
+    ((palette.contentWidth ?? theme.contentWidth ?? 1120) * bookingInnerColumns) /
+      MAX_BLOCK_COLUMNS
+  );
   const containerClass = isBooking
     ? "p-0"
     : `border ${
@@ -3208,32 +3245,51 @@ function BlockPreview({
           ["--bp-stroke" as string]: borderColor,
         }}
       >
-        <div className="absolute left-4 -top-6 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenContent();
-            }}
-            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
-            aria-label="Контент блока"
-            title="Контент"
-          >
-            Контент
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenSettings();
-            }}
-            className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
-            aria-label="Настройки блока"
-            title="Настройки"
-          >
-            Настройки
-          </button>
-        </div>
+        {isBooking ? (
+          <div className="absolute inset-x-0 -top-6">
+            <div className="mx-auto w-full" style={{ maxWidth: `${bookingContentWidth}px` }}>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenSettings();
+                }}
+                className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+                aria-label="Настройки блока"
+                title="Настройки"
+              >
+                Настройки
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="absolute left-4 -top-6 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenContent();
+              }}
+              className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+              aria-label="Контент блока"
+              title="Контент"
+            >
+              Контент
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenSettings();
+              }}
+              className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
+              aria-label="Настройки блока"
+              title="Настройки"
+            >
+              Настройки
+            </button>
+          </div>
+        )}
         {!disableActions && (
           <div className="absolute right-4 -top-6 flex items-center gap-2">
             <button
@@ -3400,11 +3456,13 @@ function renderBlock(
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
-  const blockWidthColumns = style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS;
+  const blockWidthColumns = clampBlockColumns(
+    style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
+    "booking"
+  );
+  const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
   const blockWidthPercent =
-    (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, blockWidthColumns)) /
-      MAX_BLOCK_COLUMNS) *
-    100;
+    (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
   const blockWidth = Math.round(
     ((palette.contentWidth ?? theme.contentWidth ?? 1120) * blockWidthPercent) / 100
   );

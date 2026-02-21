@@ -95,6 +95,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
             typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
           const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
             isMenuSticky,
+            blockType: block.type,
           });
           const isBooking = block.type === "booking";
           const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
@@ -132,3 +133,4 @@ export default async function PublicBookingPage({ params }: PageProps) {
     </main>
   );
 }
+

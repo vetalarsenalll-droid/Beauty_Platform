@@ -152,6 +152,7 @@ export async function renderPublicMenuFrame(
     typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
   const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
     isMenuSticky,
+    blockType: menuBlock.type,
   });
 
   return {
@@ -208,3 +209,4 @@ export async function renderPublicMenu(
     </main>
   );
 }
+

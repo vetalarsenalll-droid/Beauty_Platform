@@ -106,7 +106,8 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
               typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
             const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
               isMenuSticky,
-            });
+            blockType: block.type,
+          });
             return (
               <section
                 key={block.id}
@@ -136,6 +137,7 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
     </main>
   );
 }
+
 
 
 

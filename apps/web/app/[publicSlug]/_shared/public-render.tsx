@@ -138,6 +138,22 @@ const LEGACY_WIDTH_REFERENCE = 2400;
 const DEFAULT_BLOCK_COLUMNS = 6;
 const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
+const BOOKING_MIN_BLOCK_COLUMNS = 10;
+const BOOKING_MAX_BLOCK_COLUMNS = 12;
+
+function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | string): number {
+  if (blockType === "booking") {
+    return Math.min(
+      BOOKING_MAX_BLOCK_COLUMNS,
+      Math.max(BOOKING_MIN_BLOCK_COLUMNS, Math.round(columns))
+    );
+  }
+  return Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(columns)));
+}
+
+function bookingContentColumns(columns: number): number {
+  return clampBlockColumns(columns, "booking");
+}
 
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
@@ -200,22 +216,18 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const normalizedBlockWidthColumns =
     rawBlockWidthColumns === null
       ? null
-      : Math.min(
-          MAX_BLOCK_COLUMNS,
-          Math.max(MIN_BLOCK_COLUMNS, Math.round(rawBlockWidthColumns))
-        );
+      : clampBlockColumns(rawBlockWidthColumns, block.type);
   const legacyColumnsFromPx =
     normalizedBlockWidth === null
       ? null
-      : Math.min(
-          MAX_BLOCK_COLUMNS,
-          Math.max(
-            MIN_BLOCK_COLUMNS,
-            Math.round((normalizedBlockWidth / LEGACY_WIDTH_REFERENCE) * MAX_BLOCK_COLUMNS)
-          )
+      : clampBlockColumns(
+          (normalizedBlockWidth / LEGACY_WIDTH_REFERENCE) * MAX_BLOCK_COLUMNS,
+          block.type
         );
-  const resolvedBlockWidthColumns =
-    normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS;
+  const resolvedBlockWidthColumns = clampBlockColumns(
+    normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS,
+    block.type
+  );
   const useCustomWidth =
     style.useCustomWidth === true ||
     normalizedBlockWidth !== null ||
@@ -435,11 +447,13 @@ export function renderBlock(
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
-  const blockWidthColumns = style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS;
+  const blockWidthColumns = clampBlockColumns(
+    style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
+    "booking"
+  );
+  const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
   const blockWidthPercent =
-    (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, blockWidthColumns)) /
-      MAX_BLOCK_COLUMNS) *
-    100;
+    (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
   const blockWidth = Math.round(
     ((palette.contentWidth ?? theme.contentWidth ?? 1120) * blockWidthPercent) / 100
   );
@@ -639,7 +653,7 @@ export function buildBlockWrapperStyle(
   style: BlockStyle,
   theme: SiteTheme,
   blockWidth: number,
-  options: { isMenuSticky: boolean }
+  options: { isMenuSticky: boolean; blockType?: SiteBlock["type"] }
 ) {
     const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
     const blockShadowColor =
@@ -662,10 +676,12 @@ export function buildBlockWrapperStyle(
         : blockWidth > 0 && blockWidth <= MAX_BLOCK_COLUMNS
           ? blockWidth
           : DEFAULT_BLOCK_COLUMNS;
-    const blockWidthPercent =
-      (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns))) /
-        MAX_BLOCK_COLUMNS) *
-      100;
+    const isBookingBlock = options.blockType === "booking";
+    const blockWidthPercent = isBookingBlock
+      ? 100
+      : (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns))) /
+          MAX_BLOCK_COLUMNS) *
+        100;
     return {
       className: "site-block border border-[color:var(--bp-stroke)] p-8",
       style: {
