@@ -2296,8 +2296,8 @@ export default function BookingClient({
 
                                   <div className="flex items-end justify-between gap-3">
                                     <div className="min-w-0">
-                                      <div className="truncate text-base font-semibold">{location.name}</div>
-                                      <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
+                                      <div className="text-base font-semibold leading-snug">{location.name}</div>
+                                      <div className="mt-1 line-clamp-2 text-sm text-[color:var(--bp-muted)]">
                                         {location.address || "Адрес не указан"}
                                       </div>
                                       <div

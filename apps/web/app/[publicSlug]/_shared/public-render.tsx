@@ -470,7 +470,7 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   );
   const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
   const bookingCardsColumns = bookingCardsPerRow(blockWidthColumns);
-  const blockWidthCss = responsiveBlockWidthCss(blockWidthVisualColumns, true);
+  const blockWidthPercent = (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
@@ -537,7 +537,7 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--bp-text-size-sm": `${textSize}px`,
     "--bp-text-size-base": `${subheadingSize}px`,
     "--bp-text-size-lg": `${headingSize}px`,
-    "--bp-content-width": blockWidthCss,
+    "--bp-content-width": `${blockWidthPercent}%`,
     "--bp-cards-cols": String(bookingCardsColumns),
   } as Record<string, string>;
 }
@@ -702,7 +702,7 @@ export function buildBlockWrapperStyle(
         ? "100%"
         : responsiveBlockWidthCss(blockOuterColumns, true);
     return {
-      className: "site-block border border-[color:var(--bp-stroke)] p-8",
+      className: "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
