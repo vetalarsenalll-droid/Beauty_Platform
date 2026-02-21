@@ -192,22 +192,21 @@ export async function renderPublicMenu(
   if (!frame) return null;
 
   return (
-    <main
+    <div
       id="public-site-root"
       data-site-theme={frame.initialMode}
-      className="w-full"
+      className="flex w-full flex-col pt-0 pb-12"
       style={{
         ...frame.themeStyle,
         backgroundColor: "var(--site-surface)",
         backgroundImage: "var(--site-gradient)",
         color: "var(--site-text)",
         fontFamily: "var(--site-font-body)",
+        gap: frame.blockGap,
       }}
     >
-      <div className="flex w-full flex-col pt-0 pb-12" style={{ gap: frame.blockGap }}>
-        {frame.menuNode}
-      </div>
-    </main>
+      {frame.menuNode}
+    </div>
   );
 }
 

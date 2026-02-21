@@ -2724,7 +2724,7 @@ export default function BookingClient({
                         <div className="text-sm font-semibold">Контакты</div>
                         <div className="mt-3 space-y-3">
                           <div>
-                            <div className="text-xs font-medium text-[color:var(--bp-muted)]">???</div>
+                            <div className="text-xs font-medium text-[color:var(--bp-muted)]">Имя</div>
                             <input
                               value={clientName}
                               onChange={(event) => setClientName(event.target.value)}

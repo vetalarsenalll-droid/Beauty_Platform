@@ -3,7 +3,7 @@ import { buildBookingLink } from "@/lib/booking-links";
 import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type {
   AccountProfile,
@@ -700,7 +700,7 @@ export function buildBlockWrapperStyle(
     const menuWidth =
       blockOuterColumns >= MAX_BLOCK_COLUMNS
         ? "100%"
-        : responsiveBlockWidthCss(blockOuterColumns, false);
+        : responsiveBlockWidthCss(blockOuterColumns, true);
     return {
       className: "site-block border border-[color:var(--bp-stroke)] p-8",
       style: {
@@ -792,6 +792,13 @@ function renderMenu(
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
   const buttonText = (data.buttonText as string) || "Записаться";
   const basePath = publicSlug ? `/${publicSlug}` : "#";
+  const align = (style.textAlign ?? "left") as "left" | "center" | "right";
+  const alignClass =
+    align === "center"
+      ? "justify-center text-center"
+      : align === "right"
+        ? "justify-end text-right"
+        : "justify-start text-left";
 
   const logoNode = showLogo ? (
     branding.logoUrl ? (
@@ -945,7 +952,7 @@ function renderMenu(
   ) : null;
 
   const actions = (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-4">
       {searchNode}
       {socialsNode}
       {accountNode}
@@ -994,32 +1001,32 @@ function renderMenu(
     </div>
   );
 
-  let desktopLayout = (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      {logoNode}
-      {navNode}
+  let desktopLayout: ReactNode = (
+    <div className="flex flex-wrap items-center justify-between gap-6">
+      <div className="flex items-center gap-4">{logoNode}</div>
+      <div className={`flex flex-1 flex-wrap items-center gap-5 ${alignClass}`}>{navNode}</div>
       {actions}
     </div>
   );
 
   if (block.variant === "v2") {
     desktopLayout = (
-      <div className="flex flex-col items-center gap-4 text-center">
-        {logoNode}
-        {navNode}
-        {actionsCentered}
+      <div className="flex flex-wrap items-center justify-between gap-6">
+        <div className="flex items-center gap-3">{logoNode}</div>
+        <div className="flex flex-1 justify-center">{navNode}</div>
+        {actions}
       </div>
     );
   }
 
   if (block.variant === "v3") {
     desktopLayout = (
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          {logoNode}
-          {navNode}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">{logoNode}</div>
+          {actions}
         </div>
-        {actions}
+        <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
       </div>
     );
   }
@@ -1027,9 +1034,9 @@ function renderMenu(
   if (block.variant === "v4") {
     desktopLayout = (
       <div className="flex flex-wrap items-center justify-between gap-4">
-        {logoNode}
-        {navPills}
-        {actions}
+        <div className="flex items-center gap-4">{logoNode}</div>
+        <div className="flex flex-wrap items-center gap-2">{navPills}</div>
+        <div className="flex flex-wrap items-center gap-3">{actions}</div>
       </div>
     );
   }

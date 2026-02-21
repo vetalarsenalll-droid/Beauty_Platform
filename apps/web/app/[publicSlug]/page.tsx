@@ -72,71 +72,70 @@ export default async function PublicAccountPage({ params }: PageProps) {
   };
 
   return (
-    <main
+    <div
       id="public-site-root"
       data-site-theme={initialMode}
       suppressHydrationWarning
-      className="min-h-screen pb-16"
+      className="flex min-h-screen w-full flex-col pt-0 pb-12"
       style={{
         ...themeStyle,
         backgroundColor: "var(--site-surface)",
         backgroundImage: "var(--site-gradient)",
         color: "var(--site-text)",
         fontFamily: "var(--site-font-body)",
+        gap: blockGap,
       }}
     >
-      <div suppressHydrationWarning className="flex w-full flex-col pt-0 pb-12" style={{ gap: blockGap }}>
-        {blocks.map((block, index) => {
-          const style = normalizeStyle(block, themeForRender);
-          const menuPosition =
-            typeof (block.data as { position?: string })?.position === "string"
-              ? (block.data as { position?: string }).position
-              : null;
-          const isMenuSticky = block.type === "menu" && menuPosition === "sticky";
-          const blockWidth =
-            typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
-          const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
-            isMenuSticky,
-            blockType: block.type,
-          });
-          const isBooking = block.type === "booking";
-          const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
-          const wrapperStyle = isBooking
-            ? {
-                ...wrapper.style,
-                padding: 0,
-                borderColor: "transparent",
-                backgroundColor: "transparent",
-                boxShadow: "none",
-              }
-            : wrapper.style;
-            return (
-              <section
-                key={block.id}
-                className={wrapperClassName}
-                style={wrapperStyle}
-              >
-              {renderBlock(
-                block,
-                data.account.name,
-                data.account.slug,
-                publicSlug,
-                data.branding,
-                data.accountProfile,
-                data.locations,
-                data.services,
-                data.specialists,
-                data.promos,
-                data.workPhotos,
-                null,
-                themeForRender,
-                accountLinkOverride
-              )}
-            </section>
-          );
-        })}
-      </div>
-    </main>
+      {blocks.map((block, index) => {
+        const style = normalizeStyle(block, themeForRender);
+        const menuPosition =
+          typeof (block.data as { position?: string })?.position === "string"
+            ? (block.data as { position?: string }).position
+            : null;
+        const isMenuSticky = block.type === "menu" && menuPosition === "sticky";
+        const blockWidth =
+          typeof style.blockWidth === "number" ? style.blockWidth : contentWidth;
+        const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
+          isMenuSticky,
+          blockType: block.type,
+        });
+        const isBooking = block.type === "booking";
+        const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
+        const wrapperStyle = isBooking
+          ? {
+              ...wrapper.style,
+              padding: 0,
+              borderColor: "transparent",
+              backgroundColor: "transparent",
+              boxShadow: "none",
+            }
+          : wrapper.style;
+        return (
+          <section
+            key={block.id}
+            className={wrapperClassName}
+            style={wrapperStyle}
+          >
+            {renderBlock(
+              block,
+              data.account.name,
+              data.account.slug,
+              publicSlug,
+              data.branding,
+              data.accountProfile,
+              data.locations,
+              data.services,
+              data.specialists,
+              data.promos,
+              data.workPhotos,
+              null,
+              themeForRender,
+              accountLinkOverride
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
