@@ -3190,16 +3190,14 @@ function BlockPreview({
     block.type
   );
   const bookingInnerColumns = bookingContentColumns(blockWidthColumns);
-  const bookingContentPercent = (bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100;
-  const blockWidthPercent =
-    ((isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns) / MAX_BLOCK_COLUMNS) * 100;
+  const blockOuterColumns = isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
   const gradientTo = style.gradientTo || theme.gradientTo;
   const gradientDirection =
     style.gradientDirection || theme.gradientDirection || "vertical";
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
-  const bookingContentWidth = `${bookingContentPercent}%`;
+  const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
   const containerClass = isBooking
     ? "p-0"
     : `border ${
@@ -3219,7 +3217,7 @@ function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: `${blockWidthPercent}%`,
+        width: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",

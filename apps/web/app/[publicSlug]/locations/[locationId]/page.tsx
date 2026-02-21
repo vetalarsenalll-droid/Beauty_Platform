@@ -71,6 +71,7 @@ export default async function PublicLocationPage({ params }: PageProps) {
     "--site-radius": `${palette.radius}px`,
     "--site-button-radius": `${palette.buttonRadius}px`,
     "--site-gap": `${palette.blockSpacing}px`,
+    "--site-edge-pad": "clamp(8px, 3vw, 32px)",
     "--site-h1": `${palette.headingSize}px`,
     "--site-h2": `${palette.subheadingSize}px`,
     "--site-text-size": `${palette.textSize}px`,
