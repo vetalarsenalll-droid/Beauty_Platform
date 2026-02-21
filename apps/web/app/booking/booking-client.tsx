@@ -125,6 +125,23 @@ type LegalDocument = {
 
 type TimeBucket = "all" | "morning" | "day" | "evening";
 type Scenario = "dateFirst" | "serviceFirst" | "specialistFirst";
+type BookingUiStepKey = "scenario" | "location" | "service" | "specialist" | "datetime" | "details";
+type BookingPersistedState = {
+  scenario: Scenario;
+  startScenario: boolean;
+  locationId: number | null;
+  serviceId: number | null;
+  specialistId: number | null;
+  dateYmd: string;
+  timeChoice: string | null;
+  timeBucket: TimeBucket;
+  query: string;
+  specialistQuery: string;
+  selectedServiceCategory: string;
+  selectedSpecialistCategory: string;
+  stepKey: BookingUiStepKey | null;
+  updatedAt: number;
+};
 
 const pad2 = (value: number) => String(value).padStart(2, "0");
 
@@ -197,6 +214,29 @@ const buildUrl = (
   });
   const query = search.toString();
   return query ? `${path}?${query}` : path;
+};
+
+const BOOKING_STATE_VERSION = 1;
+
+const bookingStateStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
+  `booking-state:v${BOOKING_STATE_VERSION}:${accountSlug || accountPublicSlug || "public"}`;
+
+const loadPersistedBookingState = (
+  accountSlug?: string,
+  accountPublicSlug?: string
+): BookingPersistedState | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(
+      bookingStateStorageKey(accountSlug, accountPublicSlug)
+    );
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as BookingPersistedState;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 };
 
 // ============================================================================
@@ -772,6 +812,13 @@ export default function BookingClient({
   accountSlug,
   accountPublicSlug,
 }: BookingClientProps) {
+  const persistedStateRef = useRef<BookingPersistedState | null>(
+    loadPersistedBookingState(accountSlug, accountPublicSlug)
+  );
+  const restoringFromStorageRef = useRef(false);
+  const skipScenarioResetOnceRef = useRef(false);
+  const skipLocationResetOnceRef = useRef(false);
+  const restoredFromStorageRef = useRef(false);
   const [scenario, setScenario] = useState<Scenario>("dateFirst");
   const [startScenario, setStartScenario] = useState(false);
   const [initialParams, setInitialParams] = useState<{
@@ -785,6 +832,7 @@ export default function BookingClient({
   const [pendingServiceId, setPendingServiceId] = useState<number | null>(null);
   const [pendingSpecialistId, setPendingSpecialistId] = useState<number | null>(null);
   const [initialNavApplied, setInitialNavApplied] = useState(false);
+  const [pendingStepKey, setPendingStepKey] = useState<BookingUiStepKey | null>(null);
   const isDateFirst = scenario === "dateFirst";
   const isServiceFirst = scenario === "serviceFirst";
   const isSpecialistFirst = scenario === "specialistFirst";
@@ -949,6 +997,44 @@ export default function BookingClient({
   }, [initialParams, initialParamsApplied, context?.locations]);
 
   useEffect(() => {
+    if (!initialParamsApplied || restoredFromStorageRef.current) return;
+    restoredFromStorageRef.current = true;
+
+    const hasUrlState = Boolean(
+      initialParams?.scenario ||
+        initialParams?.locationId ||
+        initialParams?.serviceId ||
+        initialParams?.specialistId ||
+        initialParams?.startScenario
+    );
+    if (hasUrlState) return;
+
+    const persisted = persistedStateRef.current;
+    if (!persisted) return;
+
+    restoringFromStorageRef.current = true;
+    setScenario(persisted.scenario);
+    setStartScenario(Boolean(persisted.startScenario));
+    setLocationId(persisted.locationId ?? null);
+    setPendingServiceId(persisted.serviceId ?? null);
+    setPendingSpecialistId(persisted.specialistId ?? null);
+    setDateYmd(persisted.dateYmd);
+    setTimeChoice(persisted.timeChoice ?? null);
+    setTimeBucket(persisted.timeBucket ?? "all");
+    setQuery(persisted.query ?? "");
+    setSpecialistQuery(persisted.specialistQuery ?? "");
+    setSelectedServiceCategory(persisted.selectedServiceCategory ?? "all");
+    setSelectedSpecialistCategory(persisted.selectedSpecialistCategory ?? "all");
+    setPendingStepKey((persisted.stepKey as BookingUiStepKey | null) ?? null);
+    skipScenarioResetOnceRef.current = true;
+    skipLocationResetOnceRef.current = true;
+
+    setTimeout(() => {
+      restoringFromStorageRef.current = false;
+    }, 0);
+  }, [initialParamsApplied, initialParams]);
+
+  useEffect(() => {
     if (!locationId || !context?.locations?.length) return;
     const exists = context.locations.some((item) => item.id === locationId);
     if (!exists) setLocationId(null);
@@ -1022,10 +1108,22 @@ export default function BookingClient({
     if (idx >= 0) setStepIndex(idx);
   };
 
+  useEffect(() => {
+    if (!pendingStepKey) return;
+    const idx = stepsWithScenario.findIndex((s) => s.key === pendingStepKey);
+    if (idx >= 0) setStepIndex(idx);
+    setPendingStepKey(null);
+  }, [pendingStepKey, stepsWithScenario]);
+
   // Auto-advance is disabled: переходы только по кнопке "Далее".
 
   // ---------- resets
   useEffect(() => {
+    if (skipScenarioResetOnceRef.current) {
+      skipScenarioResetOnceRef.current = false;
+      return;
+    }
+    if (restoringFromStorageRef.current) return;
     setServiceId(null);
     setSpecialistId(null);
     setTimeChoice(null);
@@ -1040,6 +1138,11 @@ export default function BookingClient({
   }, [scenario]);
 
   useEffect(() => {
+    if (skipLocationResetOnceRef.current) {
+      skipLocationResetOnceRef.current = false;
+      return;
+    }
+    if (restoringFromStorageRef.current) return;
     setServiceId(null);
     setSpecialistId(null);
     setTimeChoice(null);
@@ -1835,6 +1938,55 @@ export default function BookingClient({
 
   const goNext = () => setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
   const goPrev = () => setStepIndex((v) => Math.max(0, v - 1));
+
+  useEffect(() => {
+    if (!initialParamsApplied) return;
+    if (typeof window === "undefined") return;
+    const stepKey =
+      (stepsWithScenario[stepIndex]?.key as BookingUiStepKey | undefined) ?? null;
+    const payload: BookingPersistedState = {
+      scenario,
+      startScenario,
+      locationId,
+      serviceId,
+      specialistId,
+      dateYmd,
+      timeChoice,
+      timeBucket,
+      query,
+      specialistQuery,
+      selectedServiceCategory,
+      selectedSpecialistCategory,
+      stepKey,
+      updatedAt: Date.now(),
+    };
+    try {
+      window.sessionStorage.setItem(
+        bookingStateStorageKey(accountSlug, accountPublicSlug),
+        JSON.stringify(payload)
+      );
+    } catch {
+      // ignore storage errors
+    }
+  }, [
+    initialParamsApplied,
+    scenario,
+    startScenario,
+    locationId,
+    serviceId,
+    specialistId,
+    dateYmd,
+    timeChoice,
+    timeBucket,
+    query,
+    specialistQuery,
+    selectedServiceCategory,
+    selectedSpecialistCategory,
+    stepIndex,
+    stepsWithScenario,
+    accountSlug,
+    accountPublicSlug,
+  ]);
 
   const getContactDefaults = () => {
     if (!clientProfile) {
