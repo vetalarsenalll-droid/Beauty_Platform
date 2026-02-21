@@ -140,6 +140,7 @@ const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
 const BOOKING_MAX_BLOCK_COLUMNS = 15;
+const PUBLIC_WIDTH_REFERENCE = 1600;
 
 function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | string): number {
   if (blockType === "booking") {
@@ -161,6 +162,15 @@ function bookingCardsPerRow(columns: number): number {
   if (preset <= 2) return 2;
   if (preset <= 4) return 3;
   return 4;
+}
+
+function responsiveBlockWidthCss(columns: number, useEdgePad = true): string {
+  const clampedColumns = Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, columns));
+  const targetPx = Math.round((PUBLIC_WIDTH_REFERENCE * clampedColumns) / MAX_BLOCK_COLUMNS);
+  if (!useEdgePad) {
+    return `min(${targetPx}px, 100%)`;
+  }
+  return `min(${targetPx}px, calc(100% - (var(--site-edge-pad, 0px) * 2)))`;
 }
 
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
@@ -460,7 +470,7 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   );
   const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
   const bookingCardsColumns = bookingCardsPerRow(blockWidthColumns);
-  const blockWidthPercent = (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
+  const blockWidthCss = responsiveBlockWidthCss(blockWidthVisualColumns, true);
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
@@ -527,7 +537,7 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--bp-text-size-sm": `${textSize}px`,
     "--bp-text-size-base": `${subheadingSize}px`,
     "--bp-text-size-lg": `${headingSize}px`,
-    "--bp-content-width": `${blockWidthPercent}%`,
+    "--bp-content-width": blockWidthCss,
     "--bp-cards-cols": String(bookingCardsColumns),
   } as Record<string, string>;
 }
@@ -683,11 +693,14 @@ export function buildBlockWrapperStyle(
           ? blockWidth
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
-    const blockWidthPercent = isBookingBlock
-      ? 100
-      : (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns))) /
-          MAX_BLOCK_COLUMNS) *
-        100;
+    const blockOuterColumns = isBookingBlock
+      ? MAX_BLOCK_COLUMNS
+      : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
+    const percentWidth =
+      (Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns))) /
+        MAX_BLOCK_COLUMNS) *
+      100;
+    const isMenu = options.blockType === "menu";
     return {
       className: "site-block border border-[color:var(--bp-stroke)] p-8",
       style: {
@@ -705,7 +718,9 @@ export function buildBlockWrapperStyle(
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop: typeof style.marginTop === "number" ? style.marginTop : 0,
         marginBottom: typeof style.marginBottom === "number" ? style.marginBottom : 0,
-        width: `${blockWidthPercent}%`,
+        width: isMenu
+          ? `${percentWidth}%`
+          : responsiveBlockWidthCss(blockOuterColumns, true),
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
