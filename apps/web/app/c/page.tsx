@@ -83,7 +83,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       style={pageStyle}
     >
       <div
-        className="mx-auto flex w-full flex-col px-6 py-12"
+        className="flex w-full flex-col pt-0 pb-12"
         style={themeFrame ? { gap: themeFrame.blockGap } : undefined}
       >
         {menuNode}

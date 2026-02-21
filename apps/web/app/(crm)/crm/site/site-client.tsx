@@ -200,9 +200,9 @@ const DEFAULT_BLOCK_COLUMNS = 6;
 const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
-const BOOKING_MAX_BLOCK_COLUMNS = 12;
+const BOOKING_MAX_BLOCK_COLUMNS = 15;
 const BOOKING_MIN_PRESET = 1;
-const BOOKING_MAX_PRESET = 3;
+const BOOKING_MAX_PRESET = 6;
 
 function clampBlockColumns(columns: number, blockType: BlockType | string): number {
   if (blockType === "booking") {
@@ -226,7 +226,14 @@ function bookingColumnsFromPreset(preset: number): number {
 }
 
 function bookingContentColumns(columns: number): number {
-  return clampBlockColumns(columns, "booking");
+  return clampBlockColumns(columns, "booking") - 4;
+}
+
+function bookingCardsPerRow(columns: number): number {
+  const preset = bookingPresetFromColumns(columns);
+  if (preset <= 2) return 2;
+  if (preset <= 4) return 3;
+  return 4;
 }
 
 const defaultBlockStyle = {
@@ -486,6 +493,7 @@ export default function SiteClient({
   const displayBlocks: SiteBlock[] = sharedMenuBlock
     ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.id !== sharedMenuBlock.id)]
     : pageBlocks;
+  const firstDisplayBlockIsMenu = displayBlocks[0]?.type === "menu";
   const [selectedId, setSelectedId] = useState<string | null>(
     displayBlocks[0]?.id ?? null
   );
@@ -904,17 +912,17 @@ export default function SiteClient({
           <div
             className="mx-auto flex w-full flex-col"
             style={{
-              paddingTop: 24,
+              paddingTop: 0,
               paddingBottom: 24,
               paddingLeft: 0,
               paddingRight: 0,
               maxWidth: previewCanvasWidth,
             }}
           >
-            {!isSystemPage && (
+            {!isSystemPage && !firstDisplayBlockIsMenu && (
               <InsertSlot
                 index={0}
-                spacing={draft.theme.blockSpacing}
+                spacing={0}
                 onInsert={() => {
                   setInsertIndex(0);
                   setLeftPanel("library");
@@ -926,14 +934,17 @@ export default function SiteClient({
               const isSharedMenu = Boolean(
                 sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
               );
+              const menuTopOffset = index === 0 && block.type === "menu" ? 40 : 0;
               return (
               <div
                 key={block.id}
                 className="relative"
                 style={
                   isSystemPage && index > 0
-                    ? { marginTop: draft.theme.blockSpacing }
-                    : undefined
+                    ? { marginTop: draft.theme.blockSpacing + menuTopOffset }
+                    : menuTopOffset > 0
+                      ? { marginTop: menuTopOffset }
+                      : undefined
                 }
               >
                 <BlockPreview
@@ -3179,6 +3190,7 @@ function BlockPreview({
     block.type
   );
   const bookingInnerColumns = bookingContentColumns(blockWidthColumns);
+  const bookingContentPercent = (bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100;
   const blockWidthPercent =
     ((isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns) / MAX_BLOCK_COLUMNS) * 100;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
@@ -3187,11 +3199,7 @@ function BlockPreview({
     style.gradientDirection || theme.gradientDirection || "vertical";
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
-  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
-  const bookingContentWidth = Math.round(
-    ((palette.contentWidth ?? theme.contentWidth ?? 1120) * bookingInnerColumns) /
-      MAX_BLOCK_COLUMNS
-  );
+  const bookingContentWidth = `${bookingContentPercent}%`;
   const containerClass = isBooking
     ? "p-0"
     : `border ${
@@ -3247,7 +3255,7 @@ function BlockPreview({
       >
         {isBooking ? (
           <div className="absolute inset-x-0 -top-6">
-            <div className="mx-auto w-full" style={{ maxWidth: `${bookingContentWidth}px` }}>
+            <div className="mx-auto w-full" style={{ maxWidth: bookingContentWidth }}>
               <button
                 type="button"
                 onClick={(event) => {
@@ -3455,17 +3463,14 @@ function renderBlock(
 }
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
-  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const blockWidthColumns = clampBlockColumns(
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     "booking"
   );
   const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
-  const blockWidthPercent =
-    (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
-  const blockWidth = Math.round(
-    ((palette.contentWidth ?? theme.contentWidth ?? 1120) * blockWidthPercent) / 100
-  );
+  const bookingCardsColumns = bookingCardsPerRow(blockWidthColumns);
+  const blockWidthPercent = (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
+  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
   const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
@@ -3532,7 +3537,8 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--bp-text-size-sm": `${textSize}px`,
     "--bp-text-size-base": `${subheadingSize}px`,
     "--bp-text-size-lg": `${headingSize}px`,
-    "--bp-content-width": `${blockWidth}px`,
+    "--bp-content-width": `${blockWidthPercent}%`,
+    "--bp-cards-cols": String(bookingCardsColumns),
   } as Record<string, string>;
 }
 

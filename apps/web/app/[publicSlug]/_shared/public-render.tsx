@@ -139,7 +139,7 @@ const DEFAULT_BLOCK_COLUMNS = 6;
 const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
-const BOOKING_MAX_BLOCK_COLUMNS = 12;
+const BOOKING_MAX_BLOCK_COLUMNS = 15;
 
 function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | string): number {
   if (blockType === "booking") {
@@ -152,7 +152,15 @@ function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | strin
 }
 
 function bookingContentColumns(columns: number): number {
-  return clampBlockColumns(columns, "booking");
+  return clampBlockColumns(columns, "booking") - 4;
+}
+
+function bookingCardsPerRow(columns: number): number {
+  const clamped = clampBlockColumns(columns, "booking");
+  const preset = clamped - (BOOKING_MIN_BLOCK_COLUMNS - 1);
+  if (preset <= 2) return 2;
+  if (preset <= 4) return 3;
+  return 4;
 }
 
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
@@ -446,17 +454,14 @@ export function renderBlock(
 }
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
-  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const blockWidthColumns = clampBlockColumns(
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     "booking"
   );
   const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
-  const blockWidthPercent =
-    (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
-  const blockWidth = Math.round(
-    ((palette.contentWidth ?? theme.contentWidth ?? 1120) * blockWidthPercent) / 100
-  );
+  const bookingCardsColumns = bookingCardsPerRow(blockWidthColumns);
+  const blockWidthPercent = (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
+  const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
   const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
@@ -522,7 +527,8 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--bp-text-size-sm": `${textSize}px`,
     "--bp-text-size-base": `${subheadingSize}px`,
     "--bp-text-size-lg": `${headingSize}px`,
-    "--bp-content-width": `${blockWidth}px`,
+    "--bp-content-width": `${blockWidthPercent}%`,
+    "--bp-cards-cols": String(bookingCardsColumns),
   } as Record<string, string>;
 }
 

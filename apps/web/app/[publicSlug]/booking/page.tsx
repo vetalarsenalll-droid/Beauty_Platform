@@ -83,7 +83,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
         fontFamily: "var(--site-font-body)",
       }}
     >
-      <div className="mx-auto flex w-full flex-col px-6 py-12" style={{ gap: blockGap }}>
+      <div className="flex w-full flex-col pt-0 pb-12" style={{ gap: blockGap }}>
         {blocks.map((block, index) => {
           const style = normalizeStyle(block, themeForRender);
           const menuPosition =
@@ -133,4 +133,6 @@ export default async function PublicBookingPage({ params }: PageProps) {
     </main>
   );
 }
+
+
 

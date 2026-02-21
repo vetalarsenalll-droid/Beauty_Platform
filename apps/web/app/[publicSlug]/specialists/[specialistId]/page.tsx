@@ -91,7 +91,7 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
       }}
     >
       <div
-        className="mx-auto flex w-full flex-col px-6 py-12"
+        className="flex w-full flex-col pt-0 pb-12"
         style={{ gap: blockGap }}
         suppressHydrationWarning
       >
@@ -137,6 +137,7 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
     </main>
   );
 }
+
 
 
 

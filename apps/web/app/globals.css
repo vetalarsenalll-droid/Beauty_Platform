@@ -211,6 +211,10 @@
     margin: -48px -16px -16px -16px;
     width: calc(100% + 32px);
   }
+
+  .booking-root {
+    --bp-content-width: calc(100% - 8px);
+  }
 }
 
 #public-site-root .site-block {

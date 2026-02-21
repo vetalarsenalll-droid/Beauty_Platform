@@ -84,7 +84,7 @@ export default async function PublicAccountPage({ params }: PageProps) {
         fontFamily: "var(--site-font-body)",
       }}
     >
-      <div suppressHydrationWarning className="flex w-full flex-col py-12" style={{ gap: blockGap }}>
+      <div suppressHydrationWarning className="flex w-full flex-col pt-0 pb-12" style={{ gap: blockGap }}>
         {blocks.map((block, index) => {
           const style = normalizeStyle(block, themeForRender);
           const menuPosition =
@@ -138,6 +138,7 @@ export default async function PublicAccountPage({ params }: PageProps) {
     </main>
   );
 }
+
 
 
 

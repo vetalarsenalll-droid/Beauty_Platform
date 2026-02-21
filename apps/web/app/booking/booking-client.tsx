@@ -2010,7 +2010,7 @@ export default function BookingClient({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="ml-auto hidden items-center gap-2 sm:flex">
                 <button
                   type="button"
                   onClick={goPrev}
@@ -2029,6 +2029,26 @@ export default function BookingClient({
                   Далее
                 </button>
               </div>
+            </div>
+
+            <div className="sticky top-[132px] z-30 -mt-9 mb-3 flex justify-end gap-2 sm:hidden">
+              <button
+                type="button"
+                onClick={goPrev}
+                disabled={stepIndex === 0}
+                className="min-w-[70px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+              >
+                Назад
+              </button>
+
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
+                className="min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+              >
+                Далее
+              </button>
             </div>
 
             <div className="mt-4 border-t border-[color:var(--bp-stroke)] pt-4 lg:min-h-0 lg:flex-1">
@@ -2256,7 +2276,7 @@ export default function BookingClient({
                     {servicesError && <div className="text-sm text-red-600">{servicesError}</div>}
 
                     {!loadingServices && !servicesError && (
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                         {servicesForServiceStep.map((service) => {
                           const price = showFromServiceMetrics
                             ? service.minPrice ?? service.basePrice ?? 0
@@ -2433,7 +2453,7 @@ export default function BookingClient({
                       !specialistsError &&
                       (isSpecialistFirst || (!isSpecialistFirst && !!serviceId && !!timeChoice)) &&
                       (!isDateFirst || (!loadingDateFirstServiceSlots && !!serviceId && !!timeChoice)) && (
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                           {specialistsForSpecialistStepFiltered.map((sp) => {
                             const active = sp.id === specialistId;
                             const specialistProfileHref = accountPublicSlug
