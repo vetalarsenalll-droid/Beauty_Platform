@@ -245,7 +245,7 @@ export const makeBlockId = () => {
   return `block-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const createMenuBlock = (): SiteBlock => ({
+const createMenuBlock = (accountTitle = ""): SiteBlock => ({
   id: makeBlockId(),
   type: "menu",
   variant: "v1",
@@ -253,6 +253,7 @@ const createMenuBlock = (): SiteBlock => ({
     title: "Меню",
     menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
+    showCompanyName: true,
     showButton: true,
     showThemeToggle: false,
     ctaMode: "booking",
@@ -260,7 +261,7 @@ const createMenuBlock = (): SiteBlock => ({
     buttonText: "Записаться",
     showSearch: false,
     showAccount: false,
-    accountTitle: "",
+    accountTitle,
     menuHeight: 56,
     showSocials: false,
     position: "static",
@@ -287,7 +288,7 @@ const createMenuBlock = (): SiteBlock => ({
 
 export const createDefaultDraft = (accountName: string): SiteDraft => {
   const homeBlocks: SiteBlock[] = [
-    createMenuBlock(),
+    createMenuBlock(accountName),
     {
       id: makeBlockId(),
       type: "cover",

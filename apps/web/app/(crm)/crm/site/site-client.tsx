@@ -333,6 +333,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     title: "Меню",
     menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
+    showCompanyName: true,
     showButton: true,
     showThemeToggle: false,
     ctaMode: "booking",
@@ -340,7 +341,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     buttonText: "Записаться",
     showSearch: false,
     showAccount: false,
-    accountLink: "/c",
+    accountTitle: "",
+    menuHeight: 56,
     showSocials: false,
     position: "static",
     socialsMode: "auto",
@@ -703,6 +705,14 @@ export default function SiteClient({
     variant?: "v1" | "v2" | "v3" | "v4" | "v5"
   ) => {
     const block = createBlock(type);
+    if (type === "menu") {
+      block.data = {
+        ...block.data,
+        accountTitle: account.name,
+        showCompanyName: true,
+        menuHeight: 56,
+      };
+    }
     if (variant) block.variant = variant;
 
     if (type === "menu" && activePage !== "home") {
@@ -1067,7 +1077,7 @@ export default function SiteClient({
 
         {leftPanel && (
           <aside
-            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: "var(--crm-sidebar-width, 272px)", top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1262,7 +1272,7 @@ export default function SiteClient({
 
         {leftPanel === "library" && libraryBlock && (
           <aside
-            className="fixed z-30 w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: "calc(var(--crm-sidebar-width, 272px) + 320px)", top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1304,7 +1314,7 @@ export default function SiteClient({
 
         {rightPanel && (
           <aside
-            className="fixed right-0 z-30 w-[360px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed right-0 z-[140] w-[360px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1330,6 +1340,7 @@ export default function SiteClient({
               {rightPanel === "content" && selectedBlock && (
                 <BlockEditor
                   block={selectedBlock}
+                  accountName={account.name}
                   locations={locations}
                   services={services}
                   specialists={specialists}
@@ -1645,6 +1656,7 @@ function NumberField({
 
 function BlockEditor({
   block,
+  accountName,
   locations,
   services,
   specialists,
@@ -1652,6 +1664,7 @@ function BlockEditor({
   onChange,
 }: {
   block: SiteBlock;
+  accountName: string;
   locations: LocationItem[];
   services: ServiceItem[];
   specialists: SpecialistItem[];
@@ -1717,6 +1730,14 @@ function BlockEditor({
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              checked={block.data.showCompanyName !== false}
+              onChange={(event) => updateData({ showCompanyName: event.target.checked })}
+            />
+            Показывать название компании
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
               checked={Boolean(block.data.showSearch)}
               onChange={(event) => updateData({ showSearch: event.target.checked })}
             />
@@ -1739,8 +1760,8 @@ function BlockEditor({
             Переключатель темы
           </label>
           <FieldText
-            label="Название аккаунта в меню"
-            value={(block.data.accountTitle as string) ?? ""}
+            label="Название компании"
+            value={(block.data.accountTitle as string) ?? accountName}
             onChange={(value) => updateData({ accountTitle: value })}
           />
           <label className="text-sm">
@@ -2556,7 +2577,7 @@ function BlockStyleEditor({
           px
           <input
             type="range"
-            min={44}
+            min={30}
             max={96}
             step={1}
             value={
@@ -3444,6 +3465,7 @@ function BlockPreview({
   const textColor = style.textColor || theme.textColor;
   const mutedColor = style.mutedColor || theme.mutedColor;
   const isBooking = block.type === "booking";
+  const isMenu = block.type === "menu";
   const blockWidthColumns = clampBlockColumns(
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     block.type
@@ -3457,11 +3479,26 @@ function BlockPreview({
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
-  const containerClass = isBooking
+  const containerClass = isBooking || isMenu
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
       } p-6 shadow-[var(--bp-shadow-soft)]`;
+  const blockContent = renderBlock(
+    block,
+    account,
+    accountProfile,
+    branding,
+    locations,
+    services,
+    specialists,
+    promos,
+    workPhotos,
+    theme,
+    loaderConfig,
+    currentEntity,
+    onThemeToggle
+  );
 
   return (
     <div
@@ -3498,12 +3535,12 @@ function BlockPreview({
               : "none",
           color: textColor,
           fontFamily: blockFont,
-          borderColor: isBooking ? "transparent" : borderColor,
-          borderWidth: isBooking || borderColor === "transparent" ? 0 : 1,
+          borderColor: isBooking || isMenu ? "transparent" : borderColor,
+          borderWidth: isBooking || isMenu || borderColor === "transparent" ? 0 : 1,
           marginTop: style.marginTop,
           marginBottom: style.marginBottom,
           boxShadow:
-            isBooking || shadowSize <= 0
+            isBooking || isMenu || shadowSize <= 0
               ? "none"
               : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
           ["--bp-muted" as string]: mutedColor,
@@ -3511,7 +3548,7 @@ function BlockPreview({
         }}
       >
         {isBooking ? (
-          <div className="absolute inset-x-0 -top-6">
+          <div className="absolute inset-x-0 -top-6 z-10">
             <div className="mx-auto w-full" style={{ maxWidth: bookingContentWidth }}>
               <button
                 type="button"
@@ -3528,7 +3565,7 @@ function BlockPreview({
             </div>
           </div>
         ) : (
-          <div className="absolute left-4 -top-6 flex items-center gap-2">
+          <div className="absolute left-4 -top-6 z-10 flex items-center gap-2">
             <button
               type="button"
               onClick={(event) => {
@@ -3556,7 +3593,7 @@ function BlockPreview({
           </div>
         )}
         {!disableActions && (
-          <div className="absolute right-4 -top-6 flex items-center gap-2">
+          <div className="absolute right-4 -top-6 z-10 flex items-center gap-2">
             <button
               type="button"
               onClick={(event) => {
@@ -3595,21 +3632,7 @@ function BlockPreview({
             </button>
           </div>
         )}
-          {renderBlock(
-            block,
-            account,
-            accountProfile,
-            branding,
-            locations,
-            services,
-            specialists,
-            promos,
-            workPhotos,
-            theme,
-            loaderConfig,
-            currentEntity,
-            onThemeToggle
-          )}
+          {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
       </div>
     </div>
   );
@@ -4094,6 +4117,7 @@ function renderMenuBlock(
     ? (data.menuItems as SitePageKey[]).filter((item) => item in PAGE_LABELS)
     : PAGE_KEYS;
   const showLogo = data.showLogo !== false;
+  const showCompanyName = data.showCompanyName !== false;
   const showButton = Boolean(data.showButton);
   const showThemeToggle = Boolean(data.showThemeToggle);
   const ctaMode = (data.ctaMode as string) || "booking";
@@ -4112,10 +4136,15 @@ function renderMenuBlock(
   const accountTitle = accountTitleRaw || account.name;
   const menuHeightRaw = Number(data.menuHeight);
   const menuHeight =
-    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 44 && menuHeightRaw <= 96
+    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 30 && menuHeightRaw <= 96
       ? Math.round(menuHeightRaw)
       : 56;
-  const menuButtonSize = Math.max(36, Math.min(52, menuHeight - 8));
+  const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
+  const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
+  const menuGradient =
+    style.gradientEnabled
+      ? `linear-gradient(${style.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFrom || theme.gradientFrom}, ${style.gradientTo || theme.gradientTo})`
+      : "none";
   const align = (style.textAlign ?? "left") as "left" | "center" | "right";
   const alignClass =
     align === "center"
@@ -4124,14 +4153,25 @@ function renderMenuBlock(
         ? "justify-end text-right"
         : "justify-start text-left";
   const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
-  const logoNode = branding.logoUrl ? (
-    <div className="flex items-center gap-2">
-      <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
-      <span className="text-sm font-semibold">{accountTitle}</span>
-    </div>
-  ) : (
-    <div className="text-sm font-semibold">{accountTitle}</div>
-  );
+  const logoImageNode =
+    showLogo && branding.logoUrl ? (
+      <img src={branding.logoUrl} alt="" style={{ height: logoImageHeight, width: "auto" }} />
+    ) : null;
+  const companyNameNode = showCompanyName ? (
+    <span
+      className="font-semibold text-[color:var(--bp-muted)]"
+      style={{ ...textStyle(style, theme), textAlign: "left" }}
+    >
+      {accountTitle}
+    </span>
+  ) : null;
+  const logoNode =
+    logoImageNode || companyNameNode ? (
+      <div className="flex items-center gap-2">
+        {logoImageNode}
+        {companyNameNode}
+      </div>
+    ) : null;
   const linkItems = menuItems.map((key) => {
     const href =
       key === "home"
@@ -4142,7 +4182,12 @@ function renderMenuBlock(
             ? `/c?account=${account.slug}`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
-      <a key={key} href={href} className="text-sm font-medium">
+      <a
+        key={key}
+        href={href}
+        className="font-medium"
+        style={{ ...subheadingStyle(style, theme), color: "var(--bp-ink)", textAlign: "left" }}
+      >
         {PAGE_LABELS[key]}
       </a>
     );
@@ -4161,6 +4206,7 @@ function renderMenuBlock(
         key={`${key}-overlay`}
         href={href}
         className="w-full text-center text-3xl font-medium md:text-5xl"
+        style={{ ...headingStyle(style, theme), textAlign: "center" }}
       >
         {PAGE_LABELS[key]}
       </a>
@@ -4263,7 +4309,7 @@ function renderMenuBlock(
     <MenuPreview
       variant={block.variant}
       alignClass={alignClass}
-      logoNode={showLogo ? logoNode : null}
+      logoNode={logoNode}
       navNode={<div className="flex flex-wrap items-center gap-4">{linkItems}</div>}
       overlayNavNode={
         <div className="flex w-full flex-col items-center gap-6 text-center">
@@ -4279,6 +4325,7 @@ function renderMenuBlock(
       menuHeight={menuHeight}
       menuButtonSize={menuButtonSize}
       blockBg={style.blockBg || theme.panelColor}
+      menuGradient={menuGradient}
       subBlockBg={subBlockBg}
       subBlockBorder={subBlockBorder}
     />
@@ -4300,6 +4347,7 @@ function MenuPreview({
   menuHeight,
   menuButtonSize,
   blockBg,
+  menuGradient,
   subBlockBg,
   subBlockBorder,
 }: {
@@ -4317,6 +4365,7 @@ function MenuPreview({
   menuHeight: number;
   menuButtonSize: number;
   blockBg: string;
+  menuGradient: string;
   subBlockBg: string;
   subBlockBorder: string;
 }) {
@@ -4349,6 +4398,7 @@ function MenuPreview({
   if (variant === "v2") {
     const topBarStyle: React.CSSProperties = {
       backgroundColor: mobileOpen ? subBlockBg : blockBg,
+      backgroundImage: mobileOpen ? "none" : menuGradient,
       borderColor: subBlockBorder,
       borderWidth: subBlockBorder === "transparent" ? 0 : 1,
     };
@@ -4362,13 +4412,13 @@ function MenuPreview({
         }
       >
         <div
-          className={`relative z-[60] flex items-center px-1 py-1 pr-14 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
+          className={`relative z-[60] flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
           style={{ ...topBarStyle, minHeight: menuHeight }}
         >
           <div className="flex items-center gap-3">{logoNode}</div>
           <button
             type="button"
-            className="absolute right-1 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+            className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
             style={{ width: menuButtonSize, height: menuButtonSize }}
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
@@ -4397,8 +4447,8 @@ function MenuPreview({
         </div>
         {mobileOpen && (
           <div
-            className="absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[inherit] border px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
-            style={subBlockStyle}
+            className="absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
+            style={{ ...subBlockStyle, borderWidth: 0 }}
           >
             <div className="flex flex-1 flex-col items-center justify-center py-6">
               {overlayNavNode}

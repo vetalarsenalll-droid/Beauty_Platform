@@ -711,7 +711,9 @@ export function buildBlockWrapperStyle(
         ? "100%"
         : responsiveBlockWidthCss(blockOuterColumns, true);
     return {
-      className: "site-block border border-[color:var(--bp-stroke)] p-6",
+      className: isMenu
+        ? "site-block overflow-hidden border border-[color:var(--bp-stroke)] p-0"
+        : "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
@@ -781,6 +783,7 @@ function renderMenu(
     ? (data.menuItems as PageKey[]).filter((item) => item in PAGE_LABELS)
     : (Object.keys(PAGE_LABELS) as PageKey[]);
   const showLogo = data.showLogo !== false;
+  const showCompanyName = data.showCompanyName !== false;
   const showButton = data.showButton !== false;
   const ctaMode = (data.ctaMode as string) || "booking";
   const phoneOverride =
@@ -806,10 +809,11 @@ function renderMenu(
   const accountTitle = accountTitleRaw || accountName;
   const menuHeightRaw = Number(data.menuHeight);
   const menuHeight =
-    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 44 && menuHeightRaw <= 96
+    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 30 && menuHeightRaw <= 96
       ? Math.round(menuHeightRaw)
       : 56;
-  const menuButtonSize = Math.max(36, Math.min(52, menuHeight - 8));
+  const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
+  const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
   const align = (style.textAlign ?? "left") as "left" | "center" | "right";
   const alignClass =
     align === "center"
@@ -818,16 +822,25 @@ function renderMenu(
         ? "justify-end text-right"
         : "justify-start text-left";
 
-  const logoNode = showLogo ? (
-    branding.logoUrl ? (
-      <div className="flex items-center gap-2">
-        <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
-        <span className="text-sm font-semibold">{accountTitle}</span>
-      </div>
-    ) : (
-      <div className="text-sm font-semibold">{accountTitle}</div>
-    )
+  const logoImageNode =
+    showLogo && branding.logoUrl ? (
+      <img src={branding.logoUrl} alt="" style={{ height: logoImageHeight, width: "auto" }} />
+    ) : null;
+  const companyNameNode = showCompanyName ? (
+    <span
+      className="font-semibold text-[color:var(--bp-muted)]"
+      style={{ ...textStyle(style), textAlign: "left" }}
+    >
+      {accountTitle}
+    </span>
   ) : null;
+  const logoNode =
+    logoImageNode || companyNameNode ? (
+      <div className="flex items-center gap-2">
+        {logoImageNode}
+        {companyNameNode}
+      </div>
+    ) : null;
 
   const linkItems = menuItems.map((key) => {
     const href =
@@ -844,8 +857,8 @@ function renderMenu(
       <Link
         key={key}
         href={href}
-        className="text-sm font-medium"
-        style={{ color: "var(--block-text, var(--bp-ink))" }}
+        className="font-medium"
+        style={{ ...subheadingStyle(style), color: "var(--block-text, var(--bp-ink))", textAlign: "left" }}
       >
         {PAGE_LABELS[key]}
       </Link>
@@ -867,7 +880,7 @@ function renderMenu(
         key={`${key}-overlay`}
         href={href}
         className="w-full text-center text-3xl font-medium md:text-5xl"
-        style={{ color: "var(--block-text, var(--bp-ink))" }}
+        style={{ ...headingStyle(style), color: "var(--block-text, var(--bp-ink))", textAlign: "center" }}
       >
         {PAGE_LABELS[key]}
       </Link>
@@ -1071,19 +1084,21 @@ function renderMenu(
       >
         <details className="group menu-v2-overlay w-full">
           <summary
-            className="relative z-[60] flex cursor-pointer list-none items-center border-b px-1 py-1 pr-14
+            className="relative z-[60] flex cursor-pointer list-none items-center border-b py-0 pl-8 pr-24
               [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
+              [--menu-v2-top-gradient:var(--block-gradient)] group-open:[--menu-v2-top-gradient:none]
               [&::-webkit-details-marker]:hidden
-              group-open:absolute group-open:inset-x-0 group-open:top-0 group-open:px-1 group-open:py-1"
+              group-open:absolute group-open:inset-x-0 group-open:top-0 group-open:py-0 group-open:pl-8 group-open:pr-24"
             style={{
               minHeight: menuHeight,
               backgroundColor: "var(--menu-v2-top-bg, var(--block-bg, var(--site-panel)))",
+              backgroundImage: "var(--menu-v2-top-gradient, none)",
               borderColor: "var(--block-border, var(--site-border))",
             }}
           >
             <div className="flex items-center gap-3">{logoNode}</div>
             <span
-              className="absolute right-1 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               style={{ width: menuButtonSize, height: menuButtonSize }}
             >
               <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
