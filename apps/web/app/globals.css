@@ -219,6 +219,7 @@
 
 #public-site-root .site-block {
   --block-bg: var(--block-bg-light);
+  --block-sub-bg: var(--block-sub-bg-light);
   --block-border: var(--block-border-light);
   --block-text: var(--block-text-light);
   --block-muted: var(--block-muted-light);
@@ -229,12 +230,17 @@
 
 #public-site-root[data-site-theme="dark"] .site-block {
   --block-bg: var(--block-bg-dark);
+  --block-sub-bg: var(--block-sub-bg-dark);
   --block-border: var(--block-border-dark);
   --block-text: var(--block-text-dark);
   --block-muted: var(--block-muted-dark);
   --block-button: var(--block-button-dark);
   --block-button-text: var(--block-button-text-dark);
   --block-gradient: var(--block-gradient-dark);
+}
+
+body:has(#public-site-root .menu-v2-overlay[open]) {
+  overflow: hidden;
 }
 
 [data-site-theme="dark"] .booking-root {

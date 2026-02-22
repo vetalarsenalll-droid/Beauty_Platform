@@ -2556,7 +2556,7 @@ function BlockStyleEditor({
             update({ blockBgLight: toStore(value), blockBg: toStore(value) })
           }
         />
-        {block.type === "booking" && (
+        {(block.type === "booking" || block.type === "menu") && (
           <ColorField
             label="Цвет подблока"
             value={toDisplay(lightSubBlockBg)}
@@ -2645,7 +2645,7 @@ function BlockStyleEditor({
               placeholder={theme.darkPalette.panelColor}
               onChange={(value) => update({ blockBgDark: toStore(value) })}
             />
-            {block.type === "booking" && (
+            {(block.type === "booking" || block.type === "menu") && (
               <ColorField
                 label="Цвет подблока"
                 value={toDisplay(darkSubBlockBg)}
@@ -4105,6 +4105,21 @@ function renderMenuBlock(
       </a>
     );
   });
+  const overlayLinkItems = menuItems.map((key) => {
+    const href =
+      key === "home"
+        ? basePath
+        : key === "booking"
+          ? `${basePath}/booking`
+          : key === "client"
+            ? `/c?account=${account.slug}`
+            : `${basePath}/${key === "promos" ? "promos" : key}`;
+    return (
+      <a key={`${key}-overlay`} href={href} className="text-3xl font-medium md:text-5xl">
+        {PAGE_LABELS[key]}
+      </a>
+    );
+  });
 
   const accountIcon = (
       <a
@@ -4194,6 +4209,9 @@ function renderMenuBlock(
         promos={promos}
       />
     ) : null;
+  const subBlockBg = style.subBlockBg || style.blockBg || theme.panelColor;
+  const subBlockBorder =
+    (style.borderColor || theme.borderColor || "").trim() || "transparent";
 
   return (
     <MenuPreview
@@ -4201,12 +4219,15 @@ function renderMenuBlock(
       alignClass={alignClass}
       logoNode={showLogo ? logoNode : null}
       navNode={<div className="flex flex-wrap items-center gap-4">{linkItems}</div>}
+      overlayNavNode={<div className="flex flex-col items-center gap-6">{overlayLinkItems}</div>}
       searchNode={searchNode}
       socialsNode={socialsNode}
       accountNode={showAccount ? accountIcon : null}
       themeToggleNode={themeToggleNode}
       ctaNode={ctaNode}
       position={position}
+      subBlockBg={subBlockBg}
+      subBlockBorder={subBlockBorder}
     />
   );
 }
@@ -4216,25 +4237,36 @@ function MenuPreview({
   alignClass,
   logoNode,
   navNode,
+  overlayNavNode,
   searchNode,
   socialsNode,
   accountNode,
   themeToggleNode,
   ctaNode,
   position,
+  subBlockBg,
+  subBlockBorder,
 }: {
   variant: "v1" | "v2" | "v3" | "v4" | "v5";
   alignClass: string;
   logoNode: React.ReactNode | null;
   navNode: React.ReactNode;
+  overlayNavNode: React.ReactNode;
   searchNode: React.ReactNode | null;
   socialsNode: React.ReactNode | null;
   accountNode: React.ReactNode | null;
   themeToggleNode: React.ReactNode | null;
   ctaNode: React.ReactNode | null;
   position: "static" | "sticky";
+  subBlockBg: string;
+  subBlockBorder: string;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const subBlockStyle: React.CSSProperties = {
+    backgroundColor: subBlockBg,
+    borderColor: subBlockBorder,
+    borderWidth: subBlockBorder === "transparent" ? 0 : 1,
+  };
 
   const actions = (
     <div className="flex flex-wrap items-center gap-4">
@@ -4244,6 +4276,30 @@ function MenuPreview({
       {themeToggleNode}
       {ctaNode}
     </div>
+  );
+  const overlayActions = (
+    <div className="flex flex-wrap items-center justify-center gap-3">
+      {searchNode}
+      {socialsNode}
+      {accountNode}
+      {themeToggleNode}
+      {ctaNode}
+    </div>
+  );
+  const triggerButton = (
+    <button
+      type="button"
+      className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+      onClick={() => setMobileOpen((prev) => !prev)}
+      aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+      title={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+    >
+      {mobileOpen ? (
+        <span className="text-3xl leading-none">X</span>
+      ) : (
+        <IconMenu />
+      )}
+    </button>
   );
 
   let desktopLayout: React.ReactNode = (
@@ -4257,33 +4313,62 @@ function MenuPreview({
   );
 
   if (variant === "v2") {
-    desktopLayout = (
-      <div className="flex flex-wrap items-center justify-between gap-6">
-        <div className="flex items-center gap-3">{logoNode}</div>
-        <div className="flex flex-1 justify-center">{navNode}</div>
-        {actions}
+    return (
+      <div
+        className="relative w-full"
+        style={
+          position === "sticky"
+            ? { position: "sticky", top: 12, zIndex: 20, minHeight: mobileOpen ? "82vh" : undefined }
+            : { minHeight: mobileOpen ? "82vh" : undefined }
+        }
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">{logoNode}</div>
+          {triggerButton}
+        </div>
+        {mobileOpen && (
+          <div
+            className="absolute inset-0 z-30 flex flex-col rounded-[inherit] border px-6 py-6 md:px-10 md:py-8"
+            style={subBlockStyle}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">{logoNode}</div>
+              {triggerButton}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto py-6">
+              {overlayNavNode}
+            </div>
+            <div className="pt-4">{overlayActions}</div>
+          </div>
+        )}
       </div>
     );
   }
 
   if (variant === "v3") {
     desktopLayout = (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="rounded-2xl border px-4 py-3" style={subBlockStyle}>
+          <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-4">{logoNode}</div>
           {actions}
         </div>
-        <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
       </div>
     );
   }
 
   if (variant === "v4") {
     desktopLayout = (
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">{logoNode}</div>
-        <div className="flex flex-wrap items-center gap-2">{navNode}</div>
-        <div className="flex flex-wrap items-center gap-3">{actions}</div>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">{logoNode}</div>
+          <div className="flex flex-wrap items-center gap-3">{actions}</div>
+        </div>
+        <div className="rounded-2xl border px-3 py-2" style={subBlockStyle}>
+          <div className="flex flex-wrap items-center gap-2">{navNode}</div>
+        </div>
       </div>
     );
   }
@@ -4292,8 +4377,10 @@ function MenuPreview({
     desktopLayout = (
       <div className="flex flex-col items-center gap-4 text-center">
         {logoNode}
-        {navNode}
-        {actions}
+        <div className="w-full rounded-2xl border px-4 py-3" style={subBlockStyle}>
+          {navNode}
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3">{actions}</div>
       </div>
     );
   }
@@ -4325,7 +4412,10 @@ function MenuPreview({
           </div>
         </div>
         {mobileOpen && (
-          <div className="mt-4 space-y-3 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+          <div
+            className="mt-4 space-y-3 rounded-xl border p-4"
+            style={subBlockStyle}
+          >
             {searchNode}
             <div className="flex flex-col gap-2">{navNode}</div>
             {socialsNode}

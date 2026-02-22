@@ -737,6 +737,8 @@ export function buildBlockWrapperStyle(
         ["--bp-muted" as string]: "var(--block-muted)",
         ["--block-bg-light" as string]: style.blockBgLightResolved,
         ["--block-bg-dark" as string]: style.blockBgDarkResolved,
+        ["--block-sub-bg-light" as string]: style.subBlockBgLightResolved,
+        ["--block-sub-bg-dark" as string]: style.subBlockBgDarkResolved,
         ["--block-border-light" as string]: style.borderColorLightResolved,
         ["--block-border-dark" as string]: style.borderColorDarkResolved,
         ["--block-text-light" as string]: style.textColorLightResolved,
@@ -801,6 +803,7 @@ function renderMenu(
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
   const buttonText = (data.buttonText as string) || "Записаться";
   const basePath = publicSlug ? `/${publicSlug}` : "#";
+  const position = data.position === "sticky" ? "sticky" : "static";
   const align = (style.textAlign ?? "left") as "left" | "center" | "right";
   const alignClass =
     align === "center"
@@ -833,6 +836,28 @@ function renderMenu(
         key={key}
         href={href}
         className="text-sm font-medium"
+        style={{ color: "var(--block-text, var(--bp-ink))" }}
+      >
+        {PAGE_LABELS[key]}
+      </Link>
+    );
+  });
+  const overlayLinkItems = menuItems.map((key) => {
+    const href =
+      key === "home"
+        ? basePath
+        : key === "booking"
+          ? `${basePath}/booking`
+          : key === "client"
+            ? accountSlug
+              ? `/c?account=${accountSlug}`
+              : "/c"
+            : `${basePath}/${key === "promos" ? "promos" : key}`;
+    return (
+      <Link
+        key={`${key}-overlay`}
+        href={href}
+        className="w-full text-center text-3xl font-medium md:text-5xl"
         style={{ color: "var(--block-text, var(--bp-ink))" }}
       >
         {PAGE_LABELS[key]}
@@ -983,6 +1008,9 @@ function renderMenu(
   const navNode = (
     <div className="flex flex-wrap items-center gap-4">{linkItems}</div>
   );
+  const overlayNavNode = (
+    <div className="flex w-full flex-col items-center gap-6 text-center">{overlayLinkItems}</div>
+  );
 
   const navPills = (
     <div className="flex flex-wrap items-center gap-2">
@@ -1009,6 +1037,11 @@ function renderMenu(
       })}
     </div>
   );
+  const subBlockSurfaceStyle: CSSProperties = {
+    backgroundColor: "var(--block-sub-bg, var(--block-bg))",
+    borderColor: "var(--block-border, var(--site-border))",
+    borderWidth: 1,
+  };
 
   let desktopLayout: ReactNode = (
     <div className="flex flex-wrap items-center justify-between gap-6">
@@ -1019,42 +1052,101 @@ function renderMenu(
   );
 
   if (block.variant === "v2") {
-    desktopLayout = (
-      <div className="flex flex-wrap items-center justify-between gap-6">
-        <div className="flex items-center gap-3">{logoNode}</div>
-        <div className="flex flex-1 justify-center">{navNode}</div>
-        {actions}
+    return (
+      <div
+        className="w-full"
+        style={
+          position === "sticky"
+            ? { position: "sticky", top: 12, zIndex: 20 }
+            : undefined
+        }
+      >
+        <details className="group menu-v2-overlay w-full">
+          <summary
+            className="relative z-[60] flex min-h-14 cursor-pointer list-none items-center border-b px-1 py-1 pr-14
+              [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
+              [&::-webkit-details-marker]:hidden
+              group-open:absolute group-open:inset-x-0 group-open:top-0 group-open:px-1 group-open:py-1"
+            style={{
+              backgroundColor: "var(--menu-v2-top-bg, var(--block-bg, var(--site-panel)))",
+              borderColor: "var(--block-border, var(--site-border))",
+            }}
+          >
+            <div className="flex items-center gap-3">{logoNode}</div>
+            <span className="absolute right-1 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]">
+              <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
+              <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out group-open:opacity-0" />
+              <span className="absolute left-1/2 top-[calc(50%+6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:-rotate-45" />
+            </span>
+          </summary>
+          <div
+            className="fixed inset-0 z-50 flex flex-col overflow-hidden border px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
+            style={subBlockSurfaceStyle}
+          >
+            <div className="flex flex-1 flex-col items-center justify-center py-6">
+              {overlayNavNode}
+            </div>
+            <div className="w-full md:hidden">
+              <div className="space-y-3 text-center">
+                {searchNode && <div className="flex justify-center">{searchNode}</div>}
+                {socialsNode && <div className="flex justify-center">{socialsNode}</div>}
+                {(accountNode || themeToggleNode) && (
+                  <div className="flex items-center justify-center gap-3">
+                    {accountNode}
+                    {themeToggleNode}
+                  </div>
+                )}
+                {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
+              </div>
+            </div>
+            <div className="hidden flex-wrap items-center justify-center gap-3 md:flex">
+              {searchNode}
+              {socialsNode}
+              {accountNode}
+              {themeToggleNode}
+              {ctaNode}
+            </div>
+          </div>
+        </details>
       </div>
     );
   }
 
   if (block.variant === "v3") {
     desktopLayout = (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="rounded-2xl border px-4 py-3" style={subBlockSurfaceStyle}>
+          <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex items-center gap-4">{logoNode}</div>
           {actions}
         </div>
-        <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
       </div>
     );
   }
 
   if (block.variant === "v4") {
     desktopLayout = (
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">{logoNode}</div>
-        <div className="flex flex-wrap items-center gap-2">{navPills}</div>
-        <div className="flex flex-wrap items-center gap-3">{actions}</div>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">{logoNode}</div>
+          <div className="flex flex-wrap items-center gap-3">{actions}</div>
+        </div>
+        <div className="rounded-2xl border px-3 py-2" style={subBlockSurfaceStyle}>
+          <div className="flex flex-wrap items-center gap-2">{navPills}</div>
+        </div>
       </div>
     );
   }
 
   if (block.variant === "v5") {
     desktopLayout = (
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-4 text-center">
         {logoNode}
-        {navNode}
+        <div className="w-full rounded-2xl border px-4 py-3" style={subBlockSurfaceStyle}>
+          {navNode}
+        </div>
         {actionsCentered}
       </div>
     );
@@ -1074,7 +1166,10 @@ function renderMenu(
               <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]">
                 <IconMenu />
               </summary>
-              <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[color:var(--site-border)] bg-[color:var(--bp-panel)] p-4 shadow-lg">
+              <div
+                className="absolute right-0 mt-2 w-72 rounded-xl border p-4 shadow-lg"
+                style={subBlockSurfaceStyle}
+              >
                 {searchNode && <div className="mb-3">{searchNode}</div>}
                 <div className="flex flex-col gap-2">{linkItems}</div>
                 {socialsNode && <div className="mt-3">{socialsNode}</div>}
@@ -1635,12 +1730,3 @@ function renderContacts(
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
