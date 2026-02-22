@@ -727,7 +727,12 @@ export function buildBlockWrapperStyle(
           blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
-        marginTop: typeof style.marginTop === "number" ? style.marginTop : 0,
+        marginTop:
+          options.blockType === "menu"
+            ? 0
+            : typeof style.marginTop === "number"
+              ? style.marginTop
+              : 0,
         marginBottom: typeof style.marginBottom === "number" ? style.marginBottom : 0,
         width: isMenu ? menuWidth : responsiveBlockWidthCss(blockOuterColumns, true),
         maxWidth: "100%",
@@ -836,10 +841,10 @@ function renderMenu(
   ) : null;
   const logoNode =
     logoImageNode || companyNameNode ? (
-      <div className="flex items-center gap-2">
+      <span className="inline-flex items-center gap-2">
         {logoImageNode}
         {companyNameNode}
-      </div>
+      </span>
     ) : null;
 
   const linkItems = menuItems.map((key) => {
@@ -1096,7 +1101,7 @@ function renderMenu(
               borderColor: "var(--block-border, var(--site-border))",
             }}
           >
-            <div className="flex items-center gap-3">{logoNode}</div>
+            <span className="inline-flex items-center gap-3">{logoNode}</span>
             <span
               className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               style={{ width: menuButtonSize, height: menuButtonSize }}

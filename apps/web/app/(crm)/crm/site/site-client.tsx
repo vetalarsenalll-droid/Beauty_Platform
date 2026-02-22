@@ -1,7 +1,7 @@
 ﻿
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BLOCK_LABELS,
   BLOCK_VARIANTS,
@@ -370,6 +370,9 @@ const defaultBlockStyle = {
   useCustomWidth: true,
   radius: null,
   buttonRadius: null,
+  sectionBgLight: "",
+  sectionBgDark: "",
+  sectionBg: "",
   blockBgLight: "",
   blockBgDark: "",
   blockBg: "",
@@ -448,7 +451,11 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       ok: "",
     },
     align: "left",
-    style: defaultBlockStyle,
+    style: {
+      ...defaultBlockStyle,
+      blockWidth: LEGACY_WIDTH_REFERENCE,
+      blockWidthColumns: MAX_BLOCK_COLUMNS,
+    },
   },
   booking: {
     style: {
@@ -662,6 +669,13 @@ export default function SiteClient({
   const [showPanelExitConfirm, setShowPanelExitConfirm] = useState(false);
   const [panelBaselineKey, setPanelBaselineKey] = useState<string | null>(null);
   const [panelBaselineSignature, setPanelBaselineSignature] = useState<string | null>(null);
+  const [activeSpacingSlot, setActiveSpacingSlot] = useState<number | null>(null);
+  const [activeSpacingTarget, setActiveSpacingTarget] = useState<"prev" | "next" | null>(
+    null
+  );
+  const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
+  const [spacingAnchorBlockId, setSpacingAnchorBlockId] = useState<string | null>(null);
+  const slotRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (!displayBlocks.length) {
@@ -680,6 +694,69 @@ export default function SiteClient({
   }, [message]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
+  const activeBlockId = spacingAnchorBlockId ?? selectedId;
+  const getSlotSpacing = (slotIndex: number) => {
+    const prevBlock = displayBlocks[slotIndex - 1] ?? null;
+    const nextBlock = displayBlocks[slotIndex] ?? null;
+    const prevBottom = prevBlock ? normalizeBlockStyle(prevBlock, draft.theme).marginBottom : 0;
+    const nextTop = nextBlock ? normalizeBlockStyle(nextBlock, draft.theme).marginTop : 0;
+    return Math.max(0, prevBottom + nextTop);
+  };
+  const getSlotActiveOffset = (
+    slotIndex: number,
+    target: "prev" | "next" | null = null
+  ) => {
+    const prevBlock = displayBlocks[slotIndex - 1] ?? null;
+    const nextBlock = displayBlocks[slotIndex] ?? null;
+    if (target === "next" && nextBlock) {
+      return normalizeBlockStyle(nextBlock, draft.theme).marginTop;
+    }
+    if (target === "prev" && prevBlock) {
+      return normalizeBlockStyle(prevBlock, draft.theme).marginBottom;
+    }
+    if (nextBlock && activeBlockId && nextBlock.id === activeBlockId) {
+      return normalizeBlockStyle(nextBlock, draft.theme).marginTop;
+    }
+    if (prevBlock && activeBlockId && prevBlock.id === activeBlockId) {
+      return normalizeBlockStyle(prevBlock, draft.theme).marginBottom;
+    }
+    if (prevBlock) return normalizeBlockStyle(prevBlock, draft.theme).marginBottom;
+    if (nextBlock) return normalizeBlockStyle(nextBlock, draft.theme).marginTop;
+    return 0;
+  };
+  const hasCustomSlotSpacing = (slotIndex: number) => getSlotSpacing(slotIndex) > 0;
+  const registerSlotRef = (slotIndex: number, el: HTMLDivElement | null) => {
+    if (el) {
+      slotRefs.current[slotIndex] = el;
+      return;
+    }
+    delete slotRefs.current[slotIndex];
+  };
+  const getSlotLineY = (slotIndex: number, fallback: number) => {
+    const el = slotRefs.current[slotIndex];
+    if (!el) return fallback;
+    const rect = el.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+  };
+  const updateHoveredBlockFromLine = (clientY: number) => {
+    if (activeSpacingSlot !== null || displayBlocks.length === 0) return;
+    let nextHoveredId: string | null = null;
+    for (let i = 0; i < displayBlocks.length; i += 1) {
+      const topBoundary = getSlotLineY(i, Number.NEGATIVE_INFINITY);
+      const bottomBoundary = getSlotLineY(i + 1, Number.POSITIVE_INFINITY);
+      if (clientY >= topBoundary && clientY < bottomBoundary) {
+        nextHoveredId = displayBlocks[i]?.id ?? null;
+        break;
+      }
+    }
+    if (!nextHoveredId) {
+      nextHoveredId = displayBlocks[displayBlocks.length - 1]?.id ?? null;
+    }
+    if (nextHoveredId && nextHoveredId !== hoveredBlockId) {
+      setHoveredBlockId(nextHoveredId);
+      setSpacingAnchorBlockId(nextHoveredId);
+    }
+  };
 
   const currentPanelSections = useMemo<EditorSection[]>(() => {
     if (!rightPanel) return [];
@@ -967,6 +1044,90 @@ export default function SiteClient({
     updateBlocks(next);
   };
 
+  const clampBlockOffset = (value: number) =>
+    Math.max(0, Math.min(240, Math.round(value)));
+
+  const adjustSpacingAt = (
+    slotIndex: number,
+    deltaY: number,
+    target: "prev" | "next" | null = null
+  ) => {
+    if (!Number.isFinite(deltaY) || deltaY === 0) return;
+    const prevBlock = displayBlocks[slotIndex - 1] ?? null;
+    const nextBlock = displayBlocks[slotIndex] ?? null;
+    if (slotIndex === 0 && nextBlock) {
+      updateBlock(nextBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginTop: clampBlockOffset(
+            normalizeBlockStyle(block, draft.theme).marginTop + deltaY
+          ),
+        })
+      );
+      return;
+    }
+
+    if (target === "next" && nextBlock) {
+      updateBlock(nextBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginTop: clampBlockOffset(
+            normalizeBlockStyle(block, draft.theme).marginTop + deltaY
+          ),
+        })
+      );
+      return;
+    }
+
+    if (target === "prev" && prevBlock) {
+      updateBlock(prevBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginBottom: clampBlockOffset(
+            normalizeBlockStyle(block, draft.theme).marginBottom + deltaY
+          ),
+        })
+      );
+      return;
+    }
+
+    if (nextBlock && activeBlockId && nextBlock.id === activeBlockId) {
+      updateBlock(nextBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginTop: clampBlockOffset(normalizeBlockStyle(block, draft.theme).marginTop + deltaY),
+        })
+      );
+      return;
+    }
+
+    if (prevBlock && activeBlockId && prevBlock.id === activeBlockId) {
+      updateBlock(prevBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginBottom: clampBlockOffset(
+            normalizeBlockStyle(block, draft.theme).marginBottom + deltaY
+          ),
+        })
+      );
+      return;
+    }
+
+    if (prevBlock) {
+      updateBlock(prevBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginBottom: clampBlockOffset(
+            normalizeBlockStyle(block, draft.theme).marginBottom + deltaY
+          ),
+        })
+      );
+      return;
+    }
+
+    if (nextBlock) {
+      updateBlock(nextBlock.id, (block) =>
+        updateBlockStyle(block, {
+          marginTop: clampBlockOffset(normalizeBlockStyle(block, draft.theme).marginTop + deltaY),
+        })
+      );
+    }
+  };
+
   const savePublic = async (publish: boolean): Promise<boolean> => {
     setSaving("public");
     setMessage(null);
@@ -994,6 +1155,24 @@ export default function SiteClient({
       return false;
     } finally {
       setSaving(null);
+    }
+  };
+  const saveDraftSilently = async () => {
+    const payloadDraft = {
+      ...draft,
+      blocks: draft.pages?.home ?? draft.blocks,
+    };
+    try {
+      const response = await fetch("/api/v1/crm/settings/public-page", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftJson: payloadDraft, publish: false }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setPublicPage(data.data);
+    } catch {
+      // silent background save
     }
   };
 
@@ -1184,6 +1363,11 @@ export default function SiteClient({
         >
           <div
             className="mx-auto flex w-full flex-col"
+            onMouseMove={(event) => updateHoveredBlockFromLine(event.clientY)}
+            onMouseLeave={() => {
+              if (activeSpacingSlot !== null) return;
+              setHoveredBlockId(null);
+            }}
             style={{
               paddingTop: 0,
               paddingBottom: 24,
@@ -1192,10 +1376,27 @@ export default function SiteClient({
               maxWidth: previewCanvasWidth,
             }}
           >
-            {!isSystemPage && !firstDisplayBlockIsMenu && (
+            {!isSystemPage && (
               <InsertSlot
                 index={0}
-                spacing={0}
+                slotRef={(el) => registerSlotRef(0, el)}
+                spacing={getSlotSpacing(0)}
+                activeOffset={getSlotActiveOffset(0, activeSpacingTarget)}
+                persistent={hasCustomSlotSpacing(0)}
+                active={activeSpacingSlot === 0}
+                showValue={activeSpacingSlot === 0}
+                onDragStateChange={(dragging, target) => {
+                  if (dragging) {
+                    setSpacingAnchorBlockId(hoveredBlockId ?? selectedId);
+                    setActiveSpacingTarget(target ?? null);
+                  }
+                  setActiveSpacingSlot(dragging ? 0 : null);
+                  if (!dragging) {
+                    setActiveSpacingTarget(null);
+                    void saveDraftSilently();
+                  }
+                }}
+                onAdjustSpacing={(delta, target) => adjustSpacingAt(0, delta, target)}
                 onInsert={() => {
                   setInsertIndex(0);
                   setLeftPanel("library");
@@ -1207,19 +1408,96 @@ export default function SiteClient({
               const isSharedMenu = Boolean(
                 sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
               );
-              const menuTopOffset = index === 0 && block.type === "menu" ? 40 : 0;
+              const isBlockActive = block.id === hoveredBlockId;
+              const controlsDark = draft.theme.mode === "dark";
+              const leftBtnClass = controlsDark
+                ? "h-8 rounded-sm border border-[#374151] bg-[#111827] px-3 text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
+                : "h-8 rounded-sm border border-[#d1d5db] bg-white px-3 text-xs font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
+              const iconBtnClass = controlsDark
+                ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#374151] bg-[#111827] text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
+                : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-xs font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
+              const removeBtnClass = controlsDark
+                ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#7f1d1d] bg-[#111827] text-xs font-semibold text-[#fca5a5] shadow-sm hover:bg-[#1f2937]"
+                : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#fda4af] bg-white text-xs font-semibold text-[#dc2626] shadow-sm hover:bg-[#f3f4f6]";
+              const menuTopOffset = 0;
               return (
               <div
                 key={block.id}
-                className="relative"
+                className="relative flow-root"
                 style={
-                  isSystemPage && index > 0
-                    ? { marginTop: draft.theme.blockSpacing + menuTopOffset }
-                    : menuTopOffset > 0
+                  block.type === "menu"
+                    ? menuTopOffset > 0
                       ? { marginTop: menuTopOffset }
                       : undefined
+                    : isSystemPage && index > 0
+                      ? { marginTop: menuTopOffset }
+                      : menuTopOffset > 0
+                        ? { marginTop: menuTopOffset }
+                        : undefined
                 }
               >
+                {isBlockActive && (
+                  <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between">
+                    <div className="pointer-events-auto flex items-center gap-1">
+                      {block.type !== "booking" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(block.id);
+                            setRightPanel("content");
+                          }}
+                          className={leftBtnClass}
+                        >
+                          Контент
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                          onClick={() => {
+                            setSelectedId(block.id);
+                            setRightPanel("settings");
+                          }}
+                        className={leftBtnClass}
+                      >
+                        Настройки
+                      </button>
+                    </div>
+                    {!(
+                      isSharedMenu ||
+                      (isSystemPage && isSystemBlockType(block.type))
+                    ) && (
+                      <div className="pointer-events-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveBlock(block.id, "up")}
+                          className={iconBtnClass}
+                          aria-label="Переместить вверх"
+                          title="Вверх"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveBlock(block.id, "down")}
+                          className={iconBtnClass}
+                          aria-label="Переместить вниз"
+                          title="Вниз"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeBlock(block.id)}
+                          className={removeBtnClass}
+                          aria-label="Удалить блок"
+                          title="Удалить"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <BlockPreview
                   block={block}
                   account={account}
@@ -1234,28 +1512,38 @@ export default function SiteClient({
                   loaderConfig={loaderConfig}
                   currentEntity={currentEntity}
                   onThemeToggle={handleThemeToggle}
-                  onSelect={() => setSelectedId(block.id)}
+                  onSelect={() => {
+                    setSelectedId(block.id);
+                    setSpacingAnchorBlockId(block.id);
+                    setHoveredBlockId(block.id);
+                  }}
                   isSelected={block.id === selectedId}
-                  onOpenContent={() => {
-                    setSelectedId(block.id);
-                    setRightPanel("content");
-                  }}
-                  onOpenSettings={() => {
-                    setSelectedId(block.id);
-                    setRightPanel("settings");
-                  }}
-                  onMoveUp={() => moveBlock(block.id, "up")}
-                  onMoveDown={() => moveBlock(block.id, "down")}
-                  onRemove={() => removeBlock(block.id)}
-                  disableActions={
-                    isSharedMenu ||
-                    (isSystemPage && isSystemBlockType(block.type))
-                  }
                 />
                 {!isSystemPage && (
                   <InsertSlot
                     index={index + 1}
-                    spacing={draft.theme.blockSpacing}
+                    slotRef={(el) => registerSlotRef(index + 1, el)}
+                    spacing={getSlotSpacing(index + 1)}
+                    activeOffset={getSlotActiveOffset(index + 1, activeSpacingTarget)}
+                    persistent={hasCustomSlotSpacing(index + 1)}
+                    active={activeSpacingSlot === index + 1}
+                    showValue={activeSpacingSlot === index + 1}
+                    onDragStateChange={(dragging, target) =>
+                      {
+                        if (dragging) {
+                          setSpacingAnchorBlockId(hoveredBlockId ?? selectedId);
+                          setActiveSpacingTarget(target ?? null);
+                        }
+                        setActiveSpacingSlot(dragging ? index + 1 : null);
+                        if (!dragging) {
+                          setActiveSpacingTarget(null);
+                          void saveDraftSilently();
+                        }
+                      }
+                    }
+                    onAdjustSpacing={(delta, target) =>
+                      adjustSpacingAt(index + 1, delta, target)
+                    }
                     onInsert={() => {
                       setInsertIndex(index + 1);
                       setLeftPanel("library");
@@ -1838,20 +2126,6 @@ function ThemeEditor({
           value={theme.buttonRadius}
           onChange={(event) =>
             onChange({ buttonRadius: Number(event.target.value) })
-          }
-          className="mt-2 w-full"
-        />
-      </label>
-      <label className="text-sm">
-        Межблоковое расстояние: {theme.blockSpacing}px
-        <input
-          type="range"
-          min={0}
-          max={120}
-          step={2}
-          value={theme.blockSpacing}
-          onChange={(event) =>
-            onChange({ blockSpacing: Number(event.target.value) })
           }
           className="mt-2 w-full"
         />
@@ -2832,6 +3106,8 @@ function BlockStyleEditor({
     value.trim() === "" || value.trim().toLowerCase() === "transparent"
       ? "transparent"
       : value.trim();
+  const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
+  const darkSectionBg = readRaw("sectionBgDark");
   const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
   const lightSubBlockBg = readRaw("subBlockBgLight") || readRaw("subBlockBg");
   const darkBlockBg = readRaw("blockBgDark");
@@ -2857,7 +3133,7 @@ function BlockStyleEditor({
     <div className="space-y-4">
       {inSection("layout") && (
       <label className="text-sm">
-        Межблоковое расстояние сверху: {style.marginTop}px
+        Отступ сверху: {style.marginTop}px
         <input
           type="range"
           min={0}
@@ -2871,7 +3147,7 @@ function BlockStyleEditor({
       )}
       {inSection("layout") && (
       <label className="text-sm">
-        Межблоковое расстояние снизу: {style.marginBottom}px
+        Отступ снизу: {style.marginBottom}px
         <input
           type="range"
           min={0}
@@ -2883,7 +3159,7 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && (
+      {inSection("layout") && block.type !== "menu" && (
       <label className="text-sm">
         {block.type === "booking"
           ? `Ширина контейнера: ${bookingPreset}`
@@ -2911,6 +3187,11 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
+      {inSection("layout") && block.type === "menu" && (
+      <div className="text-sm text-[color:var(--bp-muted)]">
+        Ширина блока: 12/12 (фиксировано для меню)
+      </div>
       )}
       {inSection("layout") && (
       <label className="text-sm">
@@ -2977,7 +3258,18 @@ function BlockStyleEditor({
       {inSection("colors") && (
       <div className="grid grid-cols-2 gap-3">
         <ColorField
-          label="Цвет блока"
+          label="Фон блока"
+          value={toDisplay(lightSectionBg)}
+          placeholder={theme.panelColor}
+          onChange={(value) =>
+            update({
+              sectionBgLight: toStore(value),
+              sectionBg: toStore(value),
+            })
+          }
+        />
+        <ColorField
+          label="Цвет контента"
           value={toDisplay(lightBlockBg)}
           placeholder={theme.panelColor}
           onChange={(value) =>
@@ -3070,7 +3362,13 @@ function BlockStyleEditor({
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
             <ColorField
-              label="Цвет блока"
+              label="Фон блока"
+              value={toDisplay(darkSectionBg)}
+              placeholder={theme.darkPalette.panelColor}
+              onChange={(value) => update({ sectionBgDark: toStore(value) })}
+            />
+            <ColorField
+              label="Цвет контента"
               value={toDisplay(darkBlockBg)}
               placeholder={theme.darkPalette.panelColor}
               onChange={(value) => update({ blockBgDark: toStore(value) })}
@@ -3246,6 +3544,9 @@ type BlockStyle = {
   useCustomWidth: boolean;
   radius: number | null;
   buttonRadius: number | null;
+  sectionBgLight: string;
+  sectionBgDark: string;
+  sectionBg: string;
   blockBgLight: string;
   blockBgDark: string;
   blockBg: string;
@@ -3287,6 +3588,8 @@ type BlockStyle = {
   headingSize: number | null;
   subheadingSize: number | null;
   textSize: number | null;
+  sectionBgLightResolved: string;
+  sectionBgDarkResolved: string;
   blockBgLightResolved: string;
   blockBgDarkResolved: string;
   subBlockBgLightResolved: string;
@@ -3346,6 +3649,13 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     "blockBgLight",
     "blockBgDark",
     "blockBg",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
+  const sectionBgPair = resolvePair(
+    "sectionBgLight",
+    "sectionBgDark",
+    "sectionBg",
     theme.lightPalette.panelColor,
     theme.darkPalette.panelColor
   );
@@ -3471,6 +3781,9 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     useCustomWidth,
     radius: toNumber(style.radius),
     buttonRadius: toNumber(style.buttonRadius),
+    sectionBgLight: readColor("sectionBgLight") || readColor("sectionBg"),
+    sectionBgDark: readColor("sectionBgDark"),
+    sectionBg: resolveColor("sectionBgLight", "sectionBgDark", "sectionBg"),
     blockBgLight: readColor("blockBgLight") || readColor("blockBg"),
     blockBgDark: readColor("blockBgDark"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
@@ -3497,6 +3810,8 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     mutedColorLight: readColor("mutedColorLight") || readColor("mutedColor"),
     mutedColorDark: readColor("mutedColorDark"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    sectionBgLightResolved: sectionBgPair.lightResolved,
+    sectionBgDarkResolved: sectionBgPair.darkResolved,
     blockBgLightResolved: blockBgPair.lightResolved,
     blockBgDarkResolved: blockBgPair.darkResolved,
     subBlockBgLightResolved: subBlockBgPair.lightResolved,
@@ -3816,12 +4131,6 @@ function BlockPreview({
   onThemeToggle,
   onSelect,
   isSelected,
-  onOpenContent,
-  onOpenSettings,
-  onMoveUp,
-  onMoveDown,
-  onRemove,
-  disableActions = false,
 }: {
   block: SiteBlock;
   account: AccountInfo;
@@ -3838,18 +4147,14 @@ function BlockPreview({
   onThemeToggle: () => void;
   onSelect: () => void;
   isSelected: boolean;
-  onOpenContent: () => void;
-  onOpenSettings: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onRemove: () => void;
-  disableActions?: boolean;
 }) {
   const style = normalizeBlockStyle(block, theme);
   const blockRadius =
     style.radius !== null && Number.isFinite(style.radius)
       ? style.radius
       : theme.radius;
+  const sectionBg =
+    theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
   const blockBg = style.blockBg || theme.panelColor;
   const borderColor = (style.borderColor || theme.borderColor || "").trim() || "transparent";
   const shadowSize = style.shadowSize ?? theme.shadowSize ?? 0;
@@ -3858,12 +4163,11 @@ function BlockPreview({
   const mutedColor = style.mutedColor || theme.mutedColor;
   const isBooking = block.type === "booking";
   const isMenu = block.type === "menu";
-  const blockWidthColumns = clampBlockColumns(
-    style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
-    block.type
-  );
+  const blockWidthColumns = isMenu
+    ? MAX_BLOCK_COLUMNS
+    : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
   const bookingInnerColumns = bookingContentColumns(blockWidthColumns);
-  const blockOuterColumns = isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns;
+  const blockOuterColumns = isBooking || isMenu ? MAX_BLOCK_COLUMNS : blockWidthColumns;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
   const gradientTo = style.gradientTo || theme.gradientTo;
   const gradientDirection =
@@ -3891,7 +4195,6 @@ function BlockPreview({
     currentEntity,
     onThemeToggle
   );
-
   return (
     <div
       role="button"
@@ -3909,6 +4212,9 @@ function BlockPreview({
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
+        marginTop: style.marginTop,
+        marginBottom: style.marginBottom,
+        backgroundColor: isMenu ? "transparent" : sectionBg,
       }}
     >
       <div
@@ -3929,8 +4235,6 @@ function BlockPreview({
           fontFamily: blockFont,
           borderColor: isBooking || isMenu ? "transparent" : borderColor,
           borderWidth: isBooking || isMenu || borderColor === "transparent" ? 0 : 1,
-          marginTop: style.marginTop,
-          marginBottom: style.marginBottom,
           boxShadow:
             isBooking || isMenu || shadowSize <= 0
               ? "none"
@@ -3939,91 +4243,6 @@ function BlockPreview({
           ["--bp-stroke" as string]: borderColor,
         }}
       >
-        {isBooking ? (
-          <div className="absolute inset-x-0 -top-6 z-10">
-            <div className="mx-auto w-full" style={{ maxWidth: bookingContentWidth }}>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenSettings();
-                }}
-                className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
-                aria-label="Настройки блока"
-                title="Настройки"
-              >
-                Настройки
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="absolute left-4 -top-6 z-10 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenContent();
-              }}
-              className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
-              aria-label="Контент блока"
-              title="Контент"
-            >
-              Контент
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenSettings();
-              }}
-              className="flex h-8 items-center gap-2 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs text-[color:var(--bp-ink)] shadow-sm"
-              aria-label="Настройки блока"
-              title="Настройки"
-            >
-              Настройки
-            </button>
-          </div>
-        )}
-        {!disableActions && (
-          <div className="absolute right-4 -top-6 z-10 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onMoveUp();
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-xs text-[color:var(--bp-ink)] shadow-sm"
-              aria-label="Переместить вверх"
-              title="Вверх"
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onMoveDown();
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-xs text-[color:var(--bp-ink)] shadow-sm"
-              aria-label="Переместить вниз"
-              title="Вниз"
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemove();
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-[color:var(--bp-paper)] text-xs text-red-600 shadow-sm"
-              aria-label="Удалить блок"
-              title="Удалить"
-            >
-              ×
-            </button>
-          </div>
-        )}
           {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
       </div>
     </div>
@@ -4032,20 +4251,87 @@ function BlockPreview({
 
 function InsertSlot({
   index,
+  slotRef,
   spacing,
+  activeOffset,
+  persistent = false,
+  active = false,
+  showValue = false,
+  onDragStateChange,
+  onAdjustSpacing,
   onInsert,
 }: {
   index: number;
+  slotRef?: (el: HTMLDivElement | null) => void;
   spacing: number;
+  activeOffset: number;
+  persistent?: boolean;
+  active?: boolean;
+  showValue?: boolean;
+  onDragStateChange?: (dragging: boolean, target?: "prev" | "next") => void;
+  onAdjustSpacing?: (deltaY: number, target: "prev" | "next") => void;
   onInsert: () => void;
 }) {
-  const slotHeight = Math.max(0, spacing);
-  const top = slotHeight === 0 ? 0 : "50%";
+  const slotHeight = 0;
+  const top = "50%";
+  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!onAdjustSpacing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const target: "prev" | "next" =
+      event.clientY <= rect.top + rect.height / 2 ? "prev" : "next";
+    onDragStateChange?.(true, target);
+    const startY = event.clientY;
+    let lastAppliedDelta = 0;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // no-op
+    }
+    const handleMove = (nextEvent: PointerEvent) => {
+      const totalDelta = nextEvent.clientY - startY;
+      if (totalDelta !== lastAppliedDelta) {
+        onAdjustSpacing(totalDelta - lastAppliedDelta, target);
+        lastAppliedDelta = totalDelta;
+      }
+    };
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+      onDragStateChange?.(false);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  };
   return (
     <div
+      ref={slotRef}
       className="relative flex items-center justify-center"
       style={{ height: slotHeight }}
     >
+      {onAdjustSpacing && (
+        <div
+          role="slider"
+          aria-label={`Изменить отступ между блоками ${index}`}
+          className="absolute inset-x-0 top-1/2 z-[9] h-8 -translate-y-1/2 cursor-row-resize touch-none"
+          onPointerDown={handleResizeStart}
+        >
+          {showValue && (
+            <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-full rounded-full bg-black px-2 py-0.5 text-[11px] font-semibold text-white">
+              {Math.round(activeOffset)}px
+            </div>
+          )}
+          <div
+            className={`absolute inset-x-3 top-1/2 -translate-y-1/2 border-t border-dashed ${
+              active || persistent ? "opacity-100" : "opacity-45"
+            }`}
+            style={{ borderColor: "rgba(148,163,184,0.85)" }}
+          />
+        </div>
+      )}
       <button
         type="button"
         onClick={onInsert}
