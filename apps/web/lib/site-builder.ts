@@ -138,6 +138,8 @@ export type SiteLoaderConfig = {
   showBookingInline: boolean;
   backdropEnabled: boolean;
   backdropColor: string;
+  fixedDurationEnabled: boolean;
+  fixedDurationSec: number;
 };
 
 const DEFAULT_LOADER_CONFIG: SiteLoaderConfig = {
@@ -150,6 +152,8 @@ const DEFAULT_LOADER_CONFIG: SiteLoaderConfig = {
   showBookingInline: true,
   backdropEnabled: false,
   backdropColor: "rgba(17,24,39,0.16)",
+  fixedDurationEnabled: false,
+  fixedDurationSec: 1,
 };
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -226,6 +230,11 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
         ? data.backdropEnabled
         : DEFAULT_LOADER_CONFIG.backdropEnabled,
     backdropColor,
+    fixedDurationEnabled:
+      typeof data.fixedDurationEnabled === "boolean"
+        ? data.fixedDurationEnabled
+        : DEFAULT_LOADER_CONFIG.fixedDurationEnabled,
+    fixedDurationSec: clamp(data.fixedDurationSec, 1, 10, DEFAULT_LOADER_CONFIG.fixedDurationSec),
   };
 }
 

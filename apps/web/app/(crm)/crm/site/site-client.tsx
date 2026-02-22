@@ -385,6 +385,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     size: 36,
     speedMs: 900,
     thickness: 3,
+    fixedDurationEnabled: false,
+    fixedDurationSec: 1,
     style: {
       ...defaultBlockStyle,
       useCustomWidth: false,
@@ -2044,6 +2046,29 @@ function BlockEditor({
               value={Number(block.data.speedMs ?? 900)}
               onChange={(event) => updateData({ speedMs: Number(event.target.value) })}
               className="mt-2 w-full"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.fixedDurationEnabled)}
+              onChange={(event) => updateData({ fixedDurationEnabled: event.target.checked })}
+            />
+            Фиксированное время показа лоадера
+          </label>
+          <label className="text-sm">
+            Время показа: {Number(block.data.fixedDurationSec ?? 1)} сек
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              disabled={!Boolean(block.data.fixedDurationEnabled)}
+              value={Number(block.data.fixedDurationSec ?? 1)}
+              onChange={(event) =>
+                updateData({ fixedDurationSec: Number(event.target.value) })
+              }
+              className="mt-2 w-full disabled:opacity-40"
             />
           </label>
           <label className="text-sm">
@@ -3788,6 +3813,11 @@ function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: BlockSty
     Number.isFinite(Number(data.thickness)) && Number(data.thickness) > 0
       ? Number(data.thickness)
       : 3;
+  const fixedDurationEnabled = Boolean(data.fixedDurationEnabled);
+  const fixedDurationSec =
+    Number.isFinite(Number(data.fixedDurationSec)) && Number(data.fixedDurationSec) > 0
+      ? Number(data.fixedDurationSec)
+      : 1;
   const backdropEnabled = Boolean(data.backdropEnabled);
   const parsedBackdrop = parseBackdropColor(data.backdropColor);
   const backdropHex =
@@ -3834,6 +3864,8 @@ function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: BlockSty
                   showBookingInline: true,
                   backdropEnabled,
                   backdropColor,
+                  fixedDurationEnabled,
+                  fixedDurationSec,
                 }}
               />
             ) : (
@@ -3843,6 +3875,9 @@ function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: BlockSty
         </div>
         <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
           Затемнение: {backdropHex} · {Math.round(backdropOpacity * 100)}%
+        </div>
+        <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+          Время: {fixedDurationEnabled ? `${fixedDurationSec} сек` : "авто"}
         </div>
       </div>
     </div>

@@ -1,6 +1,10 @@
 import { cookies } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
-import type { SiteBlock } from "@/lib/site-builder";
+import {
+  resolveSiteLoaderConfig,
+  type SiteBlock,
+  type SiteLoaderConfig,
+} from "@/lib/site-builder";
 import { loadPublicData } from "./public-data";
 import { buildBlockWrapperStyle, normalizeStyle, renderBlock } from "./public-render";
 
@@ -10,6 +14,7 @@ export type PublicMenuFrame = {
   themeStyle: Record<string, string>;
   menuNode: ReactNode;
   clientPageBlock: SiteBlock | null;
+  loaderConfig: SiteLoaderConfig | null;
 };
 
 export async function renderPublicMenuFrame(
@@ -18,6 +23,7 @@ export async function renderPublicMenuFrame(
 ) {
   const data = await loadPublicData(publicSlug);
   if (!data) return null;
+  const loaderConfig = resolveSiteLoaderConfig(data.draft);
 
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
@@ -161,6 +167,7 @@ export async function renderPublicMenuFrame(
     blockGap,
     themeStyle,
     clientPageBlock,
+    loaderConfig,
     menuNode: (
       <section className={wrapper.className} style={wrapper.style as CSSProperties}>
         {renderBlock(

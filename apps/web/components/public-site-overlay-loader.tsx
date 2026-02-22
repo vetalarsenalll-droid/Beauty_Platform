@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SiteLoader from "@/components/site-loader";
 import type { SiteLoaderConfig } from "@/lib/site-builder";
 
@@ -14,6 +14,7 @@ export default function PublicSiteOverlayLoader({
   loaderConfig,
   children,
 }: PublicSiteOverlayLoaderProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [visible, setVisible] = useState(false);
@@ -29,14 +30,17 @@ export default function PublicSiteOverlayLoader({
     if (!visible) return;
     const shownAt = shownAtRef.current ?? Date.now();
     const elapsed = Date.now() - shownAt;
-    const minVisibleMs = 480;
+    const minVisibleMs =
+      enabledConfig?.fixedDurationEnabled && Number.isFinite(enabledConfig.fixedDurationSec)
+        ? Math.max(1, Math.round(enabledConfig.fixedDurationSec)) * 1000
+        : 480;
     const hideDelay = Math.max(0, minVisibleMs - elapsed);
     const timer = window.setTimeout(() => {
       setVisible(false);
       shownAtRef.current = null;
     }, hideDelay);
     return () => window.clearTimeout(timer);
-  }, [pathname, searchParams, visible]);
+  }, [pathname, searchParams, visible, enabledConfig]);
 
   useEffect(() => {
     if (!enabledConfig) {
@@ -76,8 +80,29 @@ export default function PublicSiteOverlayLoader({
         url.hash === current.hash;
       if (isSameDestination) return;
 
+      const fixedDurationMs =
+        enabledConfig.fixedDurationEnabled && Number.isFinite(enabledConfig.fixedDurationSec)
+          ? Math.max(1, Math.round(enabledConfig.fixedDurationSec)) * 1000
+          : 0;
+      const currentRootSegment = current.pathname.split("/").filter(Boolean)[0] ?? "";
+      const scopePrefix = currentRootSegment ? `/${currentRootSegment}` : "/";
+      const leavesPublicScope =
+        url.pathname !== scopePrefix && !url.pathname.startsWith(`${scopePrefix}/`);
+
+      event.preventDefault();
       shownAtRef.current = Date.now();
       setVisible(true);
+
+      const delayMs = fixedDurationMs > 0 ? fixedDurationMs : 80;
+      const href = `${url.pathname}${url.search}${url.hash}`;
+
+      window.setTimeout(() => {
+        if (leavesPublicScope) {
+          window.location.assign(url.toString());
+          return;
+        }
+        router.push(href);
+      }, delayMs);
     };
 
     const handleSubmit = (event: SubmitEvent) => {
@@ -103,7 +128,7 @@ export default function PublicSiteOverlayLoader({
       document.removeEventListener("submit", handleSubmit, true);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [enabledConfig]);
+  }, [enabledConfig, router]);
 
   return (
     <>

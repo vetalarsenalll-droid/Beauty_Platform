@@ -1982,14 +1982,18 @@ export default function BookingClient({
     if (!showFullscreenLoaderOverlay) return;
     const shownAt = fullscreenLoaderShownAtRef.current ?? Date.now();
     const elapsed = Date.now() - shownAt;
-    const minVisibleMs = 240;
+    const configuredMinVisibleMs =
+      effectiveInlineLoader?.fixedDurationEnabled && Number.isFinite(effectiveInlineLoader.fixedDurationSec)
+        ? Math.max(1, Math.round(effectiveInlineLoader.fixedDurationSec)) * 1000
+        : 240;
+    const minVisibleMs = configuredMinVisibleMs;
     const hideDelay = Math.max(0, minVisibleMs - elapsed);
     const timer = window.setTimeout(() => {
       setShowFullscreenLoaderOverlay(false);
       fullscreenLoaderShownAtRef.current = null;
     }, hideDelay);
     return () => window.clearTimeout(timer);
-  }, [shouldShowFullscreenLoaderOverlay, showFullscreenLoaderOverlay]);
+  }, [shouldShowFullscreenLoaderOverlay, showFullscreenLoaderOverlay, effectiveInlineLoader]);
   const shouldShowNoSlotsNotice =
     !isTimesPanelLoading &&
     !isCalendarWindowTransitioning &&
