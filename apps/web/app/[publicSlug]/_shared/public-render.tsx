@@ -1088,7 +1088,7 @@ function renderMenu(
               [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
               [--menu-v2-top-gradient:var(--block-gradient)] group-open:[--menu-v2-top-gradient:none]
               [&::-webkit-details-marker]:hidden
-              group-open:absolute group-open:inset-x-0 group-open:top-0 group-open:py-0 group-open:pl-8 group-open:pr-24"
+              group-open:fixed group-open:inset-x-0 group-open:top-0 group-open:py-0 group-open:pl-8 group-open:pr-24"
             style={{
               minHeight: menuHeight,
               backgroundColor: "var(--menu-v2-top-bg, var(--block-bg, var(--site-panel)))",

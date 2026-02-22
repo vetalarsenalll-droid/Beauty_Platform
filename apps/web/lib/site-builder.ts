@@ -254,6 +254,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
     menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showCompanyName: true,
+    showOnAllPages: true,
     showButton: true,
     showThemeToggle: false,
     ctaMode: "booking",
@@ -584,6 +585,9 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
                 ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
               )
             : [];
+          if (typeof safeData.showOnAllPages !== "boolean") {
+            safeData.showOnAllPages = true;
+          }
           if (!menuItems.includes("client")) {
             menuItems.splice(2, 0, "client");
           }
@@ -601,10 +605,10 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
       .filter((block) => block.type in BLOCK_LABELS);
 
   const fallbackPages = createDefaultDraft("Салон красоты").pages!;
-  const pagesInput =
-    draft.pages && typeof draft.pages === "object"
-      ? (draft.pages as Partial<SitePages>)
-      : { home: draft.blocks };
+  const hasStructuredPages = Boolean(draft.pages && typeof draft.pages === "object");
+  const pagesInput = hasStructuredPages
+    ? (draft.pages as Partial<SitePages>)
+    : { home: draft.blocks };
 
   const pages: SitePages = {
     home: normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home),
@@ -639,7 +643,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     promos: normalizeEntityMap(rawEntityPages.promos),
   };
 
-  if (!pages.home.some((block) => block.type === "menu")) {
+  if (!hasStructuredPages && !pages.home.some((block) => block.type === "menu")) {
     pages.home = [createMenuBlock(), ...pages.home];
   }
   if (!pages.booking.some((block) => block.type === "booking")) {

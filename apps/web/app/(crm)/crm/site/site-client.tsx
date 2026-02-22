@@ -334,6 +334,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showCompanyName: true,
+    showOnAllPages: true,
     showButton: true,
     showThemeToggle: false,
     ctaMode: "booking",
@@ -553,8 +554,10 @@ export default function SiteClient({
   const pageBlocks: SiteBlock[] = entityPageKey
     ? entityBlocks ?? []
     : draft.pages?.[activePageKey] ?? draft.blocks;
-  const sharedMenuBlock =
-    activePage === "home" ? null : homeBlocks.find((block) => block.type === "menu") ?? null;
+  const homeMenuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
+  const shouldShareMenu =
+    homeMenuBlock && (homeMenuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
+  const sharedMenuBlock = activePage === "home" || !shouldShareMenu ? null : homeMenuBlock;
   const displayBlocks: SiteBlock[] = sharedMenuBlock
     ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.id !== sharedMenuBlock.id)]
     : pageBlocks;
@@ -1734,6 +1737,14 @@ function BlockEditor({
               onChange={(event) => updateData({ showCompanyName: event.target.checked })}
             />
             Показывать название компании
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.showOnAllPages !== false}
+              onChange={(event) => updateData({ showOnAllPages: event.target.checked })}
+            />
+            Показывать на всех страницах
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -4407,12 +4418,12 @@ function MenuPreview({
         className="relative w-full"
         style={
           position === "sticky"
-            ? { position: "sticky", top: 12, zIndex: 20, minHeight: mobileOpen ? "82vh" : undefined }
+            ? { position: "sticky", top: 12, zIndex: 5, minHeight: mobileOpen ? "82vh" : undefined }
             : { minHeight: mobileOpen ? "82vh" : undefined }
         }
       >
         <div
-          className={`relative z-[60] flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
+          className={`relative z-[5] flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
           style={{ ...topBarStyle, minHeight: menuHeight }}
         >
           <div className="flex items-center gap-3">{logoNode}</div>
@@ -4524,7 +4535,7 @@ function MenuPreview({
       className="w-full"
       style={
         position === "sticky"
-          ? { position: "sticky", top: 12, zIndex: 20 }
+          ? { position: "sticky", top: 12, zIndex: 5 }
           : undefined
       }
     >

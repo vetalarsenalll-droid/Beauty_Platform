@@ -28,6 +28,9 @@ export async function renderPublicMenuFrame(
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   if (!menuBlock) return null;
+  const shouldShowSharedMenu =
+    (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
+  if (!shouldShowSharedMenu) return null;
 
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;

@@ -27,11 +27,14 @@ export default async function PublicLocationPage({ params }: PageProps) {
 
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
+  const shouldShowSharedMenu =
+    menuBlock && (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
+  const sharedMenuBlock = shouldShowSharedMenu ? menuBlock : null;
   const entityBlocks =
     data.draft.entityPages?.locations?.[String(locationId)] ?? null;
   const pageBlocks = entityBlocks ?? [];
-  const blocks = menuBlock
-    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+  const blocks = sharedMenuBlock
+    ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
     : pageBlocks.filter((block) => block.type !== "loader");
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;

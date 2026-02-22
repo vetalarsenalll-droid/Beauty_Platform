@@ -23,9 +23,12 @@ export default async function PublicBookingPage({ params }: PageProps) {
 
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
+  const shouldShowSharedMenu =
+    menuBlock && (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
+  const sharedMenuBlock = shouldShowSharedMenu ? menuBlock : null;
   const pageBlocks = data.draft.pages?.booking ?? data.draft.blocks;
-  const blocks = menuBlock
-    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+  const blocks = sharedMenuBlock
+    ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
     : pageBlocks.filter((block) => block.type !== "loader");
   const loaderConfig = resolveSiteLoaderConfig(data.draft);
   const cookieStore = await cookies();
