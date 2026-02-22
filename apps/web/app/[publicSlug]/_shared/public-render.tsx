@@ -4,7 +4,11 @@ import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import type { CSSProperties, ReactNode } from "react";
-import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
+import {
+  type SiteBlock,
+  type SiteLoaderConfig,
+  type SiteTheme,
+} from "@/lib/site-builder";
 import type {
   AccountProfile,
   Branding,
@@ -411,7 +415,8 @@ export function renderBlock(
   workPhotos: WorkPhotos,
   current: CurrentEntity,
   theme: SiteTheme,
-  accountLinkOverride?: string
+  accountLinkOverride?: string,
+  loaderConfig?: SiteLoaderConfig | null
 ) {
   switch (block.type) {
     case "cover":
@@ -442,8 +447,10 @@ export function renderBlock(
       );
     case "about":
       return renderAbout(block, accountName, profile, theme);
+    case "loader":
+      return null;
     case "booking":
-      return renderBooking(block, accountSlug, publicSlug, theme);
+      return renderBooking(block, accountSlug, publicSlug, theme, loaderConfig);
     case "locations":
       return renderLocations(block, publicSlug, locations, current, theme);
     case "services":
@@ -546,7 +553,8 @@ function renderBooking(
   block: SiteBlock,
   accountSlug: string,
   publicSlug: string,
-  theme: SiteTheme
+  theme: SiteTheme,
+  loaderConfig?: SiteLoaderConfig | null
 ) {
   const style = normalizeStyle(block, theme);
   const cssVars = buildBookingVars(style, theme);
@@ -556,6 +564,7 @@ function renderBooking(
         <PublicBookingClient
           accountSlug={accountSlug}
           accountPublicSlug={publicSlug}
+          loaderConfig={loaderConfig}
         />
       </div>
     </div>

@@ -2,10 +2,13 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import type { SiteLoaderConfig } from "@/lib/site-builder";
+import SiteLoader from "@/components/site-loader";
 
 type BookingClientProps = {
   accountSlug?: string;
   accountPublicSlug?: string;
+  loaderConfig?: SiteLoaderConfig | null;
 };
 
 type PublicAccount = {
@@ -834,6 +837,7 @@ async function runBatches<T>(
 export default function BookingClient({
   accountSlug,
   accountPublicSlug,
+  loaderConfig,
 }: BookingClientProps) {
   const persistedStateRef = useRef<BookingPersistedState | null>(
     loadPersistedBookingState(accountSlug, accountPublicSlug)
@@ -958,6 +962,8 @@ export default function BookingClient({
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
   const [loadingClientProfile, setLoadingClientProfile] = useState(false);
   const calendarKeyRef = useRef<string | null>(null);
+  const fullscreenLoaderShownAtRef = useRef<number | null>(null);
+  const [overlayNextDeadline, setOverlayNextDeadline] = useState<number | null>(null);
 
   const accountTz = context?.account.timeZone || "UTC";
   const slotStepMinutes = context?.account.slotStepMinutes ?? 15;
@@ -965,6 +971,8 @@ export default function BookingClient({
   const platformLegalDocs = context?.platformLegalDocuments ?? [];
   const nowTz = useMemo(() => getNowInTimeZone(accountTz), [accountTz]);
   const todayYmdTz = nowTz.ymd;
+  const effectiveInlineLoader =
+    loaderConfig && loaderConfig.showBookingInline ? loaderConfig : null;
 
   const idempotencyKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1156,6 +1164,33 @@ export default function BookingClient({
 
   const [stepIndex, setStepIndex] = useState(0);
   const currentStepKey = stepsWithScenario[stepIndex]?.key;
+  const shouldLoadServices =
+    (isDateFirst &&
+      (currentStepKey === "datetime" ||
+        currentStepKey === "service" ||
+        currentStepKey === "specialist" ||
+        currentStepKey === "details")) ||
+    (isServiceFirst &&
+      (currentStepKey === "service" ||
+        currentStepKey === "datetime" ||
+        currentStepKey === "specialist" ||
+        currentStepKey === "details")) ||
+    (isSpecialistFirst &&
+      (currentStepKey === "service" ||
+        currentStepKey === "datetime" ||
+        currentStepKey === "details"));
+  const shouldLoadSpecialists =
+    currentStepKey === "specialist" || currentStepKey === "details";
+  const shouldLoadCalendar =
+    !isDateFirst && (currentStepKey === "datetime" || currentStepKey === "details");
+  const shouldLoadDateFirstAvailability =
+    isDateFirst &&
+    (currentStepKey === "datetime" ||
+      currentStepKey === "service" ||
+      currentStepKey === "specialist" ||
+      currentStepKey === "details");
+  const shouldLoadDateFirstServiceSlots =
+    isDateFirst && (currentStepKey === "specialist" || currentStepKey === "details");
 
   const gotoKey = (key: string) => {
     const idx = stepsWithScenario.findIndex((s) => s.key === key);
@@ -1323,6 +1358,11 @@ export default function BookingClient({
   // ---------- specialists (full list for location)
   useEffect(() => {
     const safeLocationId = Number(locationId);
+    if (!shouldLoadSpecialists) {
+      setLoadingSpecialists(false);
+      setSpecialistsError(null);
+      return;
+    }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setSpecialists([]);
       return;
@@ -1354,7 +1394,7 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [locationId, accountSlug, serviceId]);
+  }, [locationId, accountSlug, serviceId, shouldLoadSpecialists]);
 
   // ---------- specialistFirst: load “has workdays” specialist ids
   useEffect(() => {
@@ -1363,6 +1403,11 @@ export default function BookingClient({
       setWorkdaySpecialistIds(null);
       setWorkdaySpecsError(null);
       setLoadingWorkdaySpecs(false);
+      return;
+    }
+    if (!shouldLoadSpecialists) {
+      setLoadingWorkdaySpecs(false);
+      setWorkdaySpecsError(null);
       return;
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
@@ -1400,11 +1445,16 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [isSpecialistFirst, locationId, accountSlug, todayYmdTz]);
+  }, [isSpecialistFirst, locationId, accountSlug, todayYmdTz, shouldLoadSpecialists]);
 
   // ---------- services
   useEffect(() => {
     const safeLocationId = Number(locationId);
+    if (!shouldLoadServices) {
+      setLoadingServices(false);
+      setServicesError(null);
+      return;
+    }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setServices([]);
       return;
@@ -1439,11 +1489,16 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [locationId, accountSlug, specialistId]);
+  }, [locationId, accountSlug, specialistId, shouldLoadServices]);
 
   // ---------- serviceFirst/specialistFirst: availability calendar
   useEffect(() => {
     const safeLocationId = Number(locationId);
+    if (!shouldLoadCalendar) {
+      setLoadingCalendar(false);
+      setCalendarError(null);
+      return;
+    }
     const calendarKey = [
       isDateFirst ? "date" : "other",
       isServiceFirst ? "service" : "",
@@ -1454,6 +1509,7 @@ export default function BookingClient({
       accountSlug ?? "",
       debouncedCalendarQueryStartYmd,
       calendarQueryDays,
+      currentStepKey ?? "",
     ].join("|");
 
     if (calendarKeyRef.current === calendarKey) return;
@@ -1542,12 +1598,14 @@ export default function BookingClient({
     dateYmd,
     debouncedCalendarQueryStartYmd,
     calendarQueryDays,
+    shouldLoadCalendar,
+    currentStepKey,
   ]);
 
   // ---------- dateFirst: offersByTime (time -> serviceIds)
   useEffect(() => {
     const safeLocationId = Number(locationId);
-    if (!isDateFirst) {
+    if (!shouldLoadDateFirstAvailability) {
       setOffersByTime({});
       setOffersError(null);
       setLoadingOffers(false);
@@ -1618,12 +1676,20 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [isDateFirst, locationId, dateYmd, services, accountSlug, todayYmdTz, nowTz]);
+  }, [
+    shouldLoadDateFirstAvailability,
+    locationId,
+    dateYmd,
+    services,
+    accountSlug,
+    todayYmdTz,
+    nowTz,
+  ]);
 
   // ---------- dateFirst: available dates (any service) for next 31 days
   useEffect(() => {
     const safeLocationId = Number(locationId);
-    if (!isDateFirst) {
+    if (!shouldLoadDateFirstAvailability) {
       setDateFirstAvailableDates(new Set());
       setLoadingDateFirstAvailability(false);
       setDateFirstAvailabilityError(null);
@@ -1682,7 +1748,7 @@ export default function BookingClient({
       mounted = false;
     };
   }, [
-    isDateFirst,
+    shouldLoadDateFirstAvailability,
     locationId,
     services,
     accountSlug,
@@ -1704,7 +1770,7 @@ export default function BookingClient({
   // ---------- dateFirst: slots by chosen service to filter specialists by timeChoice
   useEffect(() => {
     const safeLocationId = Number(locationId);
-    if (!isDateFirst) {
+    if (!shouldLoadDateFirstServiceSlots) {
       setDateFirstServiceSlots([]);
       setLoadingDateFirstServiceSlots(false);
       setDateFirstServiceSlotsError(null);
@@ -1759,7 +1825,16 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [isDateFirst, locationId, dateYmd, timeChoice, serviceId, accountSlug, todayYmdTz, nowTz]);
+  }, [
+    shouldLoadDateFirstServiceSlots,
+    locationId,
+    dateYmd,
+    timeChoice,
+    serviceId,
+    accountSlug,
+    todayYmdTz,
+    nowTz,
+  ]);
 
   // ---------- derived selections
   const selectedLocation = useMemo(
@@ -1869,12 +1944,52 @@ export default function BookingClient({
     return filterPastTimes(dateYmd, sorted, nowTz);
   }, [isDateFirst, dateYmd, offersByTime, calendarByDate, todayYmdTz, nowTz]);
 
-  const isCalendarWindowTransitioning =
-    !isDateFirst &&
-    (calendarQueryStartYmd !== debouncedCalendarQueryStartYmd || loadingCalendar);
+  const isCalendarWindowTransitioning = !isDateFirst && loadingCalendar;
   const isTimesPanelLoading = isDateFirst
     ? loadingOffers || (loadingDateFirstAvailability && dateFirstAvailableDates.size === 0)
     : isCalendarWindowTransitioning && availableTimesForCurrentStep.length === 0;
+  const isStepLoadingOverlay =
+    (currentStepKey === "location" && loadingContext) ||
+    (currentStepKey === "service" && loadingServices) ||
+    (currentStepKey === "specialist" &&
+      (loadingSpecialists || loadingWorkdaySpecs || loadingDateFirstServiceSlots)) ||
+    (currentStepKey === "datetime" && isTimesPanelLoading);
+  const shouldShowFullscreenLoaderOverlay =
+    Boolean(effectiveInlineLoader?.showBookingInline) &&
+    (((overlayNextDeadline !== null) && isStepLoadingOverlay) ||
+      (currentStepKey === "datetime" && isTimesPanelLoading));
+  const [showFullscreenLoaderOverlay, setShowFullscreenLoaderOverlay] = useState(false);
+  useEffect(() => {
+    if (overlayNextDeadline === null) return;
+    const now = Date.now();
+    if (overlayNextDeadline <= now) {
+      setOverlayNextDeadline(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setOverlayNextDeadline(null);
+    }, overlayNextDeadline - now);
+    return () => window.clearTimeout(timer);
+  }, [overlayNextDeadline]);
+  useEffect(() => {
+    if (shouldShowFullscreenLoaderOverlay) {
+      if (!showFullscreenLoaderOverlay) {
+        fullscreenLoaderShownAtRef.current = Date.now();
+        setShowFullscreenLoaderOverlay(true);
+      }
+      return;
+    }
+    if (!showFullscreenLoaderOverlay) return;
+    const shownAt = fullscreenLoaderShownAtRef.current ?? Date.now();
+    const elapsed = Date.now() - shownAt;
+    const minVisibleMs = 240;
+    const hideDelay = Math.max(0, minVisibleMs - elapsed);
+    const timer = window.setTimeout(() => {
+      setShowFullscreenLoaderOverlay(false);
+      fullscreenLoaderShownAtRef.current = null;
+    }, hideDelay);
+    return () => window.clearTimeout(timer);
+  }, [shouldShowFullscreenLoaderOverlay, showFullscreenLoaderOverlay]);
   const shouldShowNoSlotsNotice =
     !isTimesPanelLoading &&
     !isCalendarWindowTransitioning &&
@@ -2040,8 +2155,14 @@ export default function BookingClient({
     timeChoice,
   ]);
 
-  const goNext = () => setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
-  const goPrev = () => setStepIndex((v) => Math.max(0, v - 1));
+  const goNext = () => {
+    setOverlayNextDeadline(Date.now() + 900);
+    setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
+  };
+  const goPrev = () => {
+    setOverlayNextDeadline(null);
+    setStepIndex((v) => Math.max(0, v - 1));
+  };
 
   useEffect(() => {
     if (!initialParamsApplied) return;
@@ -2316,7 +2437,6 @@ export default function BookingClient({
                 )}
                 {currentStepKey === "location" && (
                   <div className="space-y-3">
-                    {loadingContext && <div className="text-sm">Загрузка локаций...</div>}
                     {contextError && <div className="text-sm text-red-600">{contextError}</div>}
 
                     {!loadingContext && !contextError && (
@@ -2471,18 +2591,6 @@ export default function BookingClient({
                       (isServiceFirst && !!serviceId) ||
                       (isSpecialistFirst && !!specialistId && !!serviceId)) && (
                       <div className="space-y-3">
-                        {isTimesPanelLoading && (
-                          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
-                            <div className="flex items-center justify-center py-1">
-                              <span
-                                aria-hidden="true"
-                                className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[color:var(--bp-accent)] border-t-transparent"
-                              />
-                              <span className="sr-only">Загрузка</span>
-                            </div>
-                          </div>
-                        )}
-
                         {showNoSlotsNotice && (
                           <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
                             Нет доступных слотов на выбранную дату.
@@ -2542,7 +2650,6 @@ export default function BookingClient({
                       />
                     </div>
 
-                    {loadingServices && <div className="text-sm">Загрузка...</div>}
                     {servicesError && <div className="text-sm text-red-600">{servicesError}</div>}
 
                     {!loadingServices && !servicesError && (
@@ -2690,12 +2797,10 @@ export default function BookingClient({
                       />
                     </div>
 
-                    {loadingSpecialists && <div className="text-sm">Загрузка...</div>}
                     {specialistsError && <div className="text-sm text-red-600">{specialistsError}</div>}
 
                     {isSpecialistFirst && (
                       <>
-                        {loadingWorkdaySpecs && <div className="text-sm">Проверяем график Специалистов...</div>}
                         {workdaySpecsError && <div className="text-sm text-red-600">{workdaySpecsError}</div>}
                       </>
                     )}
@@ -2708,9 +2813,6 @@ export default function BookingClient({
                           </div>
                         ) : (
                           <>
-                            {loadingDateFirstServiceSlots && (
-                              <div className="text-sm">Проверяем доступность Специалистов...</div>
-                            )}
                             {dateFirstServiceSlotsError && (
                               <div className="text-sm text-red-600">{dateFirstServiceSlotsError}</div>
                             )}
@@ -3070,6 +3172,19 @@ export default function BookingClient({
 
         </div>
       </div>
+      {showFullscreenLoaderOverlay && effectiveInlineLoader ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center"
+          style={
+            effectiveInlineLoader.backdropEnabled
+              ? { backgroundColor: effectiveInlineLoader.backdropColor }
+              : { backgroundColor: "transparent" }
+          }
+        >
+          <SiteLoader config={effectiveInlineLoader} />
+          <span className="sr-only">Загрузка</span>
+        </div>
+      ) : null}
     </div>
   );
 }

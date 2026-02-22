@@ -31,8 +31,8 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
     data.draft.entityPages?.specialists?.[String(specialistId)] ?? null;
   const pageBlocks = entityBlocks ?? [];
   const blocks = menuBlock
-    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu")]
-    : pageBlocks;
+    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+    : pageBlocks.filter((block) => block.type !== "loader");
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
   const initialMode =
@@ -128,7 +128,7 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
                 data.promos,
                 data.workPhotos,
                 { type: "specialist", id: specialistId },
-                data.draft.theme,
+                themeForRender,
                 accountLinkOverride
               )}
             </section>
@@ -138,6 +138,9 @@ export default async function PublicSpecialistPage({ params }: PageProps) {
     </main>
   );
 }
+
+
+
 
 
 

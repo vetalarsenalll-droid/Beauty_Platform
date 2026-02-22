@@ -23,8 +23,8 @@ export default async function PublicAccountPage({ params }: PageProps) {
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const blocks = menuBlock
-    ? [menuBlock, ...homeBlocks.filter((block) => block.type !== "menu")]
-    : homeBlocks;
+    ? [menuBlock, ...homeBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+    : homeBlocks.filter((block) => block.type !== "loader");
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
   const initialMode =
@@ -138,6 +138,9 @@ export default async function PublicAccountPage({ params }: PageProps) {
     </div>
   );
 }
+
+
+
 
 
 

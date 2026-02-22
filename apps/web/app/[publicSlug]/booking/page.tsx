@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getClientSession } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { resolveSiteLoaderConfig } from "@/lib/site-builder";
 
 import { loadPublicData } from "../_shared/public-data";
 import { buildBlockWrapperStyle, normalizeStyle, renderBlock } from "../_shared/public-render";
@@ -24,8 +25,9 @@ export default async function PublicBookingPage({ params }: PageProps) {
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const pageBlocks = data.draft.pages?.booking ?? data.draft.blocks;
   const blocks = menuBlock
-    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu")]
-    : pageBlocks;
+    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+    : pageBlocks.filter((block) => block.type !== "loader");
+  const loaderConfig = resolveSiteLoaderConfig(data.draft);
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
   const initialMode =
@@ -125,7 +127,8 @@ export default async function PublicBookingPage({ params }: PageProps) {
               data.workPhotos,
               null,
               themeForRender,
-              accountLinkOverride
+              accountLinkOverride,
+              loaderConfig
             )}
           </section>
         );
@@ -133,6 +136,9 @@ export default async function PublicBookingPage({ params }: PageProps) {
     </div>
   );
 }
+
+
+
 
 
 

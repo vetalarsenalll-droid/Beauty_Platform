@@ -8,15 +8,18 @@ import {
   type BlockType,
   type SiteBlock,
   type SiteDraft,
+  type SiteLoaderConfig,
   type SitePages,
   type SiteTheme,
   makeBlockId,
   normalizeDraft,
+  resolveSiteLoaderConfig,
   type SitePageKey,
 } from "@/lib/site-builder";
 import { buildBookingLink } from "@/lib/booking-links";
 import MenuSearch from "@/components/menu-search";
 import BookingClient from "@/app/booking/booking-client";
+import SiteLoader from "@/components/site-loader";
 
 type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -204,6 +207,45 @@ const BOOKING_MAX_BLOCK_COLUMNS = 15;
 const BOOKING_MIN_PRESET = 1;
 const BOOKING_MAX_PRESET = 6;
 
+function clamp01(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+function hexToRgbaString(hex: string, alpha: number) {
+  const normalized = hex.trim().replace("#", "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(17,24,39,${clamp01(alpha)})`;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${clamp01(alpha)})`;
+}
+
+function parseBackdropColor(value: unknown) {
+  const fallback = { hex: "#111827", alpha: 0.16 };
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  const raw = value.trim();
+  const hex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(raw);
+  if (hex) return { hex: raw, alpha: fallback.alpha };
+  const rgba = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([01]?(?:\.\d+)?))?\s*\)$/i.exec(
+    raw
+  );
+  if (!rgba) return fallback;
+  const r = Math.min(255, Math.max(0, Number(rgba[1])));
+  const g = Math.min(255, Math.max(0, Number(rgba[2])));
+  const b = Math.min(255, Math.max(0, Number(rgba[3])));
+  const a = rgba[4] === undefined ? fallback.alpha : clamp01(Number(rgba[4]));
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  return { hex: `#${toHex(r)}${toHex(g)}${toHex(b)}`, alpha: a };
+}
+
 function clampBlockColumns(columns: number, blockType: BlockType | string): number {
   if (blockType === "booking") {
     return Math.min(
@@ -329,6 +371,25 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       headingSize: 18,
       subheadingSize: 16,
       textSize: 14,
+    },
+  },
+  loader: {
+    enabled: true,
+    showPageOverlay: true,
+    showBookingInline: true,
+    backdropEnabled: false,
+    backdropColor: "rgba(17,24,39,0.16)",
+    backdropHex: "#111827",
+    backdropOpacity: 0.16,
+    color: "#111827",
+    size: 36,
+    speedMs: 900,
+    thickness: 3,
+    style: {
+      ...defaultBlockStyle,
+      useCustomWidth: false,
+      blockWidth: null,
+      blockWidthColumns: null,
     },
   },
   about: {
@@ -493,6 +554,7 @@ export default function SiteClient({
   const displayBlocks: SiteBlock[] = sharedMenuBlock
     ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.id !== sharedMenuBlock.id)]
     : pageBlocks;
+  const loaderConfig = resolveSiteLoaderConfig(draft);
   const firstDisplayBlockIsMenu = displayBlocks[0]?.type === "menu";
   const [selectedId, setSelectedId] = useState<string | null>(
     displayBlocks[0]?.id ?? null
@@ -958,6 +1020,7 @@ export default function SiteClient({
                   promos={promos}
                   workPhotos={workPhotos}
                   theme={draft.theme}
+                  loaderConfig={loaderConfig}
                   currentEntity={currentEntity}
                   onThemeToggle={handleThemeToggle}
                   onSelect={() => setSelectedId(block.id)}
@@ -1617,7 +1680,7 @@ function BlockEditor({
 
   return (
     <div className="mt-4 space-y-4">
-      {variantOptions.length > 1 && (
+      {variantOptions.length > 1 && block.type !== "loader" && (
         <label className="text-sm">
           Вариант
           <select
@@ -1860,6 +1923,144 @@ function BlockEditor({
             />
             Показывать контакты из профиля
           </label>
+        </>
+      )}
+
+      {block.type === "loader" && (
+        <>
+          {(() => {
+            const parsed = parseBackdropColor(block.data.backdropColor);
+            const backdropHex =
+              typeof block.data.backdropHex === "string" && block.data.backdropHex
+                ? (block.data.backdropHex as string)
+                : parsed.hex;
+            const backdropOpacity =
+              Number.isFinite(Number(block.data.backdropOpacity))
+                ? clamp01(Number(block.data.backdropOpacity))
+                : parsed.alpha;
+            const updateBackdrop = (hex: string, alpha: number) =>
+              updateData({
+                backdropHex: hex,
+                backdropOpacity: alpha,
+                backdropColor: hexToRgbaString(hex, alpha),
+              });
+
+            return (
+              <>
+          <label className="text-sm">
+            Вид лоадера
+            <select
+              value={block.variant}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+            >
+              <option value="v1">Вращающийся круг</option>
+              <option value="v2">Точки (волна)</option>
+              <option value="v3">Пульсирующий круг</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.enabled !== false}
+              onChange={(event) => updateData({ enabled: event.target.checked })}
+            />
+            Включить лоадер
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.showPageOverlay !== false}
+              onChange={(event) => updateData({ showPageOverlay: event.target.checked })}
+            />
+            Показывать на сайте
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.showBookingInline !== false}
+              onChange={(event) => updateData({ showBookingInline: event.target.checked })}
+            />
+            Показывать в онлайн-записи
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(block.data.backdropEnabled)}
+              onChange={(event) => updateData({ backdropEnabled: event.target.checked })}
+            />
+            Затемнять фон под лоадером
+          </label>
+          <ColorField
+            label="Цвет затемнения"
+            value={backdropHex}
+            placeholder="#111827"
+            onChange={(value) => updateBackdrop(value, backdropOpacity)}
+          />
+          <label className="text-sm">
+            Прозрачность затемнения: {Math.round(backdropOpacity * 100)}%
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(backdropOpacity * 100)}
+              onChange={(event) =>
+                updateBackdrop(backdropHex, Number(event.target.value) / 100)
+              }
+              className="mt-2 w-full"
+            />
+          </label>
+          <ColorField
+            label="Цвет лоадера"
+            value={(block.data.color as string) ?? "#111827"}
+            placeholder="#111827"
+            onChange={(value) => updateData({ color: value })}
+          />
+          <label className="text-sm">
+            Размер: {Number(block.data.size ?? 36)} px
+            <input
+              type="range"
+              min={16}
+              max={120}
+              step={2}
+              value={Number(block.data.size ?? 36)}
+              onChange={(event) => updateData({ size: Number(event.target.value) })}
+              className="mt-2 w-full"
+            />
+          </label>
+          <label className="text-sm">
+            Скорость анимации: {Number(block.data.speedMs ?? 900)} мс
+            <input
+              type="range"
+              min={300}
+              max={4000}
+              step={50}
+              value={Number(block.data.speedMs ?? 900)}
+              onChange={(event) => updateData({ speedMs: Number(event.target.value) })}
+              className="mt-2 w-full"
+            />
+          </label>
+          <label className="text-sm">
+            Толщина: {Number(block.data.thickness ?? 3)} px
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={Number(block.data.thickness ?? 3)}
+              onChange={(event) => updateData({ thickness: Number(event.target.value) })}
+              className="mt-2 w-full"
+            />
+          </label>
+              </>
+            );
+          })()}
         </>
       )}
 
@@ -2163,6 +2364,7 @@ function BlockEditor({
       {block.type !== "menu" &&
         block.type !== "cover" &&
         block.type !== "about" &&
+        block.type !== "loader" &&
         !isSystemBlockType(block.type) &&
         block.type !== "works" &&
         block.type !== "reviews" &&
@@ -3141,6 +3343,7 @@ function BlockPreview({
   promos,
   workPhotos,
   theme,
+  loaderConfig,
   currentEntity,
   onThemeToggle,
   onSelect,
@@ -3162,6 +3365,7 @@ function BlockPreview({
   promos: PromoItem[];
   workPhotos: WorkPhotos;
   theme: SiteTheme;
+  loaderConfig: SiteLoaderConfig | null;
   currentEntity: CurrentEntity;
   onThemeToggle: () => void;
   onSelect: () => void;
@@ -3347,6 +3551,7 @@ function BlockPreview({
             promos,
             workPhotos,
             theme,
+            loaderConfig,
             currentEntity,
             onThemeToggle
           )}
@@ -3396,6 +3601,7 @@ function renderBlock(
   promos: PromoItem[],
   workPhotos: WorkPhotos,
   theme: SiteTheme,
+  loaderConfig: SiteLoaderConfig | null,
   currentEntity: CurrentEntity,
   onThemeToggle: () => void
 ) {
@@ -3432,7 +3638,9 @@ function renderBlock(
     case "client":
       return renderClient(block, account, theme, style);
     case "booking":
-      return renderBooking(block, account, theme, style);
+      return renderBooking(block, account, theme, style, loaderConfig);
+    case "loader":
+      return renderLoaderPreview(block, theme, style);
     case "locations":
       return renderLocations(
         block,
@@ -3544,7 +3752,8 @@ function renderBooking(
   block: SiteBlock,
   account: AccountInfo,
   theme: SiteTheme,
-  style: BlockStyle
+  style: BlockStyle,
+  loaderConfig: SiteLoaderConfig | null
 ) {
   const accountSlug = account.slug;
   const accountPublicSlug = account.publicSlug ?? undefined;
@@ -3555,7 +3764,86 @@ function renderBooking(
         <BookingClient
           accountSlug={accountSlug}
           accountPublicSlug={accountPublicSlug}
+          loaderConfig={loaderConfig}
         />
+      </div>
+    </div>
+  );
+}
+
+function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+  const data = (block.data ?? {}) as Record<string, unknown>;
+  const enabled = data.enabled !== false;
+  const color =
+    typeof data.color === "string" && data.color.trim()
+      ? data.color.trim()
+      : style.buttonColor || theme.buttonColor;
+  const size =
+    Number.isFinite(Number(data.size)) && Number(data.size) > 0 ? Number(data.size) : 36;
+  const speedMs =
+    Number.isFinite(Number(data.speedMs)) && Number(data.speedMs) > 0
+      ? Number(data.speedMs)
+      : 900;
+  const thickness =
+    Number.isFinite(Number(data.thickness)) && Number(data.thickness) > 0
+      ? Number(data.thickness)
+      : 3;
+  const backdropEnabled = Boolean(data.backdropEnabled);
+  const parsedBackdrop = parseBackdropColor(data.backdropColor);
+  const backdropHex =
+    typeof data.backdropHex === "string" && data.backdropHex.trim()
+      ? data.backdropHex.trim()
+      : parsedBackdrop.hex;
+  const backdropOpacity =
+    Number.isFinite(Number(data.backdropOpacity))
+      ? clamp01(Number(data.backdropOpacity))
+      : parsedBackdrop.alpha;
+  const backdropColor = hexToRgbaString(backdropHex, backdropOpacity);
+
+  const visual =
+    block.variant === "v2" ? "dots" : block.variant === "v3" ? "pulse" : "spinner";
+
+  return (
+    <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+      <div className="text-sm font-semibold">Лоадер сайта</div>
+      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+        {enabled ? "Активен" : "Отключен"}
+      </div>
+      <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+        <div
+          className="relative h-24 overflow-hidden rounded-lg border border-[color:var(--bp-stroke)]"
+          style={{ backgroundColor: "transparent" }}
+        >
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            style={
+              backdropEnabled && backdropOpacity > 0
+                ? { backgroundColor: backdropColor }
+                : undefined
+            }
+          >
+            {enabled ? (
+              <SiteLoader
+                config={{
+                  visual,
+                  size,
+                  color,
+                  speedMs,
+                  thickness,
+                  showPageOverlay: true,
+                  showBookingInline: true,
+                  backdropEnabled,
+                  backdropColor,
+                }}
+              />
+            ) : (
+              <span className="text-xs text-[color:var(--bp-muted)]">Включите блок в настройках</span>
+            )}
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+          Затемнение: {backdropHex} · {Math.round(backdropOpacity * 100)}%
+        </div>
       </div>
     </div>
   );

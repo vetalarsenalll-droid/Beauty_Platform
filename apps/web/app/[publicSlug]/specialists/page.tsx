@@ -25,8 +25,8 @@ export default async function PublicSpecialistsPage({ params }: PageProps) {
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const pageBlocks = data.draft.pages?.specialists ?? data.draft.blocks;
   const blocks = menuBlock
-    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu")]
-    : pageBlocks;
+    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+    : pageBlocks.filter((block) => block.type !== "loader");
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
   const initialMode =
@@ -118,7 +118,7 @@ export default async function PublicSpecialistsPage({ params }: PageProps) {
                 data.promos,
                 data.workPhotos,
                 null,
-                data.draft.theme,
+                themeForRender,
                 accountLinkOverride
               )}
             </section>
@@ -128,6 +128,9 @@ export default async function PublicSpecialistsPage({ params }: PageProps) {
     </main>
   );
 }
+
+
+
 
 
 

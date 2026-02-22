@@ -152,6 +152,22 @@ const DEFAULT_LOADER_CONFIG: SiteLoaderConfig = {
   backdropColor: "rgba(17,24,39,0.16)",
 };
 
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.trim().replace("#", "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(17,24,39,${alpha})`;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
+
 const mapVariantToLoaderVisual = (
   variant: "v1" | "v2" | "v3" | "v4" | "v5" | undefined
 ): SiteLoaderVisual => {
@@ -181,10 +197,15 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
     typeof data.color === "string" && data.color.trim()
       ? data.color.trim()
       : DEFAULT_LOADER_CONFIG.color;
+  const backdropAlpha = clamp(data.backdropOpacity, 0, 1, 0.16);
+  const backdropHex =
+    typeof data.backdropHex === "string" && data.backdropHex.trim()
+      ? data.backdropHex.trim()
+      : "#111827";
   const backdropColor =
     typeof data.backdropColor === "string" && data.backdropColor.trim()
       ? data.backdropColor.trim()
-      : DEFAULT_LOADER_CONFIG.backdropColor;
+      : hexToRgba(backdropHex, backdropAlpha);
 
   return {
     visual: mapVariantToLoaderVisual(loaderBlock.variant),

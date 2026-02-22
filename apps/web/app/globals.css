@@ -249,6 +249,42 @@
   --booking-border-width: var(--booking-border-width-dark, 1px);
 }
 
+@keyframes site-loader-wave {
+  0%,
+  100% {
+    transform: translateY(0px);
+    opacity: 0.6;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+@keyframes site-loader-pulse-ring {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  80%,
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes site-loader-pulse-core {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.75;
+  }
+  45% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
 .dark {
   --bg: #0f1012;
   --surface: #14161a;

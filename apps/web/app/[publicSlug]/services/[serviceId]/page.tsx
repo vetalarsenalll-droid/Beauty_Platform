@@ -31,8 +31,8 @@ export default async function PublicServicePage({ params }: PageProps) {
     data.draft.entityPages?.services?.[String(serviceId)] ?? null;
   const pageBlocks = entityBlocks ?? [];
   const blocks = menuBlock
-    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu")]
-    : pageBlocks;
+    ? [menuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
+    : pageBlocks.filter((block) => block.type !== "loader");
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
   const initialMode =
@@ -124,7 +124,7 @@ export default async function PublicServicePage({ params }: PageProps) {
                 data.promos,
                 data.workPhotos,
                 { type: "service", id: serviceId },
-                data.draft.theme,
+                themeForRender,
                 accountLinkOverride
               )}
             </section>
@@ -134,6 +134,9 @@ export default async function PublicServicePage({ params }: PageProps) {
     </main>
   );
 }
+
+
+
 
 
 
