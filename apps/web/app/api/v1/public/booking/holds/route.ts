@@ -2,6 +2,11 @@ import { Prisma } from "@prisma/client";
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
+  BOOKING_HOLD_COOKIE,
+  createHoldProofToken,
+} from "@/lib/public-booking-hold-proof";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import {
   getNowInTimeZone,
   isPastDateOrTimeInTz,
   resolvePublicAccount,
@@ -21,6 +26,14 @@ const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+
+  const limited = enforceRateLimit({
+    request,
+    scope: `booking:holds:${resolved.account.id}`,
+    limit: 60,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
 
   const tz = resolved.account.timeZone;
   const nowTz = getNowInTimeZone(tz);
@@ -228,12 +241,33 @@ export async function POST(request: Request) {
         return jsonError("TIME_BUSY", "Выбранное время недоступно.", null, 409);
       }
 
-      return jsonOk({
+      const response = jsonOk({
         holdId: result.hold.id,
         expiresAt: result.hold.expiresAt.toISOString(),
         durationMin,
         priceTotal: toNumber(service.basePrice),
       });
+
+      response.cookies.set(
+        BOOKING_HOLD_COOKIE,
+        createHoldProofToken({
+          holdId: result.hold.id,
+          accountId: resolved.account.id,
+          specialistId,
+          startAt: startAtUtc.toISOString(),
+          endAt: endAtUtc.toISOString(),
+          expiresAt: result.hold.expiresAt.toISOString(),
+        }),
+        {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          expires: result.hold.expiresAt,
+        }
+      );
+
+      return response;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

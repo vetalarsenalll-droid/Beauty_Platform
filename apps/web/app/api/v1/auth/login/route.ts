@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createSession, getAuthCookies, verifyPassword } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
@@ -17,6 +18,15 @@ export async function POST(request: Request) {
       400
     );
   }
+
+  const limited = enforceRateLimit({
+    request,
+    scope: "auth:platform-login",
+    limit: 12,
+    windowMs: 10 * 60 * 1000,
+    identity: String(body.email ?? "").trim().toLowerCase(),
+  });
+  if (limited) return limited;
 
   const identity = await prisma.userIdentity.findFirst({
     where: { provider: "EMAIL", email: body.email },
@@ -107,8 +117,6 @@ export async function POST(request: Request) {
       email: identity.user.email ?? identity.email,
     },
     permissions,
-    accessToken,
-    refreshToken,
     accessExpiresAt: accessExpiresAt.toISOString(),
     refreshExpiresAt: refreshExpiresAt.toISOString(),
   });

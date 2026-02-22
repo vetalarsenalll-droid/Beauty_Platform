@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createSession, getClientAuthCookies } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 function hashPassword(password: string, saltHex: string) {
   const salt = Buffer.from(saltHex, "hex");
@@ -35,6 +36,15 @@ export async function POST(request: Request) {
     );
   }
 
+  const limited = enforceRateLimit({
+    request,
+    scope: "auth:client-register",
+    limit: 8,
+    windowMs: 10 * 60 * 1000,
+    identity: `${accountSlug.toLowerCase()}:${email}`,
+  });
+  if (limited) return limited;
+
   const account = accountSlug
     ? await prisma.account.findUnique({
         where: { slug: accountSlug },
@@ -43,7 +53,12 @@ export async function POST(request: Request) {
     : null;
 
   if (accountSlug && !account) {
-    return jsonError("NOT_FOUND", "Аккаунт не найден", {}, 404);
+    return jsonError(
+      "REGISTRATION_FAILED",
+      "Не удалось завершить регистрацию",
+      {},
+      400
+    );
   }
 
   const existingIdentity = await prisma.userIdentity.findFirst({
@@ -52,7 +67,12 @@ export async function POST(request: Request) {
   });
 
   if (existingIdentity) {
-    return jsonError("ALREADY_EXISTS", "Email уже зарегистрирован", {}, 409);
+    return jsonError(
+      "REGISTRATION_FAILED",
+      "Не удалось завершить регистрацию",
+      {},
+      400
+    );
   }
 
   const saltHex = crypto.randomBytes(16).toString("hex");
@@ -124,8 +144,6 @@ export async function POST(request: Request) {
         }
       : null,
     account,
-    accessToken,
-    refreshToken,
     accessExpiresAt: accessExpiresAt.toISOString(),
     refreshExpiresAt: refreshExpiresAt.toISOString(),
   });

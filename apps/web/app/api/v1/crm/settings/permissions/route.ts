@@ -36,7 +36,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireCrmApiPermission("crm.settings.read");
+  const auth = await requireCrmApiPermission("crm.settings.update");
   if ("response" in auth) return auth.response;
 
   const body = await request.json().catch(() => null);

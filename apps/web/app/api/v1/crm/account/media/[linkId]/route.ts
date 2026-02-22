@@ -11,7 +11,7 @@ function parseId(value: string) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const auth = await requireCrmApiPermission("crm.settings.read");
+  const auth = await requireCrmApiPermission("crm.settings.update");
   if ("response" in auth) return auth.response;
 
   const { linkId } = await params;

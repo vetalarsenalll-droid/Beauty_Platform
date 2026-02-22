@@ -20,7 +20,7 @@ const MAX_DIMENSION = 2560;
 const MAX_PIXELS = 20_000_000;
 
 export async function POST(request: Request) {
-  const auth = await requireCrmApiPermission("crm.settings.read");
+  const auth = await requireCrmApiPermission("crm.settings.update");
   if ("response" in auth) return auth.response;
 
   const formData = await request.formData().catch(() => null);

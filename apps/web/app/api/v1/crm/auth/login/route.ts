@@ -6,6 +6,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
@@ -27,13 +28,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const limited = enforceRateLimit({
+    request,
+    scope: "auth:crm-login",
+    limit: 12,
+    windowMs: 10 * 60 * 1000,
+    identity: `${accountSlug.toLowerCase()}:${email.toLowerCase()}`,
+  });
+  if (limited) return limited;
+
   const account = await prisma.account.findUnique({
     where: { slug: accountSlug },
     select: { id: true, name: true, slug: true },
   });
 
   if (!account) {
-    return jsonError("NOT_FOUND", "Аккаунт не найден", {}, 404);
+    return jsonError(
+      "INVALID_CREDENTIALS",
+      "Неверный email или пароль",
+      {},
+      401
+    );
   }
 
   const identity = await prisma.userIdentity.findFirst({
@@ -142,8 +157,6 @@ export async function POST(request: Request) {
     account,
     role: assignment.role.name,
     permissions,
-    accessToken,
-    refreshToken,
     accessExpiresAt: accessExpiresAt.toISOString(),
     refreshExpiresAt: refreshExpiresAt.toISOString(),
   });

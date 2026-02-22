@@ -1,8 +1,17 @@
 import { cookies, headers } from "next/headers";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getClientAuthCookies, refreshSession } from "@/lib/auth";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const limited = enforceRateLimit({
+    request,
+    scope: "auth:client-refresh",
+    limit: 120,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (limited) return limited;
+
   const headerStore = await headers();
   const authHeader =
     headerStore.get("authorization") ?? headerStore.get("Authorization");
@@ -44,8 +53,6 @@ export async function POST() {
   });
 
   return jsonOk({
-    accessToken: refreshed.accessToken,
-    refreshToken: refreshed.refreshToken,
     accessExpiresAt: refreshed.accessExpiresAt.toISOString(),
     refreshExpiresAt: refreshed.refreshExpiresAt.toISOString(),
   });
