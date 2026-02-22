@@ -3,6 +3,7 @@ import { buildBookingLink } from "@/lib/booking-links";
 import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
+import DetailsCloseButton from "@/components/details-close-button";
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
@@ -804,6 +805,12 @@ function renderMenu(
         ? `/c/login?account=${accountSlug}`
         : "/c/login";
   const showSocials = Boolean(data.showSocials);
+  const socialIconSizeRaw = Number(data.socialIconSize);
+  const socialIconSize =
+    Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
+      ? Math.round(socialIconSizeRaw)
+      : 40;
+  const socialGlyphSize = Math.max(14, Math.round(socialIconSize * 0.55));
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
   const buttonText = (data.buttonText as string) || "Записаться";
@@ -930,6 +937,7 @@ function renderMenu(
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent"
+            style={{ width: socialIconSize, height: socialIconSize }}
             title={SOCIAL_LABELS[item.key] ?? item.key}
             aria-label={SOCIAL_LABELS[item.key] ?? item.key}
           >
@@ -937,12 +945,12 @@ function renderMenu(
               src={SOCIAL_ICONS[item.key]}
               alt={SOCIAL_LABELS[item.key] ?? item.key}
               className="h-5 w-5"
+              style={{ width: socialGlyphSize, height: socialGlyphSize }}
             />
           </a>
         ))}
       </div>
     ) : null;
-
   const canBook = Boolean(publicSlug);
   const canPhone = Boolean(phoneValue);
   const usePhone = ctaMode === "phone" && canPhone;
@@ -1034,8 +1042,36 @@ function renderMenu(
   const navNode = (
     <div className="flex flex-wrap items-center gap-4">{linkItems}</div>
   );
+  const drawerNavNode = (
+    <div className="flex flex-col items-start gap-2">{linkItems}</div>
+  );
   const overlayNavNode = (
     <div className="flex w-full flex-col items-center gap-6 text-center">{overlayLinkItems}</div>
+  );
+  const drawerLinkItems = (
+    <div className="flex flex-col items-start gap-2">
+      {menuItems.map((key) => {
+        const href =
+          key === "home"
+            ? basePath
+            : key === "booking"
+              ? `${basePath}/booking`
+              : key === "client"
+                ? accountSlug
+                  ? `/c?account=${accountSlug}`
+                  : "/c"
+                : `${basePath}/${key === "promos" ? "promos" : key}`;
+        return (
+          <Link
+            key={`${key}-drawer`}
+            href={href}
+            className="text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
+          >
+            {PAGE_LABELS[key]}
+          </Link>
+        );
+      })}
+    </div>
   );
 
   const navPills = (
@@ -1102,6 +1138,11 @@ function renderMenu(
             }}
           >
             <span className="inline-flex items-center gap-3">{logoNode}</span>
+            {searchNode && (
+              <span className="absolute right-24 top-1/2 hidden -translate-y-1/2 md:group-open:flex">
+                {searchNode}
+              </span>
+            )}
             <span
               className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               style={{ width: menuButtonSize, height: menuButtonSize }}
@@ -1132,7 +1173,6 @@ function renderMenu(
               </div>
             </div>
             <div className="hidden flex-wrap items-center justify-center gap-3 md:flex">
-              {searchNode}
               {socialsNode}
               {accountNode}
               {themeToggleNode}
@@ -1145,15 +1185,78 @@ function renderMenu(
   }
 
   if (block.variant === "v3") {
-    desktopLayout = (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="rounded-2xl border px-4 py-3" style={subBlockSurfaceStyle}>
-          <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-4">{logoNode}</div>
-          {actions}
-        </div>
+    return (
+      <div
+        className="w-full"
+        style={
+          position === "sticky"
+            ? { position: "sticky", top: 12, zIndex: 20 }
+            : undefined
+        }
+      >
+        <details className="group relative menu-v3-overlay w-full">
+          <summary
+            className="relative flex list-none items-center px-4 md:px-8 [&::-webkit-details-marker]:hidden"
+            style={{
+              minHeight: menuHeight,
+              backgroundColor: "var(--block-bg, var(--site-panel))",
+              backgroundImage: "var(--block-gradient, none)",
+              borderColor: "var(--block-border, var(--site-border))",
+              borderBottomWidth: 1,
+            }}
+          >
+            <span
+              className="relative inline-flex items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              style={{ width: menuButtonSize, height: menuButtonSize }}
+            >
+              <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
+              <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out group-open:opacity-0" />
+              <span className="absolute left-1/2 top-[calc(50%+6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:-rotate-45" />
+            </span>
+            {logoNode ? (
+              <span className="pointer-events-none absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center">
+                {logoNode}
+              </span>
+            ) : null}
+            <span className="ml-auto hidden items-center gap-2 md:inline-flex [&_a]:!rounded-full [&_a]:!border-0 [&_a]:!bg-transparent">
+              {socialsNode}
+            </span>
+          </summary>
+          <div className="fixed inset-0 z-40 hidden group-open:block">
+            <div className="absolute inset-0 bg-[rgba(17,24,39,0.55)]" />
+            <aside
+              className="relative z-10 flex h-full w-full flex-col border-r px-6 py-5 text-[color:var(--block-text,var(--bp-ink))] sm:w-[min(360px,78vw)]"
+              style={{
+                backgroundColor: "var(--block-sub-bg, var(--block-bg, var(--site-panel)))",
+                borderColor: "var(--block-border, var(--site-border))",
+              }}
+            >
+              <div className="mb-8 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">{searchNode}</div>
+                <DetailsCloseButton
+                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                  title="Закрыть меню"
+                  ariaLabel="Закрыть меню"
+                >
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
+                </DetailsCloseButton>
+              </div>
+              <div className="space-y-3">
+                {drawerLinkItems}
+              </div>
+              <div className="mt-auto space-y-4 pt-6">
+                {ctaNode && <div>{ctaNode}</div>}
+                {socialsNode && <div className="md:hidden">{socialsNode}</div>}
+                <div className="flex flex-wrap items-center gap-2">
+                  {accountNode}
+                  {themeToggleNode}
+                </div>
+              </div>
+            </aside>
+          </div>
+        </details>
       </div>
     );
   }

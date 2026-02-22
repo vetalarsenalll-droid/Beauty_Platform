@@ -432,6 +432,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     accountTitle: "",
     menuHeight: 56,
     showSocials: false,
+    socialIconSize: 40,
     position: "static",
     socialsMode: "auto",
     socialsCustom: {
@@ -965,11 +966,21 @@ export default function SiteClient({
   ) => {
     const block = createBlock(type);
     if (type === "menu") {
+      const currentStyle =
+        typeof (block.data as Record<string, unknown>).style === "object" &&
+        (block.data as Record<string, unknown>).style
+          ? { ...((block.data as Record<string, unknown>).style as Record<string, unknown>) }
+          : { ...defaultBlockStyle };
       block.data = {
         ...block.data,
         accountTitle: account.name,
         showCompanyName: true,
         menuHeight: 56,
+        socialIconSize: 40,
+        style:
+          variant === "v2"
+            ? { ...currentStyle, radius: 0 }
+            : currentStyle,
       };
     }
     if (variant) block.variant = variant;
@@ -2470,6 +2481,28 @@ function BlockEditor({
                   <option value="custom">Ввести вручную</option>
                 </select>
               </label>
+              {Boolean(block.data.showSocials) && (
+                <label className="text-sm">
+                  Размер иконок соцсетей:{" "}
+                  {Number.isFinite(Number((block.data as Record<string, unknown>).socialIconSize))
+                    ? Number((block.data as Record<string, unknown>).socialIconSize)
+                    : 40}
+                  px
+                  <input
+                    type="range"
+                    min={24}
+                    max={72}
+                    step={1}
+                    value={
+                      Number.isFinite(Number((block.data as Record<string, unknown>).socialIconSize))
+                        ? Number((block.data as Record<string, unknown>).socialIconSize)
+                        : 40
+                    }
+                    onChange={(event) => updateData({ socialIconSize: Number(event.target.value) })}
+                    className="mt-2 w-full"
+                  />
+                </label>
+              )}
             </>
           )}
           {inSection("extras") && block.data.socialsMode === "custom" && (
@@ -4807,6 +4840,12 @@ function renderMenuBlock(
   const accountLink = account.slug ? `/c/login?account=${account.slug}` : "/c/login";
   const position = data.position === "sticky" ? "sticky" : "static";
   const showSocials = Boolean(data.showSocials);
+  const socialIconSizeRaw = Number(data.socialIconSize);
+  const socialIconSize =
+    Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
+      ? Math.round(socialIconSizeRaw)
+      : 40;
+  const socialGlyphSize = Math.max(14, Math.round(socialIconSize * 0.55));
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
   const accountTitleRaw =
@@ -4951,14 +4990,19 @@ function renderMenuBlock(
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent"
+            style={{ width: socialIconSize, height: socialIconSize }}
             title={SOCIAL_LABELS[item.key]}
           >
-            <img src={SOCIAL_ICONS[item.key]} alt="" className="h-7 w-7" />
+            <img
+              src={SOCIAL_ICONS[item.key]}
+              alt=""
+              className="h-7 w-7"
+              style={{ width: socialGlyphSize, height: socialGlyphSize }}
+            />
           </a>
         ))}
       </div>
     ) : null;
-
   const ctaNode =
     showButton && account.publicSlug && (ctaMode === "booking" || phoneValue) ? (
       <a
@@ -4994,6 +5038,29 @@ function renderMenuBlock(
       alignClass={alignClass}
       logoNode={logoNode}
       navNode={<div className="flex flex-wrap items-center gap-4">{linkItems}</div>}
+      drawerNavNode={
+        <div className="flex flex-col items-start gap-2">
+          {menuItems.map((key) => {
+            const href =
+              key === "home"
+                ? basePath
+                : key === "booking"
+                  ? `${basePath}/booking`
+                  : key === "client"
+                    ? `/c?account=${account.slug}`
+                    : `${basePath}/${key === "promos" ? "promos" : key}`;
+            return (
+              <a
+                key={`${key}-drawer`}
+                href={href}
+                className="text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
+              >
+                {PAGE_LABELS[key]}
+              </a>
+            );
+          })}
+        </div>
+      }
       overlayNavNode={
         <div className="flex w-full flex-col items-center gap-6 text-center">
           {overlayLinkItems}
@@ -5020,6 +5087,7 @@ function MenuPreview({
   alignClass,
   logoNode,
   navNode,
+  drawerNavNode,
   overlayNavNode,
   searchNode,
   socialsNode,
@@ -5038,6 +5106,7 @@ function MenuPreview({
   alignClass: string;
   logoNode: React.ReactNode | null;
   navNode: React.ReactNode;
+  drawerNavNode: React.ReactNode;
   overlayNavNode: React.ReactNode;
   searchNode: React.ReactNode | null;
   socialsNode: React.ReactNode | null;
@@ -5099,6 +5168,11 @@ function MenuPreview({
           style={{ ...topBarStyle, minHeight: menuHeight }}
         >
           <div className="flex items-center gap-3">{logoNode}</div>
+          {mobileOpen && searchNode ? (
+            <div className="absolute right-24 top-1/2 hidden -translate-y-1/2 md:flex">
+              {searchNode}
+            </div>
+          ) : null}
           <button
             type="button"
             className="absolute right-8 top-1/2 z-[11] inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
@@ -5150,7 +5224,6 @@ function MenuPreview({
               </div>
             </div>
             <div className="hidden flex-wrap items-center justify-center gap-3 md:flex">
-              {searchNode}
               {socialsNode}
               {accountNode}
               {themeToggleNode}
@@ -5163,41 +5236,97 @@ function MenuPreview({
   }
 
   if (variant === "v3") {
-    desktopLayout = (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="rounded-2xl border px-4 py-3" style={subBlockStyle}>
-          <div className={`flex flex-wrap items-center gap-4 ${alignClass}`}>{navNode}</div>
+    const topBarStyle: React.CSSProperties = {
+      backgroundColor: blockBg,
+      backgroundImage: menuGradient,
+      borderColor: subBlockBorder,
+      borderWidth: subBlockBorder === "transparent" ? 0 : 1,
+      minHeight: menuHeight,
+    };
+    return (
+      <div
+        className="relative w-full"
+        style={
+          position === "sticky"
+            ? { position: "sticky", top: 120, zIndex: 1, minHeight: mobileOpen ? "82vh" : undefined }
+            : { minHeight: mobileOpen ? "82vh" : undefined }
+        }
+      >
+        <div className="relative flex items-center px-4 md:px-8" style={topBarStyle}>
+          <button
+            type="button"
+            className="relative inline-flex h-10 w-10 items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+            onClick={() => setMobileOpen((prev) => !prev)}
+            aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+            title={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+          >
+            <span
+              className={`absolute left-1/2 block h-[2px] w-5 -translate-x-1/2 bg-current transition-all duration-300 ease-out ${
+                mobileOpen
+                  ? "top-1/2 -translate-y-1/2 rotate-45"
+                  : "top-[calc(50%-6px)] rotate-0"
+              }`}
+            />
+            <span
+              className={`absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out ${
+                mobileOpen ? "opacity-0" : "opacity-100"
+              }`}
+            />
+            <span
+              className={`absolute left-1/2 block h-[2px] w-5 -translate-x-1/2 bg-current transition-all duration-300 ease-out ${
+                mobileOpen
+                  ? "top-1/2 -translate-y-1/2 -rotate-45"
+                  : "top-[calc(50%+6px)] rotate-0"
+              }`}
+            />
+          </button>
+          {logoNode ? (
+            <div className="pointer-events-none absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center">
+              {logoNode}
+            </div>
+          ) : null}
+          <div className="ml-auto hidden items-center gap-2 md:flex [&_a]:!rounded-full [&_a]:!border-0 [&_a]:!bg-transparent">
+            {socialsNode}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-4">{logoNode}</div>
-          {actions}
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === "v4") {
-    desktopLayout = (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">{logoNode}</div>
-          <div className="flex flex-wrap items-center gap-3">{actions}</div>
-        </div>
-        <div className="rounded-2xl border px-3 py-2" style={subBlockStyle}>
-          <div className="flex flex-wrap items-center gap-2">{navNode}</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === "v5") {
-    desktopLayout = (
-      <div className="flex flex-col items-center gap-4 text-center">
-        {logoNode}
-        <div className="w-full rounded-2xl border px-4 py-3" style={subBlockStyle}>
-          {navNode}
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-3">{actions}</div>
+        {mobileOpen && (
+          <div className="absolute inset-0 z-10">
+            <div className="absolute inset-0 bg-[rgba(17,24,39,0.55)]" />
+            <aside
+              className="relative z-10 flex h-full w-full flex-col border-r px-6 py-5 text-[color:var(--block-text,var(--bp-ink))] sm:w-[min(360px,78vw)]"
+              style={{
+                backgroundColor: "var(--block-sub-bg, var(--block-bg, var(--site-panel)))",
+                borderColor: "var(--block-border, var(--site-border))",
+              }}
+            >
+              <div className="mb-8 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">{searchNode}</div>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                  aria-label="Закрыть меню"
+                  title="Закрыть меню"
+                >
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {drawerNavNode}
+              </div>
+              <div className="mt-auto space-y-4 pt-6">
+                {ctaNode && <div>{ctaNode}</div>}
+                {socialsNode && <div className="md:hidden">{socialsNode}</div>}
+                <div className="flex flex-wrap items-center gap-2">
+                  {accountNode}
+                  {themeToggleNode}
+                </div>
+              </div>
+            </aside>
+          </div>
+        )}
       </div>
     );
   }

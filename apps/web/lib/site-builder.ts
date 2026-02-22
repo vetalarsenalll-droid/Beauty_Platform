@@ -104,7 +104,7 @@ export const BLOCK_VARIANTS: Record<
   Array<"v1" | "v2" | "v3" | "v4" | "v5">
 > = {
   cover: ["v1", "v2"],
-  menu: ["v1", "v2", "v3", "v4", "v5"],
+  menu: ["v1", "v2", "v3"],
   loader: ["v1", "v2", "v3"],
   about: ["v1", "v2"],
   client: ["v1"],
@@ -265,6 +265,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
     accountTitle,
     menuHeight: 56,
     showSocials: false,
+    socialIconSize: 40,
     position: "static",
     socialsMode: "auto",
     socialsCustom: {
@@ -594,6 +595,11 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
           safeData.menuItems = menuItems.length
             ? menuItems
             : ["home", "booking", "client", "locations", "services", "specialists", "promos"];
+          const socialIconSizeRaw = Number(safeData.socialIconSize);
+          safeData.socialIconSize =
+            Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
+              ? Math.round(socialIconSizeRaw)
+              : 40;
         }
         return {
           // Deterministic fallback id to avoid SSR/CSR hydration mismatch.
