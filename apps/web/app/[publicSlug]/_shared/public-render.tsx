@@ -1,9 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { buildBookingLink } from "@/lib/booking-links";
 import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import DetailsCloseButton from "@/components/details-close-button";
+import GallerySlider from "@/components/gallery-slider";
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
@@ -25,13 +26,13 @@ export type CurrentEntity =
   | null;
 
 const PAGE_LABELS = {
-  home: "Главная",
-  booking: "Онлайн-запись",
-  client: "Личный кабинет",
-  locations: "Локации",
-  services: "Услуги",
-  specialists: "Специалисты",
-  promos: "Промо/скидки",
+  home: "Р“Р»Р°РІРЅР°СЏ",
+  booking: "РћРЅР»Р°Р№РЅ-Р·Р°РїРёСЃСЊ",
+  client: "Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚",
+  locations: "Р›РѕРєР°С†РёРё",
+  services: "РЈСЃР»СѓРіРё",
+  specialists: "РЎРїРµС†РёР°Р»РёСЃС‚С‹",
+  promos: "РџСЂРѕРјРѕ/СЃРєРёРґРєРё",
 } as const;
 
 type PageKey = keyof typeof PAGE_LABELS;
@@ -54,7 +55,7 @@ const SOCIAL_ICONS: Record<string, string> = {
 };
 
 const SOCIAL_LABELS: Record<string, string> = {
-  website: "Сайт",
+  website: "РЎР°Р№С‚",
   instagram: "Instagram",
   whatsapp: "WhatsApp",
   telegram: "Telegram",
@@ -66,8 +67,8 @@ const SOCIAL_LABELS: Record<string, string> = {
   tiktok: "TikTok",
   youtube: "YouTube",
   twitter: "Twitter",
-  dzen: "Дзен",
-  ok: "Одноклассники",
+  dzen: "Р”Р·РµРЅ",
+  ok: "РћРґРЅРѕРєР»Р°СЃСЃРЅРёРєРё",
 };
 
 type BlockStyle = {
@@ -81,6 +82,9 @@ type BlockStyle = {
   subBlockBg?: string;
   subBlockBgLight?: string;
   subBlockBgDark?: string;
+  sectionBg?: string;
+  sectionBgLight?: string;
+  sectionBgDark?: string;
   blockBg?: string;
   blockBgLight?: string;
   blockBgDark?: string;
@@ -106,7 +110,10 @@ type BlockStyle = {
   gradientFrom?: string;
   gradientTo?: string;
   textAlign?: "left" | "center" | "right";
+  textAlignHeading?: "left" | "center" | "right";
+  textAlignSubheading?: "left" | "center" | "right";
   fontHeading?: string;
+  fontSubheading?: string;
   fontBody?: string;
   headingSize?: number | null;
   subheadingSize?: number | null;
@@ -115,6 +122,8 @@ type BlockStyle = {
   subBlockBgDarkResolved?: string;
   blockBgLightResolved?: string;
   blockBgDarkResolved?: string;
+  sectionBgLightResolved?: string;
+  sectionBgDarkResolved?: string;
   borderColorLightResolved?: string;
   borderColorDarkResolved?: string;
   buttonColorLightResolved?: string;
@@ -221,6 +230,13 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     "subBlockBgLight",
     "subBlockBgDark",
     "subBlockBg",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
+  const sectionBgPair = resolvePair(
+    "sectionBgLight",
+    "sectionBgDark",
+    "sectionBg",
     theme.lightPalette.panelColor,
     theme.darkPalette.panelColor
   );
@@ -352,6 +368,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     radius: numOrNull(style.radius as number),
     buttonRadius: numOrNull(style.buttonRadius as number),
     subBlockBg: resolveColor("subBlockBgLight", "subBlockBgDark", "subBlockBg"),
+    sectionBg: resolveColor("sectionBgLight", "sectionBgDark", "sectionBg"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
     borderColor: resolvedBorder,
     buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
@@ -364,6 +381,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
     subBlockBgLightResolved: subBlockBgPair.lightResolved,
     subBlockBgDarkResolved: subBlockBgPair.darkResolved,
+    sectionBgLightResolved: sectionBgPair.lightResolved,
+    sectionBgDarkResolved: sectionBgPair.darkResolved,
     blockBgLightResolved: blockBgPair.lightResolved,
     blockBgDarkResolved: blockBgPair.darkResolved,
     borderColorLightResolved: resolvedBorderPair.lightResolved,
@@ -394,7 +413,14 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     gradientFrom: (style.gradientFrom as string) ?? "",
     gradientTo: (style.gradientTo as string) ?? "",
     textAlign: (style.textAlign as "left" | "center" | "right") ?? "left",
+    textAlignHeading:
+      (style.textAlignHeading as "left" | "center" | "right") ??
+      ((style.textAlign as "left" | "center" | "right") ?? "left"),
+    textAlignSubheading:
+      (style.textAlignSubheading as "left" | "center" | "right") ??
+      ((style.textAlign as "left" | "center" | "right") ?? "left"),
     fontHeading: (style.fontHeading as string) ?? "",
+    fontSubheading: (style.fontSubheading as string) ?? "",
     fontBody: (style.fontBody as string) ?? "",
     headingSize: numOrNull(style.headingSize as number),
     subheadingSize: numOrNull(style.subheadingSize as number),
@@ -461,7 +487,7 @@ export function renderBlock(
     case "promos":
       return renderPromos(block, publicSlug, promos, current, theme);
     case "works":
-      return renderWorks(block, workPhotos);
+      return renderWorks(block, workPhotos, current, theme);
     case "reviews":
       return renderReviews(block);
     case "contacts":
@@ -601,7 +627,7 @@ function renderCover(
   const description = (data.description as string) || "";
   const align = (data.align as string) === "center" ? "center" : "left";
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
@@ -611,7 +637,7 @@ function renderCover(
     <div className={`grid gap-6 ${imageUrl ? "md:grid-cols-[1.2fr_1fr]" : ""}`}>
       <div className={align === "center" ? "text-center" : "text-left"}>
         <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Сайт {accountName}
+          РЎР°Р№С‚ {accountName}
         </div>
         <h1
           className="mt-3 text-3xl font-semibold"
@@ -643,17 +669,20 @@ function renderCover(
   function headingStyle(style: BlockStyle) {
     return {
       fontFamily: style.fontHeading || "var(--site-font-heading)",
-      fontSize: style.headingSize ? `${style.headingSize}px` : "var(--site-h1)",
-      textAlign: style.textAlign ?? "left",
+      fontSize: style.headingSize !== null && style.headingSize !== undefined ? `${style.headingSize}px` : "var(--site-h1)",
+      textAlign: style.textAlignHeading ?? style.textAlign ?? "left",
       color: "var(--block-text, var(--bp-ink))",
     } as const;
   }
 
   function subheadingStyle(style: BlockStyle) {
     return {
-      fontFamily: style.fontBody || "var(--site-font-body)",
-      fontSize: style.subheadingSize ? `${style.subheadingSize}px` : "var(--site-h2)",
-      textAlign: style.textAlign ?? "left",
+      fontFamily: style.fontSubheading || style.fontBody || "var(--site-font-body)",
+      fontSize:
+        style.subheadingSize !== null && style.subheadingSize !== undefined
+          ? `${style.subheadingSize}px`
+          : "var(--site-h2)",
+      textAlign: style.textAlignSubheading ?? style.textAlign ?? "left",
       color: "var(--block-muted, var(--bp-muted))",
     } as const;
   }
@@ -661,7 +690,7 @@ function renderCover(
   function textStyle(style: BlockStyle) {
     return {
       fontFamily: style.fontBody || "var(--site-font-body)",
-      fontSize: style.textSize ? `${style.textSize}px` : "var(--site-text-size)",
+      fontSize: style.textSize !== null && style.textSize !== undefined ? `${style.textSize}px` : "var(--site-text-size)",
       textAlign: style.textAlign ?? "left",
       color: "var(--block-muted, var(--bp-muted))",
     } as const;
@@ -707,6 +736,10 @@ export function buildBlockWrapperStyle(
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
     const isMenu = options.blockType === "menu";
+    const isGallery = options.blockType === "works";
+    const sectionBgCurrent =
+      theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
+    const contentWidth = responsiveBlockWidthCss(blockOuterColumns, true);
     const menuWidth =
       blockOuterColumns >= MAX_BLOCK_COLUMNS
         ? "100%"
@@ -714,33 +747,51 @@ export function buildBlockWrapperStyle(
     return {
       className: isMenu
         ? "site-block overflow-hidden border border-[color:var(--bp-stroke)] p-0"
+        : isGallery
+          ? "site-block p-0"
         : "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
         borderRadius: radius,
-        backgroundColor: "var(--block-bg)",
-        backgroundImage: "var(--block-gradient)",
-        borderColor: "var(--block-border)",
-        borderWidth: hasVisibleBorder ? 1 : 0,
+        backgroundColor: isGallery ? sectionBgCurrent : "var(--block-bg)",
+        backgroundImage: isGallery ? "none" : "var(--block-gradient)",
+        borderColor: isGallery ? "transparent" : "var(--block-border)",
+        borderWidth: isGallery ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:
-          blockShadowSize !== null
+          isGallery
+            ? "none"
+            : blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop:
-          options.blockType === "menu"
+          options.blockType === "menu" || options.blockType === "works"
             ? 0
             : typeof style.marginTop === "number"
               ? style.marginTop
               : 0,
-        marginBottom: typeof style.marginBottom === "number" ? style.marginBottom : 0,
-        width: isMenu ? menuWidth : responsiveBlockWidthCss(blockOuterColumns, true),
+        marginBottom:
+          options.blockType === "works"
+            ? 0
+            : typeof style.marginBottom === "number"
+              ? style.marginBottom
+              : 0,
+        paddingTop:
+          options.blockType === "works" && typeof style.marginTop === "number"
+            ? style.marginTop
+            : undefined,
+        paddingBottom:
+          options.blockType === "works" && typeof style.marginBottom === "number"
+            ? style.marginBottom
+            : undefined,
+        width: isMenu ? menuWidth : isGallery ? "100%" : contentWidth,
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
         boxSizing: "border-box",
         color: "var(--block-text)",
+        ["--works-content-width" as string]: contentWidth,
         ["--bp-ink" as string]: "var(--block-text)",
         ["--bp-muted" as string]: "var(--block-muted)",
         ["--block-bg-light" as string]: style.blockBgLightResolved,
@@ -813,26 +864,38 @@ function renderMenu(
   const socialGlyphSize = Math.max(14, Math.round(socialIconSize * 0.55));
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
   const basePath = publicSlug ? `/${publicSlug}` : "#";
   const position = data.position === "sticky" ? "sticky" : "static";
   const accountTitleRaw =
     typeof data.accountTitle === "string" ? data.accountTitle.trim() : "";
   const accountTitle = accountTitleRaw || accountName;
   const menuHeightRaw = Number(data.menuHeight);
+  const menuHeightMin = block.variant === "v1" ? 40 : 30;
   const menuHeight =
-    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 30 && menuHeightRaw <= 96
+    Number.isFinite(menuHeightRaw) && menuHeightRaw >= menuHeightMin && menuHeightRaw <= 96
       ? Math.round(menuHeightRaw)
-      : 56;
+      : block.variant === "v1"
+        ? 40
+        : 56;
   const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
   const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
-  const align = (style.textAlign ?? "left") as "left" | "center" | "right";
+  const align = (style.textAlignHeading ?? style.textAlign ?? "left") as
+    | "left"
+    | "center"
+    | "right";
   const alignClass =
     align === "center"
       ? "justify-center text-center"
       : align === "right"
         ? "justify-end text-right"
         : "justify-start text-left";
+  const stackAlignClass =
+    align === "center"
+      ? "items-center text-center"
+      : align === "right"
+        ? "items-end text-right"
+        : "items-start text-left";
 
   const logoImageNode =
     showLogo && branding.logoUrl ? (
@@ -841,7 +904,7 @@ function renderMenu(
   const companyNameNode = showCompanyName ? (
     <span
       className="font-semibold text-[color:var(--bp-muted)]"
-      style={{ ...textStyle(style), textAlign: "left" }}
+      style={{ ...textStyle(style), lineHeight: 1.1 }}
     >
       {accountTitle}
     </span>
@@ -869,8 +932,11 @@ function renderMenu(
       <Link
         key={key}
         href={href}
-        className="font-medium"
-        style={{ ...subheadingStyle(style), color: "var(--block-text, var(--bp-ink))", textAlign: "left" }}
+        className="font-medium whitespace-nowrap"
+        style={{
+          ...headingStyle(style),
+          color: "var(--block-text, var(--bp-ink))",
+        }}
       >
         {PAGE_LABELS[key]}
       </Link>
@@ -891,8 +957,8 @@ function renderMenu(
       <Link
         key={`${key}-overlay`}
         href={href}
-        className="w-full text-center text-3xl font-medium md:text-5xl"
-        style={{ ...headingStyle(style), color: "var(--block-text, var(--bp-ink))", textAlign: "center" }}
+        className="w-full text-3xl font-medium md:text-5xl"
+        style={{ ...headingStyle(style), color: "var(--block-text, var(--bp-ink))", textAlign: align }}
       >
         {PAGE_LABELS[key]}
       </Link>
@@ -993,8 +1059,8 @@ function renderMenu(
       <a
         href={accountLink}
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
-        aria-label="Личный кабинет"
-        title="Личный кабинет"
+        aria-label="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
+        title="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
         target="_blank"
         rel="noreferrer"
       >
@@ -1004,8 +1070,8 @@ function renderMenu(
       <Link
         href={accountLink}
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
-        aria-label="Личный кабинет"
-        title="Личный кабинет"
+        aria-label="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
+        title="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
       >
         <IconUser />
       </Link>
@@ -1043,13 +1109,13 @@ function renderMenu(
     <div className="flex flex-wrap items-center gap-4">{linkItems}</div>
   );
   const drawerNavNode = (
-    <div className="flex flex-col items-start gap-2">{linkItems}</div>
+    <div className={`flex flex-col gap-2 ${stackAlignClass}`}>{linkItems}</div>
   );
   const overlayNavNode = (
-    <div className="flex w-full flex-col items-center gap-6 text-center">{overlayLinkItems}</div>
+    <div className={`flex w-full flex-col gap-6 ${stackAlignClass}`}>{overlayLinkItems}</div>
   );
   const drawerLinkItems = (
-    <div className="flex flex-col items-start gap-2">
+    <div className={`flex flex-col gap-2 ${stackAlignClass}`}>
       {menuItems.map((key) => {
         const href =
           key === "home"
@@ -1066,6 +1132,7 @@ function renderMenu(
             key={`${key}-drawer`}
             href={href}
             className="text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
+            style={headingStyle(style)}
           >
             {PAGE_LABELS[key]}
           </Link>
@@ -1112,6 +1179,24 @@ function renderMenu(
       {actions}
     </div>
   );
+
+  if (block.variant === "v1") {
+    desktopLayout = (
+      <div className="flex h-full items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">{logoNode}</div>
+        <div className="min-w-0 flex-1">
+          <div className={`flex items-center gap-4 whitespace-nowrap ${alignClass}`}>{linkItems}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+          {searchNode}
+          {socialsNode}
+          {accountNode}
+          {themeToggleNode}
+          {ctaNode}
+        </div>
+      </div>
+    );
+  }
 
   if (block.variant === "v2") {
     return (
@@ -1235,8 +1320,8 @@ function renderMenu(
                 <div className="min-w-0 flex-1">{searchNode}</div>
                 <DetailsCloseButton
                   className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
-                  title="Закрыть меню"
-                  ariaLabel="Закрыть меню"
+                  title="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
+                  ariaLabel="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
                 >
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
@@ -1257,6 +1342,73 @@ function renderMenu(
             </aside>
           </div>
         </details>
+      </div>
+    );
+  }
+
+  if (block.variant === "v1") {
+    return (
+      <div
+        className="w-full"
+        style={
+          position === "sticky"
+            ? { position: "sticky", top: 12, zIndex: 20 }
+            : undefined
+        }
+      >
+        <div className="hidden px-4 2xl:block 2xl:px-8" style={{ height: menuHeight }}>
+          {desktopLayout}
+        </div>
+        <div className="2xl:hidden">
+          <div
+            className="flex items-center justify-between gap-3 px-4"
+            style={{
+              height: menuHeight,
+              backgroundColor: "var(--block-bg, var(--site-panel))",
+              backgroundImage: "var(--block-gradient, none)",
+              borderColor: "var(--block-border, var(--site-border))",
+              borderBottomWidth: 1,
+            }}
+          >
+            {logoNode}
+            <details className="group relative">
+              <summary
+                className="relative inline-flex cursor-pointer list-none items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)] [&::-webkit-details-marker]:hidden"
+                style={{ width: menuButtonSize, height: menuButtonSize }}
+              >
+                <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
+                <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out group-open:opacity-0" />
+                <span className="absolute left-1/2 top-[calc(50%+6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:-rotate-45" />
+              </summary>
+              <div className="fixed inset-0 z-50 flex flex-col overflow-hidden border px-6 py-6" style={subBlockSurfaceStyle}>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">{logoNode}</div>
+                  <DetailsCloseButton
+                    className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                    title="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
+                    ariaLabel="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
+                  >
+                    <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
+                    <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
+                    <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
+                  </DetailsCloseButton>
+                </div>
+                {searchNode && <div className="mb-6">{searchNode}</div>}
+                <div className="flex flex-1 flex-col">
+                  <div className="flex flex-col gap-2">{linkItems}</div>
+                  <div className="mt-auto space-y-3 pt-4">
+                    {ctaNode}
+                    {socialsNode}
+                    <div className="flex items-center gap-2">
+                      {accountNode}
+                      {themeToggleNode}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1389,10 +1541,10 @@ function renderAbout(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "О нас"}
+        {(data.title as string) || "Рћ РЅР°СЃ"}
       </h2>
       {text && <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{text}</p>}
-      <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Аккаунт: {accountName}</div>
+      <div className="mt-3 text-xs text-[color:var(--bp-muted)]">РђРєРєР°СѓРЅС‚: {accountName}</div>
     </div>
   );
 }
@@ -1415,7 +1567,7 @@ function renderLocations(
       ? locations.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, locations);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -1429,7 +1581,7 @@ function renderLocations(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Локации"}
+        {(data.title as string) || "Р›РѕРєР°С†РёРё"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1451,7 +1603,7 @@ function renderLocations(
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
             {location.phone && (
               <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                Телефон: {location.phone}
+                РўРµР»РµС„РѕРЅ: {location.phone}
               </div>
             )}
             {showButton && publicSlug && (
@@ -1472,7 +1624,7 @@ function renderLocations(
         ))}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет локаций для отображения.
+            РќРµС‚ Р»РѕРєР°С†РёР№ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ.
           </div>
         )}
       </div>
@@ -1498,7 +1650,7 @@ function renderServices(
       ? services.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
@@ -1519,7 +1671,7 @@ function renderServices(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Услуги"}
+        {(data.title as string) || "РЈСЃР»СѓРіРё"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1544,8 +1696,8 @@ function renderServices(
               </div>
             )}
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
-              {showDuration && <span>{service.baseDurationMin} мин</span>}
-              {showPrice && <span>{service.basePrice} ₽</span>}
+              {showDuration && <span>{service.baseDurationMin} РјРёРЅ</span>}
+              {showPrice && <span>{service.basePrice} в‚Ѕ</span>}
             </div>
             {showButton && publicSlug && (
               <Link
@@ -1569,7 +1721,7 @@ function renderServices(
         ))}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет услуг для отображения.
+            РќРµС‚ СѓСЃР»СѓРі РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ.
           </div>
         )}
       </div>
@@ -1595,7 +1747,7 @@ function renderSpecialists(
       ? specialists.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, specialists);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const currentLocationId = current?.type === "location" ? current.id : null;
   const visibleItems = currentLocationId
@@ -1614,7 +1766,7 @@ function renderSpecialists(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Специалисты"}
+        {(data.title as string) || "РЎРїРµС†РёР°Р»РёСЃС‚С‹"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -1657,7 +1809,7 @@ function renderSpecialists(
         ))}
         {visibleItems.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет специалистов для отображения.
+            РќРµС‚ СЃРїРµС†РёР°Р»РёСЃС‚РѕРІ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ.
           </div>
         )}
       </div>
@@ -1694,7 +1846,7 @@ function renderPromos(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Промо и скидки"}
+        {(data.title as string) || "РџСЂРѕРјРѕ Рё СЃРєРёРґРєРё"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1707,10 +1859,10 @@ function renderPromos(
               {promo.name}
             </Link>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ₽`}
-              {promo.startsAt || promo.endsAt ? " · " : ""}
-              {promo.startsAt ? `с ${promo.startsAt}` : ""}
-              {promo.endsAt ? ` по ${promo.endsAt}` : ""}
+              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} в‚Ѕ`}
+              {promo.startsAt || promo.endsAt ? " В· " : ""}
+              {promo.startsAt ? `СЃ ${promo.startsAt}` : ""}
+              {promo.endsAt ? ` РїРѕ ${promo.endsAt}` : ""}
             </div>
             {promo.codes.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -1726,14 +1878,14 @@ function renderPromos(
             )}
             {!promo.isActive && (
               <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-                Неактивно
+                РќРµР°РєС‚РёРІРЅРѕ
               </div>
             )}
           </div>
         ))}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет активных промо.
+            РќРµС‚ Р°РєС‚РёРІРЅС‹С… РїСЂРѕРјРѕ.
           </div>
         )}
       </div>
@@ -1741,51 +1893,95 @@ function renderPromos(
   );
 }
 
-function renderWorks(block: SiteBlock, workPhotos: WorkPhotos) {
+function renderWorks(
+  block: SiteBlock,
+  workPhotos: WorkPhotos,
+  current: CurrentEntity,
+  theme: SiteTheme
+) {
   const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block, theme);
   const source = (data.source as string) ?? "locations";
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
+  const useCurrent = Boolean(data.useCurrent);
+  const galleryHeightRaw = Number(data.galleryHeight);
+  const galleryHeight =
+    Number.isFinite(galleryHeightRaw) && galleryHeightRaw >= 220 && galleryHeightRaw <= 900
+      ? Math.round(galleryHeightRaw)
+      : 550;
+  const imageRadiusRaw = Number(data.imageRadius);
+  const imageRadius =
+    Number.isFinite(imageRadiusRaw) && imageRadiusRaw >= 0 && imageRadiusRaw <= 60
+      ? Math.round(imageRadiusRaw)
+      : 0;
+  const imageFit = data.imageFit === "contain" ? "contain" : "cover";
+  const maxSlidesRaw = Number(data.maxSlides);
+  const maxSlides =
+    Number.isFinite(maxSlidesRaw) && maxSlidesRaw >= 1 && maxSlidesRaw <= 30
+      ? Math.round(maxSlidesRaw)
+      : 12;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const titleRaw = typeof data.title === "string" ? data.title.trim() : "";
+  const title = titleRaw === "Галерея" ? "" : titleRaw;
   const items =
     source === "services"
       ? workPhotos.services
       : source === "specialists"
         ? workPhotos.specialists
         : workPhotos.locations;
-  const filtered =
-    mode === "selected" && ids.length > 0
-      ? items.filter((item) => ids.includes(Number(item.entityId)))
-      : items;
+  const currentId =
+    current?.type === "service" && source === "services"
+      ? current.id
+      : current?.type === "specialist" && source === "specialists"
+        ? current.id
+        : current?.type === "location" && source === "locations"
+          ? current.id
+          : null;
+  const filtered = useCurrent && currentId
+    ? items.filter((item) => Number(item.entityId) === currentId)
+    : useCurrent
+      ? items.slice(0, 6)
+      : mode === "selected" && ids.length > 0
+        ? items.filter((item) => ids.includes(Number(item.entityId)))
+        : items;
+  const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
 
   return (
-    <div>
-      <h2
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
+    <div style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%", margin: "0 auto" }}>
+      <div
+        className="border p-6"
+        style={{
+          backgroundColor: "var(--block-bg)",
+          backgroundImage: "var(--block-gradient)",
+          borderColor: "var(--block-border)",
+          borderWidth: style.borderColor === "transparent" ? 0 : 1,
+          borderRadius: typeof style.radius === "number" ? style.radius : undefined,
+          boxShadow:
+            typeof style.shadowSize === "number"
+              ? `0 ${style.shadowSize}px ${style.shadowSize * 2}px ${style.shadowColor || "var(--site-shadow-color)"}`
+              : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
+        }}
       >
-        {(data.title as string) || "Работы"}
-      </h2>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {filtered.slice(0, 8).map((item, idx) => (
-          <img
-            key={`${item.entityId}-${idx}`}
-            src={item.url}
-            alt=""
-            className="h-28 w-full rounded-xl object-cover"
-          />
-        ))}
-        {filtered.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет фото работ для отображения.
-          </div>
+        {title && <h2 className="font-semibold" style={headingStyle(style)}>{title}</h2>}
+        {subtitle && (
+          <p className={`${title ? "mt-2" : ""} text-[color:var(--bp-muted)]`} style={subheadingStyle(style)}>
+            {subtitle}
+          </p>
         )}
+        <div className="mt-5">
+          <GallerySlider
+            images={galleryImages}
+            height={galleryHeight}
+            radius={imageRadius}
+            imageFit={imageFit}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1805,7 +2001,7 @@ function renderReviews(block: SiteBlock) {
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Отзывы"}
+        {(data.title as string) || "РћС‚Р·С‹РІС‹"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -1814,7 +2010,7 @@ function renderReviews(block: SiteBlock) {
             key={idx}
             className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]"
           >
-            Отзывы будут отображаться здесь после их появления.
+            РћС‚Р·С‹РІС‹ Р±СѓРґСѓС‚ РѕС‚РѕР±СЂР°Р¶Р°С‚СЊСЃСЏ Р·РґРµСЃСЊ РїРѕСЃР»Рµ РёС… РїРѕСЏРІР»РµРЅРёСЏ.
           </div>
         ))}
       </div>
@@ -1847,21 +2043,24 @@ function renderContacts(
           className="text-2xl font-semibold"
           style={{ fontFamily: "var(--site-font-heading)" }}
         >
-          {(data.title as string) || "Контакты"}
+          {(data.title as string) || "РљРѕРЅС‚Р°РєС‚С‹"}
         </h2>
         {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
         <div className="mt-4 space-y-2 text-sm text-[color:var(--bp-muted)]">
-          <div>Аккаунт: {accountName}</div>
-          {profile.phone && <div>Телефон: {profile.phone}</div>}
+          <div>РђРєРєР°СѓРЅС‚: {accountName}</div>
+          {profile.phone && <div>РўРµР»РµС„РѕРЅ: {profile.phone}</div>}
           {profile.email && <div>Email: {profile.email}</div>}
           {(profile.address || location?.address) && (
-            <div>Адрес: {profile.address || location?.address}</div>
+            <div>РђРґСЂРµСЃ: {profile.address || location?.address}</div>
           )}
         </div>
       </div>
       <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-xs text-[color:var(--bp-muted)]">
-        Здесь можно будет подключить карту.
+        Р—РґРµСЃСЊ РјРѕР¶РЅРѕ Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡РёС‚СЊ РєР°СЂС‚Сѓ.
       </div>
     </div>
   );
 }
+
+
+

@@ -20,6 +20,7 @@ import { buildBookingLink } from "@/lib/booking-links";
 import MenuSearch from "@/components/menu-search";
 import BookingClient from "@/app/booking/booking-client";
 import SiteLoader from "@/components/site-loader";
+import GallerySlider from "@/components/gallery-slider";
 
 type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -398,7 +399,10 @@ const defaultBlockStyle = {
   gradientFrom: "",
   gradientTo: "",
   textAlign: "left",
+  textAlignHeading: "left",
+  textAlignSubheading: "left",
   fontHeading: "",
+  fontSubheading: "",
   fontBody: "",
   headingSize: null,
   subheadingSize: null,
@@ -430,7 +434,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     showSearch: false,
     showAccount: false,
     accountTitle: "",
-    menuHeight: 56,
+    menuHeight: 40,
     showSocials: false,
     socialIconSize: 40,
     position: "static",
@@ -538,13 +542,27 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     style: defaultBlockStyle,
   },
   works: {
-    title: "Работы",
-    subtitle: "Наши последние работы",
+    title: "",
+    subtitle: "",
     source: "locations",
     mode: "all",
     ids: [],
     useCurrent: false,
-    style: defaultBlockStyle,
+    galleryHeight: 550,
+    imageRadius: 0,
+    imageFit: "cover",
+    maxSlides: 12,
+    style: {
+      ...defaultBlockStyle,
+      radius: 0,
+      sectionBgLight: "#ffffff",
+      sectionBg: "#ffffff",
+      blockBgLight: "transparent",
+      blockBg: "transparent",
+      borderColorLight: "transparent",
+      borderColor: "transparent",
+      shadowSize: 0,
+    },
   },
   reviews: {
     title: "Отзывы",
@@ -965,6 +983,7 @@ export default function SiteClient({
     variant?: "v1" | "v2" | "v3" | "v4" | "v5"
   ) => {
     const block = createBlock(type);
+    const targetVariant = variant ?? block.variant;
     if (type === "menu") {
       const currentStyle =
         typeof (block.data as Record<string, unknown>).style === "object" &&
@@ -975,10 +994,10 @@ export default function SiteClient({
         ...block.data,
         accountTitle: account.name,
         showCompanyName: true,
-        menuHeight: 56,
+        menuHeight: targetVariant === "v1" ? 40 : 56,
         socialIconSize: 40,
         style:
-          variant === "v2"
+          targetVariant === "v1" || targetVariant === "v2"
             ? { ...currentStyle, radius: 0 }
             : currentStyle,
       };
@@ -2965,7 +2984,7 @@ function BlockEditor({
       {block.type === "works" && (
         <>
           <FieldText
-            label="Заголовок"
+            label="Заголовок блока"
             value={(block.data.title as string) ?? ""}
             onChange={(value) => updateData({ title: value })}
           />
@@ -2986,16 +3005,25 @@ function BlockEditor({
               <option value="services">Услуги</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="text-sm">
+            Количество слайдов
             <input
-              type="checkbox"
-              checked={Boolean(block.data.useCurrent)}
-              onChange={(event) => updateData({ useCurrent: event.target.checked })}
+              type="number"
+              min={1}
+              max={30}
+              value={Number(block.data.maxSlides ?? 12)}
+              onChange={(event) =>
+                updateData({
+                  maxSlides: event.target.value ? Number(event.target.value) : 12,
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
             />
-            Использовать текущую страницу
           </label>
           <EntityListEditor
             block={block}
+            showTitleFields={false}
+            showUseCurrent={true}
             items={
               (block.data.source as string) === "services"
                 ? services.map((item) => ({ id: item.id, label: item.name }))
@@ -3258,22 +3286,24 @@ function BlockStyleEditor({
       )}
       {block.type === "menu" && (
         inSection("layout") && (
+        (() => {
+          const minMenuHeight = block.variant === "v1" ? 40 : 30;
+          const currentMenuHeight = Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
+            ? Number((block.data as Record<string, unknown>).menuHeight)
+            : block.variant === "v1"
+              ? 40
+              : 56;
+          return (
         <label className="text-sm">
           Высота меню:{" "}
-          {Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
-            ? Number((block.data as Record<string, unknown>).menuHeight)
-            : 56}
+          {currentMenuHeight}
           px
           <input
             type="range"
-            min={30}
+            min={minMenuHeight}
             max={96}
             step={1}
-            value={
-              Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
-                ? Number((block.data as Record<string, unknown>).menuHeight)
-                : 56
-            }
+            value={currentMenuHeight}
             onChange={(event) =>
               onChange({
                 ...block,
@@ -3286,7 +3316,72 @@ function BlockStyleEditor({
             className="mt-2 w-full"
           />
         </label>
+          );
+        })()
         )
+      )}
+      {block.type === "works" && inSection("layout") && (
+        <>
+          <label className="text-sm">
+            Высота галереи: {Number(block.data.galleryHeight ?? 550)}px
+            <input
+              type="range"
+              min={220}
+              max={900}
+              step={10}
+              value={Number(block.data.galleryHeight ?? 550)}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    galleryHeight: Number(event.target.value),
+                  },
+                })
+              }
+              className="mt-2 w-full"
+            />
+          </label>
+          <label className="text-sm">
+            Радиус скругления изображений: {Number(block.data.imageRadius ?? 0)}px
+            <input
+              type="range"
+              min={0}
+              max={60}
+              step={1}
+              value={Number(block.data.imageRadius ?? 0)}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    imageRadius: Number(event.target.value),
+                  },
+                })
+              }
+              className="mt-2 w-full"
+            />
+          </label>
+          <label className="text-sm">
+            Масштабирование изображения
+            <select
+              value={String(block.data.imageFit ?? "cover")}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    imageFit: event.target.value === "contain" ? "contain" : "cover",
+                  },
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+            >
+              <option value="cover">Заполнять область</option>
+              <option value="contain">Вписывать в область</option>
+            </select>
+          </label>
+        </>
       )}
       {inSection("colors") && (
       <div className="grid grid-cols-2 gap-3">
@@ -3508,6 +3603,38 @@ function BlockStyleEditor({
       )}
       {inSection("typography") && (
       <label className="text-sm">
+        Выравнивание заголовка
+        <select
+          value={style.textAlignHeading}
+          onChange={(event) =>
+            update({ textAlignHeading: event.target.value as BlockStyle["textAlignHeading"] })
+          }
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+        >
+          <option value="left">Слева</option>
+          <option value="center">По центру</option>
+          <option value="right">Справа</option>
+        </select>
+      </label>
+      )}
+      {inSection("typography") && (
+      <label className="text-sm">
+        Выравнивание подзаголовка
+        <select
+          value={style.textAlignSubheading}
+          onChange={(event) =>
+            update({ textAlignSubheading: event.target.value as BlockStyle["textAlignSubheading"] })
+          }
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+        >
+          <option value="left">Слева</option>
+          <option value="center">По центру</option>
+          <option value="right">Справа</option>
+        </select>
+      </label>
+      )}
+      {inSection("typography") && (
+      <label className="text-sm">
         Шрифт заголовка
         <select
           value={style.fontHeading || ""}
@@ -3517,6 +3644,23 @@ function BlockStyleEditor({
           <option value="">По умолчанию</option>
           {THEME_FONTS.map((font) => (
             <option key={font.label} value={font.heading}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      )}
+      {inSection("typography") && (
+      <label className="text-sm">
+        Шрифт подзаголовка
+        <select
+          value={style.fontSubheading || ""}
+          onChange={(event) => update({ fontSubheading: event.target.value })}
+          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+        >
+          <option value="">По умолчанию</option>
+          {THEME_FONTS.map((font) => (
+            <option key={font.label} value={font.body}>
               {font.label}
             </option>
           ))}
@@ -3545,21 +3689,21 @@ function BlockStyleEditor({
         <NumberField
           label="Заголовок"
           value={style.headingSize ?? theme.headingSize}
-          min={18}
+          min={0}
           max={56}
           onChange={(value) => update({ headingSize: value })}
         />
         <NumberField
           label="Подзаголовок"
           value={style.subheadingSize ?? theme.subheadingSize}
-          min={12}
+          min={0}
           max={36}
           onChange={(value) => update({ subheadingSize: value })}
         />
         <NumberField
           label="Текст"
           value={style.textSize ?? theme.textSize}
-          min={10}
+          min={0}
           max={28}
           onChange={(value) => update({ textSize: value })}
         />
@@ -3616,7 +3760,10 @@ type BlockStyle = {
   gradientFromDarkResolved: string;
   gradientToDarkResolved: string;
   textAlign: "left" | "center" | "right";
+  textAlignHeading: "left" | "center" | "right";
+  textAlignSubheading: "left" | "center" | "right";
   fontHeading: string;
+  fontSubheading: string;
   fontBody: string;
   headingSize: number | null;
   subheadingSize: number | null;
@@ -3877,7 +4024,20 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
       style.textAlign === "center" || style.textAlign === "right"
         ? style.textAlign
         : "left",
+    textAlignHeading:
+      style.textAlignHeading === "center" || style.textAlignHeading === "right"
+        ? style.textAlignHeading
+        : style.textAlign === "center" || style.textAlign === "right"
+          ? style.textAlign
+          : "left",
+    textAlignSubheading:
+      style.textAlignSubheading === "center" || style.textAlignSubheading === "right"
+        ? style.textAlignSubheading
+        : style.textAlign === "center" || style.textAlign === "right"
+          ? style.textAlign
+          : "left",
     fontHeading: typeof style.fontHeading === "string" ? style.fontHeading : "",
+    fontSubheading: typeof style.fontSubheading === "string" ? style.fontSubheading : "",
     fontBody: typeof style.fontBody === "string" ? style.fontBody : "",
     headingSize: toNumber(style.headingSize),
     subheadingSize: toNumber(style.subheadingSize),
@@ -3945,10 +4105,14 @@ function FieldTextarea({
 function EntityListEditor({
   block,
   items,
+  showTitleFields = true,
+  showUseCurrent = true,
   onChange,
 }: {
   block: SiteBlock;
   items: Array<{ id: number; label: string }>;
+  showTitleFields?: boolean;
+  showUseCurrent?: boolean;
   onChange: (patch: Record<string, unknown>) => void;
 }) {
   const mode = (block.data.mode as string) ?? "all";
@@ -3959,31 +4123,37 @@ function EntityListEditor({
 
   return (
     <>
-      <FieldText
-        label="Заголовок"
-        value={(block.data.title as string) ?? ""}
-        onChange={(value) => onChange({ title: value })}
-      />
-      <FieldText
-        label="Подзаголовок"
-        value={(block.data.subtitle as string) ?? ""}
-        onChange={(value) => onChange({ subtitle: value })}
-      />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={useCurrent}
-          onChange={(event) => {
-            const checked = event.target.checked;
-            onChange({
-              useCurrent: checked,
-              mode: checked ? "selected" : mode,
-              ids: checked ? [] : Array.from(selected),
-            });
-          }}
-        />
-        Использовать текущую страницу
-      </label>
+      {showTitleFields && (
+        <>
+          <FieldText
+            label="Заголовок"
+            value={(block.data.title as string) ?? ""}
+            onChange={(value) => onChange({ title: value })}
+          />
+          <FieldText
+            label="Подзаголовок"
+            value={(block.data.subtitle as string) ?? ""}
+            onChange={(value) => onChange({ subtitle: value })}
+          />
+        </>
+      )}
+      {showUseCurrent && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={useCurrent}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              onChange({
+                useCurrent: checked,
+                mode: checked ? "selected" : mode,
+                ids: checked ? [] : Array.from(selected),
+              });
+            }}
+          />
+          Использовать текущую страницу
+        </label>
+      )}
       <label className="text-sm">
         Отображение
         <select
@@ -4196,6 +4366,7 @@ function BlockPreview({
   const mutedColor = style.mutedColor || theme.mutedColor;
   const isBooking = block.type === "booking";
   const isMenu = block.type === "menu";
+  const isGallery = block.type === "works";
   const blockWidthColumns = isMenu
     ? MAX_BLOCK_COLUMNS
     : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
@@ -4241,42 +4412,62 @@ function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
+        width: isGallery ? "100%" : `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
-        marginTop: style.marginTop,
-        marginBottom: style.marginBottom,
-        backgroundColor: isMenu ? "transparent" : sectionBg,
+        marginTop: isGallery ? 0 : style.marginTop,
+        marginBottom: isGallery ? 0 : style.marginBottom,
+        paddingTop: isGallery ? style.marginTop : undefined,
+        paddingBottom: isGallery ? style.marginBottom : undefined,
+        backgroundColor: isMenu
+          ? "transparent"
+          : isGallery
+            ? sectionBg
+            : sectionBg,
+        backgroundImage: "none",
       }}
     >
       <div
-        className={`${containerClass} relative`}
-        style={{
-          borderRadius: blockRadius,
-          backgroundColor: isBooking
-            ? "transparent"
-            : gradientEnabled
-              ? gradientFrom
-              : blockBg,
-          backgroundImage: isBooking
-            ? "none"
-            : gradientEnabled
-              ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
-              : "none",
-          color: textColor,
-          fontFamily: blockFont,
-          borderColor: isBooking || isMenu ? "transparent" : borderColor,
-          borderWidth: isBooking || isMenu || borderColor === "transparent" ? 0 : 1,
-          boxShadow:
-            isBooking || isMenu || shadowSize <= 0
-              ? "none"
-              : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
-          ["--bp-muted" as string]: mutedColor,
-          ["--bp-stroke" as string]: borderColor,
-        }}
+        style={
+          isGallery
+            ? {
+                width: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
+                maxWidth: "100%",
+                marginLeft: "auto",
+                marginRight: "auto",
+              }
+            : undefined
+        }
       >
-          {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
+        <div
+          className={`${containerClass} relative`}
+          style={{
+            borderRadius: blockRadius,
+            backgroundColor: isBooking
+              ? "transparent"
+              : gradientEnabled
+                ? gradientFrom
+                : blockBg,
+            backgroundImage: isBooking
+              ? "none"
+              : gradientEnabled
+                ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
+                : "none",
+            color: textColor,
+            fontFamily: blockFont,
+            borderColor: isBooking || isMenu ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || borderColor === "transparent" ? 0 : 1,
+            boxShadow:
+              isBooking || isMenu || shadowSize <= 0
+                ? "none"
+                : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
+            ["--bp-muted" as string]: mutedColor,
+            ["--bp-stroke" as string]: borderColor,
+          }}
+        >
+            {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
+        </div>
       </div>
     </div>
   );
@@ -4664,16 +4855,16 @@ function headingStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontHeading || theme.fontHeading,
     fontSize: style.headingSize ?? theme.headingSize,
-    textAlign: style.textAlign,
+    textAlign: style.textAlignHeading ?? style.textAlign,
     color: style.textColor || theme.textColor,
   } as const;
 }
 
 function subheadingStyle(style: BlockStyle, theme: SiteTheme) {
   return {
-    fontFamily: style.fontBody || theme.fontBody,
+    fontFamily: style.fontSubheading || style.fontBody || theme.fontBody,
     fontSize: style.subheadingSize ?? theme.subheadingSize,
-    textAlign: style.textAlign,
+    textAlign: style.textAlignSubheading ?? style.textAlign,
     color: style.mutedColor || theme.mutedColor,
   } as const;
 }
@@ -4852,23 +5043,35 @@ function renderMenuBlock(
     typeof data.accountTitle === "string" ? data.accountTitle.trim() : "";
   const accountTitle = accountTitleRaw || account.name;
   const menuHeightRaw = Number(data.menuHeight);
+  const menuHeightMin = block.variant === "v1" ? 40 : 30;
   const menuHeight =
-    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 30 && menuHeightRaw <= 96
+    Number.isFinite(menuHeightRaw) && menuHeightRaw >= menuHeightMin && menuHeightRaw <= 96
       ? Math.round(menuHeightRaw)
-      : 56;
+      : block.variant === "v1"
+        ? 40
+        : 56;
   const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
   const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
   const menuGradient =
     style.gradientEnabled
       ? `linear-gradient(${style.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFrom || theme.gradientFrom}, ${style.gradientTo || theme.gradientTo})`
       : "none";
-  const align = (style.textAlign ?? "left") as "left" | "center" | "right";
+  const menuTextAlign = (style.textAlignHeading ?? style.textAlign ?? "left") as
+    | "left"
+    | "center"
+    | "right";
   const alignClass =
-    align === "center"
+    menuTextAlign === "center"
       ? "justify-center text-center"
-      : align === "right"
+      : menuTextAlign === "right"
         ? "justify-end text-right"
         : "justify-start text-left";
+  const stackAlignClass =
+    menuTextAlign === "center"
+      ? "items-center text-center"
+      : menuTextAlign === "right"
+        ? "items-end text-right"
+        : "items-start text-left";
   const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
   const logoImageNode =
     showLogo && branding.logoUrl ? (
@@ -4882,7 +5085,7 @@ function renderMenuBlock(
   const companyNameNode = showCompanyName ? (
     <span
       className="font-semibold leading-none text-[color:var(--bp-muted)]"
-      style={{ ...textStyle(style, theme), textAlign: "left", lineHeight: 1.1 }}
+      style={{ ...textStyle(style, theme), lineHeight: 1.1 }}
     >
       {accountTitle}
     </span>
@@ -4907,8 +5110,11 @@ function renderMenuBlock(
       <a
         key={key}
         href={href}
-        className="font-medium"
-        style={{ ...subheadingStyle(style, theme), color: "var(--bp-ink)", textAlign: "left" }}
+        className="font-medium whitespace-nowrap"
+        style={{
+          ...headingStyle(style, theme),
+          color: "var(--block-text, var(--bp-ink))",
+        }}
       >
         {PAGE_LABELS[key]}
       </a>
@@ -4927,8 +5133,8 @@ function renderMenuBlock(
       <a
         key={`${key}-overlay`}
         href={href}
-        className="w-full text-center text-3xl font-medium md:text-5xl"
-        style={{ ...headingStyle(style, theme), textAlign: "center" }}
+        className="w-full text-3xl font-medium md:text-5xl"
+        style={{ ...headingStyle(style, theme), textAlign: menuTextAlign }}
       >
         {PAGE_LABELS[key]}
       </a>
@@ -5037,9 +5243,19 @@ function renderMenuBlock(
       variant={block.variant}
       alignClass={alignClass}
       logoNode={logoNode}
-      navNode={<div className="flex flex-wrap items-center gap-4">{linkItems}</div>}
+      navNode={
+        <div
+          className={
+            block.variant === "v1"
+              ? "flex items-center gap-4 whitespace-nowrap"
+              : "flex flex-wrap items-center gap-4"
+          }
+        >
+          {linkItems}
+        </div>
+      }
       drawerNavNode={
-        <div className="flex flex-col items-start gap-2">
+        <div className={`flex flex-col gap-2 ${stackAlignClass}`}>
           {menuItems.map((key) => {
             const href =
               key === "home"
@@ -5054,6 +5270,7 @@ function renderMenuBlock(
                 key={`${key}-drawer`}
                 href={href}
                 className="text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
+                style={headingStyle(style, theme)}
               >
                 {PAGE_LABELS[key]}
               </a>
@@ -5062,7 +5279,7 @@ function renderMenuBlock(
         </div>
       }
       overlayNavNode={
-        <div className="flex w-full flex-col items-center gap-6 text-center">
+        <div className={`flex w-full flex-col gap-6 ${stackAlignClass}`}>
           {overlayLinkItems}
         </div>
       }
@@ -5146,6 +5363,24 @@ function MenuPreview({
       {actions}
     </div>
   );
+
+  if (variant === "v1") {
+    desktopLayout = (
+      <div className="flex h-full items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">{logoNode}</div>
+        <div className={`flex min-w-0 flex-1 ${alignClass}`}>
+          <div className="min-w-0">{navNode}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+          {searchNode}
+          {socialsNode}
+          {accountNode}
+          {themeToggleNode}
+          {ctaNode}
+        </div>
+      </div>
+    );
+  }
 
   if (variant === "v2") {
     const topBarStyle: React.CSSProperties = {
@@ -5327,6 +5562,95 @@ function MenuPreview({
             </aside>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (variant === "v1") {
+    const topBarStyle: React.CSSProperties = {
+      height: menuHeight,
+      backgroundColor: blockBg,
+      backgroundImage: menuGradient,
+      borderColor: subBlockBorder,
+      borderWidth: subBlockBorder === "transparent" ? 0 : 1,
+    };
+    return (
+      <div
+        className="w-full"
+        style={
+          position === "sticky"
+            ? { position: "sticky", top: 120, zIndex: 1, minHeight: mobileOpen ? "82vh" : undefined }
+            : { minHeight: mobileOpen ? "82vh" : undefined }
+        }
+      >
+        <div className="hidden px-4 2xl:block 2xl:px-8" style={{ height: menuHeight }}>
+          {desktopLayout}
+        </div>
+        <div className="2xl:hidden">
+          <div className="flex items-center justify-between gap-3 px-4" style={topBarStyle}>
+            {logoNode}
+            <button
+              type="button"
+              className="relative inline-flex items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              style={{ width: menuButtonSize, height: menuButtonSize }}
+              onClick={() => setMobileOpen((prev) => !prev)}
+              aria-label={mobileOpen ? "Закрыть меню" : "Меню"}
+            >
+              <span
+                className={`absolute left-1/2 block h-[2px] w-5 -translate-x-1/2 bg-current transition-all duration-300 ease-out ${
+                  mobileOpen
+                    ? "top-1/2 -translate-y-1/2 rotate-45"
+                    : "top-[calc(50%-6px)] rotate-0"
+                }`}
+              />
+              <span
+                className={`absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out ${
+                  mobileOpen ? "opacity-0" : "opacity-100"
+                }`}
+              />
+              <span
+                className={`absolute left-1/2 block h-[2px] w-5 -translate-x-1/2 bg-current transition-all duration-300 ease-out ${
+                  mobileOpen
+                    ? "top-1/2 -translate-y-1/2 -rotate-45"
+                    : "top-[calc(50%+6px)] rotate-0"
+                }`}
+              />
+            </button>
+          </div>
+          {mobileOpen && (
+            <div
+              className="absolute inset-0 z-10 flex flex-col overflow-hidden border px-6 py-6"
+              style={subBlockStyle}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">{logoNode}</div>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+                  aria-label="Закрыть меню"
+                  title="Закрыть меню"
+                >
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
+                </button>
+              </div>
+              {searchNode && <div className="mb-6">{searchNode}</div>}
+              <div className="flex flex-1 flex-col">
+                <div className="flex flex-col gap-2">{navNode}</div>
+                <div className="mt-auto space-y-3 pt-4">
+                  {ctaNode}
+                  {socialsNode}
+                  <div className="flex items-center gap-2">
+                    {accountNode}
+                    {themeToggleNode}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -5818,12 +6142,30 @@ function renderWorks(
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
   const useCurrent = Boolean(data.useCurrent);
+  const galleryHeightRaw = Number(data.galleryHeight);
+  const galleryHeight =
+    Number.isFinite(galleryHeightRaw) && galleryHeightRaw >= 220 && galleryHeightRaw <= 900
+      ? Math.round(galleryHeightRaw)
+      : 550;
+  const imageRadiusRaw = Number(data.imageRadius);
+  const imageRadius =
+    Number.isFinite(imageRadiusRaw) && imageRadiusRaw >= 0 && imageRadiusRaw <= 60
+      ? Math.round(imageRadiusRaw)
+      : 0;
+  const imageFit = data.imageFit === "contain" ? "contain" : "cover";
+  const maxSlidesRaw = Number(data.maxSlides);
+  const maxSlides =
+    Number.isFinite(maxSlidesRaw) && maxSlidesRaw >= 1 && maxSlidesRaw <= 30
+      ? Math.round(maxSlidesRaw)
+      : 12;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const titleRaw = typeof data.title === "string" ? data.title.trim() : "";
+  const title = titleRaw === "Галерея" ? "" : titleRaw;
   const items =
     source === "services"
       ? workPhotos.services
@@ -5845,29 +6187,27 @@ function renderWorks(
       : mode === "selected" && ids.length > 0
         ? items.filter((item) => ids.includes(Number(item.entityId)))
         : items;
+  const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
 
   return (
     <div>
-      <h3
-        className="font-semibold"
-        style={headingStyle(style, theme)}
-      >
-        {(data.title as string) || "Работы"}
-      </h3>
+      {title && (
+        <h3 className="font-semibold" style={headingStyle(style, theme)}>
+          {title}
+        </h3>
+      )}
       {subtitle && (
-        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+        <p className={`${title ? "mt-2" : ""} text-[color:var(--bp-muted)]`} style={subheadingStyle(style, theme)}>
           {subtitle}
         </p>
       )}
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {filtered.slice(0, 8).map((item, idx) => (
-          <img key={`${item.entityId}-${idx}`} src={item.url} alt="" className="h-28 w-full rounded-xl object-cover" />
-        ))}
-        {filtered.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет фото работ для отображения.
-          </div>
-        )}
+      <div className="mt-5">
+        <GallerySlider
+          images={galleryImages}
+          height={galleryHeight}
+          radius={imageRadius}
+          imageFit={imageFit}
+        />
       </div>
     </div>
   );

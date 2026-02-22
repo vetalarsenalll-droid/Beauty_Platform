@@ -93,7 +93,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
-  works: "Работы",
+  works: "Галерея",
   reviews: "Отзывы",
   contacts: "Контакты",
   promos: "Промо / скидки",
@@ -112,7 +112,7 @@ export const BLOCK_VARIANTS: Record<
   locations: ["v1", "v2"],
   services: ["v1", "v2"],
   specialists: ["v1", "v2"],
-  works: ["v1", "v2"],
+  works: ["v1"],
   reviews: ["v1", "v2"],
   contacts: ["v1", "v2"],
   promos: ["v1", "v2"],
@@ -263,7 +263,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
     showSearch: false,
     showAccount: false,
     accountTitle,
-    menuHeight: 56,
+    menuHeight: 40,
     showSocials: false,
     socialIconSize: 40,
     position: "static",
@@ -363,11 +363,26 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       type: "works",
       variant: "v1",
       data: {
-        title: "Работы",
-        subtitle: "Фото наших работ",
+        title: "",
+        subtitle: "",
         source: "locations",
         mode: "all",
         ids: [],
+        useCurrent: false,
+        galleryHeight: 550,
+        imageRadius: 0,
+        imageFit: "cover",
+        maxSlides: 12,
+        style: {
+          radius: 0,
+          sectionBgLight: "#ffffff",
+          sectionBg: "#ffffff",
+          blockBgLight: "transparent",
+          blockBg: "transparent",
+          borderColorLight: "transparent",
+          borderColor: "transparent",
+          shadowSize: 0,
+        },
       },
     },
     {
@@ -600,6 +615,34 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
             Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
               ? Math.round(socialIconSizeRaw)
               : 40;
+        }
+        if (block.type === "works") {
+          const rawTitle = typeof safeData.title === "string" ? safeData.title.trim() : "";
+          safeData.title = rawTitle === "Галерея" ? "" : rawTitle;
+          const galleryHeightRaw = Number(safeData.galleryHeight);
+          safeData.galleryHeight =
+            Number.isFinite(galleryHeightRaw) && galleryHeightRaw >= 220 && galleryHeightRaw <= 900
+              ? Math.round(galleryHeightRaw)
+              : 550;
+          const imageRadiusRaw = Number(safeData.imageRadius);
+          safeData.imageRadius =
+            Number.isFinite(imageRadiusRaw) && imageRadiusRaw >= 0 && imageRadiusRaw <= 60
+              ? Math.round(imageRadiusRaw)
+              : 0;
+          const safeStyle =
+            typeof safeData.style === "object" && safeData.style
+              ? { ...(safeData.style as Record<string, unknown>) }
+              : {};
+          if (!Number.isFinite(Number(safeStyle.radius))) {
+            safeStyle.radius = 0;
+          }
+          safeData.style = safeStyle;
+          safeData.imageFit = safeData.imageFit === "contain" ? "contain" : "cover";
+          const maxSlidesRaw = Number(safeData.maxSlides);
+          safeData.maxSlides =
+            Number.isFinite(maxSlidesRaw) && maxSlidesRaw >= 1 && maxSlidesRaw <= 30
+              ? Math.round(maxSlidesRaw)
+              : 12;
         }
         return {
           // Deterministic fallback id to avoid SSR/CSR hydration mismatch.
