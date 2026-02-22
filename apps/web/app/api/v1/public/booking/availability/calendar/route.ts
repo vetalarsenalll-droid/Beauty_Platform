@@ -12,7 +12,7 @@ import {
 } from "@/lib/public-booking";
 
 const DEFAULT_DAYS = 14;
-const MAX_DAYS = 31;
+const MAX_DAYS = 93;
 
 type Window = { start: number; end: number };
 

@@ -46,6 +46,7 @@ export type SiteDraft = {
 export type BlockType =
   | "cover"
   | "menu"
+  | "loader"
   | "about"
   | "client"
   | "booking"
@@ -85,6 +86,7 @@ export type SiteEntityPages = {
 export const BLOCK_LABELS: Record<BlockType, string> = {
   cover: "Главный экран",
   menu: "Меню",
+  loader: "Лоадер",
   about: "О нас",
   client: "Личный кабинет",
   booking: "Онлайн-запись",
@@ -103,6 +105,7 @@ export const BLOCK_VARIANTS: Record<
 > = {
   cover: ["v1", "v2"],
   menu: ["v1", "v2", "v3", "v4", "v5"],
+  loader: ["v1", "v2", "v3"],
   about: ["v1", "v2"],
   client: ["v1"],
   booking: ["v1"],
@@ -122,6 +125,88 @@ export type CoverImageSource =
   | { type: "service"; id: number }
   | { type: "custom"; url: string }
   | { type: "none" };
+
+export type SiteLoaderVisual = "spinner" | "dots" | "pulse";
+
+export type SiteLoaderConfig = {
+  visual: SiteLoaderVisual;
+  size: number;
+  color: string;
+  speedMs: number;
+  thickness: number;
+  showPageOverlay: boolean;
+  showBookingInline: boolean;
+  backdropEnabled: boolean;
+  backdropColor: string;
+};
+
+const DEFAULT_LOADER_CONFIG: SiteLoaderConfig = {
+  visual: "spinner",
+  size: 36,
+  color: "#111827",
+  speedMs: 900,
+  thickness: 3,
+  showPageOverlay: true,
+  showBookingInline: true,
+  backdropEnabled: false,
+  backdropColor: "rgba(17,24,39,0.16)",
+};
+
+const mapVariantToLoaderVisual = (
+  variant: "v1" | "v2" | "v3" | "v4" | "v5" | undefined
+): SiteLoaderVisual => {
+  if (variant === "v2") return "dots";
+  if (variant === "v3") return "pulse";
+  return "spinner";
+};
+
+const clamp = (value: unknown, min: number, max: number, fallback: number) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+};
+
+export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | null {
+  const homeBlocks = draft.pages?.home ?? draft.blocks;
+  const loaderBlock = homeBlocks.find((block) => block.type === "loader");
+  if (!loaderBlock) return null;
+  const data =
+    loaderBlock.data && typeof loaderBlock.data === "object"
+      ? (loaderBlock.data as Record<string, unknown>)
+      : {};
+  const enabled = data.enabled !== false;
+  if (!enabled) return null;
+
+  const color =
+    typeof data.color === "string" && data.color.trim()
+      ? data.color.trim()
+      : DEFAULT_LOADER_CONFIG.color;
+  const backdropColor =
+    typeof data.backdropColor === "string" && data.backdropColor.trim()
+      ? data.backdropColor.trim()
+      : DEFAULT_LOADER_CONFIG.backdropColor;
+
+  return {
+    visual: mapVariantToLoaderVisual(loaderBlock.variant),
+    size: clamp(data.size, 16, 120, DEFAULT_LOADER_CONFIG.size),
+    color,
+    speedMs: clamp(data.speedMs, 300, 4000, DEFAULT_LOADER_CONFIG.speedMs),
+    thickness: clamp(data.thickness, 1, 10, DEFAULT_LOADER_CONFIG.thickness),
+    showPageOverlay:
+      typeof data.showPageOverlay === "boolean"
+        ? data.showPageOverlay
+        : DEFAULT_LOADER_CONFIG.showPageOverlay,
+    showBookingInline:
+      typeof data.showBookingInline === "boolean"
+        ? data.showBookingInline
+        : DEFAULT_LOADER_CONFIG.showBookingInline,
+    backdropEnabled:
+      typeof data.backdropEnabled === "boolean"
+        ? data.backdropEnabled
+        : DEFAULT_LOADER_CONFIG.backdropEnabled,
+    backdropColor,
+  };
+}
 
 export const makeBlockId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {

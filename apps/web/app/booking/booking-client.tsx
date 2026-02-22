@@ -257,6 +257,20 @@ const ymdAddDays = (ymd: string, days: number) => {
   return utcDateToYmd(base);
 };
 
+const monthStartYmd = (ymd: string) => `${ymd.slice(0, 7)}-01`;
+
+const ymdAddMonths = (ymd: string, months: number) => {
+  const base = ymdToUtcDate(monthStartYmd(ymd));
+  base.setUTCMonth(base.getUTCMonth() + months);
+  return utcDateToYmd(base);
+};
+
+const ymdDiffDays = (fromYmd: string, toYmd: string) => {
+  const from = ymdToUtcDate(fromYmd).getTime();
+  const to = ymdToUtcDate(toYmd).getTime();
+  return Math.max(1, Math.round((to - from) / 86_400_000));
+};
+
 function getNowInTimeZone(timeZone: string) {
   try {
     const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -498,12 +512,14 @@ function DatePickerLike({
   timeZone,
   disabledBeforeYmd,
   availableDates,
+  onViewMonthChange,
 }: {
   value: string; // YYYY-MM-DD (TZ account)
   onChange: (ymd: string) => void;
   timeZone: string;
   disabledBeforeYmd: string;
-  availableDates?: Set<string>;
+  availableDates: Set<string>;
+  onViewMonthChange?: (monthStart: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -516,6 +532,11 @@ function DatePickerLike({
     setViewYear(Number(value.slice(0, 4)));
     setViewMonth1(Number(value.slice(5, 7)));
   }, [value]);
+
+  useEffect(() => {
+    if (!onViewMonthChange) return;
+    onViewMonthChange(`${String(viewYear).padStart(4, "0")}-${String(viewMonth1).padStart(2, "0")}-01`);
+  }, [onViewMonthChange, viewYear, viewMonth1]);
 
   const monthLabel = useMemo(
     () => monthLabelRu(viewYear, viewMonth1, timeZone),
@@ -538,7 +559,7 @@ function DatePickerLike({
 
   const isDisabledDate = (ymd: string) => {
     if (isPastYmd(ymd, disabledBeforeYmd)) return true;
-    if (availableDates && !availableDates.has(ymd)) return true;
+    if (!availableDates.has(ymd)) return true;
     return false;
   };
 
@@ -596,9 +617,11 @@ function DatePickerLike({
             : "border border-transparent bg-transparent",
           selected
             ? "text-[color:var(--bp-button-text)]"
-            : inMonth
-              ? "text-[color:var(--bp-ink)]"
-              : "text-[color:var(--bp-muted)] opacity-60",
+            : disabled
+              ? "text-[color:var(--bp-muted)]"
+              : inMonth
+                ? "text-[color:var(--bp-ink)]"
+                : "text-[color:var(--bp-ink)]",
           disabled && "opacity-30 hover:bg-transparent"
         )}
       >
@@ -860,9 +883,7 @@ export default function BookingClient({
   const [offersByTime, setOffersByTime] = useState<Record<string, number[]>>({});
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [offersError, setOffersError] = useState<string | null>(null);
-  const [dateFirstAvailableDates, setDateFirstAvailableDates] = useState<
-    Set<string> | undefined
-  >(undefined);
+  const [dateFirstAvailableDates, setDateFirstAvailableDates] = useState<Set<string>>(new Set());
   const [loadingDateFirstAvailability, setLoadingDateFirstAvailability] = useState(false);
   const [dateFirstAvailabilityError, setDateFirstAvailabilityError] = useState<string | null>(null);
 
@@ -912,6 +933,9 @@ export default function BookingClient({
     const d = new Date();
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   });
+  const [calendarViewMonthStart, setCalendarViewMonthStart] = useState<string>(() =>
+    monthStartYmd(`${new Date().getFullYear()}-${pad2(new Date().getMonth() + 1)}-${pad2(new Date().getDate())}`)
+  );
 
   const [timeChoice, setTimeChoice] = useState<string | null>(null);
 
@@ -979,6 +1003,36 @@ export default function BookingClient({
       return prev;
     });
   }, [context?.account?.timeZone, todayYmdTz]);
+
+  useEffect(() => {
+    const next = monthStartYmd(dateYmd);
+    setCalendarViewMonthStart((prev) => (prev === next ? prev : next));
+  }, [dateYmd]);
+
+  const CALENDAR_PREFETCH_MONTHS = 2;
+  const visibleMonthStartYmd = useMemo(
+    () => monthStartYmd(calendarViewMonthStart || dateYmd),
+    [calendarViewMonthStart, dateYmd]
+  );
+  const calendarQueryStartYmd = useMemo(
+    () => ymdAddDays(visibleMonthStartYmd, -7),
+    [visibleMonthStartYmd]
+  );
+  const [debouncedCalendarQueryStartYmd, setDebouncedCalendarQueryStartYmd] =
+    useState(calendarQueryStartYmd);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCalendarQueryStartYmd(calendarQueryStartYmd);
+    }, 140);
+    return () => clearTimeout(timer);
+  }, [calendarQueryStartYmd]);
+  const calendarQueryDays = useMemo(() => {
+    const endExclusive = ymdAddDays(
+      ymdAddMonths(visibleMonthStartYmd, CALENDAR_PREFETCH_MONTHS),
+      7
+    );
+    return ymdDiffDays(debouncedCalendarQueryStartYmd, endExclusive);
+  }, [debouncedCalendarQueryStartYmd, visibleMonthStartYmd]);
 
   useEffect(() => {
     if (!initialParams || initialParamsApplied) return;
@@ -1128,7 +1182,7 @@ export default function BookingClient({
     setSpecialistId(null);
     setTimeChoice(null);
     setOffersByTime({});
-    setDateFirstAvailableDates(undefined);
+    setDateFirstAvailableDates(new Set());
     setCalendar(null);
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
@@ -1147,7 +1201,7 @@ export default function BookingClient({
     setSpecialistId(null);
     setTimeChoice(null);
     setOffersByTime({});
-    setDateFirstAvailableDates(undefined);
+    setDateFirstAvailableDates(new Set());
     setCalendar(null);
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
@@ -1398,21 +1452,32 @@ export default function BookingClient({
       serviceId ?? "",
       isSpecialistFirst ? specialistId ?? "" : "",
       accountSlug ?? "",
-      todayYmdTz,
-      nowTz.minutes,
+      debouncedCalendarQueryStartYmd,
+      calendarQueryDays,
     ].join("|");
 
     if (calendarKeyRef.current === calendarKey) return;
     calendarKeyRef.current = calendarKey;
 
-    setCalendar(null);
     setCalendarError(null);
 
-    if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) return;
-    if (isDateFirst) return;
+    if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
+      setCalendar(null);
+      return;
+    }
+    if (isDateFirst) {
+      setCalendar(null);
+      return;
+    }
 
-    if (isServiceFirst && !serviceId) return;
-    if (isSpecialistFirst && (!serviceId || !specialistId)) return;
+    if (isServiceFirst && !serviceId) {
+      setCalendar(null);
+      return;
+    }
+    if (isSpecialistFirst && (!serviceId || !specialistId)) {
+      setCalendar(null);
+      return;
+    }
 
     let mounted = true;
     setLoadingCalendar(true);
@@ -1423,8 +1488,8 @@ export default function BookingClient({
         locationId: safeLocationId,
         serviceId: serviceId ?? "",
         specialistId: isSpecialistFirst ? specialistId ?? "" : "",
-        start: todayYmdTz,
-        days: 14,
+        start: debouncedCalendarQueryStartYmd,
+        days: calendarQueryDays,
         account: accountSlug ?? "",
       })
     )
@@ -1443,11 +1508,12 @@ export default function BookingClient({
         setCalendar(next);
 
         const availableDates = new Set(next.days.map((d) => d.date));
-        if (!availableDates.has(dateYmd)) {
-          if (!dateYmd || isPastYmd(dateYmd, todayYmdTz)) {
-            const first = next.days[0]?.date ?? todayYmdTz;
-            setDateYmd(first);
-          }
+        if (
+          next.days.length > 0 &&
+          (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !availableDates.has(dateYmd))
+        ) {
+          const first = next.days[0]?.date ?? todayYmdTz;
+          setDateYmd(first);
         }
       })
       .catch((e: Error) => {
@@ -1474,6 +1540,8 @@ export default function BookingClient({
     todayYmdTz,
     nowTz,
     dateYmd,
+    debouncedCalendarQueryStartYmd,
+    calendarQueryDays,
   ]);
 
   // ---------- dateFirst: offersByTime (time -> serviceIds)
@@ -1556,24 +1624,23 @@ export default function BookingClient({
   useEffect(() => {
     const safeLocationId = Number(locationId);
     if (!isDateFirst) {
-      setDateFirstAvailableDates(undefined);
+      setDateFirstAvailableDates(new Set());
       setLoadingDateFirstAvailability(false);
       setDateFirstAvailabilityError(null);
       return;
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
-      setDateFirstAvailableDates(undefined);
+      setDateFirstAvailableDates(new Set());
       setDateFirstAvailabilityError(null);
       return;
     }
     if (!services.length) {
-      setDateFirstAvailableDates(undefined);
+      setDateFirstAvailableDates(new Set());
       setDateFirstAvailabilityError(null);
       return;
     }
 
     let mounted = true;
-    setDateFirstAvailableDates(new Set());
     setLoadingDateFirstAvailability(true);
     setDateFirstAvailabilityError(null);
 
@@ -1582,8 +1649,8 @@ export default function BookingClient({
         buildUrl("/api/v1/public/booking/availability/calendar", {
           locationId: safeLocationId,
           serviceId: s.id,
-          start: todayYmdTz,
-          days: 31,
+          start: debouncedCalendarQueryStartYmd,
+          days: calendarQueryDays,
           account: accountSlug ?? "",
         })
       ).then((d) => d.days ?? [])
@@ -1603,7 +1670,7 @@ export default function BookingClient({
         setDateFirstAvailableDates(set);
       } catch (e: any) {
         if (!mounted) return;
-        setDateFirstAvailableDates(undefined);
+        setDateFirstAvailableDates(new Set());
         setDateFirstAvailabilityError(e?.message || "Failed to load available dates.");
       } finally {
         if (!mounted) return;
@@ -1614,7 +1681,25 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [isDateFirst, locationId, services, accountSlug, todayYmdTz]);
+  }, [
+    isDateFirst,
+    locationId,
+    services,
+    accountSlug,
+    debouncedCalendarQueryStartYmd,
+    calendarQueryDays,
+  ]);
+
+  useEffect(() => {
+    if (!isDateFirst) return;
+    if (!dateFirstAvailableDates.size) return;
+    if (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !dateFirstAvailableDates.has(dateYmd)) {
+      const first = Array.from(dateFirstAvailableDates).sort((a, b) =>
+        a > b ? 1 : a < b ? -1 : 0
+      )[0];
+      if (first) setDateYmd(first);
+    }
+  }, [isDateFirst, dateFirstAvailableDates, dateYmd, todayYmdTz]);
 
   // ---------- dateFirst: slots by chosen service to filter specialists by timeChoice
   useEffect(() => {
@@ -1767,8 +1852,7 @@ export default function BookingClient({
   }, [calendar]);
 
   const calendarAvailableDates = useMemo(() => {
-    if (!calendar) return undefined;
-    return new Set(calendar.days.map((d) => d.date));
+    return new Set((calendar?.days ?? []).map((d) => d.date));
   }, [calendar]);
 
   const availableTimesForCurrentStep = useMemo(() => {
@@ -1784,6 +1868,26 @@ export default function BookingClient({
     const sorted = uniqSortedTimes(times);
     return filterPastTimes(dateYmd, sorted, nowTz);
   }, [isDateFirst, dateYmd, offersByTime, calendarByDate, todayYmdTz, nowTz]);
+
+  const isCalendarWindowTransitioning =
+    !isDateFirst &&
+    (calendarQueryStartYmd !== debouncedCalendarQueryStartYmd || loadingCalendar);
+  const isTimesPanelLoading = isDateFirst
+    ? loadingOffers || (loadingDateFirstAvailability && dateFirstAvailableDates.size === 0)
+    : isCalendarWindowTransitioning && availableTimesForCurrentStep.length === 0;
+  const shouldShowNoSlotsNotice =
+    !isTimesPanelLoading &&
+    !isCalendarWindowTransitioning &&
+    availableTimesForCurrentStep.length === 0;
+  const [showNoSlotsNotice, setShowNoSlotsNotice] = useState(false);
+  useEffect(() => {
+    if (!shouldShowNoSlotsNotice) {
+      setShowNoSlotsNotice(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowNoSlotsNotice(true), 180);
+    return () => clearTimeout(timer);
+  }, [shouldShowNoSlotsNotice, dateYmd]);
 
   const specialistsForSpecialistStep = useMemo(() => {
     if (isSpecialistFirst) {
@@ -2016,7 +2120,7 @@ export default function BookingClient({
     setTimeBucket("all");
     setQuery("");
     setOffersByTime({});
-    setDateFirstAvailableDates(undefined);
+    setDateFirstAvailableDates(new Set());
     setCalendar(null);
     setStepIndex(0);
   };
@@ -2339,6 +2443,11 @@ export default function BookingClient({
                       availableDates={
                         isDateFirst ? dateFirstAvailableDates : calendarAvailableDates
                       }
+                      onViewMonthChange={(monthStart) => {
+                        setCalendarViewMonthStart((prev) =>
+                          prev === monthStart ? prev : monthStart
+                        );
+                      }}
                       onChange={(ymd) => {
                         if (isPastYmd(ymd, todayYmdTz)) return;
                         setDateYmd(ymd);
@@ -2347,16 +2456,13 @@ export default function BookingClient({
 
                     {isDateFirst && (
                       <>
-                        {loadingDateFirstAvailability && <div className="text-sm">Loading available dates...</div>}
                         {dateFirstAvailabilityError && <div className="text-sm text-red-600">{dateFirstAvailabilityError}</div>}
-                        {loadingOffers && <div className="text-sm">Загрузка времени...</div>}
                         {offersError && <div className="text-sm text-red-600">{offersError}</div>}
                       </>
                     )}
 
                     {!isDateFirst && (
                       <>
-                        {loadingCalendar && <div className="text-sm">Загрузка дней и времени...</div>}
                         {calendarError && <div className="text-sm text-red-600">{calendarError}</div>}
                       </>
                     )}
@@ -2365,13 +2471,25 @@ export default function BookingClient({
                       (isServiceFirst && !!serviceId) ||
                       (isSpecialistFirst && !!specialistId && !!serviceId)) && (
                       <div className="space-y-3">
-                        {!loadingOffers && !loadingCalendar && availableTimesForCurrentStep.length === 0 && (
+                        {isTimesPanelLoading && (
+                          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+                            <div className="flex items-center justify-center py-1">
+                              <span
+                                aria-hidden="true"
+                                className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[color:var(--bp-accent)] border-t-transparent"
+                              />
+                              <span className="sr-only">Загрузка</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {showNoSlotsNotice && (
                           <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
                             Нет доступных слотов на выбранную дату.
                           </div>
                         )}
 
-                        {!loadingOffers && !loadingCalendar && availableTimesForCurrentStep.length > 0 && (
+                        {!isTimesPanelLoading && availableTimesForCurrentStep.length > 0 && (
                           <TimeGrid
                             times={availableTimesForCurrentStep}
                             selected={timeChoice}
