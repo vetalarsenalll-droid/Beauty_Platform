@@ -789,21 +789,27 @@ function renderMenu(
   const showSearch = Boolean(data.showSearch);
   const showAccount = Boolean(data.showAccount);
   const showThemeToggle = Boolean(data.showThemeToggle);
-  const rawAccountLink = (data.accountLink as string) ?? "";
   const accountLink =
-    rawAccountLink && rawAccountLink !== "/c"
-      ? rawAccountLink
-      : accountLinkOverride && accountLinkOverride.trim().length > 0
-        ? accountLinkOverride
-        : accountSlug
-          ? `/c/login?account=${accountSlug}`
-          : "/c/login";
+    accountLinkOverride && accountLinkOverride.trim().length > 0
+      ? accountLinkOverride
+      : accountSlug
+        ? `/c/login?account=${accountSlug}`
+        : "/c/login";
   const showSocials = Boolean(data.showSocials);
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
   const buttonText = (data.buttonText as string) || "Записаться";
   const basePath = publicSlug ? `/${publicSlug}` : "#";
   const position = data.position === "sticky" ? "sticky" : "static";
+  const accountTitleRaw =
+    typeof data.accountTitle === "string" ? data.accountTitle.trim() : "";
+  const accountTitle = accountTitleRaw || accountName;
+  const menuHeightRaw = Number(data.menuHeight);
+  const menuHeight =
+    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 44 && menuHeightRaw <= 96
+      ? Math.round(menuHeightRaw)
+      : 56;
+  const menuButtonSize = Math.max(36, Math.min(52, menuHeight - 8));
   const align = (style.textAlign ?? "left") as "left" | "center" | "right";
   const alignClass =
     align === "center"
@@ -814,9 +820,12 @@ function renderMenu(
 
   const logoNode = showLogo ? (
     branding.logoUrl ? (
-      <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
+      <div className="flex items-center gap-2">
+        <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
+        <span className="text-sm font-semibold">{accountTitle}</span>
+      </div>
     ) : (
-      <div className="text-sm font-semibold">{accountName}</div>
+      <div className="text-sm font-semibold">{accountTitle}</div>
     )
   ) : null;
 
@@ -920,8 +929,7 @@ function renderMenu(
   const canPhone = Boolean(phoneValue);
   const usePhone = ctaMode === "phone" && canPhone;
   const showCta = showButton && (canBook || canPhone);
-  const isAccountExternal =
-    typeof accountLink === "string" && /^https?:\/\//.test(accountLink);
+  const isAccountExternal = false;
 
   const ctaNode = showCta ? (
     usePhone ? (
@@ -1063,17 +1071,21 @@ function renderMenu(
       >
         <details className="group menu-v2-overlay w-full">
           <summary
-            className="relative z-[60] flex min-h-14 cursor-pointer list-none items-center border-b px-1 py-1 pr-14
+            className="relative z-[60] flex cursor-pointer list-none items-center border-b px-1 py-1 pr-14
               [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
               [&::-webkit-details-marker]:hidden
               group-open:absolute group-open:inset-x-0 group-open:top-0 group-open:px-1 group-open:py-1"
             style={{
+              minHeight: menuHeight,
               backgroundColor: "var(--menu-v2-top-bg, var(--block-bg, var(--site-panel)))",
               borderColor: "var(--block-border, var(--site-border))",
             }}
           >
             <div className="flex items-center gap-3">{logoNode}</div>
-            <span className="absolute right-1 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]">
+            <span
+              className="absolute right-1 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              style={{ width: menuButtonSize, height: menuButtonSize }}
+            >
               <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
               <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out group-open:opacity-0" />
               <span className="absolute left-1/2 top-[calc(50%+6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:-rotate-45" />

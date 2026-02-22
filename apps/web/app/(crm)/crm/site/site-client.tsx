@@ -1739,9 +1739,9 @@ function BlockEditor({
             Переключатель темы
           </label>
           <FieldText
-            label="Ссылка на кабинет"
-            value={(block.data.accountLink as string) ?? "/c"}
-            onChange={(value) => updateData({ accountLink: value })}
+            label="Название аккаунта в меню"
+            value={(block.data.accountTitle as string) ?? ""}
+            onChange={(value) => updateData({ accountTitle: value })}
           />
           <label className="text-sm">
             Позиция меню
@@ -2547,6 +2547,36 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      {block.type === "menu" && (
+        <label className="text-sm">
+          Высота меню:{" "}
+          {Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
+            ? Number((block.data as Record<string, unknown>).menuHeight)
+            : 56}
+          px
+          <input
+            type="range"
+            min={44}
+            max={96}
+            step={1}
+            value={
+              Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
+                ? Number((block.data as Record<string, unknown>).menuHeight)
+                : 56
+            }
+            onChange={(event) =>
+              onChange({
+                ...block,
+                data: {
+                  ...block.data,
+                  menuHeight: Number(event.target.value),
+                },
+              })
+            }
+            className="mt-2 w-full"
+          />
+        </label>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <ColorField
           label="Цвет блока"
@@ -4072,11 +4102,20 @@ function renderMenuBlock(
   const buttonText = (data.buttonText as string) || "Записаться";
   const showSearch = Boolean(data.showSearch);
   const showAccount = Boolean(data.showAccount);
-  const accountLink = (data.accountLink as string) || "/c";
+  const accountLink = account.slug ? `/c/login?account=${account.slug}` : "/c/login";
   const position = data.position === "sticky" ? "sticky" : "static";
   const showSocials = Boolean(data.showSocials);
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
+  const accountTitleRaw =
+    typeof data.accountTitle === "string" ? data.accountTitle.trim() : "";
+  const accountTitle = accountTitleRaw || account.name;
+  const menuHeightRaw = Number(data.menuHeight);
+  const menuHeight =
+    Number.isFinite(menuHeightRaw) && menuHeightRaw >= 44 && menuHeightRaw <= 96
+      ? Math.round(menuHeightRaw)
+      : 56;
+  const menuButtonSize = Math.max(36, Math.min(52, menuHeight - 8));
   const align = (style.textAlign ?? "left") as "left" | "center" | "right";
   const alignClass =
     align === "center"
@@ -4086,9 +4125,12 @@ function renderMenuBlock(
         : "justify-start text-left";
   const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
   const logoNode = branding.logoUrl ? (
-    <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
+    <div className="flex items-center gap-2">
+      <img src={branding.logoUrl} alt="" className="h-8 w-auto" />
+      <span className="text-sm font-semibold">{accountTitle}</span>
+    </div>
   ) : (
-    <div className="text-sm font-semibold">{account.name}</div>
+    <div className="text-sm font-semibold">{accountTitle}</div>
   );
   const linkItems = menuItems.map((key) => {
     const href =
@@ -4115,7 +4157,11 @@ function renderMenuBlock(
             ? `/c?account=${account.slug}`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
-      <a key={`${key}-overlay`} href={href} className="text-3xl font-medium md:text-5xl">
+      <a
+        key={`${key}-overlay`}
+        href={href}
+        className="w-full text-center text-3xl font-medium md:text-5xl"
+      >
         {PAGE_LABELS[key]}
       </a>
     );
@@ -4219,13 +4265,20 @@ function renderMenuBlock(
       alignClass={alignClass}
       logoNode={showLogo ? logoNode : null}
       navNode={<div className="flex flex-wrap items-center gap-4">{linkItems}</div>}
-      overlayNavNode={<div className="flex flex-col items-center gap-6">{overlayLinkItems}</div>}
+      overlayNavNode={
+        <div className="flex w-full flex-col items-center gap-6 text-center">
+          {overlayLinkItems}
+        </div>
+      }
       searchNode={searchNode}
       socialsNode={socialsNode}
       accountNode={showAccount ? accountIcon : null}
       themeToggleNode={themeToggleNode}
       ctaNode={ctaNode}
       position={position}
+      menuHeight={menuHeight}
+      menuButtonSize={menuButtonSize}
+      blockBg={style.blockBg || theme.panelColor}
       subBlockBg={subBlockBg}
       subBlockBorder={subBlockBorder}
     />
@@ -4244,6 +4297,9 @@ function MenuPreview({
   themeToggleNode,
   ctaNode,
   position,
+  menuHeight,
+  menuButtonSize,
+  blockBg,
   subBlockBg,
   subBlockBorder,
 }: {
@@ -4258,6 +4314,9 @@ function MenuPreview({
   themeToggleNode: React.ReactNode | null;
   ctaNode: React.ReactNode | null;
   position: "static" | "sticky";
+  menuHeight: number;
+  menuButtonSize: number;
+  blockBg: string;
   subBlockBg: string;
   subBlockBorder: string;
 }) {
@@ -4277,31 +4336,6 @@ function MenuPreview({
       {ctaNode}
     </div>
   );
-  const overlayActions = (
-    <div className="flex flex-wrap items-center justify-center gap-3">
-      {searchNode}
-      {socialsNode}
-      {accountNode}
-      {themeToggleNode}
-      {ctaNode}
-    </div>
-  );
-  const triggerButton = (
-    <button
-      type="button"
-      className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
-      onClick={() => setMobileOpen((prev) => !prev)}
-      aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
-      title={mobileOpen ? "Закрыть меню" : "Открыть меню"}
-    >
-      {mobileOpen ? (
-        <span className="text-3xl leading-none">X</span>
-      ) : (
-        <IconMenu />
-      )}
-    </button>
-  );
-
   let desktopLayout: React.ReactNode = (
     <div className="flex flex-wrap items-center justify-between gap-6">
       <div className="flex items-center gap-4">{logoNode}</div>
@@ -4313,6 +4347,11 @@ function MenuPreview({
   );
 
   if (variant === "v2") {
+    const topBarStyle: React.CSSProperties = {
+      backgroundColor: mobileOpen ? subBlockBg : blockBg,
+      borderColor: subBlockBorder,
+      borderWidth: subBlockBorder === "transparent" ? 0 : 1,
+    };
     return (
       <div
         className="relative w-full"
@@ -4322,23 +4361,68 @@ function MenuPreview({
             : { minHeight: mobileOpen ? "82vh" : undefined }
         }
       >
-        <div className="flex items-center justify-between gap-4">
+        <div
+          className={`relative z-[60] flex items-center px-1 py-1 pr-14 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
+          style={{ ...topBarStyle, minHeight: menuHeight }}
+        >
           <div className="flex items-center gap-3">{logoNode}</div>
-          {triggerButton}
+          <button
+            type="button"
+            className="absolute right-1 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+            style={{ width: menuButtonSize, height: menuButtonSize }}
+            onClick={() => setMobileOpen((prev) => !prev)}
+            aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+            title={mobileOpen ? "Закрыть меню" : "Открыть меню"}
+          >
+            <span
+              className={`absolute left-1/2 block h-[2px] w-5 -translate-x-1/2 bg-current transition-all duration-300 ease-out ${
+                mobileOpen
+                  ? "top-1/2 -translate-y-1/2 rotate-45"
+                  : "top-[calc(50%-6px)] rotate-0"
+              }`}
+            />
+            <span
+              className={`absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out ${
+                mobileOpen ? "opacity-0" : "opacity-100"
+              }`}
+            />
+            <span
+              className={`absolute left-1/2 block h-[2px] w-5 -translate-x-1/2 bg-current transition-all duration-300 ease-out ${
+                mobileOpen
+                  ? "top-1/2 -translate-y-1/2 -rotate-45"
+                  : "top-[calc(50%+6px)] rotate-0"
+              }`}
+            />
+          </button>
         </div>
         {mobileOpen && (
           <div
-            className="absolute inset-0 z-30 flex flex-col rounded-[inherit] border px-6 py-6 md:px-10 md:py-8"
+            className="absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[inherit] border px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
             style={subBlockStyle}
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">{logoNode}</div>
-              {triggerButton}
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto py-6">
+            <div className="flex flex-1 flex-col items-center justify-center py-6">
               {overlayNavNode}
             </div>
-            <div className="pt-4">{overlayActions}</div>
+            <div className="w-full md:hidden">
+              <div className="space-y-3 text-center">
+                {searchNode && <div className="flex justify-center">{searchNode}</div>}
+                {socialsNode && <div className="flex justify-center">{socialsNode}</div>}
+                {(accountNode || themeToggleNode) && (
+                  <div className="flex items-center justify-center gap-3">
+                    {accountNode}
+                    {themeToggleNode}
+                  </div>
+                )}
+                {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
+              </div>
+            </div>
+            <div className="hidden flex-wrap items-center justify-center gap-3 md:flex">
+              {searchNode}
+              {socialsNode}
+              {accountNode}
+              {themeToggleNode}
+              {ctaNode}
+            </div>
           </div>
         )}
       </div>
