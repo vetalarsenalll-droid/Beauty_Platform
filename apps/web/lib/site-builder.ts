@@ -576,7 +576,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   const normalizeBlocks = (blocks: SiteBlock[]) =>
     blocks
       .filter((block) => block && typeof block === "object")
-      .map((block) => {
+      .map((block, index) => {
         const safeData =
           typeof block.data === "object" && block.data ? { ...block.data } : {};
         if (block.type === "menu") {
@@ -596,7 +596,11 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
             : ["home", "booking", "client", "locations", "services", "specialists", "promos"];
         }
         return {
-          id: block.id || makeBlockId(),
+          // Deterministic fallback id to avoid SSR/CSR hydration mismatch.
+          id:
+            typeof block.id === "string" && block.id.trim()
+              ? block.id
+              : `legacy-${String(block.type ?? "block")}-${index}`,
           type: block.type,
           variant: block.variant ?? "v1",
           data: safeData,

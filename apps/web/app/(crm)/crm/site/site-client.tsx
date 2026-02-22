@@ -1,7 +1,7 @@
 ﻿
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BLOCK_LABELS,
   BLOCK_VARIANTS,
@@ -144,6 +144,90 @@ const PAGE_LABELS: Record<SitePageKey, string> = {
 const PAGE_KEYS = Object.keys(PAGE_LABELS) as SitePageKey[];
 const isSystemBlockType = (type: unknown): type is "client" | "booking" =>
   type === "client" || type === "booking";
+
+type EditorSection = { id: string; label: string };
+
+const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = {
+  menu: [
+    { id: "brand", label: "Логотип и название" },
+    { id: "structure", label: "Структура меню" },
+    { id: "actions", label: "Кнопка и действие" },
+    { id: "extras", label: "Поиск, аккаунт, соцсети" },
+  ],
+  cover: [
+    { id: "text", label: "Тексты" },
+    { id: "actions", label: "Кнопка" },
+    { id: "media", label: "Изображение" },
+  ],
+};
+
+const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = {
+  menu: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  cover: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  about: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  loader: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  locations: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  services: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  specialists: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  promos: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  works: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  reviews: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+  contacts: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "effects", label: "Эффекты" },
+  ],
+};
 
 const SOCIAL_ICONS: Record<string, string> = {
   website: "/assets/socials/website.png",
@@ -574,6 +658,10 @@ export default function SiteClient({
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
+  const [showPanelExitConfirm, setShowPanelExitConfirm] = useState(false);
+  const [panelBaselineKey, setPanelBaselineKey] = useState<string | null>(null);
+  const [panelBaselineSignature, setPanelBaselineSignature] = useState<string | null>(null);
 
   useEffect(() => {
     if (!displayBlocks.length) {
@@ -592,6 +680,97 @@ export default function SiteClient({
   }, [message]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
+
+  const currentPanelSections = useMemo<EditorSection[]>(() => {
+    if (!rightPanel) return [];
+    if (rightPanel === "global") {
+      return [{ id: "theme", label: "Глобальные стили" }];
+    }
+    if (!selectedBlock) return [];
+    if (rightPanel === "content") {
+      return (
+        CONTENT_SECTIONS_BY_BLOCK[selectedBlock.type] ?? [{ id: "main", label: "Контент блока" }]
+      );
+    }
+    return (
+      SETTINGS_SECTIONS_BY_BLOCK[selectedBlock.type] ?? [
+        { id: "layout", label: "Основные настройки" },
+        { id: "colors", label: "Цвета" },
+        { id: "typography", label: "Типографика" },
+        { id: "effects", label: "Эффекты" },
+      ]
+    );
+  }, [rightPanel, selectedBlock]);
+
+  const panelTargetKey = rightPanel
+    ? `${rightPanel}:${rightPanel === "global" ? "theme" : selectedBlock?.id ?? "none"}`
+    : null;
+  const currentPanelSignature = useMemo(() => {
+    if (!rightPanel) return null;
+    if (rightPanel === "global") {
+      return JSON.stringify(draft.theme);
+    }
+    if (!selectedBlock) return null;
+    return JSON.stringify(selectedBlock);
+  }, [rightPanel, draft.theme, selectedBlock]);
+  const panelHasUnsavedChanges = Boolean(
+    rightPanel &&
+      currentPanelSignature &&
+      panelBaselineSignature !== null &&
+      currentPanelSignature !== panelBaselineSignature
+  );
+
+  useEffect(() => {
+    if (!currentPanelSections.length) {
+      setActivePanelSectionId(null);
+      return;
+    }
+    if (
+      !activePanelSectionId ||
+      !currentPanelSections.some((section) => section.id === activePanelSectionId)
+    ) {
+      setActivePanelSectionId(currentPanelSections[0].id);
+    }
+  }, [currentPanelSections, activePanelSectionId]);
+
+  useEffect(() => {
+    if (!rightPanel) {
+      setPanelBaselineKey(null);
+      setPanelBaselineSignature(null);
+      setShowPanelExitConfirm(false);
+      return;
+    }
+    if (!panelTargetKey || !currentPanelSignature) return;
+    if (panelBaselineKey !== panelTargetKey) {
+      setPanelBaselineKey(panelTargetKey);
+      setPanelBaselineSignature(currentPanelSignature);
+      setShowPanelExitConfirm(false);
+    }
+  }, [rightPanel, panelTargetKey, currentPanelSignature, panelBaselineKey]);
+
+  const savePanelDraft = async (closeAfterSave: boolean) => {
+    const ok = await savePublic(false);
+    if (closeAfterSave && ok) {
+      setRightPanel(null);
+      setShowPanelExitConfirm(false);
+      return;
+    }
+    if (ok && currentPanelSignature) {
+      setPanelBaselineSignature(currentPanelSignature);
+    }
+  };
+  const requestClosePanel = () => {
+    if (!rightPanel) return;
+    if (!panelHasUnsavedChanges) {
+      setRightPanel(null);
+      return;
+    }
+    setShowPanelExitConfirm(true);
+  };
+  const closePanelWithoutSave = () => {
+    setShowPanelExitConfirm(false);
+    setRightPanel(null);
+  };
 
 
   const updateBlock = (id: string, updater: (block: SiteBlock) => SiteBlock) => {
@@ -788,7 +967,7 @@ export default function SiteClient({
     updateBlocks(next);
   };
 
-  const savePublic = async (publish: boolean) => {
+  const savePublic = async (publish: boolean): Promise<boolean> => {
     setSaving("public");
     setMessage(null);
     const payloadDraft = {
@@ -805,11 +984,14 @@ export default function SiteClient({
         const data = await response.json();
         setPublicPage(data.data);
         setMessage(publish ? "Страница опубликована." : "Черновик сохранен.");
+        return true;
       } else {
         setMessage("Не удалось сохранить страницу.");
+        return false;
       }
     } catch {
       setMessage("Не удалось сохранить страницу.");
+      return false;
     } finally {
       setSaving(null);
     }
@@ -851,6 +1033,28 @@ export default function SiteClient({
     : "none";
   const handleThemeToggle = () =>
     setThemeMode(draft.theme.mode === "dark" ? "light" : "dark");
+  const panelTheme =
+    draft.theme.mode === "dark"
+      ? {
+          surface: "#11161f",
+          panel: "#1a2230",
+          border: "rgba(255,255,255,0.16)",
+          text: "#e5e7eb",
+          muted: "#9ca3af",
+          accent: "#60a5fa",
+          save: "#0b0f16",
+          saveClose: "#4b5563",
+        }
+      : {
+          surface: "#f3f3f3",
+          panel: "#ffffff",
+          border: "#d9dde5",
+          text: "#111827",
+          muted: "#6b7280",
+          accent: "#2563eb",
+          save: "#000000",
+          saveClose: "#6b7280",
+        };
 
   return (
     <div className="flex flex-col gap-6">
@@ -943,14 +1147,6 @@ export default function SiteClient({
                 Открыть сайт
               </a>
             )}
-            <button
-              type="button"
-              onClick={() => savePublic(false)}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-5 py-2 text-sm"
-              disabled={saving === "public"}
-            >
-              Сохранить черновик
-            </button>
             <button
               type="button"
               onClick={() => savePublic(true)}
@@ -1316,50 +1512,174 @@ export default function SiteClient({
         )}
 
         {rightPanel && (
+          <button
+            type="button"
+            aria-label="Закрыть панель"
+            className="fixed inset-0 z-[139] cursor-default bg-transparent"
+            style={{ top: 64 }}
+            onClick={requestClosePanel}
+          />
+        )}
+
+        {rightPanel && (
           <aside
-            className="fixed right-0 z-[140] w-[360px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            style={{ top: 64, bottom: 0 }}
+            className="fixed z-[140] w-[760px] max-w-[calc(100vw-var(--crm-sidebar-width,272px)-24px)] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            style={{
+              top: 64,
+              bottom: 0,
+              left: "var(--crm-sidebar-width, 272px)",
+              borderColor: panelTheme.border,
+              backgroundColor: panelTheme.surface,
+              color: panelTheme.text,
+            }}
           >
-            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
-              <div className="text-sm font-semibold">
-                {rightPanel === "global"
-                  ? "Глобальные стили"
-                  : rightPanel === "settings"
-                    ? "Настройки блока"
-                    : "Контент блока"}
+            <div
+              className="sticky top-0 z-20 border-b"
+              style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
+            >
+              <div className="grid grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => savePanelDraft(false)}
+                  disabled={saving === "public"}
+                  className="h-12 px-4 text-sm font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: panelTheme.save }}
+                >
+                  Сохранить
+                </button>
+                <button
+                  type="button"
+                  onClick={() => savePanelDraft(true)}
+                  disabled={saving === "public"}
+                  className="h-12 px-4 text-sm font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: panelTheme.saveClose }}
+                >
+                  Сохранить и закрыть
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setRightPanel(null)}
-                className="text-xs text-[color:var(--bp-muted)]"
+              <div
+                className="flex items-center justify-between border-t px-4 py-3"
+                style={{ borderColor: panelTheme.border }}
               >
-                Закрыть
-              </button>
+                <div className="text-sm font-semibold" style={{ color: panelTheme.text }}>
+                  {rightPanel === "global"
+                    ? "Глобальные стили"
+                    : rightPanel === "settings"
+                      ? selectedBlock
+                        ? `Настройки · ${BLOCK_LABELS[selectedBlock.type]}`
+                        : "Настройки блока"
+                      : selectedBlock
+                        ? `Контент · ${BLOCK_LABELS[selectedBlock.type]}`
+                        : "Контент блока"}
+                </div>
+              </div>
             </div>
-            <div className="p-4">
-              {rightPanel === "global" && (
-                <ThemeEditor theme={draft.theme} onChange={updateTheme} />
-              )}
-              {rightPanel === "content" && selectedBlock && (
-                <BlockEditor
-                  block={selectedBlock}
-                  accountName={account.name}
-                  locations={locations}
-                  services={services}
-                  specialists={specialists}
-                  promos={promos}
-                  onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                />
-              )}
-              {rightPanel === "settings" && selectedBlock && (
-                <BlockStyleEditor
-                  block={selectedBlock}
-                  theme={draft.theme}
-                  onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                />
-              )}
+            <div className="grid min-h-[calc(100vh-176px)] grid-cols-[260px_minmax(0,1fr)]">
+              <div
+                className="border-r p-3"
+                style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
+              >
+                <div className="space-y-2">
+                  {currentPanelSections.map((section) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      onClick={() => setActivePanelSectionId(section.id)}
+                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                      style={{
+                        borderColor:
+                          activePanelSectionId === section.id
+                            ? panelTheme.accent
+                            : panelTheme.border,
+                        backgroundColor: panelTheme.panel,
+                        color:
+                          activePanelSectionId === section.id
+                            ? panelTheme.text
+                            : panelTheme.muted,
+                      }}
+                    >
+                      <span>{section.label}</span>
+                      <span className="text-xs">›</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4">
+                <div
+                  className="rounded-md border p-4 shadow-sm"
+                  style={{
+                    borderColor: panelTheme.border,
+                    backgroundColor: panelTheme.panel,
+                    color: panelTheme.text,
+                  }}
+                >
+                  {rightPanel === "global" && (
+                    <ThemeEditor theme={draft.theme} onChange={updateTheme} />
+                  )}
+                  {rightPanel === "content" && selectedBlock && (
+                    <BlockEditor
+                      block={selectedBlock}
+                      accountName={account.name}
+                      locations={locations}
+                      services={services}
+                      specialists={specialists}
+                      promos={promos}
+                      activeSectionId={activePanelSectionId ?? "main"}
+                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                    />
+                  )}
+                  {rightPanel === "settings" && selectedBlock && (
+                    <BlockStyleEditor
+                      block={selectedBlock}
+                      theme={draft.theme}
+                      activeSectionId={activePanelSectionId ?? "layout"}
+                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </aside>
+        )}
+
+        {showPanelExitConfirm && rightPanel && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/30 p-4">
+            <div
+              className="w-full max-w-[520px] rounded-xl border p-6 shadow-2xl"
+              style={{
+                backgroundColor: panelTheme.panel,
+                borderColor: panelTheme.border,
+                color: panelTheme.text,
+              }}
+            >
+              <h3 className="text-xl font-semibold">Панель не сохранена</h3>
+              <p className="mt-3 text-sm" style={{ color: panelTheme.muted }}>
+                В текущей панели есть изменения. Закрыть её сейчас без сохранения?
+              </p>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPanelExitConfirm(false)}
+                  className="rounded-lg border px-4 py-2 text-sm"
+                  style={{
+                    borderColor: panelTheme.border,
+                    backgroundColor: panelTheme.panel,
+                    color: panelTheme.text,
+                  }}
+                >
+                  Назад
+                </button>
+                <button
+                  type="button"
+                  onClick={closePanelWithoutSave}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: panelTheme.saveClose }}
+                >
+                  Выйти
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -1664,6 +1984,7 @@ function BlockEditor({
   services,
   specialists,
   promos,
+  activeSectionId,
   onChange,
 }: {
   block: SiteBlock;
@@ -1672,6 +1993,7 @@ function BlockEditor({
   services: ServiceItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
+  activeSectionId: string;
   onChange: (next: SiteBlock) => void;
 }) {
   type SocialKey =
@@ -1693,12 +2015,14 @@ function BlockEditor({
   const updateData = (patch: Record<string, unknown>) => {
     onChange({ ...block, data: { ...block.data, ...patch } });
   };
+  const inSection = (...ids: string[]) =>
+    ids.length === 0 || ids.includes(activeSectionId) || activeSectionId === "main";
 
   const variantOptions = BLOCK_VARIANTS[block.type];
 
   return (
-    <div className="mt-4 space-y-4">
-      {variantOptions.length > 1 && block.type !== "loader" && (
+    <div className="space-y-4">
+      {(variantOptions.length > 1 && block.type !== "loader" && inSection("main", "structure")) && (
         <label className="text-sm">
           Вариант
           <select
@@ -1722,119 +2046,159 @@ function BlockEditor({
 
       {block.type === "menu" && (
         <>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={block.data.showLogo !== false}
-              onChange={(event) => updateData({ showLogo: event.target.checked })}
-            />
-            Показывать логотип
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={block.data.showCompanyName !== false}
-              onChange={(event) => updateData({ showCompanyName: event.target.checked })}
-            />
-            Показывать название компании
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={block.data.showOnAllPages !== false}
-              onChange={(event) => updateData({ showOnAllPages: event.target.checked })}
-            />
-            Показывать на всех страницах
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.showSearch)}
-              onChange={(event) => updateData({ showSearch: event.target.checked })}
-            />
-            Показывать поиск
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.showAccount)}
-              onChange={(event) => updateData({ showAccount: event.target.checked })}
-            />
-            Иконка входа
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.showThemeToggle)}
-              onChange={(event) => updateData({ showThemeToggle: event.target.checked })}
-            />
-            Переключатель темы
-          </label>
-          <FieldText
-            label="Название компании"
-            value={(block.data.accountTitle as string) ?? accountName}
-            onChange={(value) => updateData({ accountTitle: value })}
-          />
-          <label className="text-sm">
-            Позиция меню
-            <select
-              value={(block.data.position as string) ?? "static"}
-              onChange={(event) => updateData({ position: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="static">Статика</option>
-              <option value="sticky">Фиксация при скролле</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.showButton)}
-              onChange={(event) => updateData({ showButton: event.target.checked })}
-            />
-            Показывать кнопку записи
-          </label>
-          <label className="text-sm">
-            Действие кнопки
-            <select
-              value={(block.data.ctaMode as string) ?? "booking"}
-              onChange={(event) => updateData({ ctaMode: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="booking">Запись</option>
-              <option value="phone">Телефон</option>
-            </select>
-          </label>
-          <FieldText
-            label="Телефон для кнопки"
-            value={(block.data.phoneOverride as string) ?? ""}
-            onChange={(value) => updateData({ phoneOverride: value })}
-          />
-          <FieldText
-            label="Текст кнопки"
-            value={(block.data.buttonText as string) ?? "Записаться"}
-            onChange={(value) => updateData({ buttonText: value })}
-          />
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.showSocials)}
-              onChange={(event) => updateData({ showSocials: event.target.checked })}
-            />
-            Показывать соцсети
-          </label>
-          <label className="text-sm">
-            Соцсети
-            <select
-              value={(block.data.socialsMode as string) ?? "auto"}
-              onChange={(event) => updateData({ socialsMode: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="auto">Из профиля аккаунта</option>
-              <option value="custom">Ввести вручную</option>
-            </select>
-          </label>
-          {block.data.socialsMode === "custom" && (
+          {inSection("brand") && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={block.data.showLogo !== false}
+                  onChange={(event) => updateData({ showLogo: event.target.checked })}
+                />
+                Показывать логотип
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={block.data.showCompanyName !== false}
+                  onChange={(event) => updateData({ showCompanyName: event.target.checked })}
+                />
+                Показывать название компании
+              </label>
+              <FieldText
+                label="Название компании"
+                value={(block.data.accountTitle as string) ?? accountName}
+                onChange={(value) => updateData({ accountTitle: value })}
+              />
+            </>
+          )}
+          {inSection("structure") && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={block.data.showOnAllPages !== false}
+                  onChange={(event) => updateData({ showOnAllPages: event.target.checked })}
+                />
+                Показывать на всех страницах
+              </label>
+              <label className="text-sm">
+                Позиция меню
+                <select
+                  value={(block.data.position as string) ?? "static"}
+                  onChange={(event) => updateData({ position: event.target.value })}
+                  className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                >
+                  <option value="static">Статика</option>
+                  <option value="sticky">Фиксация при скролле</option>
+                </select>
+              </label>
+              <div className="space-y-2">
+                <div className="text-sm font-semibold">Пункты меню</div>
+                {PAGE_KEYS.map((key) => {
+                  const items = Array.isArray(block.data.menuItems)
+                    ? (block.data.menuItems as SitePageKey[])
+                    : [];
+                  const checked = items.includes(key);
+                  return (
+                    <label key={key} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          const next = event.target.checked
+                            ? [...items, key]
+                            : items.filter((item) => item !== key);
+                          updateData({ menuItems: next });
+                        }}
+                      />
+                      {PAGE_LABELS[key]}
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          {inSection("actions") && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showButton)}
+                  onChange={(event) => updateData({ showButton: event.target.checked })}
+                />
+                Показывать кнопку записи
+              </label>
+              <label className="text-sm">
+                Действие кнопки
+                <select
+                  value={(block.data.ctaMode as string) ?? "booking"}
+                  onChange={(event) => updateData({ ctaMode: event.target.value })}
+                  className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                >
+                  <option value="booking">Запись</option>
+                  <option value="phone">Телефон</option>
+                </select>
+              </label>
+              <FieldText
+                label="Телефон для кнопки"
+                value={(block.data.phoneOverride as string) ?? ""}
+                onChange={(value) => updateData({ phoneOverride: value })}
+              />
+              <FieldText
+                label="Текст кнопки"
+                value={(block.data.buttonText as string) ?? "Записаться"}
+                onChange={(value) => updateData({ buttonText: value })}
+              />
+            </>
+          )}
+          {inSection("extras") && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showSearch)}
+                  onChange={(event) => updateData({ showSearch: event.target.checked })}
+                />
+                Показывать поиск
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showAccount)}
+                  onChange={(event) => updateData({ showAccount: event.target.checked })}
+                />
+                Иконка входа
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showThemeToggle)}
+                  onChange={(event) => updateData({ showThemeToggle: event.target.checked })}
+                />
+                Переключатель темы
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showSocials)}
+                  onChange={(event) => updateData({ showSocials: event.target.checked })}
+                />
+                Показывать соцсети
+              </label>
+              <label className="text-sm">
+                Соцсети
+                <select
+                  value={(block.data.socialsMode as string) ?? "auto"}
+                  onChange={(event) => updateData({ socialsMode: event.target.value })}
+                  className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                >
+                  <option value="auto">Из профиля аккаунта</option>
+                  <option value="custom">Ввести вручную</option>
+                </select>
+              </label>
+            </>
+          )}
+          {inSection("extras") && block.data.socialsMode === "custom" && (
             <div className="space-y-3">
               {(Object.keys(SOCIAL_LABELS) as SocialKey[]).map((key) => {
                 const socials = (block.data.socialsCustom as Record<string, string>) ?? {};
@@ -1856,84 +2220,69 @@ function BlockEditor({
               })}
             </div>
           )}
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">Пункты меню</div>
-            {PAGE_KEYS.map((key) => {
-              const items = Array.isArray(block.data.menuItems)
-                ? (block.data.menuItems as SitePageKey[])
-                : [];
-              const checked = items.includes(key);
-              return (
-                <label key={key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(event) => {
-                      const next = event.target.checked
-                        ? [...items, key]
-                        : items.filter((item) => item !== key);
-                      updateData({ menuItems: next });
-                    }}
-                  />
-                  {PAGE_LABELS[key]}
-                </label>
-              );
-            })}
-          </div>
 
         </>
       )}
 
       {block.type === "cover" && (
         <>
-          <FieldText
-            label="Заголовок"
-            value={(block.data.title as string) ?? ""}
-            onChange={(value) => updateData({ title: value })}
-          />
-          <FieldText
-            label="Подзаголовок"
-            value={(block.data.subtitle as string) ?? ""}
-            onChange={(value) => updateData({ subtitle: value })}
-          />
-          <FieldTextarea
-            label="Описание"
-            value={(block.data.description as string) ?? ""}
-            onChange={(value) => updateData({ description: value })}
-          />
-          <label className="text-sm">
-            Выравнивание
-            <select
-              value={(block.data.align as string) ?? "left"}
-              onChange={(event) => updateData({ align: event.target.value })}
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="left">Слева</option>
-              <option value="center">По центру</option>
-              <option value="right">Справа</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.showButton)}
-              onChange={(event) => updateData({ showButton: event.target.checked })}
+          {inSection("text", "main") && (
+            <>
+              <FieldText
+                label="Заголовок"
+                value={(block.data.title as string) ?? ""}
+                onChange={(value) => updateData({ title: value })}
+              />
+              <FieldText
+                label="Подзаголовок"
+                value={(block.data.subtitle as string) ?? ""}
+                onChange={(value) => updateData({ subtitle: value })}
+              />
+              <FieldTextarea
+                label="Описание"
+                value={(block.data.description as string) ?? ""}
+                onChange={(value) => updateData({ description: value })}
+              />
+              <label className="text-sm">
+                Выравнивание
+                <select
+                  value={(block.data.align as string) ?? "left"}
+                  onChange={(event) => updateData({ align: event.target.value })}
+                  className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                >
+                  <option value="left">Слева</option>
+                  <option value="center">По центру</option>
+                  <option value="right">Справа</option>
+                </select>
+              </label>
+            </>
+          )}
+          {inSection("actions", "main") && (
+            <>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showButton)}
+                  onChange={(event) => updateData({ showButton: event.target.checked })}
+                />
+                Показывать кнопку записи
+              </label>
+              <FieldText
+                label="Текст кнопки"
+                value={(block.data.buttonText as string) ?? ""}
+                onChange={(value) => updateData({ buttonText: value })}
+              />
+            </>
+          )}
+          {inSection("media", "main") && (
+            <CoverImageEditor
+              data={block.data}
+              locations={locations}
+              services={services}
+              specialists={specialists}
+              onChange={updateData}
             />
-            Показывать кнопку записи
-          </label>
-          <FieldText
-            label="Текст кнопки"
-            value={(block.data.buttonText as string) ?? ""}
-            onChange={(value) => updateData({ buttonText: value })}
-          />
-
-          <CoverImageEditor
-            data={block.data}
-            locations={locations}
-            services={services}
-            specialists={specialists}
-            onChange={updateData}
-          />
+          )}
         </>
       )}
 
@@ -2461,10 +2810,12 @@ function BlockEditor({
 function BlockStyleEditor({
   block,
   theme,
+  activeSectionId,
   onChange,
 }: {
   block: SiteBlock;
   theme: SiteTheme;
+  activeSectionId: string;
   onChange: (next: SiteBlock) => void;
 }) {
   const style = normalizeBlockStyle(block, theme);
@@ -2499,9 +2850,12 @@ function BlockStyleEditor({
   const update = (patch: Partial<BlockStyle>) => {
     onChange(updateBlockStyle(block, patch));
   };
+  const inSection = (...ids: string[]) =>
+    ids.length === 0 || ids.includes(activeSectionId);
 
   return (
     <div className="space-y-4">
+      {inSection("layout") && (
       <label className="text-sm">
         Межблоковое расстояние сверху: {style.marginTop}px
         <input
@@ -2514,6 +2868,8 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
+      {inSection("layout") && (
       <label className="text-sm">
         Межблоковое расстояние снизу: {style.marginBottom}px
         <input
@@ -2526,6 +2882,8 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
+      {inSection("layout") && (
       <label className="text-sm">
         {block.type === "booking"
           ? `Ширина контейнера: ${bookingPreset}`
@@ -2553,6 +2911,8 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
+      {inSection("layout") && (
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -2565,6 +2925,8 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
+      {inSection("layout") && (
       <label className="text-sm">
         Радиус кнопки: {style.buttonRadius ?? theme.buttonRadius}px
         <input
@@ -2579,7 +2941,9 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
       {block.type === "menu" && (
+        inSection("layout") && (
         <label className="text-sm">
           Высота меню:{" "}
           {Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
@@ -2608,7 +2972,9 @@ function BlockStyleEditor({
             className="mt-2 w-full"
           />
         </label>
+        )
       )}
+      {inSection("colors") && (
       <div className="grid grid-cols-2 gap-3">
         <ColorField
           label="Цвет блока"
@@ -2696,6 +3062,8 @@ function BlockStyleEditor({
           onChange={(value) => update({ shadowSize: value })}
         />
       </div>
+      )}
+      {inSection("colors") && (
       <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
           Темная тема
@@ -2747,6 +3115,8 @@ function BlockStyleEditor({
             />
         </div>
       </div>
+      )}
+      {inSection("effects") && (
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -2755,7 +3125,9 @@ function BlockStyleEditor({
         />
         Градиент блока
       </label>
+      )}
       {style.gradientEnabled && (
+        inSection("effects") && (
         <>
           <label className="text-sm">
             Направление градиента
@@ -2785,7 +3157,9 @@ function BlockStyleEditor({
             />
           </div>
         </>
+        )
       )}
+      {inSection("typography") && (
       <label className="text-sm">
         Выравнивание текста
         <select
@@ -2800,6 +3174,8 @@ function BlockStyleEditor({
           <option value="right">Справа</option>
         </select>
       </label>
+      )}
+      {inSection("typography") && (
       <label className="text-sm">
         Шрифт заголовка
         <select
@@ -2815,6 +3191,8 @@ function BlockStyleEditor({
           ))}
         </select>
       </label>
+      )}
+      {inSection("typography") && (
       <label className="text-sm">
         Шрифт текста
         <select
@@ -2830,6 +3208,8 @@ function BlockStyleEditor({
           ))}
         </select>
       </label>
+      )}
+      {inSection("typography") && (
       <div className="grid grid-cols-3 gap-3">
         <NumberField
           label="Заголовок"
@@ -2853,6 +3233,7 @@ function BlockStyleEditor({
           onChange={(value) => update({ textSize: value })}
         />
       </div>
+      )}
     </div>
   );
 }
@@ -4166,12 +4547,17 @@ function renderMenuBlock(
   const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
   const logoImageNode =
     showLogo && branding.logoUrl ? (
-      <img src={branding.logoUrl} alt="" style={{ height: logoImageHeight, width: "auto" }} />
+      <img
+        src={branding.logoUrl}
+        alt=""
+        className="block"
+        style={{ height: logoImageHeight, width: "auto" }}
+      />
     ) : null;
   const companyNameNode = showCompanyName ? (
     <span
-      className="font-semibold text-[color:var(--bp-muted)]"
-      style={{ ...textStyle(style, theme), textAlign: "left" }}
+      className="font-semibold leading-none text-[color:var(--bp-muted)]"
+      style={{ ...textStyle(style, theme), textAlign: "left", lineHeight: 1.1 }}
     >
       {accountTitle}
     </span>
@@ -4418,18 +4804,18 @@ function MenuPreview({
         className="relative w-full"
         style={
           position === "sticky"
-            ? { position: "sticky", top: 12, zIndex: 5, minHeight: mobileOpen ? "82vh" : undefined }
+            ? { position: "sticky", top: 120, zIndex: 1, minHeight: mobileOpen ? "82vh" : undefined }
             : { minHeight: mobileOpen ? "82vh" : undefined }
         }
       >
         <div
-          className={`relative z-[5] flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
+          className={`relative flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
           style={{ ...topBarStyle, minHeight: menuHeight }}
         >
           <div className="flex items-center gap-3">{logoNode}</div>
           <button
             type="button"
-            className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+            className="absolute right-8 top-1/2 z-[11] inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
             style={{ width: menuButtonSize, height: menuButtonSize }}
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
@@ -4458,7 +4844,7 @@ function MenuPreview({
         </div>
         {mobileOpen && (
           <div
-            className="absolute inset-0 z-30 flex flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
+            className="absolute inset-0 z-10 flex flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
             style={{ ...subBlockStyle, borderWidth: 0 }}
           >
             <div className="flex flex-1 flex-col items-center justify-center py-6">
@@ -4535,7 +4921,7 @@ function MenuPreview({
       className="w-full"
       style={
         position === "sticky"
-          ? { position: "sticky", top: 12, zIndex: 5 }
+          ? { position: "sticky", top: 120, zIndex: 1 }
           : undefined
       }
     >
