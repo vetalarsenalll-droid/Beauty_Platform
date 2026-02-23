@@ -123,7 +123,7 @@ export const BLOCK_VARIANTS: Record<
   locations: ["v1", "v2"],
   services: ["v1", "v2"],
   specialists: ["v1", "v2"],
-  works: ["v1"],
+  works: ["v1", "v2"],
   reviews: ["v1", "v2"],
   contacts: ["v1", "v2"],
   promos: ["v1", "v2"],

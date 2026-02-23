@@ -180,6 +180,9 @@ function bookingCardsPerRow(columns: number): number {
 
 function responsiveBlockWidthCss(columns: number, useEdgePad = true): string {
   const clampedColumns = Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, columns));
+  if (clampedColumns >= MAX_BLOCK_COLUMNS) {
+    return "100%";
+  }
   const targetPx = Math.round((PUBLIC_WIDTH_REFERENCE * clampedColumns) / MAX_BLOCK_COLUMNS);
   if (!useEdgePad) {
     return `min(${targetPx}px, 100%)`;
@@ -2007,6 +2010,50 @@ function renderWorks(
         : items;
   const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
   const hasGalleryText = Boolean(title || subtitle);
+  const isFullscreenVariant = block.variant === "v2";
+
+  if (isFullscreenVariant) {
+    return (
+      <div className="relative w-full">
+        <GallerySlider
+          images={galleryImages}
+          height={galleryHeight}
+          radius={imageRadius}
+          imageFit={imageFit}
+          imageBorderColor={imageBorderColor}
+          imageBorderWidth={imageBorderWidth}
+          imageShadow={imageShadow}
+          dotsOverlay={true}
+          arrowColor={arrowColor || "var(--bp-ink)"}
+          arrowBgColor={arrowBgColor || "#ffffffd1"}
+          dotActiveColor={dotActiveColor || "var(--bp-ink)"}
+          dotInactiveColor={dotInactiveColor || "var(--bp-muted)"}
+          arrowVariant={arrowVariant}
+        />
+        {hasGalleryText && (
+          <>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/55 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-14 z-[2]">
+              <div
+                className="mx-auto px-4 text-center text-white"
+                style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%" }}
+              >
+                {title && <h2 className="font-semibold" style={{ ...headingStyle(style), color: "white" }}>{title}</h2>}
+                {subtitle && (
+                  <p
+                    className={`${title ? "mt-2" : ""}`}
+                    style={{ ...subheadingStyle(style), color: "rgba(255,255,255,0.9)" }}
+                  >
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%", margin: "0 auto" }}>

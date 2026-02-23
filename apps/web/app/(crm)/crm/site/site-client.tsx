@@ -3313,6 +3313,11 @@ function BlockStyleEditor({
           }}
           className="mt-2 w-full"
         />
+        {block.type === "works" && block.variant === "v2" && (
+          <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+            В варианте 2 ширина блока регулирует ширину текста поверх галереи.
+          </div>
+        )}
       </label>
       )}
       {inSection("layout") && block.type === "menu" && (
@@ -4603,6 +4608,7 @@ function BlockPreview({
   const isBooking = block.type === "booking";
   const isMenu = block.type === "menu";
   const isGallery = block.type === "works";
+  const isFullscreenGallery = isGallery && block.variant === "v2";
   const blockWidthColumns = isMenu
     ? MAX_BLOCK_COLUMNS
     : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
@@ -4666,7 +4672,7 @@ function BlockPreview({
     >
       <div
         style={
-          isGallery
+          isGallery && !isFullscreenGallery
             ? {
                 width: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
                 maxWidth: "100%",
@@ -4700,6 +4706,7 @@ function BlockPreview({
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-muted" as string]: mutedColor,
             ["--bp-stroke" as string]: borderColor,
+            ["--works-content-width" as string]: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
           }}
         >
             {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
@@ -6475,6 +6482,50 @@ function renderWorks(
         : items;
   const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
   const hasGalleryText = Boolean(title || subtitle);
+  const isFullscreenVariant = block.variant === "v2";
+
+  if (isFullscreenVariant) {
+    return (
+      <div className="relative">
+        <GallerySlider
+          images={galleryImages}
+          height={galleryHeight}
+          radius={imageRadius}
+          imageFit={imageFit}
+          imageBorderColor={imageBorderColor}
+          imageBorderWidth={imageBorderWidth}
+          imageShadow={imageShadow}
+          dotsOverlay={true}
+          arrowColor={arrowColor || "var(--bp-ink)"}
+          arrowBgColor={arrowBgColor || "#ffffffd1"}
+          dotActiveColor={dotActiveColor || "var(--bp-ink)"}
+          dotInactiveColor={dotInactiveColor || "var(--bp-muted)"}
+          arrowVariant={arrowVariant}
+        />
+        {hasGalleryText && (
+          <>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/55 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-14 z-[2]">
+              <div
+                className="mx-auto px-4 text-center text-white"
+                style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%" }}
+              >
+                {title && <h3 className="font-semibold" style={{ ...headingStyle(style, theme), color: "white" }}>{title}</h3>}
+                {subtitle && (
+                  <p
+                    className={`${title ? "mt-2" : ""}`}
+                    style={{ ...subheadingStyle(style, theme), color: "rgba(255,255,255,0.9)" }}
+                  >
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>

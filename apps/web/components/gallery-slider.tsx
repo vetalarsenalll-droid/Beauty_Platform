@@ -11,6 +11,7 @@ type GallerySliderProps = {
   imageBorderWidth?: number;
   imageShadow?: string;
   showDots?: boolean;
+  dotsOverlay?: boolean;
   arrowColor?: string;
   arrowBgColor?: string;
   dotActiveColor?: string;
@@ -28,6 +29,7 @@ export default function GallerySlider({
   imageBorderWidth = 0,
   imageShadow = "none",
   showDots = true,
+  dotsOverlay = false,
   arrowColor = "var(--bp-ink)",
   arrowBgColor = "#ffffffd1",
   dotActiveColor = "var(--bp-ink)",
@@ -84,7 +86,21 @@ export default function GallerySlider({
           className="h-full w-full"
           style={{ objectFit: imageFit }}
         />
-
+        {showDots && canSlide && dotsOverlay && (
+          <div className="absolute bottom-4 left-1/2 z-[3] flex -translate-x-1/2 items-center justify-center gap-2">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => setCurrent(index)}
+                className="h-2.5 w-2.5 rounded-full transition"
+                style={{ backgroundColor: index === current ? dotActiveColor : dotInactiveColor }}
+                aria-label={`Слайд ${index + 1}`}
+                title={`Слайд ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {canSlide && (
@@ -112,7 +128,7 @@ export default function GallerySlider({
         </>
       )}
 
-      {showDots && canSlide && (
+      {showDots && canSlide && !dotsOverlay && (
         <div className="mt-4 flex items-center justify-center gap-2">
           {images.map((_, index) => (
             <button
