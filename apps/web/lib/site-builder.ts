@@ -384,12 +384,25 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         imageRadius: 0,
         imageFit: "cover",
         maxSlides: 12,
+        arrowColor: "",
+        arrowColorLight: "",
+        arrowColorDark: "",
+        arrowBgColor: "",
+        arrowBgColorLight: "",
+        arrowBgColorDark: "",
+        dotActiveColor: "",
+        dotActiveColorLight: "",
+        dotActiveColorDark: "",
+        dotInactiveColor: "",
+        dotInactiveColorLight: "",
+        dotInactiveColorDark: "",
+        arrowVariant: "chevron",
         style: {
           radius: 0,
           sectionBgLight: "#ffffff",
           sectionBg: "#ffffff",
-          blockBgLight: "transparent",
-          blockBg: "transparent",
+          blockBgLight: "#ffffff",
+          blockBg: "#ffffff",
           borderColorLight: "transparent",
           borderColor: "transparent",
           shadowSize: 0,
@@ -646,6 +659,14 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
           if (!Number.isFinite(Number(safeStyle.radius))) {
             safeStyle.radius = 0;
           }
+          // Gallery content color is tied to block color by design.
+          const sectionBgLight =
+            typeof safeStyle.sectionBgLight === "string" ? safeStyle.sectionBgLight : "";
+          const sectionBgDark = typeof safeStyle.sectionBgDark === "string" ? safeStyle.sectionBgDark : "";
+          const sectionBg = typeof safeStyle.sectionBg === "string" ? safeStyle.sectionBg : "";
+          safeStyle.blockBgLight = sectionBgLight;
+          safeStyle.blockBgDark = sectionBgDark;
+          safeStyle.blockBg = sectionBg;
           safeData.style = safeStyle;
           safeData.imageFit = safeData.imageFit === "contain" ? "contain" : "cover";
           const maxSlidesRaw = Number(safeData.maxSlides);
@@ -653,6 +674,42 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
             Number.isFinite(maxSlidesRaw) && maxSlidesRaw >= 1 && maxSlidesRaw <= 30
               ? Math.round(maxSlidesRaw)
               : 12;
+          const arrowColorRaw = typeof safeData.arrowColor === "string" ? safeData.arrowColor.trim() : "";
+          const arrowBgColorRaw = typeof safeData.arrowBgColor === "string" ? safeData.arrowBgColor.trim() : "";
+          const dotActiveColorRaw =
+            typeof safeData.dotActiveColor === "string" ? safeData.dotActiveColor.trim() : "";
+          const dotInactiveColorRaw =
+            typeof safeData.dotInactiveColor === "string" ? safeData.dotInactiveColor.trim() : "";
+          safeData.arrowColor = arrowColorRaw;
+          safeData.arrowColorLight =
+            typeof safeData.arrowColorLight === "string" ? safeData.arrowColorLight.trim() : arrowColorRaw;
+          safeData.arrowColorDark =
+            typeof safeData.arrowColorDark === "string" ? safeData.arrowColorDark.trim() : "";
+          safeData.arrowBgColor = arrowBgColorRaw;
+          safeData.arrowBgColorLight =
+            typeof safeData.arrowBgColorLight === "string"
+              ? safeData.arrowBgColorLight.trim()
+              : arrowBgColorRaw;
+          safeData.arrowBgColorDark =
+            typeof safeData.arrowBgColorDark === "string" ? safeData.arrowBgColorDark.trim() : "";
+          safeData.dotActiveColor = dotActiveColorRaw;
+          safeData.dotActiveColorLight =
+            typeof safeData.dotActiveColorLight === "string"
+              ? safeData.dotActiveColorLight.trim()
+              : dotActiveColorRaw;
+          safeData.dotActiveColorDark =
+            typeof safeData.dotActiveColorDark === "string" ? safeData.dotActiveColorDark.trim() : "";
+          safeData.dotInactiveColor = dotInactiveColorRaw;
+          safeData.dotInactiveColorLight =
+            typeof safeData.dotInactiveColorLight === "string"
+              ? safeData.dotInactiveColorLight.trim()
+              : dotInactiveColorRaw;
+          safeData.dotInactiveColorDark =
+            typeof safeData.dotInactiveColorDark === "string" ? safeData.dotInactiveColorDark.trim() : "";
+          safeData.arrowVariant =
+            safeData.arrowVariant === "angle" || safeData.arrowVariant === "triangle"
+              ? safeData.arrowVariant
+              : "chevron";
         }
         return {
           // Deterministic fallback id to avoid SSR/CSR hydration mismatch.

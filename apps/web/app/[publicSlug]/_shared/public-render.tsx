@@ -1926,6 +1926,56 @@ function renderWorks(
     Number.isFinite(maxSlidesRaw) && maxSlidesRaw >= 1 && maxSlidesRaw <= 30
       ? Math.round(maxSlidesRaw)
       : 12;
+  const colorMode = theme.mode === "dark" ? "dark" : "light";
+  const arrowColorLight =
+    typeof data.arrowColorLight === "string"
+      ? data.arrowColorLight.trim()
+      : typeof data.arrowColor === "string"
+        ? data.arrowColor.trim()
+        : "";
+  const arrowColorDark = typeof data.arrowColorDark === "string" ? data.arrowColorDark.trim() : "";
+  const arrowBgColorLight =
+    typeof data.arrowBgColorLight === "string"
+      ? data.arrowBgColorLight.trim()
+      : typeof data.arrowBgColor === "string"
+        ? data.arrowBgColor.trim()
+        : "";
+  const arrowBgColorDark = typeof data.arrowBgColorDark === "string" ? data.arrowBgColorDark.trim() : "";
+  const dotActiveColorLight =
+    typeof data.dotActiveColorLight === "string"
+      ? data.dotActiveColorLight.trim()
+      : typeof data.dotActiveColor === "string"
+        ? data.dotActiveColor.trim()
+        : "";
+  const dotActiveColorDark = typeof data.dotActiveColorDark === "string" ? data.dotActiveColorDark.trim() : "";
+  const dotInactiveColorLight =
+    typeof data.dotInactiveColorLight === "string"
+      ? data.dotInactiveColorLight.trim()
+      : typeof data.dotInactiveColor === "string"
+        ? data.dotInactiveColor.trim()
+        : "";
+  const dotInactiveColorDark =
+    typeof data.dotInactiveColorDark === "string" ? data.dotInactiveColorDark.trim() : "";
+  const arrowColor =
+    colorMode === "dark" ? arrowColorDark || arrowColorLight : arrowColorLight || arrowColorDark;
+  const arrowBgColor =
+    colorMode === "dark" ? arrowBgColorDark || arrowBgColorLight : arrowBgColorLight || arrowBgColorDark;
+  const dotActiveColor =
+    colorMode === "dark" ? dotActiveColorDark || dotActiveColorLight : dotActiveColorLight || dotActiveColorDark;
+  const dotInactiveColor =
+    colorMode === "dark"
+      ? dotInactiveColorDark || dotInactiveColorLight
+      : dotInactiveColorLight || dotInactiveColorDark;
+  const arrowVariant =
+    data.arrowVariant === "angle" || data.arrowVariant === "triangle" ? data.arrowVariant : "chevron";
+  const imageBorderColor = style.borderColor === "transparent" ? "transparent" : "var(--block-border)";
+  const imageBorderWidth = style.borderColor === "transparent" ? 0 : 1;
+  const imageShadow =
+    typeof style.shadowSize === "number"
+      ? style.shadowSize > 0
+        ? `0 ${style.shadowSize}px ${style.shadowSize * 2}px ${style.shadowColor || "var(--site-shadow-color)"}`
+        : "none"
+      : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)";
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -1956,35 +2006,45 @@ function renderWorks(
         ? items.filter((item) => ids.includes(Number(item.entityId)))
         : items;
   const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
+  const hasGalleryText = Boolean(title || subtitle);
 
   return (
     <div style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%", margin: "0 auto" }}>
       <div
-        className="border p-6"
+        className="p-0"
         style={{
           backgroundColor: "var(--block-bg)",
           backgroundImage: "var(--block-gradient)",
           borderColor: "var(--block-border)",
-          borderWidth: style.borderColor === "transparent" ? 0 : 1,
+          borderWidth: 0,
           borderRadius: typeof style.radius === "number" ? style.radius : undefined,
-          boxShadow:
-            typeof style.shadowSize === "number"
-              ? `0 ${style.shadowSize}px ${style.shadowSize * 2}px ${style.shadowColor || "var(--site-shadow-color)"}`
-              : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
+          boxShadow: "none",
         }}
       >
-        {title && <h2 className="font-semibold" style={headingStyle(style)}>{title}</h2>}
-        {subtitle && (
-          <p className={`${title ? "mt-2" : ""} text-[color:var(--bp-muted)]`} style={subheadingStyle(style)}>
-            {subtitle}
-          </p>
+        {hasGalleryText && (
+          <div className="px-6 pt-6">
+            {title && <h2 className="font-semibold" style={headingStyle(style)}>{title}</h2>}
+            {subtitle && (
+              <p className={`${title ? "mt-2" : ""} text-[color:var(--bp-muted)]`} style={subheadingStyle(style)}>
+                {subtitle}
+              </p>
+            )}
+          </div>
         )}
-        <div className="mt-5">
+        <div className={hasGalleryText ? "mt-5" : ""}>
           <GallerySlider
             images={galleryImages}
             height={galleryHeight}
             radius={imageRadius}
             imageFit={imageFit}
+            imageBorderColor={imageBorderColor}
+            imageBorderWidth={imageBorderWidth}
+            imageShadow={imageShadow}
+            arrowColor={arrowColor || "var(--bp-ink)"}
+            arrowBgColor={arrowBgColor || "#ffffffd1"}
+            dotActiveColor={dotActiveColor || "var(--bp-ink)"}
+            dotInactiveColor={dotInactiveColor || "var(--bp-muted)"}
+            arrowVariant={arrowVariant}
           />
         </div>
       </div>

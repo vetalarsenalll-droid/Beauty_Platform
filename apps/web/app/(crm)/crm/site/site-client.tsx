@@ -3447,6 +3447,33 @@ function BlockStyleEditor({
               <option value="contain">Вписывать в область</option>
             </select>
           </label>
+          <label className="text-sm">
+            Стиль стрелок
+            <select
+              value={
+                block.data.arrowVariant === "angle" || block.data.arrowVariant === "triangle"
+                  ? String(block.data.arrowVariant)
+                  : "chevron"
+              }
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    arrowVariant:
+                      event.target.value === "angle" || event.target.value === "triangle"
+                        ? event.target.value
+                        : "chevron",
+                  },
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+            >
+              <option value="chevron">Классические</option>
+              <option value="angle">Угловые</option>
+              <option value="triangle">Треугольные</option>
+            </select>
+          </label>
         </>
       )}
       {inSection("colors") && (
@@ -3456,20 +3483,31 @@ function BlockStyleEditor({
           value={toDisplay(lightSectionBg)}
           placeholder={theme.panelColor}
           onChange={(value) =>
-            update({
-              sectionBgLight: toStore(value),
-              sectionBg: toStore(value),
-            })
+            update(
+              block.type === "works"
+                ? {
+                    sectionBgLight: toStore(value),
+                    sectionBg: toStore(value),
+                    blockBgLight: toStore(value),
+                    blockBg: toStore(value),
+                  }
+                : {
+                    sectionBgLight: toStore(value),
+                    sectionBg: toStore(value),
+                  }
+            )
           }
         />
-        <ColorField
-          label="Цвет контента"
-          value={toDisplay(lightBlockBg)}
-          placeholder={theme.panelColor}
-          onChange={(value) =>
-            update({ blockBgLight: toStore(value), blockBg: toStore(value) })
-          }
-        />
+        {block.type !== "works" && (
+          <ColorField
+            label="Цвет контента"
+            value={toDisplay(lightBlockBg)}
+            placeholder={theme.panelColor}
+            onChange={(value) =>
+              update({ blockBgLight: toStore(value), blockBg: toStore(value) })
+            }
+          />
+        )}
         {(block.type === "booking" || block.type === "menu") && (
           <ColorField
             label="Цвет подблока"
@@ -3535,6 +3573,70 @@ function BlockStyleEditor({
             })
           }
         />
+        {block.type === "works" && (
+          <>
+            <ColorField
+              label="Цвет стрелок"
+              value={String(block.data.arrowColorLight ?? block.data.arrowColor ?? "")}
+              placeholder={theme.textColor}
+              onChange={(value) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    arrowColorLight: value,
+                    arrowColor: value,
+                  },
+                })
+              }
+            />
+            <ColorField
+              label="Фон стрелок"
+              value={String(block.data.arrowBgColorLight ?? block.data.arrowBgColor ?? "")}
+              placeholder="#ffffffd1"
+              onChange={(value) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    arrowBgColorLight: value,
+                    arrowBgColor: value,
+                  },
+                })
+              }
+            />
+            <ColorField
+              label="Активная точка"
+              value={String(block.data.dotActiveColorLight ?? block.data.dotActiveColor ?? "")}
+              placeholder={theme.textColor}
+              onChange={(value) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    dotActiveColorLight: value,
+                    dotActiveColor: value,
+                  },
+                })
+              }
+            />
+            <ColorField
+              label="Неактивная точка"
+              value={String(block.data.dotInactiveColorLight ?? block.data.dotInactiveColor ?? "")}
+              placeholder={theme.mutedColor}
+              onChange={(value) =>
+                onChange({
+                  ...block,
+                  data: {
+                    ...block.data,
+                    dotInactiveColorLight: value,
+                    dotInactiveColor: value,
+                  },
+                })
+              }
+            />
+          </>
+        )}
         <ColorField
           label="Тень"
           value={style.shadowColor || theme.shadowColor}
@@ -3559,14 +3661,22 @@ function BlockStyleEditor({
               label="Фон блока"
               value={toDisplay(darkSectionBg)}
               placeholder={theme.darkPalette.panelColor}
-              onChange={(value) => update({ sectionBgDark: toStore(value) })}
+              onChange={(value) =>
+                update(
+                  block.type === "works"
+                    ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
+                    : { sectionBgDark: toStore(value) }
+                )
+              }
             />
-            <ColorField
-              label="Цвет контента"
-              value={toDisplay(darkBlockBg)}
-              placeholder={theme.darkPalette.panelColor}
-              onChange={(value) => update({ blockBgDark: toStore(value) })}
-            />
+            {block.type !== "works" && (
+              <ColorField
+                label="Цвет контента"
+                value={toDisplay(darkBlockBg)}
+                placeholder={theme.darkPalette.panelColor}
+                onChange={(value) => update({ blockBgDark: toStore(value) })}
+              />
+            )}
             {(block.type === "booking" || block.type === "menu") && (
               <ColorField
                 label="Цвет подблока"
@@ -3605,6 +3715,66 @@ function BlockStyleEditor({
               placeholder={theme.darkPalette.mutedColor}
               onChange={(value) => update({ mutedColorDark: toStore(value) })}
             />
+            {block.type === "works" && (
+              <>
+                <ColorField
+                  label="Цвет стрелок"
+                  value={String(block.data.arrowColorDark ?? "")}
+                  placeholder={theme.darkPalette.textColor}
+                  onChange={(value) =>
+                    onChange({
+                      ...block,
+                      data: {
+                        ...block.data,
+                        arrowColorDark: value,
+                      },
+                    })
+                  }
+                />
+                <ColorField
+                  label="Фон стрелок"
+                  value={String(block.data.arrowBgColorDark ?? "")}
+                  placeholder="#ffffffd1"
+                  onChange={(value) =>
+                    onChange({
+                      ...block,
+                      data: {
+                        ...block.data,
+                        arrowBgColorDark: value,
+                      },
+                    })
+                  }
+                />
+                <ColorField
+                  label="Активная точка"
+                  value={String(block.data.dotActiveColorDark ?? "")}
+                  placeholder={theme.darkPalette.textColor}
+                  onChange={(value) =>
+                    onChange({
+                      ...block,
+                      data: {
+                        ...block.data,
+                        dotActiveColorDark: value,
+                      },
+                    })
+                  }
+                />
+                <ColorField
+                  label="Неактивная точка"
+                  value={String(block.data.dotInactiveColorDark ?? "")}
+                  placeholder={theme.darkPalette.mutedColor}
+                  onChange={(value) =>
+                    onChange({
+                      ...block,
+                      data: {
+                        ...block.data,
+                        dotInactiveColorDark: value,
+                      },
+                    })
+                  }
+                />
+              </>
+            )}
         </div>
       </div>
       )}
@@ -4445,7 +4615,7 @@ function BlockPreview({
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
-  const containerClass = isBooking || isMenu
+  const containerClass = isBooking || isMenu || isGallery
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -4522,10 +4692,10 @@ function BlockPreview({
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isMenu || shadowSize <= 0
+              isBooking || isMenu || isGallery || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-muted" as string]: mutedColor,
@@ -6223,6 +6393,57 @@ function renderWorks(
     Number.isFinite(maxSlidesRaw) && maxSlidesRaw >= 1 && maxSlidesRaw <= 30
       ? Math.round(maxSlidesRaw)
       : 12;
+  const colorMode = theme.mode === "dark" ? "dark" : "light";
+  const arrowColorLight =
+    typeof data.arrowColorLight === "string"
+      ? data.arrowColorLight.trim()
+      : typeof data.arrowColor === "string"
+        ? data.arrowColor.trim()
+        : "";
+  const arrowColorDark = typeof data.arrowColorDark === "string" ? data.arrowColorDark.trim() : "";
+  const arrowBgColorLight =
+    typeof data.arrowBgColorLight === "string"
+      ? data.arrowBgColorLight.trim()
+      : typeof data.arrowBgColor === "string"
+        ? data.arrowBgColor.trim()
+        : "";
+  const arrowBgColorDark = typeof data.arrowBgColorDark === "string" ? data.arrowBgColorDark.trim() : "";
+  const dotActiveColorLight =
+    typeof data.dotActiveColorLight === "string"
+      ? data.dotActiveColorLight.trim()
+      : typeof data.dotActiveColor === "string"
+        ? data.dotActiveColor.trim()
+        : "";
+  const dotActiveColorDark = typeof data.dotActiveColorDark === "string" ? data.dotActiveColorDark.trim() : "";
+  const dotInactiveColorLight =
+    typeof data.dotInactiveColorLight === "string"
+      ? data.dotInactiveColorLight.trim()
+      : typeof data.dotInactiveColor === "string"
+        ? data.dotInactiveColor.trim()
+        : "";
+  const dotInactiveColorDark =
+    typeof data.dotInactiveColorDark === "string" ? data.dotInactiveColorDark.trim() : "";
+  const arrowColor =
+    colorMode === "dark" ? arrowColorDark || arrowColorLight : arrowColorLight || arrowColorDark;
+  const arrowBgColor =
+    colorMode === "dark" ? arrowBgColorDark || arrowBgColorLight : arrowBgColorLight || arrowBgColorDark;
+  const dotActiveColor =
+    colorMode === "dark" ? dotActiveColorDark || dotActiveColorLight : dotActiveColorLight || dotActiveColorDark;
+  const dotInactiveColor =
+    colorMode === "dark"
+      ? dotInactiveColorDark || dotInactiveColorLight
+      : dotInactiveColorLight || dotInactiveColorDark;
+  const arrowVariant =
+    data.arrowVariant === "angle" || data.arrowVariant === "triangle" ? data.arrowVariant : "chevron";
+  const resolvedBorderColor = (style.borderColor || theme.borderColor || "").trim() || "transparent";
+  const imageBorderColor = resolvedBorderColor === "transparent" ? "transparent" : resolvedBorderColor;
+  const imageBorderWidth = resolvedBorderColor === "transparent" ? 0 : 1;
+  const resolvedShadowSize = style.shadowSize ?? theme.shadowSize ?? 0;
+  const resolvedShadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const imageShadow =
+    resolvedShadowSize > 0
+      ? `0 ${resolvedShadowSize}px ${resolvedShadowSize * 2}px ${resolvedShadowColor}`
+      : "none";
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -6253,6 +6474,7 @@ function renderWorks(
         ? items.filter((item) => ids.includes(Number(item.entityId)))
         : items;
   const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
+  const hasGalleryText = Boolean(title || subtitle);
 
   return (
     <div>
@@ -6266,12 +6488,20 @@ function renderWorks(
           {subtitle}
         </p>
       )}
-      <div className="mt-5">
+      <div className={hasGalleryText ? "mt-5" : ""}>
         <GallerySlider
           images={galleryImages}
           height={galleryHeight}
           radius={imageRadius}
           imageFit={imageFit}
+          imageBorderColor={imageBorderColor}
+          imageBorderWidth={imageBorderWidth}
+          imageShadow={imageShadow}
+          arrowColor={arrowColor || "var(--bp-ink)"}
+          arrowBgColor={arrowBgColor || "#ffffffd1"}
+          dotActiveColor={dotActiveColor || "var(--bp-ink)"}
+          dotInactiveColor={dotInactiveColor || "var(--bp-muted)"}
+          arrowVariant={arrowVariant}
         />
       </div>
     </div>

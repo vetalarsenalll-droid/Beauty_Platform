@@ -7,7 +7,15 @@ type GallerySliderProps = {
   height: number;
   radius: number;
   imageFit?: "cover" | "contain";
+  imageBorderColor?: string;
+  imageBorderWidth?: number;
+  imageShadow?: string;
   showDots?: boolean;
+  arrowColor?: string;
+  arrowBgColor?: string;
+  dotActiveColor?: string;
+  dotInactiveColor?: string;
+  arrowVariant?: "chevron" | "angle" | "triangle";
   className?: string;
 };
 
@@ -16,7 +24,15 @@ export default function GallerySlider({
   height,
   radius,
   imageFit = "cover",
+  imageBorderColor = "transparent",
+  imageBorderWidth = 0,
+  imageShadow = "none",
   showDots = true,
+  arrowColor = "var(--bp-ink)",
+  arrowBgColor = "#ffffffd1",
+  dotActiveColor = "var(--bp-ink)",
+  dotInactiveColor = "var(--bp-muted)",
+  arrowVariant = "chevron",
   className = "",
 }: GallerySliderProps) {
   const [current, setCurrent] = useState(0);
@@ -45,12 +61,22 @@ export default function GallerySlider({
   const canSlide = images.length > 1;
   const prev = () => setCurrent((value) => (value - 1 + images.length) % images.length);
   const next = () => setCurrent((value) => (value + 1) % images.length);
+  const leftArrow = arrowVariant === "triangle" ? "◀" : arrowVariant === "angle" ? "❮" : "‹";
+  const rightArrow = arrowVariant === "triangle" ? "▶" : arrowVariant === "angle" ? "❯" : "›";
 
   return (
     <div className={`relative ${className}`}>
       <div
         className="relative overflow-hidden bg-[color:var(--bp-paper)]"
-        style={{ height, borderRadius: radius }}
+        style={{
+          height,
+          borderRadius: radius,
+          borderColor: imageBorderColor,
+          borderWidth: imageBorderWidth,
+          borderStyle: imageBorderWidth > 0 ? "solid" : "none",
+          boxShadow: imageShadow,
+          boxSizing: "border-box",
+        }}
       >
         <img
           src={images[current]}
@@ -58,6 +84,7 @@ export default function GallerySlider({
           className="h-full w-full"
           style={{ objectFit: imageFit }}
         />
+
       </div>
 
       {canSlide && (
@@ -65,20 +92,22 @@ export default function GallerySlider({
           <button
             type="button"
             onClick={prev}
-            className="absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-[rgba(255,255,255,0.82)] text-xl text-[color:var(--bp-ink)] shadow-sm backdrop-blur"
+            className="absolute left-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-transparent text-xl text-[color:var(--bp-ink)] shadow-sm backdrop-blur"
+            style={{ color: arrowColor, backgroundColor: arrowBgColor }}
             aria-label="Предыдущее фото"
             title="Предыдущее фото"
           >
-            ‹
+            {leftArrow}
           </button>
           <button
             type="button"
             onClick={next}
-            className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-transparent bg-[rgba(255,255,255,0.82)] text-xl text-[color:var(--bp-ink)] shadow-sm backdrop-blur"
+            className="absolute right-3 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-transparent text-xl text-[color:var(--bp-ink)] shadow-sm backdrop-blur"
+            style={{ color: arrowColor, backgroundColor: arrowBgColor }}
             aria-label="Следующее фото"
             title="Следующее фото"
           >
-            ›
+            {rightArrow}
           </button>
         </>
       )}
@@ -90,9 +119,8 @@ export default function GallerySlider({
               key={index}
               type="button"
               onClick={() => setCurrent(index)}
-              className={`h-2.5 w-2.5 rounded-full transition ${
-                index === current ? "bg-[color:var(--bp-ink)]" : "bg-[color:var(--bp-muted)] opacity-45"
-              }`}
+              className="h-2.5 w-2.5 rounded-full transition"
+              style={{ backgroundColor: index === current ? dotActiveColor : dotInactiveColor }}
               aria-label={`Слайд ${index + 1}`}
               title={`Слайд ${index + 1}`}
             />
