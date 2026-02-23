@@ -751,45 +751,47 @@ export function buildBlockWrapperStyle(
     return {
       className: isMenu
         ? "site-block overflow-hidden border border-[color:var(--bp-stroke)] p-0"
-        : isGallery
+        : isGallery || isBookingBlock
           ? "site-block p-0"
         : "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: radius,
-        backgroundColor: isGallery ? sectionBgCurrent : "var(--block-bg)",
-        backgroundImage: isGallery ? "none" : "var(--block-gradient)",
-        borderColor: isGallery ? "transparent" : "var(--block-border)",
-        borderWidth: isGallery ? 0 : hasVisibleBorder ? 1 : 0,
+        borderRadius: isBookingBlock ? 0 : radius,
+        backgroundColor: isGallery || isBookingBlock ? sectionBgCurrent : "var(--block-bg)",
+        backgroundImage: isGallery || isBookingBlock ? "none" : "var(--block-gradient)",
+        borderColor: isGallery || isBookingBlock ? "transparent" : "var(--block-border)",
+        borderWidth: isGallery || isBookingBlock ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:
-          isGallery
+          isGallery || isBookingBlock
             ? "none"
             : blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop:
-          options.blockType === "menu" || options.blockType === "works"
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock
             ? 0
             : typeof style.marginTop === "number"
               ? style.marginTop
               : 0,
         marginBottom:
-          options.blockType === "works"
+          options.blockType === "works" || isBookingBlock
             ? 0
             : typeof style.marginBottom === "number"
               ? style.marginBottom
               : 0,
         paddingTop:
-          options.blockType === "works" && typeof style.marginTop === "number"
+          (options.blockType === "works" || isBookingBlock) &&
+          typeof style.marginTop === "number"
             ? style.marginTop
             : undefined,
         paddingBottom:
-          options.blockType === "works" && typeof style.marginBottom === "number"
+          (options.blockType === "works" || isBookingBlock) &&
+          typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu ? menuWidth : isGallery ? "100%" : contentWidth,
+        width: isMenu || isGallery || isBookingBlock ? "100%" : contentWidth,
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",

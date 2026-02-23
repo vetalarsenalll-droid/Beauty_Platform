@@ -145,6 +145,16 @@ const PAGE_LABELS: Record<SitePageKey, string> = {
 const PAGE_KEYS = Object.keys(PAGE_LABELS) as SitePageKey[];
 const isSystemBlockType = (type: unknown): type is "client" | "booking" =>
   type === "client" || type === "booking";
+const QUICK_BLOCK_TYPES: BlockType[] = [
+  "cover",
+  "about",
+  "locations",
+  "services",
+  "specialists",
+  "works",
+  "promos",
+  "contacts",
+];
 
 type EditorSection = { id: string; label: string };
 
@@ -678,7 +688,7 @@ export default function SiteClient({
   );
   const [leftPanel, setLeftPanel] = useState<"pages" | "library" | null>(null);
   const [libraryBlock, setLibraryBlock] = useState<BlockType | null>(null);
-  const [rightPanel, setRightPanel] = useState<"global" | "content" | "settings" | null>(
+  const [rightPanel, setRightPanel] = useState<"global" | "page" | "content" | "settings" | null>(
     null
   );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
@@ -714,11 +724,14 @@ export default function SiteClient({
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
   const activeBlockId = spacingAnchorBlockId ?? selectedId;
+  const activeTheme: SiteTheme =
+    draft.pageThemes?.[activePageKey] ?? draft.theme;
+
   const getSlotSpacing = (slotIndex: number) => {
     const prevBlock = displayBlocks[slotIndex - 1] ?? null;
     const nextBlock = displayBlocks[slotIndex] ?? null;
-    const prevBottom = prevBlock ? normalizeBlockStyle(prevBlock, draft.theme).marginBottom : 0;
-    const nextTop = nextBlock ? normalizeBlockStyle(nextBlock, draft.theme).marginTop : 0;
+    const prevBottom = prevBlock ? normalizeBlockStyle(prevBlock, activeTheme).marginBottom : 0;
+    const nextTop = nextBlock ? normalizeBlockStyle(nextBlock, activeTheme).marginTop : 0;
     return Math.max(0, prevBottom + nextTop);
   };
   const getSlotActiveOffset = (
@@ -728,19 +741,19 @@ export default function SiteClient({
     const prevBlock = displayBlocks[slotIndex - 1] ?? null;
     const nextBlock = displayBlocks[slotIndex] ?? null;
     if (target === "next" && nextBlock) {
-      return normalizeBlockStyle(nextBlock, draft.theme).marginTop;
+      return normalizeBlockStyle(nextBlock, activeTheme).marginTop;
     }
     if (target === "prev" && prevBlock) {
-      return normalizeBlockStyle(prevBlock, draft.theme).marginBottom;
+      return normalizeBlockStyle(prevBlock, activeTheme).marginBottom;
     }
     if (nextBlock && activeBlockId && nextBlock.id === activeBlockId) {
-      return normalizeBlockStyle(nextBlock, draft.theme).marginTop;
+      return normalizeBlockStyle(nextBlock, activeTheme).marginTop;
     }
     if (prevBlock && activeBlockId && prevBlock.id === activeBlockId) {
-      return normalizeBlockStyle(prevBlock, draft.theme).marginBottom;
+      return normalizeBlockStyle(prevBlock, activeTheme).marginBottom;
     }
-    if (prevBlock) return normalizeBlockStyle(prevBlock, draft.theme).marginBottom;
-    if (nextBlock) return normalizeBlockStyle(nextBlock, draft.theme).marginTop;
+    if (prevBlock) return normalizeBlockStyle(prevBlock, activeTheme).marginBottom;
+    if (nextBlock) return normalizeBlockStyle(nextBlock, activeTheme).marginTop;
     return 0;
   };
   const hasCustomSlotSpacing = (slotIndex: number) => getSlotSpacing(slotIndex) > 0;
@@ -782,6 +795,9 @@ export default function SiteClient({
     if (rightPanel === "global") {
       return [{ id: "theme", label: "Глобальные стили" }];
     }
+    if (rightPanel === "page") {
+      return [{ id: "theme", label: "Стили страницы" }];
+    }
     if (!selectedBlock) return [];
     if (rightPanel === "content") {
       return (
@@ -799,16 +815,25 @@ export default function SiteClient({
   }, [rightPanel, selectedBlock]);
 
   const panelTargetKey = rightPanel
-    ? `${rightPanel}:${rightPanel === "global" ? "theme" : selectedBlock?.id ?? "none"}`
+    ? `${rightPanel}:${
+        rightPanel === "global"
+          ? "theme"
+          : rightPanel === "page"
+            ? activePageKey
+            : selectedBlock?.id ?? "none"
+      }`
     : null;
   const currentPanelSignature = useMemo(() => {
     if (!rightPanel) return null;
     if (rightPanel === "global") {
       return JSON.stringify(draft.theme);
     }
+    if (rightPanel === "page") {
+      return JSON.stringify(draft.pageThemes?.[activePageKey] ?? null);
+    }
     if (!selectedBlock) return null;
     return JSON.stringify(selectedBlock);
-  }, [rightPanel, draft.theme, selectedBlock]);
+  }, [rightPanel, draft.theme, draft.pageThemes, activePageKey, selectedBlock]);
   const panelHasUnsavedChanges = Boolean(
     rightPanel &&
       currentPanelSignature &&
@@ -944,6 +969,15 @@ export default function SiteClient({
       ...prev,
       theme: applyThemePatch(prev.theme, patch),
     }));
+  };
+
+  const updatePageTheme = (patch: Partial<SiteTheme>) => {
+    setDraft((prev) => {
+      const pageThemes = { ...(prev.pageThemes ?? {}) };
+      const baseTheme = pageThemes[activePageKey] ?? prev.theme;
+      pageThemes[activePageKey] = applyThemePatch(baseTheme, patch);
+      return { ...prev, pageThemes };
+    });
   };
 
   const setThemeMode = (mode: "light" | "dark") => {
@@ -1089,7 +1123,7 @@ export default function SiteClient({
       updateBlock(nextBlock.id, (block) =>
         updateBlockStyle(block, {
           marginTop: clampBlockOffset(
-            normalizeBlockStyle(block, draft.theme).marginTop + deltaY
+            normalizeBlockStyle(block, activeTheme).marginTop + deltaY
           ),
         })
       );
@@ -1100,7 +1134,7 @@ export default function SiteClient({
       updateBlock(nextBlock.id, (block) =>
         updateBlockStyle(block, {
           marginTop: clampBlockOffset(
-            normalizeBlockStyle(block, draft.theme).marginTop + deltaY
+            normalizeBlockStyle(block, activeTheme).marginTop + deltaY
           ),
         })
       );
@@ -1111,7 +1145,7 @@ export default function SiteClient({
       updateBlock(prevBlock.id, (block) =>
         updateBlockStyle(block, {
           marginBottom: clampBlockOffset(
-            normalizeBlockStyle(block, draft.theme).marginBottom + deltaY
+            normalizeBlockStyle(block, activeTheme).marginBottom + deltaY
           ),
         })
       );
@@ -1121,7 +1155,7 @@ export default function SiteClient({
     if (nextBlock && activeBlockId && nextBlock.id === activeBlockId) {
       updateBlock(nextBlock.id, (block) =>
         updateBlockStyle(block, {
-          marginTop: clampBlockOffset(normalizeBlockStyle(block, draft.theme).marginTop + deltaY),
+          marginTop: clampBlockOffset(normalizeBlockStyle(block, activeTheme).marginTop + deltaY),
         })
       );
       return;
@@ -1131,7 +1165,7 @@ export default function SiteClient({
       updateBlock(prevBlock.id, (block) =>
         updateBlockStyle(block, {
           marginBottom: clampBlockOffset(
-            normalizeBlockStyle(block, draft.theme).marginBottom + deltaY
+            normalizeBlockStyle(block, activeTheme).marginBottom + deltaY
           ),
         })
       );
@@ -1142,7 +1176,7 @@ export default function SiteClient({
       updateBlock(prevBlock.id, (block) =>
         updateBlockStyle(block, {
           marginBottom: clampBlockOffset(
-            normalizeBlockStyle(block, draft.theme).marginBottom + deltaY
+            normalizeBlockStyle(block, activeTheme).marginBottom + deltaY
           ),
         })
       );
@@ -1152,7 +1186,7 @@ export default function SiteClient({
     if (nextBlock) {
       updateBlock(nextBlock.id, (block) =>
         updateBlockStyle(block, {
-          marginTop: clampBlockOffset(normalizeBlockStyle(block, draft.theme).marginTop + deltaY),
+          marginTop: clampBlockOffset(normalizeBlockStyle(block, activeTheme).marginTop + deltaY),
         })
       );
     }
@@ -1208,42 +1242,42 @@ export default function SiteClient({
 
   const publicUrl = account.publicSlug ? `/${account.publicSlug}` : null;
 
-  const globalBorderColor = draft.theme.borderColor?.trim() || "transparent";
+  const globalBorderColor = activeTheme.borderColor?.trim() || "transparent";
   const themeStyle: Record<string, string> = {
-    "--bp-accent": draft.theme.accentColor,
-    "--bp-surface": draft.theme.surfaceColor,
-    "--bp-paper": draft.theme.panelColor,
-    "--bp-panel": draft.theme.panelColor,
-    "--bp-ink": draft.theme.textColor,
-    "--bp-muted": draft.theme.mutedColor,
+    "--bp-accent": activeTheme.accentColor,
+    "--bp-surface": activeTheme.surfaceColor,
+    "--bp-paper": activeTheme.panelColor,
+    "--bp-panel": activeTheme.panelColor,
+    "--bp-ink": activeTheme.textColor,
+    "--bp-muted": activeTheme.mutedColor,
     "--bp-stroke": globalBorderColor,
-    "--site-accent": draft.theme.accentColor,
-    "--site-surface": draft.theme.surfaceColor,
-    "--site-panel": draft.theme.panelColor,
-    "--site-text": draft.theme.textColor,
-    "--site-muted": draft.theme.mutedColor,
-    "--site-font-heading": draft.theme.fontHeading,
-    "--site-font-body": draft.theme.fontBody,
+    "--site-accent": activeTheme.accentColor,
+    "--site-surface": activeTheme.surfaceColor,
+    "--site-panel": activeTheme.panelColor,
+    "--site-text": activeTheme.textColor,
+    "--site-muted": activeTheme.mutedColor,
+    "--site-font-heading": activeTheme.fontHeading,
+    "--site-font-body": activeTheme.fontBody,
     "--site-border": globalBorderColor,
-    "--site-button": draft.theme.buttonColor,
-    "--site-button-text": draft.theme.buttonTextColor,
-    "--site-shadow-color": draft.theme.shadowColor,
-    "--site-shadow-size": `${draft.theme.shadowSize}px`,
-    "--site-radius": `${draft.theme.radius}px`,
-    "--site-button-radius": `${draft.theme.buttonRadius}px`,
-    "--site-gap": `${draft.theme.blockSpacing}px`,
-    "--site-h1": `${draft.theme.headingSize}px`,
-    "--site-h2": `${draft.theme.subheadingSize}px`,
-    "--site-text-size": `${draft.theme.textSize}px`,
+    "--site-button": activeTheme.buttonColor,
+    "--site-button-text": activeTheme.buttonTextColor,
+    "--site-shadow-color": activeTheme.shadowColor,
+    "--site-shadow-size": `${activeTheme.shadowSize}px`,
+    "--site-radius": `${activeTheme.radius}px`,
+    "--site-button-radius": `${activeTheme.buttonRadius}px`,
+    "--site-gap": `${activeTheme.blockSpacing}px`,
+    "--site-h1": `${activeTheme.headingSize}px`,
+    "--site-h2": `${activeTheme.subheadingSize}px`,
+    "--site-text-size": `${activeTheme.textSize}px`,
   };
   const previewCanvasWidth = previewMode === "mobile" ? 420 : undefined;
-  const mainGradient = draft.theme.gradientEnabled
-    ? `linear-gradient(${draft.theme.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${draft.theme.gradientFrom}, ${draft.theme.gradientTo})`
+  const mainGradient = activeTheme.gradientEnabled
+    ? `linear-gradient(${activeTheme.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${activeTheme.gradientFrom}, ${activeTheme.gradientTo})`
     : "none";
   const handleThemeToggle = () =>
-    setThemeMode(draft.theme.mode === "dark" ? "light" : "dark");
+    setThemeMode(activeTheme.mode === "dark" ? "light" : "dark");
   const panelTheme =
-    draft.theme.mode === "dark"
+    activeTheme.mode === "dark"
       ? {
           surface: "#11161f",
           panel: "#1a2230",
@@ -1301,20 +1335,17 @@ export default function SiteClient({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setInsertIndex(0);
-                setLeftPanel((prev) => (prev === "library" ? null : "library"));
-              }}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
-            >
-              Библиотека блоков
-            </button>
-            <button
-              type="button"
               onClick={() => setRightPanel("global")}
               className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
             >
               Глобальные стили
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightPanel("page")}
+              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
+            >
+              Стили страницы
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -1372,23 +1403,23 @@ export default function SiteClient({
       <div
         className="relative"
         style={{
-          backgroundColor: draft.theme.gradientEnabled
-            ? draft.theme.gradientFrom
-            : draft.theme.surfaceColor,
+          backgroundColor: activeTheme.gradientEnabled
+            ? activeTheme.gradientFrom
+            : activeTheme.surfaceColor,
           backgroundImage: mainGradient,
         }}
       >
         <main
           className="w-full"
-          data-site-theme={draft.theme.mode}
+          data-site-theme={activeTheme.mode}
           style={{
             ...themeStyle,
-            backgroundColor: draft.theme.gradientEnabled
-              ? draft.theme.gradientFrom
-              : draft.theme.surfaceColor,
+            backgroundColor: activeTheme.gradientEnabled
+              ? activeTheme.gradientFrom
+              : activeTheme.surfaceColor,
             backgroundImage: mainGradient,
-            color: draft.theme.textColor,
-            fontFamily: draft.theme.fontBody,
+            color: activeTheme.textColor,
+            fontFamily: activeTheme.fontBody,
           }}
         >
           <div
@@ -1400,46 +1431,44 @@ export default function SiteClient({
             }}
             style={{
               paddingTop: 0,
-              paddingBottom: 24,
+              paddingBottom: 0,
               paddingLeft: 0,
               paddingRight: 0,
               maxWidth: previewCanvasWidth,
             }}
           >
-            {!isSystemPage && (
-              <InsertSlot
-                index={0}
-                slotRef={(el) => registerSlotRef(0, el)}
-                spacing={getSlotSpacing(0)}
-                activeOffset={getSlotActiveOffset(0, activeSpacingTarget)}
-                persistent={hasCustomSlotSpacing(0)}
-                active={activeSpacingSlot === 0}
-                showValue={activeSpacingSlot === 0}
-                onDragStateChange={(dragging, target) => {
-                  if (dragging) {
-                    setSpacingAnchorBlockId(hoveredBlockId ?? selectedId);
-                    setActiveSpacingTarget(target ?? null);
-                  }
-                  setActiveSpacingSlot(dragging ? 0 : null);
-                  if (!dragging) {
-                    setActiveSpacingTarget(null);
-                    void saveDraftSilently();
-                  }
-                }}
-                onAdjustSpacing={(delta, target) => adjustSpacingAt(0, delta, target)}
-                onInsert={() => {
-                  setInsertIndex(0);
-                  setLeftPanel("library");
-                  setLibraryBlock(null);
-                }}
-              />
-            )}
+            <InsertSlot
+              index={0}
+              slotRef={(el) => registerSlotRef(0, el)}
+              spacing={getSlotSpacing(0)}
+              activeOffset={getSlotActiveOffset(0, activeSpacingTarget)}
+              persistent={hasCustomSlotSpacing(0)}
+              active={activeSpacingSlot === 0}
+              showValue={activeSpacingSlot === 0}
+              onDragStateChange={(dragging, target) => {
+                if (dragging) {
+                  setSpacingAnchorBlockId(hoveredBlockId ?? selectedId);
+                  setActiveSpacingTarget(target ?? null);
+                }
+                setActiveSpacingSlot(dragging ? 0 : null);
+                if (!dragging) {
+                  setActiveSpacingTarget(null);
+                  void saveDraftSilently();
+                }
+              }}
+              onAdjustSpacing={(delta, target) => adjustSpacingAt(0, delta, target)}
+              onInsert={() => {
+                setInsertIndex(0);
+                setLeftPanel("library");
+                setLibraryBlock(null);
+              }}
+            />
             {displayBlocks.map((block: SiteBlock, index: number) => {
               const isSharedMenu = Boolean(
                 sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
               );
-              const isBlockActive = block.id === hoveredBlockId;
-              const controlsDark = draft.theme.mode === "dark";
+              const isBlockActive = block.id === (hoveredBlockId ?? selectedId);
+              const controlsDark = activeTheme.mode === "dark";
               const leftBtnClass = controlsDark
                 ? "h-8 rounded-sm border border-[#374151] bg-[#111827] px-3 text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
                 : "h-8 rounded-sm border border-[#d1d5db] bg-white px-3 text-xs font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
@@ -1538,7 +1567,7 @@ export default function SiteClient({
                   specialists={specialists}
                   promos={promos}
                   workPhotos={workPhotos}
-                  theme={draft.theme}
+                  theme={activeTheme}
                   loaderConfig={loaderConfig}
                   currentEntity={currentEntity}
                   onThemeToggle={handleThemeToggle}
@@ -1549,38 +1578,36 @@ export default function SiteClient({
                   }}
                   isSelected={block.id === selectedId}
                 />
-                {!isSystemPage && (
-                  <InsertSlot
-                    index={index + 1}
-                    slotRef={(el) => registerSlotRef(index + 1, el)}
-                    spacing={getSlotSpacing(index + 1)}
-                    activeOffset={getSlotActiveOffset(index + 1, activeSpacingTarget)}
-                    persistent={hasCustomSlotSpacing(index + 1)}
-                    active={activeSpacingSlot === index + 1}
-                    showValue={activeSpacingSlot === index + 1}
-                    onDragStateChange={(dragging, target) =>
-                      {
-                        if (dragging) {
-                          setSpacingAnchorBlockId(hoveredBlockId ?? selectedId);
-                          setActiveSpacingTarget(target ?? null);
-                        }
-                        setActiveSpacingSlot(dragging ? index + 1 : null);
-                        if (!dragging) {
-                          setActiveSpacingTarget(null);
-                          void saveDraftSilently();
-                        }
+                <InsertSlot
+                  index={index + 1}
+                  slotRef={(el) => registerSlotRef(index + 1, el)}
+                  spacing={getSlotSpacing(index + 1)}
+                  activeOffset={getSlotActiveOffset(index + 1, activeSpacingTarget)}
+                  persistent={hasCustomSlotSpacing(index + 1)}
+                  active={activeSpacingSlot === index + 1}
+                  showValue={activeSpacingSlot === index + 1}
+                  onDragStateChange={(dragging, target) =>
+                    {
+                      if (dragging) {
+                        setSpacingAnchorBlockId(hoveredBlockId ?? selectedId);
+                        setActiveSpacingTarget(target ?? null);
+                      }
+                      setActiveSpacingSlot(dragging ? index + 1 : null);
+                      if (!dragging) {
+                        setActiveSpacingTarget(null);
+                        void saveDraftSilently();
                       }
                     }
-                    onAdjustSpacing={(delta, target) =>
-                      adjustSpacingAt(index + 1, delta, target)
-                    }
-                    onInsert={() => {
-                      setInsertIndex(index + 1);
-                      setLeftPanel("library");
-                      setLibraryBlock(null);
-                    }}
-                  />
-                )}
+                  }
+                  onAdjustSpacing={(delta, target) =>
+                    adjustSpacingAt(index + 1, delta, target)
+                  }
+                  onInsert={() => {
+                    setInsertIndex(index + 1);
+                    setLeftPanel("library");
+                    setLibraryBlock(null);
+                  }}
+                />
               </div>
             );
             })}
@@ -1589,6 +1616,31 @@ export default function SiteClient({
                 Добавьте блок, чтобы начать собирать страницу.
               </div>
             )}
+            <div className="mt-4 border-t border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-6">
+              <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInsertIndex(displayBlocks.length);
+                    setLeftPanel("library");
+                    setLibraryBlock(null);
+                  }}
+                  className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Библиотека блоков
+                </button>
+                {QUICK_BLOCK_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => insertBlock(type, displayBlocks.length)}
+                    className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
+                  >
+                    {BLOCK_LABELS[type]}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </main>
 
@@ -1882,6 +1934,8 @@ export default function SiteClient({
                 <div className="text-sm font-semibold" style={{ color: panelTheme.text }}>
                   {rightPanel === "global"
                     ? "Глобальные стили"
+                    : rightPanel === "page"
+                      ? `Стили страницы · ${PAGE_LABELS[activePageKey]}`
                     : rightPanel === "settings"
                       ? selectedBlock
                         ? `Настройки · ${BLOCK_LABELS[selectedBlock.type]}`
@@ -1934,6 +1988,9 @@ export default function SiteClient({
                   {rightPanel === "global" && (
                     <ThemeEditor theme={draft.theme} onChange={updateTheme} />
                   )}
+                  {rightPanel === "page" && (
+                    <ThemeEditor theme={activeTheme} onChange={updatePageTheme} />
+                  )}
                   {rightPanel === "content" && selectedBlock && (
                     <BlockEditor
                       block={selectedBlock}
@@ -1949,7 +2006,7 @@ export default function SiteClient({
                   {rightPanel === "settings" && selectedBlock && (
                     <BlockStyleEditor
                       block={selectedBlock}
-                      theme={draft.theme}
+                      theme={activeTheme}
                       activeSectionId={activePanelSectionId ?? "layout"}
                       onChange={(next) => updateBlock(selectedBlock.id, () => next)}
                     />
@@ -1999,6 +2056,15 @@ export default function SiteClient({
             </div>
           </div>
         )}
+
+        <button
+          type="button"
+          aria-label="Помощь"
+          title="Помощь"
+          className="fixed right-6 bottom-6 z-[141] inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[#ff8f73] text-3xl leading-none text-white shadow-[var(--bp-shadow)] transition hover:brightness-95"
+        >
+          ?
+        </button>
       </div>
     </div>
   );
@@ -4416,10 +4482,10 @@ function BlockPreview({
         maxWidth: "100%",
         marginLeft: "auto",
         marginRight: "auto",
-        marginTop: isGallery ? 0 : style.marginTop,
-        marginBottom: isGallery ? 0 : style.marginBottom,
-        paddingTop: isGallery ? style.marginTop : undefined,
-        paddingBottom: isGallery ? style.marginBottom : undefined,
+        marginTop: isGallery || isBooking ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking ? style.marginBottom : undefined,
         backgroundColor: isMenu
           ? "transparent"
           : isGallery
@@ -4443,7 +4509,7 @@ function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: blockRadius,
+            borderRadius: isBooking ? 0 : blockRadius,
             backgroundColor: isBooking
               ? "transparent"
               : gradientEnabled

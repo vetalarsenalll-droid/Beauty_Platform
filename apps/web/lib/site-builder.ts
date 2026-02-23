@@ -38,6 +38,7 @@ export type SiteTheme = SiteThemePalette & {
 export type SiteDraft = {
   version: 1;
   theme: SiteTheme;
+  pageThemes?: Partial<Record<SitePageKey, SiteTheme>>;
   blocks: SiteBlock[];
   pages?: SitePages;
   entityPages?: SiteEntityPages;
@@ -73,6 +74,16 @@ export type SitePageKey =
   | "services"
   | "specialists"
   | "promos";
+
+export const SITE_PAGE_KEYS: SitePageKey[] = [
+  "home",
+  "booking",
+  "client",
+  "locations",
+  "services",
+  "specialists",
+  "promos",
+];
 
 export type SitePages = Record<SitePageKey, SiteBlock[]>;
 
@@ -531,7 +542,6 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     return createDefaultDraft("Салон красоты");
   }
   const fallbackTheme = createDefaultDraft("Салон красоты").theme;
-  const theme = draft.theme ?? fallbackTheme;
   const normalizePalette = (
     palette: Partial<SiteThemePalette> | undefined,
     fallback: SiteThemePalette
@@ -748,25 +758,46 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     return block;
   });
 
-  const mode = theme.mode === "dark" ? "dark" : "light";
-  const lightPalette = normalizePalette(
-    theme.lightPalette ?? (mode === "light" ? theme : undefined),
-    fallbackTheme.lightPalette
-  );
-  const darkPalette = normalizePalette(
-    theme.darkPalette ?? (mode === "dark" ? theme : undefined),
-    fallbackTheme.darkPalette
-  );
-  const activePalette = mode === "dark" ? darkPalette : lightPalette;
-
-  return {
-    version: 1,
-    theme: {
+  const normalizeTheme = (
+    source: Partial<SiteTheme> | undefined,
+    fallback: SiteTheme
+  ): SiteTheme => {
+    const base = source ?? {};
+    const mode = base.mode === "dark" ? "dark" : "light";
+    const lightPalette = normalizePalette(
+      base.lightPalette ?? (mode === "light" ? (base as Partial<SiteThemePalette>) : undefined),
+      fallback.lightPalette
+    );
+    const darkPalette = normalizePalette(
+      base.darkPalette ?? (mode === "dark" ? (base as Partial<SiteThemePalette>) : undefined),
+      fallback.darkPalette
+    );
+    const activePalette = mode === "dark" ? darkPalette : lightPalette;
+    return {
       ...activePalette,
       mode,
       lightPalette,
       darkPalette,
-    },
+    };
+  };
+
+  const normalizedTheme = normalizeTheme(draft.theme as Partial<SiteTheme> | undefined, fallbackTheme);
+  const rawPageThemes =
+    draft.pageThemes && typeof draft.pageThemes === "object"
+      ? (draft.pageThemes as Partial<Record<SitePageKey, Partial<SiteTheme>>>)
+      : {};
+  const pageThemes: Partial<Record<SitePageKey, SiteTheme>> = {};
+  SITE_PAGE_KEYS.forEach((pageKey) => {
+    const candidate = rawPageThemes[pageKey];
+    if (candidate && typeof candidate === "object") {
+      pageThemes[pageKey] = normalizeTheme(candidate, normalizedTheme);
+    }
+  });
+
+  return {
+    version: 1,
+    theme: normalizedTheme,
+    pageThemes,
     blocks: pages.home,
     pages,
     entityPages,

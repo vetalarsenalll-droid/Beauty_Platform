@@ -81,11 +81,11 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       <main
         id={themeFrame ? "public-site-root" : undefined}
         data-site-theme={themeFrame?.initialMode}
-        className="min-h-screen pb-16"
+        className="min-h-screen pb-0"
         style={pageStyle}
       >
         <div
-          className="flex w-full flex-col pt-0 pb-12"
+          className="flex w-full flex-col pt-0 pb-0"
           style={themeFrame ? { gap: themeFrame.blockGap } : undefined}
         >
           {menuNode}

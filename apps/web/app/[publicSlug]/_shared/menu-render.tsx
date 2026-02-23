@@ -205,7 +205,7 @@ export async function renderPublicMenu(
     <div
       id="public-site-root"
       data-site-theme={frame.initialMode}
-      className="flex w-full flex-col pt-0 pb-12"
+      className="flex w-full flex-col pt-0 pb-0"
       style={{
         ...frame.themeStyle,
         backgroundColor: "var(--site-surface)",

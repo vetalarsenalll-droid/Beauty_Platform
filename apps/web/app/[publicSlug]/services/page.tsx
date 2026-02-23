@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import { getClientSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 
@@ -32,11 +32,12 @@ export default async function PublicServicesPage({ params }: PageProps) {
     : pageBlocks.filter((block) => block.type !== "loader");
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
+  const baseTheme = data.draft.pageThemes?.services ?? data.draft.theme;
   const initialMode =
-    storedMode === "dark" || storedMode === "light" ? storedMode : data.draft.theme.mode;
+    storedMode === "dark" || storedMode === "light" ? storedMode : baseTheme.mode;
   const palette =
-    initialMode === "dark" ? data.draft.theme.darkPalette : data.draft.theme.lightPalette;
-  const themeForRender = { ...data.draft.theme, mode: initialMode };
+    initialMode === "dark" ? baseTheme.darkPalette : baseTheme.lightPalette;
+  const themeForRender = { ...baseTheme, mode: initialMode };
   const shadowSize = palette.shadowSize ?? 0;
   const shadowColor = palette.shadowColor || "rgba(17, 24, 39, 0.12)";
   const mainGradient = palette.gradientEnabled
@@ -79,7 +80,7 @@ export default async function PublicServicesPage({ params }: PageProps) {
     <main
       id="public-site-root"
       data-site-theme={initialMode}
-      className="min-h-screen pb-16"
+      className="min-h-screen pb-0"
       style={{
         ...themeStyle,
         backgroundColor: "var(--site-surface)",
@@ -88,7 +89,7 @@ export default async function PublicServicesPage({ params }: PageProps) {
         fontFamily: "var(--site-font-body)",
       }}
     >
-      <div className="flex w-full flex-col pt-0 pb-12" style={{ gap: blockGap }}>
+      <div className="flex w-full flex-col pt-0 pb-0" style={{ gap: blockGap }}>
         {blocks.map((block) => {
           const style = normalizeStyle(block, themeForRender);
           const menuPosition =
@@ -131,6 +132,7 @@ export default async function PublicServicesPage({ params }: PageProps) {
     </main>
   );
 }
+
 
 
 
