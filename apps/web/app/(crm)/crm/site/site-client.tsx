@@ -297,6 +297,8 @@ const LEGACY_WIDTH_REFERENCE = 2400;
 const DEFAULT_BLOCK_COLUMNS = 6;
 const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
+const GRID_MIN_COLUMN = 1;
+const GRID_MAX_COLUMN = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
 const BOOKING_MAX_BLOCK_COLUMNS = 15;
 const BOOKING_MIN_PRESET = 1;
@@ -362,6 +364,17 @@ function bookingColumnsFromPreset(preset: number): number {
   return clampBlockColumns(BOOKING_MIN_BLOCK_COLUMNS + Math.round(preset) - 1, "booking");
 }
 
+function clampGridColumn(value: number): number {
+  return Math.min(GRID_MAX_COLUMN, Math.max(GRID_MIN_COLUMN, Math.round(value)));
+}
+
+function centeredGridRange(columns: number): { start: number; end: number } {
+  const span = Math.min(GRID_MAX_COLUMN, Math.max(1, Math.round(columns)));
+  const start = Math.max(1, Math.floor((GRID_MAX_COLUMN - span) / 2) + 1);
+  const end = Math.min(GRID_MAX_COLUMN, start + span - 1);
+  return { start, end };
+}
+
 function bookingContentColumns(columns: number): number {
   return clampBlockColumns(columns, "booking") - 4;
 }
@@ -378,6 +391,8 @@ const defaultBlockStyle = {
   marginBottom: 0,
   blockWidth: DEFAULT_BLOCK_WIDTH,
   blockWidthColumns: DEFAULT_BLOCK_COLUMNS,
+  gridStartColumn: centeredGridRange(DEFAULT_BLOCK_COLUMNS).start,
+  gridEndColumn: centeredGridRange(DEFAULT_BLOCK_COLUMNS).end,
   useCustomWidth: true,
   radius: null,
   buttonRadius: null,
@@ -3286,22 +3301,17 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && block.type !== "menu" && (
+      {inSection("layout") && block.type === "booking" && (
       <label className="text-sm">
-        {block.type === "booking"
-          ? `Ширина контейнера: ${bookingPreset}`
-          : `Ширина блока: ${resolvedBlockColumns}/12`}
+        {`Ширина контейнера: ${bookingPreset}`}
         <input
           type="range"
-          min={block.type === "booking" ? BOOKING_MIN_PRESET : MIN_BLOCK_COLUMNS}
-          max={block.type === "booking" ? BOOKING_MAX_PRESET : MAX_BLOCK_COLUMNS}
+          min={BOOKING_MIN_PRESET}
+          max={BOOKING_MAX_PRESET}
           step={1}
-          value={block.type === "booking" ? bookingPreset : resolvedBlockColumns}
+          value={bookingPreset}
           onChange={(event) => {
-            const nextColumns =
-              block.type === "booking"
-                ? bookingColumnsFromPreset(Number(event.target.value))
-                : clampBlockColumns(Number(event.target.value), block.type);
+            const nextColumns = bookingColumnsFromPreset(Number(event.target.value));
             const nextWidth = Math.round(
               (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
             );
@@ -3313,12 +3323,73 @@ function BlockStyleEditor({
           }}
           className="mt-2 w-full"
         />
-        {block.type === "works" && block.variant === "v2" && (
-          <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-            В варианте 2 ширина блока регулирует ширину текста поверх галереи.
-          </div>
-        )}
       </label>
+      )}
+      {inSection("layout") && block.type !== "menu" && block.type !== "booking" && (
+      <>
+        <div className="text-sm">
+          Ширина блока: {Math.max(1, (style.gridEndColumn ?? 12) - (style.gridStartColumn ?? 1) + 1)}/12
+        </div>
+        <label className="text-sm">
+          Левая граница сетки: {style.gridStartColumn ?? centeredGridRange(resolvedBlockColumns).start}
+          <input
+            type="range"
+            min={GRID_MIN_COLUMN}
+            max={style.gridEndColumn ?? GRID_MAX_COLUMN}
+            step={1}
+            value={style.gridStartColumn ?? centeredGridRange(resolvedBlockColumns).start}
+            onChange={(event) => {
+              const nextStart = clampGridColumn(Number(event.target.value));
+              const currentEnd = style.gridEndColumn ?? centeredGridRange(resolvedBlockColumns).end;
+              const nextEnd = Math.max(nextStart, currentEnd);
+              const nextColumns = Math.max(1, nextEnd - nextStart + 1);
+              const nextWidth = Math.round(
+                (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
+              );
+              update({
+                useCustomWidth: true,
+                blockWidth: nextWidth,
+                blockWidthColumns: nextColumns,
+                gridStartColumn: nextStart,
+                gridEndColumn: nextEnd,
+              });
+            }}
+            className="mt-2 w-full"
+          />
+        </label>
+        <label className="text-sm">
+          Правая граница сетки: {style.gridEndColumn ?? centeredGridRange(resolvedBlockColumns).end}
+          <input
+            type="range"
+            min={style.gridStartColumn ?? GRID_MIN_COLUMN}
+            max={GRID_MAX_COLUMN}
+            step={1}
+            value={style.gridEndColumn ?? centeredGridRange(resolvedBlockColumns).end}
+            onChange={(event) => {
+              const currentStart = style.gridStartColumn ?? centeredGridRange(resolvedBlockColumns).start;
+              const nextEnd = clampGridColumn(Number(event.target.value));
+              const safeEnd = Math.max(currentStart, nextEnd);
+              const nextColumns = Math.max(1, safeEnd - currentStart + 1);
+              const nextWidth = Math.round(
+                (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
+              );
+              update({
+                useCustomWidth: true,
+                blockWidth: nextWidth,
+                blockWidthColumns: nextColumns,
+                gridStartColumn: currentStart,
+                gridEndColumn: safeEnd,
+              });
+            }}
+            className="mt-2 w-full"
+          />
+          {block.type === "works" && block.variant === "v2" && (
+            <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+              В варианте 2 сетка регулирует ширину и смещение текста поверх галереи.
+            </div>
+          )}
+        </label>
+      </>
       )}
       {inSection("layout") && block.type === "menu" && (
       <div className="text-sm text-[color:var(--bp-muted)]">
@@ -3959,6 +4030,8 @@ type BlockStyle = {
   marginBottom: number;
   blockWidth: number | null;
   blockWidthColumns: number | null;
+  gridStartColumn: number | null;
+  gridEndColumn: number | null;
   useCustomWidth: boolean;
   radius: number | null;
   buttonRadius: number | null;
@@ -4156,6 +4229,8 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const gradientTo = theme.mode === "dark" ? gradientToDarkResolved : gradientToLightResolved;
   const rawBlockWidth = toNumber(style.blockWidth);
   const rawBlockWidthColumns = toNumber(style.blockWidthColumns);
+  const rawGridStartColumn = toNumber(style.gridStartColumn);
+  const rawGridEndColumn = toNumber(style.gridEndColumn);
   const normalizedBlockWidth =
     rawBlockWidth === null
       ? null
@@ -4181,10 +4256,33 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS,
     block.type
   );
+  const hasExplicitGrid =
+    rawGridStartColumn !== null &&
+    rawGridEndColumn !== null &&
+    block.type !== "booking" &&
+    block.type !== "menu";
+  const explicitGridStart = hasExplicitGrid ? clampGridColumn(rawGridStartColumn as number) : null;
+  const explicitGridEndRaw = hasExplicitGrid ? clampGridColumn(rawGridEndColumn as number) : null;
+  const explicitGridEnd =
+    explicitGridStart !== null && explicitGridEndRaw !== null
+      ? Math.max(explicitGridStart, explicitGridEndRaw)
+      : null;
+  const centeredGrid = centeredGridRange(
+    block.type === "booking" || block.type === "menu"
+      ? MAX_BLOCK_COLUMNS
+      : resolvedBlockWidthColumns
+  );
+  const resolvedGridStart = explicitGridStart ?? centeredGrid.start;
+  const resolvedGridEnd = explicitGridEnd ?? centeredGrid.end;
+  const resolvedColumnsFromGrid =
+    block.type === "booking" || block.type === "menu"
+      ? resolvedBlockWidthColumns
+      : Math.max(1, resolvedGridEnd - resolvedGridStart + 1);
   const useCustomWidth =
     style.useCustomWidth === true ||
     normalizedBlockWidth !== null ||
-    normalizedBlockWidthColumns !== null;
+    normalizedBlockWidthColumns !== null ||
+    hasExplicitGrid;
   const resolvedBorderPair = borderClearedExplicitly
     ? { lightResolved: "transparent", darkResolved: "transparent" }
     : {
@@ -4198,7 +4296,9 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     marginTop: toNumber(style.marginTop) ?? 0,
     marginBottom: toNumber(style.marginBottom) ?? 0,
     blockWidth: useCustomWidth ? normalizedBlockWidth ?? DEFAULT_BLOCK_WIDTH : null,
-    blockWidthColumns: useCustomWidth ? resolvedBlockWidthColumns : null,
+    blockWidthColumns: useCustomWidth ? resolvedColumnsFromGrid : null,
+    gridStartColumn: useCustomWidth ? resolvedGridStart : null,
+    gridEndColumn: useCustomWidth ? resolvedGridEnd : null,
     useCustomWidth,
     radius: toNumber(style.radius),
     buttonRadius: toNumber(style.buttonRadius),
@@ -4612,6 +4712,18 @@ function BlockPreview({
   const blockWidthColumns = isMenu
     ? MAX_BLOCK_COLUMNS
     : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
+  const gridFallback = centeredGridRange(
+    isMenu || isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns
+  );
+  const gridStart = isMenu || isBooking
+    ? 1
+    : clampGridColumn(style.gridStartColumn ?? gridFallback.start);
+  const gridEnd = isMenu || isBooking
+    ? MAX_BLOCK_COLUMNS
+    : Math.max(gridStart, clampGridColumn(style.gridEndColumn ?? gridFallback.end));
+  const gridSpan = Math.max(1, gridEnd - gridStart + 1);
+  const gridWidthPercent = `${(gridSpan / MAX_BLOCK_COLUMNS) * 100}%`;
+  const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const bookingInnerColumns = bookingContentColumns(blockWidthColumns);
   const blockOuterColumns = isBooking || isMenu ? MAX_BLOCK_COLUMNS : blockWidthColumns;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
@@ -4654,10 +4766,10 @@ function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: isGallery ? "100%" : `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
+        width: isGallery || isBooking || isMenu ? "100%" : gridWidthPercent,
         maxWidth: "100%",
-        marginLeft: "auto",
-        marginRight: "auto",
+        marginLeft: isGallery || isBooking || isMenu ? "auto" : gridLeftPercent,
+        marginRight: isGallery || isBooking || isMenu ? "auto" : 0,
         marginTop: isGallery || isBooking ? 0 : style.marginTop,
         marginBottom: isGallery || isBooking ? 0 : style.marginBottom,
         paddingTop: isGallery || isBooking ? style.marginTop : undefined,
@@ -4674,10 +4786,10 @@ function BlockPreview({
         style={
           isGallery && !isFullscreenGallery
             ? {
-                width: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
+                width: gridWidthPercent,
                 maxWidth: "100%",
-                marginLeft: "auto",
-                marginRight: "auto",
+                marginLeft: gridLeftPercent,
+                marginRight: 0,
               }
             : undefined
         }
@@ -4706,7 +4818,8 @@ function BlockPreview({
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-muted" as string]: mutedColor,
             ["--bp-stroke" as string]: borderColor,
-            ["--works-content-width" as string]: `${(blockOuterColumns / MAX_BLOCK_COLUMNS) * 100}%`,
+            ["--works-content-width" as string]: gridWidthPercent,
+            ["--works-content-left" as string]: gridLeftPercent,
           }}
         >
             {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
@@ -6507,8 +6620,13 @@ function renderWorks(
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/55 to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-14 z-[2]">
               <div
-                className="mx-auto px-4 text-center text-white"
-                style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%" }}
+                className="px-4 text-center text-white"
+                style={{
+                  width: "var(--works-content-width, 100%)",
+                  maxWidth: "100%",
+                  marginLeft: "var(--works-content-left, auto)",
+                  marginRight: 0,
+                }}
               >
                 {title && <h3 className="font-semibold" style={{ ...headingStyle(style, theme), color: "white" }}>{title}</h3>}
                 {subtitle && (

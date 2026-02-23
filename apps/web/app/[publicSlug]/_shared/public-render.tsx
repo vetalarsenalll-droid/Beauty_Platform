@@ -76,6 +76,8 @@ type BlockStyle = {
   marginBottom?: number;
   blockWidth?: number | null;
   blockWidthColumns?: number | null;
+  gridStartColumn?: number | null;
+  gridEndColumn?: number | null;
   useCustomWidth?: boolean;
   radius?: number | null;
   buttonRadius?: number | null;
@@ -245,6 +247,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   );
   const rawBlockWidth = numOrNull(style.blockWidth as number);
   const rawBlockWidthColumns = numOrNull(style.blockWidthColumns as number);
+  const rawGridStartColumn = numOrNull(style.gridStartColumn as number);
+  const rawGridEndColumn = numOrNull(style.gridEndColumn as number);
   const normalizedBlockWidth =
     rawBlockWidth === null
       ? null
@@ -270,10 +274,33 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     normalizedBlockWidthColumns ?? legacyColumnsFromPx ?? DEFAULT_BLOCK_COLUMNS,
     block.type
   );
+  const hasExplicitGrid =
+    rawGridStartColumn !== null &&
+    rawGridEndColumn !== null &&
+    block.type !== "booking" &&
+    block.type !== "menu";
+  const explicitGridStart = hasExplicitGrid ? clampGridColumn(rawGridStartColumn as number) : null;
+  const explicitGridEndPre = hasExplicitGrid ? clampGridColumn(rawGridEndColumn as number) : null;
+  const explicitGridEnd =
+    explicitGridStart !== null && explicitGridEndPre !== null
+      ? Math.max(explicitGridStart, explicitGridEndPre)
+      : null;
+  const centeredGrid = centeredGridRange(
+    block.type === "booking" || block.type === "menu"
+      ? MAX_BLOCK_COLUMNS
+      : resolvedBlockWidthColumns
+  );
+  const resolvedGridStart = explicitGridStart ?? centeredGrid.start;
+  const resolvedGridEnd = explicitGridEnd ?? centeredGrid.end;
+  const resolvedColumnsFromGrid =
+    block.type === "booking" || block.type === "menu"
+      ? resolvedBlockWidthColumns
+      : Math.max(1, resolvedGridEnd - resolvedGridStart + 1);
   const useCustomWidth =
     style.useCustomWidth === true ||
     normalizedBlockWidth !== null ||
-    normalizedBlockWidthColumns !== null;
+    normalizedBlockWidthColumns !== null ||
+    hasExplicitGrid;
   const blockBgPair = resolvePair(
     "blockBgLight",
     "blockBgDark",
@@ -374,7 +401,9 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
       ? (style.marginBottom as number)
       : 0,
     blockWidth: useCustomWidth ? normalizedBlockWidth ?? DEFAULT_BLOCK_WIDTH : null,
-    blockWidthColumns: useCustomWidth ? resolvedBlockWidthColumns : null,
+    blockWidthColumns: useCustomWidth ? resolvedColumnsFromGrid : null,
+    gridStartColumn: useCustomWidth ? resolvedGridStart : null,
+    gridEndColumn: useCustomWidth ? resolvedGridEnd : null,
     useCustomWidth,
     radius: numOrNull(style.radius as number),
     buttonRadius: numOrNull(style.buttonRadius as number),
@@ -583,6 +612,27 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   } as Record<string, string>;
 }
 
+function clampGridColumn(value: number): number {
+  return Math.min(MAX_BLOCK_COLUMNS, Math.max(1, Math.round(value)));
+}
+
+function centeredGridRange(columns: number): { start: number; end: number } {
+  const span = Math.min(MAX_BLOCK_COLUMNS, Math.max(1, Math.round(columns)));
+  const start = Math.max(1, Math.floor((MAX_BLOCK_COLUMNS - span) / 2) + 1);
+  const end = Math.min(MAX_BLOCK_COLUMNS, start + span - 1);
+  return { start, end };
+}
+
+function gridSpanWidthCss(start: number, end: number): string {
+  const span = Math.max(1, end - start + 1);
+  return `calc((100% - (var(--site-edge-pad, 0px) * 2)) * ${span} / ${MAX_BLOCK_COLUMNS})`;
+}
+
+function gridSpanLeftCss(start: number): string {
+  const offset = Math.max(0, start - 1);
+  return `calc(var(--site-edge-pad, 0px) + ((100% - (var(--site-edge-pad, 0px) * 2)) * ${offset} / ${MAX_BLOCK_COLUMNS}))`;
+}
+
 function renderBooking(
   block: SiteBlock,
   accountSlug: string,
@@ -744,8 +794,20 @@ export function buildBlockWrapperStyle(
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
     const isMenu = options.blockType === "menu";
     const isGallery = options.blockType === "works";
-    const sectionBgCurrent =
-      theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
+    const hasGridRange =
+      typeof style.gridStartColumn === "number" &&
+      typeof style.gridEndColumn === "number" &&
+      !isMenu &&
+      !isBookingBlock;
+    const gridStart = hasGridRange
+      ? clampGridColumn(style.gridStartColumn as number)
+      : centeredGridRange(blockOuterColumns).start;
+    const gridEndRaw = hasGridRange
+      ? clampGridColumn(style.gridEndColumn as number)
+      : centeredGridRange(blockOuterColumns).end;
+    const gridEnd = Math.max(gridStart, gridEndRaw);
+    const gridWidthCss = gridSpanWidthCss(gridStart, gridEnd);
+    const gridLeftCss = gridSpanLeftCss(gridStart);
     const contentWidth = responsiveBlockWidthCss(blockOuterColumns, true);
     const menuWidth =
       blockOuterColumns >= MAX_BLOCK_COLUMNS
@@ -762,7 +824,8 @@ export function buildBlockWrapperStyle(
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
         borderRadius: isBookingBlock ? 0 : radius,
-        backgroundColor: isGallery || isBookingBlock ? sectionBgCurrent : "var(--block-bg)",
+        backgroundColor:
+          isGallery || isBookingBlock ? "var(--block-section-bg, var(--block-bg))" : "var(--block-bg)",
         backgroundImage: isGallery || isBookingBlock ? "none" : "var(--block-gradient)",
         borderColor: isGallery || isBookingBlock ? "transparent" : "var(--block-border)",
         borderWidth: isGallery || isBookingBlock ? 0 : hasVisibleBorder ? 1 : 0,
@@ -794,17 +857,20 @@ export function buildBlockWrapperStyle(
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu || isGallery || isBookingBlock ? "100%" : contentWidth,
+        width: isMenu || isGallery || isBookingBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
-        marginLeft: "auto",
-        marginRight: "auto",
+        marginLeft: isMenu || isGallery || isBookingBlock ? "auto" : gridLeftCss,
+        marginRight: isMenu || isGallery || isBookingBlock ? "auto" : 0,
         boxSizing: "border-box",
         color: "var(--block-text)",
-        ["--works-content-width" as string]: contentWidth,
+        ["--works-content-width" as string]: gridWidthCss,
+        ["--works-content-left" as string]: gridLeftCss,
         ["--bp-ink" as string]: "var(--block-text)",
         ["--bp-muted" as string]: "var(--block-muted)",
         ["--block-bg-light" as string]: style.blockBgLightResolved,
         ["--block-bg-dark" as string]: style.blockBgDarkResolved,
+        ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
+        ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
         ["--block-sub-bg-light" as string]: style.subBlockBgLightResolved,
         ["--block-sub-bg-dark" as string]: style.subBlockBgDarkResolved,
         ["--block-border-light" as string]: style.borderColorLightResolved,
@@ -2035,8 +2101,13 @@ function renderWorks(
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/55 to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-14 z-[2]">
               <div
-                className="mx-auto px-4 text-center text-white"
-                style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%" }}
+                className="px-4 text-center text-white"
+                style={{
+                  width: "var(--works-content-width, 100%)",
+                  maxWidth: "100%",
+                  marginLeft: "var(--works-content-left, auto)",
+                  marginRight: 0,
+                }}
               >
                 {title && <h2 className="font-semibold" style={{ ...headingStyle(style), color: "white" }}>{title}</h2>}
                 {subtitle && (
@@ -2056,7 +2127,14 @@ function renderWorks(
   }
 
   return (
-    <div style={{ width: "var(--works-content-width, 100%)", maxWidth: "100%", margin: "0 auto" }}>
+    <div
+      style={{
+        width: "var(--works-content-width, 100%)",
+        maxWidth: "100%",
+        marginLeft: "var(--works-content-left, auto)",
+        marginRight: 0,
+      }}
+    >
       <div
         className="p-0"
         style={{

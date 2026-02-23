@@ -217,6 +217,7 @@
 
 #public-site-root .site-block {
   --block-bg: var(--block-bg-light);
+  --block-section-bg: var(--block-section-bg-light, var(--block-bg));
   --block-sub-bg: var(--block-sub-bg-light);
   --block-border: var(--block-border-light);
   --block-text: var(--block-text-light);
@@ -228,6 +229,7 @@
 
 #public-site-root[data-site-theme="dark"] .site-block {
   --block-bg: var(--block-bg-dark);
+  --block-section-bg: var(--block-section-bg-dark, var(--block-bg));
   --block-sub-bg: var(--block-sub-bg-dark);
   --block-border: var(--block-border-dark);
   --block-text: var(--block-text-dark);
