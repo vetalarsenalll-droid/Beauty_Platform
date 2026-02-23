@@ -1545,10 +1545,10 @@ function renderAbout(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Рћ РЅР°СЃ"}
+        {(data.title as string) || "О нас"}
       </h2>
       {text && <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{text}</p>}
-      <div className="mt-3 text-xs text-[color:var(--bp-muted)]">РђРєРєР°СѓРЅС‚: {accountName}</div>
+      <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Аккаунт: {accountName}</div>
     </div>
   );
 }
@@ -1571,7 +1571,7 @@ function renderLocations(
       ? locations.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, locations);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
+  const buttonText = (data.buttonText as string) || "Записаться";
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -1585,7 +1585,7 @@ function renderLocations(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "Р›РѕРєР°С†РёРё"}
+        {(data.title as string) || "Локации"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1607,7 +1607,7 @@ function renderLocations(
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
             {location.phone && (
               <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                РўРµР»РµС„РѕРЅ: {location.phone}
+                Телефон: {location.phone}
               </div>
             )}
             {showButton && publicSlug && (
@@ -1627,7 +1627,7 @@ function renderLocations(
         ))}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            РќРµС‚ Р»РѕРєР°С†РёР№ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ.
+            Нет локаций для отображения.
           </div>
         )}
       </div>
@@ -1653,7 +1653,7 @@ function renderServices(
       ? services.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
+  const buttonText = (data.buttonText as string) || "Записаться";
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
@@ -1674,7 +1674,7 @@ function renderServices(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "РЈСЃР»СѓРіРё"}
+        {(data.title as string) || "Услуги"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1699,8 +1699,8 @@ function renderServices(
               </div>
             )}
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
-              {showDuration && <span>{service.baseDurationMin} РјРёРЅ</span>}
-              {showPrice && <span>{service.basePrice} в‚Ѕ</span>}
+              {showDuration && <span>{service.baseDurationMin} мин</span>}
+              {showPrice && <span>{service.basePrice} ₽</span>}
             </div>
             {showButton && publicSlug && (
               <Link
@@ -1724,7 +1724,7 @@ function renderServices(
         ))}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            РќРµС‚ СѓСЃР»СѓРі РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ.
+            Нет услуг для отображения.
           </div>
         )}
       </div>
@@ -1750,7 +1750,7 @@ function renderSpecialists(
       ? specialists.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, specialists);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
+  const buttonText = (data.buttonText as string) || "Записаться";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const currentLocationId = current?.type === "location" ? current.id : null;
   const visibleItems = currentLocationId
@@ -1769,7 +1769,7 @@ function renderSpecialists(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "РЎРїРµС†РёР°Р»РёСЃС‚С‹"}
+        {(data.title as string) || "Специалисты"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -1812,7 +1812,7 @@ function renderSpecialists(
         ))}
         {visibleItems.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            РќРµС‚ СЃРїРµС†РёР°Р»РёСЃС‚РѕРІ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ.
+            Нет специалистов для отображения.
           </div>
         )}
       </div>
@@ -1849,7 +1849,7 @@ function renderPromos(
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "РџСЂРѕРјРѕ Рё СЃРєРёРґРєРё"}
+        {(data.title as string) || "Промо и скидки"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1862,10 +1862,10 @@ function renderPromos(
               {promo.name}
             </Link>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} в‚Ѕ`}
+              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ₽`}
               {promo.startsAt || promo.endsAt ? " В· " : ""}
-              {promo.startsAt ? `СЃ ${promo.startsAt}` : ""}
-              {promo.endsAt ? ` РїРѕ ${promo.endsAt}` : ""}
+              {promo.startsAt ? `с ${promo.startsAt}` : ""}
+              {promo.endsAt ? ` по ${promo.endsAt}` : ""}
             </div>
             {promo.codes.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -1881,14 +1881,14 @@ function renderPromos(
             )}
             {!promo.isActive && (
               <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-                РќРµР°РєС‚РёРІРЅРѕ
+                Неактивно
               </div>
             )}
           </div>
         ))}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            РќРµС‚ Р°РєС‚РёРІРЅС‹С… РїСЂРѕРјРѕ.
+            Нет активных промо.
           </div>
         )}
       </div>
@@ -2004,7 +2004,7 @@ function renderReviews(block: SiteBlock) {
         className="text-2xl font-semibold"
         style={{ fontFamily: "var(--site-font-heading)" }}
       >
-        {(data.title as string) || "РћС‚Р·С‹РІС‹"}
+        {(data.title as string) || "Отзывы"}
       </h2>
       {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -2013,7 +2013,7 @@ function renderReviews(block: SiteBlock) {
             key={idx}
             className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]"
           >
-            РћС‚Р·С‹РІС‹ Р±СѓРґСѓС‚ РѕС‚РѕР±СЂР°Р¶Р°С‚СЊСЃСЏ Р·РґРµСЃСЊ РїРѕСЃР»Рµ РёС… РїРѕСЏРІР»РµРЅРёСЏ.
+            Отзывы будут отображаться здесь после их появления.
           </div>
         ))}
       </div>
@@ -2046,20 +2046,20 @@ function renderContacts(
           className="text-2xl font-semibold"
           style={{ fontFamily: "var(--site-font-heading)" }}
         >
-          {(data.title as string) || "РљРѕРЅС‚Р°РєС‚С‹"}
+          {(data.title as string) || "Контакты"}
         </h2>
         {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
         <div className="mt-4 space-y-2 text-sm text-[color:var(--bp-muted)]">
-          <div>РђРєРєР°СѓРЅС‚: {accountName}</div>
-          {profile.phone && <div>РўРµР»РµС„РѕРЅ: {profile.phone}</div>}
+          <div>Аккаунт: {accountName}</div>
+          {profile.phone && <div>Телефон: {profile.phone}</div>}
           {profile.email && <div>Email: {profile.email}</div>}
           {(profile.address || location?.address) && (
-            <div>РђРґСЂРµСЃ: {profile.address || location?.address}</div>
+            <div>Адрес: {profile.address || location?.address}</div>
           )}
         </div>
       </div>
       <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-xs text-[color:var(--bp-muted)]">
-        Р—РґРµСЃСЊ РјРѕР¶РЅРѕ Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡РёС‚СЊ РєР°СЂС‚Сѓ.
+        Здесь можно будет подключить карту.
       </div>
     </div>
   );
