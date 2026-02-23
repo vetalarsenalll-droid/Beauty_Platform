@@ -5841,8 +5841,7 @@ function renderLocations(
                 href={buildBookingLink({
                   publicSlug: account.publicSlug,
                   locationId: location.id,
-                  scenario: "serviceFirst",
-                  start: "scenario",
+                  scenario: "dateFirst",
                 })}
                 className="mt-3 inline-flex px-3 py-2 text-xs"
                 style={buttonStyle(style, theme)}
@@ -5940,7 +5939,7 @@ function renderServices(
                     (service.locationIds.length === 1 ? service.locationIds[0] : null),
                   specialistId: effectiveSpecialistId,
                   serviceId: service.id,
-                  scenario: effectiveSpecialistId ? "specialistFirst" : "serviceFirst",
+                  scenario: "serviceFirst",
                 })}
                 className="mt-3 inline-flex px-3 py-2 text-xs"
                 style={buttonStyle(style, theme)}

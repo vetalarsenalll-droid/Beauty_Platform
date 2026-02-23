@@ -26,13 +26,13 @@ export type CurrentEntity =
   | null;
 
 const PAGE_LABELS = {
-  home: "Р“Р»Р°РІРЅР°СЏ",
-  booking: "РћРЅР»Р°Р№РЅ-Р·Р°РїРёСЃСЊ",
-  client: "Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚",
-  locations: "Р›РѕРєР°С†РёРё",
-  services: "РЈСЃР»СѓРіРё",
-  specialists: "РЎРїРµС†РёР°Р»РёСЃС‚С‹",
-  promos: "РџСЂРѕРјРѕ/СЃРєРёРґРєРё",
+  home: "Главная",
+  booking: "Онлайн-запись",
+  client: "Личный кабинет",
+  locations: "Локации",
+  services: "Услуги",
+  specialists: "Специалисты",
+  promos: "Промо/скидки",
 } as const;
 
 type PageKey = keyof typeof PAGE_LABELS;
@@ -55,7 +55,7 @@ const SOCIAL_ICONS: Record<string, string> = {
 };
 
 const SOCIAL_LABELS: Record<string, string> = {
-  website: "РЎР°Р№С‚",
+  website: "Сайт",
   instagram: "Instagram",
   whatsapp: "WhatsApp",
   telegram: "Telegram",
@@ -67,8 +67,8 @@ const SOCIAL_LABELS: Record<string, string> = {
   tiktok: "TikTok",
   youtube: "YouTube",
   twitter: "Twitter",
-  dzen: "Р”Р·РµРЅ",
-  ok: "РћРґРЅРѕРєР»Р°СЃСЃРЅРёРєРё",
+  dzen: "Дзен",
+  ok: "Одноклассники",
 };
 
 type BlockStyle = {
@@ -354,6 +354,14 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const resolvedBorder =
     (resolveColor("borderColorLight", "borderColorDark", "borderColor") || "").trim() ||
     (theme.mode === "dark" ? resolvedBorderPair.darkResolved : resolvedBorderPair.lightResolved);
+  const normalizeAlign = (value: unknown): "left" | "center" | "right" =>
+    value === "center" || value === "right" ? value : "left";
+  const baseTextAlign = normalizeAlign(style.textAlign);
+  const headingAlignRaw = normalizeAlign(style.textAlignHeading);
+  const subheadingAlignRaw = normalizeAlign(style.textAlignSubheading);
+  const headingAlign = headingAlignRaw === "left" ? baseTextAlign : headingAlignRaw;
+  const subheadingAlign =
+    subheadingAlignRaw === "left" ? baseTextAlign : subheadingAlignRaw;
 
   return {
     marginTop: Number.isFinite(style.marginTop as number)
@@ -412,13 +420,9 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
         : "vertical",
     gradientFrom: (style.gradientFrom as string) ?? "",
     gradientTo: (style.gradientTo as string) ?? "",
-    textAlign: (style.textAlign as "left" | "center" | "right") ?? "left",
-    textAlignHeading:
-      (style.textAlignHeading as "left" | "center" | "right") ??
-      ((style.textAlign as "left" | "center" | "right") ?? "left"),
-    textAlignSubheading:
-      (style.textAlignSubheading as "left" | "center" | "right") ??
-      ((style.textAlign as "left" | "center" | "right") ?? "left"),
+    textAlign: baseTextAlign,
+    textAlignHeading: headingAlign,
+    textAlignSubheading: subheadingAlign,
     fontHeading: (style.fontHeading as string) ?? "",
     fontSubheading: (style.fontSubheading as string) ?? "",
     fontBody: (style.fontBody as string) ?? "",
@@ -627,7 +631,7 @@ function renderCover(
   const description = (data.description as string) || "";
   const align = (data.align as string) === "center" ? "center" : "left";
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
+  const buttonText = (data.buttonText as string) || "Записаться";
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
@@ -637,7 +641,7 @@ function renderCover(
     <div className={`grid gap-6 ${imageUrl ? "md:grid-cols-[1.2fr_1fr]" : ""}`}>
       <div className={align === "center" ? "text-center" : "text-left"}>
         <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          РЎР°Р№С‚ {accountName}
+          Сайт {accountName}
         </div>
         <h1
           className="mt-3 text-3xl font-semibold"
@@ -864,7 +868,7 @@ function renderMenu(
   const socialGlyphSize = Math.max(14, Math.round(socialIconSize * 0.55));
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
-  const buttonText = (data.buttonText as string) || "Р—Р°РїРёСЃР°С‚СЊСЃСЏ";
+  const buttonText = (data.buttonText as string) || "Записаться";
   const basePath = publicSlug ? `/${publicSlug}` : "#";
   const position = data.position === "sticky" ? "sticky" : "static";
   const accountTitleRaw =
@@ -1059,8 +1063,8 @@ function renderMenu(
       <a
         href={accountLink}
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
-        aria-label="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
-        title="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
+        aria-label="Личный кабинет"
+        title="Личный кабинет"
         target="_blank"
         rel="noreferrer"
       >
@@ -1070,8 +1074,8 @@ function renderMenu(
       <Link
         href={accountLink}
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
-        aria-label="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
-        title="Р›РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚"
+        aria-label="Личный кабинет"
+        title="Личный кабинет"
       >
         <IconUser />
       </Link>
@@ -1109,13 +1113,13 @@ function renderMenu(
     <div className="flex flex-wrap items-center gap-4">{linkItems}</div>
   );
   const drawerNavNode = (
-    <div className={`flex flex-col gap-2 ${stackAlignClass}`}>{linkItems}</div>
+    <div className={`flex w-full flex-col gap-2 ${stackAlignClass}`}>{linkItems}</div>
   );
   const overlayNavNode = (
     <div className={`flex w-full flex-col gap-6 ${stackAlignClass}`}>{overlayLinkItems}</div>
   );
   const drawerLinkItems = (
-    <div className={`flex flex-col gap-2 ${stackAlignClass}`}>
+    <div className={`flex w-full flex-col gap-2 ${stackAlignClass}`}>
       {menuItems.map((key) => {
         const href =
           key === "home"
@@ -1131,8 +1135,8 @@ function renderMenu(
           <Link
             key={`${key}-drawer`}
             href={href}
-            className="text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
-            style={headingStyle(style)}
+            className="w-full text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
+            style={{ ...headingStyle(style), textAlign: align }}
           >
             {PAGE_LABELS[key]}
           </Link>
@@ -1320,8 +1324,8 @@ function renderMenu(
                 <div className="min-w-0 flex-1">{searchNode}</div>
                 <DetailsCloseButton
                   className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
-                  title="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
-                  ariaLabel="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
+                  title="Закрыть меню"
+                  ariaLabel="Закрыть меню"
                 >
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
@@ -1385,8 +1389,8 @@ function renderMenu(
                   <div className="min-w-0 flex-1">{logoNode}</div>
                   <DetailsCloseButton
                     className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
-                    title="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
-                    ariaLabel="Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ"
+                    title="Закрыть меню"
+                    ariaLabel="Закрыть меню"
                   >
                     <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
                     <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
@@ -1611,8 +1615,7 @@ function renderLocations(
                 href={buildBookingLink({
                   publicSlug,
                   locationId: location.id,
-                  scenario: "serviceFirst",
-                  start: "scenario",
+                  scenario: "dateFirst",
                 })}
                 className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
                 style={buttonStyle(style)}
@@ -1709,7 +1712,7 @@ function renderServices(
                     (service.locationIds.length === 1 ? service.locationIds[0] : null),
                   specialistId: effectiveSpecialistId,
                   serviceId: service.id,
-                  scenario: effectiveSpecialistId ? "specialistFirst" : "serviceFirst",
+                  scenario: "serviceFirst",
                 })}
                 className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
                 style={buttonStyle(style)}

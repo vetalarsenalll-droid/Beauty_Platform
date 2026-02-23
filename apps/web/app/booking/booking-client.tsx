@@ -855,6 +855,7 @@ export default function BookingClient({
     scenario: Scenario | null;
     startScenario: boolean;
   } | null>(null);
+  const [hasAnyQueryParams, setHasAnyQueryParams] = useState(false);
   const [initialParamsApplied, setInitialParamsApplied] = useState(false);
   const [pendingServiceId, setPendingServiceId] = useState<number | null>(null);
   const [pendingSpecialistId, setPendingSpecialistId] = useState<number | null>(null);
@@ -907,6 +908,7 @@ export default function BookingClient({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    setHasAnyQueryParams(params.toString().length > 0);
     const rawScenario = params.get("scenario");
     const scenarioValue: Scenario | null =
       rawScenario === "serviceFirst" || rawScenario === "service"
@@ -962,6 +964,7 @@ export default function BookingClient({
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
   const [loadingClientProfile, setLoadingClientProfile] = useState(false);
   const calendarKeyRef = useRef<string | null>(null);
+  const calendarRequestIdRef = useRef(0);
   const fullscreenLoaderShownAtRef = useRef<number | null>(null);
   const [overlayNextDeadline, setOverlayNextDeadline] = useState<number | null>(null);
 
@@ -1045,6 +1048,12 @@ export default function BookingClient({
   useEffect(() => {
     if (!initialParams || initialParamsApplied) return;
     if (initialParams.scenario) {
+      skipScenarioResetOnceRef.current = true;
+    }
+    if (initialParams.locationId) {
+      skipLocationResetOnceRef.current = true;
+    }
+    if (initialParams.scenario) {
       setScenario(initialParams.scenario);
     }
     if (initialParams.startScenario) {
@@ -1054,13 +1063,21 @@ export default function BookingClient({
       setLocationId(initialParams.locationId);
     }
     if (initialParams.serviceId) setPendingServiceId(initialParams.serviceId);
-    if (initialParams.specialistId) setPendingSpecialistId(initialParams.specialistId);
+    if (initialParams.specialistId) {
+      // Для перехода из карточки специалиста нужен выбранный specialistId уже на шаге услуг.
+      setSpecialistId(initialParams.specialistId);
+      setPendingSpecialistId(initialParams.specialistId);
+    }
     setInitialParamsApplied(true);
   }, [initialParams, initialParamsApplied, context?.locations]);
 
   useEffect(() => {
     if (!initialParamsApplied || restoredFromStorageRef.current) return;
     restoredFromStorageRef.current = true;
+
+    // Для "чистого" входа на /booking (без query) всегда стартуем с выбора локации,
+    // без восстановления прошлого шага/выборов из sessionStorage.
+    if (!hasAnyQueryParams) return;
 
     const hasUrlState = Boolean(
       initialParams?.scenario ||
@@ -1076,9 +1093,12 @@ export default function BookingClient({
 
     restoringFromStorageRef.current = true;
     setScenario(persisted.scenario);
-    setStartScenario(Boolean(persisted.startScenario));
+    // "Сценарий" должен включаться только явным URL-параметром start=scenario,
+    // а не восстанавливаться из сохраненного состояния.
+    setStartScenario(false);
     setLocationId(persisted.locationId ?? null);
     setPendingServiceId(persisted.serviceId ?? null);
+    setSpecialistId(persisted.specialistId ?? null);
     setPendingSpecialistId(persisted.specialistId ?? null);
     setDateYmd(persisted.dateYmd);
     setTimeChoice(persisted.timeChoice ?? null);
@@ -1094,7 +1114,7 @@ export default function BookingClient({
     setTimeout(() => {
       restoringFromStorageRef.current = false;
     }, 0);
-  }, [initialParamsApplied, initialParams]);
+  }, [initialParamsApplied, initialParams, hasAnyQueryParams]);
 
   useEffect(() => {
     if (!locationId || !context?.locations?.length) return;
@@ -1180,7 +1200,9 @@ export default function BookingClient({
         currentStepKey === "datetime" ||
         currentStepKey === "details"));
   const shouldLoadSpecialists =
-    currentStepKey === "specialist" || currentStepKey === "details";
+    currentStepKey === "specialist" ||
+    currentStepKey === "details" ||
+    (isSpecialistFirst && currentStepKey === "service");
   const shouldLoadCalendar =
     !isDateFirst && (currentStepKey === "datetime" || currentStepKey === "details");
   const shouldLoadDateFirstAvailability =
@@ -1203,6 +1225,32 @@ export default function BookingClient({
     if (idx >= 0) setStepIndex(idx);
     setPendingStepKey(null);
   }, [pendingStepKey, stepsWithScenario]);
+
+  useEffect(() => {
+    if (!initialParamsApplied || initialNavApplied) return;
+    const hasUrlState = Boolean(
+      initialParams?.locationId || initialParams?.serviceId || initialParams?.specialistId
+    );
+    if (!hasUrlState) {
+      setInitialNavApplied(true);
+      return;
+    }
+
+    const knownLocation = Boolean(initialParams?.locationId);
+    let nextStep: BookingUiStepKey = "location";
+    if (knownLocation) {
+      if (initialParams?.serviceId) {
+        nextStep = "datetime";
+      } else if (initialParams?.specialistId) {
+        nextStep = "service";
+      } else {
+        nextStep = "datetime";
+      }
+    }
+
+    setPendingStepKey(nextStep);
+    setInitialNavApplied(true);
+  }, [initialParamsApplied, initialNavApplied, initialParams]);
 
   // Auto-advance is disabled: переходы только по кнопке "Далее".
 
@@ -1507,12 +1555,18 @@ export default function BookingClient({
       serviceId ?? "",
       isSpecialistFirst ? specialistId ?? "" : "",
       accountSlug ?? "",
+      accountTz,
+      todayYmdTz,
       debouncedCalendarQueryStartYmd,
       calendarQueryDays,
       currentStepKey ?? "",
     ].join("|");
 
-    if (calendarKeyRef.current === calendarKey) return;
+    if (calendarKeyRef.current === calendarKey) {
+      // тот же набор параметров: не оставляем UI в состоянии бесконечной загрузки
+      setLoadingCalendar(false);
+      return;
+    }
     calendarKeyRef.current = calendarKey;
 
     setCalendarError(null);
@@ -1536,6 +1590,8 @@ export default function BookingClient({
     }
 
     let mounted = true;
+    const requestId = calendarRequestIdRef.current + 1;
+    calendarRequestIdRef.current = requestId;
     setLoadingCalendar(true);
     setCalendarError(null);
 
@@ -1550,7 +1606,7 @@ export default function BookingClient({
       })
     )
       .then((data) => {
-        if (!mounted) return;
+        if (!mounted || calendarRequestIdRef.current !== requestId) return;
 
         const cleanedDays = (data?.days ?? [])
           .filter((d) => !isPastYmd(d.date, todayYmdTz))
@@ -1573,13 +1629,14 @@ export default function BookingClient({
         }
       })
       .catch((e: Error) => {
-        if (!mounted) return;
+        if (!mounted || calendarRequestIdRef.current !== requestId) return;
         setCalendarError(e.message);
         setCalendar(null);
       })
       .finally(() => {
-        if (!mounted) return;
-        setLoadingCalendar(false);
+        if (calendarRequestIdRef.current === requestId) {
+          setLoadingCalendar(false);
+        }
       });
 
     return () => {
@@ -2175,7 +2232,9 @@ export default function BookingClient({
       (stepsWithScenario[stepIndex]?.key as BookingUiStepKey | undefined) ?? null;
     const payload: BookingPersistedState = {
       scenario,
-      startScenario,
+      // Не сохраняем флаг шага сценария между сессиями.
+      // Он должен приходить только из текущего URL (?start=scenario).
+      startScenario: false,
       locationId,
       serviceId,
       specialistId,
