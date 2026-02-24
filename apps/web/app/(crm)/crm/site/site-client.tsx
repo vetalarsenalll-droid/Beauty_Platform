@@ -441,6 +441,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     description: "Выберите услугу, специалиста и удобное время.",
     buttonText: "Записаться",
     showButton: true,
+    secondaryButtonText: "Наши соцсети",
+    showSecondaryButton: false,
     align: "left",
     imageSource: { type: "account" },
     style: defaultBlockStyle,
@@ -2680,6 +2682,21 @@ function BlockEditor({
                 value={(block.data.buttonText as string) ?? ""}
                 onChange={(value) => updateData({ buttonText: value })}
               />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(block.data.showSecondaryButton)}
+                  onChange={(event) =>
+                    updateData({ showSecondaryButton: event.target.checked })
+                  }
+                />
+                Показывать вторую кнопку (соцсети)
+              </label>
+              <FieldText
+                label="Текст второй кнопки"
+                value={(block.data.secondaryButtonText as string) ?? "Наши соцсети"}
+                onChange={(value) => updateData({ secondaryButtonText: value })}
+              />
             </>
           )}
           {inSection("media", "main") && (
@@ -3414,7 +3431,7 @@ function BlockStyleEditor({
         Ширина блока: 12/12 (фиксировано для меню)
       </div>
       )}
-      {inSection("layout") && block.type !== "works" && (
+      {inSection("layout") && block.type !== "works" && block.type !== "cover" && (
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -4726,6 +4743,7 @@ function BlockPreview({
   const isBooking = block.type === "booking";
   const isMenu = block.type === "menu";
   const isGallery = block.type === "works";
+  const isCover = block.type === "cover";
   const isFullscreenGallery = isGallery && block.variant === "v2";
   const blockWidthColumns = isMenu
     ? MAX_BLOCK_COLUMNS
@@ -4751,7 +4769,7 @@ function BlockPreview({
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
-  const containerClass = isBooking || isMenu || isGallery
+  const containerClass = isBooking || isMenu || isGallery || isCover
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -4784,15 +4802,15 @@ function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: isGallery || isBooking || isMenu ? "100%" : gridWidthPercent,
+        width: isGallery || isBooking || isMenu || isCover ? "100%" : gridWidthPercent,
         maxWidth: "100%",
-        marginLeft: isGallery || isBooking || isMenu ? "auto" : gridLeftPercent,
-        marginRight: isGallery || isBooking || isMenu ? "auto" : 0,
-        marginTop: isGallery || isBooking ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking ? style.marginBottom : undefined,
-        backgroundColor: isMenu
+        marginLeft: isGallery || isBooking || isMenu || isCover ? "auto" : gridLeftPercent,
+        marginRight: isGallery || isBooking || isMenu || isCover ? "auto" : 0,
+        marginTop: isGallery || isBooking || isCover ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isCover ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isCover ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isCover ? style.marginBottom : undefined,
+        backgroundColor: isMenu || isCover
           ? "transparent"
           : isGallery
             ? sectionBg
@@ -4815,23 +4833,23 @@ function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking ? 0 : blockRadius,
-            backgroundColor: isBooking
+            borderRadius: isBooking || isCover ? 0 : blockRadius,
+            backgroundColor: isBooking || isCover
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking
+            backgroundImage: isBooking || isCover
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery || isCover ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || isCover || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isMenu || isGallery || shadowSize <= 0
+              isBooking || isMenu || isGallery || isCover || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-muted" as string]: mutedColor,
@@ -4966,6 +4984,7 @@ function renderBlock(
       return renderCover(
         block,
         account,
+        accountProfile,
         branding,
         locations,
         services,
@@ -5283,6 +5302,7 @@ function IconMenu() {
 function renderCover(
   block: SiteBlock,
   account: AccountInfo,
+  accountProfile: AccountProfile,
   branding: Branding,
   locations: LocationItem[],
   services: ServiceItem[],
@@ -5299,58 +5319,128 @@ function renderCover(
     align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
+  const showSecondaryButton = Boolean(data.showSecondaryButton);
+  const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
+  const socialHref = resolvePrimarySocialHref(accountProfile);
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
   const imageUrl = resolveCoverImage(imageSource, branding, locations, services, specialists);
+  const overlayGradient =
+    "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
+  const backgroundStyle = imageUrl
+    ? {
+        backgroundImage: `${overlayGradient}, url(${imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : {
+        backgroundColor: style.blockBg || theme.panelColor,
+      };
 
   return (
-    <div className={`grid gap-6 ${imageUrl ? "md:grid-cols-[1.2fr_1fr]" : ""}`}>
-      <div className={alignClass}>
-        <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Сайт {account.name}
-        </div>
-        <h2
-          className="mt-3 font-semibold"
-          style={{ ...headingStyle(style, theme), textAlign: align }}
-        >
-          {title}
-        </h2>
-        {subtitle && (
-          <p
-            className="mt-2 text-[color:var(--bp-muted)]"
-            style={{ ...subheadingStyle(style, theme), textAlign: align }}
+    <section
+      className={`relative overflow-hidden px-6 py-14 sm:px-10 sm:py-20 ${alignClass}`}
+      style={{ ...backgroundStyle, minHeight: "100vh" }}
+    >
+      <div className="relative z-[1] mx-auto flex min-h-[100vh] w-full max-w-[1280px] items-center">
+        <div className="w-full max-w-[760px]">
+          <h2
+            className="text-white leading-[1.08] tracking-[-0.01em]"
+            style={{
+              ...headingStyle(style, theme),
+              textAlign: align,
+              fontSize: "clamp(40px, 5.3vw, 78px)",
+            }}
           >
-            {subtitle}
-          </p>
-        )}
-        {description && (
-          <p
-            className="mt-3 text-[color:var(--bp-muted)]"
-            style={{ ...textStyle(style, theme), textAlign: align }}
-          >
-            {description}
-          </p>
-        )}
-        {showButton && account.publicSlug && (
-          <div className="mt-5" style={{ textAlign: align }}>
-            <a
-              href={buildBookingLink({ publicSlug: account.publicSlug })}
-              className="inline-flex px-5 py-2 text-sm font-semibold"
-              style={buttonStyle(style, theme)}
+            {title}
+          </h2>
+          {subtitle && (
+            <p
+              className="mt-6 text-white/90 leading-[1.25]"
+              style={{
+                ...subheadingStyle(style, theme),
+                textAlign: align,
+                fontSize: "clamp(22px, 2.2vw, 34px)",
+              }}
             >
-              {buttonText}
-            </a>
+              {subtitle}
+            </p>
+          )}
+          {description && (
+            <p
+              className="mt-5 max-w-[720px] text-white/80 leading-[1.45]"
+              style={{ ...textStyle(style, theme), textAlign: align }}
+            >
+              {description}
+            </p>
+          )}
+          <div
+            className="mt-7 flex flex-wrap items-center gap-3"
+            style={{
+              justifyContent:
+                align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
+            }}
+          >
+            {showButton && account.publicSlug && (
+              <a
+                href={buildBookingLink({ publicSlug: account.publicSlug })}
+                className="inline-flex min-h-[54px] items-center px-10 py-3 text-base font-semibold"
+                style={{
+                  ...buttonStyle(style, theme),
+                  borderRadius: 0,
+                  color: "#ffffff",
+                }}
+              >
+                {buttonText}
+              </a>
+            )}
+            {showSecondaryButton && socialHref && (
+              <a
+                href={socialHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[54px] items-center border px-10 py-3 text-base font-semibold text-white transition hover:bg-white/10"
+                style={{
+                  borderColor: "rgba(255,255,255,0.45)",
+                  borderRadius: 0,
+                }}
+              >
+                {secondaryButtonText}
+              </a>
+            )}
           </div>
-        )}
-      </div>
-      {imageUrl && (
-        <div className="overflow-hidden rounded-3xl border border-[color:var(--bp-stroke)]">
-          <img src={imageUrl} alt="" className="h-56 w-full object-cover" />
         </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
+}
+
+function resolvePrimarySocialHref(accountProfile: AccountProfile): string | null {
+  const rawValues = [
+    accountProfile.instagramUrl,
+    accountProfile.telegramUrl,
+    accountProfile.whatsappUrl,
+    accountProfile.vkUrl,
+    accountProfile.websiteUrl,
+    accountProfile.facebookUrl,
+    accountProfile.tiktokUrl,
+    accountProfile.youtubeUrl,
+    accountProfile.twitterUrl,
+    accountProfile.pinterestUrl,
+    accountProfile.maxUrl,
+    accountProfile.viberUrl,
+    accountProfile.dzenUrl,
+    accountProfile.okUrl,
+  ];
+  for (const value of rawValues) {
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    if (!trimmed) continue;
+    return trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+  }
+  return null;
 }
 
 function resolveCoverImage(

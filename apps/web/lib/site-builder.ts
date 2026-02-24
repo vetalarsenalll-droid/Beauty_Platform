@@ -114,7 +114,7 @@ export const BLOCK_VARIANTS: Record<
   BlockType,
   Array<"v1" | "v2" | "v3" | "v4" | "v5">
 > = {
-  cover: ["v1", "v2"],
+  cover: ["v1"],
   menu: ["v1", "v2", "v3"],
   loader: ["v1", "v2", "v3"],
   about: ["v1", "v2"],
@@ -313,6 +313,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
           "Удобно записывайтесь онлайн, выбирайте специалистов и услуги в пару кликов.",
         buttonText: "Записаться",
         showButton: true,
+        secondaryButtonText: "Наши соцсети",
+        showSecondaryButton: false,
         align: "left",
         imageSource: { type: "account" } as CoverImageSource,
       },

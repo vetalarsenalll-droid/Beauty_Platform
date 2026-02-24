@@ -483,6 +483,7 @@ export function renderBlock(
         block,
         accountName,
         publicSlug,
+        profile,
         branding,
         locations,
         services,
@@ -667,6 +668,7 @@ function renderCover(
   block: SiteBlock,
   accountName: string,
   publicSlug: string,
+  profile: AccountProfile,
   branding: Branding,
   locations: LocationItem[],
   services: ServiceItem[],
@@ -678,45 +680,119 @@ function renderCover(
   const title = (data.title as string) || accountName;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
-  const align = (data.align as string) === "center" ? "center" : "left";
+  const alignRaw = (data.align as string) ?? "left";
+  const align = alignRaw === "center" || alignRaw === "right" ? alignRaw : "left";
+  const alignClass =
+    align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
+  const showSecondaryButton = Boolean(data.showSecondaryButton);
+  const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
+  const socialHref = resolvePrimarySocialHref(profile);
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
   const imageUrl = resolveCoverImage(imageSource, branding, locations, services, specialists);
+  const overlayGradient =
+    "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
+  const backgroundStyle = imageUrl
+    ? {
+        backgroundImage: `${overlayGradient}, url(${imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : {
+        backgroundColor: "var(--block-bg, var(--site-panel))",
+      };
 
   return (
-    <div className={`grid gap-6 ${imageUrl ? "md:grid-cols-[1.2fr_1fr]" : ""}`}>
-      <div className={align === "center" ? "text-center" : "text-left"}>
-        <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Сайт {accountName}
-        </div>
-        <h1
-          className="mt-3 text-3xl font-semibold"
-          style={{ fontFamily: "var(--site-font-heading)" }}
-        >
-          {title}
-        </h1>
-        {subtitle && <p className="mt-2 text-lg text-[color:var(--bp-muted)]">{subtitle}</p>}
-        {description && <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{description}</p>}
-        {showButton && publicSlug && (
-          <Link
-            href={buildBookingLink({ publicSlug })}
-            className="mt-5 inline-flex rounded-full px-5 py-2 text-sm font-semibold"
-            style={buttonStyle(style)}
+    <section
+      className={`relative overflow-hidden px-6 py-14 sm:px-10 sm:py-20 ${alignClass}`}
+      style={{ ...backgroundStyle, minHeight: "100vh" }}
+    >
+      <div className="relative z-[1] mx-auto w-full max-w-6xl">
+        <div className="max-w-3xl">
+          <div className="text-xs uppercase tracking-[0.22em] text-white/75">
+            Сайт {accountName}
+          </div>
+          <h1 className="mt-3 text-white" style={headingStyle(style)}>
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-3 text-white/90" style={subheadingStyle(style)}>
+              {subtitle}
+            </p>
+          )}
+          {description && (
+            <p className="mt-4 max-w-2xl text-white/80" style={textStyle(style)}>
+              {description}
+            </p>
+          )}
+          <div
+            className="mt-7 flex flex-wrap items-center gap-3"
+            style={{
+              justifyContent:
+                align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
+            }}
           >
-            {buttonText}
-          </Link>
-        )}
-      </div>
-      {imageUrl && (
-        <div className="overflow-hidden rounded-3xl border border-[color:var(--bp-stroke)]">
-          <img src={imageUrl} alt="" className="h-56 w-full object-cover" />
+            {showButton && publicSlug && (
+              <Link
+                href={buildBookingLink({ publicSlug })}
+                className="inline-flex min-h-[44px] items-center rounded-full px-6 py-2 text-sm font-semibold"
+                style={buttonStyle(style)}
+              >
+                {buttonText}
+              </Link>
+            )}
+            {showSecondaryButton && socialHref && (
+              <a
+                href={socialHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-[44px] items-center rounded-full border px-6 py-2 text-sm font-semibold text-white/95 transition hover:bg-white/10"
+                style={{
+                  borderColor: "rgba(255,255,255,0.45)",
+                  borderRadius:
+                    style.buttonRadius !== null
+                      ? style.buttonRadius
+                      : "var(--site-button-radius)",
+                }}
+              >
+                {secondaryButtonText}
+              </a>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
+}
+
+function resolvePrimarySocialHref(profile: AccountProfile): string | null {
+  const rawValues = [
+    profile.instagramUrl,
+    profile.telegramUrl,
+    profile.whatsappUrl,
+    profile.vkUrl,
+    profile.websiteUrl,
+    profile.facebookUrl,
+    profile.tiktokUrl,
+    profile.youtubeUrl,
+    profile.twitterUrl,
+    profile.pinterestUrl,
+    profile.maxUrl,
+    profile.viberUrl,
+    profile.dzenUrl,
+    profile.okUrl,
+  ];
+  for (const value of rawValues) {
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    if (!trimmed) continue;
+    return trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+  }
+  return null;
 }
 
   function headingStyle(style: BlockStyle) {
@@ -785,6 +861,7 @@ export function buildBlockWrapperStyle(
           ? blockWidth
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
+    const isCoverBlock = options.blockType === "cover";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
@@ -794,7 +871,8 @@ export function buildBlockWrapperStyle(
       typeof style.gridStartColumn === "number" &&
       typeof style.gridEndColumn === "number" &&
       !isMenu &&
-      !isBookingBlock;
+      !isBookingBlock &&
+      !isCoverBlock;
     const gridStart = hasGridRange
       ? clampGridColumn(style.gridStartColumn as number)
       : centeredGridRange(blockOuterColumns).start;
@@ -812,51 +890,53 @@ export function buildBlockWrapperStyle(
     return {
       className: isMenu
         ? "site-block overflow-hidden border border-[color:var(--bp-stroke)] p-0"
-        : isGallery || isBookingBlock
+        : isGallery || isBookingBlock || isCoverBlock
           ? "site-block p-0"
         : "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isBookingBlock ? 0 : radius,
+        borderRadius: isBookingBlock || isCoverBlock ? 0 : radius,
         backgroundColor:
-          isGallery || isBookingBlock ? "var(--block-section-bg, var(--block-bg))" : "var(--block-bg)",
-        backgroundImage: isGallery || isBookingBlock ? "none" : "var(--block-gradient)",
-        borderColor: isGallery || isBookingBlock ? "transparent" : "var(--block-border)",
-        borderWidth: isGallery || isBookingBlock ? 0 : hasVisibleBorder ? 1 : 0,
+          isGallery || isBookingBlock || isCoverBlock
+            ? "var(--block-section-bg, var(--block-bg))"
+            : "var(--block-bg)",
+        backgroundImage: isGallery || isBookingBlock || isCoverBlock ? "none" : "var(--block-gradient)",
+        borderColor: isGallery || isBookingBlock || isCoverBlock ? "transparent" : "var(--block-border)",
+        borderWidth: isGallery || isBookingBlock || isCoverBlock ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:
-          isGallery || isBookingBlock
+          isGallery || isBookingBlock || isCoverBlock
             ? "none"
             : blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop:
-          options.blockType === "menu" || options.blockType === "works" || isBookingBlock
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock
             ? 0
             : typeof style.marginTop === "number"
               ? style.marginTop
               : 0,
         marginBottom:
-          options.blockType === "works" || isBookingBlock
+          options.blockType === "works" || isBookingBlock || isCoverBlock
             ? 0
             : typeof style.marginBottom === "number"
               ? style.marginBottom
               : 0,
         paddingTop:
-          (options.blockType === "works" || isBookingBlock) &&
+          (options.blockType === "works" || isBookingBlock || isCoverBlock) &&
           typeof style.marginTop === "number"
             ? style.marginTop
             : undefined,
         paddingBottom:
-          (options.blockType === "works" || isBookingBlock) &&
+          (options.blockType === "works" || isBookingBlock || isCoverBlock) &&
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu || isGallery || isBookingBlock ? "100%" : gridWidthCss,
+        width: isMenu || isGallery || isBookingBlock || isCoverBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
-        marginLeft: isMenu || isGallery || isBookingBlock ? "auto" : gridLeftCss,
-        marginRight: isMenu || isGallery || isBookingBlock ? "auto" : 0,
+        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock ? "auto" : gridLeftCss,
+        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock ? "auto" : 0,
         boxSizing: "border-box",
         color: "var(--block-text)",
         ["--works-content-width" as string]: gridWidthCss,
