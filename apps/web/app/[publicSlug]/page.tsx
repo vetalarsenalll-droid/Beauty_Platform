@@ -104,7 +104,6 @@ export default async function PublicAccountPage({ params }: PageProps) {
         const wrapperStyle = isBooking
           ? {
               ...wrapper.style,
-              padding: 0,
               borderColor: "transparent",
               backgroundColor: "transparent",
               boxShadow: "none",

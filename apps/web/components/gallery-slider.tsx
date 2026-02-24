@@ -7,6 +7,7 @@ type GallerySliderProps = {
   height: number;
   radius: number;
   imageFit?: "cover" | "contain";
+  containBackgroundColor?: string;
   imageBorderColor?: string;
   imageBorderWidth?: number;
   imageShadow?: string;
@@ -25,6 +26,7 @@ export default function GallerySlider({
   height,
   radius,
   imageFit = "cover",
+  containBackgroundColor = "var(--bp-paper)",
   imageBorderColor = "transparent",
   imageBorderWidth = 0,
   imageShadow = "none",
@@ -63,15 +65,18 @@ export default function GallerySlider({
   const canSlide = images.length > 1;
   const prev = () => setCurrent((value) => (value - 1 + images.length) % images.length);
   const next = () => setCurrent((value) => (value + 1) % images.length);
-  const leftArrow = arrowVariant === "triangle" ? "◀" : arrowVariant === "angle" ? "❮" : "‹";
-  const rightArrow = arrowVariant === "triangle" ? "▶" : arrowVariant === "angle" ? "❯" : "›";
+  const frameBackgroundColor =
+    imageFit === "contain" ? containBackgroundColor : "transparent";
+  const leftArrow = arrowVariant === "triangle" ? "\u25C0" : arrowVariant === "angle" ? "\u276E" : "\u2039";
+  const rightArrow = arrowVariant === "triangle" ? "\u25B6" : arrowVariant === "angle" ? "\u276F" : "\u203A";
 
   return (
     <div className={`relative ${className}`}>
       <div
-        className="relative overflow-hidden bg-[color:var(--bp-paper)]"
+        className="relative overflow-hidden"
         style={{
           height,
+          backgroundColor: frameBackgroundColor,
           borderRadius: radius,
           borderColor: imageBorderColor,
           borderWidth: imageBorderWidth,

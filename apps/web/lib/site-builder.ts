@@ -349,6 +349,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         subtitle: "Подберите удобную услугу",
         mode: "all",
         ids: [],
+        cardsPerRow: 3,
         showPrice: true,
         showDuration: true,
         showButton: true,

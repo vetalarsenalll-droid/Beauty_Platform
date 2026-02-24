@@ -548,6 +548,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     subtitle: "Популярные услуги",
     mode: "all",
     ids: [],
+    cardsPerRow: 3,
     showPrice: true,
     showDuration: true,
     showButton: true,
@@ -2933,6 +2934,23 @@ function BlockEditor({
             onChange={updateData}
           />
           <label className="text-sm">
+            Карточек в ряд
+            <select
+              value={String(block.data.cardsPerRow ?? 3)}
+              onChange={(event) =>
+                updateData({
+                  cardsPerRow: Number(event.target.value),
+                })
+              }
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+            >
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <label className="text-sm">
             Фильтр по локации
             <select
               value={String(block.data.locationId ?? "")}
@@ -3396,7 +3414,7 @@ function BlockStyleEditor({
         Ширина блока: 12/12 (фиксировано для меню)
       </div>
       )}
-      {inSection("layout") && (
+      {inSection("layout") && block.type !== "works" && (
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -6240,6 +6258,19 @@ function renderServices(
   const buttonText = (data.buttonText as string) || "Записаться";
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
+  const cardsPerRowRaw = Number(data.cardsPerRow);
+  const cardsPerRow =
+    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 4
+      ? Math.round(cardsPerRowRaw)
+      : 3;
+  const gridClassName =
+    cardsPerRow === 1
+      ? "grid-cols-1"
+      : cardsPerRow === 2
+        ? "grid-cols-1 md:grid-cols-2"
+        : cardsPerRow === 3
+          ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+          : "grid-cols-1 md:grid-cols-2 xl:grid-cols-4";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const specialistId = typeof data.specialistId === "number" ? data.specialistId : null;
   const currentLocationId = currentEntity?.type === "location" ? currentEntity.id : null;
@@ -6265,46 +6296,113 @@ function renderServices(
           {subtitle}
         </p>
       )}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {items.map((service) => (
-          <div
-            key={service.id}
-            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
-            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
-          >
-            {service.coverUrl && (
-              <img src={service.coverUrl} alt="" className="mb-3 h-32 w-full rounded-xl object-cover" />
-            )}
-            <div className="text-base font-semibold">{service.name}</div>
-            {service.description && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                {service.description}
-              </div>
-            )}
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
-              {showDuration && <span>{service.baseDurationMin} мин</span>}
-              {showPrice && <span>{service.basePrice} ₽</span>}
-            </div>
-            {showButton && account.publicSlug && (
-              <a
-                href={buildBookingLink({
-                  publicSlug: account.publicSlug,
-                  locationId:
-                    currentLocationId ??
-                    locationId ??
-                    (service.locationIds.length === 1 ? service.locationIds[0] : null),
-                  specialistId: effectiveSpecialistId,
-                  serviceId: service.id,
-                  scenario: "serviceFirst",
-                })}
-                className="mt-3 inline-flex px-3 py-2 text-xs"
-                style={buttonStyle(style, theme)}
-              >
-                {buttonText}
-              </a>
-            )}
-          </div>
-        ))}
+      <div className={`mt-4 grid gap-4 ${gridClassName}`}>
+        {items.map((service) => {
+          const serviceHref = account.publicSlug ? `/${account.publicSlug}/services/${service.id}` : "#";
+          return (
+            <article key={service.id} className="relative" style={{ textAlign: style.textAlign }}>
+              {service.coverUrl ? (
+                <div className="group relative min-h-[300px] overflow-hidden rounded-2xl">
+                  <img
+                    src={service.coverUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                  <div className="absolute inset-0 bg-black/45" />
+                  <div className="relative z-[1] flex h-full min-h-[300px] flex-col p-5 text-white">
+                    <div className="mb-auto flex items-start justify-between gap-3">
+                      <a href={serviceHref} className="text-lg font-semibold leading-tight hover:underline">
+                        {service.name}
+                      </a>
+                      <a
+                        href={serviceHref}
+                        aria-label={`Открыть услугу ${service.name}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/60 text-xl leading-none"
+                      >
+                        ›
+                      </a>
+                    </div>
+                    <div className="mt-4">
+                      {service.description && <div className="text-sm text-white/90">{service.description}</div>}
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/90">
+                        {showDuration && <span>{service.baseDurationMin} мин</span>}
+                        {showPrice && <span>{service.basePrice} ₽</span>}
+                      </div>
+                      {showButton && account.publicSlug && (
+                        <a
+                          href={buildBookingLink({
+                            publicSlug: account.publicSlug,
+                            locationId:
+                              currentLocationId ??
+                              locationId ??
+                              (service.locationIds.length === 1 ? service.locationIds[0] : null),
+                            specialistId: effectiveSpecialistId,
+                            serviceId: service.id,
+                            scenario: "serviceFirst",
+                          })}
+                          className="mt-4 inline-flex px-3 py-2 text-xs"
+                          style={buttonStyle(style, theme)}
+                        >
+                          {buttonText}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 py-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <a
+                      href={serviceHref}
+                      className="text-lg font-semibold leading-tight hover:underline"
+                      style={{ color: "var(--block-text, var(--bp-ink))" }}
+                    >
+                      {service.name}
+                    </a>
+                    <a
+                      href={serviceHref}
+                      aria-label={`Открыть услугу ${service.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-xl leading-none"
+                      style={{
+                        color: "var(--block-text, var(--bp-ink))",
+                        borderColor: "var(--block-border, var(--site-border))",
+                      }}
+                    >
+                      ›
+                    </a>
+                  </div>
+                  {service.description && (
+                    <div className="text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                      {service.description}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 text-xs text-[color:var(--block-muted,var(--bp-muted))]">
+                    {showDuration && <span>{service.baseDurationMin} мин</span>}
+                    {showPrice && <span>{service.basePrice} ₽</span>}
+                  </div>
+                  {showButton && account.publicSlug && (
+                    <a
+                      href={buildBookingLink({
+                        publicSlug: account.publicSlug,
+                        locationId:
+                          currentLocationId ??
+                          locationId ??
+                          (service.locationIds.length === 1 ? service.locationIds[0] : null),
+                        specialistId: effectiveSpecialistId,
+                        serviceId: service.id,
+                        scenario: "serviceFirst",
+                      })}
+                      className="inline-flex px-3 py-2 text-xs"
+                      style={buttonStyle(style, theme)}
+                    >
+                      {buttonText}
+                    </a>
+                  )}
+                </div>
+              )}
+            </article>
+          );
+        })}
         {items.length === 0 && (
           <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
             Нет услуг для отображения.
@@ -6596,6 +6694,7 @@ function renderWorks(
   const galleryImages = filtered.slice(0, maxSlides).map((item) => item.url).filter(Boolean);
   const hasGalleryText = Boolean(title || subtitle);
   const isFullscreenVariant = block.variant === "v2";
+  const containBackgroundColor = style.blockBg || theme.panelColor;
 
   if (isFullscreenVariant) {
     return (
@@ -6605,6 +6704,7 @@ function renderWorks(
           height={galleryHeight}
           radius={imageRadius}
           imageFit={imageFit}
+          containBackgroundColor={containBackgroundColor}
           imageBorderColor={imageBorderColor}
           imageBorderWidth={imageBorderWidth}
           imageShadow={imageShadow}
@@ -6663,6 +6763,7 @@ function renderWorks(
           height={galleryHeight}
           radius={imageRadius}
           imageFit={imageFit}
+          containBackgroundColor={containBackgroundColor}
           imageBorderColor={imageBorderColor}
           imageBorderWidth={imageBorderWidth}
           imageShadow={imageShadow}
