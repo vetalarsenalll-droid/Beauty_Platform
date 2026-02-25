@@ -1908,10 +1908,11 @@ model AiThread {
   title     String?
   createdAt DateTime @default(now())
 
-  client   Client?   @relation(fields: [clientId], references: [id])
-  user     User?     @relation(fields: [userId], references: [id])
-  messages AiMessage[]
-  actions  AiAction[]
+  client      Client?        @relation(fields: [clientId], references: [id])
+  user        User?          @relation(fields: [userId], references: [id])
+  messages    AiMessage[]
+  actions     AiAction[]
+  bookingDraft AiBookingDraft?
 }
 
 model AiMessage {
@@ -1961,6 +1962,25 @@ model AiSetting {
   key       String
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+model AiBookingDraft {
+  id Int @id @default(autoincrement())
+  threadId Int @unique
+  locationId Int?
+  serviceId Int?
+  specialistId Int?
+  date String?
+  time String?
+  clientName String?
+  clientPhone String?
+  mode String?
+  status String @default("COLLECTING")
+  consentConfirmedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 }
 
 

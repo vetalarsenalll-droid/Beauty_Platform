@@ -156,6 +156,14 @@ const QUICK_BLOCK_TYPES: BlockType[] = [
   "contacts",
 ];
 
+const MOBILE_VIEWPORTS = {
+  mobile360: { label: "Мобильный 360px", width: 360 },
+  mobileLandscape480: { label: "Мобильный гориз. 480px", width: 480 },
+  tablet640: { label: "Планшет 640px", width: 640 },
+  tabletLandscape960: { label: "Планшет гориз. 960px", width: 960 },
+} as const;
+type MobileViewportKey = keyof typeof MOBILE_VIEWPORTS;
+
 type EditorSection = { id: string; label: string };
 
 const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = {
@@ -443,9 +451,19 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     showButton: true,
     secondaryButtonText: "Наши соцсети",
     showSecondaryButton: false,
+    secondaryButtonSource: "auto",
+    coverHeight: 100,
     align: "left",
     imageSource: { type: "account" },
-    style: defaultBlockStyle,
+    style: {
+      ...defaultBlockStyle,
+      textColorLight: "#ffffff",
+      textColorDark: "#ffffff",
+      textColor: "#ffffff",
+      mutedColorLight: "rgba(255,255,255,0.9)",
+      mutedColorDark: "rgba(255,255,255,0.9)",
+      mutedColor: "rgba(255,255,255,0.9)",
+    },
   },
   menu: {
     title: "Меню",
@@ -706,10 +724,11 @@ export default function SiteClient({
   );
   const [leftPanel, setLeftPanel] = useState<"pages" | "library" | null>(null);
   const [libraryBlock, setLibraryBlock] = useState<BlockType | null>(null);
-  const [rightPanel, setRightPanel] = useState<"global" | "page" | "content" | "settings" | null>(
+  const [rightPanel, setRightPanel] = useState<"content" | "settings" | null>(
     null
   );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [mobileViewport, setMobileViewport] = useState<MobileViewportKey>("mobile360");
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
@@ -742,8 +761,7 @@ export default function SiteClient({
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
   const activeBlockId = spacingAnchorBlockId ?? selectedId;
-  const activeTheme: SiteTheme =
-    draft.pageThemes?.[activePageKey] ?? draft.theme;
+  const activeTheme: SiteTheme = draft.theme;
 
   const getSlotSpacing = (slotIndex: number) => {
     const prevBlock = displayBlocks[slotIndex - 1] ?? null;
@@ -810,12 +828,6 @@ export default function SiteClient({
 
   const currentPanelSections = useMemo<EditorSection[]>(() => {
     if (!rightPanel) return [];
-    if (rightPanel === "global") {
-      return [{ id: "theme", label: "Глобальные стили" }];
-    }
-    if (rightPanel === "page") {
-      return [{ id: "theme", label: "Стили страницы" }];
-    }
     if (!selectedBlock) return [];
     if (rightPanel === "content") {
       return (
@@ -834,24 +846,14 @@ export default function SiteClient({
 
   const panelTargetKey = rightPanel
     ? `${rightPanel}:${
-        rightPanel === "global"
-          ? "theme"
-          : rightPanel === "page"
-            ? activePageKey
-            : selectedBlock?.id ?? "none"
+        selectedBlock?.id ?? "none"
       }`
     : null;
   const currentPanelSignature = useMemo(() => {
     if (!rightPanel) return null;
-    if (rightPanel === "global") {
-      return JSON.stringify(draft.theme);
-    }
-    if (rightPanel === "page") {
-      return JSON.stringify(draft.pageThemes?.[activePageKey] ?? null);
-    }
     if (!selectedBlock) return null;
     return JSON.stringify(selectedBlock);
-  }, [rightPanel, draft.theme, draft.pageThemes, activePageKey, selectedBlock]);
+  }, [rightPanel, selectedBlock]);
   const panelHasUnsavedChanges = Boolean(
     rightPanel &&
       currentPanelSignature &&
@@ -980,22 +982,6 @@ export default function SiteClient({
       lightPalette,
       darkPalette,
     };
-  };
-
-  const updateTheme = (patch: Partial<SiteTheme>) => {
-    setDraft((prev) => ({
-      ...prev,
-      theme: applyThemePatch(prev.theme, patch),
-    }));
-  };
-
-  const updatePageTheme = (patch: Partial<SiteTheme>) => {
-    setDraft((prev) => {
-      const pageThemes = { ...(prev.pageThemes ?? {}) };
-      const baseTheme = pageThemes[activePageKey] ?? prev.theme;
-      pageThemes[activePageKey] = applyThemePatch(baseTheme, patch);
-      return { ...prev, pageThemes };
-    });
   };
 
   const setThemeMode = (mode: "light" | "dark") => {
@@ -1288,23 +1274,21 @@ export default function SiteClient({
     "--site-h2": `${activeTheme.subheadingSize}px`,
     "--site-text-size": `${activeTheme.textSize}px`,
   };
-  const previewCanvasWidth = previewMode === "mobile" ? 420 : undefined;
-  const mainGradient = activeTheme.gradientEnabled
-    ? `linear-gradient(${activeTheme.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${activeTheme.gradientFrom}, ${activeTheme.gradientTo})`
-    : "none";
+  const previewCanvasWidth =
+    previewMode === "mobile" ? MOBILE_VIEWPORTS[mobileViewport].width : undefined;
   const handleThemeToggle = () =>
     setThemeMode(activeTheme.mode === "dark" ? "light" : "dark");
   const panelTheme =
     activeTheme.mode === "dark"
       ? {
-          surface: "#11161f",
-          panel: "#1a2230",
-          border: "rgba(255,255,255,0.16)",
-          text: "#e5e7eb",
-          muted: "#9ca3af",
-          accent: "#60a5fa",
-          save: "#0b0f16",
-          saveClose: "#4b5563",
+          surface: "#101010",
+          panel: "#171717",
+          border: "#2b2b2b",
+          text: "#f3f4f6",
+          muted: "#a1a1aa",
+          accent: "#8b8b8b",
+          save: "#000000",
+          saveClose: "#3f3f46",
         }
       : {
           surface: "#f3f3f3",
@@ -1351,20 +1335,6 @@ export default function SiteClient({
             >
               Страницы сайта
             </button>
-            <button
-              type="button"
-              onClick={() => setRightPanel("global")}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
-            >
-              Глобальные стили
-            </button>
-            <button
-              type="button"
-              onClick={() => setRightPanel("page")}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
-            >
-              Стили страницы
-            </button>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1393,6 +1363,22 @@ export default function SiteClient({
             >
               М
             </button>
+            {previewMode === "mobile" && (
+              <select
+                value={mobileViewport}
+                onChange={(event) =>
+                  setMobileViewport(event.target.value as MobileViewportKey)
+                }
+                className="h-10 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
+                title="Размер мобильного предпросмотра"
+              >
+                {(Object.keys(MOBILE_VIEWPORTS) as MobileViewportKey[]).map((key) => (
+                  <option key={key} value={key}>
+                    {MOBILE_VIEWPORTS[key].label}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {publicUrl && (
@@ -1421,10 +1407,8 @@ export default function SiteClient({
       <div
         className="relative"
         style={{
-          backgroundColor: activeTheme.gradientEnabled
-            ? activeTheme.gradientFrom
-            : activeTheme.surfaceColor,
-          backgroundImage: mainGradient,
+          backgroundColor: "#ffffff",
+          backgroundImage: "none",
         }}
       >
         <main
@@ -1432,10 +1416,8 @@ export default function SiteClient({
           data-site-theme={activeTheme.mode}
           style={{
             ...themeStyle,
-            backgroundColor: activeTheme.gradientEnabled
-              ? activeTheme.gradientFrom
-              : activeTheme.surfaceColor,
-            backgroundImage: mainGradient,
+            backgroundColor: "#ffffff",
+            backgroundImage: "none",
             color: activeTheme.textColor,
             fontFamily: activeTheme.fontBody,
           }}
@@ -1588,6 +1570,7 @@ export default function SiteClient({
                   theme={activeTheme}
                   loaderConfig={loaderConfig}
                   currentEntity={currentEntity}
+                  previewMode={previewMode}
                   onThemeToggle={handleThemeToggle}
                   onSelect={() => {
                     setSelectedId(block.id);
@@ -1634,7 +1617,13 @@ export default function SiteClient({
                 Добавьте блок, чтобы начать собирать страницу.
               </div>
             )}
-            <div className="mt-4 border-t border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-6">
+            <div
+              className={`mt-0 border-t px-4 py-6 ${
+                activeTheme.mode === "dark"
+                  ? "border-[#1f2937] bg-[#111111]"
+                  : "border-[color:var(--bp-stroke)] bg-white"
+              }`}
+            >
               <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
@@ -1643,7 +1632,11 @@ export default function SiteClient({
                     setLeftPanel("library");
                     setLibraryBlock(null);
                   }}
-                  className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white"
+                  className={`rounded-md px-4 py-2 text-sm font-semibold ${
+                    activeTheme.mode === "dark"
+                      ? "bg-white text-[#111111]"
+                      : "bg-black text-white"
+                  }`}
                 >
                   Библиотека блоков
                 </button>
@@ -1652,7 +1645,11 @@ export default function SiteClient({
                     key={type}
                     type="button"
                     onClick={() => insertBlock(type, displayBlocks.length)}
-                    className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
+                    className={`rounded-md border px-3 py-2 text-sm ${
+                      activeTheme.mode === "dark"
+                        ? "border-[#3f3f46] bg-transparent text-[#e4e4e7]"
+                        : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-ink)]"
+                    }`}
                   >
                     {BLOCK_LABELS[type]}
                   </button>
@@ -1664,7 +1661,7 @@ export default function SiteClient({
 
         {leftPanel && (
           <aside
-            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: "var(--crm-sidebar-width, 272px)", top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1696,8 +1693,8 @@ export default function SiteClient({
                       }}
                       className={`rounded-xl border px-3 py-2 text-left text-sm ${
                         pageKey === activePage
-                          ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                          ? "border-[color:var(--bp-accent)] bg-white"
+                          : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
                       }`}
                     >
                       {PAGE_LABELS[pageKey]}
@@ -1731,8 +1728,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "location" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -1759,8 +1756,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "service" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -1787,8 +1784,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "specialist" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -1815,8 +1812,8 @@ export default function SiteClient({
                               className={`rounded-xl border px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "promo" &&
                                 currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                  ? "border-[color:var(--bp-accent)] bg-white"
+                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
                               }`}
                             >
                               {item.name}
@@ -1841,8 +1838,8 @@ export default function SiteClient({
                       onClick={() => setLibraryBlock(type)}
                       className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
                         libraryBlock === type
-                          ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                          ? "border-[color:var(--bp-accent)] bg-white"
+                          : "border-[color:var(--bp-stroke)] bg-white"
                       }`}
                     >
                       <span>{BLOCK_LABELS[type]}</span>
@@ -1859,7 +1856,7 @@ export default function SiteClient({
 
         {leftPanel === "library" && libraryBlock && (
           <aside
-            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: "calc(var(--crm-sidebar-width, 272px) + 320px)", top: 64, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1884,7 +1881,7 @@ export default function SiteClient({
                     setLeftPanel(null);
                     setLibraryBlock(null);
                   }}
-                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-left"
+                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4 text-left"
                 >
                   <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
                     {BLOCK_LABELS[libraryBlock]}
@@ -1911,7 +1908,11 @@ export default function SiteClient({
 
         {rightPanel && (
           <aside
-            className="fixed z-[140] w-[760px] max-w-[calc(100vw-var(--crm-sidebar-width,272px)-24px)] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className={`fixed z-[140] w-[760px] max-w-[calc(100vw-var(--crm-sidebar-width,272px)-24px)] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&_input:focus]:outline-none [&_select:focus]:outline-none [&_textarea:focus]:outline-none ${
+              activeTheme.mode === "dark"
+                ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+                : ""
+            }`}
             style={{
               top: 64,
               bottom: 0,
@@ -1919,6 +1920,18 @@ export default function SiteClient({
               borderColor: panelTheme.border,
               backgroundColor: panelTheme.surface,
               color: panelTheme.text,
+              accentColor: panelTheme.accent,
+              colorScheme: activeTheme.mode,
+              "--bp-paper": panelTheme.panel,
+              "--bp-surface": panelTheme.surface,
+              "--bp-stroke": panelTheme.border,
+              "--bp-ink": panelTheme.text,
+              "--bp-muted": panelTheme.muted,
+              "--bp-accent": panelTheme.accent,
+              "--input-bg": activeTheme.mode === "dark" ? "#121212" : "#ffffff",
+              "--text": panelTheme.text,
+              "--border": panelTheme.border,
+              "--muted": panelTheme.muted,
             }}
           >
             <div
@@ -1950,11 +1963,7 @@ export default function SiteClient({
                 style={{ borderColor: panelTheme.border }}
               >
                 <div className="text-sm font-semibold" style={{ color: panelTheme.text }}>
-                  {rightPanel === "global"
-                    ? "Глобальные стили"
-                    : rightPanel === "page"
-                      ? `Стили страницы · ${PAGE_LABELS[activePageKey]}`
-                    : rightPanel === "settings"
+                  {rightPanel === "settings"
                       ? selectedBlock
                         ? `Настройки · ${BLOCK_LABELS[selectedBlock.type]}`
                         : "Настройки блока"
@@ -2003,16 +2012,11 @@ export default function SiteClient({
                     color: panelTheme.text,
                   }}
                 >
-                  {rightPanel === "global" && (
-                    <ThemeEditor theme={draft.theme} onChange={updateTheme} />
-                  )}
-                  {rightPanel === "page" && (
-                    <ThemeEditor theme={activeTheme} onChange={updatePageTheme} />
-                  )}
                   {rightPanel === "content" && selectedBlock && (
                     <BlockEditor
                       block={selectedBlock}
                       accountName={account.name}
+                      accountProfile={accountProfile}
                       locations={locations}
                       services={services}
                       specialists={specialists}
@@ -2083,189 +2087,6 @@ export default function SiteClient({
         >
           ?
         </button>
-      </div>
-    </div>
-  );
-}
-
-function ThemeEditor({
-  theme,
-  onChange,
-}: {
-  theme: SiteTheme;
-  onChange: (patch: Partial<SiteTheme>) => void;
-}) {
-  return (
-    <div className="mt-4 space-y-4">
-      <label className="text-sm">
-        Тема
-        <select
-          value={theme.mode}
-          onChange={(event) =>
-            onChange({ mode: event.target.value as "light" | "dark" })
-          }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="light">Светлая</option>
-          <option value="dark">Темная</option>
-        </select>
-      </label>
-      <label className="text-sm">
-        Пара шрифтов
-        <select
-          value={`${theme.fontHeading}||${theme.fontBody}`}
-          onChange={(event) => {
-            const [heading, body] = event.target.value.split("||");
-            onChange({ fontHeading: heading, fontBody: body });
-          }}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          {THEME_FONTS.map((font) => (
-            <option
-              key={font.label}
-              value={`${font.heading}||${font.body}`}
-            >
-              {font.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="grid grid-cols-2 gap-3">
-        <ColorField
-          label="Тень"
-          value={theme.shadowColor}
-          onChange={(value) => onChange({ shadowColor: value })}
-        />
-        <NumberField
-          label="Размер тени"
-          value={theme.shadowSize}
-          min={0}
-          max={40}
-          onChange={(value) => onChange({ shadowSize: value })}
-        />
-        <ColorField
-          label="Фон"
-          value={theme.surfaceColor}
-          onChange={(value) => onChange({ surfaceColor: value })}
-        />
-        <ColorField
-          label="Панели"
-          value={theme.panelColor}
-          onChange={(value) => onChange({ panelColor: value })}
-        />
-        <ColorField
-          label="Текст"
-          value={theme.textColor}
-          onChange={(value) => onChange({ textColor: value })}
-        />
-        <ColorField
-          label="Обводка"
-          value={theme.borderColor}
-          onChange={(value) => onChange({ borderColor: value })}
-        />
-        <ColorField
-          label="Кнопка"
-          value={theme.buttonColor}
-          onChange={(value) => onChange({ buttonColor: value })}
-        />
-        <ColorField
-          label="Текст кнопки"
-          value={theme.buttonTextColor}
-          onChange={(value) => onChange({ buttonTextColor: value })}
-        />
-        <ColorField
-          label="Вторичный текст"
-          value={theme.mutedColor}
-          onChange={(value) => onChange({ mutedColor: value })}
-        />
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={theme.gradientEnabled}
-          onChange={(event) => onChange({ gradientEnabled: event.target.checked })}
-        />
-        Градиент фона
-      </label>
-      {theme.gradientEnabled && (
-        <>
-          <label className="text-sm">
-            Направление градиента
-            <select
-              value={theme.gradientDirection}
-              onChange={(event) =>
-                onChange({
-                  gradientDirection: event.target.value as SiteTheme["gradientDirection"],
-                })
-              }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="vertical">Сверху вниз</option>
-              <option value="horizontal">Слева направо</option>
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <ColorField
-              label="Цвет 1"
-              value={theme.gradientFrom}
-              onChange={(value) => onChange({ gradientFrom: value })}
-            />
-            <ColorField
-              label="Цвет 2"
-              value={theme.gradientTo}
-              onChange={(value) => onChange({ gradientTo: value })}
-            />
-          </div>
-        </>
-      )}
-      <label className="text-sm">
-        Радиус блоков: {theme.radius}px
-        <input
-          type="range"
-          min={0}
-          max={40}
-          step={1}
-          value={theme.radius}
-          onChange={(event) => onChange({ radius: Number(event.target.value) })}
-          className="mt-2 w-full"
-        />
-      </label>
-      <label className="text-sm">
-        Радиус кнопок: {theme.buttonRadius}px
-        <input
-          type="range"
-          min={0}
-          max={40}
-          step={1}
-          value={theme.buttonRadius}
-          onChange={(event) =>
-            onChange({ buttonRadius: Number(event.target.value) })
-          }
-          className="mt-2 w-full"
-        />
-      </label>
-      <div className="grid grid-cols-3 gap-3">
-        <NumberField
-          label="Заголовок"
-          value={theme.headingSize}
-          min={18}
-          max={56}
-          onChange={(value) => onChange({ headingSize: value })}
-        />
-        <NumberField
-          label="Подзаголовок"
-          value={theme.subheadingSize}
-          min={12}
-          max={36}
-          onChange={(value) => onChange({ subheadingSize: value })}
-        />
-        <NumberField
-          label="Текст"
-          value={theme.textSize}
-          min={10}
-          max={28}
-          onChange={(value) => onChange({ textSize: value })}
-        />
       </div>
     </div>
   );
@@ -2368,6 +2189,7 @@ function NumberField({
 function BlockEditor({
   block,
   accountName,
+  accountProfile,
   locations,
   services,
   specialists,
@@ -2377,6 +2199,7 @@ function BlockEditor({
 }: {
   block: SiteBlock;
   accountName: string;
+  accountProfile: AccountProfile;
   locations: LocationItem[];
   services: ServiceItem[];
   specialists: SpecialistItem[];
@@ -2407,6 +2230,48 @@ function BlockEditor({
     ids.length === 0 || ids.includes(activeSectionId) || activeSectionId === "main";
 
   const variantOptions = BLOCK_VARIANTS[block.type];
+  const resolveSocialHrefByKey = (key: SocialKey): string | null => {
+    const rawValue =
+      key === "website"
+        ? accountProfile.websiteUrl
+        : key === "instagram"
+          ? accountProfile.instagramUrl
+          : key === "whatsapp"
+            ? accountProfile.whatsappUrl
+            : key === "telegram"
+              ? accountProfile.telegramUrl
+              : key === "max"
+                ? accountProfile.maxUrl
+                : key === "vk"
+                  ? accountProfile.vkUrl
+                  : key === "viber"
+                    ? accountProfile.viberUrl
+                    : key === "pinterest"
+                      ? accountProfile.pinterestUrl
+                      : key === "facebook"
+                        ? accountProfile.facebookUrl
+                        : key === "tiktok"
+                          ? accountProfile.tiktokUrl
+                          : key === "youtube"
+                            ? accountProfile.youtubeUrl
+                            : key === "twitter"
+                              ? accountProfile.twitterUrl
+                              : key === "dzen"
+                                ? accountProfile.dzenUrl
+                                : accountProfile.okUrl;
+    const trimmed = typeof rawValue === "string" ? rawValue.trim() : "";
+    if (!trimmed) return null;
+    return trimmed.startsWith("http://") || trimmed.startsWith("https://")
+      ? trimmed
+      : `https://${trimmed}`;
+  };
+  const availableSecondarySources = (Object.keys(SOCIAL_LABELS) as SocialKey[]).filter(
+    (key) => Boolean(resolveSocialHrefByKey(key))
+  );
+  const secondaryButtonSource = (block.data.secondaryButtonSource as string) ?? "auto";
+  const selectedSecondarySourceMissing =
+    secondaryButtonSource !== "auto" &&
+    !(availableSecondarySources as string[]).includes(secondaryButtonSource);
 
   return (
     <div className="space-y-4">
@@ -2692,11 +2557,42 @@ function BlockEditor({
                 />
                 Показывать вторую кнопку (соцсети)
               </label>
-              <FieldText
-                label="Текст второй кнопки"
-                value={(block.data.secondaryButtonText as string) ?? "Наши соцсети"}
-                onChange={(value) => updateData({ secondaryButtonText: value })}
-              />
+              {Boolean(block.data.showSecondaryButton) && (
+                <>
+                  <FieldText
+                    label="Текст второй кнопки"
+                    value={(block.data.secondaryButtonText as string) ?? "Наши соцсети"}
+                    onChange={(value) => updateData({ secondaryButtonText: value })}
+                  />
+                  <label className="text-sm">
+                    Ссылка второй кнопки
+                    <select
+                      value={secondaryButtonSource}
+                      onChange={(event) =>
+                        updateData({ secondaryButtonSource: event.target.value })
+                      }
+                      className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                    >
+                      <option value="auto">Авто (первая доступная)</option>
+                      {selectedSecondarySourceMissing && (
+                        <option value={secondaryButtonSource}>
+                          {secondaryButtonSource} (не заполнено в профиле)
+                        </option>
+                      )}
+                      {availableSecondarySources.map((key) => (
+                        <option key={key} value={key}>
+                          {SOCIAL_LABELS[key]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {availableSecondarySources.length === 0 && (
+                    <div className="text-xs text-[color:var(--bp-muted)]">
+                      В профиле аккаунта нет заполненных ссылок для второй кнопки.
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
           {inSection("media", "main") && (
@@ -3285,9 +3181,7 @@ function BlockStyleEditor({
       : value.trim();
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");
-  const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
   const lightSubBlockBg = readRaw("subBlockBgLight") || readRaw("subBlockBg");
-  const darkBlockBg = readRaw("blockBgDark");
   const darkSubBlockBg = readRaw("subBlockBgDark");
   const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
   const darkBorderColor = readRaw("borderColorDark");
@@ -3425,6 +3319,28 @@ function BlockStyleEditor({
           )}
         </label>
       </>
+      )}
+      {block.type === "cover" && inSection("layout") && (
+        <label className="text-sm">
+          Высота изображения: {Number(block.data.coverHeight ?? 100)}vh
+          <input
+            type="range"
+            min={60}
+            max={140}
+            step={1}
+            value={Number(block.data.coverHeight ?? 100)}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                data: {
+                  ...block.data,
+                  coverHeight: Number(event.target.value),
+                },
+              })
+            }
+            className="mt-2 w-full"
+          />
+        </label>
       )}
       {inSection("layout") && block.type === "menu" && (
       <div className="text-sm text-[color:var(--bp-muted)]">
@@ -3609,16 +3525,6 @@ function BlockStyleEditor({
             )
           }
         />
-        {block.type !== "works" && (
-          <ColorField
-            label="Цвет контента"
-            value={toDisplay(lightBlockBg)}
-            placeholder={theme.panelColor}
-            onChange={(value) =>
-              update({ blockBgLight: toStore(value), blockBg: toStore(value) })
-            }
-          />
-        )}
         {(block.type === "booking" || block.type === "menu") && (
           <ColorField
             label="Цвет подблока"
@@ -3780,14 +3686,6 @@ function BlockStyleEditor({
                 )
               }
             />
-            {block.type !== "works" && (
-              <ColorField
-                label="Цвет контента"
-                value={toDisplay(darkBlockBg)}
-                placeholder={theme.darkPalette.panelColor}
-                onChange={(value) => update({ blockBgDark: toStore(value) })}
-              />
-            )}
             {(block.type === "booking" || block.type === "menu") && (
               <ColorField
                 label="Цвет подблока"
@@ -4037,21 +3935,21 @@ function BlockStyleEditor({
           label="Заголовок"
           value={style.headingSize ?? theme.headingSize}
           min={0}
-          max={56}
+          max={140}
           onChange={(value) => update({ headingSize: value })}
         />
         <NumberField
           label="Подзаголовок"
           value={style.subheadingSize ?? theme.subheadingSize}
           min={0}
-          max={36}
+          max={100}
           onChange={(value) => update({ subheadingSize: value })}
         />
         <NumberField
           label="Текст"
           value={style.textSize ?? theme.textSize}
           min={0}
-          max={28}
+          max={72}
           onChange={(value) => update({ textSize: value })}
         />
       </div>
@@ -4707,6 +4605,7 @@ function BlockPreview({
   theme,
   loaderConfig,
   currentEntity,
+  previewMode,
   onThemeToggle,
   onSelect,
   isSelected,
@@ -4723,6 +4622,7 @@ function BlockPreview({
   theme: SiteTheme;
   loaderConfig: SiteLoaderConfig | null;
   currentEntity: CurrentEntity;
+  previewMode: "desktop" | "mobile";
   onThemeToggle: () => void;
   onSelect: () => void;
   isSelected: boolean;
@@ -4787,6 +4687,7 @@ function BlockPreview({
     theme,
     loaderConfig,
     currentEntity,
+    previewMode,
     onThemeToggle
   );
   return (
@@ -4951,7 +4852,7 @@ function InsertSlot({
       <button
         type="button"
         onClick={onInsert}
-        className="absolute z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-sm text-[color:var(--bp-ink)] shadow-sm"
+        className="absolute z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[#cbd5e1] bg-white text-sm text-[#0f172a] shadow-sm"
         style={{ top, left: "50%", transform: "translate(-50%, -50%)" }}
         aria-label={`Добавить блок ${index}`}
         title="Добавить блок"
@@ -4975,6 +4876,7 @@ function renderBlock(
   theme: SiteTheme,
   loaderConfig: SiteLoaderConfig | null,
   currentEntity: CurrentEntity,
+  previewMode: "desktop" | "mobile",
   onThemeToggle: () => void
 ) {
   const style = normalizeBlockStyle(block, theme);
@@ -4990,7 +4892,8 @@ function renderBlock(
         services,
         specialists,
         theme,
-        style
+        style,
+        previewMode === "mobile"
       );
     case "menu":
       return renderMenuBlock(
@@ -5308,24 +5211,46 @@ function renderCover(
   services: ServiceItem[],
   specialists: SpecialistItem[],
   theme: SiteTheme,
-  style: BlockStyle
+  style: BlockStyle,
+  forceMobileLayout = false
 ) {
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || account.name;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
   const align = (data.align as "left" | "center" | "right") ?? style.textAlign;
-  const alignClass =
-    align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
+  const contentAlign = style.textAlign ?? align;
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const showSecondaryButton = Boolean(data.showSecondaryButton);
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
-  const socialHref = resolvePrimarySocialHref(accountProfile);
+  const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
+  const socialHref = resolvePrimarySocialHref(accountProfile, secondaryButtonSource);
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
   const imageUrl = resolveCoverImage(imageSource, branding, locations, services, specialists);
+  const coverHeightVhRaw = Number(data.coverHeight);
+  const coverHeightVh =
+    Number.isFinite(coverHeightVhRaw) && coverHeightVhRaw >= 60 && coverHeightVhRaw <= 140
+      ? Math.round(coverHeightVhRaw)
+      : 100;
+  const headingDesktopSize = style.headingSize ?? theme.headingSize;
+  const subheadingDesktopSize = style.subheadingSize ?? theme.subheadingSize;
+  const textDesktopSize = style.textSize ?? theme.textSize;
+  const headingMobileSize = Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
+  const subheadingMobileSize = Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
+  const textMobileSize = Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+  const contentColumns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover");
+  const contentRange = centeredGridRange(contentColumns);
+  const gridStart = clampGridColumn(style.gridStartColumn ?? contentRange.start);
+  const gridEnd = Math.max(gridStart, clampGridColumn(style.gridEndColumn ?? contentRange.end));
+  const gridSpan = Math.max(1, gridEnd - gridStart + 1);
+  const gridWidthPercent = `${(gridSpan / MAX_BLOCK_COLUMNS) * 100}%`;
+  const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
+  const contentMaxWidth = forceMobileLayout ? "100%" : gridWidthPercent;
+  const contentMarginLeft = forceMobileLayout ? 0 : gridLeftPercent;
+  const sectionBg = theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
   const overlayGradient =
     "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
   const backgroundStyle = imageUrl
@@ -5335,22 +5260,35 @@ function renderCover(
         backgroundPosition: "center",
       }
     : {
-        backgroundColor: style.blockBg || theme.panelColor,
+        backgroundColor: sectionBg || style.blockBg || theme.panelColor,
       };
 
   return (
     <section
-      className={`relative overflow-hidden px-6 py-14 sm:px-10 sm:py-20 ${alignClass}`}
-      style={{ ...backgroundStyle, minHeight: "100vh" }}
+      className={
+        forceMobileLayout
+          ? "relative overflow-hidden px-4 py-14"
+          : "relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      }
+      style={{ ...backgroundStyle, minHeight: `${coverHeightVh}vh`, containerType: "inline-size" }}
     >
-      <div className="relative z-[1] mx-auto flex min-h-[100vh] w-full max-w-[1280px] items-center">
-        <div className="w-full max-w-[760px]">
+      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: `${coverHeightVh}vh` }}>
+        <div
+          className="bp-cover-content w-full"
+          style={{
+            maxWidth: contentMaxWidth,
+            marginLeft: contentMarginLeft,
+            marginRight: 0,
+          }}
+        >
           <h2
             className="text-white leading-[1.08] tracking-[-0.01em]"
             style={{
               ...headingStyle(style, theme),
-              textAlign: align,
-              fontSize: "clamp(40px, 5.3vw, 78px)",
+              fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+                headingMobileSize,
+                headingDesktopSize
+              )}px)`,
             }}
           >
             {title}
@@ -5360,8 +5298,10 @@ function renderCover(
               className="mt-6 text-white/90 leading-[1.25]"
               style={{
                 ...subheadingStyle(style, theme),
-                textAlign: align,
-                fontSize: "clamp(22px, 2.2vw, 34px)",
+                fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
+                  subheadingMobileSize,
+                  subheadingDesktopSize
+                )}px)`,
               }}
             >
               {subtitle}
@@ -5370,7 +5310,13 @@ function renderCover(
           {description && (
             <p
               className="mt-5 max-w-[720px] text-white/80 leading-[1.45]"
-              style={{ ...textStyle(style, theme), textAlign: align }}
+              style={{
+                ...textStyle(style, theme),
+                fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+                  textMobileSize,
+                  textDesktopSize
+                )}px)`,
+              }}
             >
               {description}
             </p>
@@ -5378,18 +5324,27 @@ function renderCover(
           <div
             className="mt-7 flex flex-wrap items-center gap-3"
             style={{
+              flexWrap: forceMobileLayout ? "nowrap" : "wrap",
               justifyContent:
-                align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
+                contentAlign === "center"
+                  ? "center"
+                  : contentAlign === "right"
+                    ? "flex-end"
+                    : "flex-start",
             }}
           >
             {showButton && account.publicSlug && (
               <a
                 href={buildBookingLink({ publicSlug: account.publicSlug })}
-                className="inline-flex min-h-[54px] items-center px-10 py-3 text-base font-semibold"
+                className="inline-flex items-center whitespace-nowrap font-semibold"
                 style={{
                   ...buttonStyle(style, theme),
                   borderRadius: 0,
                   color: "#ffffff",
+                  minHeight: "clamp(46px, 6cqw, 54px)",
+                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                  fontSize: "clamp(14px, 2cqw, 16px)",
                 }}
               >
                 {buttonText}
@@ -5400,10 +5355,14 @@ function renderCover(
                 href={socialHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-[54px] items-center border px-10 py-3 text-base font-semibold text-white transition hover:bg-white/10"
+                className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
                 style={{
                   borderColor: "rgba(255,255,255,0.45)",
                   borderRadius: 0,
+                  minHeight: "clamp(46px, 6cqw, 54px)",
+                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                  fontSize: "clamp(14px, 2cqw, 16px)",
                 }}
               >
                 {secondaryButtonText}
@@ -5416,29 +5375,74 @@ function renderCover(
   );
 }
 
-function resolvePrimarySocialHref(accountProfile: AccountProfile): string | null {
-  const rawValues = [
-    accountProfile.instagramUrl,
-    accountProfile.telegramUrl,
-    accountProfile.whatsappUrl,
-    accountProfile.vkUrl,
-    accountProfile.websiteUrl,
-    accountProfile.facebookUrl,
-    accountProfile.tiktokUrl,
-    accountProfile.youtubeUrl,
-    accountProfile.twitterUrl,
-    accountProfile.pinterestUrl,
-    accountProfile.maxUrl,
-    accountProfile.viberUrl,
-    accountProfile.dzenUrl,
-    accountProfile.okUrl,
+function normalizeExternalHref(value: string): string {
+  return value.startsWith("http://") || value.startsWith("https://")
+    ? value
+    : `https://${value}`;
+}
+
+function resolveSocialHrefByKey(accountProfile: AccountProfile, key: string): string | null {
+  const rawValue =
+    key === "website"
+      ? accountProfile.websiteUrl
+      : key === "instagram"
+        ? accountProfile.instagramUrl
+        : key === "whatsapp"
+          ? accountProfile.whatsappUrl
+          : key === "telegram"
+            ? accountProfile.telegramUrl
+            : key === "max"
+              ? accountProfile.maxUrl
+              : key === "vk"
+                ? accountProfile.vkUrl
+                : key === "viber"
+                  ? accountProfile.viberUrl
+                  : key === "pinterest"
+                    ? accountProfile.pinterestUrl
+                    : key === "facebook"
+                      ? accountProfile.facebookUrl
+                      : key === "tiktok"
+                        ? accountProfile.tiktokUrl
+                        : key === "youtube"
+                          ? accountProfile.youtubeUrl
+                          : key === "twitter"
+                            ? accountProfile.twitterUrl
+                            : key === "dzen"
+                              ? accountProfile.dzenUrl
+                              : key === "ok"
+                                ? accountProfile.okUrl
+                                : undefined;
+  const trimmed = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!trimmed) return null;
+  return normalizeExternalHref(trimmed);
+}
+
+function resolvePrimarySocialHref(
+  accountProfile: AccountProfile,
+  preferredSource: string = "auto"
+): string | null {
+  if (preferredSource && preferredSource !== "auto") {
+    return resolveSocialHrefByKey(accountProfile, preferredSource);
+  }
+  const priority = [
+    "instagram",
+    "telegram",
+    "whatsapp",
+    "vk",
+    "website",
+    "facebook",
+    "tiktok",
+    "youtube",
+    "twitter",
+    "pinterest",
+    "max",
+    "viber",
+    "dzen",
+    "ok",
   ];
-  for (const value of rawValues) {
-    const trimmed = typeof value === "string" ? value.trim() : "";
-    if (!trimmed) continue;
-    return trimmed.startsWith("http://") || trimmed.startsWith("https://")
-      ? trimmed
-      : `https://${trimmed}`;
+  for (const key of priority) {
+    const href = resolveSocialHrefByKey(accountProfile, key);
+    if (href) return href;
   }
   return null;
 }

@@ -3,6 +3,8 @@ type BookingLinkParams = {
   locationId?: number | null;
   serviceId?: number | null;
   specialistId?: number | null;
+  date?: string | null;
+  time?: string | null;
   scenario?: "dateFirst" | "serviceFirst" | "specialistFirst";
   start?: "scenario";
 };
@@ -12,6 +14,8 @@ export function buildBookingLink({
   locationId,
   serviceId,
   specialistId,
+  date,
+  time,
   scenario,
   start,
 }: BookingLinkParams) {
@@ -19,6 +23,8 @@ export function buildBookingLink({
   if (locationId) search.set("locationId", String(locationId));
   if (serviceId) search.set("serviceId", String(serviceId));
   if (specialistId) search.set("specialistId", String(specialistId));
+  if (date) search.set("date", date);
+  if (time) search.set("time", time);
   if (scenario) search.set("scenario", scenario);
   if (start) search.set("start", start);
   const query = search.toString();

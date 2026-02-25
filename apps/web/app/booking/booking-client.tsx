@@ -852,6 +852,8 @@ export default function BookingClient({
     locationId: number | null;
     serviceId: number | null;
     specialistId: number | null;
+    dateYmd: string | null;
+    timeChoice: string | null;
     scenario: Scenario | null;
     startScenario: boolean;
   } | null>(null);
@@ -922,6 +924,10 @@ export default function BookingClient({
     const locationParam = Number(params.get("locationId"));
     const serviceParam = Number(params.get("serviceId"));
     const specialistParam = Number(params.get("specialistId"));
+    const rawDate = (params.get("date") || "").trim();
+    const rawTime = (params.get("time") || "").trim();
+    const dateParam = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
+    const timeParam = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime) ? rawTime : null;
     const startParam = params.get("start");
     const startScenarioValue = startParam === "scenario";
 
@@ -929,6 +935,8 @@ export default function BookingClient({
       locationId: Number.isFinite(locationParam) ? locationParam : null,
       serviceId: Number.isFinite(serviceParam) ? serviceParam : null,
       specialistId: Number.isFinite(specialistParam) ? specialistParam : null,
+      dateYmd: dateParam,
+      timeChoice: timeParam,
       scenario: scenarioValue,
       startScenario: startScenarioValue,
     });
@@ -1068,6 +1076,12 @@ export default function BookingClient({
       setSpecialistId(initialParams.specialistId);
       setPendingSpecialistId(initialParams.specialistId);
     }
+    if (initialParams.dateYmd) {
+      setDateYmd(initialParams.dateYmd);
+    }
+    if (initialParams.timeChoice) {
+      setTimeChoice(initialParams.timeChoice);
+    }
     setInitialParamsApplied(true);
   }, [initialParams, initialParamsApplied, context?.locations]);
 
@@ -1084,6 +1098,8 @@ export default function BookingClient({
         initialParams?.locationId ||
         initialParams?.serviceId ||
         initialParams?.specialistId ||
+        initialParams?.dateYmd ||
+        initialParams?.timeChoice ||
         initialParams?.startScenario
     );
     if (hasUrlState) return;

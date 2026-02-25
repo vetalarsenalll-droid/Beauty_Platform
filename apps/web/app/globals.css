@@ -387,3 +387,19 @@ textarea::placeholder {
   color: var(--text);
   border-color: var(--border);
 }
+
+@media (max-width: 767px) {
+  .bp-cover-content {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+@container (max-width: 767px) {
+  .bp-cover-content {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}

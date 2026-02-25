@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { resolveSiteLoaderConfig } from "@/lib/site-builder";
 import PublicSiteOverlayLoader from "@/components/public-site-overlay-loader";
+import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import { loadPublicData } from "./_shared/public-data";
 
 type LayoutProps = {
@@ -14,6 +15,10 @@ export default async function PublicSlugLayout({ children, params }: LayoutProps
   const data = await loadPublicData(publicSlug);
   const loaderConfig = data ? resolveSiteLoaderConfig(data.draft) : null;
 
-  return <PublicSiteOverlayLoader loaderConfig={loaderConfig}>{children}</PublicSiteOverlayLoader>;
+  return (
+    <PublicSiteOverlayLoader loaderConfig={loaderConfig}>
+      {children}
+      {data?.account?.slug ? <PublicAiChatWidget accountSlug={data.account.slug} /> : null}
+    </PublicSiteOverlayLoader>
+  );
 }
-

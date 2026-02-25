@@ -315,8 +315,18 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         showButton: true,
         secondaryButtonText: "Наши соцсети",
         showSecondaryButton: false,
+        secondaryButtonSource: "auto",
+        coverHeight: 100,
         align: "left",
         imageSource: { type: "account" } as CoverImageSource,
+        style: {
+          textColorLight: "#ffffff",
+          textColorDark: "#ffffff",
+          textColor: "#ffffff",
+          mutedColorLight: "rgba(255,255,255,0.9)",
+          mutedColorDark: "rgba(255,255,255,0.9)",
+          mutedColor: "rgba(255,255,255,0.9)",
+        },
       },
     },
     {

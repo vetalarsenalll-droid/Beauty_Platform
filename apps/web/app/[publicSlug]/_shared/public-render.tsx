@@ -682,17 +682,38 @@ function renderCover(
   const description = (data.description as string) || "";
   const alignRaw = (data.align as string) ?? "left";
   const align = alignRaw === "center" || alignRaw === "right" ? alignRaw : "left";
-  const alignClass =
-    align === "center" ? "text-center" : align === "right" ? "text-right" : "text-left";
+  const contentAlign = style.textAlign ?? align;
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const showSecondaryButton = Boolean(data.showSecondaryButton);
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
-  const socialHref = resolvePrimarySocialHref(profile);
+  const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
+  const socialHref = resolvePrimarySocialHref(profile, secondaryButtonSource);
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
   const imageUrl = resolveCoverImage(imageSource, branding, locations, services, specialists);
+  const coverHeightVhRaw = Number(data.coverHeight);
+  const coverHeightVh =
+    Number.isFinite(coverHeightVhRaw) && coverHeightVhRaw >= 60 && coverHeightVhRaw <= 140
+      ? Math.round(coverHeightVhRaw)
+      : 100;
+  const headingDesktopSize =
+    style.headingSize !== null && style.headingSize !== undefined ? style.headingSize : 42;
+  const subheadingDesktopSize =
+    style.subheadingSize !== null && style.subheadingSize !== undefined ? style.subheadingSize : 20;
+  const textDesktopSize =
+    style.textSize !== null && style.textSize !== undefined ? style.textSize : 16;
+  const headingMobileSize = Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
+  const subheadingMobileSize = Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
+  const textMobileSize = Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+  const contentColumns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover");
+  const contentRange = centeredGridRange(contentColumns);
+  const gridStart = clampGridColumn(style.gridStartColumn ?? contentRange.start);
+  const gridEnd = Math.max(gridStart, clampGridColumn(style.gridEndColumn ?? contentRange.end));
+  const gridSpan = Math.max(1, gridEnd - gridStart + 1);
+  const gridWidthPercent = `${(gridSpan / MAX_BLOCK_COLUMNS) * 100}%`;
+  const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const overlayGradient =
     "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
   const backgroundStyle = imageUrl
@@ -702,29 +723,60 @@ function renderCover(
         backgroundPosition: "center",
       }
     : {
-        backgroundColor: "var(--block-bg, var(--site-panel))",
+        backgroundColor: "var(--block-section-bg, var(--block-bg, var(--site-panel)))",
       };
 
   return (
     <section
-      className={`relative overflow-hidden px-6 py-14 sm:px-10 sm:py-20 ${alignClass}`}
-      style={{ ...backgroundStyle, minHeight: "100vh" }}
+      className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      style={{ ...backgroundStyle, minHeight: `${coverHeightVh}vh`, containerType: "inline-size" }}
     >
-      <div className="relative z-[1] mx-auto w-full max-w-6xl">
-        <div className="max-w-3xl">
-          <div className="text-xs uppercase tracking-[0.22em] text-white/75">
-            Сайт {accountName}
-          </div>
-          <h1 className="mt-3 text-white" style={headingStyle(style)}>
+      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: `${coverHeightVh}vh` }}>
+        <div
+          className="bp-cover-content w-full"
+          style={{
+            maxWidth: gridWidthPercent,
+            marginLeft: gridLeftPercent,
+            marginRight: 0,
+          }}
+        >
+          <h2
+            className="text-white leading-[1.08] tracking-[-0.01em]"
+            style={{
+              ...headingStyle(style),
+              fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+                headingMobileSize,
+                headingDesktopSize
+              )}px)`,
+            }}
+          >
             {title}
-          </h1>
+          </h2>
           {subtitle && (
-            <p className="mt-3 text-white/90" style={subheadingStyle(style)}>
+            <p
+              className="mt-6 text-white/90 leading-[1.25]"
+              style={{
+                ...subheadingStyle(style),
+                fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
+                  subheadingMobileSize,
+                  subheadingDesktopSize
+                )}px)`,
+              }}
+            >
               {subtitle}
             </p>
           )}
           {description && (
-            <p className="mt-4 max-w-2xl text-white/80" style={textStyle(style)}>
+            <p
+              className="mt-5 max-w-[720px] text-white/80 leading-[1.45]"
+              style={{
+                ...textStyle(style),
+                fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+                  textMobileSize,
+                  textDesktopSize
+                )}px)`,
+              }}
+            >
               {description}
             </p>
           )}
@@ -732,14 +784,26 @@ function renderCover(
             className="mt-7 flex flex-wrap items-center gap-3"
             style={{
               justifyContent:
-                align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
+                contentAlign === "center"
+                  ? "center"
+                  : contentAlign === "right"
+                    ? "flex-end"
+                    : "flex-start",
             }}
           >
             {showButton && publicSlug && (
               <Link
                 href={buildBookingLink({ publicSlug })}
-                className="inline-flex min-h-[44px] items-center rounded-full px-6 py-2 text-sm font-semibold"
-                style={buttonStyle(style)}
+                className="inline-flex items-center whitespace-nowrap font-semibold"
+                style={{
+                  ...buttonStyle(style),
+                  borderRadius: 0,
+                  color: "#ffffff",
+                  minHeight: "clamp(46px, 6cqw, 54px)",
+                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                  fontSize: "clamp(14px, 2cqw, 16px)",
+                }}
               >
                 {buttonText}
               </Link>
@@ -749,13 +813,14 @@ function renderCover(
                 href={socialHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-[44px] items-center rounded-full border px-6 py-2 text-sm font-semibold text-white/95 transition hover:bg-white/10"
+                className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
                 style={{
                   borderColor: "rgba(255,255,255,0.45)",
-                  borderRadius:
-                    style.buttonRadius !== null
-                      ? style.buttonRadius
-                      : "var(--site-button-radius)",
+                  borderRadius: 0,
+                  minHeight: "clamp(46px, 6cqw, 54px)",
+                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                  fontSize: "clamp(14px, 2cqw, 16px)",
                 }}
               >
                 {secondaryButtonText}
@@ -768,29 +833,74 @@ function renderCover(
   );
 }
 
-function resolvePrimarySocialHref(profile: AccountProfile): string | null {
-  const rawValues = [
-    profile.instagramUrl,
-    profile.telegramUrl,
-    profile.whatsappUrl,
-    profile.vkUrl,
-    profile.websiteUrl,
-    profile.facebookUrl,
-    profile.tiktokUrl,
-    profile.youtubeUrl,
-    profile.twitterUrl,
-    profile.pinterestUrl,
-    profile.maxUrl,
-    profile.viberUrl,
-    profile.dzenUrl,
-    profile.okUrl,
+function normalizeExternalHref(value: string): string {
+  return value.startsWith("http://") || value.startsWith("https://")
+    ? value
+    : `https://${value}`;
+}
+
+function resolveSocialHrefByKey(profile: AccountProfile, key: string): string | null {
+  const rawValue =
+    key === "website"
+      ? profile.websiteUrl
+      : key === "instagram"
+        ? profile.instagramUrl
+        : key === "whatsapp"
+          ? profile.whatsappUrl
+          : key === "telegram"
+            ? profile.telegramUrl
+            : key === "max"
+              ? profile.maxUrl
+              : key === "vk"
+                ? profile.vkUrl
+                : key === "viber"
+                  ? profile.viberUrl
+                  : key === "pinterest"
+                    ? profile.pinterestUrl
+                    : key === "facebook"
+                      ? profile.facebookUrl
+                      : key === "tiktok"
+                        ? profile.tiktokUrl
+                        : key === "youtube"
+                          ? profile.youtubeUrl
+                          : key === "twitter"
+                            ? profile.twitterUrl
+                            : key === "dzen"
+                              ? profile.dzenUrl
+                              : key === "ok"
+                                ? profile.okUrl
+                                : undefined;
+  const trimmed = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!trimmed) return null;
+  return normalizeExternalHref(trimmed);
+}
+
+function resolvePrimarySocialHref(
+  profile: AccountProfile,
+  preferredSource: string = "auto"
+): string | null {
+  if (preferredSource && preferredSource !== "auto") {
+    return resolveSocialHrefByKey(profile, preferredSource);
+  }
+  const priority = [
+    "instagram",
+    "telegram",
+    "whatsapp",
+    "vk",
+    "website",
+    "facebook",
+    "tiktok",
+    "youtube",
+    "twitter",
+    "pinterest",
+    "max",
+    "viber",
+    "dzen",
+    "ok",
   ];
-  for (const value of rawValues) {
-    const trimmed = typeof value === "string" ? value.trim() : "";
-    if (!trimmed) continue;
-    return trimmed.startsWith("http://") || trimmed.startsWith("https://")
-      ? trimmed
-      : `https://${trimmed}`;
+  for (const key of priority) {
+    const href = resolveSocialHrefByKey(profile, key);
+    if (href) return href;
   }
   return null;
 }
