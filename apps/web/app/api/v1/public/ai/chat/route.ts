@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import { runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
+import { runBookingFlow } from "@/lib/booking-flow";
 import {
   getNowInTimeZone,
   isPastDateOrTimeInTz,
@@ -873,6 +874,10 @@ export async function POST(request: Request) {
     message,
     "(\\u043f\\u043e\\u0447\\u0435\\u043c\\u0443\\u0020\\u0442\\u044b.*\\u043d\\u0435\\u0020\\u043e\\u0442\\u0432\\u0435\\u0447\\u0430|\\u043f\\u043e\\u0447\\u0435\\u043c\\u0443\\u0020\\u043d\\u0435\\u0020\\u043e\\u0442\\u0432\\u0435\\u0447\\u0430|\\u043f\\u043e\\u0447\\u0435\\u043c\\u0443\\u0020\\u0442\\u0430\\u043a\\u0020\\u043e\\u0442\\u0432\\u0435\\u0447\\u0430|\\u043d\\u0435\\u0020\\u0432\\u0020\\u043a\\u043e\\u043d\\u0442\\u0435\\u043a\\u0441\\u0442\\u0435)",
   );
+  const asksCurrentDate = hasRu(
+    message,
+    "(\\u043a\\u0430\\u043a\\u043e\\u0435\\s+\\u0447\\u0438\\u0441\\u043b\\u043e|\\u043a\\u0430\\u043a\\u0430\\u044f\\s+\\u0441\\u0435\\u0433\\u043e\\u0434\\u043d\\u044f\\s+\\u0434\\u0430\\u0442\\u0430|\\u043a\\u0430\\u043a\\u043e\\u0439\\s+\\u0441\\u0435\\u0433\\u043e\\u0434\\u043d\\u044f\\s+\\u0434\\u0435\\u043d\\u044c|what\\s+date\\s+is\\s+it|today\\s+date)",
+  );
   const asksChitChat = hasRu(
     message,
     "(\\u043a\\u0430\\u043a\\s+\\u0434\\u0435\\u043b\\u0430|\\u043a\\u0430\\u043a\\s+\\u0436\\u0438\\u0437\\u043d\\u044c|\\u043a\\u0430\\u043a\\s+\\u043d\\u0430\\u0441\\u0442\\u0440\\u043e\\u0435\\u043d\\u0438\\u0435|\\u0447\\u0435\\s+\\u043a\\u0430\\u0432\\u043e|\\u0447\\u0451\\s+\\u043a\\u0430\\u0432\\u043e|\\u0447\\u0442\\u043e\\s+\\u043d\\u043e\\u0432\\u043e\\u0433\\u043e|\\u043a\\u0430\\u043a\\s+\\u0442\\u044b)",
@@ -882,7 +887,7 @@ export async function POST(request: Request) {
   const hasDirectBookingVerb = has(message, /(запиш|записать|записаться|оформи|забронируй)/i);
   const asksSmallTalk = nlu?.intent === "smalltalk";
   const conversationalOnly =
-    (asksGreeting || asksIdentity || asksCapabilities || asksWhyNoAnswer || asksSmallTalk || asksChitChat) &&
+    (asksGreeting || asksIdentity || asksCapabilities || asksWhyNoAnswer || asksSmallTalk || asksChitChat || asksCurrentDate) &&
     !hasDirectBookingVerb &&
     !parsedDate &&
     !nlu?.date &&
@@ -918,9 +923,33 @@ export async function POST(request: Request) {
       textBookingIntent ||
       (nluBookingIntent && !conversationalOnly) ||
       (hasActiveDraftContext && !conversationalOnly),
-  ) && !asksChitChat;
+  ) && !asksChitChat && !asksCurrentDate;
 
-  if (d.status === "COMPLETED" && !bookingIntent) {
+  const flowResult = asksCurrentDate
+    ? { handled: false as const }
+    : await runBookingFlow({
+        messageNorm: t,
+        bookingIntent,
+        asksAvailability,
+        choice,
+        d,
+        currentStatus: d.status,
+        origin,
+        account: { id: resolved.account.id, slug: resolved.account.slug, timeZone: resolved.account.timeZone },
+        locations,
+        services,
+        specialists,
+        requiredVersionIds,
+        request,
+        listLocations,
+        publicSlug,
+      });
+
+  if (flowResult.handled) {
+    reply = flowResult.reply ?? reply;
+    nextStatus = flowResult.nextStatus ?? nextStatus;
+    nextAction = flowResult.nextAction ?? nextAction;
+  } else if (d.status === "COMPLETED" && !bookingIntent) {
     reply = nlu?.reply?.trim() || "Запись уже оформлена.";
   } else {
     if (d.status === "COMPLETED" && bookingIntent) {
@@ -930,7 +959,9 @@ export async function POST(request: Request) {
       d.consentConfirmedAt = null;
     }
 
-    if (asksGreeting && !bookingIntent) {
+    if (asksCurrentDate && !bookingIntent) {
+    reply = `Сегодня ${nowYmd}.`;
+    } else if (asksGreeting && !bookingIntent) {
     const missing = [!d.locationId ? "локацию" : "", !d.serviceId ? "услугу" : "", !d.date ? "дату" : "", !d.time ? "время" : ""].filter(Boolean);
     reply = `Привет! Я ${ASSISTANT_NAME}. ${missing.length ? `Помогу с записью. Можем начать с ${missing[0]}.` : "Готова продолжить запись."}`;
     } else if (asksIdentity && !bookingIntent) {
