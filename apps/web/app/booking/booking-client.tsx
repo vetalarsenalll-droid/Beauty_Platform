@@ -845,6 +845,8 @@ export default function BookingClient({
   const restoringFromStorageRef = useRef(false);
   const skipScenarioResetOnceRef = useRef(false);
   const skipLocationResetOnceRef = useRef(false);
+  const skipServiceResetOnceRef = useRef(false);
+  const skipDateResetOnceRef = useRef(false);
   const restoredFromStorageRef = useRef(false);
   const [scenario, setScenario] = useState<Scenario>("dateFirst");
   const [startScenario, setStartScenario] = useState(false);
@@ -906,6 +908,7 @@ export default function BookingClient({
 
   const [serviceId, setServiceId] = useState<number | null>(null);
   const [specialistId, setSpecialistId] = useState<number | null>(null);
+  const prevServiceIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1077,9 +1080,13 @@ export default function BookingClient({
       setPendingSpecialistId(initialParams.specialistId);
     }
     if (initialParams.dateYmd) {
+      if (initialParams.timeChoice) {
+        skipDateResetOnceRef.current = true;
+      }
       setDateYmd(initialParams.dateYmd);
     }
     if (initialParams.timeChoice) {
+      skipServiceResetOnceRef.current = true;
       setTimeChoice(initialParams.timeChoice);
     }
     setInitialParamsApplied(true);
@@ -1245,7 +1252,11 @@ export default function BookingClient({
   useEffect(() => {
     if (!initialParamsApplied || initialNavApplied) return;
     const hasUrlState = Boolean(
-      initialParams?.locationId || initialParams?.serviceId || initialParams?.specialistId
+      initialParams?.locationId ||
+        initialParams?.serviceId ||
+        initialParams?.specialistId ||
+        initialParams?.dateYmd ||
+        initialParams?.timeChoice
     );
     if (!hasUrlState) {
       setInitialNavApplied(true);
@@ -1253,11 +1264,17 @@ export default function BookingClient({
     }
 
     const knownLocation = Boolean(initialParams?.locationId);
+    const hasService = Boolean(initialParams?.serviceId);
+    const hasSpecialist = Boolean(initialParams?.specialistId);
+    const hasDate = Boolean(initialParams?.dateYmd);
+    const hasTime = Boolean(initialParams?.timeChoice);
     let nextStep: BookingUiStepKey = "location";
     if (knownLocation) {
-      if (initialParams?.serviceId) {
+      if (hasService && hasSpecialist && hasDate && hasTime) {
+        nextStep = "details";
+      } else if (hasService) {
         nextStep = "datetime";
-      } else if (initialParams?.specialistId) {
+      } else if (hasSpecialist) {
         nextStep = "service";
       } else {
         nextStep = "datetime";
@@ -1310,6 +1327,10 @@ export default function BookingClient({
   }, [locationId]);
 
   useEffect(() => {
+    if (skipDateResetOnceRef.current) {
+      skipDateResetOnceRef.current = false;
+      return;
+    }
     setTimeChoice(null);
     setSubmitError(null);
     setSubmitSuccess(false);
@@ -1317,6 +1338,16 @@ export default function BookingClient({
   }, [dateYmd, isDateFirst]);
 
   useEffect(() => {
+    const prevServiceId = prevServiceIdRef.current;
+    const serviceChanged = prevServiceId !== serviceId;
+    prevServiceIdRef.current = serviceId;
+    if (!serviceChanged) return;
+
+    if (skipServiceResetOnceRef.current) {
+      skipServiceResetOnceRef.current = false;
+      return;
+    }
+    if (!serviceId) return;
     // ✅ Р’ dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
     if (isDateFirst) return;
 
@@ -1936,6 +1967,9 @@ export default function BookingClient({
   useEffect(() => {
     if (!isSpecialistFirst) return;
     if (loadingServices) return;
+    // Не сбрасываем состояние, пока услуга еще не выбрана/не подгружена.
+    // Иначе при гидрации из URL может потеряться timeChoice.
+    if (!serviceId) return;
     if (serviceId && servicesForSpecialistFirst.some((s) => s.id === serviceId)) return;
     setServiceId(null);
     setTimeChoice(null);

@@ -9,18 +9,12 @@ type PublicAiChatWidgetProps = {
   accountSlug: string;
 };
 
-const GREETING: Message = {
-  role: "assistant",
-  content: "Привет! Помогу выбрать услугу и записаться. Что вам нужно?",
-};
-
 export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
-  const [bookingUrl, setBookingUrl] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([GREETING]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const storageKey = useMemo(() => `ai-thread:${accountSlug}`, [accountSlug]);
   const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
@@ -49,7 +43,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
       const apiMessages = Array.isArray(payload.data.messages)
         ? (payload.data.messages as Message[])
         : [];
-      setMessages(apiMessages.length > 0 ? apiMessages : [GREETING]);
+      setMessages(apiMessages.length > 0 ? apiMessages : []);
     };
     void load();
     return () => {
@@ -63,7 +57,6 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
 
     const userText = text.trim();
     setText("");
-    setBookingUrl(null);
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setLoading(true);
 
@@ -89,7 +82,10 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
 
       const action = (payload.data.action ?? null) as ChatAction;
       if (action?.type === "open_booking") {
-        setBookingUrl(action.bookingUrl);
+        if (typeof window !== "undefined") {
+          window.location.assign(action.bookingUrl);
+          return;
+        }
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: String(payload.data.reply) }]);
@@ -107,22 +103,30 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
   };
 
   const clearChat = async () => {
-    if (!threadId) {
-      setMessages([GREETING]);
-      setBookingUrl(null);
-      return;
+    if (threadId) {
+      try {
+        const response = await fetch(
+          `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}&threadId=${threadId}`,
+          { method: "DELETE" }
+        );
+        const payload = await response.json().catch(() => null);
+        const nextThreadId = Number(payload?.data?.threadId);
+        if (response.ok && Number.isInteger(nextThreadId) && nextThreadId > 0) {
+          setThreadId(nextThreadId);
+          window.localStorage.setItem(storageKey, String(nextThreadId));
+        } else {
+          window.localStorage.removeItem(storageKey);
+          setThreadId(null);
+        }
+      } catch {
+        window.localStorage.removeItem(storageKey);
+        setThreadId(null);
+      }
+    } else {
+      window.localStorage.removeItem(storageKey);
+      setThreadId(null);
     }
-    setLoading(true);
-    try {
-      await fetch(
-        `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}&threadId=${threadId}`,
-        { method: "DELETE" }
-      );
-    } finally {
-      setMessages([GREETING]);
-      setBookingUrl(null);
-      setLoading(false);
-    }
+    setMessages([]);
   };
 
   return (
@@ -172,14 +176,6 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
           </div>
 
           <form onSubmit={sendMessage} className="border-t border-[color:var(--site-border,#e5e7eb)] p-3">
-            {bookingUrl ? (
-              <a
-                href={bookingUrl}
-                className="mb-2 inline-flex h-10 w-full items-center justify-center rounded-xl bg-[color:var(--site-button,#111827)] px-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)]"
-              >
-                Перейти к онлайн-записи
-              </a>
-            ) : null}
             <div className="flex gap-2">
               <input
                 value={text}
@@ -209,4 +205,3 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
     </div>
   );
 }
-

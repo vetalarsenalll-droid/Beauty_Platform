@@ -1,0 +1,172 @@
+﻿[
+    {
+        "user":  "привет",
+        "reply":  "ÐÑÐ¸Ð²ÐµÑ! ÐÐ°Ðº Ð½Ð°ÑÑÑÐ¾ÐµÐ½Ð¸Ðµ?",
+        "draft":  {
+                      "locationId":  null,
+                      "serviceId":  null,
+                      "specialistId":  null,
+                      "date":  null,
+                      "time":  null,
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  null,
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "как дела?",
+        "reply":  "Ð, Ð²ÑÑ Ð¾ÑÐ»Ð¸ÑÐ½Ð¾! ÐÐ¾ÑÐ¾Ð²Ð° Ð¿Ð¾Ð¼Ð¾ÑÑ ÑÐµÐ±Ðµ Ñ Ð·Ð°Ð¿Ð¸ÑÑÑ.",
+        "draft":  {
+                      "locationId":  null,
+                      "serviceId":  null,
+                      "specialistId":  null,
+                      "date":  null,
+                      "time":  null,
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  null,
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "на маникюр хочу записаться",
+        "reply":  "ÐÐ°ÑÐ»Ð° Ð´Ð¾ÑÑÑÐ¿Ð½ÑÑ Ð»Ð¾ÐºÐ°ÑÐ¸Ñ: Beauty Salon Riverside. ÐÐ° 2026-02-26 ÐµÑÑÑ Ð¾ÐºÐ½Ð°: 13:45, 14:00, 14:15, 14:30, 14:45, 15:00. ÐÐ°Ð¿Ð¸ÑÐ¸ÑÐµ ÑÐ´Ð¾Ð±Ð½Ð¾Ðµ Ð²ÑÐµÐ¼Ñ.",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  null,
+                      "date":  null,
+                      "time":  null,
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  null,
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "на март есть окошки?",
+        "reply":  "ÐÑÑÑ ÑÐ²Ð¾Ð±Ð¾Ð´Ð½ÑÐµ ÑÐ»Ð¾ÑÑ Ð½Ð° 2026-02-26: 13:45, 14:00, 14:15, 14:30, 14:45, 15:00. ÐÐ°Ð¿Ð¸ÑÐ¸ÑÐµ ÑÐ´Ð¾Ð±Ð½ÑÑ Ð´Ð°ÑÑ Ð¸ Ð²ÑÐµÐ¼Ñ.",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  null,
+                      "date":  null,
+                      "time":  null,
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  null,
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "на вечер",
+        "reply":  "ÐÑÑÑ ÑÐ²Ð¾Ð±Ð¾Ð´Ð½ÑÐµ ÑÐ»Ð¾ÑÑ Ð½Ð° 2026-02-26: 13:45, 14:00, 14:15, 14:30, 14:45, 15:00. ÐÐ°Ð¿Ð¸ÑÐ¸ÑÐµ ÑÐ´Ð¾Ð±Ð½ÑÑ Ð´Ð°ÑÑ Ð¸ Ð²ÑÐµÐ¼Ñ.",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  null,
+                      "date":  null,
+                      "time":  null,
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  null,
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "какая локация лучше, я не знаю",
+        "reply":  "ÐÐ°ÑÐ¸ Ð»Ð¾ÐºÐ°ÑÐ¸Ð¸:\n1. Beauty Salon Center â Tverskaya 10\n2. Beauty Salon Riverside â Kutuzovsky 22",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  null,
+                      "date":  null,
+                      "time":  null,
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  null,
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "2",
+        "reply":  "ÐÐ° 02:00 ÑÐ²Ð¾Ð±Ð¾Ð´Ð½ÑÑ\u0085 ÑÐ¿ÐµÑÐ¸Ð°Ð»Ð¸ÑÑÐ¾Ð² Ð½ÐµÑ. ÐÐ»Ð¸Ð¶Ð°Ð¹ÑÐ¸Ðµ Ð²ÑÐµÐ¼ÐµÐ½Ð°: 11:00, 11:15, 11:30, 11:45, 12:00, 12:15, 12:30, 12:45. ÐÑÐ±ÐµÑÐ¸ÑÐµ Ð²ÑÐµÐ¼Ñ.",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  null,
+                      "date":  "2026-03-02",
+                      "time":  "02:00",
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  "ASSISTANT",
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "3 марта",
+        "reply":  "ÐÐ° 02:00 ÑÐ²Ð¾Ð±Ð¾Ð´Ð½ÑÑ\u0085 ÑÐ¿ÐµÑÐ¸Ð°Ð»Ð¸ÑÑÐ¾Ð² Ð½ÐµÑ. ÐÐ»Ð¸Ð¶Ð°Ð¹ÑÐ¸Ðµ Ð²ÑÐµÐ¼ÐµÐ½Ð°: 10:00, 10:15, 10:30, 10:45, 11:00, 11:15, 11:30, 11:45. ÐÑÐ±ÐµÑÐ¸ÑÐµ Ð²ÑÐµÐ¼Ñ.",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  null,
+                      "date":  "2026-03-03",
+                      "time":  "02:00",
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  "ASSISTANT",
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "17:00",
+        "reply":  "ÐÐ° 2026-03-03 Ð² 17:00 Ð´Ð¾ÑÑÑÐ¿ÐµÐ½ ÑÐ¿ÐµÑÐ¸Ð°Ð»Ð¸ÑÑ Olga Smirnova, Ð²ÑÐ±ÑÐ°Ð»Ð° ÐµÐ³Ð¾ Ð°Ð²ÑÐ¾Ð¼Ð°ÑÐ¸ÑÐµÑÐºÐ¸.\nÐÐ°Ðº Ð·Ð°Ð²ÐµÑÑÐ¸Ð¼ Ð·Ð°Ð¿Ð¸ÑÑ?\n1) Ð¡Ð°Ð¼(Ð°) Ð² ÑÐ¾ÑÐ¼Ðµ Ð¾Ð½Ð»Ð°Ð¹Ð½-Ð·Ð°Ð¿Ð¸ÑÐ¸.\n2) ÐÑÐ¾ÑÐ¼Ð¸ÑÑ ÑÐµÑÐµÐ· Ð°ÑÑÐ¸ÑÑÐµÐ½ÑÐ°.",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  5,
+                      "date":  "2026-03-03",
+                      "time":  "17:00",
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  "ASSISTANT",
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    },
+    {
+        "user":  "спасибо",
+        "reply":  "ÐÐ¾Ð¶Ð°Ð»ÑÐ¹ÑÑÐ°!",
+        "draft":  {
+                      "locationId":  3,
+                      "serviceId":  11,
+                      "specialistId":  5,
+                      "date":  "2026-03-03",
+                      "time":  "17:00",
+                      "clientName":  null,
+                      "clientPhone":  null,
+                      "mode":  "ASSISTANT",
+                      "status":  "COLLECTING",
+                      "consentConfirmedAt":  null
+                  },
+        "action":  null
+    }
+]

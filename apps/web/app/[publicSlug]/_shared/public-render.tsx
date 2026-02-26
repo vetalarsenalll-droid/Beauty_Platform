@@ -1469,7 +1469,7 @@ function renderMenu(
             : undefined
         }
       >
-        <details className="group menu-v2-overlay w-full">
+        <details suppressHydrationWarning className="group menu-v2-overlay w-full">
           <summary
             className="relative z-[60] flex cursor-pointer list-none items-center border-b py-0 pl-8 pr-24
               [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
@@ -1540,7 +1540,7 @@ function renderMenu(
             : undefined
         }
       >
-        <details className="group relative menu-v3-overlay w-full">
+        <details suppressHydrationWarning className="group relative menu-v3-overlay w-full">
           <summary
             className="relative flex list-none items-center px-4 md:px-8 [&::-webkit-details-marker]:hidden"
             style={{
@@ -1632,7 +1632,7 @@ function renderMenu(
             }}
           >
             {logoNode}
-            <details className="group relative">
+            <details suppressHydrationWarning className="group relative">
               <summary
                 className="relative inline-flex cursor-pointer list-none items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)] [&::-webkit-details-marker]:hidden"
                 style={{ width: menuButtonSize, height: menuButtonSize }}
@@ -1710,7 +1710,7 @@ function renderMenu(
             {accountNode}
             {themeToggleNode}
             {ctaNode}
-            <details className="relative">
+            <details suppressHydrationWarning className="relative">
               <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]">
                 <IconMenu />
               </summary>
