@@ -7,6 +7,7 @@ import {
   rescheduleClientBooking,
   updateClientPhone,
 } from "@/lib/client-account-tools";
+import { zonedTimeToUtc } from "@/lib/public-booking";
 
 type FlowResult = { handled: boolean; reply?: string };
 
@@ -31,28 +32,61 @@ function parsePhone(message: string) {
 }
 
 function parseAppointmentId(messageNorm: string) {
-  const m = messageNorm.match(/#?\s*(\d{1,8})\b/);
-  if (!m) return null;
-  const n = Number(m[1]);
+  const explicitHash = messageNorm.match(/#\s*(\d{1,8})\b/);
+  if (explicitHash) {
+    const n = Number(explicitHash[1]);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
+  const explicitWord = messageNorm.match(/\b(?:запис[ьи]|запись|номер|id)\s*#?\s*(\d{1,8})\b/i);
+  if (!explicitWord) return null;
+  const n = Number(explicitWord[1]);
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-function parseDateTime(messageNorm: string) {
-  const date = messageNorm.match(/\b(\d{4}-\d{2}-\d{2})\b/)?.[1] ?? null;
-  const time = messageNorm.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
-  if (!date || !time) return null;
-  return { date, time: `${String(Number(time[1])).padStart(2, "0")}:${time[2]}` };
+function ymdFromDateInTz(date: Date, timeZone: string) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+    const y = parts.find((p) => p.type === "year")?.value ?? "1970";
+    const m = parts.find((p) => p.type === "month")?.value ?? "01";
+    const d = parts.find((p) => p.type === "day")?.value ?? "01";
+    return `${y}-${m}-${d}`;
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
 }
 
-function toUtc(date: string, time: string) {
-  const dt = new Date(`${date}T${time}:00.000Z`);
-  return Number.isFinite(dt.getTime()) ? dt : null;
+function addDaysYmd(ymd: string, days: number) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
 }
 
-function parseRuDateToYmd(messageNorm: string, now: Date) {
+function parseRuDateToYmd(messageNorm: string, todayYmd: string) {
+  if (/\b(сегодня|today)\b/i.test(messageNorm)) return todayYmd;
+  if (/\b(завтра|tomorrow)\b/i.test(messageNorm)) return addDaysYmd(todayYmd, 1);
+  if (/\b(послезавтра|day after tomorrow)\b/i.test(messageNorm)) return addDaysYmd(todayYmd, 2);
+
   const iso = messageNorm.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const months = new Map<string, string>([
+
+  const dmDot = messageNorm.match(/\b(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?\b/);
+  if (dmDot) {
+    const day = String(Number(dmDot[1])).padStart(2, "0");
+    const month = String(Number(dmDot[2])).padStart(2, "0");
+    let year = dmDot[3] ? Number(dmDot[3]) : Number(todayYmd.slice(0, 4));
+    if (year < 100) year += 2000;
+    let candidate = `${year}-${month}-${day}`;
+    if (!dmDot[3] && candidate < todayYmd) candidate = `${year + 1}-${month}-${day}`;
+    return candidate;
+  }
+
+  const monthMap = new Map<string, string>([
     ["января", "01"],
     ["февраля", "02"],
     ["марта", "03"],
@@ -66,16 +100,35 @@ function parseRuDateToYmd(messageNorm: string, now: Date) {
     ["ноября", "11"],
     ["декабря", "12"],
   ]);
-  const dm = messageNorm.match(
-    /\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?\b/,
+  const dmText = messageNorm.match(
+    /\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?\b/i,
   );
-  if (!dm) return null;
-  const day = String(Number(dm[1])).padStart(2, "0");
-  const month = months.get(dm[2]) ?? "01";
-  let year = dm[3] ? Number(dm[3]) : now.getFullYear();
-  const candidate = new Date(Date.UTC(year, Number(month) - 1, Number(day), 12));
-  if (!dm[3] && candidate.getTime() < now.getTime() - 24 * 60 * 60 * 1000) year += 1;
-  return `${year}-${month}-${day}`;
+  if (dmText) {
+    const day = String(Number(dmText[1])).padStart(2, "0");
+    const month = monthMap.get(dmText[2].toLowerCase()) ?? "01";
+    let year = dmText[3] ? Number(dmText[3]) : Number(todayYmd.slice(0, 4));
+    let candidate = `${year}-${month}-${day}`;
+    if (!dmText[3] && candidate < todayYmd) candidate = `${year + 1}-${month}-${day}`;
+    return candidate;
+  }
+
+  return null;
+}
+
+function parseTime(messageNorm: string) {
+  const hhmm = messageNorm.match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
+  if (hhmm) return `${String(Number(hhmm[1])).padStart(2, "0")}:${hhmm[2]}`;
+
+  const hourOnly = messageNorm.match(/\b(?:в|на|к)\s*([01]?\d|2[0-3])\b/i);
+  if (hourOnly) return `${String(Number(hourOnly[1])).padStart(2, "0")}:00`;
+  return null;
+}
+
+function parseDateTime(messageNorm: string, todayYmd: string) {
+  const date = parseRuDateToYmd(messageNorm, todayYmd);
+  const time = parseTime(messageNorm);
+  if (!date || !time) return null;
+  return { date, time };
 }
 
 function formatDateTimeInTz(date: Date, timeZone: string) {
@@ -103,58 +156,50 @@ function formatPolicyHoursHuman(hours: number) {
   return `${hours} ч`;
 }
 
-function ymdFromDateInTz(date: Date, timeZone: string) {
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(date);
-    const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-    const m = parts.find((p) => p.type === "month")?.value ?? "01";
-    const d = parts.find((p) => p.type === "day")?.value ?? "01";
-    return `${y}-${m}-${d}`;
-  } catch {
-    return date.toISOString().slice(0, 10);
-  }
+function parseRescheduleConfirm(text: string) {
+  return text.match(
+    /подтвержда[а-я]*\s+перенос\s*#?\s*(\d{1,8})\s+на\s+(\d{4}-\d{2}-\d{2})\s+([01]?\d|2[0-3])[:.]([0-5]\d)/i,
+  );
 }
 
 export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowResult> {
   const { message, messageNorm, accountId, accountTimeZone, clientId, authMode = "full" } = args;
   if (!clientId) return { handled: false };
 
+  const todayYmd = ymdFromDateInTz(new Date(), accountTimeZone);
+
   const asksMyBookings = has(
     messageNorm,
-    /(мои записи|мои последние записи|покажи мои записи|моя запись|последняя запись|прошедш(ая|ие)|история записей|какая у меня.*запись)/i,
+    /(мои записи|моя запись|покажи мои записи|последняя запись|прошедш|история записей|какая у меня.*запись|какая запись|какие записи|что с моей записью|что по моей записи|ближайшая запись|предстоящая запись)/i,
   );
-  const asksLatestSingle = has(messageNorm, /(какая последняя запись|последняя запись|последний визит|что у меня было последнее|последнюю покажи)/i);
-  const asksNearest = has(messageNorm, /(ближайш|ближайщ|следующ|скоро.*запись|предстоящ)/i);
-  const asksStats = has(messageNorm, /(моя статистика|статистика|сколько раз|сколько посещений|мой средний чек)/i);
+  const asksLatestSingle = has(messageNorm, /(какая последняя запись|последнюю покажи|последняя запись|последний визит)/i);
+  const asksNearest = has(messageNorm, /(ближайш|предстоящ|следующ|скоро.*запись)/i);
+  const asksPast = has(messageNorm, /(прошедш|прошлая|история)/i);
+
+  const asksStats = has(messageNorm, /(моя статистика|статистика|сколько раз|сколько посещений|средний чек)/i);
   const asksCancel = has(
     messageNorm,
-    /(отмени(ть)? запись|отмена записи|cancel booking|отменить #|отмени(ть)? (ее|её|эту)|можешь.*отменить)/i,
+    /(отмени(ть)?( запись)?|отмена записи|cancel booking|можешь.*отменить|отмени (ее|её|эту|последнюю|ближайшую))/i,
   );
   const asksReschedule = has(
     messageNorm,
-    /(перенеси запись|перезапиши|reschedule|перенести #|перенеси(ть)? (ее|её|эту)|можешь.*перенести)/i,
+    /(перенеси(ть)?( запись)?|перезапиши|reschedule|можешь.*перенести|перенеси (ее|её|эту|последнюю|ближайшую))/i,
   );
   const asksRepeat = has(messageNorm, /(повтори прошлую запись|повтори запись|запиши как в прошлый раз)/i);
   const asksProfile = has(messageNorm, /(мои данные|мой телефон|смени телефон|обнови телефон|мой профиль)/i);
 
-  const cancelConfirmId = messageNorm.match(/подтверждаю\s+отмену\s*#?\s*(\d{1,8})/i)?.[1];
-  const cancelConfirmBare = has(messageNorm, /подтверждаю\s+отмену/i);
-  const rescheduleConfirm = messageNorm.match(
-    /подтверждаю\s+перенос\s*#?\s*(\d{1,8})\s+на\s+(\d{4}-\d{2}-\d{2})\s+([01]?\d|2[0-3])[:.]([0-5]\d)/i,
-  );
+  const cancelConfirmId = messageNorm.match(/п?одтверждаю\s+отмену\s*#?\s*(\d{1,8})/i)?.[1];
+  const cancelConfirmBare = has(messageNorm, /п?одтверждаю\s+отмену/i);
+  const rescheduleConfirm = parseRescheduleConfirm(messageNorm);
 
   if (!asksMyBookings && !asksStats && !asksCancel && !asksReschedule && !asksRepeat && !asksProfile) {
-    if (!cancelConfirmId && !rescheduleConfirm) return { handled: false };
+    if (!cancelConfirmId && !cancelConfirmBare && !rescheduleConfirm) return { handled: false };
   }
 
   if (asksMyBookings) {
     const items = await getClientBookings({ accountId, clientId, limit: 20 });
     if (!items.length) return { handled: true, reply: "У вас пока нет записей." };
+
     const now = new Date();
     const past = items
       .filter((x) => x.startAt < now && x.status !== "CANCELLED")
@@ -162,7 +207,6 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     const upcoming = items
       .filter((x) => x.startAt >= now && x.status !== "CANCELLED")
       .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
-    const asksPast = has(messageNorm, /(прошедш|прошлая|прошлые|была|были|история)/i);
 
     if (asksNearest) {
       const near = upcoming[0];
@@ -175,11 +219,21 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
     if (asksLatestSingle || asksPast) {
       const last = past[0];
-      if (!last) return { handled: true, reply: "Прошедших записей пока не нашла." };
+      if (!last) return { handled: true, reply: "Прошедших записей пока нет." };
       return {
         handled: true,
         reply: `Последняя прошедшая запись: #${last.id} — ${formatDateTimeInTz(last.startAt, accountTimeZone)} — ${last.services[0]?.service.name ?? "Услуга"} — ${last.status}.`,
       };
+    }
+
+    if (!asksNearest) {
+      const near = upcoming[0];
+      if (near) {
+        return {
+          handled: true,
+          reply: `Ближайшая запись: #${near.id} — ${formatDateTimeInTz(near.startAt, accountTimeZone)} — ${near.services[0]?.service.name ?? "Услуга"} — ${near.status}. Если нужно, покажу последнюю прошедшую или все записи.`,
+        };
+      }
     }
 
     return {
@@ -203,7 +257,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
   if (asksProfile) {
     if (authMode !== "full") {
-      return { handled: true, reply: "Для изменения профиля нужна активная авторизация клиента." };
+      return { handled: true, reply: "Для изменения профиля нужна активная авторизация." };
     }
     const newPhone = parsePhone(message);
     if (newPhone) {
@@ -215,20 +269,25 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
   if (asksCancel) {
     if (authMode !== "full") {
-      return { handled: true, reply: "Для отмены записи нужна активная авторизация клиента." };
+      return { handled: true, reply: "Для отмены записи нужна активная авторизация." };
     }
     const id = parseAppointmentId(messageNorm);
     const all = await getClientBookings({ accountId, clientId, limit: 30 });
-    const requestedDateYmd = parseRuDateToYmd(messageNorm, new Date());
+    const requestedDateYmd = parseRuDateToYmd(messageNorm, todayYmd);
+    const wantsNearestLocal = has(messageNorm, /(ближайш|следующ)/i);
+    const wantsLatestLocal = has(messageNorm, /(последн)/i);
     const candidatesByDate = requestedDateYmd
       ? all.filter((x) => formatDateTimeInTz(x.startAt, accountTimeZone).includes(requestedDateYmd.split("-").reverse().join(".")))
       : [];
     const target = id
       ? { id }
+      : wantsNearestLocal || wantsLatestLocal
+      ? await findLatestUpcomingBooking({ accountId, clientId })
       : candidatesByDate.length === 1
       ? { id: candidatesByDate[0]!.id }
       : await findLatestUpcomingBooking({ accountId, clientId });
     if (!target) return { handled: true, reply: "Не нашла активную будущую запись для отмены." };
+
     if (!id && candidatesByDate.length > 1) {
       return {
         handled: true,
@@ -238,6 +297,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
           .join("\n")}\nНапишите: «отменить #ID».`,
       };
     }
+
     if (!id) {
       const appt = all.find((x) => x.id === target.id);
       const policy = await getBookingPolicy({ accountId });
@@ -250,6 +310,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
         }`,
       };
     }
+
     return {
       handled: true,
       reply: `Для безопасности подтвердите действие: «подтверждаю отмену #${id}».`,
@@ -258,7 +319,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
   if (cancelConfirmId || cancelConfirmBare) {
     if (authMode !== "full") {
-      return { handled: true, reply: "Для отмены записи нужна активная авторизация клиента." };
+      return { handled: true, reply: "Для отмены записи нужна активная авторизация." };
     }
     let id = cancelConfirmId ? Number(cancelConfirmId) : null;
     if (!id) {
@@ -272,34 +333,65 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
         const policyHours = (cancelled as any).policyHours;
         return {
           handled: true,
-          reply: `Не могу отменить: до визита осталось слишком мало времени. По правилам отмена возможна не позднее чем за ${formatPolicyHoursHuman(
+          reply: `Не могу отменить: по правилам отмена доступна не позднее чем за ${formatPolicyHoursHuman(
             policyHours,
           )} до начала.`,
         };
       }
-      return { handled: true, reply: "Не получилось отменить запись. Проверьте номер записи или статус." };
+      return { handled: true, reply: "Не получилось отменить запись. Проверьте номер записи и статус." };
     }
     return { handled: true, reply: `Запись #${id} отменена.` };
   }
 
   if (asksReschedule) {
     if (authMode !== "full") {
-      return { handled: true, reply: "Для переноса записи нужна активная авторизация клиента." };
+      return { handled: true, reply: "Для переноса записи нужна активная авторизация." };
     }
-    const id = parseAppointmentId(messageNorm);
-    const dt = parseDateTime(messageNorm);
-    if (!id || !dt) {
+
+    const idFromText = parseAppointmentId(messageNorm);
+    const dt = parseDateTime(messageNorm, todayYmd);
+    const all = await getClientBookings({ accountId, clientId, limit: 30 });
+
+    const requestedDateYmd = parseRuDateToYmd(messageNorm, todayYmd);
+    const wantsNearestLocal = has(messageNorm, /(ближайш|следующ)/i);
+    const wantsLatestLocal = has(messageNorm, /(последн)/i);
+    const candidatesByDate = requestedDateYmd
+      ? all.filter((x) => formatDateTimeInTz(x.startAt, accountTimeZone).includes(requestedDateYmd.split("-").reverse().join(".")))
+      : [];
+
+    const target = idFromText
+      ? { id: idFromText }
+      : wantsNearestLocal || wantsLatestLocal
+      ? await findLatestUpcomingBooking({ accountId, clientId })
+      : candidatesByDate.length === 1
+      ? { id: candidatesByDate[0]!.id }
+      : await findLatestUpcomingBooking({ accountId, clientId });
+
+    if (!target) return { handled: true, reply: "Не нашла активную будущую запись для переноса." };
+
+    if (!idFromText && candidatesByDate.length > 1) {
       return {
         handled: true,
-        reply: "Для переноса напишите так: «перенести #123 на 2026-03-02 18:00».",
+        reply: `На эту дату у вас несколько записей:\n${candidatesByDate
+          .slice(0, 5)
+          .map((x) => `#${x.id} — ${formatDateTimeInTz(x.startAt, accountTimeZone)} — ${x.services[0]?.service.name ?? "Услуга"}`)
+          .join("\n")}\nНапишите: «перенести #ID на YYYY-MM-DD HH:MM».`,
       };
     }
+
+    if (!dt) {
+      return {
+        handled: true,
+        reply: `Запись #${target.id} нашла. Напишите новую дату и время, например: «перенести #${target.id} на ${todayYmd} 18:00».`,
+      };
+    }
+
     const policy = await getBookingPolicy({ accountId });
     return {
       handled: true,
-      reply: `Проверила запрос на перенос #${id} на ${dt.date} ${dt.time}. Для подтверждения напишите: «подтверждаю перенос #${id} на ${dt.date} ${dt.time}».${
+      reply: `Проверила перенос #${target.id} на ${dt.date} ${dt.time}. Для подтверждения напишите: «подтверждаю перенос #${target.id} на ${dt.date} ${dt.time}».${
         policy.rescheduleWindowHours != null
-          ? ` Политика переноса: не позднее чем за ${policy.rescheduleWindowHours} ч.`
+          ? ` Перенос доступен не позднее чем за ${formatPolicyHoursHuman(policy.rescheduleWindowHours)} до визита.`
           : ""
       }`,
     };
@@ -307,13 +399,13 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
   if (rescheduleConfirm) {
     if (authMode !== "full") {
-      return { handled: true, reply: "Для переноса записи нужна активная авторизация клиента." };
+      return { handled: true, reply: "Для переноса записи нужна активная авторизация." };
     }
     const id = Number(rescheduleConfirm[1]);
     const date = rescheduleConfirm[2]!;
     const hh = String(Number(rescheduleConfirm[3])).padStart(2, "0");
     const mm = rescheduleConfirm[4]!;
-    const startAt = toUtc(date, `${hh}:${mm}`);
+    const startAt = zonedTimeToUtc(date, `${hh}:${mm}`, accountTimeZone);
     if (!startAt) return { handled: true, reply: "Не распознала новую дату/время для переноса." };
     const endAt = new Date(startAt);
     endAt.setUTCMinutes(endAt.getUTCMinutes() + 60);
@@ -321,11 +413,19 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     if (!moved.ok) {
       if ((moved as any).reason === "reschedule_window_blocked") {
         const policyHours = (moved as any).policyHours;
-        return { handled: true, reply: `Перенос недоступен по политике записи: менее ${policyHours} ч до визита.` };
+        return {
+          handled: true,
+          reply: `Не могу перенести: по правилам перенос доступен не позднее чем за ${formatPolicyHoursHuman(
+            policyHours,
+          )} до начала визита.`,
+        };
       }
-      return { handled: true, reply: "Не получилось перенести запись. Возможно, слот занят или запись недоступна." };
+      if ((moved as any).reason === "slot_busy") {
+        return { handled: true, reply: "Не получилось перенести: выбранный слот уже занят. Напишите другое время." };
+      }
+      return { handled: true, reply: "Не получилось перенести запись. Проверьте номер записи и новое время." };
     }
-    return { handled: true, reply: `Запись #${id} перенесена на ${date} ${hh}:${mm}.` };
+    return { handled: true, reply: `Готово, запись #${id} перенесена на ${date} ${hh}:${mm}.` };
   }
 
   if (asksRepeat) {

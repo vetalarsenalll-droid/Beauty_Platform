@@ -29,7 +29,8 @@ type ClientSessionValue = Awaited<ReturnType<typeof getClientSession>>;
 type AuthLevel = "full" | "thread_only" | "none";
 
 const ASSISTANT_NAME = "Аиша";
-const NLU_INTENT_CONFIDENCE_THRESHOLD = 0.58;
+const NLU_INTENT_CONFIDENCE_THRESHOLD = 0.38;
+const NLU_INTENT_CONFIDENCE_CRITICAL_THRESHOLD = 0.52;
 
 const asText = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 1200) : "");
 const norm = (v: string) =>
@@ -45,6 +46,20 @@ const asThreadId = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
+
+function parseChoiceFromText(messageNorm: string): number | null {
+  const direct = Number(messageNorm.match(/^\s*(?:№|номер\s*)?(\d{1,2})\s*$/i)?.[1] ?? NaN);
+  if (Number.isFinite(direct)) return direct;
+  const map: Array<[RegExp, number]> = [
+    [/^\s*(один|первый|первая|first)\s*$/i, 1],
+    [/^\s*(два|второй|вторая|second)\s*$/i, 2],
+    [/^\s*(три|третий|третья|third)\s*$/i, 3],
+    [/^\s*(четыре|четвертый|четвёртый|четвертая|четвёртая|fourth)\s*$/i, 4],
+    [/^\s*(пять|пятый|пятая|fifth)\s*$/i, 5],
+  ];
+  for (const [re, n] of map) if (re.test(messageNorm)) return n;
+  return null;
+}
 
 function parseAiSettingString(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -173,6 +188,16 @@ const addDaysYmd = (ymd: string, days: number) => {
   return toYmd(dt);
 };
 
+const isIsoYmd = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const pickSafeNluDate = (candidate: unknown, today: string) => {
+  if (!isIsoYmd(candidate)) return null;
+  // Ignore clearly stale model dates (e.g. 2023) and unrealistic far future.
+  const min = addDaysYmd(today, -1);
+  const max = addDaysYmd(today, 730);
+  if (candidate < min || candidate > max) return null;
+  return candidate;
+};
+
 const parseDate = (m: string, today: string) => {
   const t = norm(m);
   if (/\b(сегодня|today)\b/.test(t)) return today;
@@ -205,6 +230,32 @@ const parseDate = (m: string, today: string) => {
     if (!dmText[3] && candidate < today) {
       year += 1;
       candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+    }
+    return candidate;
+  }
+
+  const monthOnly = t.match(/\b(в\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)\b/);
+  if (monthOnly) {
+    const monthMap = new Map<string, string>([
+      ["январе", "01"],
+      ["феврале", "02"],
+      ["марте", "03"],
+      ["апреле", "04"],
+      ["мае", "05"],
+      ["июне", "06"],
+      ["июле", "07"],
+      ["августе", "08"],
+      ["сентябре", "09"],
+      ["октябре", "10"],
+      ["ноябре", "11"],
+      ["декабре", "12"],
+    ]);
+    const month = monthMap.get(monthOnly[2] ?? "") ?? "01";
+    let year = Number(today.slice(0, 4));
+    let candidate = `${year}-${month}-01`;
+    if (candidate < today) {
+      year += 1;
+      candidate = `${year}-${month}-01`;
     }
     return candidate;
   }
@@ -267,16 +318,125 @@ function asksCurrentDate(text: string) {
   return has(text, /(какое число|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
 }
 
+function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
+  const hasServiceWord = /(маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i.test(messageNorm);
+  if (!hasServiceWord) return false;
+  const asks = /(есть|нет|имеется|доступн|а .* нет)/i.test(messageNorm);
+  const questionMark = rawMessage.includes("?");
+  return asks || questionMark;
+}
+
+function hasLocationCue(messageNorm: string) {
+  return /(локац|филиал|адрес|центр|ривер|riverside|beauty salon|кутуз|тверск|любой филиал)/i.test(messageNorm);
+}
+
 function isConversationalHeuristicIntent(intent: AishaIntent) {
   return intent === "greeting" || intent === "smalltalk" || intent === "identity" || intent === "capabilities";
 }
 
+function isLooseConfirmation(text: string) {
+  return has(text, /^(да|ок|оке|окей|подтверждаю|потверждаю|верно|согласен|согласна)(?:\s|$)/i);
+}
+
+function extractPendingClientAction(recentMessages: Array<{ role: string; content: string }>) {
+  const assistantLast = [...recentMessages].reverse().find((m) => m.role === "assistant")?.content ?? "";
+  const reschedule = assistantLast.match(
+    /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*(\d{1,8})\s+на\s+(\d{4}-\d{2}-\d{2})\s+([01]?\d|2[0-3])[:.]([0-5]\d)/iu,
+  );
+  if (reschedule) {
+    return {
+      type: "reschedule" as const,
+      appointmentId: Number(reschedule[1]),
+      date: reschedule[2]!,
+      hh: String(Number(reschedule[3])).padStart(2, "0"),
+      mm: reschedule[4]!,
+    };
+  }
+  const cancelId =
+    assistantLast.match(/подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*(\d{1,8})/iu)?.[1] ??
+    (/(для\s+подтверждени[\p{L}]*.*отмен[\p{L}]*|подтверд[\p{L}]*\s+отмен[\p{L}]*)/iu.test(assistantLast)
+      ? assistantLast.match(/#\s*(\d{1,8})\b/)?.[1]
+      : null);
+  if (cancelId) return { type: "cancel" as const, appointmentId: Number(cancelId) };
+  const asksCancelChoice = /какую именно запись вы хотите отменить|уточните, какую запись отменить|какую запись отменить/i.test(
+    assistantLast,
+  );
+  if (asksCancelChoice) return { type: "cancel_choice" as const };
+  return null;
+}
+
+function isCriticalIntent(intent: AishaIntent) {
+  return (
+    intent === "cancel_my_booking" ||
+    intent === "reschedule_my_booking" ||
+    intent === "client_profile" ||
+    intent === "booking_mode_assistant" ||
+    intent === "confirm" ||
+    intent === "consent"
+  );
+}
+
+function isClientActionIntent(intent: AishaIntent) {
+  return (
+    intent === "my_bookings" ||
+    intent === "my_stats" ||
+    intent === "cancel_my_booking" ||
+    intent === "reschedule_my_booking" ||
+    intent === "repeat_booking" ||
+    intent === "client_profile"
+  );
+}
+
+function isBookingDomainIntent(intent: AishaIntent) {
+  return (
+    intent.startsWith("booking_") ||
+    intent === "ask_availability" ||
+    intent === "ask_services" ||
+    intent === "ask_price" ||
+    intent === "ask_specialists" ||
+    intent === "contact_phone" ||
+    intent === "contact_address" ||
+    intent === "working_hours"
+  );
+}
+
+function resolveIntentModelFirst(args: {
+  mappedNluIntent: AishaIntent;
+  nluConfidence: number;
+  heuristicIntent: AishaIntent;
+}): AishaIntent {
+  const { mappedNluIntent, nluConfidence, heuristicIntent } = args;
+  if (mappedNluIntent === "unknown") return heuristicIntent;
+  const heuristicSpecific = heuristicIntent !== "unknown" && !isConversationalHeuristicIntent(heuristicIntent);
+  if (heuristicSpecific && isConversationalHeuristicIntent(mappedNluIntent)) return heuristicIntent;
+  if (isClientActionIntent(heuristicIntent) && !isClientActionIntent(mappedNluIntent)) return heuristicIntent;
+  if (
+    isBookingDomainIntent(heuristicIntent) &&
+    isConversationalHeuristicIntent(mappedNluIntent) &&
+    nluConfidence < NLU_INTENT_CONFIDENCE_CRITICAL_THRESHOLD
+  ) {
+    return heuristicIntent;
+  }
+  if (isConversationalHeuristicIntent(mappedNluIntent)) return mappedNluIntent;
+  if (isCriticalIntent(mappedNluIntent)) {
+    return nluConfidence >= NLU_INTENT_CONFIDENCE_CRITICAL_THRESHOLD ? mappedNluIntent : heuristicIntent;
+  }
+  return nluConfidence >= NLU_INTENT_CONFIDENCE_THRESHOLD ? mappedNluIntent : heuristicIntent;
+}
+
 function intentFromHeuristics(message: string): AishaIntent {
+  const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring)/i);
+  const hasBookingCue = has(message, /(хочу|запиши|записаться|давай|нужно|нужна|нужен|сделать|хотела|хотел)/i);
+  if (hasServiceMention && hasBookingCue) return "booking_start";
+  if (has(message, /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
+  if (has(message, /подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
   if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю)|предстоящ(ая|ую)|ближайш(ая|ую|ую)|какая у меня.*запись|прошедш(ая|ую))/i))
     return "my_bookings";
   if (has(message, /(моя статистика|статистика|сколько раз)/i)) return "my_stats";
+  if (has(message, /^(перенеси|перезапиши)\b/i)) return "reschedule_my_booking";
   if (has(message, /(перенеси запись|перезапиши|перенести #|reschedule|перенеси.*запись|перенеси(ть)? (ее|её|эту)|можешь.*перенести)/i))
     return "reschedule_my_booking";
+  if (has(message, /^(отмени|отменить|отмена)\b/i)) return "cancel_my_booking";
   if (has(message, /(отмени запись|отменить #|cancel booking|отмени.*запись|отмена.*записи|отмени(ть)? (ее|её|эту)|можешь.*отменить)/i))
     return "cancel_my_booking";
   if (has(message, /(повтори прошлую запись|повтори запись)/i)) return "repeat_booking";
@@ -297,6 +457,7 @@ function intentFromHeuristics(message: string): AishaIntent {
 }
 
 function mapNluIntent(intent: AishaNluIntent): AishaIntent {
+  const raw = intent as string;
   switch (intent) {
     case "booking":
       return "booking_start";
@@ -311,6 +472,11 @@ function mapNluIntent(intent: AishaNluIntent): AishaIntent {
     case "gratitude":
       return "post_completion_smalltalk";
     default:
+      if (raw === "reschedule") return "reschedule_my_booking";
+      if (raw === "reschedule_booking") return "reschedule_my_booking";
+      if (raw === "cancel") return "cancel_my_booking";
+      if (raw === "cancel_booking") return "cancel_my_booking";
+      if (raw === "my_booking") return "my_bookings";
       return intent as AishaIntent;
   }
 }
@@ -477,49 +643,103 @@ export async function POST(request: Request) {
       systemPrompt: customPrompt,
     });
     const nlu = nluResult.nlu;
+    const pendingClientAction = extractPendingClientAction([...recentMessages].reverse());
+    const confirmPendingClientAction = isLooseConfirmation(message) && pendingClientAction;
+    const continuePendingCancelChoice =
+      pendingClientAction?.type === "cancel_choice" && has(message, /^(последн(юю|яя|ее|ая)|ближайш(ую|ая|ее)|ее|её|эту)$/i);
+    const messageForRouting = confirmPendingClientAction
+      ? pendingClientAction.type === "cancel"
+        ? `подтверждаю отмену #${pendingClientAction.appointmentId}`
+        : `подтверждаю перенос #${pendingClientAction.appointmentId} на ${pendingClientAction.date} ${pendingClientAction.hh}:${pendingClientAction.mm}`
+      : continuePendingCancelChoice
+      ? has(message, /ближайш/i)
+        ? "отмени ближайшую запись"
+        : "отмени последнюю запись"
+      : message;
 
-    const heuristicIntent = intentFromHeuristics(message);
+    const explicitClientCancelConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+отмен[\p{L}]*/iu);
+    const explicitClientRescheduleConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+перен[\p{L}]*/iu);
+    const heuristicIntent = intentFromHeuristics(messageForRouting);
     const mappedNluIntent = mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
     const nluConfidence = typeof nlu?.confidence === "number" ? nlu.confidence : 0;
-    const useNluIntent = mappedNluIntent !== "unknown" && nluConfidence >= NLU_INTENT_CONFIDENCE_THRESHOLD;
-    const intent: AishaIntent = isConversationalHeuristicIntent(heuristicIntent)
-      ? heuristicIntent
-      : useNluIntent
-      ? mappedNluIntent
-      : heuristicIntent;
-    const route = routeForIntent(intent);
+    let intent: AishaIntent = resolveIntentModelFirst({
+      mappedNluIntent,
+      nluConfidence,
+      heuristicIntent,
+    });
+    if ((intent as string) === "reschedule") intent = "reschedule_my_booking";
+    if ((intent as string) === "cancel") intent = "cancel_my_booking";
+    if ((intent as string) === "my_booking") intent = "my_bookings";
+    const explicitClientReschedulePhrase = has(messageForRouting, /^(перенеси|перенести|перезапиши)\b/i);
+    const explicitClientCancelPhrase = has(messageForRouting, /^(отмени|отменить|отмена)\b/i);
+    if (explicitClientReschedulePhrase) intent = "reschedule_my_booking";
+    if (explicitClientCancelPhrase) intent = "cancel_my_booking";
+    if (explicitClientCancelConfirm) intent = "cancel_my_booking";
+    if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
+    const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
+    const route =
+      confirmPendingClientAction || explicitClientCancelConfirm || explicitClientRescheduleConfirm || explicitClientCancelPhrase || explicitClientReschedulePhrase
+        ? "client-actions"
+        : routeForIntent(intent);
 
     const listLocations = `Наши локации:\n${locations.map((x, i) => `${i + 1}. ${x.name}${x.address ? ` — ${x.address}` : ""}`).join("\n")}`;
     const explicitBookingText = has(
       message,
-      /(запиш|записаться|запись|окошк|свобод|время|дата|услуга|слот|на сегодня|на завтра|оформи|бронь|забронируй|сам|через ассистента)/i,
+      /(запиш|записаться|окошк|свобод|время|дата|услуга|слот|на сегодня|на завтра|оформи|бронь|забронируй|сам|через ассистента|мастер|специалист|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside|маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i,
     );
     const hasDraftContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
+    const shouldContinueBookingByContext =
+      route === "chat-only" &&
+      !isConversationalHeuristicIntent(intent) &&
+      !confirmPendingClientAction &&
+      !continuePendingCancelChoice &&
+      hasDraftContext;
+    const shouldEnrichDraftForBooking = route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext;
+    const shouldRunBookingFlow = route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext;
 
     // Fill draft opportunistically; booking-flow validates deterministically.
-    const choice = Number(t.match(/^\s*(?:№|номер\s*)?(\d{1,2})\s*$/i)?.[1] ?? NaN);
-    const choiceNum = Number.isFinite(choice) ? choice : null;
+    const choiceNum = parseChoiceFromText(t);
     const hadLocationBefore = Boolean(d.locationId);
-    if (!d.locationId && (route === "booking-flow" || explicitBookingText || hasDraftContext)) {
+    if (!d.locationId && shouldEnrichDraftForBooking) {
       const byName = locationByText(t, locations);
       if (byName) d.locationId = byName.id;
       else if (choiceNum && choiceNum >= 1 && choiceNum <= locations.length) d.locationId = locations[choiceNum - 1]!.id;
-      else if (nlu?.locationId && locations.some((x) => x.id === nlu.locationId)) d.locationId = nlu.locationId;
+      else if (hasLocationCue(t) && nlu?.locationId && locations.some((x) => x.id === nlu.locationId)) d.locationId = nlu.locationId;
     }
     const locationChosenThisTurn = !hadLocationBefore && Boolean(d.locationId);
     const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
-    if (!d.serviceId && (route === "booking-flow" || explicitBookingText || Boolean(d.locationId) || hasDraftContext)) {
+    if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
       const byText = serviceByText(t, scopedServices);
-      if (byText) d.serviceId = byText.id;
-      else if (!locationChosenThisTurn && choiceNum && choiceNum >= 1 && choiceNum <= scopedServices.length) d.serviceId = scopedServices[choiceNum - 1]!.id;
-      else if (nlu?.serviceId && scopedServices.some((x) => x.id === nlu.serviceId)) d.serviceId = nlu.serviceId;
+      const serviceInquiry = isServiceInquiryMessage(message, t);
+      const explicitServiceChangeRequest = has(message, /(смени|измени|другую услугу|не на|не эту услугу|выбери услугу|по услуге)/i);
+      const canUseNumberForServiceSelection =
+        !d.time || !d.serviceId || explicitServiceChangeRequest;
+      if (!serviceInquiry && byText && byText.id !== d.serviceId) {
+        d.serviceId = byText.id;
+        d.specialistId = null;
+      } else if (
+        canUseNumberForServiceSelection &&
+        !locationChosenThisTurn &&
+        choiceNum &&
+        choiceNum >= 1 &&
+        choiceNum <= scopedServices.length &&
+        scopedServices[choiceNum - 1]!.id !== d.serviceId
+      ) {
+        d.serviceId = scopedServices[choiceNum - 1]!.id;
+        d.specialistId = null;
+      } else if (nlu?.serviceId && scopedServices.some((x) => x.id === nlu.serviceId) && d.serviceId !== nlu.serviceId) {
+        d.serviceId = nlu.serviceId;
+        d.specialistId = null;
+      }
     }
 
-    if (route === "booking-flow" || explicitBookingText || hasDraftContext) {
-      d.date = nlu?.date || parseDate(message, nowYmd) || d.date;
-      d.time = nlu?.time || parseTime(message) || d.time;
+    if (shouldEnrichDraftForBooking) {
+      const parsedDate = parseDate(message, nowYmd);
+      const parsedTime = parseTime(message);
+      d.date = parsedDate || pickSafeNluDate(nlu?.date, nowYmd) || d.date;
+      d.time = parsedTime || nlu?.time || d.time;
       const wantsSelfMode = has(message, /(сам|самостоятельно|в форме|онлайн)/i);
-      const wantsAssistantMode = has(message, /(оформи|через ассистента|запиши меня)/i);
+      const wantsAssistantMode = has(message, /(оформи|через ассистента|оформи ты|оформи ты)/i);
       if (wantsSelfMode) d.mode = "SELF";
       if (wantsAssistantMode) d.mode = "ASSISTANT";
       if (!d.mode && d.specialistId && choiceNum === 1) d.mode = "SELF";
@@ -543,8 +763,8 @@ export async function POST(request: Request) {
       const effectiveClientId = client?.clientId ?? thread.clientId ?? null;
       const authLevel: AuthLevel = client?.clientId ? "full" : thread.clientId ? "thread_only" : "none";
       const clientFlow = await runClientAccountFlow({
-        message,
-        messageNorm: t,
+        message: messageForRouting,
+        messageNorm: norm(messageForRouting),
         accountId: resolved.account.id,
         accountTimeZone: resolved.account.timeZone,
         clientId: effectiveClientId,
@@ -559,10 +779,10 @@ export async function POST(request: Request) {
       } else {
         reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
       }
-    } else if (route === "booking-flow" || explicitBookingText || hasDraftContext) {
+    } else if (shouldRunBookingFlow) {
       const flowResult = await runBookingFlow({
         messageNorm: t,
-        bookingIntent: route === "booking-flow" || explicitBookingText,
+        bookingIntent: shouldRunBookingFlow,
         asksAvailability: intent === "ask_availability" || has(message, /(окошк|свобод|время|слот)/i),
         choice: choiceNum,
         d,
@@ -656,6 +876,9 @@ export async function POST(request: Request) {
             nluIntent: nlu?.intent ?? null,
             mappedNluIntent,
             actionType: nextAction?.type ?? null,
+            confirmPendingClientAction,
+            pendingClientActionType: pendingClientAction?.type ?? null,
+            messageForRouting,
           },
         },
       }),

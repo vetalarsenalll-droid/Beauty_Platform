@@ -1,7 +1,7 @@
 ﻿
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   BLOCK_LABELS,
   BLOCK_VARIANTS,
@@ -179,6 +179,8 @@ const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = {
     { id: "media", label: "Изображение" },
   ],
 };
+
+type CssVars = CSSProperties & Record<`--${string}`, string | number>;
 
 const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = {
   menu: [
@@ -1932,7 +1934,7 @@ export default function SiteClient({
               "--text": panelTheme.text,
               "--border": panelTheme.border,
               "--muted": panelTheme.muted,
-            }}
+            } as CssVars}
           >
             <div
               className="sticky top-0 z-20 border-b"
