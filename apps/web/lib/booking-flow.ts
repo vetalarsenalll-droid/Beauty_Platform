@@ -59,6 +59,52 @@ function shouldAskServiceClarification(messageNorm: string, services: ServiceLit
   return variants.length > 1;
 }
 
+function detectTimePreference(messageNorm: string): "morning" | "day" | "evening" | null {
+  if (/(вечер|вечером|после работы|после обеда|evening)/i.test(messageNorm)) return "evening";
+  if (/(утр|утром|morning)/i.test(messageNorm)) return "morning";
+  if (/(днем|днём|день|daytime)/i.test(messageNorm)) return "day";
+  return null;
+}
+
+function filterByPreference(times: string[], pref: "morning" | "day" | "evening" | null) {
+  if (!pref) return times;
+  return times.filter((tm) => {
+    const [hh] = tm.split(":").map(Number);
+    if (!Number.isFinite(hh)) return false;
+    if (pref === "morning") return hh < 12;
+    if (pref === "day") return hh >= 12 && hh < 17;
+    return hh >= 17;
+  });
+}
+
+function asksAboutSpecialists(messageNorm: string) {
+  return /(у каких маст|какие маст|какой мастер|какие специалисты|какой специалист|мастер(а|ы)?|специалист(а|ы)?)/i.test(
+    messageNorm,
+  );
+}
+
+async function collectLocationWindows(args: {
+  origin: string;
+  accountSlug: string;
+  locations: LocationLite[];
+  date: string;
+  serviceId: number | null;
+  preference: "morning" | "day" | "evening" | null;
+}) {
+  const { origin, accountSlug, locations, date, serviceId, preference } = args;
+  const rows: Array<{ locationId: number; name: string; times: string[] }> = [];
+  for (const loc of locations) {
+    const offers = await getOffers(origin, accountSlug, loc.id, date);
+    const base = serviceId
+      ? (offers?.times ?? []).filter((x) => x.services.some((s) => s.serviceId === serviceId))
+      : offers?.times ?? [];
+    const all = Array.from(new Set(base.map((x) => x.time)));
+    const times = filterByPreference(all, preference).slice(0, 30);
+    if (times.length) rows.push({ locationId: loc.id, name: loc.name, times });
+  }
+  return rows;
+}
+
 export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const {
     d,
@@ -99,11 +145,75 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.locationId) {
+    if (d.date || asksAvailability) {
+      const targetDate = d.date ?? new Date().toISOString().slice(0, 10);
+      const pref = detectTimePreference(messageNorm);
+      const rows = await collectLocationWindows({
+        origin,
+        accountSlug: account.slug,
+        locations,
+        date: targetDate,
+        serviceId: d.serviceId,
+        preference: pref,
+      });
+      if (rows.length) {
+        const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
+        return {
+          handled: true,
+          reply: `Нашла окна на ${targetDate}${prefText} в филиалах:\n${rows
+            .map((x, i) => `${i + 1}. ${x.name}: ${x.times.slice(0, 12).join(", ")}`)
+            .join("\n")}\nМожно выбрать филиал названием/цифрой, либо сразу написать время и филиал.`,
+          nextStatus,
+        };
+      }
+      return {
+        handled: true,
+        reply: `На ${targetDate}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу проверить другую дату.`,
+        nextStatus,
+      };
+    }
     return { handled: true, reply: `Выберите локацию, и продолжу запись.\n${listLocations}`, nextStatus };
   }
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
   if (!d.serviceId) {
+    if (asksAboutSpecialists(messageNorm) && d.date) {
+      const availableByLocation = specialists.filter((s) => s.locationIds.includes(d.locationId!));
+      if (availableByLocation.length) {
+        return {
+          handled: true,
+          reply: `На ${d.date} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} работают специалисты: ${availableByLocation
+            .slice(0, 12)
+            .map((x) => x.name)
+            .join(", ")}. Могу проверить точные окна по конкретной услуге или мастеру.`,
+          nextStatus,
+        };
+      }
+      return {
+        handled: true,
+        reply: `На ${d.date} по этой локации не нашла специалистов в расписании. Могу проверить другую дату или локацию.`,
+        nextStatus,
+      };
+    }
+    if (asksAvailability && d.date) {
+      const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
+      const allTimes = Array.from(new Set((offers?.times ?? []).map((x) => x.time)));
+      const pref = detectTimePreference(messageNorm);
+      const times = filterByPreference(allTimes, pref).slice(0, 30);
+      if (times.length) {
+        const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
+        return {
+          handled: true,
+          reply: `На ${d.date}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${times.join(", ")}. Можете выбрать время, а затем услугу.`,
+          nextStatus,
+        };
+      }
+      return {
+        handled: true,
+        reply: `На ${d.date}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
+        nextStatus,
+      };
+    }
     if (shouldAskServiceClarification(messageNorm, scopedServices)) {
       const haircutOptions = scopedServices.filter((x) => /(стриж|haircut)/i.test(x.name));
       return {

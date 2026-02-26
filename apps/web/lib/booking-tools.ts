@@ -20,10 +20,15 @@ export type LocationLite = { id: number; name: string; address: string | null };
 export type ServiceLite = { id: number; name: string; baseDurationMin: number; basePrice: number; locationIds: number[] };
 export type SpecialistLite = { id: number; name: string; locationIds: number[]; serviceIds: number[] };
 
-export async function apiData<T>(url: string) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`upstream ${r.status}`);
-  return (await r.json()).data as T;
+export async function apiData<T>(url: string): Promise<T | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const payload = await r.json().catch(() => null);
+    return (payload?.data ?? null) as T | null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getSlots(
@@ -52,7 +57,11 @@ export async function getOffers(
   u.searchParams.set("account", accountSlug);
   u.searchParams.set("locationId", String(locationId));
   u.searchParams.set("date", date);
-  return apiData<{ times: Array<{ time: string; services: Array<{ serviceId: number }> }> }>(u.toString());
+  return (
+    (await apiData<{ times: Array<{ time: string; services: Array<{ serviceId: number }> }> }>(u.toString())) ?? {
+      times: [],
+    }
+  );
 }
 
 export async function specialistsForSlot(
