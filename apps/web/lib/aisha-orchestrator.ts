@@ -56,6 +56,14 @@ type RunAishaNluResult = {
   reason?: string;
 };
 
+type RunAishaSmallTalkArgs = {
+  message: string;
+  assistantName: string;
+  recentMessages: Array<{ role: string; content: string }>;
+  accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
+  knownClientName?: string | null;
+};
+
 const NLU_FAIL_THRESHOLD = 3;
 const NLU_COOLDOWN_MS = 2 * 60_000;
 
@@ -206,5 +214,38 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
   } catch {
     markNluFailure();
     return { nlu: null, source: "fallback", reason: "llm_error" };
+  }
+}
+
+export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promise<string | null> {
+  if (!canUseNlu()) return null;
+
+  const prompt = [
+    `Ты ${args.assistantName}, женский персонаж, дружелюбный AI-ассистент записи.`,
+    "Отвечай только на русском, естественно, коротко (1-3 предложения).",
+    "Никогда не говори, что ты NLU-модуль, классификатор, модель или системный компонент.",
+    "Если спрашивают 'кто ты' или имя: представься как Аиша, ассистент записи.",
+    "Если спрашивают 'сколько тебе лет': скажи, что ты виртуальный ассистент без возраста.",
+    "Если спрашивают 'как меня зовут': назови имя только если оно известно, иначе честно скажи, что не знаешь и попроси подсказать.",
+    "Можно поддержать лёгкий разговор, но мягко возвращай к теме записи, без навязчивости.",
+    "Если пользователь грубит, отвечай спокойно и без конфликта.",
+    args.knownClientName ? `Известное имя клиента: ${args.knownClientName}` : "Имя клиента неизвестно.",
+    args.accountProfile?.description ? `Контекст бизнеса: ${args.accountProfile.description}` : "",
+    args.accountProfile?.address ? `Адрес: ${args.accountProfile.address}` : "",
+    `История (последние сообщения): ${JSON.stringify(args.recentMessages.slice(-10))}`,
+    `Сообщение пользователя: ${args.message}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const completion = await createGigaChatCompletion([
+      { role: "system", content: "Ты ведешь вежливый диалог и отвечаешь кратко." },
+      { role: "user", content: prompt },
+    ]);
+    const text = completion.content?.trim();
+    return text ? text.slice(0, 400) : null;
+  } catch {
+    return null;
   }
 }

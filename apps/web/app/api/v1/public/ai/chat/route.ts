@@ -3,7 +3,7 @@ import { getClientSession } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { runAishaNlu } from "@/lib/aisha-orchestrator";
+import { runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import {
   getNowInTimeZone,
   isPastDateOrTimeInTz,
@@ -78,6 +78,7 @@ const norm = (v: string) =>
     .replace(/\s+/g, " ")
     .trim();
 const has = (m: string, r: RegExp) => r.test(norm(m));
+const hasRu = (m: string, source: string, flags = "iu") => new RegExp(source, flags).test(norm(m));
 const asThreadId = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -473,7 +474,6 @@ function canonicalToken(token: string) {
   return s;
 }
 
-const SERVICE_FAMILY_KEYS = new Set(["hair_style", "manicure", "pedicure", "gel_polish", "coloring"]);
 
 function editDistance(a: string, b: string) {
   const x = canonicalToken(a);
@@ -535,26 +535,22 @@ function matchServiceBySemantic(messageNorm: string, candidates: ServiceLite[]) 
   }
   return best && best.score >= 2 ? best.service : null;
 }
-
-function serviceFamilyKeys(name: string) {
-  const set = new Set<string>();
-  for (const token of tokenize(name).map(canonicalToken)) {
-    if (SERVICE_FAMILY_KEYS.has(token)) set.add(token);
+function rankServiceCandidates(messageNorm: string, candidates: ServiceLite[]) {
+  const qTokens = tokenize(messageNorm).map(canonicalToken);
+  if (!qTokens.length) return [] as Array<{ service: ServiceLite; score: number }>;
+  const ranked: Array<{ service: ServiceLite; score: number }> = [];
+  for (const s of candidates) {
+    const sTokens = tokenize(s.name).map(canonicalToken);
+    let score = 0;
+    for (const qt of qTokens) {
+      if (sTokens.some((st) => st === qt)) score += 4;
+      else if (sTokens.some((st) => st.startsWith(qt) || qt.startsWith(st))) score += 2;
+      else if (norm(s.name).includes(qt)) score += 1;
+    }
+    if (score > 0) ranked.push({ service: s, score });
   }
-  return set;
-}
-
-function requestedServiceFamilies(messageNorm: string) {
-  const set = new Set<string>();
-  for (const token of tokenize(messageNorm).map(canonicalToken)) {
-    if (SERVICE_FAMILY_KEYS.has(token)) set.add(token);
-  }
-  if (/(подстр|стриж|причес|haircut|hairstyl)/i.test(messageNorm)) set.add("hair_style");
-  return set;
-}
-
-function isHaircutServiceName(name: string) {
-  return serviceFamilyKeys(name).has("hair_style");
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked;
 }
 
 function locationMatchesByText(messageNorm: string, locations: LocationLite[]) {
@@ -782,11 +778,6 @@ export async function POST(request: Request) {
   const locationChosenThisTurn = Boolean((!hadLocationBeforeMessage && d.locationId) || locationByName || choiceWasUsedForLocation);
 
   const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
-  const asksGenericHaircut = /(стриж|причес|haircut|hairstyl)/i.test(t);
-  const hasHaircutGenderHint = /(муж|жен|men|women|male|female|парн|дев|boy|girl)/i.test(t);
-  const haircutScopedServices = scopedServices.filter((x) => isHaircutServiceName(x.name));
-  const hasAmbiguousHaircutChoice =
-    asksGenericHaircut && !hasHaircutGenderHint && haircutScopedServices.length > 1;
   const serviceByName = scopedServices.find(
     (x) =>
       t.includes(norm(x.name)) ||
@@ -795,10 +786,8 @@ export async function POST(request: Request) {
   );
   const serviceBySemantic = matchServiceBySemantic(t, scopedServices);
   let choiceWasUsedForService = false;
-  if (!hasAmbiguousHaircutChoice) {
-    if (serviceByName) d.serviceId = serviceByName.id;
-    else if (!d.serviceId && serviceBySemantic) d.serviceId = serviceBySemantic.id;
-  }
+  if (serviceByName) d.serviceId = serviceByName.id;
+  else if (!d.serviceId && serviceBySemantic) d.serviceId = serviceBySemantic.id;
   if (!d.serviceId) {
     const shouldUseChoiceForService = hadLocationBeforeMessage || !choiceWasUsedForLocation;
     const idx = serviceChoice ?? (shouldUseChoiceForService ? choice : null);
@@ -808,28 +797,20 @@ export async function POST(request: Request) {
     }
   }
   if (!d.serviceId && nlu?.serviceId && scopedServices.some((x) => x.id === nlu.serviceId)) d.serviceId = nlu.serviceId;
-  const requestedFamilies = requestedServiceFamilies(t);
-  const familyScopedServices =
-    requestedFamilies.size > 0
-      ? scopedServices.filter((x) => {
-          const keys = serviceFamilyKeys(x.name);
-          for (const key of requestedFamilies) {
-            if (keys.has(key)) return true;
-          }
-          return false;
-        })
-      : [];
-  const hasAmbiguousServiceChoice = requestedFamilies.size > 0 && familyScopedServices.length > 1;
-  if (hasAmbiguousServiceChoice && !serviceByName && !choiceWasUsedForService && d.serviceId) {
-    const selectedService = scopedServices.find((x) => x.id === d.serviceId);
-    if (selectedService) {
-      const selectedKeys = serviceFamilyKeys(selectedService.name);
-      const intersectsRequestedFamily = Array.from(requestedFamilies).some((key) => selectedKeys.has(key));
-      if (intersectsRequestedFamily) d.serviceId = null;
-    }
+  const rankedServiceCandidates = rankServiceCandidates(t, scopedServices);
+  const topServiceScore = rankedServiceCandidates[0]?.score ?? 0;
+  const secondServiceScore = rankedServiceCandidates[1]?.score ?? 0;
+  const dynamicServiceAmbiguity =
+    rankedServiceCandidates.length > 1 &&
+    topServiceScore >= 2 &&
+    topServiceScore - secondServiceScore <= 1;
+  if (dynamicServiceAmbiguity && !serviceByName && !choiceWasUsedForService && d.serviceId) {
+    d.serviceId = null;
   }
-  const ambiguousServiceOptions = hasAmbiguousServiceChoice ? familyScopedServices : haircutScopedServices;
-  const needsServiceClarification = hasAmbiguousServiceChoice || hasAmbiguousHaircutChoice;
+  const ambiguousServiceOptions = dynamicServiceAmbiguity
+    ? rankedServiceCandidates.slice(0, 8).map((x) => x.service)
+    : [];
+  const needsServiceClarification = dynamicServiceAmbiguity && !d.serviceId;
 
   const explicitTime = /[:.]/.test(message) || /\b(в|к|после|до|утром|днем|днём|вечером|ночью|час|at)\b/i.test(t);
   const expectingTimeBeforeDateParsing = Boolean(d.locationId && d.serviceId && d.date && !d.time);
@@ -872,31 +853,41 @@ export async function POST(request: Request) {
 
   const listLocations = `Наши локации:\n${locations.map((x, i) => `${i + 1}. ${x.name}${x.address ? ` — ${x.address}` : ""}`).join("\n")}`;
 
-  const signalsNewBookingIntent =
-    Boolean(parsedDate) ||
-    Boolean(nlu?.date) ||
-    Boolean(nlu?.time) ||
-    Boolean(parseTime(message, true)) ||
-    Boolean(nlu && ["booking", "update_booking", "ask_availability", "mode_assistant", "mode_self"].includes(nlu.intent)) ||
-    has(
-      message,
-      /(новую запись|другую запись|заново|сначала|перенести|измени|изменить|другое время|другая дата|запис|запись|записаться|хочу на|хочу в|время|дату|услугу|маник|педик|гель|окошк|слот|свобод|локацию|location|service)/i,
-    );
+  const parsedTime = nlu?.time || parseTime(message, true);
   const asksAvailability =
     Boolean(nlu && ["ask_availability", "booking", "update_booking"].includes(nlu.intent)) ||
     has(message, /(окошк|свобод|время|slot|слот)/i);
-  const asksIdentity = has(
+  const asksGreeting = hasRu(
     message,
-    /(кто ты|ты кто|как тебя зовут|как к тебе обращаться|твое имя|твоё имя)/i,
+    "(?:^|\\s)(?:\\u043f\\u0440\\u0438\\u0432\\u0435\\u0442|\\u0437\\u0434\\u0440\\u0430\\u0432\\u0441\\u0442\\u0432\\u0443\\u0439\\u0442\\u0435|\\u0437\\u0434\\u0440\\u0430\\u0432\\u0441\\u0442\\u0432\\u0443\\u0439|\\u0434\\u043e\\u0431\\u0440\\u044b\\u0439\\u0020\\u0434\\u0435\\u043d\\u044c|\\u0434\\u043e\\u0431\\u0440\\u044b\\u0439\\u0020\\u0432\\u0435\\u0447\\u0435\\u0440|hello|hi)(?:\\s|$)",
   );
-  const asksCapabilities = has(message, /(чем занимаешься|что умеешь|что делаешь)/i);
-  const asksWhyNoAnswer = has(
+  const asksIdentity = hasRu(
     message,
-    /(почему ты.*не отвеча|почему не отвеча|почему так отвеча|не в контексте)/i,
+    "(\\u043a\\u0442\\u043e\\u0020\\u0442\\u044b|\\u0442\\u044b\\u0020\\u043a\\u0442\\u043e|\\u043a\\u0430\\u043a\\u0020\\u0442\\u0435\\u0431\\u044f\\u0020\\u0437\\u043e\\u0432\\u0443\\u0442|\\u043a\\u0430\\u043a\\u0020\\u043a\\u0020\\u0442\\u0435\\u0431\\u0435\\u0020\\u043e\\u0431\\u0440\\u0430\\u0449\\u0430\\u0442\\u044c\\u0441\\u044f|\\u0442\\u0432\\u043e\\u0435\\u0020\\u0438\\u043c\\u044f|\\u0442\\u0432\\u043e\\u0451\\u0020\\u0438\\u043c\\u044f)",
+  );
+  const asksCapabilities = hasRu(
+    message,
+    "(\\u0447\\u0435\\u043c\\u0020\\u0437\\u0430\\u043d\\u0438\\u043c\\u0430\\u0435\\u0448\\u044c\\u0441\\u044f|\\u0447\\u0442\\u043e\\u0020\\u0443\\u043c\\u0435\\u0435\\u0448\\u044c|\\u0447\\u0442\\u043e\\u0020\\u0434\\u0435\\u043b\\u0430\\u0435\\u0448\\u044c)",
+  );
+  const asksWhyNoAnswer = hasRu(
+    message,
+    "(\\u043f\\u043e\\u0447\\u0435\\u043c\\u0443\\u0020\\u0442\\u044b.*\\u043d\\u0435\\u0020\\u043e\\u0442\\u0432\\u0435\\u0447\\u0430|\\u043f\\u043e\\u0447\\u0435\\u043c\\u0443\\u0020\\u043d\\u0435\\u0020\\u043e\\u0442\\u0432\\u0435\\u0447\\u0430|\\u043f\\u043e\\u0447\\u0435\\u043c\\u0443\\u0020\\u0442\\u0430\\u043a\\u0020\\u043e\\u0442\\u0432\\u0435\\u0447\\u0430|\\u043d\\u0435\\u0020\\u0432\\u0020\\u043a\\u043e\\u043d\\u0442\\u0435\\u043a\\u0441\\u0442\\u0435)",
+  );
+  const asksChitChat = hasRu(
+    message,
+    "(\\u043a\\u0430\\u043a\\s+\\u0434\\u0435\\u043b\\u0430|\\u043a\\u0430\\u043a\\s+\\u0436\\u0438\\u0437\\u043d\\u044c|\\u043a\\u0430\\u043a\\s+\\u043d\\u0430\\u0441\\u0442\\u0440\\u043e\\u0435\\u043d\\u0438\\u0435|\\u0447\\u0435\\s+\\u043a\\u0430\\u0432\\u043e|\\u0447\\u0451\\s+\\u043a\\u0430\\u0432\\u043e|\\u0447\\u0442\\u043e\\s+\\u043d\\u043e\\u0432\\u043e\\u0433\\u043e|\\u043a\\u0430\\u043a\\s+\\u0442\\u044b)",
   );
   const timePreference = detectTimePreference(message, nlu?.timePreference ?? null);
   const dayRangeRequest = parseDayRangeRequest(message);
   const hasDirectBookingVerb = has(message, /(запиш|записать|записаться|оформи|забронируй)/i);
+  const asksSmallTalk = nlu?.intent === "smalltalk";
+  const conversationalOnly =
+    (asksGreeting || asksIdentity || asksCapabilities || asksWhyNoAnswer || asksSmallTalk || asksChitChat) &&
+    !hasDirectBookingVerb &&
+    !parsedDate &&
+    !nlu?.date &&
+    !nlu?.time &&
+    !parsedTime;
   const hasActiveDraftContext =
     d.status !== "COMPLETED" &&
     Boolean(
@@ -910,31 +901,70 @@ export async function POST(request: Request) {
         d.clientPhone ||
         d.consentConfirmedAt,
     );
+  const nluBookingIntent = Boolean(
+    nlu && ["booking", "update_booking", "ask_availability", "mode_assistant", "mode_self"].includes(nlu.intent),
+  );
+  const textBookingIntent =
+    hasDirectBookingVerb ||
+    asksAvailability ||
+    has(
+      message,
+      /(РЅРѕРІСѓСЋ Р·Р°РїРёСЃСЊ|РґСЂСѓРіСѓСЋ Р·Р°РїРёСЃСЊ|Р·Р°РЅРѕРІРѕ|СЃРЅР°С‡Р°Р»Р°|РїРµСЂРµРЅРµСЃС‚Рё|РёР·РјРµРЅРё|РёР·РјРµРЅРёС‚СЊ|РґСЂСѓРіРѕРµ РІСЂРµРјСЏ|РґСЂСѓРіР°СЏ РґР°С‚Р°|Р·Р°РїРёСЃ|Р·Р°РїРёСЃСЊ|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|С…РѕС‡Сѓ РЅР°|С…РѕС‡Сѓ РІ|РІСЂРµРјСЏ|РґР°С‚Сѓ|СѓСЃР»СѓРіСѓ|РјР°РЅРёРє|РїРµРґРёРє|РіРµР»СЊ|РѕРєРѕС€Рє|СЃР»РѕС‚|СЃРІРѕР±РѕРґ|Р»РѕРєР°С†РёСЋ|location|service)/i,
+    );
+  const bookingIntent = Boolean(
+    parsedDate ||
+      nlu?.date ||
+      parsedTime ||
+      textBookingIntent ||
+      (nluBookingIntent && !conversationalOnly) ||
+      (hasActiveDraftContext && !conversationalOnly),
+  ) && !asksChitChat;
 
-  if (d.status === "COMPLETED" && !signalsNewBookingIntent) {
+  if (d.status === "COMPLETED" && !bookingIntent) {
     reply = nlu?.reply?.trim() || "Запись уже оформлена.";
   } else {
-    if (d.status === "COMPLETED" && signalsNewBookingIntent) {
+    if (d.status === "COMPLETED" && bookingIntent) {
       nextStatus = "COLLECTING";
       d.specialistId = null;
       d.mode = null;
       d.consentConfirmedAt = null;
     }
 
-    if (asksIdentity && !signalsNewBookingIntent) {
+    if (asksGreeting && !bookingIntent) {
+    const missing = [!d.locationId ? "локацию" : "", !d.serviceId ? "услугу" : "", !d.date ? "дату" : "", !d.time ? "время" : ""].filter(Boolean);
+    reply = `Привет! Я ${ASSISTANT_NAME}. ${missing.length ? `Помогу с записью. Можем начать с ${missing[0]}.` : "Готова продолжить запись."}`;
+    } else if (asksIdentity && !bookingIntent) {
     reply = `Я ${ASSISTANT_NAME}, AI-ассистент записи. Помогаю подобрать локацию, услугу, время и оформить запись.`;
-    } else if (asksCapabilities && !signalsNewBookingIntent) {
+    } else if (asksCapabilities && !bookingIntent) {
     reply = "Помогаю с записью: подбираю свободные окна, специалиста и могу оформить запись через чат или открыть онлайн-форму.";
-    } else if (asksWhyNoAnswer && !signalsNewBookingIntent) {
+    } else if (asksWhyNoAnswer && !bookingIntent) {
     reply = `Отвечаю. Я ${ASSISTANT_NAME}, и моя задача — быстро помочь с записью. Если хотите, начнем с удобной даты/времени или услуги.`;
-    } else if (!signalsNewBookingIntent && has(message, /(адрес|где находится|как добраться)/i)) {
+    } else if ((asksSmallTalk || asksChitChat) && !bookingIntent) {
+    const talkReply =
+      (await runAishaSmallTalkReply({
+        message,
+        assistantName: ASSISTANT_NAME,
+        recentMessages: [...recentMessages].reverse(),
+        accountProfile,
+        knownClientName: d.clientName,
+      })) || null;
+    reply = talkReply || nlu?.reply?.trim() || `Все отлично, спасибо! Я ${ASSISTANT_NAME}. Когда будете готовы, помогу быстро записаться.`;
+    } else if (!bookingIntent && has(message, /(адрес|где находится|как добраться)/i)) {
     reply = listLocations;
     } else if (has(message, /(услуг|прайс|price|каталог)/i)) {
     reply = `Доступные услуги:\n${serviceListText(scopedServices)}`;
     } else if (has(message, /(что выбрано|на что записываешь|какая услуга|какой специалист|итог)/i)) {
     reply = `Текущие данные записи:\n${bookingSummary(d, locations, services, specialists)}`;
-    } else if (!signalsNewBookingIntent && !hasActiveDraftContext) {
-    reply = nlu?.reply?.trim() || "Я на связи.";
+    } else if (!bookingIntent && !hasActiveDraftContext) {
+    const talkReply =
+      (await runAishaSmallTalkReply({
+        message,
+        assistantName: ASSISTANT_NAME,
+        recentMessages: [...recentMessages].reverse(),
+        accountProfile,
+        knownClientName: d.clientName,
+      })) || null;
+    reply = talkReply || nlu?.reply?.trim() || "Я на связи.";
     } else {
     const missing = [!d.locationId ? "локацию" : "", !d.serviceId ? "услугу" : "", !d.date ? "дату" : "", !d.time ? "время" : ""].filter(Boolean);
     if (missing.length) {
@@ -1128,6 +1158,9 @@ export async function POST(request: Request) {
         }
         }
       } else if (d.locationId && d.serviceId && !d.date) {
+        if (!asksAvailability && !parsedDate && !nlu?.date && !parseTime(message, true) && !nlu?.time) {
+          reply = "Отлично, услугу зафиксировала. Теперь напишите дату, например «завтра», «27 февраля» или «в субботу».";
+        } else
         if (monthWindow) {
           const u = new URL("/api/v1/public/booking/availability/calendar", origin);
           u.searchParams.set("account", resolved.account.slug);
@@ -1514,3 +1547,7 @@ export async function POST(request: Request) {
 
   return jsonOk({ threadId: thread.id, reply, action: nextAction, draft: d });
 }
+
+
+
+
