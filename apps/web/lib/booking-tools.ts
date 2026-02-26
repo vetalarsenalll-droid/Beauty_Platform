@@ -17,8 +17,16 @@ export type DraftLike = {
 };
 
 export type LocationLite = { id: number; name: string; address: string | null };
-export type ServiceLite = { id: number; name: string; baseDurationMin: number; basePrice: number; locationIds: number[] };
-export type SpecialistLite = { id: number; name: string; locationIds: number[]; serviceIds: number[] };
+export type ServiceLite = {
+  id: number;
+  name: string;
+  baseDurationMin: number;
+  basePrice: number;
+  locationIds: number[];
+  levelConfigs?: Array<{ levelId: number; durationMin: number | null; price: number | null }>;
+  specialistConfigs?: Array<{ specialistId: number; durationOverrideMin: number | null; priceOverride: number | null }>;
+};
+export type SpecialistLite = { id: number; name: string; levelId?: number | null; locationIds: number[]; serviceIds: number[] };
 
 export async function apiData<T>(url: string): Promise<T | null> {
   try {
@@ -58,10 +66,19 @@ export async function getOffers(
   u.searchParams.set("locationId", String(locationId));
   u.searchParams.set("date", date);
   return (
-    (await apiData<{ times: Array<{ time: string; services: Array<{ serviceId: number }> }> }>(u.toString())) ?? {
+    (await apiData<{ times: Array<{ time: string; services: Array<{ serviceId: number; specialistIds?: number[] }> }> }>(u.toString())) ?? {
       times: [],
     }
   );
+}
+
+export function getEffectiveServiceForSpecialist(service: ServiceLite, specialist: SpecialistLite | null) {
+  const override = service.specialistConfigs?.find((x) => specialist && x.specialistId === specialist.id) ?? null;
+  const levelCfg =
+    service.levelConfigs?.find((x) => specialist?.levelId != null && x.levelId === specialist.levelId) ?? null;
+  const durationMin = override?.durationOverrideMin ?? levelCfg?.durationMin ?? service.baseDurationMin;
+  const price = override?.priceOverride ?? levelCfg?.price ?? service.basePrice;
+  return { durationMin: Number(durationMin), price: Number(price) };
 }
 
 export async function specialistsForSlot(
@@ -123,7 +140,7 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
   const [specialist, schedule] = await Promise.all([
     prisma.specialistProfile.findFirst({
       where: { id: d.specialistId!, accountId },
-      select: { id: true },
+      select: { id: true, levelId: true },
     }),
     prisma.scheduleEntry.findFirst({
       where: {
@@ -137,15 +154,24 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
   ]);
   if (!specialist || !schedule) return { ok: false as const, code: "combo_unavailable" as const };
 
+  const specialistLite: SpecialistLite = {
+    id: specialist.id,
+    levelId: specialist.levelId ?? null,
+    name: "",
+    locationIds: [],
+    serviceIds: [],
+  };
+  const effective = getEffectiveServiceForSpecialist(service, specialistLite);
+
   const startM = toMinutes(String(d.time));
   const sStart = toMinutes(schedule.startTime || "");
   const sEnd = toMinutes(schedule.endTime || "");
-  if (startM == null || sStart == null || sEnd == null || startM < sStart || startM + service.baseDurationMin > sEnd) {
+  if (startM == null || sStart == null || sEnd == null || startM < sStart || startM + effective.durationMin > sEnd) {
     return { ok: false as const, code: "outside_working_hours" as const };
   }
 
   const endAt = new Date(startAt);
-  endAt.setUTCMinutes(endAt.getUTCMinutes() + service.baseDurationMin);
+  endAt.setUTCMinutes(endAt.getUTCMinutes() + effective.durationMin);
   const conflict = await prisma.appointment.findFirst({
     where: {
       accountId,
@@ -181,11 +207,11 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
       startAt,
       endAt,
       status: "NEW",
-      priceTotal: Number(service.basePrice),
-      durationTotalMin: service.baseDurationMin,
+      priceTotal: Number(effective.price),
+      durationTotalMin: effective.durationMin,
       source: "ai_assistant",
       services: {
-        create: [{ serviceId: service.id, price: Number(service.basePrice), durationMin: service.baseDurationMin }],
+        create: [{ serviceId: service.id, price: Number(effective.price), durationMin: effective.durationMin }],
       },
     },
     select: { id: true },

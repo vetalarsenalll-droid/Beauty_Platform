@@ -30,7 +30,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
           : "";
       const response = await fetch(
         `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}${threadQuery}`,
-        { cache: "no-store" }
+        { cache: "no-store", credentials: "include" }
       );
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.data || cancelled) return;
@@ -64,6 +64,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
       const response = await fetch(`/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           message: userText,
           threadId,
@@ -107,7 +108,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
       try {
         const response = await fetch(
           `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}&threadId=${threadId}`,
-          { method: "DELETE" }
+          { method: "DELETE", credentials: "include" }
         );
         const payload = await response.json().catch(() => null);
         const nextThreadId = Number(payload?.data?.threadId);

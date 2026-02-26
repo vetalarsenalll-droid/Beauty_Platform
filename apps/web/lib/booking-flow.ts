@@ -2,6 +2,7 @@ import {
   bookingSummary,
   createAssistantBooking,
   DraftLike,
+  getEffectiveServiceForSpecialist,
   getOffers,
   getSlots,
   LocationLite,
@@ -10,6 +11,17 @@ import {
   specialistsForSlot,
   SpecialistLite,
 } from "@/lib/booking-tools";
+
+export type BookingState =
+  | "IDLE"
+  | "COLLECTING"
+  | "CHECKING"
+  | "READY_SELF"
+  | "WAITING_CONSENT"
+  | "WAITING_CONFIRMATION"
+  | "COMPLETED"
+  | "CANCEL_FLOW"
+  | "RESCHEDULE_FLOW";
 
 type FlowAction = { type: "open_booking"; bookingUrl: string } | null;
 
@@ -53,6 +65,18 @@ function isAffirmative(t: string) {
   return /^(да|подтверждаю|согласен|ок)$/i.test(t.trim());
 }
 
+function wantsNewBooking(messageNorm: string) {
+  return /(новая запись|запиши еще|еще запись|запиши меня|хочу записаться|повторная запись)/i.test(messageNorm);
+}
+
+function isGratitudeOrPostCompletion(messageNorm: string) {
+  return /(спасибо|благодарю|отлично|супер|понял|поняла|окей|ок)/i.test(messageNorm);
+}
+
+function wantsChange(messageNorm: string) {
+  return /(не то|неверно|измени|измени|другое|другую|хочу на|не на|перенеси|другой)/i.test(messageNorm);
+}
+
 function shouldAskServiceClarification(messageNorm: string, services: ServiceLite[]) {
   if (!/(стриж|haircut)/i.test(messageNorm)) return false;
   const variants = services.filter((s) => /(men haircut|women haircut|муж|жен)/i.test(s.name));
@@ -83,6 +107,34 @@ function asksAboutSpecialists(messageNorm: string) {
   );
 }
 
+function serviceListAtTimeText(args: {
+  services: ServiceLite[];
+  specialists: SpecialistLite[];
+  serviceIds: number[];
+  specialistIdsByService: Map<number, number[]>;
+  limit?: number;
+}) {
+  const { services, specialists, serviceIds, specialistIdsByService, limit = 12 } = args;
+  const rows = services.filter((x) => serviceIds.includes(x.id)).slice(0, limit);
+  return rows
+    .map((service, i) => {
+      const spIds = specialistIdsByService.get(service.id) ?? [];
+      const eff = spIds
+        .map((id) => specialists.find((s) => s.id === id) ?? null)
+        .map((sp) => getEffectiveServiceForSpecialist(service, sp))
+        .filter((x) => Number.isFinite(x.price) && Number.isFinite(x.durationMin));
+      if (!eff.length) return `${i + 1}. ${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`;
+      const minPrice = Math.min(...eff.map((x) => x.price));
+      const maxPrice = Math.max(...eff.map((x) => x.price));
+      const minDur = Math.min(...eff.map((x) => x.durationMin));
+      const maxDur = Math.max(...eff.map((x) => x.durationMin));
+      const priceText = minPrice === maxPrice ? `${Math.round(minPrice)} ₽` : `${Math.round(minPrice)}–${Math.round(maxPrice)} ₽`;
+      const durText = minDur === maxDur ? `${minDur} мин` : `${minDur}–${maxDur} мин`;
+      return `${i + 1}. ${service.name} — ${priceText}, ${durText}`;
+    })
+    .join("\n");
+}
+
 async function collectLocationWindows(args: {
   origin: string;
   accountSlug: string;
@@ -105,6 +157,33 @@ async function collectLocationWindows(args: {
   return rows;
 }
 
+function applyChangeRollback(messageNorm: string, d: DraftLike) {
+  if (/(локац|филиал|адрес)/i.test(messageNorm)) {
+    d.locationId = null;
+    d.specialistId = null;
+    d.time = null;
+  }
+  if (/(услуг|маник|педик|стриж|гель|окраш|facial|peeling|hair)/i.test(messageNorm)) {
+    d.serviceId = null;
+    d.specialistId = null;
+    d.time = null;
+  }
+  if (/(дата|день|завтра|сегодня|числ|марта|февраля|января|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(messageNorm)) {
+    d.date = null;
+    d.time = null;
+    d.specialistId = null;
+  }
+  if (/(время|час|утр|вечер|днем|днём|:\d{2}|\d{1,2}[.]\d{2})/i.test(messageNorm)) {
+    d.time = null;
+    d.specialistId = null;
+  }
+  if (/(мастер|специалист|к [а-яa-z]+$)/i.test(messageNorm)) {
+    d.specialistId = null;
+  }
+  d.mode = null;
+  d.consentConfirmedAt = null;
+}
+
 export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const {
     d,
@@ -122,18 +201,30 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     listLocations,
     publicSlug,
   } = ctx;
-  const hasContext =
-    Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) &&
-    d.status !== "COMPLETED";
+  const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
 
-  let nextStatus = d.status;
+  let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
 
   if (d.status === "COMPLETED" && !bookingIntent) {
-    return { handled: true, reply: "Запись уже оформлена. Если хотите новую, напишите дату/услугу/время." };
+    if (isGratitudeOrPostCompletion(messageNorm)) {
+      return { handled: true, reply: "Пожалуйста. Если захотите новую запись, напишите услугу, дату и время." };
+    }
+    if (wantsNewBooking(messageNorm)) {
+      nextStatus = "COLLECTING";
+      d.locationId = null;
+      d.serviceId = null;
+      d.specialistId = null;
+      d.date = null;
+      d.time = null;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+    } else {
+      return { handled: true, reply: "Запись уже оформлена. Для новой записи напишите: «новая запись»." };
+    }
   }
-  if (d.status === "COMPLETED" && bookingIntent) {
+  if (d.status === "COMPLETED" && bookingIntent && wantsNewBooking(messageNorm)) {
     nextStatus = "COLLECTING";
     d.locationId = null;
     d.serviceId = null;
@@ -143,6 +234,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     d.mode = null;
     d.consentConfirmedAt = null;
   }
+
+  if (wantsChange(messageNorm) && hasContext && d.status !== "COMPLETED") {
+    applyChangeRollback(messageNorm, d);
+    nextStatus = "COLLECTING";
+  }
+
+  if (d.locationId && d.serviceId && d.date && d.time) nextStatus = "CHECKING";
 
   if (!d.locationId) {
     if (d.date || asksAvailability) {
@@ -156,6 +254,29 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         serviceId: d.serviceId,
         preference: pref,
       });
+      if (d.time) {
+        const rowsAtTime = rows.filter((x) => x.times.includes(d.time!));
+        if (rowsAtTime.length === 1) {
+          d.locationId = rowsAtTime[0]!.locationId;
+          nextStatus = "COLLECTING";
+        } else if (rowsAtTime.length > 1) {
+          return {
+            handled: true,
+            reply: `На ${targetDate} в ${d.time} есть окна в филиалах:\n${rowsAtTime
+              .map((x, i) => `${i + 1}. ${x.name}`)
+              .join("\n")}\nВыберите филиал названием или номером.`,
+            nextStatus: "COLLECTING",
+          };
+        } else if (rows.length) {
+          return {
+            handled: true,
+            reply: `На ${targetDate} в ${d.time} свободных окон не нашла. Доступные времена:\n${rows
+              .map((x, i) => `${i + 1}. ${x.name}: ${x.times.slice(0, 10).join(", ")}`)
+              .join("\n")}`,
+            nextStatus: "COLLECTING",
+          };
+        }
+      }
       if (rows.length) {
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
         return {
@@ -163,20 +284,46 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           reply: `Нашла окна на ${targetDate}${prefText} в филиалах:\n${rows
             .map((x, i) => `${i + 1}. ${x.name}: ${x.times.slice(0, 12).join(", ")}`)
             .join("\n")}\nМожно выбрать филиал названием/цифрой, либо сразу написать время и филиал.`,
-          nextStatus,
+          nextStatus: "COLLECTING",
         };
       }
       return {
         handled: true,
         reply: `На ${targetDate}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу проверить другую дату.`,
-        nextStatus,
+        nextStatus: "COLLECTING",
       };
     }
-    return { handled: true, reply: `Выберите локацию, и продолжу запись.\n${listLocations}`, nextStatus };
+    return { handled: true, reply: `Выберите локацию, и продолжу запись.\n${listLocations}`, nextStatus: "COLLECTING" };
   }
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
   if (!d.serviceId) {
+    if (d.date && d.time) {
+      const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
+      const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
+      if (!offerAtTime || !offerAtTime.services.length) {
+        return {
+          handled: true,
+          reply: `На ${d.date} в ${d.time} нет доступных услуг в этой локации. Укажите другое время.`,
+          nextStatus: "COLLECTING",
+        };
+      }
+      const serviceIds = offerAtTime.services.map((x) => x.serviceId);
+      const specialistIdsByService = new Map<number, number[]>(
+        offerAtTime.services.map((x) => [x.serviceId, x.specialistIds ?? []]),
+      );
+      return {
+        handled: true,
+        reply: `На ${d.date} в ${d.time} доступны услуги:\n${serviceListAtTimeText({
+          services: scopedServices,
+          specialists,
+          serviceIds,
+          specialistIdsByService,
+          limit: 10,
+        })}\nВыберите услугу номером или названием.`,
+        nextStatus: "COLLECTING",
+      };
+    }
     if (asksAboutSpecialists(messageNorm) && d.date) {
       const availableByLocation = specialists.filter((s) => s.locationIds.includes(d.locationId!));
       if (availableByLocation.length) {
@@ -186,13 +333,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             .slice(0, 12)
             .map((x) => x.name)
             .join(", ")}. Могу проверить точные окна по конкретной услуге или мастеру.`,
-          nextStatus,
+          nextStatus: "COLLECTING",
         };
       }
       return {
         handled: true,
         reply: `На ${d.date} по этой локации не нашла специалистов в расписании. Могу проверить другую дату или локацию.`,
-        nextStatus,
+        nextStatus: "COLLECTING",
       };
     }
     if (asksAvailability && d.date) {
@@ -205,13 +352,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         return {
           handled: true,
           reply: `На ${d.date}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${times.join(", ")}. Можете выбрать время, а затем услугу.`,
-          nextStatus,
+          nextStatus: "COLLECTING",
         };
       }
       return {
         handled: true,
         reply: `На ${d.date}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
-        nextStatus,
+        nextStatus: "COLLECTING",
       };
     }
     if (shouldAskServiceClarification(messageNorm, scopedServices)) {
@@ -219,13 +366,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       return {
         handled: true,
         reply: `Уточните услугу:\n${serviceListText(haircutOptions, 8)}\nМожно выбрать номером или названием.`,
-        nextStatus,
+        nextStatus: "COLLECTING",
       };
     }
     return {
       handled: true,
       reply: `Выберите услугу, и продолжу запись.\n${serviceListText(scopedServices, 10)}`,
-      nextStatus,
+      nextStatus: "COLLECTING",
     };
   }
 
@@ -233,19 +380,19 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     return {
       handled: true,
       reply: "Напишите дату: например «завтра», «27 февраля» или «в субботу».",
-      nextStatus,
+      nextStatus: "COLLECTING",
     };
   }
 
   if (!d.time) {
     const times = await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
     if (!times.length) {
-      return { handled: true, reply: `На ${d.date} свободных окон по этой услуге не нашла. Укажите другую дату.`, nextStatus };
+      return { handled: true, reply: `На ${d.date} свободных окон по этой услуге не нашла. Укажите другую дату.`, nextStatus: "COLLECTING" };
     }
     return {
       handled: true,
       reply: `На ${d.date} доступны времена: ${times.slice(0, 30).join(", ")}. Выберите время.`,
-      nextStatus,
+      nextStatus: "COLLECTING",
     };
   }
 
@@ -257,10 +404,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         return {
           handled: true,
           reply: `На ${d.time} свободных специалистов нет. Ближайшие времена: ${times.slice(0, 8).join(", ")}.`,
-          nextStatus,
+          nextStatus: "COLLECTING",
         };
       }
-      return { handled: true, reply: "На выбранную дату слотов нет. Укажите другую дату.", nextStatus };
+      return { handled: true, reply: "На выбранную дату слотов нет. Укажите другую дату.", nextStatus: "COLLECTING" };
     }
     if (choice && choice >= 1 && choice <= specs.length) {
       d.specialistId = specs[choice - 1]!.id;
@@ -272,16 +419,20 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         reply: `На ${d.date} в ${d.time} доступны специалисты:\n${specs
           .map((x, i) => `${i + 1}. ${x.name}`)
           .join("\n")}\nВыберите специалиста номером или напишите «любой».`,
-        nextStatus,
+        nextStatus: "CHECKING",
       };
     }
   }
 
   if (!d.mode) {
+    const selectedService = services.find((x) => x.id === d.serviceId) ?? null;
+    const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
+    const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
+    const effectiveText = effective ? `\nСтоимость: ${Math.round(effective.price)} ₽\nДлительность: ${effective.durationMin} мин` : "";
     return {
       handled: true,
-      reply: `Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}\n\nКак завершим запись?\n1) Сам в форме онлайн-записи.\n2) Оформить через ассистента.`,
-      nextStatus,
+      reply: `Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?\n1) Сам в форме онлайн-записи.\n2) Оформить через ассистента.`,
+      nextStatus: "CHECKING",
     };
   }
 
@@ -297,7 +448,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.clientName || !d.clientPhone) {
-    return { handled: true, reply: "Для оформления через ассистента напишите имя и номер телефона клиента.", nextStatus };
+    return { handled: true, reply: "Для оформления через ассистента напишите имя и номер телефона клиента.", nextStatus: "WAITING_CONSENT" };
   }
 
   if (!d.consentConfirmedAt) {
@@ -305,7 +456,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     return {
       handled: true,
       reply: `Для оформления нужно согласие на обработку персональных данных.\n${links || "Документы не настроены"}\nНапишите: «Согласен на обработку персональных данных».`,
-      nextStatus,
+      nextStatus: "WAITING_CONSENT",
     };
   }
 
@@ -327,10 +478,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     services,
   });
   if (!created.ok) {
-    if (created.code === "slot_busy") return { handled: true, reply: "Этот слот уже занят. Выберите другое время.", nextStatus };
-    if (created.code === "outside_working_hours") return { handled: true, reply: "Время вне графика. Выберите другой слот.", nextStatus };
-    if (created.code === "combo_unavailable") return { handled: true, reply: "Эта комбинация локации/услуги/специалиста недоступна.", nextStatus };
-    return { handled: true, reply: "Некорректная дата/время для записи.", nextStatus };
+    if (created.code === "slot_busy") return { handled: true, reply: "Этот слот уже занят. Выберите другое время.", nextStatus: "COLLECTING" };
+    if (created.code === "outside_working_hours") return { handled: true, reply: "Время вне графика. Выберите другой слот.", nextStatus: "COLLECTING" };
+    if (created.code === "combo_unavailable") return { handled: true, reply: "Эта комбинация локации/услуги/специалиста недоступна.", nextStatus: "COLLECTING" };
+    return { handled: true, reply: "Некорректная дата/время для записи.", nextStatus: "COLLECTING" };
   }
 
   nextStatus = "COMPLETED";
