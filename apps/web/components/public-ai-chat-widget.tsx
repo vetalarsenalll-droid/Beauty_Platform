@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Message = { id?: number; role: "user" | "assistant"; content: string };
 type ChatAction = { type: "open_booking"; bookingUrl: string } | null;
-type QuickReply = { label: string; value: string };
+type QuickReply = { label: string; value: string; href?: string };
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
@@ -30,18 +30,18 @@ function shouldExtractTimeQuickReplies(content: string) {
 
 function extractQuickReplies(content: string): QuickReply[] {
   const replies: QuickReply[] = [];
-  const add = (label: string, value?: string) => {
+  const isLocationSelectionReply = /(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content);
+  const add = (label: string, value?: string, href?: string) => {
     const l = label.trim();
     const v = (value ?? label).trim();
     if (!l || !v) return;
-    if (replies.some((x) => x.value === v)) return;
-    replies.push({ label: l, value: v });
+    if (replies.some((x) => x.value === v || (!!href && x.href === href))) return;
+    replies.push({ label: l, value: v, href });
   };
   const hasMoreTimes = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
 
   // Priority actions must be visible even when we cap quick replies.
   if (hasMoreTimes) {
-    add("Показать еще", "покажи еще свободное время");
     add("Показать все", "покажи все свободное время");
   }
 
@@ -55,22 +55,26 @@ function extractQuickReplies(content: string): QuickReply[] {
       const cleanLabel = beforeColon
         .replace(/^(сам|сама)\b.*$/i, "Самостоятельно")
         .replace(/^(оформить|через ассистента)\b.*$/i, "Через ассистента")
+        .replace(/\(\+\s*ещ[её]\s*\d+\)/iu, "")
+        .replace(/\b([01]\d|2[0-3]):([0-5]\d)\b/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
         .slice(0, 48);
       if (cleanLabel) {
         add(cleanLabel, cleanLabel);
-      } else if (indexValue) {
+      } else if (!isLocationSelectionReply && indexValue) {
         add(indexValue, indexValue);
       }
     }
   } else {
     const numbered = Array.from(content.matchAll(/(?:^|\n)\s*(\d{1,2})\.\s+/g)).map((m) => m[1]);
-    if (numbered.length) {
+    if (numbered.length && !isLocationSelectionReply) {
       for (const n of numbered.slice(0, 10)) add(n ?? "");
     }
   }
 
   const times = Array.from(content.matchAll(/\b([01]\d|2[0-3]):([0-5]\d)\b/g)).map((m) => `${m[1]}:${m[2]}`);
-  if (times.length && shouldExtractTimeQuickReplies(content)) {
+  if (times.length && shouldExtractTimeQuickReplies(content) && !isLocationSelectionReply) {
     const hasNegativeSingleTimeError = /нет доступных услуг|недоступн|укажите другое время/i.test(content) && times.length <= 1;
     const hasTimeListContext =
       /доступны времена|есть окна|ближайшие времена|свободных окон|в филиалах|выберите время/i.test(content) || times.length >= 2;
@@ -78,22 +82,30 @@ function extractQuickReplies(content: string): QuickReply[] {
       // Do not create a looping single-time button from error messages.
     } else {
     const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
-    const timeLimit = hasCollapsedTail ? 12 : 30;
+    const timeLimit = hasCollapsedTail ? 12 : 120;
     for (const tm of times.slice(0, timeLimit)) add(tm, tm);
     }
   }
 
   if (/сам\(а\)|сам в форме|онлайн-записи|как завершим запись/i.test(content)) {
-    add("Самостоятельно", "сам");
+    add("Самостоятельно", "самостоятельно");
     add("Через ассистента", "оформи через ассистента");
   }
-  if (/напишите[^\n]*\b«?да»?\b/i.test(content)) add("Да", "да");
-  if (/согласен на обработку персональных данных/i.test(content)) add("Согласен", "Согласен на обработку персональных данных");
+  if (/напишите[^\n]*\b«?да»?\b/i.test(content)) add("Записаться", "да");
+  // Consent is handled by dedicated checkbox + button control in message bubble.
   if (/выберите (дату|другую дату)/i.test(content)) add("Завтра", "завтра");
+  const legalLinks = Array.from(content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g))
+    .map((m) => m[0])
+    .filter(Boolean);
+  for (let i = 0; i < legalLinks.length; i += 1) {
+    const href = legalLinks[i]!;
+    add(`Текст ПДн ${i + 1}`, href, href);
+  }
 
   const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
   const finalLimit = hasCollapsedTail ? 24 : 120;
-  return replies.slice(0, finalLimit);
+  const filtered = isLocationSelectionReply ? replies.filter((x) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.value)) : replies;
+  return filtered.slice(0, finalLimit);
 }
 
 function compactAssistantText(content: string, options: QuickReply[]) {
@@ -137,6 +149,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [typingTarget, setTypingTarget] = useState("");
   const [typingVisible, setTypingVisible] = useState("");
+  const [consentCheckedByMessage, setConsentCheckedByMessage] = useState<Record<string, boolean>>({});
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -297,6 +310,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
       setThreadId(null);
     }
     setMessages([]);
+    setConsentCheckedByMessage({});
   };
 
   return (
@@ -328,9 +342,14 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
           <div ref={scrollerRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {messages.map((msg, index) => (
               (() => {
+                const messageKey = `${msg.role}-${msg.id ?? index}`;
                 const isLastAssistant = msg.role === "assistant" && index === lastAssistantIndex;
                 const options = msg.role === "assistant" ? extractQuickReplies(msg.content) : [];
                 const hasStructuredChoices = options.length > 0;
+                const showConsentControl =
+                  msg.role === "assistant" &&
+                  /согласие на обработку персональных данных/i.test(msg.content);
+                const consentChecked = consentCheckedByMessage[messageKey] ?? false;
                 const isTypingThis =
                   msg.role === "assistant" &&
                   typingMessageIndex === index &&
@@ -344,7 +363,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   msg.role === "assistant" ? compactAssistantText(sourceText || msg.content, options) : sourceText || msg.content;
                 return (
                   <div
-                    key={`${msg.role}-${msg.id ?? index}`}
+                    key={messageKey}
                     className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm ${
                       msg.role === "user"
                         ? "ml-auto bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]"
@@ -359,7 +378,15 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                             key={`${option.label}:${option.value}`}
                             type="button"
                             disabled={loading || !isLastAssistant}
-                            onClick={() => void sendRawMessage(option.value)}
+                            onClick={() => {
+                              if (option.href) {
+                                if (typeof window !== "undefined") {
+                                  window.open(option.href, "_blank", "noopener,noreferrer");
+                                }
+                                return;
+                              }
+                              void sendRawMessage(option.value);
+                            }}
                             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                               isLastAssistant
                                 ? "border-transparent bg-black/5 text-[color:var(--site-text,#111827)] hover:border-[color:var(--site-border,#d1d5db)] hover:bg-black/10"
@@ -367,6 +394,47 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                             } disabled:cursor-not-allowed disabled:opacity-60`}
                           >
                             {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {showConsentControl ? (
+                      <div className="mt-2 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-white/60 p-2">
+                        <label className="flex items-start gap-2 text-xs text-[color:var(--site-text,#111827)]">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4"
+                            checked={consentChecked}
+                            disabled={!isLastAssistant}
+                            onChange={(e) =>
+                              setConsentCheckedByMessage((prev) => ({
+                                ...prev,
+                                [messageKey]: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span>Согласен на обработку персональных данных</span>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={loading || !isLastAssistant || !consentChecked}
+                          onClick={() => void sendRawMessage("Согласен на обработку персональных данных")}
+                          className="mt-2 rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
+                        >
+                          Подтвердить
+                        </button>
+                        {Array.from(msg.content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g)).map((m, i) => (
+                          <button
+                            key={`consent-link-${i}-${m[0]}`}
+                            type="button"
+                            onClick={() => {
+                              if (typeof window !== "undefined") {
+                                window.open(m[0], "_blank", "noopener,noreferrer");
+                              }
+                            }}
+                            className="mt-2 ml-2 rounded-lg border border-[color:var(--site-border,#d1d5db)] px-3 py-1.5 text-xs"
+                          >
+                            Текст ПДн {i + 1}
                           </button>
                         ))}
                       </div>

@@ -84,7 +84,7 @@ function bookingUrl(publicSlug: string, d: DraftLike) {
 }
 
 function isAffirmative(t: string) {
-  return /^(?:\u0434\u0430|\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e|\u0441\u043e\u0433\u043b\u0430\u0441\u0435\u043d|\u0441\u043e\u0433\u043b\u0430\u0441\u043d\u0430|\u043e\u043a|\u043e\u043a\u0435\u0439)$/iu.test(
+  return /^(?:\u0434\u0430|\u0432\u0435\u0440\u043d\u043e|\u0432\u0441\u0435\s+\u0432\u0435\u0440\u043d\u043e|\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e|\u043f\u043e\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e|\u0441\u043e\u0433\u043b\u0430\u0441\u0435\u043d|\u0441\u043e\u0433\u043b\u0430\u0441\u043d\u0430|\u043e\u043a|\u043e\u043a\u0435\u0439)$/iu.test(
     t.trim(),
   );
 }
@@ -422,7 +422,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             handled: true,
             reply: `На ${targetDateRu} в ${d.time} есть окна в филиалах:\n${rowsAtTime
               .map((x, i) => `${i + 1}. ${x.name}`)
-              .join("\n")}\nВыберите филиал кнопкой ниже или напишите название.`,
+              .join("\n")}\nВыберите филиал кнопкой ниже или напишите название филиала.`,
             nextStatus: "COLLECTING",
           };
         } else if (rows.length) {
@@ -493,7 +493,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           handled: true,
           reply: `Нашла окна на ${targetDateRu}${prefText} в филиалах:\n${rows
             .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
-            .join("\n")}\nМожно выбрать филиал кнопкой ниже, либо сразу написать время и филиал.`,
+            .join("\n")}\nВыберите филиал кнопкой ниже. Также можно написать время и филиал сообщением.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -513,7 +513,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             formatYmdRu(nearest.date)
           }:\n${nearest.rows
             .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
-            .join("\n")}\nМожно выбрать филиал кнопкой ниже, либо сразу написать время и филиал.`,
+            .join("\n")}\nВыберите филиал кнопкой ниже. Также можно написать время и филиал сообщением.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -611,7 +611,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       const haircutOptions = scopedServices.filter((x) => /(стриж|haircut)/i.test(x.name));
       return {
         handled: true,
-        reply: `Уточните услугу:\n${serviceListText(haircutOptions, 8)}\nМожно выбрать кнопкой ниже или написать названием.`,
+        reply: `Уточните услугу:\n${serviceListText(haircutOptions, 8)}\nМожно выбрать кнопкой ниже или написать услугу сообщением.`,
         nextStatus: "COLLECTING",
       };
     }
@@ -724,10 +724,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.consentConfirmedAt) {
-    const links = requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`).join("\n");
+    const links = requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`);
+    const linksText = links.length ? `\nДокументы:\n${links.join("\n")}` : "";
     return {
       handled: true,
-      reply: `Для оформления нужно согласие на обработку персональных данных.\n${links || "Документы не настроены"}\nНапишите: «Согласен на обработку персональных данных».`,
+      reply: `Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.${linksText}`,
       nextStatus: "WAITING_CONSENT",
     };
   }
