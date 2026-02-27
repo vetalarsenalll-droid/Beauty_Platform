@@ -12,7 +12,7 @@ import { getNowInTimeZone, resolvePublicAccount } from "@/lib/public-booking";
 
 const prismaAny = prisma as any;
 
-type Body = { message?: unknown; threadId?: unknown };
+type Body = { message?: unknown; threadId?: unknown; clientTodayYmd?: unknown; clientTimeZone?: unknown };
 type Mode = "SELF" | "ASSISTANT";
 type Action = { type: "open_booking"; bookingUrl: string } | null;
 type ClientMembership = {
@@ -33,6 +33,8 @@ const NLU_INTENT_CONFIDENCE_THRESHOLD = 0.38;
 const NLU_INTENT_CONFIDENCE_CRITICAL_THRESHOLD = 0.52;
 
 const asText = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 1200) : "");
+const asYmd = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null);
+const asTimeZone = (v: unknown) => (typeof v === "string" && v.trim().length >= 3 && v.trim().length <= 80 ? v.trim() : null);
 const norm = (v: string) =>
   v
     .toLowerCase()
@@ -318,6 +320,20 @@ function asksCurrentDate(text: string) {
   return has(text, /(какое число|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
 }
 
+function asksCurrentTime(text: string) {
+  return has(text, /(который час|сколько времени|какое сейчас время|current time|what time is it)/i);
+}
+
+function asksCurrentDateTime(text: string) {
+  return asksCurrentDate(text) || asksCurrentTime(text) || has(text, /(какое сейчас число и время|date and time)/i);
+}
+
+function formatYmdRu(ymd: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return ymd;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
 function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
   const hasServiceWord = /(маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i.test(messageNorm);
   if (!hasServiceWord) return false;
@@ -328,6 +344,12 @@ function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
 
 function hasLocationCue(messageNorm: string) {
   return /(локац|филиал|адрес|центр|ривер|riverside|beauty salon|кутуз|тверск|любой филиал)/i.test(messageNorm);
+}
+
+function isBookingCarryMessage(messageNorm: string) {
+  return /^(почему|а почему|проверь|проверяй|дальше|далее|а дальше|что дальше|давай|да|ок|оке|окей|угу|ага)$/i.test(
+    messageNorm,
+  );
 }
 
 function isConversationalHeuristicIntent(intent: AishaIntent) {
@@ -425,6 +447,7 @@ function resolveIntentModelFirst(args: {
 }
 
 function intentFromHeuristics(message: string): AishaIntent {
+  if (asksCurrentDateTime(message)) return "smalltalk";
   const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring)/i);
   const hasBookingCue = has(message, /(хочу|запиши|записаться|давай|нужно|нужна|нужен|сделать|хотела|хотел)/i);
   if (hasServiceMention && hasBookingCue) return "booking_start";
@@ -626,7 +649,17 @@ export async function POST(request: Request) {
     });
     const requiredVersionIds = requiredDocs.map((d) => d.versions[0]?.id).filter((x): x is number => Number.isInteger(x));
 
-    const nowYmd = getNowInTimeZone(resolved.account.timeZone).ymd;
+    const serverNowYmd = getNowInTimeZone(resolved.account.timeZone).ymd;
+    const clientTodayYmd = asYmd(body.clientTodayYmd);
+    const clientTimeZone = asTimeZone(body.clientTimeZone);
+    // Prefer client local date for natural phrases like "сегодня/завтра",
+    // but only when it's close to server/account date (anti-spoof sanity window).
+    const nowYmd =
+      clientTodayYmd &&
+      clientTodayYmd >= addDaysYmd(serverNowYmd, -2) &&
+      clientTodayYmd <= addDaysYmd(serverNowYmd, 2)
+        ? clientTodayYmd
+        : serverNowYmd;
     const d = draftView(draft);
     const t = norm(message);
 
@@ -635,6 +668,7 @@ export async function POST(request: Request) {
       nowYmd,
       draft: d,
       account: { id: resolved.account.id, slug: resolved.account.slug, timeZone: resolved.account.timeZone },
+      clientTimeZone: clientTimeZone ?? null,
       accountProfile,
       locations,
       services,
@@ -659,6 +693,7 @@ export async function POST(request: Request) {
 
     const explicitClientCancelConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+отмен[\p{L}]*/iu);
     const explicitClientRescheduleConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+перен[\p{L}]*/iu);
+    const explicitDateTimeQuery = asksCurrentDateTime(messageForRouting);
     const heuristicIntent = intentFromHeuristics(messageForRouting);
     const mappedNluIntent = mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
     const nluConfidence = typeof nlu?.confidence === "number" ? nlu.confidence : 0;
@@ -676,18 +711,27 @@ export async function POST(request: Request) {
     if (explicitClientCancelPhrase) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
+    const explicitBookingText =
+      !explicitDateTimeQuery &&
+      has(
+        message,
+        /(запиш|записаться|окошк|свобод|слот|на сегодня|на завтра|оформи|бронь|забронируй|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside|маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i,
+      );
+    const hasDraftContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
+    const forceClientActions =
+      confirmPendingClientAction || explicitClientCancelConfirm || explicitClientRescheduleConfirm || explicitClientCancelPhrase || explicitClientReschedulePhrase;
+    const forceBookingByContext =
+      hasDraftContext && !forceClientActions && (explicitBookingText || isBookingDomainIntent(intent) || isBookingCarryMessage(t));
+    const route = explicitDateTimeQuery
+      ? "chat-only"
+      : forceClientActions
+      ? "client-actions"
+      : forceBookingByContext
+      ? "booking-flow"
+      : routeForIntent(intent);
     const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
-    const route =
-      confirmPendingClientAction || explicitClientCancelConfirm || explicitClientRescheduleConfirm || explicitClientCancelPhrase || explicitClientReschedulePhrase
-        ? "client-actions"
-        : routeForIntent(intent);
 
     const listLocations = `Наши локации:\n${locations.map((x, i) => `${i + 1}. ${x.name}${x.address ? ` — ${x.address}` : ""}`).join("\n")}`;
-    const explicitBookingText = has(
-      message,
-      /(запиш|записаться|окошк|свобод|время|дата|услуга|слот|на сегодня|на завтра|оформи|бронь|забронируй|сам|через ассистента|мастер|специалист|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside|маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i,
-    );
-    const hasDraftContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
     const shouldContinueBookingByContext =
       route === "chat-only" &&
       !isConversationalHeuristicIntent(intent) &&
@@ -780,10 +824,15 @@ export async function POST(request: Request) {
         reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
       }
     } else if (shouldRunBookingFlow) {
+      const asksAvailabilityNow =
+        intent === "ask_availability" ||
+        has(message, /(окошк|свобод|время|слот)/i) ||
+        // If user just selected location while discussing windows/date, keep showing times first.
+        (locationChosenThisTurn && Boolean(d.date) && !d.serviceId && !d.time);
       const flowResult = await runBookingFlow({
         messageNorm: t,
         bookingIntent: shouldRunBookingFlow,
-        asksAvailability: intent === "ask_availability" || has(message, /(окошк|свобод|время|слот)/i),
+        asksAvailability: asksAvailabilityNow,
         choice: choiceNum,
         d,
         currentStatus: d.status,
@@ -803,7 +852,12 @@ export async function POST(request: Request) {
         nextAction = flowResult.nextAction ?? nextAction;
       }
     } else {
-      if (intent === "greeting") {
+      if (explicitDateTimeQuery) {
+        const nowInClientTz = getNowInTimeZone(clientTimeZone ?? resolved.account.timeZone);
+        const hh = String(Math.floor(nowInClientTz.minutes / 60)).padStart(2, "0");
+        const mm = String(nowInClientTz.minutes % 60).padStart(2, "0");
+        reply = `Сейчас ${formatYmdRu(nowInClientTz.ymd)}, ${hh}:${mm}.`;
+      } else if (intent === "greeting") {
         const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
         reply = knownName ? `Здравствуйте, ${knownName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
       } else if (intent === "identity") {
@@ -827,7 +881,7 @@ export async function POST(request: Request) {
       } else if (intent === "ask_specialists") {
         reply = `Специалисты в студии:\n${specialists.slice(0, 12).map((x, i) => `${i + 1}. ${x.name}`).join("\n")}\nМогу сразу проверить свободные окна по нужной услуге.`;
       } else if (asksCurrentDate(message)) {
-        reply = `Сегодня ${nowYmd}.`;
+        reply = `Сегодня ${formatYmdRu(nowYmd)}.`;
       } else if (intent === "ask_services") {
         reply = `Доступные услуги:\n${services.slice(0, 12).map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`).join("\n")}`;
       } else {

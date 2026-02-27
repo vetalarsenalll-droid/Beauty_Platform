@@ -52,6 +52,7 @@ export type AishaNlu = {
 type RunAishaNluArgs = {
   message: string;
   nowYmd: string;
+  clientTimeZone?: string | null;
   draft: {
     locationId: number | null;
     serviceId: number | null;
@@ -208,6 +209,7 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
       id: args.account.id,
       slug: args.account.slug,
       timeZone: args.account.timeZone,
+      clientTimeZone: args.clientTimeZone ?? null,
       today: args.nowYmd,
       profile: args.accountProfile,
     },

@@ -1,13 +1,103 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Message = { id?: number; role: "user" | "assistant"; content: string };
 type ChatAction = { type: "open_booking"; bookingUrl: string } | null;
+type QuickReply = { label: string; value: string };
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
 };
+
+function isDateTimeInfoReply(content: string) {
+  const text = content.trim();
+  if (/^Сейчас\s+\d{2}\.\d{2}\.\d{4},\s*(?:[01]\d|2[0-3]):[0-5]\d\.?$/i.test(text)) return true;
+  if (/^Сегодня\s+\d{2}\.\d{2}\.\d{4}\.?$/i.test(text)) return true;
+  return false;
+}
+
+function shouldExtractTimeQuickReplies(content: string) {
+  if (isDateTimeInfoReply(content)) return false;
+  return (
+    /(?:выберите|напишите|укажите|доступны|свободны|окна|слоты|времена|как завершим запись|подтверждени|согласен)/i.test(
+      content,
+    ) || /(?:^|\n)\s*\d{1,2}\.\s+/.test(content)
+  );
+}
+
+function extractQuickReplies(content: string): QuickReply[] {
+  const replies: QuickReply[] = [];
+  const add = (label: string, value?: string) => {
+    const l = label.trim();
+    const v = (value ?? label).trim();
+    if (!l || !v) return;
+    if (replies.some((x) => x.value === v)) return;
+    replies.push({ label: l, value: v });
+  };
+
+  const numberedLines = Array.from(content.matchAll(/(?:^|\n)\s*(\d{1,2})\.\s+([^\n]+)/g));
+  if (numberedLines.length) {
+    for (const m of numberedLines.slice(0, 10)) {
+      const indexValue = m[1]?.trim() ?? "";
+      const raw = (m[2] ?? "").trim();
+      const normalized = raw.replace(/\s+/g, " ");
+      const beforeColon = normalized.split(":")[0]?.trim() ?? normalized;
+      const cleanLabel = beforeColon
+        .replace(/^(сам|сама)\b.*$/i, "Самостоятельно")
+        .replace(/^(оформить|через ассистента)\b.*$/i, "Через ассистента")
+        .slice(0, 48);
+      if (cleanLabel) {
+        add(cleanLabel, cleanLabel);
+      } else if (indexValue) {
+        add(indexValue, indexValue);
+      }
+    }
+  } else {
+    const numbered = Array.from(content.matchAll(/(?:^|\n)\s*(\d{1,2})\.\s+/g)).map((m) => m[1]);
+    if (numbered.length) {
+      for (const n of numbered.slice(0, 10)) add(n ?? "");
+    }
+  }
+
+  const times = Array.from(content.matchAll(/\b([01]\d|2[0-3]):([0-5]\d)\b/g)).map((m) => `${m[1]}:${m[2]}`);
+  if (times.length && shouldExtractTimeQuickReplies(content)) {
+    for (const tm of times.slice(0, 12)) add(tm, tm);
+  }
+
+  if (/сам\(а\)|сам в форме|онлайн-записи|как завершим запись/i.test(content)) {
+    add("Самостоятельно", "сам");
+    add("Через ассистента", "оформи через ассистента");
+  }
+  if (/\(\+\s*ещ[её]\s*\d+\)/iu.test(content)) {
+    add("Показать еще", "покажи еще свободное время");
+    add("Показать все", "покажи все свободное время");
+  }
+  if (/напишите[^\n]*\b«?да»?\b/i.test(content)) add("Да", "да");
+  if (/согласен на обработку персональных данных/i.test(content)) add("Согласен", "Согласен на обработку персональных данных");
+  if (/выберите (дату|другую дату)/i.test(content)) add("Завтра", "завтра");
+
+  return replies.slice(0, 12);
+}
+
+function compactAssistantText(content: string, options: QuickReply[]) {
+  if (!options.length) return content;
+  const lines = content
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+  const filtered = lines.filter((line) => {
+    if (/^\d{1,2}\.\s+/i.test(line)) return false;
+    if (/^(можно|выберите|напишите|укажите)\b/i.test(line)) return false;
+    const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
+    if (timeMatches.length >= 3) return false;
+    return true;
+  });
+
+  if (filtered.length) return filtered.join("\n");
+  return lines[0] ?? content;
+}
 
 export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetProps) {
   const [open, setOpen] = useState(false);
@@ -15,9 +105,37 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
   const [loading, setLoading] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
+  const [typingTarget, setTypingTarget] = useState("");
+  const [typingVisible, setTypingVisible] = useState("");
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const storageKey = useMemo(() => `ai-thread:${accountSlug}`, [accountSlug]);
   const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
+  const lastAssistantIndex = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]?.role === "assistant") return i;
+    }
+    return -1;
+  }, [messages]);
+
+  useEffect(() => {
+    if (!open) return;
+    const node = bottomRef.current;
+    if (!node) return;
+    node.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages, loading, open]);
+
+  useEffect(() => {
+    if (typingMessageIndex == null) return;
+    if (!typingTarget) return;
+    if (typingVisible === typingTarget) return;
+    const step = Math.max(1, Math.ceil(typingTarget.length / 80));
+    const next = typingTarget.slice(0, typingVisible.length + step);
+    const timer = window.setTimeout(() => setTypingVisible(next), 14);
+    return () => window.clearTimeout(timer);
+  }, [typingMessageIndex, typingTarget, typingVisible]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +162,9 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         ? (payload.data.messages as Message[])
         : [];
       setMessages(apiMessages.length > 0 ? apiMessages : []);
+      setTypingMessageIndex(null);
+      setTypingTarget("");
+      setTypingVisible("");
     };
     void load();
     return () => {
@@ -51,16 +172,18 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
     };
   }, [accountSlug, storageKey]);
 
-  const sendMessage = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canSend) return;
-
-    const userText = text.trim();
-    setText("");
+  const sendRawMessage = async (rawText: string) => {
+    const userText = rawText.trim();
+    if (!userText || loading) return;
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setLoading(true);
 
     try {
+      const now = new Date();
+      const clientTodayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+        now.getDate(),
+      ).padStart(2, "0")}`;
+      const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
       const response = await fetch(`/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,6 +191,8 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         body: JSON.stringify({
           message: userText,
           threadId,
+          clientTodayYmd,
+          clientTimeZone,
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -89,7 +214,14 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         }
       }
 
-      setMessages((prev) => [...prev, { role: "assistant", content: String(payload.data.reply) }]);
+      const assistantReply = String(payload.data.reply);
+      setMessages((prev) => {
+        const next: Message[] = [...prev, { role: "assistant", content: assistantReply } as Message];
+        setTypingMessageIndex(next.length - 1);
+        setTypingTarget(assistantReply);
+        setTypingVisible("");
+        return next;
+      });
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -101,6 +233,14 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const sendMessage = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSend) return;
+    const userText = text.trim();
+    setText("");
+    await sendRawMessage(userText);
   };
 
   const clearChat = async () => {
@@ -156,24 +296,62 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
             </div>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
+          <div ref={scrollerRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {messages.map((msg, index) => (
-              <div
-                key={`${msg.role}-${msg.id ?? index}`}
-                className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm ${
-                  msg.role === "user"
-                    ? "ml-auto bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]"
-                    : "bg-black/5 text-[color:var(--site-text,#111827)]"
-                }`}
-              >
-                {msg.content}
-              </div>
+              (() => {
+                const isLastAssistant = msg.role === "assistant" && index === lastAssistantIndex;
+                const isTypingThis = msg.role === "assistant" && typingMessageIndex === index && typingVisible !== typingTarget;
+                const sourceText = msg.role === "assistant" && typingMessageIndex === index ? typingVisible || "" : msg.content;
+                const options = isLastAssistant ? extractQuickReplies(msg.content) : [];
+                const shownText = isLastAssistant ? compactAssistantText(sourceText || msg.content, options) : sourceText || msg.content;
+                return (
+                  <div
+                    key={`${msg.role}-${msg.id ?? index}`}
+                    className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm ${
+                      msg.role === "user"
+                        ? "ml-auto bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]"
+                        : "bg-black/5 text-[color:var(--site-text,#111827)]"
+                    }`}
+                  >
+                    {shownText}
+                    {isLastAssistant && options.length && !isTypingThis ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {options.map((option) => (
+                          <button
+                            key={`${option.label}:${option.value}`}
+                            type="button"
+                            disabled={loading}
+                            onClick={() => void sendRawMessage(option.value)}
+                            className="rounded-full border border-transparent bg-black/5 px-3 py-1.5 text-xs font-medium text-[color:var(--site-text,#111827)] transition hover:border-[color:var(--site-border,#d1d5db)] hover:bg-black/10 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()
             ))}
             {loading ? (
               <div className="max-w-[90%] rounded-2xl bg-black/5 px-3 py-2 text-sm text-[color:var(--site-muted,#6b7280)]">
-                Печатает...
+                <div className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)] animate-pulse"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)] animate-pulse"
+                    style={{ animationDelay: "140ms" }}
+                  />
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)] animate-pulse"
+                    style={{ animationDelay: "280ms" }}
+                  />
+                </div>
               </div>
             ) : null}
+            <div ref={bottomRef} />
           </div>
 
           <form onSubmit={sendMessage} className="border-t border-[color:var(--site-border,#e5e7eb)] p-3">

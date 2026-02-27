@@ -57,6 +57,14 @@ function formatYmdRu(ymd: string | null | undefined) {
   return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
+function formatTimesShort(times: string[], limit: number | null = 12) {
+  if (!times.length) return "";
+  if (limit == null || limit <= 0) return times.join(", ");
+  const head = times.slice(0, limit);
+  const rest = Math.max(0, times.length - head.length);
+  return rest > 0 ? `${head.join(", ")} (+еще ${rest})` : head.join(", ");
+}
+
 function addDaysYmd(ymd: string, days: number) {
   const [y, mo, d] = ymd.split("-").map(Number);
   const dt = new Date(Date.UTC(y, (mo || 1) - 1, d || 1, 12, 0, 0));
@@ -290,6 +298,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   } = ctx;
   const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
+  const wantsAllTimes =
+    /(?:покажи|напиши|выведи|дай)\s+в[сc]е\s+(?:врем|слот|окошк)|(?:в[сc]е|полный)\s+список\s+(?:врем|слот|окошк)|все\s+свободн(?:ое|ые)?\s+время|целиком|полностью/iu.test(
+      messageNorm,
+    );
+  const wantsMoreTimes = /(?:покажи|дай|выведи)\s+ещ[её]\s+(?:врем|слот|окошк)|ещ[её]\s+время/iu.test(messageNorm);
+  const timeLimit = wantsAllTimes || wantsMoreTimes ? null : 12;
 
   let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
@@ -340,7 +354,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       if (specByLocation.length) {
         return {
           handled: true,
-          reply: `На ${d.date} специалисты по филиалам:\n${specByLocation
+          reply: `На ${formatYmdRu(d.date)} специалисты по филиалам:\n${specByLocation
             .map((x, i) => `${i + 1}. ${x.loc.name}: ${x.items.map((s) => s.name).join(", ")}`)
             .join("\n")}\nЕсли нужно, уточню по конкретной услуге и времени.`,
           nextStatus: "COLLECTING",
@@ -382,7 +396,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           return {
             handled: true,
             reply: `На ${targetDateRu} в ${d.time} свободных окон не нашла. Доступные времена:\n${rows
-              .map((x, i) => `${i + 1}. ${x.name}: ${x.times.slice(0, 10).join(", ")}`)
+              .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, wantsAllTimes ? null : 10)}`)
               .join("\n")}`,
             nextStatus: "COLLECTING",
           };
@@ -445,7 +459,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         return {
           handled: true,
           reply: `Нашла окна на ${targetDateRu}${prefText} в филиалах:\n${rows
-            .map((x, i) => `${i + 1}. ${x.name}: ${x.times.slice(0, 12).join(", ")}`)
+            .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
             .join("\n")}\nМожно выбрать филиал названием/цифрой, либо сразу написать время и филиал.`,
           nextStatus: "COLLECTING",
         };
@@ -464,7 +478,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Ближайшие варианты на ${
             formatYmdRu(nearest.date)
           }:\n${nearest.rows
-            .map((x, i) => `${i + 1}. ${x.name}: ${x.times.slice(0, 12).join(", ")}`)
+            .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
             .join("\n")}\nМожно выбрать филиал названием/цифрой, либо сразу написать время и филиал.`,
           nextStatus: "COLLECTING",
         };
@@ -486,7 +500,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       if (!offerAtTime || !offerAtTime.services.length) {
         return {
           handled: true,
-          reply: `На ${d.date} в ${d.time} нет доступных услуг в этой локации. Укажите другое время.`,
+          reply: `На ${formatYmdRu(d.date)} в ${d.time} нет доступных услуг в этой локации. Укажите другое время.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -503,7 +517,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       if (!serviceIds.length) {
         return {
           handled: true,
-          reply: `На ${d.date} в ${d.time} нет доступных услуг с учетом длительности и графика специалистов. Укажите другое время.`,
+          reply: `На ${formatYmdRu(d.date)} в ${d.time} нет доступных услуг с учетом длительности и графика специалистов. Укажите другое время.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -512,7 +526,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       );
       return {
         handled: true,
-        reply: `На ${d.date} в ${d.time} доступны услуги:\n${serviceListAtTimeText({
+        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны услуги:\n${serviceListAtTimeText({
           services: scopedServices,
           specialists,
           serviceIds,
@@ -527,7 +541,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       if (availableByLocation.length) {
         return {
           handled: true,
-          reply: `На ${d.date} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} работают специалисты: ${availableByLocation
+          reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} работают специалисты: ${availableByLocation
             .slice(0, 12)
             .map((x) => x.name)
             .join(", ")}. Могу проверить точные окна по конкретной услуге или мастеру.`,
@@ -536,7 +550,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       }
       return {
         handled: true,
-        reply: `На ${d.date} по этой локации не нашла специалистов в расписании. Могу проверить другую дату или локацию.`,
+        reply: `На ${formatYmdRu(d.date)} по этой локации не нашла специалистов в расписании. Могу проверить другую дату или локацию.`,
         nextStatus: "COLLECTING",
       };
     }
@@ -549,13 +563,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
         return {
           handled: true,
-          reply: `На ${d.date}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${times.join(", ")}. Можете выбрать время, а затем услугу.`,
+          reply: `На ${formatYmdRu(d.date)}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${formatTimesShort(times, timeLimit)}. Можете выбрать время, а затем услугу.`,
           nextStatus: "COLLECTING",
         };
       }
       return {
         handled: true,
-        reply: `На ${d.date}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
+        reply: `На ${formatYmdRu(d.date)}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
         nextStatus: "COLLECTING",
       };
     }
@@ -585,11 +599,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   if (!d.time) {
     const times = await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
     if (!times.length) {
-      return { handled: true, reply: `На ${d.date} свободных окон по этой услуге не нашла. Укажите другую дату.`, nextStatus: "COLLECTING" };
+      return { handled: true, reply: `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Укажите другую дату.`, nextStatus: "COLLECTING" };
     }
     return {
       handled: true,
-      reply: `На ${d.date} доступны времена: ${times.slice(0, 30).join(", ")}. Выберите время.`,
+      reply: `На ${formatYmdRu(d.date)} доступны времена: ${formatTimesShort(times, timeLimit)}. Выберите время.`,
       nextStatus: "COLLECTING",
     };
   }
@@ -637,7 +651,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     } else {
       return {
         handled: true,
-        reply: `На ${d.date} в ${d.time} доступны специалисты:\n${specs
+        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты:\n${specs
           .map((x, i) => `${i + 1}. ${x.name}`)
           .join("\n")}\nВыберите специалиста номером или напишите «любой».`,
         nextStatus: "CHECKING",
