@@ -328,6 +328,10 @@ function asksCurrentDateTime(text: string) {
   return asksCurrentDate(text) || asksCurrentTime(text) || has(text, /(какое сейчас число и время|date and time)/i);
 }
 
+function isGreetingText(text: string) {
+  return has(text, /^(привет|приветик|здравствуй|здраствуй|здравствуйте|здорово|здарова|добрый день|добрый вечер|hello|hi|hey|хай)\b/i);
+}
+
 function formatYmdRu(ymd: string) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!m) return ymd;
@@ -340,6 +344,14 @@ function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
   const asks = /(есть|нет|имеется|доступн|а .* нет)/i.test(messageNorm);
   const questionMark = rawMessage.includes("?");
   return asks || questionMark;
+}
+
+function looksLikeUnknownServiceRequest(messageNorm: string) {
+  if (/(сегодня|завтра|послезавтра|утро|день|вечер|время|дата|час|филиал|локац|центр|riverside|beauty salon|\d{1,2}[:.]\d{2})/i.test(messageNorm)) {
+    return false;
+  }
+  if (/(какие услуги|что по услугам|прайс|каталог|список услуг)/i.test(messageNorm)) return false;
+  return /(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm);
 }
 
 function hasLocationCue(messageNorm: string) {
@@ -473,7 +485,7 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (has(message, /(окошк|свобод|слот|на сегодня|на завтра|на вечер)/i)) return "ask_availability";
   if (has(message, /(кто ты|как тебя зовут|твое имя|твоё имя)/i)) return "identity";
   if (has(message, /(что умеешь|чем занимаешься|что ты можешь)/i)) return "capabilities";
-  if (has(message, /^(привет|здравствуйте|здравствуй|добрый день|добрый вечер|hello|hi)\b/i)) return "greeting";
+  if (isGreetingText(message)) return "greeting";
   if (has(message, /(как дела|как жизнь|что нового|че каво|чё каво)/i)) return "smalltalk";
   if (has(message, /(запиш|записаться|запись|оформи|забронируй)/i)) return "booking_start";
   return "unknown";
@@ -702,6 +714,7 @@ export async function POST(request: Request) {
       nluConfidence,
       heuristicIntent,
     });
+    if (isGreetingText(messageForRouting)) intent = "greeting";
     if ((intent as string) === "reschedule") intent = "reschedule_my_booking";
     if ((intent as string) === "cancel") intent = "cancel_my_booking";
     if ((intent as string) === "my_booking") intent = "my_bookings";
@@ -752,8 +765,43 @@ export async function POST(request: Request) {
     }
     const locationChosenThisTurn = !hadLocationBefore && Boolean(d.locationId);
     const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
+    const serviceTextMatch = serviceByText(t, scopedServices);
+    const nluServiceValid = Boolean(nlu?.serviceId && scopedServices.some((x) => x.id === nlu.serviceId));
+    const unknownServiceRequested =
+      shouldEnrichDraftForBooking &&
+      !d.serviceId &&
+      !serviceTextMatch &&
+      !nluServiceValid &&
+      looksLikeUnknownServiceRequest(t);
+
+    if (unknownServiceRequested) {
+      const unknownServiceReply = `Такой услуги не нашла в этом аккаунте. Выберите, пожалуйста, из доступных:\n${services
+        .slice(0, 12)
+        .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
+        .join("\n")}`;
+      await prisma.$transaction([
+        prisma.aiMessage.create({ data: { threadId: thread.id, role: "assistant", content: unknownServiceReply } }),
+        prismaAny.aiBookingDraft.update({
+          where: { threadId: thread.id },
+          data: {
+            locationId: d.locationId,
+            serviceId: d.serviceId,
+            specialistId: d.specialistId,
+            date: d.date,
+            time: d.time,
+            clientName: d.clientName,
+            clientPhone: d.clientPhone,
+            mode: d.mode,
+            status: "COLLECTING",
+            consentConfirmedAt: d.consentConfirmedAt ? new Date(d.consentConfirmedAt) : null,
+          },
+        }),
+      ]);
+      return jsonOk({ threadId: thread.id, reply: unknownServiceReply, action: null, draft: d });
+    }
+
     if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
-      const byText = serviceByText(t, scopedServices);
+      const byText = serviceTextMatch;
       const serviceInquiry = isServiceInquiryMessage(message, t);
       const explicitServiceChangeRequest = has(message, /(смени|измени|другую услугу|не на|не эту услугу|выбери услугу|по услуге)/i);
       const canUseNumberForServiceSelection =

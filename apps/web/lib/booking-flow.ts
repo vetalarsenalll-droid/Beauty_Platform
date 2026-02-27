@@ -142,6 +142,31 @@ function asksAboutSpecialists(messageNorm: string) {
   );
 }
 
+function normalizeText(v: string) {
+  return v
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function specialistByText(messageNorm: string, specs: SpecialistLite[]) {
+  const t = normalizeText(messageNorm);
+  if (!t) return null;
+  if (/\b(любой|кто угодно|не важно|неважно)\b/i.test(t)) return specs[0] ?? null;
+
+  const direct = specs.find((s) => t.includes(normalizeText(s.name)));
+  if (direct) return direct;
+
+  // Fallback by first/last name fragment from button text.
+  const byToken = specs.find((s) => {
+    const parts = normalizeText(s.name).split(" ").filter(Boolean);
+    return parts.some((p) => p.length >= 3 && new RegExp(`\\b${p}\\b`, "i").test(t));
+  });
+  return byToken ?? null;
+}
+
 function serviceListAtTimeText(args: {
   services: ServiceLite[];
   specialists: SpecialistLite[];
@@ -208,8 +233,9 @@ async function collectLocationWindows(args: {
   date: string;
   serviceId: number | null;
   preference: "morning" | "day" | "evening" | null;
+  limit?: number | null;
 }) {
-  const { origin, accountSlug, locations, date, serviceId, preference } = args;
+  const { origin, accountSlug, locations, date, serviceId, preference, limit = 30 } = args;
   const rows: Array<{ locationId: number; name: string; times: string[] }> = [];
   for (const loc of locations) {
     const offers = await getOffers(origin, accountSlug, loc.id, date);
@@ -217,7 +243,8 @@ async function collectLocationWindows(args: {
       ? (offers?.times ?? []).filter((x) => x.services.some((s) => s.serviceId === serviceId))
       : offers?.times ?? [];
     const all = Array.from(new Set(base.map((x) => x.time)));
-    const times = filterByPreference(all, preference).slice(0, 30);
+    const filtered = filterByPreference(all, preference);
+    const times = limit == null || limit <= 0 ? filtered : filtered.slice(0, limit);
     if (times.length) rows.push({ locationId: loc.id, name: loc.name, times });
   }
   return rows;
@@ -231,8 +258,9 @@ async function findNearestLocationWindows(args: {
   serviceId: number | null;
   preference: "morning" | "day" | "evening" | null;
   daysAhead?: number;
+  limit?: number | null;
 }) {
-  const { origin, accountSlug, locations, fromDate, serviceId, preference, daysAhead = 14 } = args;
+  const { origin, accountSlug, locations, fromDate, serviceId, preference, daysAhead = 14, limit = 30 } = args;
   const [yy, mm, dd] = fromDate.split("-").map(Number);
   const start = new Date(Date.UTC(yy, (mm || 1) - 1, dd || 1, 12, 0, 0));
   for (let i = 0; i < daysAhead; i += 1) {
@@ -246,6 +274,7 @@ async function findNearestLocationWindows(args: {
       date: ymd,
       serviceId,
       preference,
+      limit,
     });
     if (rows.length) return { date: ymd, rows };
   }
@@ -302,7 +331,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     /(?:покажи|напиши|выведи|дай)\s+в[сc]е\s+(?:врем|слот|окошк)|(?:в[сc]е|полный)\s+список\s+(?:врем|слот|окошк)|все\s+свободн(?:ое|ые)?\s+время|целиком|полностью/iu.test(
       messageNorm,
     );
-  const wantsMoreTimes = /(?:покажи|дай|выведи)\s+ещ[её]\s+(?:врем|слот|окошк)|ещ[её]\s+время/iu.test(messageNorm);
+  const wantsMoreTimes =
+    /(?:покажи|дай|выведи)\s+ещ[её](?:\s+\p{L}+){0,3}\s+(?:врем|слот|окошк)|ещ[её]\s+(?:свободн(?:ое|ые)?\s+)?время/iu.test(
+      messageNorm,
+    );
   const timeLimit = wantsAllTimes || wantsMoreTimes ? null : 12;
 
   let nextStatus = (d.status || "COLLECTING") as BookingState;
@@ -376,6 +408,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         date: targetDate,
         serviceId: d.serviceId,
         preference: pref,
+        limit: timeLimit,
       });
       if (d.time) {
         let resolvedLocationFromTime = false;
@@ -389,7 +422,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             handled: true,
             reply: `На ${targetDateRu} в ${d.time} есть окна в филиалах:\n${rowsAtTime
               .map((x, i) => `${i + 1}. ${x.name}`)
-              .join("\n")}\nВыберите филиал названием или номером.`,
+              .join("\n")}\nВыберите филиал кнопкой ниже или напишите название.`,
             nextStatus: "COLLECTING",
           };
         } else if (rows.length) {
@@ -428,7 +461,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
                   serviceIds,
                   specialistIdsByService,
                   limit: 10,
-                })}\nВыберите услугу номером или названием.`,
+                })}\nВыберите услугу кнопкой ниже или напишите название.`,
                 nextStatus: "COLLECTING",
               };
             }
@@ -460,7 +493,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           handled: true,
           reply: `Нашла окна на ${targetDateRu}${prefText} в филиалах:\n${rows
             .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
-            .join("\n")}\nМожно выбрать филиал названием/цифрой, либо сразу написать время и филиал.`,
+            .join("\n")}\nМожно выбрать филиал кнопкой ниже, либо сразу написать время и филиал.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -471,6 +504,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         fromDate: targetDate,
         serviceId: d.serviceId ?? null,
         preference: pref,
+        limit: timeLimit,
       });
       if (nearest) {
         return {
@@ -479,7 +513,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             formatYmdRu(nearest.date)
           }:\n${nearest.rows
             .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
-            .join("\n")}\nМожно выбрать филиал названием/цифрой, либо сразу написать время и филиал.`,
+            .join("\n")}\nМожно выбрать филиал кнопкой ниже, либо сразу написать время и филиал.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -532,7 +566,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           serviceIds,
           specialistIdsByService,
           limit: 10,
-        })}\nВыберите услугу номером или названием.`,
+        })}\nВыберите услугу кнопкой ниже или напишите название.`,
         nextStatus: "COLLECTING",
       };
     }
@@ -577,7 +611,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       const haircutOptions = scopedServices.filter((x) => /(стриж|haircut)/i.test(x.name));
       return {
         handled: true,
-        reply: `Уточните услугу:\n${serviceListText(haircutOptions, 8)}\nМожно выбрать номером или названием.`,
+        reply: `Уточните услугу:\n${serviceListText(haircutOptions, 8)}\nМожно выбрать кнопкой ниже или написать названием.`,
         nextStatus: "COLLECTING",
       };
     }
@@ -644,7 +678,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       }
       return { handled: true, reply: "На выбранную дату слотов нет. Укажите другую дату.", nextStatus: "COLLECTING" };
     }
-    if (choice && choice >= 1 && choice <= specs.length) {
+    const byText = specialistByText(messageNorm, specs);
+    if (byText) {
+      d.specialistId = byText.id;
+    } else if (choice && choice >= 1 && choice <= specs.length) {
       d.specialistId = specs[choice - 1]!.id;
     } else if (specs.length === 1) {
       d.specialistId = specs[0]!.id;
@@ -653,7 +690,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты:\n${specs
           .map((x, i) => `${i + 1}. ${x.name}`)
-          .join("\n")}\nВыберите специалиста номером или напишите «любой».`,
+          .join("\n")}\nВыберите специалиста кнопкой ниже или напишите «любой».`,
         nextStatus: "CHECKING",
       };
     }

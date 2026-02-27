@@ -19,6 +19,8 @@ function isDateTimeInfoReply(content: string) {
 
 function shouldExtractTimeQuickReplies(content: string) {
   if (isDateTimeInfoReply(content)) return false;
+  // If assistant asks to choose location/branch, show only branch buttons.
+  if (/(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content)) return false;
   return (
     /(?:выберите|напишите|укажите|доступны|свободны|окна|слоты|времена|как завершим запись|подтверждени|согласен)/i.test(
       content,
@@ -35,6 +37,13 @@ function extractQuickReplies(content: string): QuickReply[] {
     if (replies.some((x) => x.value === v)) return;
     replies.push({ label: l, value: v });
   };
+  const hasMoreTimes = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
+
+  // Priority actions must be visible even when we cap quick replies.
+  if (hasMoreTimes) {
+    add("Показать еще", "покажи еще свободное время");
+    add("Показать все", "покажи все свободное время");
+  }
 
   const numberedLines = Array.from(content.matchAll(/(?:^|\n)\s*(\d{1,2})\.\s+([^\n]+)/g));
   if (numberedLines.length) {
@@ -62,22 +71,29 @@ function extractQuickReplies(content: string): QuickReply[] {
 
   const times = Array.from(content.matchAll(/\b([01]\d|2[0-3]):([0-5]\d)\b/g)).map((m) => `${m[1]}:${m[2]}`);
   if (times.length && shouldExtractTimeQuickReplies(content)) {
-    for (const tm of times.slice(0, 12)) add(tm, tm);
+    const hasNegativeSingleTimeError = /нет доступных услуг|недоступн|укажите другое время/i.test(content) && times.length <= 1;
+    const hasTimeListContext =
+      /доступны времена|есть окна|ближайшие времена|свободных окон|в филиалах|выберите время/i.test(content) || times.length >= 2;
+    if (hasNegativeSingleTimeError || !hasTimeListContext) {
+      // Do not create a looping single-time button from error messages.
+    } else {
+    const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
+    const timeLimit = hasCollapsedTail ? 12 : 30;
+    for (const tm of times.slice(0, timeLimit)) add(tm, tm);
+    }
   }
 
   if (/сам\(а\)|сам в форме|онлайн-записи|как завершим запись/i.test(content)) {
     add("Самостоятельно", "сам");
     add("Через ассистента", "оформи через ассистента");
   }
-  if (/\(\+\s*ещ[её]\s*\d+\)/iu.test(content)) {
-    add("Показать еще", "покажи еще свободное время");
-    add("Показать все", "покажи все свободное время");
-  }
   if (/напишите[^\n]*\b«?да»?\b/i.test(content)) add("Да", "да");
   if (/согласен на обработку персональных данных/i.test(content)) add("Согласен", "Согласен на обработку персональных данных");
   if (/выберите (дату|другую дату)/i.test(content)) add("Завтра", "завтра");
 
-  return replies.slice(0, 12);
+  const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
+  const finalLimit = hasCollapsedTail ? 24 : 120;
+  return replies.slice(0, finalLimit);
 }
 
 function compactAssistantText(content: string, options: QuickReply[]) {
@@ -87,15 +103,28 @@ function compactAssistantText(content: string, options: QuickReply[]) {
     .map((x) => x.trim())
     .filter(Boolean);
 
+  const hasDenseLists = lines.some((line) => {
+    if (/^\d{1,2}\.\s+/i.test(line)) return true;
+    const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
+    return timeMatches.length >= 3;
+  });
+
   const filtered = lines.filter((line) => {
     if (/^\d{1,2}\.\s+/i.test(line)) return false;
-    if (/^(можно|выберите|напишите|укажите)\b/i.test(line)) return false;
+    if (/^(можно|выберите|напишите|укажите|наши локации:|доступные услуги:)\b/i.test(line)) return false;
+    if (/^(нашла окна|на \d{2}\.\d{2}\.\d{4} .*есть окна|на \d{2}\.\d{2}\.\d{4} доступны времена)/i.test(line)) return false;
     const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
     if (timeMatches.length >= 3) return false;
     return true;
   });
 
-  if (filtered.length) return filtered.join("\n");
+  if (filtered.length) {
+    const text = filtered.join("\n");
+    if (hasDenseLists && !/выберите вариант ниже/i.test(text)) return `${text}\nВыберите вариант ниже.`;
+    return text;
+  }
+
+  if (hasDenseLists) return "";
   return lines[0] ?? content;
 }
 
@@ -300,10 +329,19 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
             {messages.map((msg, index) => (
               (() => {
                 const isLastAssistant = msg.role === "assistant" && index === lastAssistantIndex;
-                const isTypingThis = msg.role === "assistant" && typingMessageIndex === index && typingVisible !== typingTarget;
-                const sourceText = msg.role === "assistant" && typingMessageIndex === index ? typingVisible || "" : msg.content;
-                const options = isLastAssistant ? extractQuickReplies(msg.content) : [];
-                const shownText = isLastAssistant ? compactAssistantText(sourceText || msg.content, options) : sourceText || msg.content;
+                const options = msg.role === "assistant" ? extractQuickReplies(msg.content) : [];
+                const hasStructuredChoices = options.length > 0;
+                const isTypingThis =
+                  msg.role === "assistant" &&
+                  typingMessageIndex === index &&
+                  typingVisible !== typingTarget &&
+                  !hasStructuredChoices;
+                const sourceText =
+                  msg.role === "assistant" && typingMessageIndex === index && !hasStructuredChoices
+                    ? typingVisible || ""
+                    : msg.content;
+                const shownText =
+                  msg.role === "assistant" ? compactAssistantText(sourceText || msg.content, options) : sourceText || msg.content;
                 return (
                   <div
                     key={`${msg.role}-${msg.id ?? index}`}
@@ -313,16 +351,20 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                         : "bg-black/5 text-[color:var(--site-text,#111827)]"
                     }`}
                   >
-                    {shownText}
-                    {isLastAssistant && options.length && !isTypingThis ? (
+                    {shownText ? <div>{shownText}</div> : null}
+                    {options.length && !isTypingThis ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {options.map((option) => (
                           <button
                             key={`${option.label}:${option.value}`}
                             type="button"
-                            disabled={loading}
+                            disabled={loading || !isLastAssistant}
                             onClick={() => void sendRawMessage(option.value)}
-                            className="rounded-full border border-transparent bg-black/5 px-3 py-1.5 text-xs font-medium text-[color:var(--site-text,#111827)] transition hover:border-[color:var(--site-border,#d1d5db)] hover:bg-black/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                              isLastAssistant
+                                ? "border-transparent bg-black/5 text-[color:var(--site-text,#111827)] hover:border-[color:var(--site-border,#d1d5db)] hover:bg-black/10"
+                                : "border-[color:var(--site-border,#d1d5db)] bg-black/0 text-[color:var(--site-muted,#6b7280)]"
+                            } disabled:cursor-not-allowed disabled:opacity-60`}
                           >
                             {option.label}
                           </button>
