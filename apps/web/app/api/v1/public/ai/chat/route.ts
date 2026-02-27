@@ -376,6 +376,30 @@ function asksGenderedServices(messageNorm: string) {
   );
 }
 
+function mentionsServiceTopic(messageNorm: string) {
+  return /(услуг|услуга|маник|педик|гель|стриж|окраш|facial|peeling|haircut|coloring|ресниц|бров|эпил|депил|депел|лазер|массаж|пилинг|консультац|бород|ус[ао]м)/i.test(
+    messageNorm,
+  );
+}
+
+function asksWhoPerformsServices(messageNorm: string) {
+  return /(кто( именно)?|кто делает|кто выполняет|кто оказывает|какие мастера|какой мастер|какие специалисты|у каких мастеров|кто из мастеров)/i.test(
+    messageNorm,
+  );
+}
+
+function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {
+  const t = norm(messageNorm);
+  if (!t) return null;
+  const direct = specialists.find((s) => t.includes(norm(s.name)));
+  if (direct) return direct;
+  const byToken = specialists.find((s) => {
+    const parts = norm(s.name).split(" ").filter(Boolean);
+    return parts.some((p) => p.length >= 3 && new RegExp(`\\b${p}\\b`, "i").test(t));
+  });
+  return byToken ?? null;
+}
+
 function isServiceFollowUpText(messageNorm: string) {
   return /^(и все|и всё|а еще|а ещё|что еще|что ещё|еще есть|ещё есть)$/i.test(messageNorm);
 }
@@ -504,6 +528,17 @@ function isBookingDomainIntent(intent: AishaIntent) {
   );
 }
 
+function isInfoOnlyIntent(intent: AishaIntent) {
+  return (
+    intent === "ask_services" ||
+    intent === "ask_price" ||
+    intent === "ask_specialists" ||
+    intent === "contact_phone" ||
+    intent === "contact_address" ||
+    intent === "working_hours"
+  );
+}
+
 function resolveIntentModelFirst(args: {
   mappedNluIntent: AishaIntent;
   nluConfidence: number;
@@ -530,6 +565,7 @@ function resolveIntentModelFirst(args: {
 
 function intentFromHeuristics(message: string): AishaIntent {
   if (asksCurrentDateTime(message)) return "smalltalk";
+  if (asksWhoPerformsServices(message)) return "ask_specialists";
   if (asksGenderedServices(message)) return "ask_services";
   const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring)/i);
   const hasBookingCue = has(message, /(хочу|запиши|записаться|давай|нужно|нужна|нужен|сделать|хотела|хотел)/i);
@@ -554,7 +590,7 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (has(message, /(консультац)/i)) return "ask_services";
   if (has(message, /(какие услуги|что по услугам|прайс|каталог услуг|список услуг)/i)) return "ask_services";
   if (has(message, /(какая цена|сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник|деньги)/i)) return "ask_price";
-  if (has(message, /(какие мастера|какой мастер|какие специалисты|у каких мастеров)/i)) return "ask_specialists";
+  if (mentionsServiceTopic(message)) return "ask_services";
   if (has(message, /(окошк|свобод|слот|на сегодня|на завтра|на вечер|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём)/i))
     return "ask_availability";
   if (has(message, /(кто ты|как тебя зовут|твое имя|твоё имя)/i)) return "identity";
@@ -782,6 +818,10 @@ export async function POST(request: Request) {
     const explicitDateTimeQuery = asksCurrentDateTime(messageForRouting);
     const lastAssistantText = recentMessages.find((m) => m.role === "assistant")?.content ?? "";
     const previousUserText = recentMessages.filter((m) => m.role === "user")[1]?.content ?? "";
+    const specialistFollowUpLocation = locationByText(t, locations);
+    const specialistFollowUpByLocation =
+      Boolean(specialistFollowUpLocation) &&
+      /(специалисты по филиалам|работают специалисты|специалисты в студии)/i.test(lastAssistantText);
     const explicitServiceFollowUp =
       isServiceFollowUpText(norm(messageForRouting)) &&
       /(услуг|услуга|стоимость|длительность|men haircut|women haircut|маник|педик|стриж|гель|peeling|facial)/i.test(lastAssistantText);
@@ -799,27 +839,41 @@ export async function POST(request: Request) {
     if ((intent as string) === "my_booking") intent = "my_bookings";
     const explicitClientReschedulePhrase = has(messageForRouting, /^(перенеси|перенести|перезапиши)\b/i);
     const explicitClientCancelPhrase = has(messageForRouting, /^(отмени|отменить|отмена)\b/i);
+    const explicitWhoDoesServices = asksWhoPerformsServices(norm(messageForRouting));
     if (explicitClientReschedulePhrase) intent = "reschedule_my_booking";
     if (explicitClientCancelPhrase) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
+    if (specialistFollowUpByLocation) intent = "ask_specialists";
+    if (explicitWhoDoesServices) intent = "ask_specialists";
     if (explicitServiceFollowUp) intent = "ask_services";
-    if (asksGenderedServices(messageForRouting) || asksServiceExistence(messageForRouting)) intent = "ask_services";
+    if (asksGenderedServices(messageForRouting) || asksServiceExistence(messageForRouting) || asksGenderSuitability(norm(messageForRouting))) {
+      intent = "ask_services";
+    }
+    if (mentionsServiceTopic(norm(messageForRouting)) && !explicitWhoDoesServices && intent !== "ask_specialists") intent = "ask_services";
+    if (has(messageForRouting, /(услуг|услуга|стриж|маник|педик|гель|facial|peeling|haircut|coloring)/i) && has(messageForRouting, /(есть|какие|какой|подходит|для мужчин|для женщин)/i)) {
+      intent = "ask_services";
+    }
     // Hard override for pricing requests: never route these to generic smalltalk.
     if (has(messageForRouting, /(какая цена|сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник|деньги)/i)) {
       intent = "ask_price";
     }
+    const selectedSpecialistByText = specialistByText(t, specialists);
     const explicitBookingText =
       !explicitDateTimeQuery &&
+      !specialistFollowUpByLocation &&
       has(
         message,
         /(запиш|записаться|запись|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи|бронь|забронируй|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/i,
-      );
+      ) ||
+      Boolean(selectedSpecialistByText);
     const hasDraftContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
     const forceClientActions =
       confirmPendingClientAction || explicitClientCancelConfirm || explicitClientRescheduleConfirm || explicitClientCancelPhrase || explicitClientReschedulePhrase;
     const forceBookingByContext =
-      hasDraftContext && !forceClientActions && (explicitBookingText || isBookingDomainIntent(intent) || isBookingCarryMessage(t));
+      hasDraftContext &&
+      !forceClientActions &&
+      (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t));
     const route = explicitDateTimeQuery
       ? "chat-only"
       : forceClientActions
@@ -859,6 +913,7 @@ export async function POST(request: Request) {
       shouldEnrichDraftForBooking &&
       !d.serviceId &&
       !serviceTextMatch &&
+      mentionsServiceTopic(t) &&
       ((!nluServiceValid && looksLikeUnknownServiceRequest(t)) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
     if (unknownServiceRequested) {
@@ -923,6 +978,7 @@ export async function POST(request: Request) {
       const parsedTime = parseTime(message);
       d.date = parsedDate || pickSafeNluDate(nlu?.date, nowYmd) || d.date;
       d.time = parsedTime || nlu?.time || d.time;
+      if (selectedSpecialistByText) d.specialistId = selectedSpecialistByText.id;
       const wantsSelfMode = has(message, /(сам|самостоятельно|в форме|онлайн)/i);
       const wantsAssistantMode = has(message, /(оформи|через ассистента|оформи ты|оформи ты)/i);
       if (wantsSelfMode) d.mode = "SELF";
@@ -1025,12 +1081,41 @@ export async function POST(request: Request) {
       } else if (intent === "working_hours") {
         reply = "Обычно работаем ежедневно с 09:00 до 21:00. Если нужно, проверю точный график по конкретной локации и дате.";
       } else if (intent === "ask_specialists") {
-        reply = `Специалисты в студии:\n${specialists.slice(0, 12).map((x, i) => `${i + 1}. ${x.name}`).join("\n")}\nМогу сразу проверить свободные окна по нужной услуге.`;
+        const dateForSpecialists = parseDate(message, nowYmd) || d.date;
+        const locationFromMessage = locationByText(t, locations);
+        const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
+
+        if (selectedLocationId) {
+          const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
+          const scoped = specialists.filter((s) => s.locationIds.includes(selectedLocationId));
+          if (scoped.length) {
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} работают специалисты:\n${scoped
+              .slice(0, 16)
+              .map((x) => `• ${x.name}`)
+              .join("\n")}`;
+          } else {
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов в расписании.`;
+          }
+        } else {
+          const byLocation = locations
+            .map((loc) => ({
+              loc,
+              items: specialists.filter((s) => s.locationIds.includes(loc.id)).slice(0, 10),
+            }))
+            .filter((x) => x.items.length > 0);
+          if (byLocation.length) {
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}специалисты по филиалам:\n${byLocation
+              .map((x) => `${x.loc.name}: ${x.items.map((s) => s.name).join(", ")}`)
+              .join("\n")}`;
+          } else {
+            reply = "Сейчас не нашла специалистов в расписании. Могу проверить по конкретной локации и дате.";
+          }
+        }
       } else if (asksCurrentDate(message)) {
         reply = `Сегодня ${formatYmdRu(nowYmd)}.`;
       } else if (intent === "ask_services") {
         const selectedByText = serviceByText(t, services);
-        const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
+        const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
         const femaleContext = /(женск|для женщин|для девушки)/i.test(t) || /(женск|для женщин|для девушки)/i.test(previousUserText);
         if (selectedByText) {
           const n = norm(selectedByText.name);
@@ -1048,10 +1133,19 @@ export async function POST(request: Request) {
             if (femaleContext && /(women|жен)/i.test(n)) return true;
             return false;
           });
-          const rows = (gendered.length ? gendered : services).slice(0, 12);
-          reply = `Подходящие услуги:\n${rows
-            .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-            .join("\n")}`;
+          if (gendered.length) {
+            reply = `Подходящие услуги:\n${gendered
+              .slice(0, 12)
+              .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
+              .join("\n")}`;
+          } else {
+            const suggested = services
+              .filter((x) => /(haircut|стриж|manicure|маник|pedicure|педик)/i.test(norm(x.name)))
+              .slice(0, 8);
+            reply = `Из доступных сейчас могу предложить:\n${(suggested.length ? suggested : services.slice(0, 8))
+              .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
+              .join("\n")}`;
+          }
         } else if (asksGenderSuitability(t)) {
           reply = "Есть услуги для мужчин и для женщин. Например: Men Haircut и Women Haircut. Напишите, что именно нужно, и я подберу вариант.";
         } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
@@ -1073,6 +1167,17 @@ export async function POST(request: Request) {
             .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
             .join("\n")}`;
         }
+      } else if (mentionsServiceTopic(t)) {
+        const selectedByText = serviceByText(t, services);
+        if (selectedByText) {
+          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.`;
+        } else {
+          const requested = extractRequestedServicePhrase(t);
+          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных:\n${services
+            .slice(0, 12)
+            .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
+            .join("\n")}`;
+        }
       } else {
         const talk = await runAishaSmallTalkReply({
           message,
@@ -1083,6 +1188,12 @@ export async function POST(request: Request) {
         });
         reply = talk || "Уточните, пожалуйста, что именно нужно: запись, услуги, контакты или ваши записи.";
       }
+    }
+
+    const hadAssistantBefore = recentMessages.some((m) => m.role === "assistant");
+    if (!hadAssistantBefore && !/^(здравств|привет|я аиша|я\s)/i.test(reply.trim())) {
+      const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
+      reply = knownName ? `Здравствуйте, ${knownName}! ${reply}` : `Здравствуйте! ${reply}`;
     }
 
     await prisma.$transaction([

@@ -19,6 +19,8 @@ function isDateTimeInfoReply(content: string) {
 
 function shouldExtractTimeQuickReplies(content: string) {
   if (isDateTimeInfoReply(content)) return false;
+  if (/\u0444\u0438\u043b\u0438\u0430\u043b/i.test(content) || /location/i.test(content)) return false;
+  if (/проверьте данные:|как завершим запись|для оформления нужно согласие/i.test(content)) return false;
   // If assistant asks to choose location/branch, show only branch buttons.
   if (/(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content)) return false;
   return (
@@ -30,7 +32,10 @@ function shouldExtractTimeQuickReplies(content: string) {
 
 function extractQuickReplies(content: string): QuickReply[] {
   const replies: QuickReply[] = [];
-  const isLocationSelectionReply = /(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content);
+  const isLocationSelectionReply =
+    /(\u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0444\u0438\u043b\u0438\u0430\u043b|\u043c\u043e\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0444\u0438\u043b\u0438\u0430\u043b|\u0444\u0438\u043b\u0438\u0430\u043b \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u043d\u0438\u0436\u0435)/i.test(content) ||
+    /\u0444\u0438\u043b\u0438\u0430\u043b/i.test(content) ||
+    /location/i.test(content);
   const add = (label: string, value?: string, href?: string) => {
     const l = label.trim();
     const v = (value ?? label).trim();
@@ -91,17 +96,8 @@ function extractQuickReplies(content: string): QuickReply[] {
     add("Самостоятельно", "самостоятельно");
     add("Через ассистента", "оформи через ассистента");
   }
-  if (/напишите[^\n]*\b«?да»?\b/i.test(content)) add("Записаться", "да");
-  // Consent is handled by dedicated checkbox + button control in message bubble.
+  if (/нажмите кнопку «?записаться»? ниже|если все верно.*\b«?да»?\b/i.test(content)) add("Записаться", "да");
   if (/выберите (дату|другую дату)/i.test(content)) add("Завтра", "завтра");
-  const legalLinks = Array.from(content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g))
-    .map((m) => m[0])
-    .filter(Boolean);
-  for (let i = 0; i < legalLinks.length; i += 1) {
-    const href = legalLinks[i]!;
-    add(`Текст ПДн ${i + 1}`, href, href);
-  }
-
   const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
   const finalLimit = hasCollapsedTail ? 24 : 120;
   const filtered = isLocationSelectionReply ? replies.filter((x) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.value)) : replies;
@@ -117,12 +113,14 @@ function compactAssistantText(content: string, options: QuickReply[]) {
 
   const hasDenseLists = lines.some((line) => {
     if (/^\d{1,2}\.\s+/i.test(line)) return true;
+    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line)) return false;
     const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
     return timeMatches.length >= 3;
   });
 
   const filtered = lines.filter((line) => {
     if (/^\d{1,2}\.\s+/i.test(line)) return false;
+    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line)) return false;
     if (/^(можно|выберите|напишите|укажите|наши локации:|доступные услуги:)\b/i.test(line)) return false;
     if (/^(нашла окна|на \d{2}\.\d{2}\.\d{4} .*есть окна|на \d{2}\.\d{2}\.\d{4} доступны времена)/i.test(line)) return false;
     const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
@@ -131,9 +129,7 @@ function compactAssistantText(content: string, options: QuickReply[]) {
   });
 
   if (filtered.length) {
-    const text = filtered.join("\n");
-    if (hasDenseLists && !/выберите вариант ниже/i.test(text)) return `${text}\nВыберите вариант ниже.`;
-    return text;
+    return filtered.join("\n");
   }
 
   if (hasDenseLists) return "";
@@ -346,6 +342,11 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                 const isLastAssistant = msg.role === "assistant" && index === lastAssistantIndex;
                 const options = msg.role === "assistant" ? extractQuickReplies(msg.content) : [];
                 const hasStructuredChoices = options.length > 0;
+                const legalLinks = Array.from(
+                  new Set(
+                    Array.from(msg.content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g)).map((m) => m[0]).filter(Boolean),
+                  ),
+                );
                 const showConsentControl =
                   msg.role === "assistant" &&
                   /согласие на обработку персональных данных/i.test(msg.content);
@@ -359,8 +360,14 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   msg.role === "assistant" && typingMessageIndex === index && !hasStructuredChoices
                     ? typingVisible || ""
                     : msg.content;
+                const sourceTextNoLegal = sourceText.replace(/\/[A-Za-z0-9_-]+\/legal\/\d+/g, "").replace(/\s{2,}/g, " ").trim();
                 const shownText =
-                  msg.role === "assistant" ? compactAssistantText(sourceText || msg.content, options) : sourceText || msg.content;
+                  msg.role === "assistant"
+                    ? compactAssistantText(sourceTextNoLegal || sourceText || msg.content, options)
+                    : sourceText || msg.content;
+                const effectiveOptions = showConsentControl
+                  ? options.filter((o) => !/согласен на обработку персональных данных/i.test(o.value))
+                  : options;
                 return (
                   <div
                     key={messageKey}
@@ -371,9 +378,9 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                     }`}
                   >
                     {shownText ? <div>{shownText}</div> : null}
-                    {options.length && !isTypingThis ? (
+                    {effectiveOptions.length && !isTypingThis ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {options.map((option) => (
+                        {effectiveOptions.map((option) => (
                           <button
                             key={`${option.label}:${option.value}`}
                             type="button"
@@ -400,6 +407,25 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                     ) : null}
                     {showConsentControl ? (
                       <div className="mt-2 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-white/60 p-2">
+                        {legalLinks.length ? (
+                          <div className="mb-2 flex flex-wrap gap-2">
+                            {legalLinks.map((href, i) => (
+                              <button
+                                key={`consent-link-${i}-${href}`}
+                                type="button"
+                                disabled={!isLastAssistant}
+                                onClick={() => {
+                                  if (typeof window !== "undefined") {
+                                    window.open(href, "_blank", "noopener,noreferrer");
+                                  }
+                                }}
+                                className="rounded-lg border border-[color:var(--site-border,#d1d5db)] px-3 py-1.5 text-xs disabled:opacity-60"
+                              >
+                                Текст ПДн {i + 1}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                         <label className="flex items-start gap-2 text-xs text-[color:var(--site-text,#111827)]">
                           <input
                             type="checkbox"
@@ -423,20 +449,6 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                         >
                           Подтвердить
                         </button>
-                        {Array.from(msg.content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g)).map((m, i) => (
-                          <button
-                            key={`consent-link-${i}-${m[0]}`}
-                            type="button"
-                            onClick={() => {
-                              if (typeof window !== "undefined") {
-                                window.open(m[0], "_blank", "noopener,noreferrer");
-                              }
-                            }}
-                            className="mt-2 ml-2 rounded-lg border border-[color:var(--site-border,#d1d5db)] px-3 py-1.5 text-xs"
-                          >
-                            Текст ПДн {i + 1}
-                          </button>
-                        ))}
                       </div>
                     ) : null}
                   </div>

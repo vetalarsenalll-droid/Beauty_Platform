@@ -339,6 +339,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
 
   let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
+  let autoSelectedSpecialistName: string | null = null;
 
   if (d.status === "COMPLETED" && !bookingIntent) {
     if (isGratitudeOrPostCompletion(messageNorm)) {
@@ -422,7 +423,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             handled: true,
             reply: `На ${targetDateRu} в ${d.time} есть окна в филиалах:\n${rowsAtTime
               .map((x, i) => `${i + 1}. ${x.name}`)
-              .join("\n")}\nВыберите филиал кнопкой ниже или напишите название филиала.`,
+              .join("\n")}\nВыберите филиал кнопкой ниже или напишите название.`,
             nextStatus: "COLLECTING",
           };
         } else if (rows.length) {
@@ -438,16 +439,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           if (!d.serviceId) {
             const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
             const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
-            const rawServiceIds = offerAtTime?.services.map((x) => x.serviceId) ?? [];
-            const serviceIds = await getActuallyAvailableServiceIdsAtTime({
-              origin,
-              accountSlug: account.slug,
-              locationId: d.locationId!,
-              date: targetDate,
-              time: d.time!,
-              candidateServiceIds: rawServiceIds,
-              specialists,
-            });
+            // At "choose service after selecting time" step, trust offer matrix for that slot.
+            // Extra strict per-service recheck here caused false negatives vs online booking.
+            const serviceIds = offerAtTime?.services.map((x) => x.serviceId) ?? [];
             const specialistIdsByService = new Map<number, number[]>(
               (offerAtTime?.services ?? []).map((x) => [x.serviceId, x.specialistIds ?? []]),
             );
@@ -538,16 +532,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           nextStatus: "COLLECTING",
         };
       }
-      const rawServiceIds = offerAtTime.services.map((x) => x.serviceId);
-      const serviceIds = await getActuallyAvailableServiceIdsAtTime({
-        origin,
-        accountSlug: account.slug,
-        locationId: d.locationId!,
-        date: d.date,
-        time: d.time,
-        candidateServiceIds: rawServiceIds,
-        specialists,
-      });
+      // Use slot offer matrix as source of truth while user is choosing service.
+      const serviceIds = offerAtTime.services.map((x) => x.serviceId);
       if (!serviceIds.length) {
         return {
           handled: true,
@@ -592,7 +578,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
       const allTimes = Array.from(new Set((offers?.times ?? []).map((x) => x.time)));
       const pref = detectTimePreference(messageNorm);
-      const times = filterByPreference(allTimes, pref).slice(0, 30);
+      const times = filterByPreference(allTimes, pref);
       if (times.length) {
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
         return {
@@ -685,6 +671,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       d.specialistId = specs[choice - 1]!.id;
     } else if (specs.length === 1) {
       d.specialistId = specs[0]!.id;
+      autoSelectedSpecialistName = specs[0]!.name;
     } else {
       return {
         handled: true,
@@ -701,9 +688,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
     const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
     const effectiveText = effective ? `\nСтоимость: ${Math.round(effective.price)} ₽\nДлительность: ${effective.durationMin} мин` : "";
+    const specialistAutoText = autoSelectedSpecialistName
+      ? `На это время доступен только ${autoSelectedSpecialistName}, записала к нему автоматически.\n\n`
+      : "";
     return {
       handled: true,
-      reply: `Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?\n1) Сам в форме онлайн-записи.\n2) Оформить через ассистента.`,
+      reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?\n1) Сам в форме онлайн-записи.\n2) Оформить через ассистента.`,
       nextStatus: "CHECKING",
     };
   }
@@ -724,11 +714,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.consentConfirmedAt) {
-    const links = requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`);
-    const linksText = links.length ? `\nДокументы:\n${links.join("\n")}` : "";
+    const legalLinks = Array.from(new Set(requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`)));
+    const legalLinksText = legalLinks.length ? `\n${legalLinks.join("\n")}` : "";
     return {
       handled: true,
-      reply: `Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.${linksText}`,
+      reply: `Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.${legalLinksText}`,
       nextStatus: "WAITING_CONSENT",
     };
   }
@@ -738,7 +728,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     return {
       handled: true,
       nextStatus,
-      reply: `Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}\nКлиент: ${d.clientName} ${d.clientPhone}\nЕсли все верно, напишите «да».`,
+      reply: `Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}\nКлиент: ${d.clientName} ${d.clientPhone}\nЕсли все верно, нажмите кнопку «Записаться» ниже или напишите «да».`,
     };
   }
 
