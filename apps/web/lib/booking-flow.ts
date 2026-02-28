@@ -920,9 +920,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   if (!d.clientName || !d.clientPhone) {
     const digitCount = (messageNorm.match(/\d/g) ?? []).length;
     const hasAnyDigits = digitCount > 0;
+    const hasPhoneMaskPlaceholder = /[xх]{2,}/i.test(messageNorm);
     const invalidPhoneHint =
       hasAnyDigits && !d.clientPhone
-        ? digitCount < 11
+        ? hasPhoneMaskPlaceholder
+          ? "Похоже, указан шаблон номера. Введите реальный номер цифрами."
+          : digitCount < 11
           ? "Похоже, номер слишком короткий."
           : "Не смогла распознать номер телефона."
         : "";
@@ -1024,4 +1027,5 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 

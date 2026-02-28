@@ -81,6 +81,7 @@ type RunAishaNluResult = {
 };
 
 type RunAishaSmallTalkArgs = {
+  accountId: number;
   message: string;
   assistantName: string;
   recentMessages: Array<{ role: string; content: string }>;
@@ -89,6 +90,7 @@ type RunAishaSmallTalkArgs = {
 };
 
 type RunAishaNaturalizeArgs = {
+  accountId: number;
   assistantName: string;
   message: string;
   canonicalReply: string;
@@ -98,9 +100,8 @@ type RunAishaNaturalizeArgs = {
 
 const NLU_FAIL_THRESHOLD = 3;
 const NLU_COOLDOWN_MS = 2 * 60_000;
-
-let nluFailures = 0;
-let nluDisabledUntil = 0;
+type NluState = { failures: number; disabledUntil: number };
+const nluStateByScope = new Map<string, NluState>();
 
 const ALLOWED_INTENTS: AishaNluIntent[] = [
   "greeting",
@@ -136,20 +137,32 @@ const ALLOWED_INTENTS: AishaNluIntent[] = [
   "unknown",
 ];
 
-function canUseNlu() {
-  return Boolean(process.env.GIGACHAT_AUTH_KEY?.trim()) && Date.now() >= nluDisabledUntil;
+function nluScopeState(scopeKey: string): NluState {
+  const existing = nluStateByScope.get(scopeKey);
+  if (existing) return existing;
+  const fresh: NluState = { failures: 0, disabledUntil: 0 };
+  nluStateByScope.set(scopeKey, fresh);
+  return fresh;
 }
 
-function markNluSuccess() {
-  nluFailures = 0;
-  nluDisabledUntil = 0;
+function canUseNlu(scopeKey: string) {
+  if (!process.env.GIGACHAT_AUTH_KEY?.trim()) return false;
+  const state = nluScopeState(scopeKey);
+  return Date.now() >= state.disabledUntil;
 }
 
-function markNluFailure() {
-  nluFailures += 1;
-  if (nluFailures >= NLU_FAIL_THRESHOLD) {
-    nluDisabledUntil = Date.now() + NLU_COOLDOWN_MS;
-    nluFailures = 0;
+function markNluSuccess(scopeKey: string) {
+  const state = nluScopeState(scopeKey);
+  state.failures = 0;
+  state.disabledUntil = 0;
+}
+
+function markNluFailure(scopeKey: string) {
+  const state = nluScopeState(scopeKey);
+  state.failures += 1;
+  if (state.failures >= NLU_FAIL_THRESHOLD) {
+    state.disabledUntil = Date.now() + NLU_COOLDOWN_MS;
+    state.failures = 0;
   }
 }
 
@@ -210,7 +223,8 @@ function normalizeNlu(parsed: Record<string, unknown>): AishaNlu {
 }
 
 export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluResult> {
-  if (!canUseNlu()) return { nlu: null, source: "fallback", reason: "disabled_or_no_key" };
+  const scopeKey = `account:${args.account.id}`;
+  if (!canUseNlu(scopeKey)) return { nlu: null, source: "fallback", reason: "disabled_or_no_key" };
 
   const context = {
     account: {
@@ -253,25 +267,26 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
     ]);
     const parsed = extractJsonObject(completion.content);
     if (!parsed) {
-      markNluFailure();
+      markNluFailure(scopeKey);
       return { nlu: null, source: "fallback", reason: "invalid_json" };
     }
     const nlu = normalizeNlu(parsed);
-    markNluSuccess();
+    markNluSuccess(scopeKey);
     return { nlu, source: "llm" };
   } catch {
-    markNluFailure();
+    markNluFailure(scopeKey);
     return { nlu: null, source: "fallback", reason: "llm_error" };
   }
 }
 
 export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promise<string | null> {
-  if (!canUseNlu()) return null;
+  if (!canUseNlu(`account:${args.accountId}`)) return null;
 
   const prompt = [
     `Ты ${args.assistantName}, женский персонаж, дружелюбный AI-ассистент записи.`,
     "Ты работаешь в бьюти-бизнесе аккаунта из контекста (студия, салон, частный мастер и т.п.) и обсуждаешь только этот домен.",
     "Отвечай только на русском, естественно, коротко (1-3 предложения).",
+    "Всегда обращайся к пользователю на Вы, не переходи на ты.",
     "Не используй разговорное слово «подсобить».",
     "Никогда не говори, что ты NLU-модуль, классификатор или системный компонент.",
     "Никогда не предлагай записывать встречи, звонки, мысли и т.п.",
@@ -304,7 +319,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
 }
 
 export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Promise<string | null> {
-  if (!canUseNlu()) return null;
+  if (!canUseNlu(`account:${args.accountId}`)) return null;
   if (!args.canonicalReply.trim()) return null;
 
   const prompt = [
@@ -335,3 +350,6 @@ export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Pro
     return null;
   }
 }
+
+
+

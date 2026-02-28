@@ -10,10 +10,11 @@ import { ANTI_HALLUCINATION_RULES, AishaIntent, routeForIntent } from "@/lib/dia
 import { INTENT_ACTION_MATRIX } from "@/lib/intent-action-matrix";
 import { runClientAccountFlow } from "@/lib/client-account-flow";
 import { getNowInTimeZone, resolvePublicAccount } from "@/lib/public-booking";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const prismaAny = prisma as any;
 
-type Body = { message?: unknown; threadId?: unknown; clientTodayYmd?: unknown; clientTimeZone?: unknown };
+type Body = { message?: unknown; threadId?: unknown; threadKey?: unknown; clientTodayYmd?: unknown; clientTimeZone?: unknown };
 type Mode = "SELF" | "ASSISTANT";
 type Action = { type: "open_booking"; bookingUrl: string } | null;
 type ClientMembership = {
@@ -49,6 +50,24 @@ const asThreadId = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
+const asThreadKey = (v: unknown) => (typeof v === "string" && v.trim().length >= 16 ? v.trim().slice(0, 256) : null);
+
+const THREAD_KEY_SECRET = (process.env.AI_THREAD_SECRET ?? process.env.NEXTAUTH_SECRET ?? "").trim();
+
+function buildThreadKey(accountId: number, threadId: number) {
+  if (!THREAD_KEY_SECRET) return null;
+  return createHmac("sha256", THREAD_KEY_SECRET).update(`${accountId}:${threadId}`).digest("base64url");
+}
+
+function isValidThreadKey(accountId: number, threadId: number, threadKey: string | null) {
+  if (!THREAD_KEY_SECRET || !threadKey) return false;
+  const expected = buildThreadKey(accountId, threadId);
+  if (!expected) return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(threadKey);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
 
 function parseChoiceFromText(messageNorm: string): number | null {
   const direct = Number(messageNorm.match(/^\s*(?:№|номер\s*)?(\d{1,2})\s*$/i)?.[1] ?? NaN);
@@ -91,13 +110,51 @@ async function resolveAishaSystemPrompt(accountId: number): Promise<string | nul
   return parseAiSettingString(globalSetting?.value);
 }
 
-async function getThread(accountId: number, threadId: number | null, clientId: number | null) {
+function canAccessThread(args: {
+  accountId: number;
+  thread: { id: number; accountId: number | null; clientId: number | null; userId: number | null };
+  threadKey: string | null;
+  clientId: number | null;
+  userId: number | null;
+}) {
+  const { accountId, thread, threadKey, clientId, userId } = args;
+  if (thread.accountId !== accountId) return false;
+  if (clientId && thread.clientId === clientId) return true;
+  if (userId && thread.userId === userId) return true;
+  if (thread.clientId == null && thread.userId == null) {
+    // Backward-compatible mode: if secret is not configured, keep previous thread behavior.
+    if (!THREAD_KEY_SECRET) return true;
+    if (isValidThreadKey(accountId, thread.id, threadKey)) return true;
+  }
+  return false;
+}
+
+async function getThread(args: {
+  accountId: number;
+  threadId: number | null;
+  threadKey: string | null;
+  clientId: number | null;
+  userId: number | null;
+}) {
+  const { accountId, threadId, threadKey, clientId, userId } = args;
   let thread = threadId != null ? await prisma.aiThread.findFirst({ where: { id: threadId, accountId } }) : null;
+  if (thread && !canAccessThread({ accountId, thread, threadKey, clientId, userId })) {
+    thread = null;
+  }
   if (!thread) {
-    thread = await prisma.aiThread.create({ data: { accountId, clientId } });
+    thread = await prisma.aiThread.create({
+      data: {
+        accountId,
+        clientId: clientId ?? null,
+        userId: userId ?? null,
+      },
+    });
   }
   if (clientId && !thread.clientId) {
     thread = await prisma.aiThread.update({ where: { id: thread.id }, data: { clientId } });
+  }
+  if (userId && !thread.userId) {
+    thread = await prisma.aiThread.update({ where: { id: thread.id }, data: { userId } });
   }
   const ensuredThread = thread;
   const draft = await prismaAny.aiBookingDraft.upsert({
@@ -105,7 +162,7 @@ async function getThread(accountId: number, threadId: number | null, clientId: n
     create: { threadId: ensuredThread.id, status: "COLLECTING" },
     update: {},
   });
-  return { thread: ensuredThread, draft };
+  return { thread: ensuredThread, draft, threadKey: buildThreadKey(accountId, ensuredThread.id) };
 }
 
 async function resolveClientForAccount(session: ClientSessionValue, account: { id: number; slug: string; name: string }) {
@@ -320,13 +377,28 @@ const parseTime = (m: string) => {
 };
 
 const parsePhone = (m: string) => {
-  const s = m.match(/(?:\+7|8)\D*(?:\d\D*){10}/)?.[0] ?? "";
-  const d = s.replace(/\D/g, "");
-  if (d.length === 11 && d.startsWith("8")) return `+7${d.slice(1)}`;
-  if (d.length === 11 && d.startsWith("7")) return `+${d}`;
+  const candidates = m.match(/(?:\+7|8)[\d\s().-]*/g) ?? [];
+  for (const candidate of candidates) {
+    const d = candidate.replace(/\D/g, "");
+    if (d.length !== 11) continue;
+    if (d.startsWith("8")) return `+7${d.slice(1)}`;
+    if (d.startsWith("7")) return `+${d}`;
+  }
   return null;
 };
-const parseName = (m: string) => m.match(/(?:меня зовут|имя)\s+([A-Za-zА-Яа-яЁё\-]{2,})/i)?.[1] ?? null;
+const parseName = (m: string) => {
+  const explicit = m.match(/(?:меня зовут|имя)\s+([A-Za-zА-Яа-яЁё\-]{2,}(?:\s+[A-Za-zА-Яа-яЁё\-]{2,})?)/i)?.[1];
+  if (explicit) return explicit.trim();
+  const inlineWithPhone = m.match(/^\s*([A-Za-zА-Яа-яЁё\-]{2,})(?:\s+([A-Za-zА-Яа-яЁё\-]{2,}))?[\s,;:]+(?:\+7|8|\d{3,})/i);
+  if (inlineWithPhone) return [inlineWithPhone[1], inlineWithPhone[2]].filter(Boolean).join(" ").trim();
+  return null;
+};
+
+function hasExplicitConsentGrant(message: string) {
+  const t = norm(message);
+  if (/(?:\bне\s+соглас|без\s+соглас|не\s+даю\s+соглас)/i.test(t)) return false;
+  return /(?:^|\s)(согласен|согласна|даю\s+согласие|согласие\s+на\s+обработку\s+персональных\s+данных)(?:\s|$)/i.test(t);
+}
 
 function locationByText(messageNorm: string, locations: LocationLite[]) {
   const matches = locations.filter((x) => {
@@ -340,7 +412,21 @@ function locationByText(messageNorm: string, locations: LocationLite[]) {
 function serviceByText(messageNorm: string, services: ServiceLite[]) {
   const hasMale = /(муж|male|men)/i.test(messageNorm);
   const hasFemale = /(жен|female|women)/i.test(messageNorm);
-  const direct = services.find((x) => messageNorm.includes(norm(x.name)));
+  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const directExact = services.find((x) => {
+    const serviceName = norm(x.name);
+    return serviceName.length > 0 && messageNorm === serviceName;
+  });
+  if (directExact) return directExact;
+  const byBoundary = services
+    .slice()
+    .sort((a, b) => norm(b.name).length - norm(a.name).length)
+    .find((x) => {
+      const serviceName = norm(x.name);
+      if (!serviceName) return false;
+      return new RegExp(`\\b${escapeRegExp(serviceName)}\\b`, "i").test(messageNorm);
+    });
+  const direct = byBoundary ?? services.find((x) => messageNorm.includes(norm(x.name)));
   if (direct) return direct;
   if (hasMale || hasFemale) {
     const gendered = services.find((x) => {
@@ -392,7 +478,9 @@ function sanitizeAssistantReplyText(reply: string) {
     .replace(/подсобить/gi, "помочь")
     .replace(/подсоблю/gi, "помогу")
     .replace(/подсобишь/gi, "поможешь")
-    .replace(/подсобите/gi, "помогу");
+    .replace(/подсобите/gi, "помогу")
+    .replace(/какую именно услугу вам нужно записать/gi, "на какую именно услугу вас нужно записать")
+    .replace(/какую услугу вам нужно записать/gi, "на какую услугу вас нужно записать");
 }
 
 function serviceQuickOption(service: ServiceLite) {
@@ -797,15 +885,22 @@ export async function GET(request: Request) {
   if (resolved.response) return resolved.response;
   const url = new URL(request.url);
   const threadId = asThreadId(url.searchParams.get("threadId"));
+  const threadKey = asThreadKey(url.searchParams.get("threadKey"));
   const session = await getClientSession();
   const client = await resolveClientForAccount(session, resolved.account);
-  const { thread, draft } = await getThread(resolved.account.id, threadId, client?.clientId ?? null);
+  const { thread, draft, threadKey: nextThreadKey } = await getThread({
+    accountId: resolved.account.id,
+    threadId,
+    threadKey,
+    clientId: client?.clientId ?? null,
+    userId: session?.userId ?? null,
+  });
   const messages = await prisma.aiMessage.findMany({
     where: { threadId: thread.id },
     orderBy: { id: "asc" },
     select: { id: true, role: true, content: true },
   });
-  return jsonOk({ threadId: thread.id, messages, draft: draftView(draft) });
+  return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, messages, draft: draftView(draft) });
 }
 
 export async function DELETE(request: Request) {
@@ -813,14 +908,19 @@ export async function DELETE(request: Request) {
   if (resolved.response) return resolved.response;
   const url = new URL(request.url);
   const threadId = asThreadId(url.searchParams.get("threadId"));
+  const threadKey = asThreadKey(url.searchParams.get("threadKey"));
   if (!threadId) return jsonError("VALIDATION_FAILED", "threadId is required", null, 400);
+  const session = await getClientSession();
+  const client = await resolveClientForAccount(session, resolved.account);
   const thread = await prisma.aiThread.findFirst({ where: { id: threadId, accountId: resolved.account.id } });
-  if (!thread) return jsonError("NOT_FOUND", "Thread not found", null, 404);
+  if (!thread || !canAccessThread({ accountId: resolved.account.id, thread, threadKey, clientId: client?.clientId ?? null, userId: session?.userId ?? null })) {
+    return jsonError("NOT_FOUND", "Thread not found", null, 404);
+  }
   const newThread = await prisma.aiThread.create({
     data: {
       accountId: resolved.account.id,
-      clientId: thread.clientId ?? null,
-      userId: thread.userId ?? null,
+      clientId: client?.clientId ?? thread.clientId ?? null,
+      userId: session?.userId ?? thread.userId ?? null,
       title: thread.title ?? null,
     },
   });
@@ -829,7 +929,7 @@ export async function DELETE(request: Request) {
     create: { threadId: newThread.id, status: "COLLECTING" },
     update: {},
   });
-  return jsonOk({ ok: true, threadId: newThread.id });
+  return jsonOk({ ok: true, threadId: newThread.id, threadKey: buildThreadKey(resolved.account.id, newThread.id) });
 }
 
 export async function POST(request: Request) {
@@ -840,10 +940,17 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") return jsonError("VALIDATION_FAILED", "Invalid JSON body", null, 400);
   const message = asText(body.message);
   if (!message) return jsonError("VALIDATION_FAILED", "Field 'message' is required", null, 400);
+  const bodyThreadKey = asThreadKey(body.threadKey);
 
   const session = await getClientSession();
   const client = await resolveClientForAccount(session, resolved.account);
-  const { thread, draft } = await getThread(resolved.account.id, asThreadId(body.threadId), client?.clientId ?? null);
+  const { thread, draft, threadKey: nextThreadKey } = await getThread({
+    accountId: resolved.account.id,
+    threadId: asThreadId(body.threadId),
+    threadKey: bodyThreadKey,
+    clientId: client?.clientId ?? null,
+    userId: session?.userId ?? null,
+  });
 
   await prisma.aiMessage.create({ data: { threadId: thread.id, role: "user", content: message } });
   const turnAction = await prisma.aiAction.create({
@@ -858,7 +965,7 @@ export async function POST(request: Request) {
       where: { id: turnAction.id },
       data: { status: "FAILED", payload: { message, error: errorText ?? "unknown_error" } },
     });
-    return jsonOk({ threadId: thread.id, reply, action: null, ui: null, draft: draftView(draft) });
+    return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply, action: null, ui: null, draft: draftView(draft) });
   };
 
   try {
@@ -997,7 +1104,7 @@ export async function POST(request: Request) {
       /(услуг|услуга|стоимость|длительность|men haircut|women haircut|маник|педик|стриж|гель|peeling|facial)/i.test(lastAssistantText);
     const serviceSelectionFromCatalog =
       Boolean(serviceByText(norm(messageForRouting), services)) &&
-      /(доступные услуги ниже|выберите нужную кнопкой|покажи услуги|выберите услугу)/i.test(lastAssistantText);
+      /(доступные услуги ниже|выберите нужную кнопкой|покажи услуги|выберите услугу|какую именно услугу .*записать|на какую именно услугу .*записать)/i.test(lastAssistantText);
     const heuristicIntent = intentFromHeuristics(messageForRouting);
     const mappedNluIntent = mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
     const nluConfidence = typeof nlu?.confidence === "number" ? nlu.confidence : 0;
@@ -1022,7 +1129,7 @@ export async function POST(request: Request) {
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
     if (explicitClientReschedulePhrase) intent = "reschedule_my_booking";
-    if (explicitClientCancelPhrase && !cancelMeansDraftAbort) intent = "cancel_my_booking";
+    if (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (specialistFollowUpByLocation) intent = "ask_specialists";
@@ -1036,7 +1143,7 @@ export async function POST(request: Request) {
     if (explicitAvailabilityPeriod) intent = "ask_availability";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
-    if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint) intent = "ask_services";
+    if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
     if (explicitServicesFollowUp) intent = "ask_services";
     if (has(messageForRouting, /(пришли список|покажи список|скинь список|список услуг)/i)) intent = "ask_services";
     if (explicitServiceFollowUp) intent = "ask_services";
@@ -1060,6 +1167,11 @@ export async function POST(request: Request) {
     if (serviceSelectionFromCatalog && !explicitServiceComplaint) {
       intent = "booking_start";
     }
+    // Strong override: inside active booking context, explicit service choice must continue booking,
+    // not service-info chat branch.
+    if (hasDraftContextEarly && Boolean(serviceByText(norm(messageForRouting), services)) && !explicitServiceComplaint) {
+      intent = "booking_set_service";
+    }
     const selectedSpecialistByText = specialistByText(t, specialists);
     const explicitAnySpecialistChoice = isAnySpecialistChoiceText(t);
     const choiceNum = parseChoiceFromText(t);
@@ -1080,7 +1192,7 @@ export async function POST(request: Request) {
       confirmPendingClientAction ||
       explicitClientCancelConfirm ||
       explicitClientRescheduleConfirm ||
-      (explicitClientCancelPhrase && !cancelMeansDraftAbort) ||
+      (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) ||
       explicitClientReschedulePhrase;
     const isConsentStage = d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION";
     const shouldStayInAssistantStages = isConsentStage && d.mode === "ASSISTANT";
@@ -1094,6 +1206,14 @@ export async function POST(request: Request) {
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !forceClientActions &&
       (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t));
+    const forceBookingOnServiceSelection =
+      hasDraftContext &&
+      !explicitBookingDecline &&
+      !forceClientActions &&
+      !explicitDateTimeQuery &&
+      !explicitServiceComplaint &&
+      Boolean(serviceByText(t, services)) &&
+      Boolean(d.locationId || locationByText(t, locations));
     if (hasDraftContext && explicitAvailabilityPeriod) {
       intent = "ask_availability";
     }
@@ -1101,7 +1221,7 @@ export async function POST(request: Request) {
       ? "chat-only"
       : forceClientActions
       ? "client-actions"
-      : forceBookingByContext
+      : forceBookingByContext || forceBookingOnServiceSelection
       ? "booking-flow"
       : routeForIntent(intent);
     const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
@@ -1126,11 +1246,17 @@ export async function POST(request: Request) {
       route === "chat-only" &&
       !explicitBookingDecline &&
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
-      !isConversationalHeuristicIntent(intent) &&
       !confirmPendingClientAction &&
       !continuePendingCancelChoice &&
       hasDraftContext &&
-      looksLikeBookingContinuation;
+      looksLikeBookingContinuation &&
+      (!isConversationalHeuristicIntent(intent) ||
+        Boolean(parseTime(messageForRouting)) ||
+        Boolean(parseDate(messageForRouting, nowYmd)) ||
+        Boolean(choiceNum) ||
+        Boolean(locationByText(t, locations)) ||
+        Boolean(serviceByText(t, services)) ||
+        Boolean(selectedSpecialistByText));
     // In assistant completion stages, every follow-up must be processed by deterministic booking-flow
     // to enforce phone validation, consent, and explicit final confirmation.
     const forceAssistantStageFlow =
@@ -1140,9 +1266,9 @@ export async function POST(request: Request) {
       !forceClientActions &&
       !explicitDateTimeQuery;
     const shouldEnrichDraftForBooking =
-      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow;
+      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnServiceSelection;
     const shouldRunBookingFlow =
-      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow;
+      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnServiceSelection;
     const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
     const prevUserNorm = norm(previousUserText);
     const carryPrevTimePref =
@@ -1221,7 +1347,7 @@ export async function POST(request: Request) {
           },
         }),
       ]);
-      return jsonOk({ threadId: thread.id, reply: unknownServiceReply, action: null, ui: null, draft: d });
+      return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply: unknownServiceReply, action: null, ui: null, draft: d });
     }
 
     if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
@@ -1311,7 +1437,10 @@ export async function POST(request: Request) {
     const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
     d.clientPhone = parsePhone(message) || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
     d.clientName = parseName(message) || nlu?.clientName || d.clientName || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() || null;
-    const explicitConsentText = has(message, /(согласен|согласна|даю согласие|согласие на обработку)/i);
+    const explicitConsentText =
+      d.mode === "ASSISTANT" &&
+      (d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION") &&
+      hasExplicitConsentGrant(message);
     if (explicitConsentText) {
       d.consentConfirmedAt = new Date().toISOString();
     }
@@ -1340,7 +1469,11 @@ export async function POST(request: Request) {
       } else if (authLevel === "none") {
         const accountParam = resolved.account.slug || "";
         const loginUrl = accountParam ? `/c/login?account=${encodeURIComponent(accountParam)}` : "/c/login";
-        reply = `Для персональных данных нужна активная авторизация. Войдите в личный кабинет аккаунта: ${loginUrl}`;
+        reply = "Для персональных данных нужна активная авторизация. Нажмите кнопку ниже, чтобы войти в личный кабинет.";
+        nextUi = {
+          kind: "quick_replies",
+          options: [{ label: "Войти в личный кабинет", value: "Открыть личный кабинет", href: loginUrl }],
+        };
       } else {
         reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
       }
@@ -1400,10 +1533,11 @@ export async function POST(request: Request) {
         } else if (isOutOfDomainPrompt(t)) {
           reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
-          const talk = await runAishaSmallTalkReply({
-            message,
-            assistantName: ASSISTANT_NAME,
-            recentMessages: [...recentMessages].reverse(),
+      const talk = await runAishaSmallTalkReply({
+        accountId: resolved.account.id,
+        message,
+        assistantName: ASSISTANT_NAME,
+        recentMessages: [...recentMessages].reverse(),
             accountProfile,
             knownClientName: d.clientName,
           });
@@ -1526,6 +1660,7 @@ export async function POST(request: Request) {
           reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
         const talk = await runAishaSmallTalkReply({
+          accountId: resolved.account.id,
           message,
           assistantName: ASSISTANT_NAME,
           recentMessages: [...recentMessages].reverse(),
@@ -1544,6 +1679,7 @@ export async function POST(request: Request) {
       reply.length <= 240;
     if (canNaturalizeReply) {
       const naturalized = await runAishaNaturalizeReply({
+        accountId: resolved.account.id,
         assistantName: ASSISTANT_NAME,
         message,
         canonicalReply: reply,
@@ -1617,8 +1753,25 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    return jsonOk({ threadId: thread.id, reply, action: nextAction, ui: nextUi, draft: d });
+    return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d });
   } catch (e) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
