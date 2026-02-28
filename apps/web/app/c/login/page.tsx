@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+﻿import type { CSSProperties, ReactNode } from "react";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import {
@@ -6,6 +6,7 @@ import {
   type PublicMenuFrame,
 } from "@/app/[publicSlug]/_shared/menu-render";
 import ClientLoginPage from "./login-client";
+import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 
 type PageProps = {
   searchParams?: Promise<{ account?: string }> | { account?: string };
@@ -73,7 +74,10 @@ export default async function ClientLoginPageWrapper({ searchParams }: PageProps
       >
         {menuNode}
         <ClientLoginPage initialAccountSlug={accountSlug ?? ""} />
+        {accountSlug ? <PublicAiChatWidget accountSlug={accountSlug} /> : null}
       </div>
     </main>
   );
 }
+
+

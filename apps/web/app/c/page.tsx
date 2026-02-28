@@ -7,6 +7,7 @@ import {
   type PublicMenuFrame,
 } from "@/app/[publicSlug]/_shared/menu-render";
 import PublicSiteOverlayLoader from "@/components/public-site-overlay-loader";
+import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import LogoutButton from "./logout-button";
 
 type ClientHomeProps = {
@@ -130,6 +131,9 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           </section>
         </div>
       </main>
+      {accountSlug ? <PublicAiChatWidget accountSlug={accountSlug} /> : null}
     </PublicSiteOverlayLoader>
   );
 }
+
+

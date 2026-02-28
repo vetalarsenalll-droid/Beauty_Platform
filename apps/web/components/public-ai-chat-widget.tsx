@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -406,7 +406,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                             onClick={() => {
                               if (option.href) {
                                 if (typeof window !== "undefined") {
-                                  window.open(option.href, "_blank", "noopener,noreferrer");
+                                  window.location.assign(option.href);
                                 }
                                 return;
                               }
@@ -483,15 +483,15 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
               <div className="max-w-[90%] rounded-2xl bg-black/5 px-3 py-2 text-sm text-[color:var(--site-muted,#6b7280)]">
                 <div className="flex items-center gap-1">
                   <span
-                    className="ai-dot-wave inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
                     style={{ animationDelay: "0ms" }}
                   />
                   <span
-                    className="ai-dot-wave inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
                     style={{ animationDelay: "120ms" }}
                   />
                   <span
-                    className="ai-dot-wave inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
                     style={{ animationDelay: "240ms" }}
                   />
                 </div>
@@ -522,63 +522,19 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="ai-fab group flex items-center gap-2 rounded-full bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20"
+          className="group flex items-center gap-2 rounded-full bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105"
           aria-label="Открыть AI-ассистента"
         >
-          <span className="ai-fab-dot h-2 w-2 rounded-full bg-white" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
           <span className="whitespace-nowrap">AI-ассистент</span>
         </button>
       )}
-      <style jsx global>{`
-        @keyframes ai-dot-wave {
-          0%,
-          60%,
-          100% {
-            transform: translateY(0) scale(1);
-            opacity: 0.35;
-          }
-          30% {
-            transform: translateY(-3px) scale(1.08);
-            opacity: 1;
-          }
-        }
-        .ai-dot-wave {
-          animation: ai-dot-wave 0.9s ease-in-out infinite;
-          will-change: transform, opacity;
-        }
-        @keyframes ai-fab-attention {
-          0%,
-          100% {
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-          }
-          50% {
-            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
-          }
-        }
-        @keyframes ai-fab-dot-pulse {
-          0%,
-          100% {
-            transform: scale(1);
-            opacity: 0.85;
-          }
-          50% {
-            transform: scale(1.25);
-            opacity: 1;
-          }
-        }
-        .ai-fab {
-          animation: ai-fab-attention 2.4s ease-in-out infinite;
-          transition: box-shadow 0.2s ease, filter 0.2s ease;
-        }
-        .ai-fab:hover {
-          filter: brightness(1.04);
-        }
-        .ai-fab-dot {
-          animation: ai-fab-dot-pulse 1.2s ease-in-out infinite;
-          box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
-        }
-      `}</style>
     </div>
   );
 }
+
+
+
+
+
 
