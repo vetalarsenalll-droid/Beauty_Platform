@@ -108,6 +108,11 @@ const scenarios = /** @type {Scenario[]} */ ([
   },
   { name: "Availability today", suites: ["booking-e2e"], steps: [{ send: "на сегодня есть свободные окна?", expectAny: [/окна|время|слот|филиал/i] }] },
   { name: "Availability evening", suites: ["booking-e2e"], steps: [{ send: "на вечер что есть?", expectAny: [/окна|время|слот|вечер|филиал/i] }] },
+  {
+    name: "Nearest availability should return windows immediately",
+    suites: ["booking-e2e"],
+    steps: [{ send: "а свободное окошко когда ближайшее?", expectAny: [/\d{2}:\d{2}/i, /окна|ближайшие|время|слот/i] }],
+  },
   { name: "Availability in March", suites: ["booking-e2e"], steps: [{ send: "в марте есть время?", expectAny: [/дата|окна|время|могу проверить|ближайшие/i] }] },
   { name: "Booking service-first path", suites: ["booking-e2e"], steps: [{ send: "хочу на маникюр завтра", expectAny: [/филиал|время|слот|локац|услуга|стоим|мин/i] }] },
   {
@@ -116,7 +121,7 @@ const scenarios = /** @type {Scenario[]} */ ([
     steps: [
       { send: "запиши на удаление зуба", expectAny: [/филиал|локац|beauty salon center|beauty salon riverside/i] },
       { send: "Beauty Salon Center" },
-      { send: "удаление зуба", expectAny: [/не нашл|такой услуги .*нет|выберите услугу|доступные услуги|выберите.*доступн/i], rejectAny: [/проверьте данные|как завершим запись/i] },
+      { send: "удаление зуба", expectAny: [/не нашл|такой услуги .*нет|данной услуги .*нет|выберите услугу|доступные услуги|выберите.*доступн/i], rejectAny: [/проверьте данные|как завершим запись/i] },
     ],
   },
   {

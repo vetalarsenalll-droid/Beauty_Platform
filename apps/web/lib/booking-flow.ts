@@ -112,13 +112,14 @@ function shouldAskServiceClarification(messageNorm: string, services: ServiceLit
 
 function detectTimePreference(messageNorm: string): "morning" | "day" | "evening" | null {
   if (
-    /(?:\u0432\u0435\u0447\u0435\u0440|\u0432\u0435\u0447\u0435\u0440\u043e\u043c|\u043f\u043e\u0441\u043b\u0435 \u0440\u0430\u0431\u043e\u0442\u044b|\u043f\u043e\u0441\u043b\u0435 \u043e\u0431\u0435\u0434\u0430|evening)/iu.test(
+    /(?:\u0432\u0435\u0447\u0435\u0440|\u0432\u0435\u0447\u0435\u0440\u043e\u043c|\u043f\u043e\u0441\u043b\u0435 \u0440\u0430\u0431\u043e\u0442\u044b|evening)/iu.test(
       messageNorm,
     )
   )
     return "evening";
   if (/(?:\u0443\u0442\u0440|\u0443\u0442\u0440\u043e\u043c|morning)/iu.test(messageNorm)) return "morning";
-  if (/(?:\u0434\u043d\u0435\u043c|\u0434\u043d\u0451\u043c|\u0434\u0435\u043d\u044c|daytime)/iu.test(messageNorm)) return "day";
+  if (/(?:\u0434\u043d\u0435\u043c|\u0434\u043d\u0451\u043c|\u0434\u0435\u043d\u044c|\u043f\u043e\u0441\u043b\u0435 \u043e\u0431\u0435\u0434\u0430|daytime)/iu.test(messageNorm))
+    return "day";
   return null;
 }
 
@@ -135,6 +136,18 @@ function filterByPreference(times: string[], pref: "morning" | "day" | "evening"
 
 function wantsNextDateStep(messageNorm: string) {
   return /^(давай|дальше|далее|следующий|следующую|еще|ещё|да)\b/i.test(messageNorm);
+}
+
+function wantsStopBooking(messageNorm: string) {
+  return /(?:я\s+передумал(?:а)?|передумал(?:а)?\s+записываться|не\s+хочу(?:\s+записываться)?|не\s+надо|не\s+нужно\s+записывать|отмена\s+записи|отмени\s+запись)/iu.test(
+    messageNorm,
+  );
+}
+
+function asksAfterDateRange(messageNorm: string) {
+  return /(?:после\s+\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)|после\s+\d{4}-\d{2}-\d{2})/iu.test(
+    messageNorm,
+  );
 }
 
 function asksAboutSpecialists(messageNorm: string) {
@@ -246,11 +259,15 @@ async function collectLocationWindows(args: {
   const { origin, accountSlug, locations, date, serviceId, preference, limit = 30 } = args;
   const rows: Array<{ locationId: number; name: string; times: string[] }> = [];
   for (const loc of locations) {
-    const offers = await getOffers(origin, accountSlug, loc.id, date);
-    const base = serviceId
-      ? (offers?.times ?? []).filter((x) => x.services.some((s) => s.serviceId === serviceId))
-      : offers?.times ?? [];
-    const all = Array.from(new Set(base.map((x) => x.time)));
+    let all: string[] = [];
+    if (serviceId) {
+      // Use strict slot API for service-specific windows to avoid showing times
+      // that later fail specialist/duration validation.
+      all = await getSlots(origin, accountSlug, loc.id, serviceId, date);
+    } else {
+      const offers = await getOffers(origin, accountSlug, loc.id, date);
+      all = Array.from(new Set((offers?.times ?? []).map((x) => x.time)));
+    }
     const filtered = filterByPreference(all, preference);
     const times = limit == null || limit <= 0 ? filtered : filtered.slice(0, limit);
     if (times.length) rows.push({ locationId: loc.id, name: loc.name, times });
@@ -345,6 +362,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       messageNorm,
     );
   const timeLimit = wantsAllTimes || wantsMoreTimes ? null : 12;
+  const wantsMonthRange =
+    /(?:весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца)/iu.test(messageNorm);
+  const wantsAfterRange = asksAfterDateRange(messageNorm);
 
   let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
@@ -381,6 +401,21 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   if (wantsChange(messageNorm) && hasContext && d.status !== "COMPLETED") {
     applyChangeRollback(messageNorm, d);
     nextStatus = "COLLECTING";
+  }
+  if (wantsStopBooking(messageNorm) && hasContext && d.status !== "COMPLETED") {
+    d.locationId = null;
+    d.serviceId = null;
+    d.specialistId = null;
+    d.date = null;
+    d.time = null;
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    nextStatus = "COLLECTING";
+    return {
+      handled: true,
+      reply: "Хорошо, запись не оформляю. Если передумаете, напишите удобную дату и услугу.",
+      nextStatus,
+    };
   }
 
   if (d.locationId && d.serviceId && d.date && d.time) nextStatus = "CHECKING";
@@ -507,6 +542,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         fromDate: targetDate,
         serviceId: d.serviceId ?? null,
         preference: pref,
+        daysAhead: wantsMonthRange ? 45 : wantsAfterRange ? 60 : 14,
         limit: timeLimit,
       });
       if (nearest) {
@@ -517,6 +553,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           }:\n${nearest.rows
             .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
             .join("\n")}\nВыберите филиал кнопкой ниже. Также можно написать время и филиал сообщением.`,
+          nextStatus: "COLLECTING",
+        };
+      }
+      if (wantsMonthRange || wantsAfterRange) {
+        return {
+          handled: true,
+          reply: `После ${targetDateRu} свободных окон по текущему графику не нашла. Могу проверить более ранние даты или другой филиал.`,
           nextStatus: "COLLECTING",
         };
       }
@@ -628,13 +671,16 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.time) {
-    const times = await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
+    const allTimes = await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
+    const pref = detectTimePreference(messageNorm);
+    const times = filterByPreference(allTimes, pref);
     if (!times.length) {
       return { handled: true, reply: `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Укажите другую дату.`, nextStatus: "COLLECTING" };
     }
+    const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
     return {
       handled: true,
-      reply: `На ${formatYmdRu(d.date)} доступны времена: ${formatTimesShort(times, timeLimit)}. Выберите время.`,
+      reply: `На ${formatYmdRu(d.date)}${prefText} доступны времена: ${formatTimesShort(times, timeLimit)}. Выберите время.`,
       nextStatus: "COLLECTING",
     };
   }
@@ -723,11 +769,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.consentConfirmedAt) {
-    const legalLinks = Array.from(new Set(requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`)));
-    const legalLinksText = legalLinks.length ? `\n${legalLinks.join("\n")}` : "";
     return {
       handled: true,
-      reply: `Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.${legalLinksText}`,
+      reply: "Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.",
       nextStatus: "WAITING_CONSENT",
     };
   }

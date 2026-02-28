@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { isPastDateOrTimeInTz, toMinutes, zonedDayRangeUtc, zonedTimeToUtc } from "@/lib/public-booking";
 
 export type Mode = "SELF" | "ASSISTANT";
@@ -104,10 +104,16 @@ export function bookingSummary(
   services: ServiceLite[],
   specialists: SpecialistLite[],
 ) {
+  const formatYmdRu = (ymd: string | null | undefined) => {
+    if (!ymd) return "—";
+    const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return ymd;
+    return `${m[3]}.${m[2]}.${m[1]}`;
+  };
   const l = locations.find((x) => x.id === d.locationId)?.name ?? "—";
   const s = services.find((x) => x.id === d.serviceId)?.name ?? "—";
   const sp = specialists.find((x) => x.id === d.specialistId)?.name ?? "—";
-  return `Локация: ${l}\nУслуга: ${s}\nСпециалист: ${sp}\nДата: ${d.date ?? "—"}\nВремя: ${d.time ?? "—"}`;
+  return `Локация: ${l}\nУслуга: ${s}\nСпециалист: ${sp}\nДата: ${formatYmdRu(d.date)}\nВремя: ${d.time ?? "—"}`;
 }
 
 export function serviceListText(services: ServiceLite[], limit = 12) {
@@ -239,3 +245,4 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
 
   return { ok: true as const, appointmentId: appt.id };
 }
+

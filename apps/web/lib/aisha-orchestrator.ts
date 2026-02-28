@@ -88,6 +88,14 @@ type RunAishaSmallTalkArgs = {
   knownClientName?: string | null;
 };
 
+type RunAishaNaturalizeArgs = {
+  assistantName: string;
+  message: string;
+  canonicalReply: string;
+  accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
+  knownClientName?: string | null;
+};
+
 const NLU_FAIL_THRESHOLD = 3;
 const NLU_COOLDOWN_MS = 2 * 60_000;
 
@@ -264,6 +272,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     `Ты ${args.assistantName}, женский персонаж, дружелюбный AI-ассистент записи.`,
     "Ты работаешь в бьюти-бизнесе аккаунта из контекста (студия, салон, частный мастер и т.п.) и обсуждаешь только этот домен.",
     "Отвечай только на русском, естественно, коротко (1-3 предложения).",
+    "Не используй разговорное слово «подсобить».",
     "Никогда не говори, что ты NLU-модуль, классификатор или системный компонент.",
     "Никогда не предлагай записывать встречи, звонки, мысли и т.п.",
     "Никогда не выдумывай услуги, которых нет в переданном контексте.",
@@ -289,6 +298,39 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     ]);
     const text = completion.content?.trim();
     return text ? text.slice(0, 500) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Promise<string | null> {
+  if (!canUseNlu()) return null;
+  if (!args.canonicalReply.trim()) return null;
+
+  const prompt = [
+    `Ты ${args.assistantName}, дружелюбный ассистент записи.`,
+    "Ниже дан КАНОНИЧЕСКИЙ ОТВЕТ. Перефразируй его более естественно и человечно на русском.",
+    "Очень важно: НЕ добавляй никаких новых фактов, услуг, цен, времени, адресов, обещаний и ссылок.",
+    "Смысл и факты должны остаться строго теми же.",
+    "Коротко: 1-2 предложения, максимум 220 символов.",
+    "Не используй разговорное слово «подсобить».",
+    "Если канонический ответ уже хороший, верни его почти без изменений.",
+    args.knownClientName ? `Имя клиента: ${args.knownClientName}` : "Имя клиента неизвестно.",
+    args.accountProfile?.description ? `Описание бизнеса: ${args.accountProfile.description}` : "",
+    `Сообщение пользователя: ${args.message}`,
+    `КАНОНИЧЕСКИЙ_ОТВЕТ: ${args.canonicalReply}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const completion = await createGigaChatCompletion([
+      { role: "system", content: "Перефразируй только стиль. Факты не менять." },
+      { role: "user", content: prompt },
+    ]);
+    const text = completion.content?.trim();
+    if (!text) return null;
+    return text.slice(0, 260);
   } catch {
     return null;
   }

@@ -2,7 +2,7 @@
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { AishaNluIntent, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
+import { AishaNluIntent, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import { runBookingFlow } from "@/lib/booking-flow";
 import { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import { ANTI_HALLUCINATION_RULES, AishaIntent, routeForIntent } from "@/lib/dialog-policy";
@@ -202,6 +202,34 @@ const pickSafeNluDate = (candidate: unknown, today: string) => {
 
 const parseDate = (m: string, today: string) => {
   const t = norm(m);
+  const afterDm = t.match(
+    /\bпосле\s+(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b/,
+  );
+  if (afterDm) {
+    const monthMap = new Map<string, string>([
+      ["января", "01"],
+      ["февраля", "02"],
+      ["марта", "03"],
+      ["апреля", "04"],
+      ["мая", "05"],
+      ["июня", "06"],
+      ["июля", "07"],
+      ["августа", "08"],
+      ["сентября", "09"],
+      ["октября", "10"],
+      ["ноября", "11"],
+      ["декабря", "12"],
+    ]);
+    const day = Number(afterDm[1]);
+    const month = monthMap.get(afterDm[2]) ?? "01";
+    let year = Number(today.slice(0, 4));
+    let candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+    if (candidate < today) {
+      year += 1;
+      candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+    }
+    return addDaysYmd(candidate, 1);
+  }
   if (/\b(сегодня|today)\b/.test(t)) return today;
   if (/\b(послезавтра|day after tomorrow)\b/.test(t)) return addDaysYmd(today, 2);
   if (/\b(завтра|tomorrow)\b/.test(t)) return addDaysYmd(today, 1);
@@ -236,23 +264,37 @@ const parseDate = (m: string, today: string) => {
     return candidate;
   }
 
-  const monthOnly = t.match(/\b(в\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)\b/);
+  const monthOnly = t.match(
+    /\b(?:в\s+)?(?:перв(?:ых|ые)\s+числ(?:ах|а)\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b/,
+  );
   if (monthOnly) {
     const monthMap = new Map<string, string>([
       ["январе", "01"],
+      ["января", "01"],
       ["феврале", "02"],
+      ["февраля", "02"],
       ["марте", "03"],
+      ["марта", "03"],
       ["апреле", "04"],
+      ["апреля", "04"],
       ["мае", "05"],
+      ["мая", "05"],
       ["июне", "06"],
+      ["июня", "06"],
       ["июле", "07"],
+      ["июля", "07"],
       ["августе", "08"],
+      ["августа", "08"],
       ["сентябре", "09"],
+      ["сентября", "09"],
       ["октябре", "10"],
+      ["октября", "10"],
       ["ноябре", "11"],
+      ["ноября", "11"],
       ["декабре", "12"],
+      ["декабря", "12"],
     ]);
-    const month = monthMap.get(monthOnly[2] ?? "") ?? "01";
+    const month = monthMap.get(monthOnly[1] ?? "") ?? "01";
     let year = Number(today.slice(0, 4));
     let candidate = `${year}-${month}-01`;
     if (candidate < today) {
@@ -333,13 +375,43 @@ function asksClientOwnName(text: string) {
 }
 
 function isGreetingText(text: string) {
-  return has(text, /^(привет|приветик|здравствуй|здраствуй|здравствуйте|здорово|здарова|добрый день|добрый вечер|hello|hi|hey|хай)\b/i);
+  return has(
+    text,
+    /^(привет|приветик|приветули|привет-привет|здравствуй|здраствуй|здравствуйте|здорово|здарова|добрый день|добрый вечер|hello|hi|hey|хай)\b/i,
+  );
 }
 
 function formatYmdRu(ymd: string) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!m) return ymd;
   return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+function sanitizeAssistantReplyText(reply: string) {
+  return reply
+    .replace(/подсобить/gi, "помочь")
+    .replace(/подсоблю/gi, "помогу")
+    .replace(/подсобишь/gi, "поможешь")
+    .replace(/подсобите/gi, "помогу");
+}
+
+function hasKnownServiceNameInText(text: string, services: ServiceLite[]) {
+  const replyNorm = norm(text);
+  return services.some((s) => {
+    const serviceNorm = norm(s.name);
+    if (!serviceNorm) return false;
+    if (replyNorm.includes(serviceNorm)) return true;
+    const tokens = serviceNorm.split(/\s+/).filter((t) => t.length >= 4);
+    return tokens.some((t) => replyNorm.includes(t));
+  });
+}
+
+function looksLikeServiceClaimInReply(text: string) {
+  const replyNorm = norm(text);
+  return (
+    /(у нас (есть|доступн)|можем записать|доступные услуги|вот наши услуги|предлагаем услуги|услуги:)/i.test(replyNorm) &&
+    /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring|массаж|макияж|укладк|чистк|депиля|эпиля)/i.test(replyNorm)
+  );
 }
 
 function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
@@ -373,6 +445,12 @@ function asksServiceExistence(messageNorm: string) {
 
 function asksNearestAvailability(messageNorm: string) {
   return /((ближайш|свобод).*(окошк|окно|слот|время)|(окошк|окно|слот|время).*(ближайш|свобод)|когда.*(ближайш|свобод))/i.test(
+    messageNorm,
+  );
+}
+
+function asksAvailabilityPeriod(messageNorm: string) {
+  return /(?:после\s+\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)|весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца|по\s+месяцу)/i.test(
     messageNorm,
   );
 }
@@ -515,6 +593,16 @@ function hasLocationCue(messageNorm: string) {
 
 function isBookingCarryMessage(messageNorm: string) {
   return /^(почему|а почему|проверь|проверяй|дальше|далее|а дальше|что дальше|давай|да|ок|оке|окей|угу|ага)$/i.test(
+    messageNorm,
+  );
+}
+
+function isSoftBookingMention(messageNorm: string) {
+  return /(может|если|вдруг|потом).*(запишусь|записалась|запишемся|записаться)/i.test(messageNorm);
+}
+
+function isBookingDeclineMessage(messageNorm: string) {
+  return /(?:не\s+просил[а-я]*.*(?:локац|филиал|запис|запись)|не\s+предлагай.*(?:локац|филиал|запис|запись)|не\s+хочу\s+записываться|не\s+надо\s+записывать|не\s+предлагай\s+запись)/i.test(
     messageNorm,
   );
 }
@@ -879,10 +967,12 @@ export async function POST(request: Request) {
         ? "отмени ближайшую запись"
         : "отмени последнюю запись"
       : message;
+    const hasDraftContextEarly = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
 
     const explicitClientCancelConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+отмен[\p{L}]*/iu);
     const explicitClientRescheduleConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+перен[\p{L}]*/iu);
     const explicitDateTimeQuery = asksCurrentDateTime(messageForRouting);
+    let explicitBookingDecline = isBookingDeclineMessage(norm(messageForRouting)) || has(messageForRouting, /^(не надо|не хочу)$/i);
     const lastAssistantText = recentMessages.find((m) => m.role === "assistant")?.content ?? "";
     const previousUserText = recentMessages.filter((m) => m.role === "user")[1]?.content ?? "";
     const specialistFollowUpLocation = locationByText(t, locations);
@@ -908,20 +998,28 @@ export async function POST(request: Request) {
     if ((intent as string) === "my_booking") intent = "my_bookings";
     const explicitClientReschedulePhrase = has(messageForRouting, /^(перенеси|перенести|перезапиши)\b/i);
     const explicitClientCancelPhrase = has(messageForRouting, /^(отмени|отменить|отмена)\b/i);
+    const hasClientCancelContext = has(messageForRouting, /(мою запись|мои записи|запись #|номер записи|ближайш|последн|визит|appointment|подтверждаю отмену)/i);
+    const cancelMeansDraftAbort = hasDraftContextEarly && explicitClientCancelPhrase && !hasClientCancelContext;
     const explicitWhoDoesServices = asksWhoPerformsServices(norm(messageForRouting));
     const explicitServiceComplaint = isServiceComplaintMessage(norm(messageForRouting));
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
+    const explicitAvailabilityPeriod = asksAvailabilityPeriod(norm(messageForRouting));
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
     if (explicitClientReschedulePhrase) intent = "reschedule_my_booking";
-    if (explicitClientCancelPhrase) intent = "cancel_my_booking";
+    if (explicitClientCancelPhrase && !cancelMeansDraftAbort) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (specialistFollowUpByLocation) intent = "ask_specialists";
     if (explicitWhoDoesServices) intent = "ask_specialists";
     if (explicitAssistantQualification) intent = "identity";
+    if (cancelMeansDraftAbort) {
+      explicitBookingDecline = true;
+      intent = "reject_or_change";
+    }
     if (explicitNearestAvailability) intent = "ask_availability";
+    if (explicitAvailabilityPeriod) intent = "ask_availability";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
     if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint) intent = "ask_services";
@@ -947,6 +1045,8 @@ export async function POST(request: Request) {
     const selectedSpecialistByText = specialistByText(t, specialists);
     const choiceNum = parseChoiceFromText(t);
     const explicitBookingText =
+      !explicitBookingDecline &&
+      !isSoftBookingMention(t) &&
       !explicitDateTimeQuery &&
       !specialistFollowUpByLocation &&
       has(
@@ -954,9 +1054,13 @@ export async function POST(request: Request) {
         /(запиш|записаться|запись|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи|бронь|забронируй|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/i,
       ) ||
       Boolean(selectedSpecialistByText);
-    const hasDraftContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
+    const hasDraftContext = hasDraftContextEarly;
     const forceClientActions =
-      confirmPendingClientAction || explicitClientCancelConfirm || explicitClientRescheduleConfirm || explicitClientCancelPhrase || explicitClientReschedulePhrase;
+      confirmPendingClientAction ||
+      explicitClientCancelConfirm ||
+      explicitClientRescheduleConfirm ||
+      (explicitClientCancelPhrase && !cancelMeansDraftAbort) ||
+      explicitClientReschedulePhrase;
     const isConsentStage = d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION";
     const isConsentStageMessage = has(
       messageForRouting,
@@ -964,9 +1068,13 @@ export async function POST(request: Request) {
     );
     const forceBookingByContext =
       hasDraftContext &&
+      !explicitBookingDecline &&
       (!isConsentStage || isConsentStageMessage) &&
       !forceClientActions &&
       (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t));
+    if (hasDraftContext && explicitAvailabilityPeriod) {
+      intent = "ask_availability";
+    }
     const route = explicitDateTimeQuery
       ? "chat-only"
       : forceClientActions
@@ -994,6 +1102,7 @@ export async function POST(request: Request) {
       );
     const shouldContinueBookingByContext =
       route === "chat-only" &&
+      !explicitBookingDecline &&
       (!isConsentStage || isConsentStageMessage) &&
       !isConversationalHeuristicIntent(intent) &&
       !confirmPendingClientAction &&
@@ -1002,6 +1111,26 @@ export async function POST(request: Request) {
       looksLikeBookingContinuation;
     const shouldEnrichDraftForBooking = route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext;
     const shouldRunBookingFlow = route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext;
+    const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
+    const prevUserNorm = norm(previousUserText);
+    const carryPrevTimePref =
+      !hasTimePrefCue &&
+      Boolean(locationByText(t, locations)) &&
+      /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(prevUserNorm)
+        ? prevUserNorm
+        : "";
+    const bookingMessageNorm = carryPrevTimePref ? `${t} ${carryPrevTimePref}` : t;
+
+    if (explicitBookingDecline) {
+      d.locationId = null;
+      d.serviceId = null;
+      d.specialistId = null;
+      d.date = null;
+      d.time = null;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+      d.status = "COLLECTING";
+    }
 
     // Fill draft opportunistically; booking-flow validates deterministically.
     const hadLocationBefore = Boolean(d.locationId);
@@ -1127,7 +1256,8 @@ export async function POST(request: Request) {
       const parsedDate = parseDate(message, nowYmd);
       const parsedTime = parseTime(message);
       d.date = parsedDate || pickSafeNluDate(nlu?.date, nowYmd) || d.date;
-      d.time = parsedTime || nlu?.time || d.time;
+      // Time must come from explicit user text (or previously selected slot), not LLM guess.
+      d.time = parsedTime || d.time;
       if (selectedSpecialistByText) d.specialistId = selectedSpecialistByText.id;
       const wantsSelfMode = has(message, /(сам|самостоятельно|в форме|онлайн)/i);
       const wantsAssistantMode = has(message, /(оформи|через ассистента|оформи ты|оформи ты)/i);
@@ -1176,11 +1306,12 @@ export async function POST(request: Request) {
       const asksAvailabilityNow =
         intent === "ask_availability" ||
         explicitNearestAvailability ||
+        explicitAvailabilityPeriod ||
         has(message, /(окошк|свобод|время|слот|обед|после обеда|утр|вечер|днем|днём)/i) ||
         // If user just selected location while discussing windows/date, keep showing times first.
         (locationChosenThisTurn && Boolean(d.date) && !d.serviceId && !d.time);
       const flowResult = await runBookingFlow({
-        messageNorm: t,
+        messageNorm: bookingMessageNorm,
         bookingIntent: shouldRunBookingFlow,
         asksAvailability: asksAvailabilityNow,
         choice: choiceNum,
@@ -1363,9 +1494,32 @@ export async function POST(request: Request) {
           accountProfile,
           knownClientName: d.clientName,
         });
-        reply = talk || "Уточните, пожалуйста, что именно нужно: запись, услуги, контакты или ваши записи.";
+        reply = talk || "Я на связи. Помогу с записью, услугами, контактами или вашими записями.";
         }
       }
+    }
+
+    const canNaturalizeReply =
+      route === "chat-only" &&
+      (intent === "identity" || intent === "capabilities" || intent === "greeting" || intent === "smalltalk") &&
+      !reply.includes("\n") &&
+      reply.length <= 240;
+    if (canNaturalizeReply) {
+      const naturalized = await runAishaNaturalizeReply({
+        assistantName: ASSISTANT_NAME,
+        message,
+        canonicalReply: reply,
+        accountProfile,
+        knownClientName: d.clientName,
+      });
+      if (naturalized) reply = naturalized;
+    }
+    reply = sanitizeAssistantReplyText(reply);
+    if (route === "chat-only" && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
+      reply = `Доступные услуги:\n${services
+        .slice(0, 12)
+        .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
+        .join("\n")}`;
     }
 
     const hadAssistantBefore = recentMessages.some((m) => m.role === "assistant");

@@ -10,6 +10,14 @@ type PublicAiChatWidgetProps = {
   accountSlug: string;
 };
 
+function stripLegalRefs(text: string) {
+  return text
+    .replace(/\/[A-Za-z0-9_-]+\/legal\/\d+/g, "")
+    .replace(/\S*\/legal\/\S*/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function isDateTimeInfoReply(content: string) {
   const text = content.trim();
   if (/^Сейчас\s+\d{2}\.\d{2}\.\d{4},\s*(?:[01]\d|2[0-3]):[0-5]\d\.?$/i.test(text)) return true;
@@ -113,14 +121,14 @@ function compactAssistantText(content: string, options: QuickReply[]) {
 
   const hasDenseLists = lines.some((line) => {
     if (/^\d{1,2}\.\s+/i.test(line)) return true;
-    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line)) return false;
+    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line) || /\/legal\//i.test(line)) return false;
     const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
     return timeMatches.length >= 3;
   });
 
   const filtered = lines.filter((line) => {
     if (/^\d{1,2}\.\s+/i.test(line)) return false;
-    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line)) return false;
+    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line) || /\/legal\//i.test(line)) return false;
     if (/^(можно|выберите|напишите|укажите|наши локации:|доступные услуги:)\b/i.test(line)) return false;
     if (/^(нашла окна|на \d{2}\.\d{2}\.\d{4} .*есть окна|на \d{2}\.\d{2}\.\d{4} доступны времена)/i.test(line)) return false;
     const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
@@ -355,13 +363,14 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   msg.role === "assistant" &&
                   typingMessageIndex === index &&
                   typingVisible !== typingTarget &&
+                  !showConsentControl &&
                   !hasStructuredChoices;
                 const sourceText =
                   msg.role === "assistant" && typingMessageIndex === index && !hasStructuredChoices
                     ? typingVisible || ""
                     : msg.content;
                 const safeSourceText = isTypingThis ? sourceText : sourceText || msg.content;
-                const sourceTextNoLegal = safeSourceText.replace(/\/[A-Za-z0-9_-]+\/legal\/\d+/g, "").replace(/\s{2,}/g, " ").trim();
+                const sourceTextNoLegal = stripLegalRefs(safeSourceText);
                 const shownText =
                   msg.role === "assistant"
                     ? compactAssistantText(sourceTextNoLegal || safeSourceText, options)
