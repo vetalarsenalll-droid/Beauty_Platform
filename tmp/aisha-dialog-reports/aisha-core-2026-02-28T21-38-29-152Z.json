@@ -1,0 +1,24 @@
+{
+  "suite": "core",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-02-28T21:38:28.480Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Greeting basic",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет",
+          "passed": false,
+          "error": "Bad response: HTTP 500 null",
+          "reply": ""
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-02-28T21:38:29.151Z",
+  "durationMs": 671
+}

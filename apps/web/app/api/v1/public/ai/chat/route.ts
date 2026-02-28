@@ -2,7 +2,7 @@
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { AishaNluIntent, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
+import { AishaNluIntent, runAishaNlu } from "@/lib/aisha-orchestrator";
 import { runBookingFlow } from "@/lib/booking-flow";
 import type { ChatUi } from "@/lib/booking-flow";
 import { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
@@ -457,7 +457,11 @@ function asksCurrentDateTime(text: string) {
 }
 
 function asksClientOwnName(text: string) {
-  return has(text, /(как меня зовут|знаешь как меня зовут|мое имя|моё имя|кто я)/i);
+  return has(text, /(как меня зовут|меня как зовут|знаешь как меня зовут|мое имя|моё имя|кто я)/i);
+}
+
+function asksClientRecognition(text: string) {
+  return has(text, /(меня знаешь|знаешь меня|помнишь меня|узнаешь меня|узнаёшь меня|я у тебя есть|есть ли я в базе)/i);
 }
 
 function isGreetingText(text: string) {
@@ -465,6 +469,75 @@ function isGreetingText(text: string) {
     text,
     /^(привет|приветик|приветули|привет-привет|здравствуй|здраствуй|здравствуйте|здорово|здарова|добрый день|добрый вечер|hello|hi|hey|хай)\b/i,
   );
+}
+
+function smalltalkVariant(messageNorm: string, variants: string[]) {
+  if (!variants.length) return "";
+  let hash = 0;
+  for (let i = 0; i < messageNorm.length; i += 1) {
+    hash = (hash * 31 + messageNorm.charCodeAt(i)) >>> 0;
+  }
+  return variants[hash % variants.length] ?? variants[0] ?? "";
+}
+
+function hasAnyPhrase(messageNorm: string, phrases: string[]) {
+  return phrases.some((p) => messageNorm.includes(p));
+}
+
+function buildSmalltalkReply(messageNorm: string) {
+  if (
+    hasAnyPhrase(messageNorm, [
+      "как у тебя дела",
+      "как у вас дела",
+      "как дела",
+      "как жизнь",
+      "как поживаешь",
+      "как ты",
+    ])
+  ) {
+    return smalltalkVariant(messageNorm, [
+      "Спасибо, всё хорошо. Я на связи и готова помочь с записью.",
+      "Спасибо, отлично. Если хотите, могу сразу подобрать удобное время.",
+      "Всё хорошо, спасибо. Помогу с услугами и записью, когда вам удобно.",
+    ]);
+  }
+
+  if (
+    hasAnyPhrase(messageNorm, [
+      "чем занимаешься",
+      "что делаешь",
+      "чем занята",
+      "чем ты занимаешься",
+    ])
+  ) {
+    return smalltalkVariant(messageNorm, [
+      "Помогаю с записью: подбираю услуги, время, специалиста и оформляю запись.",
+      "Я веду запись клиентов: услуги, даты, время, специалисты и подтверждение записи.",
+      "Помогаю выбрать услугу, найти свободное окно и довести запись до оформления.",
+    ]);
+  }
+
+  if (hasAnyPhrase(messageNorm, ["спасибо", "благодарю", "благодарствую"])) {
+    return smalltalkVariant(messageNorm, [
+      "Пожалуйста. Если нужно, помогу с записью.",
+      "Рада помочь. Если хотите, продолжим подбор времени.",
+      "Всегда пожалуйста. Могу сразу перейти к выбору даты и времени.",
+    ]);
+  }
+
+  if (hasAnyPhrase(messageNorm, ["круто", "здорово", "супер", "класс", "отлично", "прекрасно"])) {
+    return smalltalkVariant(messageNorm, [
+      "Здорово. Если хотите, продолжим и подберем удобное время.",
+      "Отлично. Могу предложить ближайшие свободные слоты.",
+      "Супер. Если готовы, продолжим оформление записи.",
+    ]);
+  }
+
+  return smalltalkVariant(messageNorm, [
+    "Поняла вас. Если хотите, помогу с записью: услуга, дата, время или специалист.",
+    "Я на связи. Могу помочь с услугами, временем и оформлением записи.",
+    "Готова помочь с записью. Напишите, что вам удобнее: услуга, дата или время.",
+  ]);
 }
 
 function formatYmdRu(ymd: string) {
@@ -507,6 +580,37 @@ function looksLikeServiceClaimInReply(text: string) {
     /(у нас (есть|доступн)|можем записать|доступные услуги|вот наши услуги|предлагаем услуги|услуги:)/i.test(replyNorm) &&
     /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring|массаж|макияж|укладк|чистк|депиля|эпиля)/i.test(replyNorm)
   );
+}
+
+function extractLikelyFullNames(text: string) {
+  const matches = text.match(/\b\p{Lu}\p{Ll}{2,}\s+\p{Lu}\p{Ll}{2,}\b/gu) ?? [];
+  return [...new Set(matches.map((x) => x.trim()))];
+}
+
+function hasUnknownPersonNameInReply(args: {
+  reply: string;
+  specialists: SpecialistLite[];
+  knownClientName?: string | null;
+  assistantName: string;
+}) {
+  const { reply, specialists, knownClientName, assistantName } = args;
+  const blockedWords = new Set(["beauty", "salon", "center", "riverside", "studio", "crm", "aisha"]);
+  const knownNames = new Set(
+    [
+      ...specialists.map((s) => norm(s.name)),
+      knownClientName ? norm(knownClientName) : null,
+      norm(assistantName),
+    ].filter((x): x is string => Boolean(x && x.trim())),
+  );
+  for (const candidate of extractLikelyFullNames(reply)) {
+    const candidateNorm = norm(candidate);
+    if (!candidateNorm) continue;
+    if (knownNames.has(candidateNorm)) continue;
+    const words = candidateNorm.split(/\s+/).filter(Boolean);
+    if (words.some((w) => blockedWords.has(w))) continue;
+    return true;
+  }
+  return false;
 }
 
 function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
@@ -816,6 +920,7 @@ function resolveIntentModelFirst(args: {
 function intentFromHeuristics(message: string): AishaIntent {
   if (asksCurrentDateTime(message)) return "smalltalk";
   if (asksAssistantQualification(norm(message))) return "identity";
+  if (isOutOfDomainPrompt(norm(message))) return "out_of_scope";
   if (asksWhoPerformsServices(message)) return "ask_specialists";
   if (asksGenderedServices(message)) return "ask_services";
   const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring)/i);
@@ -1267,7 +1372,20 @@ export async function POST(request: Request) {
     if (hasDraftContext && explicitAvailabilityPeriod) {
       intent = "ask_availability";
     }
-    const route = explicitDateTimeQuery
+    const forceChatOnlyConversational =
+      !shouldStayInAssistantStages &&
+      !confirmPendingClientAction &&
+      !continuePendingCancelChoice &&
+      (asksClientOwnName(messageForRouting) ||
+        asksClientRecognition(messageForRouting) ||
+        intent === "smalltalk" ||
+        intent === "greeting" ||
+        intent === "identity" ||
+        intent === "capabilities" ||
+        intent === "out_of_scope" ||
+        intent === "abuse_or_toxic" ||
+        intent === "post_completion_smalltalk");
+    const route = explicitDateTimeQuery || forceChatOnlyConversational
       ? "chat-only"
       : forceClientActions
       ? "client-actions"
@@ -1624,6 +1742,11 @@ export async function POST(request: Request) {
         reply = knownName
           ? `Да, вас зовут ${knownName}.`
           : "Пока не вижу вашего имени в профиле. Могу обращаться по имени, если напишете его.";
+            } else if (asksClientRecognition(message)) {
+        const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
+        reply = knownName
+          ? `Да, вижу вас в профиле: ${knownName}.`
+          : "Пока не вижу вас в авторизованном профиле. Могу продолжить запись как гостя или после входа в личный кабинет.";
       } else if (intent === "greeting") {
         const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
         reply = knownName ? `Здравствуйте, ${knownName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
@@ -1631,24 +1754,20 @@ export async function POST(request: Request) {
         reply = `Я ${ASSISTANT_NAME}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
       } else if (intent === "capabilities") {
         reply = "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
-      } else if (intent === "smalltalk") {
+      } else if (intent === "out_of_scope") {
+        reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами.";
+      } else if (intent === "abuse_or_toxic") {
+        reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
+      } else if (intent === "post_completion_smalltalk") {
+        reply = "Пожалуйста. Если хотите, продолжим и подберем удобное время.";
+            } else if (intent === "smalltalk") {
         if (explicitServiceComplaint) {
           reply =
             "Сожалею, что так вышло. Спасибо, что написали об этом. Опишите, пожалуйста, что именно не устроило, и я передам обращение администратору и помогу подобрать корректную запись к другому мастеру.";
-        } else if (/^(отлично|супер|прекрасно|хорошо|нормально|классно)\b/i.test(messageForRouting)) {
-          reply = "Рада слышать. Если захотите, помогу сразу подобрать услугу и удобное время.";
         } else if (isOutOfDomainPrompt(t)) {
           reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
-      const talk = await runAishaSmallTalkReply({
-        accountId: resolved.account.id,
-        message,
-        assistantName: ASSISTANT_NAME,
-        recentMessages: [...recentMessages].reverse(),
-            accountProfile,
-            knownClientName: d.clientName,
-          });
-          reply = talk || "Все хорошо, я на связи. Могу помочь с записью или ответить по вашим записям.";
+          reply = buildSmalltalkReply(norm(messageForRouting));
         }
       } else if (intent === "contact_phone") {
         const phoneReply = accountProfile?.phone ? `Номер студии: ${accountProfile.phone}.` : "Сейчас номер телефона недоступен.";
@@ -1703,6 +1822,11 @@ export async function POST(request: Request) {
           reply =
             "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение администратору. Также могу подобрать запись к другому мастеру.";
         } else {
+        if (explicitServicesFollowUp) {
+          const sample = services.slice(0, 6).map((x) => x.name).join(", ");
+          reply = sample ? `Доступные услуги: ${sample}.` : "Доступные услуги ниже. Выберите нужную кнопкой.";
+          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
+        } else {
         const selectedByText = serviceByText(t, services);
         const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
         const femaleContext = /(женск|для женщин|для девушки)/i.test(t) || /(женск|для женщин|для девушки)/i.test(previousUserText);
@@ -1746,6 +1870,7 @@ export async function POST(request: Request) {
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
         }
+        }
       } else if (intent === "ask_price") {
         const selectedByText = serviceByText(t, services);
         if (selectedByText) {
@@ -1767,39 +1892,30 @@ export async function POST(request: Request) {
         if (isOutOfDomainPrompt(t)) {
           reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
-        const talk = await runAishaSmallTalkReply({
-          accountId: resolved.account.id,
-          message,
-          assistantName: ASSISTANT_NAME,
-          recentMessages: [...recentMessages].reverse(),
-          accountProfile,
-          knownClientName: d.clientName,
-        });
-        reply = talk || "Я на связи. Помогу с записью, услугами, контактами или вашими записями.";
+          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами.";
         }
       }
-    }
-
-    const canNaturalizeReply =
-      route === "chat-only" &&
-      (intent === "identity" || intent === "capabilities" || intent === "greeting" || intent === "smalltalk") &&
-      !reply.includes("\n") &&
-      reply.length <= 240;
-    if (canNaturalizeReply) {
-      const naturalized = await runAishaNaturalizeReply({
-        accountId: resolved.account.id,
-        assistantName: ASSISTANT_NAME,
-        message,
-        canonicalReply: reply,
-        accountProfile,
-        knownClientName: d.clientName,
-      });
-      if (naturalized) reply = naturalized;
     }
     reply = sanitizeAssistantReplyText(reply);
     if (route === "chat-only" && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
       reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
       nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
+    }
+
+    const hallucinationSensitiveIntent =
+      intent === "smalltalk" || intent === "greeting" || intent === "identity" || intent === "capabilities" || intent === "out_of_scope";
+    if (
+      route === "chat-only" &&
+      hallucinationSensitiveIntent &&
+      hasUnknownPersonNameInReply({
+        reply,
+        specialists,
+        knownClientName: d.clientName || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() || null,
+        assistantName: ASSISTANT_NAME,
+      })
+    ) {
+      reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами.";
+      nextUi = null;
     }
 
     await prisma.$transaction([
@@ -1866,6 +1982,11 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
 
 
 
