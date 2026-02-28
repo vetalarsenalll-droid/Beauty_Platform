@@ -7,7 +7,8 @@ type ChatAction = { type: "open_booking"; bookingUrl: string } | null;
 type QuickReply = { label: string; value: string; href?: string };
 type ChatUi =
   | { kind: "quick_replies"; options: QuickReply[] }
-  | { kind: "consent"; options: QuickReply[]; legalLinks: string[]; consentValue: string };
+  | { kind: "consent"; options: QuickReply[]; legalLinks: string[]; consentValue: string }
+  | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null };
 type ChatMessage = Message & { ui?: ChatUi | null };
 
 type PublicAiChatWidgetProps = {
@@ -109,13 +110,69 @@ function extractQuickReplies(content: string): QuickReply[] {
     add("Через ассистента", "оформи через ассистента");
   }
   if (/нажмите кнопку «?записаться»? ниже|если все верно.*\b«?да»?\b/i.test(content)) add("Записаться", "да");
-  if (/выберите (дату|другую дату)/i.test(content)) add("Завтра", "завтра");
+
   const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
   const finalLimit = hasCollapsedTail ? 24 : 120;
   const filtered = isLocationSelectionReply ? replies.filter((x) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.value)) : replies;
   return filtered.slice(0, finalLimit);
 }
-export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetProps) {
+
+function parseYmd(ymd: string) {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) };
+}
+
+function formatYmdRuDate(ymd: string) {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  return `${String(p.d).padStart(2, "0")}.${String(p.m).padStart(2, "0")}.${p.y}`;
+}
+
+function monthStartYmd(ymd: string) {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  return `${p.y}-${String(p.m).padStart(2, "0")}-01`;
+}
+
+function addMonthsYmd(ymd: string, delta: number) {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  const dt = new Date(Date.UTC(p.y, p.m - 1, 1, 12, 0, 0));
+  dt.setUTCMonth(dt.getUTCMonth() + delta);
+  const y = dt.getUTCFullYear();
+  const m = dt.getUTCMonth() + 1;
+  return `${y}-${String(m).padStart(2, "0")}-01`;
+}
+
+function getMonthLabelRu(ymd: string) {
+  const p = parseYmd(ymd);
+  if (!p) return ymd;
+  const names = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+  return `${names[(p.m - 1 + 12) % 12]} ${p.y}`;
+}
+
+function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: string) {
+  const p = parseYmd(viewMonthYmd);
+  if (!p) return [] as Array<{ ymd: string; day: number; inMonth: boolean; disabled: boolean }>;
+  const first = new Date(Date.UTC(p.y, p.m - 1, 1, 12, 0, 0));
+  const firstWeekday = (first.getUTCDay() + 6) % 7;
+  const gridStart = new Date(first);
+  gridStart.setUTCDate(1 - firstWeekday);
+  const cells: Array<{ ymd: string; day: number; inMonth: boolean; disabled: boolean }> = [];
+  for (let i = 0; i < 42; i += 1) {
+    const d = new Date(gridStart);
+    d.setUTCDate(gridStart.getUTCDate() + i);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    const ymd = `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const inMonth = m === p.m;
+    const disabled = ymd < minDate || ymd > maxDate;
+    cells.push({ ymd, day, inMonth, disabled });
+  }
+  return cells;
+}export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -125,6 +182,9 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
   const [typingTarget, setTypingTarget] = useState("");
   const [typingVisible, setTypingVisible] = useState("");
   const [consentCheckedByMessage, setConsentCheckedByMessage] = useState<Record<string, boolean>>({});
+  const [dateByMessage, setDateByMessage] = useState<Record<string, string>>({});
+  const [dateMonthByMessage, setDateMonthByMessage] = useState<Record<string, string>>({});
+  const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -255,7 +315,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
       const isStructuredReply =
         Boolean(
           assistantUi &&
-            ((assistantUi.kind === "quick_replies" && assistantUi.options.length > 0) || assistantUi.kind === "consent"),
+            ((assistantUi.kind === "quick_replies" && assistantUi.options.length > 0) || assistantUi.kind === "consent" || assistantUi.kind === "date_picker"),
         ) ||
         extractQuickReplies(assistantReply).length > 0;
       if (isStructuredReply) {
@@ -353,6 +413,8 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   msg.role === "assistant"
                     ? ui?.kind === "quick_replies"
                       ? ui.options
+                      : ui
+                      ? []
                       : extractQuickReplies(msg.content)
                     : [];
                 const legalLinks =
@@ -363,6 +425,29 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   msg.role === "assistant" &&
                   (ui?.kind === "consent" || /согласие на обработку персональных данных/i.test(msg.content));
                 const consentChecked = consentCheckedByMessage[messageKey] ?? false;
+                const datePickerValue =
+                  ui?.kind === "date_picker"
+                    ? dateByMessage[messageKey] ?? ui.initialDate ?? ""
+                    : "";
+                const datePickerViewMonth =
+                  ui?.kind === "date_picker"
+                    ? dateMonthByMessage[messageKey] ?? monthStartYmd(datePickerValue || ui.initialDate || ui.minDate)
+                    : "";
+                const datePickerCells =
+                  ui?.kind === "date_picker"
+                    ? buildCalendarCells(datePickerViewMonth, ui.minDate, ui.maxDate)
+                    : [];
+                const availableDateSet =
+                  ui?.kind === "date_picker" && Array.isArray(ui.availableDates) && ui.availableDates.length
+                    ? new Set(ui.availableDates)
+                    : null;
+                const isDateAvailable = (ymd: string) => (availableDateSet ? availableDateSet.has(ymd) : true);
+                const datePickerHint = calendarHintByMessage[messageKey] ?? "";
+                const selectedDateIsAvailable = datePickerValue ? isDateAvailable(datePickerValue) : false;
+                const prevMonth = ui?.kind === "date_picker" ? addMonthsYmd(datePickerViewMonth, -1) : "";
+                const nextMonth = ui?.kind === "date_picker" ? addMonthsYmd(datePickerViewMonth, 1) : "";
+                const canPrevMonth = ui?.kind === "date_picker" ? prevMonth >= monthStartYmd(ui.minDate) : false;
+                const canNextMonth = ui?.kind === "date_picker" ? nextMonth <= monthStartYmd(ui.maxDate) : false;
                 const isTypingThis =
                   msg.role === "assistant" &&
                   typingMessageIndex === index &&
@@ -427,6 +512,90 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                             );
                           })()
                         ))}
+                      </div>
+                     ) : null}
+                    {ui?.kind === "date_picker" && !isTypingThis ? (
+                      <div className="mt-2 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-white/70 p-2">
+                        <div className="mb-2 flex items-center justify-between">
+                          <button
+                            type="button"
+                            disabled={loading || !isLastAssistant || !canPrevMonth}
+                            onClick={() =>
+                              setDateMonthByMessage((prev) => ({
+                                ...prev,
+                                [messageKey]: prevMonth,
+                              }))
+                            }
+                            className="h-7 w-7 rounded-md border border-[color:var(--site-border,#d1d5db)] text-xs disabled:opacity-40"
+                          >
+                            ‹
+                          </button>
+                          <div className="text-xs font-medium">{getMonthLabelRu(datePickerViewMonth)}</div>
+                          <button
+                            type="button"
+                            disabled={loading || !isLastAssistant || !canNextMonth}
+                            onClick={() =>
+                              setDateMonthByMessage((prev) => ({
+                                ...prev,
+                                [messageKey]: nextMonth,
+                              }))
+                            }
+                            className="h-7 w-7 rounded-md border border-[color:var(--site-border,#d1d5db)] text-xs disabled:opacity-40"
+                          >
+                            ›
+                          </button>
+                        </div>
+                        <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-[color:var(--site-muted,#6b7280)]">
+                          {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) => (
+                            <div key={`${messageKey}-${d}`}>{d}</div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
+                          {datePickerCells.map((cell) => {
+                            const isUnavailable = !isDateAvailable(cell.ymd);
+                            const inactive = cell.disabled || isUnavailable;
+                            const selected = cell.ymd === datePickerValue;
+                            return (
+                              <button
+                                key={`${messageKey}-${cell.ymd}`}
+                                type="button"
+                                disabled={loading || !isLastAssistant}
+                                onClick={() => {
+                                  if (inactive) {
+                                    setCalendarHintByMessage((prev) => ({
+                                      ...prev,
+                                      [messageKey]: `На ${formatYmdRuDate(cell.ymd)} свободного времени для записи нет.`,
+                                    }));
+                                    return;
+                                  }
+                                  setCalendarHintByMessage((prev) => ({
+                                    ...prev,
+                                    [messageKey]: "",
+                                  }));
+                                  setDateByMessage((prev) => ({
+                                    ...prev,
+                                    [messageKey]: cell.ymd,
+                                  }));
+                                }}
+                                className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]' : inactive ? 'bg-black/5 text-[color:var(--site-muted,#9ca3af)]' : cell.inMonth ? 'bg-white text-[color:var(--site-text,#111827)]' : 'bg-black/5 text-[color:var(--site-muted,#9ca3af)]'} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
+                              >
+                                {cell.day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {datePickerHint ? <div className="mt-2 text-[11px] text-amber-700">{datePickerHint}</div> : null}
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="text-[11px] text-[color:var(--site-muted,#6b7280)]">{datePickerValue ? formatYmdRuDate(datePickerValue) : "Выберите дату"}</div>
+                          <button
+                            type="button"
+                            disabled={loading || !isLastAssistant || !datePickerValue || !selectedDateIsAvailable}
+                            onClick={() => void sendRawMessage(formatYmdRuDate(datePickerValue))}
+                            className="rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
+                          >
+                            Выбрать
+                          </button>
+                        </div>
                       </div>
                     ) : null}
                     {showConsentControl && !isTypingThis ? (
@@ -532,6 +701,22 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

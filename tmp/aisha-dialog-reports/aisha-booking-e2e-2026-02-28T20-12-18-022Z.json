@@ -1,0 +1,24 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-02-28T20:12:17.307Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": false,
+          "error": "Bad response: HTTP 500 null",
+          "reply": ""
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-02-28T20:12:18.021Z",
+  "durationMs": 714
+}

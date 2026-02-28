@@ -1,4 +1,4 @@
-import { jsonError, jsonOk } from "@/lib/api";
+﻿import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -387,9 +387,9 @@ const parsePhone = (m: string) => {
   return null;
 };
 const parseName = (m: string) => {
-  const explicit = m.match(/(?:меня зовут|имя)\s+([A-Za-zА-Яа-яЁё\-]{2,}(?:\s+[A-Za-zА-Яа-яЁё\-]{2,})?)/i)?.[1];
+  const explicit = m.match(/(?:меня зовут|имя)\s+([\p{L}-]{2,}(?:\s+[\p{L}-]{2,})?)/iu)?.[1];
   if (explicit) return explicit.trim();
-  const inlineWithPhone = m.match(/^\s*([A-Za-zА-Яа-яЁё\-]{2,})(?:\s+([A-Za-zА-Яа-яЁё\-]{2,}))?[\s,;:]+(?:\+7|8|\d{3,})/i);
+  const inlineWithPhone = m.match(/^\s*([\p{L}-]{2,})(?:\s+([\p{L}-]{2,}))?[\s,;:]+(?:\+7|8|\d{3,})/iu);
   if (inlineWithPhone) return [inlineWithPhone[1], inlineWithPhone[2]].filter(Boolean).join(" ").trim();
   return null;
 };
@@ -602,9 +602,7 @@ function isOutOfDomainPrompt(messageNorm: string) {
 }
 
 function asksWhoPerformsServices(messageNorm: string) {
-  return /(кто делает|кто выполняет|кто оказывает|какие мастера|какой мастер|какие специалисты|у каких мастеров|кто из мастеров|кто работает|кто завтра работает)/i.test(
-    messageNorm,
-  );
+  return /(?:кто\s+делает|кто\s+выполняет|кто\s+оказывает|какие\s+мастера|какой\s+мастер|какие\s+специалисты|у\s+каких\s+мастеров|кто\s+из\s+мастеров|кто\s+работает|кто\s+завтра\s+работает|какие\s+мастера\s+у\s+вас\s+есть|какие\s+специалисты\s+у\s+вас\s+есть|какие\s+мастера\s+есть)/iu.test(messageNorm);
 }
 
 function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {
@@ -1107,6 +1105,9 @@ export async function POST(request: Request) {
     const specialistFollowUpByLocation =
       Boolean(specialistFollowUpLocation) &&
       /(специалисты по филиалам|работают специалисты|специалисты в студии)/i.test(lastAssistantText);
+    if (specialistFollowUpByLocation && specialistFollowUpLocation) {
+      d.locationId = specialistFollowUpLocation.id;
+    }
     const explicitCapabilitiesPhrase = has(messageForRouting, /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i);
     const explicitServicesFollowUp = asksServicesFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
     const explicitServiceFollowUp =
@@ -1132,10 +1133,16 @@ export async function POST(request: Request) {
     const hasClientCancelContext = has(messageForRouting, /(мою запись|мои записи|запись #|номер записи|ближайш|последн|визит|appointment|подтверждаю отмену)/i);
     const cancelMeansDraftAbort = hasDraftContextEarly && explicitClientCancelPhrase && !hasClientCancelContext;
     const explicitWhoDoesServices = asksWhoPerformsServices(norm(messageForRouting));
+    const explicitSpecialistsListCue = /(?:мастер|специалист)(?:а|ы|ов)?/iu.test(messageForRouting);
     const explicitServiceComplaint = isServiceComplaintMessage(norm(messageForRouting));
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
     const explicitAvailabilityPeriod = asksAvailabilityPeriod(norm(messageForRouting));
+    const explicitCalendarCue =
+      /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\b/u.test(messageForRouting) ||
+      /(?:январ|феврал|март|апрел|мая|мае|июн|июл|август|сентябр|октябр|ноябр|декабр)/iu.test(messageForRouting);
+    const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
+    const explicitCalendarAvailability = explicitCalendarCue && explicitAvailabilityCue;
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
     if (explicitClientReschedulePhrase) intent = "reschedule_my_booking";
@@ -1143,7 +1150,7 @@ export async function POST(request: Request) {
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (specialistFollowUpByLocation) intent = "ask_specialists";
-    if (explicitWhoDoesServices) intent = "ask_specialists";
+    if (explicitWhoDoesServices || explicitSpecialistsListCue) intent = "ask_specialists";
     if (explicitAssistantQualification) intent = "identity";
     if (cancelMeansDraftAbort) {
       explicitBookingDecline = true;
@@ -1151,6 +1158,7 @@ export async function POST(request: Request) {
     }
     if (explicitNearestAvailability) intent = "ask_availability";
     if (explicitAvailabilityPeriod) intent = "ask_availability";
+    if (explicitCalendarAvailability) intent = "ask_availability";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
     if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
@@ -1224,6 +1232,8 @@ export async function POST(request: Request) {
       !forceClientActions &&
       !explicitDateTimeQuery &&
       !hasClientActionCue &&
+      !specialistFollowUpByLocation &&
+      intent !== "ask_specialists" &&
       Boolean(locationByText(t, locations)) &&
       has(lastAssistantText, /(выберите\s+(локац|филиал)|продолжу запись)/i);
     const forceBookingOnServiceSelection =
@@ -1459,8 +1469,38 @@ export async function POST(request: Request) {
 
     if (shouldEnrichDraftForBooking) {
       const parsedDate = parseDate(message, nowYmd);
+      const parsedMonthDateFromRaw = (() => {
+        const raw = messageForRouting.toLowerCase();
+        const monthMatch = raw.match(
+          /(?:^|\s)(?:в|на)?\s*(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)(?:\s|$)/u,
+        );
+        if (!monthMatch) return null;
+        const monthMap: Record<string, string> = {
+          "январе": "01",
+          "феврале": "02",
+          "марте": "03",
+          "апреле": "04",
+          "мае": "05",
+          "июне": "06",
+          "июле": "07",
+          "августе": "08",
+          "сентябре": "09",
+          "октябре": "10",
+          "ноябре": "11",
+          "декабре": "12",
+        };
+        const month = monthMap[monthMatch[1] ?? ""];
+        if (!month) return null;
+        let year = Number(nowYmd.slice(0, 4));
+        let candidate = `${year}-${month}-01`;
+        if (candidate < nowYmd) {
+          year += 1;
+          candidate = `${year}-${month}-01`;
+        }
+        return candidate;
+      })();
       const parsedTime = parseTime(message);
-      d.date = parsedDate || pickSafeNluDate(nlu?.date, nowYmd) || d.date;
+      d.date = parsedMonthDateFromRaw || parsedDate || pickSafeNluDate(nlu?.date, nowYmd) || d.date;
       // Time must come from explicit user text (or previously selected slot), not LLM guess.
       d.time = parsedTime || d.time;
       if (selectedSpecialistByText) d.specialistId = selectedSpecialistByText.id;
@@ -1482,8 +1522,25 @@ export async function POST(request: Request) {
     const parsedNluPhone = typeof nlu?.clientPhone === "string" ? parsePhone(nlu.clientPhone) : null;
     const parsedDraftPhone = d.clientPhone ? parsePhone(d.clientPhone) : null;
     const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
-    d.clientPhone = parsePhone(message) || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
-    d.clientName = parseName(message) || nlu?.clientName || d.clientName || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() || null;
+    const parsedMessagePhone = parsePhone(message);
+    d.clientPhone = parsedMessagePhone || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
+
+    const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
+    const parsedMessageName = parseName(message);
+    const shouldCaptureClientName =
+      d.mode === "ASSISTANT" ||
+      d.status === "WAITING_CONSENT" ||
+      d.status === "WAITING_CONFIRMATION" ||
+      Boolean(parsedMessagePhone) ||
+      explicitNameCue;
+    if (shouldCaptureClientName) {
+      d.clientName =
+        parsedMessageName ||
+        (explicitNameCue ? nlu?.clientName ?? null : null) ||
+        d.clientName ||
+        [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() ||
+        null;
+    }
     const explicitConsentText =
       d.mode === "ASSISTANT" &&
       (d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION") &&
@@ -1530,6 +1587,7 @@ export async function POST(request: Request) {
         explicitNearestAvailability ||
         explicitAvailabilityPeriod ||
         has(message, /(окошк|свобод|время|слот|обед|после обеда|утр|вечер|днем|днём)/i) ||
+        (explicitCalendarCue && Boolean(d.locationId) && !d.time) ||
         // If user just selected location while discussing windows/date, keep showing times first.
         (locationChosenThisTurn && Boolean(d.date) && !d.serviceId && !d.time);
       const flowResult = await runBookingFlow({
@@ -1615,6 +1673,7 @@ export async function POST(request: Request) {
         const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
 
         if (selectedLocationId) {
+          d.locationId = selectedLocationId;
           const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
           const scoped = specialists.filter((s) => s.locationIds.includes(selectedLocationId));
           if (scoped.length) {
@@ -1807,4 +1866,23 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

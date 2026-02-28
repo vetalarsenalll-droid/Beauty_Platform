@@ -26,7 +26,8 @@ type FlowAction = { type: "open_booking"; bookingUrl: string } | null;
 export type ChatUiOption = { label: string; value: string; href?: string };
 export type ChatUi =
   | { kind: "quick_replies"; options: ChatUiOption[] }
-  | { kind: "consent"; options: ChatUiOption[]; legalLinks: string[]; consentValue: string };
+  | { kind: "consent"; options: ChatUiOption[]; legalLinks: string[]; consentValue: string }
+  | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null };
 
 type FlowCtx = {
   messageNorm: string;
@@ -75,6 +76,118 @@ function addDaysYmd(ymd: string, days: number) {
   dt.setUTCDate(dt.getUTCDate() + days);
   return dt.toISOString().slice(0, 10);
 }
+function dateDistanceDays(fromYmd: string, toYmd: string) {
+  const [fy, fm, fd] = fromYmd.split("-").map(Number);
+  const [ty, tm, td] = toYmd.split("-").map(Number);
+  const from = Date.UTC(fy, (fm || 1) - 1, fd || 1, 12, 0, 0);
+  const to = Date.UTC(ty, (tm || 1) - 1, td || 1, 12, 0, 0);
+  return Math.round((to - from) / 86400000);
+}
+
+function dateOptionFromYmd(ymd: string, todayYmd: string): ChatUiOption {
+  const [yy, mm, dd] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(yy, (mm || 1) - 1, dd || 1, 12, 0, 0));
+  const monthsGen = [
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+  ];
+  const weekdays = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+  const diff = dateDistanceDays(todayYmd, ymd);
+  const short = `${String(dd).padStart(2, "0")}.${String(mm).padStart(2, "0")}`;
+  if (diff === 0) return optionFromLabel(`Сегодня, ${short}`, "сегодня");
+  if (diff === 1) return optionFromLabel(`Завтра, ${short}`, "завтра");
+  if (diff === 2) return optionFromLabel(`Послезавтра, ${short}`, "послезавтра");
+  const weekday = weekdays[dt.getUTCDay()] ?? "";
+  const value = ymd;
+  return optionFromLabel(`${weekday}, ${short}`, value);
+}
+
+function sequentialDateOptions(fromYmd: string, todayYmd: string, count = 6): ChatUiOption[] {
+  const opts: ChatUiOption[] = [];
+  for (let i = 0; i < count; i += 1) {
+    opts.push(dateOptionFromYmd(addDaysYmd(fromYmd, i), todayYmd));
+  }
+  return opts;
+}
+
+
+function endOfMonthYmd(ymd: string) {
+  const [y, mo] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, mo || 1, 0, 12, 0, 0));
+  return dt.toISOString().slice(0, 10);
+}
+
+function extractMonthOnlyDate(messageNorm: string, todayYmd: string): string | null {
+  const monthOnly = messageNorm.match(
+    /(?:^|\s)(?:в|на)?\s*(январь|январе|января|февраль|феврале|февраля|март|марте|марта|апрель|апреле|апреля|май|мае|мая|июнь|июне|июня|июль|июле|июля|август|августе|августа|сентябрь|сентябре|сентября|октябрь|октябре|октября|ноябрь|ноябре|ноября|декабрь|декабре|декабря)(?:\s+(\d{4}))?(?:\s|$)/iu,
+  );
+  if (!monthOnly) return null;
+  const monthMap = new Map<string, string>([
+    ["январь", "01"],
+    ["январе", "01"],
+    ["января", "01"],
+    ["февраль", "02"],
+    ["феврале", "02"],
+    ["февраля", "02"],
+    ["март", "03"],
+    ["марте", "03"],
+    ["марта", "03"],
+    ["апрель", "04"],
+    ["апреле", "04"],
+    ["апреля", "04"],
+    ["май", "05"],
+    ["мае", "05"],
+    ["мая", "05"],
+    ["июнь", "06"],
+    ["июне", "06"],
+    ["июня", "06"],
+    ["июль", "07"],
+    ["июле", "07"],
+    ["июля", "07"],
+    ["август", "08"],
+    ["августе", "08"],
+    ["августа", "08"],
+    ["сентябрь", "09"],
+    ["сентябре", "09"],
+    ["сентября", "09"],
+    ["октябрь", "10"],
+    ["октябре", "10"],
+    ["октября", "10"],
+    ["ноябрь", "11"],
+    ["ноябре", "11"],
+    ["ноября", "11"],
+    ["декабрь", "12"],
+    ["декабре", "12"],
+    ["декабря", "12"],
+  ]);
+  const month = monthMap.get((monthOnly[1] ?? "").toLowerCase()) ?? "01";
+  let year = monthOnly[2] ? Number(monthOnly[2]) : Number(todayYmd.slice(0, 4));
+  let candidate = `${year}-${month}-01`;
+  if (!monthOnly[2] && candidate < todayYmd) {
+    year += 1;
+    candidate = `${year}-${month}-01`;
+  }
+  return candidate;
+}
+
+function hasConcreteDateMention(messageNorm: string) {
+  return (
+    /\b\d{4}-\d{2}-\d{2}\b/.test(messageNorm) ||
+    /\b\d{1,2}[.]\d{1,2}(?:[.]\d{4})?\b/.test(messageNorm) ||
+    /(?:^|\s)(сегодня|завтра|послезавтра)(?:\s|$)/iu.test(messageNorm) ||
+    /(?:^|\s)\d{1,2}\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s|$)/iu.test(messageNorm)
+  );
+}
 
 function optionFromLabel(label: string, value?: string): ChatUiOption {
   return { label, value: value ?? label };
@@ -88,12 +201,28 @@ function serviceOption(service: ServiceLite): ChatUiOption {
 }
 
 function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
-  if (/\bсегодня\b/iu.test(messageNorm)) return todayYmd;
-  if (/\bпослезавтра\b/iu.test(messageNorm)) return addDaysYmd(todayYmd, 2);
-  if (/\bзавтра\b/iu.test(messageNorm)) return addDaysYmd(todayYmd, 1);
+  const iso = messageNorm.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  const dmy = messageNorm.match(/\b(\d{1,2})[.](\d{1,2})(?:[.](\d{4}))?\b/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    let year = dmy[3] ? Number(dmy[3]) : Number(todayYmd.slice(0, 4));
+    let candidate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    if (!dmy[3] && candidate < todayYmd) {
+      year += 1;
+      candidate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+    return candidate;
+  }
+
+  if (/(^|\s)сегодня(\s|$)/iu.test(messageNorm)) return todayYmd;
+  if (/(^|\s)послезавтра(\s|$)/iu.test(messageNorm)) return addDaysYmd(todayYmd, 2);
+  if (/(^|\s)завтра(\s|$)/iu.test(messageNorm)) return addDaysYmd(todayYmd, 1);
 
   const dmText = messageNorm.match(
-    /\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?\b/iu,
+    /(?:^|\s)(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?(?:\s|$)/iu,
   );
   if (dmText) {
     const monthMap = new Map<string, string>([
@@ -122,7 +251,7 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
   }
 
   const weekdayMatch = messageNorm.match(
-    /\b(?:в\s+)?(понедельник|вторник|среду|среда|четверг|пятницу|пятница|субботу|суббота|воскресенье)\b/iu,
+    /(?:^|\s)(?:в\s+)?(понедельник|вторник|среду|среда|четверг|пятницу|пятница|субботу|суббота|воскресенье)(?:\s|$)/iu,
   );
   if (weekdayMatch) {
     const toIsoWeekday = (w: string) => {
@@ -143,21 +272,47 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
     return addDaysYmd(todayYmd, delta);
   }
 
-  const monthOnly = messageNorm.match(/\b(?:в\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)\b/iu);
+  const monthOnly = messageNorm.match(
+    /(?:^|\s)(?:в|на)?\s*(январь|январе|января|февраль|феврале|февраля|март|марте|марта|апрель|апреле|апреля|май|мае|мая|июнь|июне|июня|июль|июле|июля|август|августе|августа|сентябрь|сентябре|сентября|октябрь|октябре|октября|ноябрь|ноябре|ноября|декабрь|декабре|декабря)(?:\s|$)/iu,
+  );
   if (monthOnly) {
     const monthMap = new Map<string, string>([
+      ["январь", "01"],
       ["январе", "01"],
+      ["января", "01"],
+      ["февраль", "02"],
       ["феврале", "02"],
+      ["февраля", "02"],
+      ["март", "03"],
       ["марте", "03"],
+      ["марта", "03"],
+      ["апрель", "04"],
       ["апреле", "04"],
+      ["апреля", "04"],
+      ["май", "05"],
       ["мае", "05"],
+      ["мая", "05"],
+      ["июнь", "06"],
       ["июне", "06"],
+      ["июня", "06"],
+      ["июль", "07"],
       ["июле", "07"],
+      ["июля", "07"],
+      ["август", "08"],
       ["августе", "08"],
+      ["августа", "08"],
+      ["сентябрь", "09"],
       ["сентябре", "09"],
+      ["сентября", "09"],
+      ["октябрь", "10"],
       ["октябре", "10"],
+      ["октября", "10"],
+      ["ноябрь", "11"],
       ["ноябре", "11"],
+      ["ноября", "11"],
+      ["декабрь", "12"],
       ["декабре", "12"],
+      ["декабря", "12"],
     ]);
     const month = monthMap.get((monthOnly[1] ?? "").toLowerCase()) ?? "01";
     let year = Number(todayYmd.slice(0, 4));
@@ -403,6 +558,78 @@ async function findNearestLocationWindows(args: {
   return null;
 }
 
+async function findNearestDateWindows(args: {
+  origin: string;
+  accountSlug: string;
+  locations: LocationLite[];
+  fromDate: string;
+  serviceId: number | null;
+  preference: "morning" | "day" | "evening" | null;
+  daysAhead?: number;
+  limit?: number | null;
+  maxDates?: number;
+}) {
+  const { origin, accountSlug, locations, fromDate, serviceId, preference, daysAhead = 30, limit = 30, maxDates = 5 } = args;
+  const [yy, mm, dd] = fromDate.split("-").map(Number);
+  const start = new Date(Date.UTC(yy, (mm || 1) - 1, dd || 1, 12, 0, 0));
+  const results: Array<{ date: string; rows: Array<{ locationId: number; name: string; times: string[]; allTimes: string[] }> }> = [];
+  for (let i = 0; i < daysAhead; i += 1) {
+    const d = new Date(start);
+    d.setUTCDate(start.getUTCDate() + i);
+    const ymd = d.toISOString().slice(0, 10);
+    const rows = await collectLocationWindows({
+      origin,
+      accountSlug,
+      locations,
+      date: ymd,
+      serviceId,
+      preference,
+      limit,
+    });
+    if (!rows.length) continue;
+    results.push({ date: ymd, rows });
+    if (results.length >= maxDates) break;
+  }
+  return results;
+}
+
+
+async function findServiceAvailableDatesInRange(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  serviceId: number;
+  fromDate: string;
+  daysAhead?: number;
+}) {
+  const { origin, accountSlug, locationId, serviceId, fromDate, daysAhead = 60 } = args;
+  const found: string[] = [];
+  for (let i = 0; i < daysAhead; i += 1) {
+    const ymd = addDaysYmd(fromDate, i);
+    const slots = await getSlots(origin, accountSlug, locationId, serviceId, ymd);
+    if (slots.length) found.push(ymd);
+  }
+  return found;
+}async function findNextServiceDates(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  serviceId: number;
+  fromDate: string;
+  daysAhead?: number;
+  maxDates?: number;
+}) {
+  const { origin, accountSlug, locationId, serviceId, fromDate, daysAhead = 30, maxDates = 5 } = args;
+  const found: string[] = [];
+  for (let i = 1; i <= daysAhead; i += 1) {
+    const ymd = addDaysYmd(fromDate, i);
+    const slots = await getSlots(origin, accountSlug, locationId, serviceId, ymd);
+    if (!slots.length) continue;
+    found.push(ymd);
+    if (found.length >= maxDates) break;
+  }
+  return found;
+}
 function applyChangeRollback(messageNorm: string, d: DraftLike) {
   if (/(локац|филиал|адрес)/i.test(messageNorm)) {
     d.locationId = null;
@@ -452,9 +679,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
 
   // Parse date intent as early as possible so phrases like
   // "запиши меня сегодня" affect the entire booking path.
-  if (!d.date) {
-    const parsedDate = parseDateFromBookingMessage(messageNorm, todayYmd);
-    if (parsedDate) d.date = parsedDate;
+  const parsedDate = parseDateFromBookingMessage(messageNorm, todayYmd);
+  if (parsedDate && parsedDate !== d.date) {
+    d.date = parsedDate;
+    d.time = null;
+    d.specialistId = null;
   }
   const wantsAllTimes =
     /(?:покажи|напиши|выведи|дай)\s+в[сc]е\s+(?:врем|слот|окошк)|(?:в[сc]е|полный)\s+список\s+(?:врем|слот|окошк)|все\s+свободн(?:ое|ые)?\s+время|целиком|полностью/iu.test(
@@ -468,6 +697,34 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const wantsMonthRange =
     /(?:весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца)/iu.test(messageNorm);
   const wantsAfterRange = asksAfterDateRange(messageNorm);
+  const monthOnlyDate = extractMonthOnlyDate(messageNorm, todayYmd);
+  const isFuzzyMonthAvailability = asksAvailability && Boolean(monthOnlyDate) && !hasConcreteDateMention(messageNorm);
+  if (isFuzzyMonthAvailability && monthOnlyDate) {
+    d.date = monthOnlyDate;
+    d.time = null;
+    d.specialistId = null;
+    const minDate = monthOnlyDate < todayYmd ? todayYmd : monthOnlyDate;
+    const maxDate = endOfMonthYmd(monthOnlyDate);
+    const daysAhead = Math.max(1, dateDistanceDays(minDate, maxDate) + 1);
+    const monthAvailable = await findNearestDateWindows({
+      origin,
+      accountSlug: account.slug,
+      locations,
+      fromDate: minDate,
+      serviceId: d.serviceId ?? null,
+      preference: detectTimePreference(messageNorm),
+      daysAhead,
+      maxDates: daysAhead,
+      limit: 24,
+    });
+    const availableDates = monthAvailable.map((x) => x.date);
+    return {
+      handled: true,
+      reply: `Выберите дату в календаре, и я сразу покажу свободное время${d.locationId ? " в выбранном филиале" : ""}.`,
+      nextStatus: "COLLECTING",
+      ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
+    };
+  }
 
   let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
@@ -665,40 +922,72 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           },
         };
       }
-      const nearest = await findNearestLocationWindows({
+      const nearestDates = await findNearestDateWindows({
         origin,
         accountSlug: account.slug,
         locations,
         fromDate: targetDate,
         serviceId: d.serviceId ?? null,
         preference: pref,
-        daysAhead: wantsMonthRange ? 45 : wantsAfterRange ? 60 : 14,
+        daysAhead: wantsMonthRange ? 45 : wantsAfterRange ? 60 : 21,
         limit: timeLimit,
+        maxDates: 6,
       });
-      if (nearest) {
+      if (nearestDates.length) {
+        const minDate = nearestDates[0]!.date;
+        const maxDate = nearestDates[nearestDates.length - 1]!.date;
         return {
           handled: true,
-          reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Нашла ближайшие свободные окна на дату ${formatYmdRu(
-            nearest.date,
-          )}. Выберите филиал кнопкой ниже.`,
+          reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Выберите дату в календаре, и я покажу доступное время.`,
           nextStatus: "COLLECTING",
-          ui: {
-            kind: "quick_replies",
-            options: nearest.rows.map((x) => optionFromLabel(x.name)),
-          },
+          ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates: nearestDates.map((x) => x.date) },
         };
       }
       if (wantsMonthRange || wantsAfterRange) {
+        const minDate = addDaysYmd(targetDate, 1);
+        const maxDate = addDaysYmd(targetDate, 60);
+        const daysAhead = Math.max(1, dateDistanceDays(minDate, maxDate) + 1);
+        const availableDates = (
+          await findNearestDateWindows({
+            origin,
+            accountSlug: account.slug,
+            locations,
+            fromDate: minDate,
+            serviceId: d.serviceId ?? null,
+            preference: pref,
+            daysAhead,
+            maxDates: daysAhead,
+            limit: timeLimit,
+          })
+        ).map((x) => x.date);
         return {
           handled: true,
-          reply: `После ${targetDateRu} свободных окон по текущему графику не нашла. Могу проверить более ранние даты или другой филиал.`,
+          reply: `После ${targetDateRu} свободных окон по текущему графику не нашла. Выберите другую дату в календаре.`,
           nextStatus: "COLLECTING",
+          ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
         };
       }
+      const minDate = addDaysYmd(targetDate, 1);
+      const maxDate = addDaysYmd(targetDate, 45);
+      const daysAhead = Math.max(1, dateDistanceDays(minDate, maxDate) + 1);
+      const availableDates = (
+        await findNearestDateWindows({
+          origin,
+          accountSlug: account.slug,
+          locations,
+          fromDate: minDate,
+          serviceId: d.serviceId ?? null,
+          preference: pref,
+          daysAhead,
+          maxDates: daysAhead,
+          limit: timeLimit,
+        })
+      ).map((x) => x.date);
       return {
         handled: true,
-        reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу проверить другую дату.`,
+        reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Выберите другую дату в календаре.`,
         nextStatus: "COLLECTING",
+        ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
       };
     }
     return {
@@ -810,10 +1099,35 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.date) {
+    const minDate = todayYmd;
+    const maxDate = addDaysYmd(todayYmd, 60);
+    const availableDates = d.locationId && d.serviceId
+      ? await findServiceAvailableDatesInRange({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          fromDate: minDate,
+          daysAhead: 61,
+        })
+      : (
+          await findNearestDateWindows({
+            origin,
+            accountSlug: account.slug,
+            locations,
+            fromDate: minDate,
+            serviceId: d.serviceId ?? null,
+            preference: null,
+            daysAhead: 61,
+            maxDates: 61,
+            limit: 24,
+          })
+        ).map((x) => x.date);
     return {
       handled: true,
-      reply: "Напишите дату: например «сегодня», «завтра» или «в субботу».",
+      reply: "Выберите дату в календаре или напишите её сообщением.",
       nextStatus: "COLLECTING",
+      ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
     };
   }
 
@@ -822,7 +1136,31 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const pref = detectTimePreference(messageNorm);
     const times = filterByPreference(allTimes, pref);
     if (!times.length) {
-      return { handled: true, reply: `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Укажите другую дату.`, nextStatus: "COLLECTING" };
+      const nextDates = await findNextServiceDates({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId!,
+        serviceId: d.serviceId!,
+        fromDate: d.date,
+        daysAhead: 35,
+        maxDates: 6,
+      });
+      return {
+        handled: true,
+        reply: nextDates.length
+          ? `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Выберите другую дату в календаре.`
+          : `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Укажите другую дату.`,
+        nextStatus: "COLLECTING",
+        ui: nextDates.length
+          ? {
+              kind: "date_picker",
+              minDate: nextDates[0]!,
+              maxDate: nextDates[nextDates.length - 1]!,
+              initialDate: nextDates[0]!,
+              availableDates: nextDates,
+            }
+          : null,
+      };
     }
     const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
     return {
@@ -1027,4 +1365,23 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
