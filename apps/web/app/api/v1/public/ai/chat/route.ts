@@ -532,6 +532,10 @@ function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {
   return byToken ?? null;
 }
 
+function isAnySpecialistChoiceText(messageNorm: string) {
+  return /\b(любой|кто угодно|не важно|неважно)\b/i.test(messageNorm);
+}
+
 function specialistSupportsSelection(args: {
   specialistId: number | null | undefined;
   serviceId: number | null | undefined;
@@ -992,6 +996,9 @@ export async function POST(request: Request) {
     const explicitServiceFollowUp =
       isServiceFollowUpText(norm(messageForRouting)) &&
       /(услуг|услуга|стоимость|длительность|men haircut|women haircut|маник|педик|стриж|гель|peeling|facial)/i.test(lastAssistantText);
+    const serviceSelectionFromCatalog =
+      Boolean(serviceByText(norm(messageForRouting), services)) &&
+      /(доступные услуги ниже|выберите нужную кнопкой|покажи услуги|выберите услугу)/i.test(lastAssistantText);
     const heuristicIntent = intentFromHeuristics(messageForRouting);
     const mappedNluIntent = mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
     const nluConfidence = typeof nlu?.confidence === "number" ? nlu.confidence : 0;
@@ -1050,7 +1057,12 @@ export async function POST(request: Request) {
     if (has(messageForRouting, /(какая цена|сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник|деньги)/i)) {
       intent = "ask_price";
     }
+    // If user clicked/typed a concrete service right after catalog, continue booking flow.
+    if (serviceSelectionFromCatalog && !explicitServiceComplaint) {
+      intent = "booking_start";
+    }
     const selectedSpecialistByText = specialistByText(t, specialists);
+    const explicitAnySpecialistChoice = isAnySpecialistChoiceText(t);
     const choiceNum = parseChoiceFromText(t);
     const explicitBookingText =
       !explicitBookingDecline &&
@@ -1061,7 +1073,9 @@ export async function POST(request: Request) {
         message,
         /(запиш|записаться|запись|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи|бронь|забронируй|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/i,
       ) ||
-      Boolean(selectedSpecialistByText);
+      serviceSelectionFromCatalog ||
+      Boolean(selectedSpecialistByText) ||
+      explicitAnySpecialistChoice;
     const hasDraftContext = hasDraftContextEarly;
     const forceClientActions =
       confirmPendingClientAction ||
@@ -1092,7 +1106,6 @@ export async function POST(request: Request) {
       : routeForIntent(intent);
     const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
 
-    const listLocations = `Наши локации:\n${locations.map((x, i) => `${i + 1}. ${x.name}${x.address ? ` — ${x.address}` : ""}`).join("\n")}`;
     const looksLikeBookingContinuation =
       isBookingCarryMessage(t) ||
       isLooseConfirmation(messageForRouting) ||
@@ -1104,6 +1117,7 @@ export async function POST(request: Request) {
       Boolean(locationByText(t, locations)) ||
       Boolean(serviceByText(t, services)) ||
       Boolean(selectedSpecialistByText) ||
+      explicitAnySpecialistChoice ||
       has(
         messageForRouting,
         /(согласен|согласна|персональн|подтвержд|оформи|самостоятельно|через ассистента|время|слот|окошк|сегодня|завтра|локац|филиал)/i,
@@ -1275,11 +1289,13 @@ export async function POST(request: Request) {
       if (!d.mode && d.specialistId && choiceNum === 2) d.mode = "ASSISTANT";
     }
 
-    d.clientPhone = parsePhone(message) || nlu?.clientPhone || d.clientPhone || client?.phone || null;
+    const parsedNluPhone = typeof nlu?.clientPhone === "string" ? parsePhone(nlu.clientPhone) : null;
+    const parsedDraftPhone = d.clientPhone ? parsePhone(d.clientPhone) : null;
+    const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
+    d.clientPhone = parsePhone(message) || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
     d.clientName = parseName(message) || nlu?.clientName || d.clientName || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() || null;
     const explicitConsentText = has(message, /(согласен|согласна|даю согласие|согласие на обработку)/i);
-    const consentByIntentInConsentStep = intent === "consent" && d.status === "WAITING_CONSENT";
-    if (explicitConsentText || consentByIntentInConsentStep) {
+    if (explicitConsentText) {
       d.consentConfirmedAt = new Date().toISOString();
     }
 
@@ -1378,15 +1394,19 @@ export async function POST(request: Request) {
         }
       } else if (intent === "contact_phone") {
         const phoneReply = accountProfile?.phone ? `Номер студии: ${accountProfile.phone}.` : "Сейчас номер телефона недоступен.";
-        reply = `${phoneReply} ${listLocations}`;
+        reply = locations.length ? `${phoneReply} Локации доступны кнопками ниже.` : phoneReply;
+        if (locations.length) {
+          nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
+        }
       } else if (intent === "contact_address") {
         reply = locations.length
-          ? `Наши локации:\n${locations
-              .map((x, i) => `${i + 1}. ${x.name}${x.address ? ` — ${x.address}` : ""}`)
-              .join("\n")}`
+          ? "Наши локации ниже. Выберите нужную кнопкой."
           : accountProfile?.address
           ? `Адрес: ${accountProfile.address}`
           : "Адрес пока не указан. Могу помочь с записью по удобной локации.";
+        if (locations.length) {
+          nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
+        }
       } else if (intent === "working_hours") {
         reply = "Обычно работаем ежедневно с 09:00 до 21:00. Если нужно, проверю точный график по конкретной локации и дате.";
       } else if (intent === "ask_specialists") {
@@ -1398,10 +1418,8 @@ export async function POST(request: Request) {
           const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
           const scoped = specialists.filter((s) => s.locationIds.includes(selectedLocationId));
           if (scoped.length) {
-            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} работают специалисты:\n${scoped
-              .slice(0, 16)
-              .map((x) => `• ${x.name}`)
-              .join("\n")}`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты. Выберите кнопкой ниже.`;
+            nextUi = { kind: "quick_replies", options: scoped.slice(0, 16).map((x) => ({ label: x.name, value: x.name })) };
           } else {
             reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов в расписании.`;
           }
@@ -1413,9 +1431,8 @@ export async function POST(request: Request) {
             }))
             .filter((x) => x.items.length > 0);
           if (byLocation.length) {
-            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}специалисты по филиалам:\n${byLocation
-              .map((x) => `${x.loc.name}: ${x.items.map((s) => s.name).join(", ")}`)
-              .join("\n")}`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}доступны специалисты по филиалам. Выберите филиал кнопкой ниже.`;
+            nextUi = { kind: "quick_replies", options: byLocation.slice(0, 12).map((x) => ({ label: x.loc.name, value: x.loc.name })) };
           } else {
             reply = "Сейчас не нашла специалистов в расписании. Могу проверить по конкретной локации и дате.";
           }
@@ -1447,18 +1464,13 @@ export async function POST(request: Request) {
             return false;
           });
           if (gendered.length) {
-            reply = `Подходящие услуги:\n${gendered
-              .slice(0, 12)
-              .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-              .join("\n")}`;
+            reply = "Подходящие услуги ниже. Выберите кнопкой.";
             nextUi = { kind: "quick_replies", options: gendered.slice(0, 12).map(serviceQuickOption) };
           } else {
             const suggested = services
               .filter((x) => /(haircut|стриж|manicure|маник|pedicure|педик)/i.test(norm(x.name)))
               .slice(0, 8);
-            reply = `Из доступных сейчас могу предложить:\n${(suggested.length ? suggested : services.slice(0, 8))
-              .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-              .join("\n")}`;
+            reply = "Из доступных сейчас могу предложить варианты ниже. Выберите кнопкой.";
             const optionsSource = suggested.length ? suggested : services.slice(0, 8);
             nextUi = { kind: "quick_replies", options: optionsSource.map(serviceQuickOption) };
           }
@@ -1468,13 +1480,10 @@ export async function POST(request: Request) {
           if (genderExamples.length) nextUi = { kind: "quick_replies", options: genderExamples.map(serviceQuickOption) };
         } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
           const requested = extractRequestedServicePhrase(t);
-          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных:\n${services
-            .slice(0, 12)
-            .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-            .join("\n")}`;
+          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         } else {
-          reply = `Доступные услуги:\n${services.slice(0, 12).map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`).join("\n")}`;
+          reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
         }
@@ -1483,10 +1492,7 @@ export async function POST(request: Request) {
         if (selectedByText) {
           reply = `${selectedByText.name}: ${Math.round(selectedByText.basePrice)} ₽, ${selectedByText.baseDurationMin} мин.`;
         } else {
-          reply = `Ориентиры по стоимости из каталога:\n${services
-            .slice(0, 12)
-            .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-            .join("\n")}`;
+          reply = "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else if (mentionsServiceTopic(t)) {
@@ -1495,10 +1501,7 @@ export async function POST(request: Request) {
           reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.`;
         } else {
           const requested = extractRequestedServicePhrase(t);
-          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных:\n${services
-            .slice(0, 12)
-            .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-            .join("\n")}`;
+          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else {
@@ -1534,17 +1537,8 @@ export async function POST(request: Request) {
     }
     reply = sanitizeAssistantReplyText(reply);
     if (route === "chat-only" && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
-      reply = `Доступные услуги:\n${services
-        .slice(0, 12)
-        .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-        .join("\n")}`;
+      reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
       nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
-    }
-
-    const hadAssistantBefore = recentMessages.some((m) => m.role === "assistant");
-    if (!hadAssistantBefore && !/^(здравств|привет|я аиша|я\s)/i.test(reply.trim())) {
-      const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
-      reply = knownName ? `Здравствуйте, ${knownName}! ${reply}` : `Здравствуйте! ${reply}`;
     }
 
     await prisma.$transaction([

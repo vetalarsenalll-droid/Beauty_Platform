@@ -3062,7 +3062,7 @@ export default function BookingClient({
                               value={clientName}
                               onChange={(event) => setClientName(event.target.value)}
                               className="mt-2 h-11 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm"
-                              placeholder="Например, Виталя"
+                              placeholder="Например, Надежда"
                             />
                           </div>
 

@@ -145,6 +145,26 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
   }, [messages.length, loading, open, typingVisible]);
 
   useEffect(() => {
+    if (!open) return;
+    if (messages.length > 0) return;
+    const greeting = "Здравствуйте! Я Аиша. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.";
+    const greetingUi: ChatUi = {
+      kind: "quick_replies",
+      options: [
+        { label: "Записаться сегодня", value: "запиши меня сегодня" },
+      ],
+    };
+    setMessages((prev) => {
+      if (prev.length) return prev;
+      const next: ChatMessage[] = [{ role: "assistant", content: greeting, ui: greetingUi }];
+      setTypingMessageIndex(0);
+      setTypingTarget(stripLegalRefs(greeting));
+      setTypingVisible("");
+      return next;
+    });
+  }, [open, messages.length]);
+
+  useEffect(() => {
     if (typingMessageIndex == null) return;
     if (!typingTarget) return;
     if (typingVisible === typingTarget) return;
@@ -485,7 +505,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
               <input
                 value={text}
                 onChange={(event) => setText(event.target.value)}
-                placeholder="Например: маникюр завтра в 17:00"
+                placeholder="Введите сообщение"
                 className="h-10 flex-1 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-transparent px-3 text-sm text-[color:var(--site-text,#111827)] outline-none"
               />
               <button
@@ -502,9 +522,11 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-full bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_8px_24px_rgba(0,0,0,0.22)]"
+          className="ai-fab group flex items-center gap-2 rounded-full bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20"
+          aria-label="Открыть AI-ассистента"
         >
-          AI запись
+          <span className="ai-fab-dot h-2 w-2 rounded-full bg-white" />
+          <span className="whitespace-nowrap">AI-ассистент</span>
         </button>
       )}
       <style jsx global>{`
@@ -523,6 +545,37 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         .ai-dot-wave {
           animation: ai-dot-wave 0.9s ease-in-out infinite;
           will-change: transform, opacity;
+        }
+        @keyframes ai-fab-attention {
+          0%,
+          100% {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+          }
+          50% {
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
+          }
+        }
+        @keyframes ai-fab-dot-pulse {
+          0%,
+          100% {
+            transform: scale(1);
+            opacity: 0.85;
+          }
+          50% {
+            transform: scale(1.25);
+            opacity: 1;
+          }
+        }
+        .ai-fab {
+          animation: ai-fab-attention 2.4s ease-in-out infinite;
+          transition: box-shadow 0.2s ease, filter 0.2s ease;
+        }
+        .ai-fab:hover {
+          filter: brightness(1.04);
+        }
+        .ai-fab-dot {
+          animation: ai-fab-dot-pulse 1.2s ease-in-out infinite;
+          box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.22);
         }
       `}</style>
     </div>
