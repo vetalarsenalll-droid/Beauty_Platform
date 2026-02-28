@@ -1,0 +1,402 @@
+{
+  "suite": "all",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-02-27T22:37:17.970Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Greeting basic",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abuse de-escalation",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет сучка",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identity intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто ты",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Capabilities intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "что умеешь",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Capabilities follow-up should route to DB services",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а что ты можешь?",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "а какие именно есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Current datetime intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какое сейчас число и время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Contact phone intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "дай номер",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Working hours intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "до скольки работаете?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Address intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "где находитесь?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Services list intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какие услуги есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Services for men intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "мужские услуги есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Specific price intent grounded",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "сколько стоит peeling",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "General price intent grounded",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "по стоимости сориентируй",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Specialists generic",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какие мастера есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Who works tomorrow + location keeps specialist flow",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто завтра работает",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Riverside",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Specialist name should not reset to greeting",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто завтра из мастеров работает?",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Maria Petrova",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Out-of-domain query should not crash",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "расскажи анекдот про космос",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Unknown gibberish should not crash",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "asdasd qwe zzz",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Post-thanks should remain polite",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "спасибо",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability in March",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "в марте есть время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Booking service-first path",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу на маникюр завтра",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Unknown service should be rejected with available options",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши на удаление зуба",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "удаление зуба",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "E2E booking self mode",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня на завтра",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "покажи все свободное время",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "13:00",
+          "passed": true
+        },
+        {
+          "index": 5,
+          "sent": "Balayage",
+          "passed": true
+        },
+        {
+          "index": 6,
+          "sent": "pick:specialist",
+          "skipped": true,
+          "reason": "ifReply"
+        },
+        {
+          "index": 7,
+          "sent": "самостоятельно",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "E2E booking assistant mode",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу записаться на завтра",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "покажи все свободное время",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "13:00",
+          "passed": true
+        },
+        {
+          "index": 5,
+          "sent": "Balayage",
+          "passed": true
+        },
+        {
+          "index": 6,
+          "sent": "pick:specialist",
+          "skipped": true,
+          "reason": "ifReply"
+        },
+        {
+          "index": 7,
+          "sent": "оформи через ассистента",
+          "passed": true
+        },
+        {
+          "index": 8,
+          "sent": "Надежда +79001234567",
+          "passed": false,
+          "error": "E2E booking assistant mode / step 8 (Надежда +79001234567): expected one of /согласие|персональн|проверьте данные/i\nreply:\nЗапись оформлена:\n\nКлиент: Надежда\nТелефон: +79001234567\nДата: 2026-02-29\nВремя: 13:00\nУслуга: Balayage\nСпециалист: Pavel Sidorov\nСтоимость: 5500 ₽\nДлительность: 180 мин\n\nСпасибо за выбор нашей студии!",
+          "reply": "Запись оформлена:\n\nКлиент: Надежда\nТелефон: +79001234567\nДата: 2026-02-29\nВремя: 13:00\nУслуга: Balayage\nСпециалист: Pavel Sidorov\nСтоимость: 5500 ₽\nДлительность: 180 мин\n\nСпасибо за выбор нашей студии!"
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-02-27T22:37:48.051Z",
+  "durationMs": 30081
+}

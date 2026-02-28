@@ -1,0 +1,76 @@
+name: Aisha Dialog Regression
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Suite to run: all | core | booking-e2e | client-actions"
+        required: false
+        default: "all"
+      base_url:
+        description: "Base URL for chat API"
+        required: false
+        default: ""
+      account:
+        description: "Account slug"
+        required: false
+        default: ""
+
+jobs:
+  dialog-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Resolve config
+        id: cfg
+        shell: bash
+        run: |
+          SUITE="${{ github.event.inputs.suite }}"
+          if [ -z "$SUITE" ]; then SUITE="all"; fi
+          BASE_URL="${{ github.event.inputs.base_url }}"
+          ACCOUNT="${{ github.event.inputs.account }}"
+          if [ -z "$BASE_URL" ]; then BASE_URL="${{ secrets.AISHA_BASE_URL }}"; fi
+          if [ -z "$ACCOUNT" ]; then ACCOUNT="${{ secrets.AISHA_ACCOUNT }}"; fi
+          echo "suite=$SUITE" >> "$GITHUB_OUTPUT"
+          echo "base_url=$BASE_URL" >> "$GITHUB_OUTPUT"
+          echo "account=$ACCOUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when no target configured
+        if: ${{ steps.cfg.outputs.base_url == '' || steps.cfg.outputs.account == '' }}
+        run: |
+          echo "Skipping Aisha dialog regression: AISHA_BASE_URL or AISHA_ACCOUNT is not configured."
+          echo "Set secrets AISHA_BASE_URL / AISHA_ACCOUNT or pass workflow_dispatch inputs."
+
+      - name: Run dialog regression
+        if: ${{ steps.cfg.outputs.base_url != '' && steps.cfg.outputs.account != '' }}
+        env:
+          AISHA_BASE_URL: ${{ steps.cfg.outputs.base_url }}
+          AISHA_ACCOUNT: ${{ steps.cfg.outputs.account }}
+          AISHA_SUITE: ${{ steps.cfg.outputs.suite }}
+        run: npm run test:aisha-dialogs
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aisha-dialog-reports
+          path: tmp/aisha-dialog-reports
+          if-no-files-found: ignore
+

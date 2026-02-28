@@ -41,6 +41,7 @@ type FlowCtx = {
   request: Request;
   listLocations: string;
   publicSlug: string;
+  todayYmd: string;
 };
 
 type FlowResult = {
@@ -165,6 +166,13 @@ function specialistByText(messageNorm: string, specs: SpecialistLite[]) {
     return parts.some((p) => p.length >= 3 && new RegExp(`\\b${p}\\b`, "i").test(t));
   });
   return byToken ?? null;
+}
+
+function autoAssignedSpecialistText(name: string) {
+  const firstName = normalizeText(name).split(" ").find(Boolean) ?? "";
+  const maleException = new Set(["никита", "илья", "кузьма", "фома", "паша"]);
+  const looksFemale = /[ая]$/.test(firstName) && !maleException.has(firstName);
+  return `На это время доступен только ${name}, записала к ${looksFemale ? "ней" : "нему"} автоматически.\n\n`;
 }
 
 function serviceListAtTimeText(args: {
@@ -324,6 +332,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     choice,
     listLocations,
     publicSlug,
+    todayYmd,
   } = ctx;
   const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
@@ -574,8 +583,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         nextStatus: "COLLECTING",
       };
     }
-    if (asksAvailability && d.date) {
-      const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
+    if (asksAvailability) {
+      const targetDate = d.date ?? todayYmd;
+      if (!d.date) d.date = targetDate;
+      const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
       const allTimes = Array.from(new Set((offers?.times ?? []).map((x) => x.time)));
       const pref = detectTimePreference(messageNorm);
       const times = filterByPreference(allTimes, pref);
@@ -583,13 +594,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
         return {
           handled: true,
-          reply: `На ${formatYmdRu(d.date)}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${formatTimesShort(times, timeLimit)}. Можете выбрать время, а затем услугу.`,
+          reply: `На ${formatYmdRu(targetDate)}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${formatTimesShort(times, timeLimit)}. Можете выбрать время, а затем услугу.`,
           nextStatus: "COLLECTING",
         };
       }
       return {
         handled: true,
-        reply: `На ${formatYmdRu(d.date)}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
+        reply: `На ${formatYmdRu(targetDate)}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
         nextStatus: "COLLECTING",
       };
     }
@@ -688,9 +699,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
     const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
     const effectiveText = effective ? `\nСтоимость: ${Math.round(effective.price)} ₽\nДлительность: ${effective.durationMin} мин` : "";
-    const specialistAutoText = autoSelectedSpecialistName
-      ? `На это время доступен только ${autoSelectedSpecialistName}, записала к нему автоматически.\n\n`
-      : "";
+    const specialistAutoText = autoSelectedSpecialistName ? autoAssignedSpecialistText(autoSelectedSpecialistName) : "";
     return {
       handled: true,
       reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?\n1) Сам в форме онлайн-записи.\n2) Оформить через ассистента.`,

@@ -9,6 +9,10 @@
     "dev:web": "npm --workspace apps/web run dev",
     "dev:worker": "npm --workspace apps/worker run dev",
     "lint": "npm --workspace apps/web run lint",
+    "test:aisha-dialogs": "node scripts/aisha-dialog-regression.mjs --suite=all",
+    "test:aisha-dialogs:core": "node scripts/aisha-dialog-regression.mjs --suite=core",
+    "test:aisha-dialogs:booking": "node scripts/aisha-dialog-regression.mjs --suite=booking-e2e",
+    "test:aisha-dialogs:client": "node scripts/aisha-dialog-regression.mjs --suite=client-actions",
     "prisma:studio": "powershell -ExecutionPolicy Bypass -File ./studio.ps1",
     "prisma:validate": "powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 validate"
   },

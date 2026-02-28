@@ -360,11 +360,12 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   msg.role === "assistant" && typingMessageIndex === index && !hasStructuredChoices
                     ? typingVisible || ""
                     : msg.content;
-                const sourceTextNoLegal = sourceText.replace(/\/[A-Za-z0-9_-]+\/legal\/\d+/g, "").replace(/\s{2,}/g, " ").trim();
+                const safeSourceText = isTypingThis ? sourceText : sourceText || msg.content;
+                const sourceTextNoLegal = safeSourceText.replace(/\/[A-Za-z0-9_-]+\/legal\/\d+/g, "").replace(/\s{2,}/g, " ").trim();
                 const shownText =
                   msg.role === "assistant"
-                    ? compactAssistantText(sourceTextNoLegal || sourceText || msg.content, options)
-                    : sourceText || msg.content;
+                    ? compactAssistantText(sourceTextNoLegal || safeSourceText, options)
+                    : safeSourceText;
                 const effectiveOptions = showConsentControl
                   ? options.filter((o) => !/согласен на обработку персональных данных/i.test(o.value))
                   : options;
