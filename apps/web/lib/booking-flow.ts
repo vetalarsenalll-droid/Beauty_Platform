@@ -884,7 +884,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const hasAnyDigits = digitCount > 0;
     const invalidPhoneHint =
       hasAnyDigits && !d.clientPhone
-        ? digitCount < 10
+        ? digitCount < 11
           ? "Похоже, номер слишком короткий."
           : "Не смогла распознать номер телефона."
         : "";
@@ -894,7 +894,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         reply:
           "Для оформления через ассистента нужны имя и телефон клиента. " +
           `${invalidPhoneHint ? `${invalidPhoneHint} ` : ""}` +
-          "Напишите одним сообщением, например: «Надежда +7 911 123-45-67».",
+          "Напишите одним сообщением, например: «Надежда +7XXXXXXXXXX».",
         nextStatus: "WAITING_CONSENT",
       };
     }
@@ -929,7 +929,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     };
   }
 
-  if (!isAffirmative(messageNorm)) {
+  const confirmedByUser = isAffirmative(messageNorm);
+  // Enforce a dedicated confirmation step: user must first see confirmation with button,
+  // then send explicit confirmation in the next turn.
+  if (d.status !== "WAITING_CONFIRMATION" || !confirmedByUser) {
     nextStatus = "WAITING_CONFIRMATION";
     return {
       handled: true,

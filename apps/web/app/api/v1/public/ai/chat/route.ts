@@ -324,7 +324,6 @@ const parsePhone = (m: string) => {
   const d = s.replace(/\D/g, "");
   if (d.length === 11 && d.startsWith("8")) return `+7${d.slice(1)}`;
   if (d.length === 11 && d.startsWith("7")) return `+${d}`;
-  if (d.length === 10) return `+7${d}`;
   return null;
 };
 const parseName = (m: string) => m.match(/(?:меня зовут|имя)\s+([A-Za-zА-Яа-яЁё\-]{2,})/i)?.[1] ?? null;
@@ -1084,6 +1083,7 @@ export async function POST(request: Request) {
       (explicitClientCancelPhrase && !cancelMeansDraftAbort) ||
       explicitClientReschedulePhrase;
     const isConsentStage = d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION";
+    const shouldStayInAssistantStages = isConsentStage && d.mode === "ASSISTANT";
     const isConsentStageMessage = has(
       messageForRouting,
       /(согласен|согласна|персональн|подтверждаю|подтвердить|да|верно|записаться|оформи через ассистента)/i,
@@ -1091,7 +1091,7 @@ export async function POST(request: Request) {
     const forceBookingByContext =
       hasDraftContext &&
       !explicitBookingDecline &&
-      (!isConsentStage || isConsentStageMessage) &&
+      (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !forceClientActions &&
       (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t));
     if (hasDraftContext && explicitAvailabilityPeriod) {
@@ -1125,14 +1125,24 @@ export async function POST(request: Request) {
     const shouldContinueBookingByContext =
       route === "chat-only" &&
       !explicitBookingDecline &&
-      (!isConsentStage || isConsentStageMessage) &&
+      (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !isConversationalHeuristicIntent(intent) &&
       !confirmPendingClientAction &&
       !continuePendingCancelChoice &&
       hasDraftContext &&
       looksLikeBookingContinuation;
-    const shouldEnrichDraftForBooking = route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext;
-    const shouldRunBookingFlow = route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext;
+    // In assistant completion stages, every follow-up must be processed by deterministic booking-flow
+    // to enforce phone validation, consent, and explicit final confirmation.
+    const forceAssistantStageFlow =
+      shouldStayInAssistantStages &&
+      hasDraftContext &&
+      !explicitBookingDecline &&
+      !forceClientActions &&
+      !explicitDateTimeQuery;
+    const shouldEnrichDraftForBooking =
+      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow;
+    const shouldRunBookingFlow =
+      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow;
     const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
     const prevUserNorm = norm(previousUserText);
     const carryPrevTimePref =
@@ -1284,9 +1294,16 @@ export async function POST(request: Request) {
       const wantsSelfMode = has(message, /(сам|самостоятельно|в форме|онлайн)/i);
       const wantsAssistantMode = has(message, /(оформи|через ассистента|оформи ты|оформи ты)/i);
       if (wantsSelfMode) d.mode = "SELF";
-      if (wantsAssistantMode) d.mode = "ASSISTANT";
+      if (wantsAssistantMode) {
+        d.mode = "ASSISTANT";
+        // Always require fresh consent for assistant flow in current booking context.
+        d.consentConfirmedAt = null;
+      }
       if (!d.mode && d.specialistId && choiceNum === 1) d.mode = "SELF";
-      if (!d.mode && d.specialistId && choiceNum === 2) d.mode = "ASSISTANT";
+      if (!d.mode && d.specialistId && choiceNum === 2) {
+        d.mode = "ASSISTANT";
+        d.consentConfirmedAt = null;
+      }
     }
 
     const parsedNluPhone = typeof nlu?.clientPhone === "string" ? parsePhone(nlu.clientPhone) : null;
