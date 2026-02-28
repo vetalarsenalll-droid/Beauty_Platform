@@ -282,9 +282,47 @@ function specialistByText(messageNorm: string, specs: SpecialistLite[]) {
 
 function autoAssignedSpecialistText(name: string) {
   const firstName = normalizeText(name).split(" ").find(Boolean) ?? "";
-  const maleException = new Set(["никита", "илья", "кузьма", "фома", "паша"]);
-  const looksFemale = /[ая]$/.test(firstName) && !maleException.has(firstName);
-  return `На это время доступен только ${name}, записала к ${looksFemale ? "ней" : "нему"} автоматически.\n\n`;
+  const explicitFemaleNames = new Set([
+    "ирина",
+    "анна",
+    "мария",
+    "ольга",
+    "елена",
+    "наталья",
+    "яна",
+    "юлия",
+    "екатерина",
+    "софия",
+    "irina",
+    "anna",
+    "maria",
+    "olga",
+    "elena",
+    "natalia",
+    "yana",
+    "julia",
+    "ekaterina",
+    "sofia",
+  ]);
+  const maleException = new Set([
+    "никита",
+    "илья",
+    "кузьма",
+    "фома",
+    "паша",
+    "саша",
+    "nikita",
+    "ilya",
+    "kuzma",
+    "foma",
+    "pasha",
+    "sasha",
+  ]);
+  const isFemale =
+    explicitFemaleNames.has(firstName) || ((/[ая]$/.test(firstName) || /(?:a|ia|ya)$/.test(firstName)) && !maleException.has(firstName));
+  const availabilityWord = isFemale ? "доступна" : "доступен";
+  const pronoun = isFemale ? "её" : "его";
+  return `На это время ${availabilityWord} только ${name}, выбрала ${pronoun} автоматически.\n\n`;
 }
 
 async function collectLocationWindows(args: {
@@ -986,5 +1024,4 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
-
 
