@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import { AishaNluIntent, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import { runBookingFlow } from "@/lib/booking-flow";
+import type { ChatUi } from "@/lib/booking-flow";
 import { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import { ANTI_HALLUCINATION_RULES, AishaIntent, routeForIntent } from "@/lib/dialog-policy";
 import { INTENT_ACTION_MATRIX } from "@/lib/intent-action-matrix";
@@ -393,6 +394,13 @@ function sanitizeAssistantReplyText(reply: string) {
     .replace(/подсоблю/gi, "помогу")
     .replace(/подсобишь/gi, "поможешь")
     .replace(/подсобите/gi, "помогу");
+}
+
+function serviceQuickOption(service: ServiceLite) {
+  return {
+    label: `${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`,
+    value: service.name,
+  };
 }
 
 function hasKnownServiceNameInText(text: string, services: ServiceLite[]) {
@@ -847,7 +855,7 @@ export async function POST(request: Request) {
       where: { id: turnAction.id },
       data: { status: "FAILED", payload: { message, error: errorText ?? "unknown_error" } },
     });
-    return jsonOk({ threadId: thread.id, reply, action: null, draft: draftView(draft) });
+    return jsonOk({ threadId: thread.id, reply, action: null, ui: null, draft: draftView(draft) });
   };
 
   try {
@@ -1189,7 +1197,7 @@ export async function POST(request: Request) {
           },
         }),
       ]);
-      return jsonOk({ threadId: thread.id, reply: unknownServiceReply, action: null, draft: d });
+      return jsonOk({ threadId: thread.id, reply: unknownServiceReply, action: null, ui: null, draft: d });
     }
 
     if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
@@ -1281,6 +1289,7 @@ export async function POST(request: Request) {
     let reply = `Я ${ASSISTANT_NAME}, помогу с записью. Что нужно?`;
     let nextStatus = d.status;
     let nextAction: Action = null;
+    let nextUi: ChatUi | null = null;
 
     if (route === "client-actions") {
       const effectiveClientId = client?.clientId ?? thread.clientId ?? null;
@@ -1324,7 +1333,6 @@ export async function POST(request: Request) {
         specialists,
         requiredVersionIds,
         request,
-        listLocations,
         publicSlug,
         todayYmd: nowYmd,
       });
@@ -1332,6 +1340,7 @@ export async function POST(request: Request) {
         reply = flowResult.reply ?? reply;
         nextStatus = flowResult.nextStatus ?? nextStatus;
         nextAction = flowResult.nextAction ?? nextAction;
+        nextUi = flowResult.ui ?? null;
       }
     } else {
       if (explicitDateTimeQuery) {
@@ -1442,6 +1451,7 @@ export async function POST(request: Request) {
               .slice(0, 12)
               .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
               .join("\n")}`;
+            nextUi = { kind: "quick_replies", options: gendered.slice(0, 12).map(serviceQuickOption) };
           } else {
             const suggested = services
               .filter((x) => /(haircut|стриж|manicure|маник|pedicure|педик)/i.test(norm(x.name)))
@@ -1449,17 +1459,23 @@ export async function POST(request: Request) {
             reply = `Из доступных сейчас могу предложить:\n${(suggested.length ? suggested : services.slice(0, 8))
               .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
               .join("\n")}`;
+            const optionsSource = suggested.length ? suggested : services.slice(0, 8);
+            nextUi = { kind: "quick_replies", options: optionsSource.map(serviceQuickOption) };
           }
         } else if (asksGenderSuitability(t)) {
           reply = "Есть услуги для мужчин и для женщин. Например: Men Haircut и Women Haircut. Напишите, что именно нужно, и я подберу вариант.";
+          const genderExamples = services.filter((x) => /(men haircut|women haircut|муж|жен)/i.test(norm(x.name))).slice(0, 6);
+          if (genderExamples.length) nextUi = { kind: "quick_replies", options: genderExamples.map(serviceQuickOption) };
         } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
           const requested = extractRequestedServicePhrase(t);
           reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных:\n${services
             .slice(0, 12)
             .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
             .join("\n")}`;
+          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         } else {
           reply = `Доступные услуги:\n${services.slice(0, 12).map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`).join("\n")}`;
+          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
         }
       } else if (intent === "ask_price") {
@@ -1471,6 +1487,7 @@ export async function POST(request: Request) {
             .slice(0, 12)
             .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
             .join("\n")}`;
+          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else if (mentionsServiceTopic(t)) {
         const selectedByText = serviceByText(t, services);
@@ -1482,6 +1499,7 @@ export async function POST(request: Request) {
             .slice(0, 12)
             .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
             .join("\n")}`;
+          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else {
         if (isOutOfDomainPrompt(t)) {
@@ -1520,6 +1538,7 @@ export async function POST(request: Request) {
         .slice(0, 12)
         .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
         .join("\n")}`;
+      nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
     }
 
     const hadAssistantBefore = recentMessages.some((m) => m.role === "assistant");
@@ -1562,6 +1581,7 @@ export async function POST(request: Request) {
             nluIntent: nlu?.intent ?? null,
             mappedNluIntent,
             actionType: nextAction?.type ?? null,
+            uiKind: nextUi?.kind ?? null,
             confirmPendingClientAction,
             pendingClientActionType: pendingClientAction?.type ?? null,
             messageForRouting,
@@ -1586,7 +1606,7 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    return jsonOk({ threadId: thread.id, reply, action: nextAction, draft: d });
+    return jsonOk({ threadId: thread.id, reply, action: nextAction, ui: nextUi, draft: d });
   } catch (e) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }

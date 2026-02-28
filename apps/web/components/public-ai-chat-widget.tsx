@@ -5,6 +5,10 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 type Message = { id?: number; role: "user" | "assistant"; content: string };
 type ChatAction = { type: "open_booking"; bookingUrl: string } | null;
 type QuickReply = { label: string; value: string; href?: string };
+type ChatUi =
+  | { kind: "quick_replies"; options: QuickReply[] }
+  | { kind: "consent"; options: QuickReply[]; legalLinks: string[]; consentValue: string };
+type ChatMessage = Message & { ui?: ChatUi | null };
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
@@ -111,45 +115,12 @@ function extractQuickReplies(content: string): QuickReply[] {
   const filtered = isLocationSelectionReply ? replies.filter((x) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.value)) : replies;
   return filtered.slice(0, finalLimit);
 }
-
-function compactAssistantText(content: string, options: QuickReply[]) {
-  if (!options.length) return content;
-  const lines = content
-    .split("\n")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-  const hasDenseLists = lines.some((line) => {
-    if (/^\d{1,2}\.\s+/i.test(line)) return true;
-    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line) || /\/legal\//i.test(line)) return false;
-    const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
-    return timeMatches.length >= 3;
-  });
-
-  const filtered = lines.filter((line) => {
-    if (/^\d{1,2}\.\s+/i.test(line)) return false;
-    if (/\/[A-Za-z0-9_-]+\/legal\/\d+/i.test(line) || /\/legal\//i.test(line)) return false;
-    if (/^(можно|выберите|напишите|укажите|наши локации:|доступные услуги:)\b/i.test(line)) return false;
-    if (/^(нашла окна|на \d{2}\.\d{2}\.\d{4} .*есть окна|на \d{2}\.\d{2}\.\d{4} доступны времена)/i.test(line)) return false;
-    const timeMatches = line.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/g) ?? [];
-    if (timeMatches.length >= 3) return false;
-    return true;
-  });
-
-  if (filtered.length) {
-    return filtered.join("\n");
-  }
-
-  if (hasDenseLists) return "";
-  return lines[0] ?? content;
-}
-
 export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [typingTarget, setTypingTarget] = useState("");
   const [typingVisible, setTypingVisible] = useState("");
@@ -171,7 +142,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
     const node = bottomRef.current;
     if (!node) return;
     node.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages, loading, open]);
+  }, [messages.length, loading, open, typingVisible]);
 
   useEffect(() => {
     if (typingMessageIndex == null) return;
@@ -204,10 +175,8 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
         setThreadId(nextThreadId);
         window.localStorage.setItem(storageKey, String(nextThreadId));
       }
-      const apiMessages = Array.isArray(payload.data.messages)
-        ? (payload.data.messages as Message[])
-        : [];
-      setMessages(apiMessages.length > 0 ? apiMessages : []);
+      const apiMessages = Array.isArray(payload.data.messages) ? (payload.data.messages as Message[]) : [];
+      setMessages(apiMessages.length > 0 ? apiMessages.map((m) => ({ ...m, ui: null })) : []);
       setTypingMessageIndex(null);
       setTypingTarget("");
       setTypingVisible("");
@@ -261,10 +230,21 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
       }
 
       const assistantReply = String(payload.data.reply);
+      const assistantUi = (payload.data.ui ?? null) as ChatUi | null;
+      const assistantTypingText = stripLegalRefs(assistantReply);
+      const isStructuredReply =
+        Boolean(
+          assistantUi &&
+            ((assistantUi.kind === "quick_replies" && assistantUi.options.length > 0) || assistantUi.kind === "consent"),
+        ) ||
+        extractQuickReplies(assistantReply).length > 0;
+      if (isStructuredReply) {
+        await new Promise((resolve) => window.setTimeout(resolve, 420));
+      }
       setMessages((prev) => {
-        const next: Message[] = [...prev, { role: "assistant", content: assistantReply } as Message];
+        const next: ChatMessage[] = [...prev, { role: "assistant", content: assistantReply, ui: assistantUi }];
         setTypingMessageIndex(next.length - 1);
-        setTypingTarget(assistantReply);
+        setTypingTarget(assistantTypingText);
         setTypingVisible("");
         return next;
       });
@@ -348,36 +328,41 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
               (() => {
                 const messageKey = `${msg.role}-${msg.id ?? index}`;
                 const isLastAssistant = msg.role === "assistant" && index === lastAssistantIndex;
-                const options = msg.role === "assistant" ? extractQuickReplies(msg.content) : [];
-                const hasStructuredChoices = options.length > 0;
-                const legalLinks = Array.from(
-                  new Set(
-                    Array.from(msg.content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g)).map((m) => m[0]).filter(Boolean),
-                  ),
-                );
+                const ui = msg.ui ?? null;
+                const options =
+                  msg.role === "assistant"
+                    ? ui?.kind === "quick_replies"
+                      ? ui.options
+                      : extractQuickReplies(msg.content)
+                    : [];
+                const legalLinks =
+                  ui?.kind === "consent"
+                    ? ui.legalLinks
+                    : Array.from(new Set(Array.from(msg.content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g)).map((m) => m[0]).filter(Boolean)));
                 const showConsentControl =
                   msg.role === "assistant" &&
-                  /согласие на обработку персональных данных/i.test(msg.content);
+                  (ui?.kind === "consent" || /согласие на обработку персональных данных/i.test(msg.content));
                 const consentChecked = consentCheckedByMessage[messageKey] ?? false;
                 const isTypingThis =
                   msg.role === "assistant" &&
                   typingMessageIndex === index &&
-                  typingVisible !== typingTarget &&
-                  !showConsentControl &&
-                  !hasStructuredChoices;
+                  typingVisible !== typingTarget;
                 const sourceText =
-                  msg.role === "assistant" && typingMessageIndex === index && !hasStructuredChoices
+                  msg.role === "assistant" && typingMessageIndex === index
                     ? typingVisible || ""
                     : msg.content;
                 const safeSourceText = isTypingThis ? sourceText : sourceText || msg.content;
                 const sourceTextNoLegal = stripLegalRefs(safeSourceText);
-                const shownText =
-                  msg.role === "assistant"
-                    ? compactAssistantText(sourceTextNoLegal || safeSourceText, options)
-                    : safeSourceText;
+                const shownText = msg.role === "assistant" ? sourceTextNoLegal || safeSourceText : safeSourceText;
                 const effectiveOptions = showConsentControl
                   ? options.filter((o) => !/согласен на обработку персональных данных/i.test(o.value))
                   : options;
+                const isTimeValue = (v: string) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v.trim());
+                const hasAnyTimeOptions = effectiveOptions.some((o) => isTimeValue(o.value) || isTimeValue(o.label));
+                const consentSubmitValue =
+                  ui?.kind === "consent"
+                    ? ui.consentValue
+                    : "\u0421\u043e\u0433\u043b\u0430\u0441\u0435\u043d \u043d\u0430 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0443 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0445 \u0434\u0430\u043d\u043d\u044b\u0445";
                 return (
                   <div
                     key={messageKey}
@@ -389,8 +374,11 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                   >
                     {shownText ? <div>{shownText}</div> : null}
                     {effectiveOptions.length && !isTypingThis ? (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+                      <div className={`mt-2 flex flex-wrap gap-1.5 ${hasAnyTimeOptions ? "items-stretch" : ""}`}>
                         {effectiveOptions.map((option) => (
+                          (() => {
+                            const isTimeOption = isTimeValue(option.value) || isTimeValue(option.label);
+                            return (
                           <button
                             key={`${option.label}:${option.value}`}
                             type="button"
@@ -404,7 +392,11 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                               }
                               void sendRawMessage(option.value);
                             }}
-                            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                            className={`border px-3 py-1.5 text-xs font-medium transition ${
+                              isTimeOption
+                                ? "w-[62px] rounded-lg text-center [font-variant-numeric:tabular-nums]"
+                                : "rounded-full"
+                            } ${
                               isLastAssistant
                                 ? "border-transparent bg-black/5 text-[color:var(--site-text,#111827)] hover:border-[color:var(--site-border,#d1d5db)] hover:bg-black/10"
                                 : "border-[color:var(--site-border,#d1d5db)] bg-black/0 text-[color:var(--site-muted,#6b7280)]"
@@ -412,10 +404,12 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                           >
                             {option.label}
                           </button>
+                            );
+                          })()
                         ))}
                       </div>
                     ) : null}
-                    {showConsentControl ? (
+                    {showConsentControl && !isTypingThis ? (
                       <div className="mt-2 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-white/60 p-2">
                         {legalLinks.length ? (
                           <div className="mb-2 flex flex-wrap gap-2">
@@ -454,7 +448,7 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
                         <button
                           type="button"
                           disabled={loading || !isLastAssistant || !consentChecked}
-                          onClick={() => void sendRawMessage("Согласен на обработку персональных данных")}
+                          onClick={() => void sendRawMessage(consentSubmitValue)}
                           className="mt-2 rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
                         >
                           Подтвердить
@@ -469,16 +463,16 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
               <div className="max-w-[90%] rounded-2xl bg-black/5 px-3 py-2 text-sm text-[color:var(--site-muted,#6b7280)]">
                 <div className="flex items-center gap-1">
                   <span
-                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)] animate-pulse"
+                    className="ai-dot-wave inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)]"
                     style={{ animationDelay: "0ms" }}
                   />
                   <span
-                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)] animate-pulse"
-                    style={{ animationDelay: "140ms" }}
+                    className="ai-dot-wave inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    style={{ animationDelay: "120ms" }}
                   />
                   <span
-                    className="inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)] animate-pulse"
-                    style={{ animationDelay: "280ms" }}
+                    className="ai-dot-wave inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    style={{ animationDelay: "240ms" }}
                   />
                 </div>
               </div>
@@ -513,6 +507,25 @@ export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetPr
           AI запись
         </button>
       )}
+      <style jsx global>{`
+        @keyframes ai-dot-wave {
+          0%,
+          60%,
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 0.35;
+          }
+          30% {
+            transform: translateY(-3px) scale(1.08);
+            opacity: 1;
+          }
+        }
+        .ai-dot-wave {
+          animation: ai-dot-wave 0.9s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
+      `}</style>
     </div>
   );
 }
+

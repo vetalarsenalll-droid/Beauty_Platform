@@ -6,7 +6,6 @@
   getOffers,
   getSlots,
   LocationLite,
-  serviceListText,
   ServiceLite,
   specialistsForSlot,
   SpecialistLite,
@@ -24,6 +23,10 @@ export type BookingState =
   | "RESCHEDULE_FLOW";
 
 type FlowAction = { type: "open_booking"; bookingUrl: string } | null;
+export type ChatUiOption = { label: string; value: string; href?: string };
+export type ChatUi =
+  | { kind: "quick_replies"; options: ChatUiOption[] }
+  | { kind: "consent"; options: ChatUiOption[]; legalLinks: string[]; consentValue: string };
 
 type FlowCtx = {
   messageNorm: string;
@@ -39,7 +42,6 @@ type FlowCtx = {
   specialists: SpecialistLite[];
   requiredVersionIds: number[];
   request: Request;
-  listLocations: string;
   publicSlug: string;
   todayYmd: string;
 };
@@ -49,6 +51,7 @@ type FlowResult = {
   reply?: string;
   nextStatus?: string;
   nextAction?: FlowAction;
+  ui?: ChatUi | null;
 };
 
 function formatYmdRu(ymd: string | null | undefined) {
@@ -71,6 +74,102 @@ function addDaysYmd(ymd: string, days: number) {
   const dt = new Date(Date.UTC(y, (mo || 1) - 1, d || 1, 12, 0, 0));
   dt.setUTCDate(dt.getUTCDate() + days);
   return dt.toISOString().slice(0, 10);
+}
+
+function optionFromLabel(label: string, value?: string): ChatUiOption {
+  return { label, value: value ?? label };
+}
+
+function serviceOption(service: ServiceLite): ChatUiOption {
+  return optionFromLabel(
+    `${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`,
+    service.name,
+  );
+}
+
+function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
+  if (/\bсегодня\b/iu.test(messageNorm)) return todayYmd;
+  if (/\bпослезавтра\b/iu.test(messageNorm)) return addDaysYmd(todayYmd, 2);
+  if (/\bзавтра\b/iu.test(messageNorm)) return addDaysYmd(todayYmd, 1);
+
+  const dmText = messageNorm.match(
+    /\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?\b/iu,
+  );
+  if (dmText) {
+    const monthMap = new Map<string, string>([
+      ["января", "01"],
+      ["февраля", "02"],
+      ["марта", "03"],
+      ["апреля", "04"],
+      ["мая", "05"],
+      ["июня", "06"],
+      ["июля", "07"],
+      ["августа", "08"],
+      ["сентября", "09"],
+      ["октября", "10"],
+      ["ноября", "11"],
+      ["декабря", "12"],
+    ]);
+    const day = Number(dmText[1]);
+    const month = monthMap.get((dmText[2] ?? "").toLowerCase()) ?? "01";
+    let year = dmText[3] ? Number(dmText[3]) : Number(todayYmd.slice(0, 4));
+    let candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+    if (!dmText[3] && candidate < todayYmd) {
+      year += 1;
+      candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+    }
+    return candidate;
+  }
+
+  const weekdayMatch = messageNorm.match(
+    /\b(?:в\s+)?(понедельник|вторник|среду|среда|четверг|пятницу|пятница|субботу|суббота|воскресенье)\b/iu,
+  );
+  if (weekdayMatch) {
+    const toIsoWeekday = (w: string) => {
+      const x = w.toLowerCase();
+      if (x.startsWith("понедель")) return 1;
+      if (x.startsWith("втор")) return 2;
+      if (x.startsWith("сред")) return 3;
+      if (x.startsWith("четвер")) return 4;
+      if (x.startsWith("пят")) return 5;
+      if (x.startsWith("суб")) return 6;
+      return 0;
+    };
+    const target = toIsoWeekday(weekdayMatch[1] ?? "");
+    const [y, m, d] = todayYmd.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 12, 0, 0));
+    const current = dt.getUTCDay();
+    const delta = (target - current + 7) % 7;
+    return addDaysYmd(todayYmd, delta);
+  }
+
+  const monthOnly = messageNorm.match(/\b(?:в\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)\b/iu);
+  if (monthOnly) {
+    const monthMap = new Map<string, string>([
+      ["январе", "01"],
+      ["феврале", "02"],
+      ["марте", "03"],
+      ["апреле", "04"],
+      ["мае", "05"],
+      ["июне", "06"],
+      ["июле", "07"],
+      ["августе", "08"],
+      ["сентябре", "09"],
+      ["октябре", "10"],
+      ["ноябре", "11"],
+      ["декабре", "12"],
+    ]);
+    const month = monthMap.get((monthOnly[1] ?? "").toLowerCase()) ?? "01";
+    let year = Number(todayYmd.slice(0, 4));
+    let candidate = `${year}-${month}-01`;
+    if (candidate < todayYmd) {
+      year += 1;
+      candidate = `${year}-${month}-01`;
+    }
+    return candidate;
+  }
+
+  return null;
 }
 
 function bookingUrl(publicSlug: string, d: DraftLike) {
@@ -188,65 +287,6 @@ function autoAssignedSpecialistText(name: string) {
   return `На это время доступен только ${name}, записала к ${looksFemale ? "ней" : "нему"} автоматически.\n\n`;
 }
 
-function serviceListAtTimeText(args: {
-  services: ServiceLite[];
-  specialists: SpecialistLite[];
-  serviceIds: number[];
-  specialistIdsByService: Map<number, number[]>;
-  limit?: number;
-}) {
-  const { services, specialists, serviceIds, specialistIdsByService, limit = 12 } = args;
-  const rows = services.filter((x) => serviceIds.includes(x.id)).slice(0, limit);
-  return rows
-    .map((service, i) => {
-      const spIds = specialistIdsByService.get(service.id) ?? [];
-      const eff = spIds
-        .map((id) => specialists.find((s) => s.id === id) ?? null)
-        .map((sp) => getEffectiveServiceForSpecialist(service, sp))
-        .filter((x) => Number.isFinite(x.price) && Number.isFinite(x.durationMin));
-      if (!eff.length) return `${i + 1}. ${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`;
-      const minPrice = Math.min(...eff.map((x) => x.price));
-      const maxPrice = Math.max(...eff.map((x) => x.price));
-      const minDur = Math.min(...eff.map((x) => x.durationMin));
-      const maxDur = Math.max(...eff.map((x) => x.durationMin));
-      const priceText = minPrice === maxPrice ? `${Math.round(minPrice)} ₽` : `${Math.round(minPrice)}–${Math.round(maxPrice)} ₽`;
-      const durText = minDur === maxDur ? `${minDur} мин` : `${minDur}–${maxDur} мин`;
-      return `${i + 1}. ${service.name} — ${priceText}, ${durText}`;
-    })
-    .join("\n");
-}
-
-async function getActuallyAvailableServiceIdsAtTime(args: {
-  origin: string;
-  accountSlug: string;
-  locationId: number;
-  date: string;
-  time: string;
-  candidateServiceIds: number[];
-  specialists: SpecialistLite[];
-}) {
-  const { origin, accountSlug, locationId, date, time, candidateServiceIds, specialists } = args;
-  const checks = await Promise.all(
-    candidateServiceIds.map(async (serviceId) => {
-      const d: DraftLike = {
-        locationId,
-        serviceId,
-        specialistId: null,
-        date,
-        time,
-        clientName: null,
-        clientPhone: null,
-        mode: null,
-        status: "COLLECTING",
-        consentConfirmedAt: null,
-      };
-      const specs = await specialistsForSlot(origin, accountSlug, d, specialists);
-      return { serviceId, ok: specs.length > 0 };
-    }),
-  );
-  return checks.filter((x) => x.ok).map((x) => x.serviceId);
-}
-
 async function collectLocationWindows(args: {
   origin: string;
   accountSlug: string;
@@ -347,7 +387,6 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     requiredVersionIds,
     request,
     choice,
-    listLocations,
     publicSlug,
     todayYmd,
   } = ctx;
@@ -465,10 +504,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         } else if (rowsAtTime.length > 1) {
           return {
             handled: true,
-            reply: `На ${targetDateRu} в ${d.time} есть окна в филиалах:\n${rowsAtTime
-              .map((x, i) => `${i + 1}. ${x.name}`)
-              .join("\n")}\nВыберите филиал кнопкой ниже или напишите название.`,
+            reply: `На ${targetDateRu} в ${d.time} есть окна в нескольких филиалах. Выберите филиал кнопкой ниже или напишите название.`,
             nextStatus: "COLLECTING",
+            ui: {
+              kind: "quick_replies",
+              options: rowsAtTime.map((x) => optionFromLabel(x.name)),
+            },
           };
         } else if (rows.length) {
           return {
@@ -486,21 +527,19 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             // At "choose service after selecting time" step, trust offer matrix for that slot.
             // Extra strict per-service recheck here caused false negatives vs online booking.
             const serviceIds = offerAtTime?.services.map((x) => x.serviceId) ?? [];
-            const specialistIdsByService = new Map<number, number[]>(
-              (offerAtTime?.services ?? []).map((x) => [x.serviceId, x.specialistIds ?? []]),
-            );
             const scopedAtLoc = services.filter((svc) => svc.locationIds.includes(d.locationId!));
             if (serviceIds.length) {
               return {
                 handled: true,
-                reply: `На ${targetDateRu} в ${d.time} доступны услуги:\n${serviceListAtTimeText({
-                  services: scopedAtLoc,
-                  specialists,
-                  serviceIds,
-                  specialistIdsByService,
-                  limit: 10,
-                })}\nВыберите услугу кнопкой ниже или напишите название.`,
+                reply: `На ${targetDateRu} в ${d.time} доступны услуги. Выберите услугу кнопкой ниже или напишите название.`,
                 nextStatus: "COLLECTING",
+                ui: {
+                  kind: "quick_replies",
+                  options: scopedAtLoc
+                    .filter((x) => serviceIds.includes(x.id))
+                    .slice(0, 10)
+                    .map(serviceOption),
+                },
               };
             }
           }
@@ -529,10 +568,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
         return {
           handled: true,
-          reply: `Нашла окна на ${targetDateRu}${prefText} в филиалах:\n${rows
-            .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
-            .join("\n")}\nВыберите филиал кнопкой ниже. Также можно написать время и филиал сообщением.`,
+          reply: `Нашла свободное время на ${targetDateRu}${prefText} в филиалах. Выберите филиал кнопкой ниже или напишите время и филиал сообщением.`,
           nextStatus: "COLLECTING",
+          ui: {
+            kind: "quick_replies",
+            options: rows.map((x) => optionFromLabel(x.name)),
+          },
         };
       }
       const nearest = await findNearestLocationWindows({
@@ -548,12 +589,14 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       if (nearest) {
         return {
           handled: true,
-          reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Ближайшие варианты на ${
-            formatYmdRu(nearest.date)
-          }:\n${nearest.rows
-            .map((x, i) => `${i + 1}. ${x.name}: ${formatTimesShort(x.times, timeLimit)}`)
-            .join("\n")}\nВыберите филиал кнопкой ниже. Также можно написать время и филиал сообщением.`,
+          reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Ближайшие варианты на ${formatYmdRu(
+            nearest.date,
+          )}. Выберите филиал кнопкой ниже.`,
           nextStatus: "COLLECTING",
+          ui: {
+            kind: "quick_replies",
+            options: nearest.rows.map((x) => optionFromLabel(x.name)),
+          },
         };
       }
       if (wantsMonthRange || wantsAfterRange) {
@@ -569,7 +612,15 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         nextStatus: "COLLECTING",
       };
     }
-    return { handled: true, reply: `Выберите локацию, и продолжу запись.\n${listLocations}`, nextStatus: "COLLECTING" };
+    return {
+      handled: true,
+      reply: "Выберите локацию, и продолжу запись.",
+      nextStatus: "COLLECTING",
+      ui: {
+        kind: "quick_replies",
+        options: locations.map((x) => optionFromLabel(x.name)),
+      },
+    };
   }
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
@@ -593,19 +644,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           nextStatus: "COLLECTING",
         };
       }
-      const specialistIdsByService = new Map<number, number[]>(
-        offerAtTime.services.map((x) => [x.serviceId, x.specialistIds ?? []]),
-      );
       return {
         handled: true,
-        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны услуги:\n${serviceListAtTimeText({
-          services: scopedServices,
-          specialists,
-          serviceIds,
-          specialistIdsByService,
-          limit: 10,
-        })}\nВыберите услугу кнопкой ниже или напишите название.`,
+        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны услуги. Выберите услугу кнопкой ниже или напишите название.`,
         nextStatus: "COLLECTING",
+        ui: {
+          kind: "quick_replies",
+          options: scopedServices
+            .filter((x) => serviceIds.includes(x.id))
+            .slice(0, 10)
+            .map(serviceOption),
+        },
       };
     }
     if (asksAboutSpecialists(messageNorm) && d.date) {
@@ -637,8 +686,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
         return {
           handled: true,
-          reply: `На ${formatYmdRu(targetDate)}${prefText} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} есть окна: ${formatTimesShort(times, timeLimit)}. Можете выбрать время, а затем услугу.`,
+          reply: `На ${formatYmdRu(targetDate)}${prefText} в ${
+            locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"
+          } есть свободное время. Можете выбрать время, а затем услугу.`,
           nextStatus: "COLLECTING",
+          ui: { kind: "quick_replies", options: times.map((x) => optionFromLabel(x)) },
         };
       }
       return {
@@ -651,21 +703,28 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       const haircutOptions = scopedServices.filter((x) => /(стриж|haircut)/i.test(x.name));
       return {
         handled: true,
-        reply: `Уточните услугу:\n${serviceListText(haircutOptions, 8)}\nМожно выбрать кнопкой ниже или написать услугу сообщением.`,
+        reply: "Уточните услугу. Можно выбрать кнопкой ниже или написать услугу сообщением.",
         nextStatus: "COLLECTING",
+        ui: { kind: "quick_replies", options: haircutOptions.slice(0, 8).map(serviceOption) },
       };
     }
     return {
       handled: true,
-      reply: `Выберите услугу, и продолжу запись.\n${serviceListText(scopedServices, 10)}`,
+      reply: "Выберите услугу, и продолжу запись.",
       nextStatus: "COLLECTING",
+      ui: { kind: "quick_replies", options: scopedServices.slice(0, 10).map(serviceOption) },
     };
+  }
+
+  if (!d.date) {
+    const parsedDate = parseDateFromBookingMessage(messageNorm, todayYmd);
+    if (parsedDate) d.date = parsedDate;
   }
 
   if (!d.date) {
     return {
       handled: true,
-      reply: "Напишите дату: например «завтра», «27 февраля» или «в субботу».",
+      reply: "Напишите дату: например «сегодня», «завтра» или «в субботу».",
       nextStatus: "COLLECTING",
     };
   }
@@ -680,8 +739,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
     return {
       handled: true,
-      reply: `На ${formatYmdRu(d.date)}${prefText} доступны времена: ${formatTimesShort(times, timeLimit)}. Выберите время.`,
+      reply: `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
       nextStatus: "COLLECTING",
+      ui: { kind: "quick_replies", options: times.map((x) => optionFromLabel(x)) },
     };
   }
 
@@ -732,10 +792,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     } else {
       return {
         handled: true,
-        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты:\n${specs
-          .map((x, i) => `${i + 1}. ${x.name}`)
-          .join("\n")}\nВыберите специалиста кнопкой ниже или напишите «любой».`,
+        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже или напишите «любой».`,
         nextStatus: "CHECKING",
+        ui: { kind: "quick_replies", options: specs.map((x) => optionFromLabel(x.name)).concat(optionFromLabel("Любой", "любой")) },
       };
     }
   }
@@ -748,8 +807,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const specialistAutoText = autoSelectedSpecialistName ? autoAssignedSpecialistText(autoSelectedSpecialistName) : "";
     return {
       handled: true,
-      reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?\n1) Сам в форме онлайн-записи.\n2) Оформить через ассистента.`,
+      reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?`,
       nextStatus: "CHECKING",
+      ui: {
+        kind: "quick_replies",
+        options: [optionFromLabel("Самостоятельно", "самостоятельно"), optionFromLabel("Через ассистента", "оформи через ассистента")],
+      },
     };
   }
 
@@ -769,10 +832,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.consentConfirmedAt) {
+    const legalLinks = Array.from(new Set(requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`)));
     return {
       handled: true,
       reply: "Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.",
       nextStatus: "WAITING_CONSENT",
+      ui: {
+        kind: "consent",
+        options: [],
+        legalLinks,
+        consentValue: "Согласен на обработку персональных данных",
+      },
     };
   }
 
@@ -782,6 +852,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       handled: true,
       nextStatus,
       reply: `Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}\nКлиент: ${d.clientName} ${d.clientPhone}\nЕсли все верно, нажмите кнопку «Записаться» ниже или напишите «да».`,
+      ui: { kind: "quick_replies", options: [optionFromLabel("Записаться", "да")] },
     };
   }
 
