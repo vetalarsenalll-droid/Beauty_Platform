@@ -344,7 +344,7 @@ async function collectLocationWindows(args: {
       all = await getSlots(origin, accountSlug, loc.id, serviceId, date);
     } else {
       const offers = await getOffers(origin, accountSlug, loc.id, date);
-      all = Array.from(new Set((offers?.times ?? []).map((x) => x.time)));
+      all = Array.from(new Set((offers?.times ?? []).filter((x) => (x.services?.length ?? 0) > 0).map((x) => x.time)));
     }
     const filtered = filterByPreference(all, preference);
     const times = limit == null || limit <= 0 ? filtered : filtered.slice(0, limit);
@@ -678,7 +678,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       if (nearest) {
         return {
           handled: true,
-          reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Нашла ближайшую дату ${formatYmdRu(
+          reply: `На ${targetDateRu}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Нашла ближайшие свободные окна на дату ${formatYmdRu(
             nearest.date,
           )}. Выберите филиал кнопкой ниже.`,
           nextStatus: "COLLECTING",
@@ -772,7 +772,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       const targetDate = d.date ?? todayYmd;
       if (!d.date) d.date = targetDate;
       const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
-      const allTimes = Array.from(new Set((offers?.times ?? []).map((x) => x.time)));
+      const allTimes = Array.from(new Set((offers?.times ?? []).filter((x) => (x.services?.length ?? 0) > 0).map((x) => x.time)));
       const pref = detectTimePreference(messageNorm);
       const times = filterByPreference(allTimes, pref);
       if (times.length) {
@@ -1027,5 +1027,4 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
-
 

@@ -193,6 +193,19 @@ function withTimeout(promise, timeoutMs, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+function normalizeUiOptions(rawUi) {
+  if (!rawUi || typeof rawUi !== "object") return [];
+  const kind = String(rawUi.kind || "");
+  const options = Array.isArray(rawUi.options) ? rawUi.options : [];
+  if (!options.length) return [];
+  if (kind && kind !== "quick_replies" && kind !== "consent") return [];
+  return options
+    .map((opt) => ({
+      label: String(opt?.label ?? "").trim(),
+      value: String(opt?.value ?? "").trim(),
+    }))
+    .filter((opt) => opt.label || opt.value);
+}
 async function sendMessage({ message, threadId }) {
   const url = new URL("/api/v1/public/ai/chat", BASE_URL);
   url.searchParams.set("account", ACCOUNT);
@@ -283,25 +296,54 @@ function extractSpecialists(reply) {
   return Array.from(new Set(bullets));
 }
 
-function resolveStepMessage(step, lastReply) {
+function pickFromUi(stepPick, uiOptions) {
+  if (!Array.isArray(uiOptions) || !uiOptions.length) return null;
+  const items = uiOptions.map((x) => ({ label: x.label || "", value: x.value || "" }));
+  const by = (re) => items.find((x) => re.test(`${x.label} ${x.value}`));
+  const isTime = (x) => /(?:^|\s)([01]\d|2[0-3]):([0-5]\d)(?:\s|$)/.test(`${x.label} ${x.value}`);
+  const isLocation = (x) => /(beauty salon|riverside|center|филиал|локац)/i.test(`${x.label} ${x.value}`);
+  const isMode = (x) => /(самостоятельно|через ассистента|assistant|self)/i.test(`${x.label} ${x.value}`);
+  const isService = (x) =>
+    /—\s*\d+/.test(x.label) ||
+    /(haircut|facial|peeling|pedicure|manicure|balayage|coloring|стриж|маник|педик|пилинг|окраш)/i.test(
+      `${x.label} ${x.value}`,
+    );
+
+  if (stepPick === "location") return (by(/(beauty salon|riverside|center|филиал|локац)/i) || items[0] || null)?.value || null;
+  if (stepPick === "time") return (items.find(isTime) || null)?.value || null;
+  if (stepPick === "service") return (items.find((x) => !isTime(x) && !isLocation(x) && isService(x)) || null)?.value || null;
+  if (stepPick === "specialist")
+    return (
+      items.find((x) => !isTime(x) && !isLocation(x) && !isMode(x) && !isService(x) && /[A-Za-zА-Яа-яЁё]{2,}/.test(`${x.label} ${x.value}`)) ||
+      null
+    )?.value || null;
+  if (stepPick === "mode_self") return (by(/самостоятельно|self/i) || null)?.value || null;
+  if (stepPick === "mode_assistant") return (by(/через ассистента|assistant/i) || null)?.value || null;
+  if (stepPick === "consent") return (by(/согласен|согласна|персональн|consent/i) || null)?.value || null;
+  if (stepPick === "confirm") return (by(/подтверд|записаться|да|confirm/i) || null)?.value || null;
+  return null;
+}
+function resolveStepMessage(step, lastReply, lastUiOptions) {
   if (step.send) return step.send;
+  const pickedFromUi = pickFromUi(step.pick, lastUiOptions);
+  if (pickedFromUi) return pickedFromUi;
   switch (step.pick) {
     case "location":
       return extractLocations(lastReply)[0] ?? step.fallbackSend ?? "Beauty Salon Center";
     case "time":
-      return extractTimes(lastReply)[0] ?? step.fallbackSend ?? "10:00";
+      return extractTimes(lastReply)[0] ?? step.fallbackSend ?? null;
     case "service":
-      return extractServices(lastReply)[0] ?? step.fallbackSend ?? "Manicure";
+      return extractServices(lastReply)[0] ?? step.fallbackSend ?? null;
     case "specialist":
-      return extractSpecialists(lastReply)[0] ?? step.fallbackSend ?? "любой";
+      return extractSpecialists(lastReply)[0] ?? step.fallbackSend ?? null;
     case "consent":
       return "Согласен на обработку персональных данных";
     case "confirm":
       return "да";
     case "mode_self":
-      return "самостоятельно";
+      return step.fallbackSend ?? null;
     case "mode_assistant":
-      return "оформи через ассистента";
+      return step.fallbackSend ?? null;
     default:
       return step.fallbackSend ?? "да";
   }
@@ -353,6 +395,7 @@ function writeReport(report) {
 async function runScenario(scenario, report) {
   let threadId = null;
   let lastReply = "";
+  let lastUiOptions = [];
   const scenarioReport = { name: scenario.name, passed: true, steps: [] };
   report.scenarios.push(scenarioReport);
   console.log(`\n[SCENARIO] ${scenario.name}`);
@@ -371,11 +414,17 @@ async function runScenario(scenario, report) {
       console.log(`  [SKIP] ${stepIndex}. ${stepLabel} (unlessReply)`);
       continue;
     }
-    const messageToSend = resolveStepMessage(step, lastReply);
+    const messageToSend = resolveStepMessage(step, lastReply, lastUiOptions);
+    if (!messageToSend) {
+      scenarioReport.steps.push({ index: stepIndex, sent: stepLabel, skipped: true, reason: "noCandidate" });
+      console.log(`  [SKIP] ${stepIndex}. ${stepLabel} (noCandidate)`);
+      continue;
+    }
     try {
-      const { threadId: nextThreadId, reply } = await sendMessage({ message: messageToSend, threadId });
+      const { threadId: nextThreadId, reply, uiOptions } = await sendMessage({ message: messageToSend, threadId });
       threadId = Number.isInteger(nextThreadId) && nextThreadId > 0 ? nextThreadId : threadId;
       lastReply = reply;
+      lastUiOptions = Array.isArray(uiOptions) ? uiOptions : [];
       assertStep({ scenarioName: scenario.name, stepIndex: i, step, reply });
       scenarioReport.steps.push({ index: stepIndex, sent: messageToSend, passed: true });
       console.log(`  [OK] ${stepIndex}. ${messageToSend}`);
@@ -444,3 +493,5 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+
+

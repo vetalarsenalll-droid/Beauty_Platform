@@ -1,4 +1,4 @@
-﻿import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -1007,8 +1007,11 @@ export async function POST(request: Request) {
         orderBy: { createdAt: "asc" },
       }),
       prisma.legalDocument.findMany({
-        where: { accountId: resolved.account.id, isRequired: true },
-        select: { versions: { where: { isActive: true }, orderBy: { version: "desc" }, take: 1, select: { id: true } } },
+        where: { accountId: resolved.account.id },
+        select: {
+          isRequired: true,
+          versions: { where: { isActive: true }, orderBy: { version: "desc" }, take: 1, select: { id: true } },
+        },
       }),
       prisma.accountProfile.findUnique({ where: { accountId: resolved.account.id }, select: { description: true, address: true, phone: true } }),
       resolveAishaSystemPrompt(resolved.account.id),
@@ -1042,7 +1045,14 @@ export async function POST(request: Request) {
         serviceIds: s.services.map((x) => x.serviceId),
       };
     });
-    const requiredVersionIds = requiredDocs.map((d) => d.versions[0]?.id).filter((x): x is number => Number.isInteger(x));
+    const requiredVersionIds = (() => {
+      const required = requiredDocs
+        .filter((d) => d.isRequired)
+        .map((d) => d.versions[0]?.id)
+        .filter((x): x is number => Number.isInteger(x));
+      if (required.length) return required;
+      return requiredDocs.map((d) => d.versions[0]?.id).filter((x): x is number => Number.isInteger(x));
+    })();
 
     const serverNowYmd = getNowInTimeZone(resolved.account.timeZone).ymd;
     const clientTodayYmd = asYmd(body.clientTodayYmd);
@@ -1175,10 +1185,13 @@ export async function POST(request: Request) {
     const selectedSpecialistByText = specialistByText(t, specialists);
     const explicitAnySpecialistChoice = isAnySpecialistChoiceText(t);
     const choiceNum = parseChoiceFromText(t);
+    const hasClientActionCue = has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|прошедш.*запис|отмени мою|перенеси мою|личн(ый|ого) кабинет)/i);
+    const hasPositiveFeedbackCue = has(messageForRouting, /(спасибо|благодар|круто|отлично|здорово|понятно|ок\b|окей|ясно|супер)/i);
     const explicitBookingText =
       !explicitBookingDecline &&
       !isSoftBookingMention(t) &&
       !explicitDateTimeQuery &&
+      !hasClientActionCue &&
       !specialistFollowUpByLocation &&
       has(
         message,
@@ -1206,14 +1219,41 @@ export async function POST(request: Request) {
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !forceClientActions &&
       (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t));
+    const forceBookingOnPromptedLocationChoice =
+      !explicitBookingDecline &&
+      !forceClientActions &&
+      !explicitDateTimeQuery &&
+      !hasClientActionCue &&
+      Boolean(locationByText(t, locations)) &&
+      has(lastAssistantText, /(выберите\s+(локац|филиал)|продолжу запись)/i);
     const forceBookingOnServiceSelection =
       hasDraftContext &&
       !explicitBookingDecline &&
       !forceClientActions &&
       !explicitDateTimeQuery &&
+      !hasClientActionCue &&
       !explicitServiceComplaint &&
-      Boolean(serviceByText(t, services)) &&
+      (Boolean(serviceByText(t, services)) || explicitUnknownServiceLike) &&
       Boolean(d.locationId || locationByText(t, locations));
+    const forceBookingAwaitingService =
+      hasDraftContext &&
+      Boolean(d.locationId) &&
+      !d.serviceId &&
+      !explicitBookingDecline &&
+      !forceClientActions &&
+      !explicitDateTimeQuery &&
+      !hasClientActionCue &&
+      !isGreetingText(messageForRouting) &&
+      (
+        explicitUnknownServiceLike ||
+        Boolean(serviceByText(t, services)) ||
+        Boolean(locationByText(t, locations)) ||
+        Boolean(parseTime(messageForRouting)) ||
+        Boolean(parseDate(messageForRouting, nowYmd)) ||
+        Boolean(choiceNum) ||
+        has(messageForRouting, /(услуг|запиш|заброни|время|слот|окошк|дат[ауеы])/i) ||
+        !isConversationalHeuristicIntent(intent)
+      );
     if (hasDraftContext && explicitAvailabilityPeriod) {
       intent = "ask_availability";
     }
@@ -1221,7 +1261,7 @@ export async function POST(request: Request) {
       ? "chat-only"
       : forceClientActions
       ? "client-actions"
-      : forceBookingByContext || forceBookingOnServiceSelection
+      : forceBookingByContext || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService
       ? "booking-flow"
       : routeForIntent(intent);
     const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
@@ -1256,6 +1296,7 @@ export async function POST(request: Request) {
         Boolean(choiceNum) ||
         Boolean(locationByText(t, locations)) ||
         Boolean(serviceByText(t, services)) ||
+        explicitUnknownServiceLike ||
         Boolean(selectedSpecialistByText));
     // In assistant completion stages, every follow-up must be processed by deterministic booking-flow
     // to enforce phone validation, consent, and explicit final confirmation.
@@ -1265,10 +1306,16 @@ export async function POST(request: Request) {
       !explicitBookingDecline &&
       !forceClientActions &&
       !explicitDateTimeQuery;
+    const explicitServiceBookingIntent =
+      Boolean(serviceByText(t, services)) &&
+      has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/i) &&
+      !asksServiceExistence(messageForRouting);
     const shouldEnrichDraftForBooking =
-      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnServiceSelection;
+      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent;
     const shouldRunBookingFlow =
-      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnServiceSelection;
+      (route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent) &&
+      intent !== "post_completion_smalltalk" &&
+      !hasPositiveFeedbackCue;
     const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
     const prevUserNorm = norm(previousUserText);
     const carryPrevTimePref =
@@ -1530,6 +1577,8 @@ export async function POST(request: Request) {
         if (explicitServiceComplaint) {
           reply =
             "Сожалею, что так вышло. Спасибо, что написали об этом. Опишите, пожалуйста, что именно не устроило, и я передам обращение администратору и помогу подобрать корректную запись к другому мастеру.";
+        } else if (/^(отлично|супер|прекрасно|хорошо|нормально|классно)\b/i.test(messageForRouting)) {
+          reply = "Рада слышать. Если захотите, помогу сразу подобрать услугу и удобное время.";
         } else if (isOutOfDomainPrompt(t)) {
           reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
@@ -1758,20 +1807,4 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -1,0 +1,142 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-02-28T19:00:43.217Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Nearest availability should return windows immediately",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а свободное окошко когда ближайшее?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability in March",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "в марте есть время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Booking service-first path",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу на маникюр завтра",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Unknown service should be rejected with available options",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши на удаление зуба",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "удаление зуба",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "E2E booking self mode",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня на завтра",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "покажи все свободное время",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "10:00",
+          "passed": true
+        },
+        {
+          "index": 5,
+          "sent": "Manicure",
+          "passed": true
+        },
+        {
+          "index": 6,
+          "sent": "pick:specialist",
+          "skipped": true,
+          "reason": "ifReply"
+        },
+        {
+          "index": 7,
+          "sent": "самостоятельно",
+          "passed": false,
+          "error": "E2E booking self mode / step 7 (pick:mode_self): expected one of /открываю онлайн-запись|онлайн-запись/i\nreply:\nНа 10:00 услуга «Manicure» недоступна. Выберите другое время кнопкой ниже.",
+          "reply": "На 10:00 услуга «Manicure» недоступна. Выберите другое время кнопкой ниже."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-02-28T19:00:54.918Z",
+  "durationMs": 11701
+}
