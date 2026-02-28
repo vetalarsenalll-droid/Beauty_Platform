@@ -438,7 +438,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                     ? buildCalendarCells(datePickerViewMonth, ui.minDate, ui.maxDate)
                     : [];
                 const availableDateSet =
-                  ui?.kind === "date_picker" && Array.isArray(ui.availableDates) && ui.availableDates.length
+                  ui?.kind === "date_picker" && Array.isArray(ui.availableDates)
                     ? new Set(ui.availableDates)
                     : null;
                 const isDateAvailable = (ymd: string) => (availableDateSet ? availableDateSet.has(ymd) : true);
@@ -553,7 +553,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                         <div className="grid grid-cols-7 gap-1">
                           {datePickerCells.map((cell) => {
                             const isUnavailable = !isDateAvailable(cell.ymd);
-                            const inactive = cell.disabled || isUnavailable;
+                            const inactive = cell.disabled || isUnavailable || !cell.inMonth;
                             const selected = cell.ymd === datePickerValue;
                             return (
                               <button
@@ -701,6 +701,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
     </div>
   );
 }
+
 
 
 

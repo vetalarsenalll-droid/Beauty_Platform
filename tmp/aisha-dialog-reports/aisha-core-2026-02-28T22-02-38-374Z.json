@@ -1,0 +1,84 @@
+{
+  "suite": "core",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-02-28T22:02:32.793Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Greeting basic",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abuse de-escalation",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет сучка",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identity intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто ты",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Capabilities intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "что умеешь",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Capabilities follow-up should route to DB services",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а что ты можешь?",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "а какие именно есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Current datetime intent",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какое сейчас число и время?",
+          "passed": false,
+          "error": "Current datetime intent / step 1 (какое сейчас число и время?): expected one of /\\d{2}\\.\\d{2}\\.\\d{4}|\\d{2}:\\d{2}/i\nreply:\nСегодня 1 марта 2026 года, а время — 1:02.",
+          "reply": "Сегодня 1 марта 2026 года, а время — 1:02."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-02-28T22:02:38.373Z",
+  "durationMs": 5580
+}

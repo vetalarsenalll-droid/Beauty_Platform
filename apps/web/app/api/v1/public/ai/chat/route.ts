@@ -2,7 +2,7 @@
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { AishaNluIntent, runAishaNlu } from "@/lib/aisha-orchestrator";
+import { AishaNluIntent, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import { runBookingFlow } from "@/lib/booking-flow";
 import type { ChatUi } from "@/lib/booking-flow";
 import { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
@@ -366,8 +366,15 @@ const parseDate = (m: string, today: string) => {
 
 const parseTime = (m: string) => {
   const t = norm(m);
-  const hhmm = t.match(/\b([01]?\d|2[0-3])[:. ]([0-5]\d)\b/);
-  if (hhmm) return `${String(Number(hhmm[1])).padStart(2, "0")}:${hhmm[2]}`;
+  const hasDateToken =
+    /\b\d{1,2}\.\d{1,2}(?:\.\d{2,4})?\b/.test(t) ||
+    /\b\d{4}-\d{2}-\d{2}\b/.test(t);
+  const hhmmColon = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  if (hhmmColon) return `${String(Number(hhmmColon[1])).padStart(2, "0")}:${hhmmColon[2]}`;
+  if (!hasDateToken) {
+    const hhmmDotOrSpace = t.match(/\b([01]?\d|2[0-3])[. ]([0-5]\d)\b/);
+    if (hhmmDotOrSpace) return `${String(Number(hhmmDotOrSpace[1])).padStart(2, "0")}:${hhmmDotOrSpace[2]}`;
+  }
   const prepHour = t.match(/\b(?:в|к|at)\s*(\d{1,2})\b/);
   if (prepHour) {
     const n = Number(prepHour[1]);
@@ -1240,7 +1247,9 @@ export async function POST(request: Request) {
     const explicitWhoDoesServices = asksWhoPerformsServices(norm(messageForRouting));
     const explicitSpecialistsListCue = /(?:мастер|специалист)(?:а|ы|ов)?/iu.test(messageForRouting);
     const explicitServiceComplaint = isServiceComplaintMessage(norm(messageForRouting));
+    const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
+    const explicitAbuseCue = has(messageForRouting, /(\u0441\u0443\u0447\u043a|\u0441\u0443\u043a\u0430|\u0442\u0443\u043f|\u0438\u0434\u0438\u043e\u0442|\u0434\u0435\u0431\u0438\u043b|\u043d\u0430\u0445\u0435\u0440|\u043d\u0430\u0445\u0443\u0439|\u0433\u043e\u0432\u043d\u043e|\u0445\u0435\u0440\u043d\u044f)/i);
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
     const explicitAvailabilityPeriod = asksAvailabilityPeriod(norm(messageForRouting));
     const explicitCalendarCue =
@@ -1256,7 +1265,9 @@ export async function POST(request: Request) {
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (specialistFollowUpByLocation) intent = "ask_specialists";
     if (explicitWhoDoesServices || explicitSpecialistsListCue) intent = "ask_specialists";
+    if (explicitIdentityCue) intent = "identity";
     if (explicitAssistantQualification) intent = "identity";
+    if (explicitAbuseCue) intent = "abuse_or_toxic";
     if (cancelMeansDraftAbort) {
       explicitBookingDecline = true;
       intent = "reject_or_change";
@@ -1411,7 +1422,7 @@ export async function POST(request: Request) {
         /(согласен|согласна|персональн|подтвержд|оформи|самостоятельно|через ассистента|время|слот|окошк|сегодня|завтра|локац|филиал)/i,
       );
     const shouldContinueBookingByContext =
-      route === "chat-only" &&
+      route === "chat-only" && !explicitDateTimeQuery &&
       !explicitBookingDecline &&
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !confirmPendingClientAction &&
@@ -1419,6 +1430,7 @@ export async function POST(request: Request) {
       hasDraftContext &&
       looksLikeBookingContinuation &&
       (!isConversationalHeuristicIntent(intent) ||
+        isLooseConfirmation(messageForRouting) ||
         Boolean(parseTime(messageForRouting)) ||
         Boolean(parseDate(messageForRouting, nowYmd)) ||
         Boolean(choiceNum) ||
@@ -1759,9 +1771,11 @@ export async function POST(request: Request) {
       } else if (intent === "abuse_or_toxic") {
         reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
       } else if (intent === "post_completion_smalltalk") {
-        reply = "Пожалуйста. Если хотите, продолжим и подберем удобное время.";
-            } else if (intent === "smalltalk") {
-        if (explicitServiceComplaint) {
+        reply = "Здорово, рада, что вам понравилось. Если нужно, помогу с записью.";
+      } else if (intent === "smalltalk") {
+        if (isGreetingText(messageForRouting)) {
+          reply = "\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! \u0427\u0435\u043c \u043f\u043e\u043c\u043e\u0447\u044c?";
+        } else if (explicitServiceComplaint) {
           reply =
             "Сожалею, что так вышло. Спасибо, что написали об этом. Опишите, пожалуйста, что именно не устроило, и я передам обращение администратору и помогу подобрать корректную запись к другому мастеру.";
         } else if (isOutOfDomainPrompt(t)) {
@@ -1896,16 +1910,34 @@ export async function POST(request: Request) {
         }
       }
     }
+    const canNaturalizeReply =
+      route === "chat-only" && !explicitDateTimeQuery &&
+      (intent === "capabilities" || intent === "greeting" || intent === "smalltalk") &&
+      !nextUi &&
+      !reply.includes("\n") &&
+      reply.length <= 260;
+    if (canNaturalizeReply) {
+      const naturalized = await runAishaNaturalizeReply({
+        accountId: resolved.account.id,
+        assistantName: ASSISTANT_NAME,
+        message: messageForRouting,
+        canonicalReply: reply,
+        accountProfile,
+        knownClientName: d.clientName,
+      });
+      if (naturalized) reply = naturalized;
+    }
+
     reply = sanitizeAssistantReplyText(reply);
-    if (route === "chat-only" && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
+    if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
       reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
       nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
     }
 
     const hallucinationSensitiveIntent =
-      intent === "smalltalk" || intent === "greeting" || intent === "identity" || intent === "capabilities" || intent === "out_of_scope";
+      intent === "smalltalk" || intent === "out_of_scope";
     if (
-      route === "chat-only" &&
+      route === "chat-only" && !explicitDateTimeQuery &&
       hallucinationSensitiveIntent &&
       hasUnknownPersonNameInReply({
         reply,
@@ -1982,6 +2014,12 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
+
 
 
 

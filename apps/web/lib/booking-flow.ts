@@ -392,6 +392,26 @@ function wantsNextDateStep(messageNorm: string) {
   return /^(давай|дальше|далее|следующий|следующую|еще|ещё|да)\b/i.test(messageNorm);
 }
 
+function asksDateChoices(messageNorm: string) {
+  return /(?:какие\s+дни|какие\s+числа|свободные\s+дни|свободные\s+числа|по\s+датам|по\s+числам|на\s+какие\s+дни|на\s+какие\s+числа)/iu.test(
+    messageNorm,
+  );
+}
+
+function wantsOtherDates(messageNorm: string) {
+  return /(?:другие\s+числа|другие\s+дни|другие\s+даты|другая\s+дата|на\s+другую\s+дату|на\s+другие\s+числа|на\s+другие\s+дни)/iu.test(
+    messageNorm,
+  );
+}
+
+function wantsOtherLocation(messageNorm: string) {
+  return /(?:в\s+другом\s+филиале|другой\s+филиал|другую\s+локацию|другая\s+локация|другой\s+адрес)/iu.test(messageNorm);
+}
+
+function asksMonthScope(messageNorm: string) {
+  return /(?:на\s+\p{L}+\s+(?:месяц\s+)?посмотри|про\s+\p{L}+|покажи\s+\p{L}+|что\s+по\s+\p{L}+\s+месяцу)/iu.test(messageNorm);
+}
+
 function wantsStopBooking(messageNorm: string) {
   return /(?:я\s+передумал(?:а)?|передумал(?:а)?\s+записываться|не\s+хочу(?:\s+записываться)?|не\s+надо|не\s+нужно\s+записывать|отмена\s+записи|отмени\s+запись)/iu.test(
     messageNorm,
@@ -677,13 +697,38 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
 
+  const monthOnlyDate = extractMonthOnlyDate(messageNorm, todayYmd);
+  const hasConcreteDate = hasConcreteDateMention(messageNorm);
+  const asksDateList = asksDateChoices(messageNorm);
+  const asksAnotherDate = wantsOtherDates(messageNorm);
+  const asksLocationSwitch = wantsOtherLocation(messageNorm);
+
+  if (asksLocationSwitch && hasContext && locations.length > 1) {
+    d.locationId = null;
+    d.specialistId = null;
+    d.time = null;
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    return {
+      handled: true,
+      reply: "Выберите филиал, и продолжу запись.",
+      nextStatus: "COLLECTING",
+      ui: { kind: "quick_replies", options: locations.map((x) => optionFromLabel(x.name)) },
+    };
+  }
+
   // Parse date intent as early as possible so phrases like
   // "запиши меня сегодня" affect the entire booking path.
   const parsedDate = parseDateFromBookingMessage(messageNorm, todayYmd);
-  if (parsedDate && parsedDate !== d.date) {
+  if (parsedDate) {
+    const shouldResetDependent = parsedDate !== d.date || hasConcreteDate || Boolean(monthOnlyDate);
     d.date = parsedDate;
-    d.time = null;
-    d.specialistId = null;
+    if (shouldResetDependent) {
+      d.time = null;
+      d.specialistId = null;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+    }
   }
   const wantsAllTimes =
     /(?:покажи|напиши|выведи|дай)\s+в[сc]е\s+(?:врем|слот|окошк)|(?:в[сc]е|полный)\s+список\s+(?:врем|слот|окошк)|все\s+свободн(?:ое|ые)?\s+время|целиком|полностью/iu.test(
@@ -697,12 +742,14 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const wantsMonthRange =
     /(?:весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца)/iu.test(messageNorm);
   const wantsAfterRange = asksAfterDateRange(messageNorm);
-  const monthOnlyDate = extractMonthOnlyDate(messageNorm, todayYmd);
-  const isFuzzyMonthAvailability = asksAvailability && Boolean(monthOnlyDate) && !hasConcreteDateMention(messageNorm);
+  const asksMonth = asksMonthScope(messageNorm);
+  const isFuzzyMonthAvailability = Boolean(monthOnlyDate) && !hasConcreteDate && (asksAvailability || asksDateList || asksMonth);
   if (isFuzzyMonthAvailability && monthOnlyDate) {
     d.date = monthOnlyDate;
     d.time = null;
     d.specialistId = null;
+    d.mode = null;
+    d.consentConfirmedAt = null;
     const minDate = monthOnlyDate < todayYmd ? todayYmd : monthOnlyDate;
     const maxDate = endOfMonthYmd(monthOnlyDate);
     const daysAhead = Math.max(1, dateDistanceDays(minDate, maxDate) + 1);
@@ -723,6 +770,31 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       reply: `Выберите дату в календаре, и я сразу покажу свободное время${d.locationId ? " в выбранном филиале" : ""}.`,
       nextStatus: "COLLECTING",
       ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
+    };
+  }
+
+  if ((asksDateList || asksAnotherDate) && d.locationId && d.serviceId) {
+    const rangeStart = monthOnlyDate ? monthOnlyDate : d.date ? addDaysYmd(d.date, 1) : todayYmd;
+    const rangeEnd = monthOnlyDate ? endOfMonthYmd(monthOnlyDate) : addDaysYmd(rangeStart, 45);
+    const daysAhead = Math.max(1, dateDistanceDays(rangeStart, rangeEnd) + 1);
+    const availableDates = await findServiceAvailableDatesInRange({
+      origin,
+      accountSlug: account.slug,
+      locationId: d.locationId,
+      serviceId: d.serviceId,
+      fromDate: rangeStart,
+      daysAhead,
+    });
+    d.date = null;
+    d.time = null;
+    d.specialistId = null;
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    return {
+      handled: true,
+      reply: "Выберите дату в календаре, и я сразу покажу свободное время в выбранном филиале.",
+      nextStatus: "COLLECTING",
+      ui: { kind: "date_picker", minDate: rangeStart, maxDate: rangeEnd, initialDate: rangeStart, availableDates },
     };
   }
 
@@ -1365,6 +1437,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
+
 
 
 

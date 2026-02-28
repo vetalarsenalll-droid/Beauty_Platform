@@ -1,0 +1,24 @@
+{
+  "suite": "core",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-02-28T21:57:57.042Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Greeting basic",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет",
+          "passed": false,
+          "error": "Greeting basic / step 1 (привет): expected one of /здравств|привет|чем помочь/i\nreply:\nЯ ассистент записи. Помогу с услугами, датами, временем и специалистами.",
+          "reply": "Я ассистент записи. Помогу с услугами, датами, временем и специалистами."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-02-28T21:57:57.752Z",
+  "durationMs": 710
+}
