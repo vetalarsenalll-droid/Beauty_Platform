@@ -3675,11 +3675,11 @@ function BlockStyleEditor({
       <div className="grid grid-cols-2 gap-3">
         <ColorField
           label="Фон блока"
-          value={toDisplay(block.type === "aisha" ? lightBlockBg : lightSectionBg)}
+          value={toDisplay(block.type === "aisha" || block.type === "menu" ? lightBlockBg : lightSectionBg)}
           placeholder={theme.panelColor}
           onChange={(value) =>
             update(
-              block.type === "aisha"
+              block.type === "aisha" || block.type === "menu"
                 ? {
                     blockBgLight: toStore(value),
                     blockBg: toStore(value),
@@ -3861,11 +3861,11 @@ function BlockStyleEditor({
         <div className="mt-3 grid grid-cols-2 gap-3">
             <ColorField
               label="Фон блока"
-              value={toDisplay(block.type === "aisha" ? darkBlockBg : darkSectionBg)}
+              value={toDisplay(block.type === "aisha" || block.type === "menu" ? darkBlockBg : darkSectionBg)}
               placeholder={theme.darkPalette.panelColor}
               onChange={(value) =>
                 update(
-                  block.type === "aisha"
+                  block.type === "aisha" || block.type === "menu"
                     ? { blockBgDark: toStore(value) }
                     : block.type === "works"
                     ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
@@ -5099,7 +5099,7 @@ function BlockPreview({
       : theme.radius;
   const sectionBg =
     theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
-  const blockBg = style.blockBg || theme.panelColor;
+  const blockBg = (block.type === "menu" ? style.blockBg || style.sectionBg : style.blockBg) || theme.panelColor;
   const borderColor = (style.borderColor || theme.borderColor || "").trim() || "transparent";
   const shadowSize = style.shadowSize ?? theme.shadowSize ?? 0;
   const shadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
@@ -5110,6 +5110,10 @@ function BlockPreview({
   const isGallery = block.type === "works";
   const isCover = block.type === "cover";
   const isAisha = block.type === "aisha";
+  const menuBlockBgLight =
+    isMenu && !style.blockBgLight.trim() ? style.sectionBgLightResolved : style.blockBgLightResolved;
+  const menuBlockBgDark =
+    isMenu && !style.blockBgDark.trim() ? style.sectionBgDarkResolved : style.blockBgDarkResolved;
   const isFullscreenGallery = isGallery && block.variant === "v2";
   const blockWidthColumns = isMenu
     ? MAX_BLOCK_COLUMNS
@@ -5133,6 +5137,12 @@ function BlockPreview({
   const gradientDirection =
     style.gradientDirection || theme.gradientDirection || "vertical";
   const gradientEnabled = style.gradientEnabled;
+  const lightGradient = style.gradientEnabledLight
+    ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
+    : "none";
+  const darkGradient = style.gradientEnabledDark
+    ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
+    : "none";
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
   const containerClass = isBooking || isMenu || isGallery || isCover || isAisha
@@ -5219,8 +5229,27 @@ function BlockPreview({
               isBooking || isMenu || isGallery || isCover || isAisha || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
+            ["--bp-ink" as string]: textColor,
             ["--bp-muted" as string]: mutedColor,
             ["--bp-stroke" as string]: borderColor,
+            ["--block-bg-light" as string]: menuBlockBgLight,
+            ["--block-bg-dark" as string]: menuBlockBgDark,
+            ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
+            ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
+            ["--block-sub-bg-light" as string]: style.subBlockBgLightResolved,
+            ["--block-sub-bg-dark" as string]: style.subBlockBgDarkResolved,
+            ["--block-border-light" as string]: style.borderColorLightResolved,
+            ["--block-border-dark" as string]: style.borderColorDarkResolved,
+            ["--block-text-light" as string]: style.textColorLightResolved,
+            ["--block-text-dark" as string]: style.textColorDarkResolved,
+            ["--block-muted-light" as string]: style.mutedColorLightResolved,
+            ["--block-muted-dark" as string]: style.mutedColorDarkResolved,
+            ["--block-button-light" as string]: style.buttonColorLightResolved,
+            ["--block-button-dark" as string]: style.buttonColorDarkResolved,
+            ["--block-button-text-light" as string]: style.buttonTextColorLightResolved,
+            ["--block-button-text-dark" as string]: style.buttonTextColorDarkResolved,
+            ["--block-gradient-light" as string]: lightGradient,
+            ["--block-gradient-dark" as string]: darkGradient,
             ["--works-content-width" as string]: gridWidthPercent,
             ["--works-content-left" as string]: gridLeftPercent,
           }}
