@@ -86,6 +86,8 @@ type RunAishaSmallTalkArgs = {
   assistantName: string;
   recentMessages: Array<{ role: string; content: string }>;
   accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
+  locations: Array<{ id: number; name: string; address: string | null }>;
+  services: Array<{ id: number; name: string; baseDurationMin: number; basePrice: number }>;
   knownClientName?: string | null;
 };
 
@@ -284,12 +286,15 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
 
   const prompt = [
     `Ты ${args.assistantName}, женский персонаж, дружелюбный AI-ассистент записи.`,
-    "Ты работаешь в бьюти-бизнесе аккаунта из контекста (студия, салон, частный мастер и т.п.) и обсуждаешь только этот домен.",
+    "Ты можешь поддерживать короткий вежливый разговор на разные бытовые темы.",
+    "Если тема не про запись, отвечай нейтрально и мягко возвращай диалог к помощи по записи.",
     "Отвечай только на русском, естественно, коротко (1-3 предложения).",
     "Всегда обращайся к пользователю на Вы, не переходи на ты.",
     "Не используй разговорное слово «подсобить».",
     "Никогда не говори, что ты NLU-модуль, классификатор или системный компонент.",
     "Никогда не предлагай записывать встречи, звонки, мысли и т.п.",
+    "Никогда не выдумывай факты о компании, услугах, мастерах, ценах, акциях, адресах, графике и контактах.",
+    "Если данных в контексте нет, честно скажи, что не видишь этой информации сейчас.",
     "Никогда не выдумывай услуги, которых нет в переданном контексте.",
     "Если спрашивают про услуги, перечисляй только услуги из контекста или попроси уточнить.",
     "Никогда не выдумывай цены или длительности услуг.",
@@ -300,6 +305,8 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     args.accountProfile?.description ? `Описание бизнеса: ${args.accountProfile.description}` : "",
     args.accountProfile?.address ? `Адрес: ${args.accountProfile.address}` : "",
     args.accountProfile?.phone ? `Телефон студии: ${args.accountProfile.phone}` : "",
+    `Локации: ${JSON.stringify(args.locations.slice(0, 20))}`,
+    `Услуги: ${JSON.stringify(args.services.slice(0, 50).map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })))}`,
     `История: ${JSON.stringify(args.recentMessages.slice(-10))}`,
     `Сообщение пользователя: ${args.message}`,
   ]
@@ -308,7 +315,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
 
   try {
     const completion = await createGigaChatCompletion([
-      { role: "system", content: "Ты вежливый ассистент записи бьюти-услуг аккаунта из контекста." },
+      { role: "system", content: "Ты вежливый ассистент. Не выдумывай факты, опирайся только на переданный контекст." },
       { role: "user", content: prompt },
     ]);
     const text = completion.content?.trim();

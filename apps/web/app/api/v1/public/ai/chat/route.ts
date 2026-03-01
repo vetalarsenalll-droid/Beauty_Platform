@@ -621,6 +621,11 @@ function hasUnknownPersonNameInReply(args: {
   return false;
 }
 
+function looksLikeSensitiveLeakReply(text: string) {
+  const t = norm(text);
+  return /(system prompt|internal prompt|hidden instruction|internal instruction|api key|token|access key|secret|password|ignore.*instruction|jailbreak)/i.test(t);
+}
+
 function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
   const hasServiceWord = /(маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i.test(messageNorm);
   if (!hasServiceWord) return false;
@@ -1719,6 +1724,25 @@ export async function POST(request: Request) {
     let nextStatus = d.status;
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
+    const shouldGenerateSmalltalk =
+      route === "chat-only" &&
+      !explicitDateTimeQuery &&
+      !shouldRunBookingFlow &&
+      !explicitServiceComplaint &&
+      (intent === "smalltalk" || intent === "out_of_scope");
+    const generatedSmalltalk = shouldGenerateSmalltalk
+      ? await runAishaSmallTalkReply({
+          accountId: resolved.account.id,
+          message: messageForRouting,
+          assistantName: ASSISTANT_NAME,
+          recentMessages: [...recentMessages].reverse(),
+          accountProfile,
+          locations,
+          services,
+          knownClientName: d.clientName,
+        })
+      : null;
+
 
     if (route === "client-actions") {
       const effectiveClientId = client?.clientId ?? thread.clientId ?? null;
@@ -1800,19 +1824,25 @@ export async function POST(request: Request) {
       } else if (intent === "capabilities") {
         reply = "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
       } else if (intent === "out_of_scope") {
-        reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
+        if (generatedSmalltalk) {
+          reply = `${generatedSmalltalk.replace(/[.!?]+$/u, "")}. Если захотите, помогу с записью и услугами.`;
+        } else {
+          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
+        }
       } else if (intent === "abuse_or_toxic") {
         reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
       } else if (intent === "post_completion_smalltalk") {
         reply = "Здорово, рада, что вам понравилось. Если нужно, помогу с записью.";
       } else if (intent === "smalltalk") {
         if (isGreetingText(messageForRouting)) {
-          reply = "\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! \u0427\u0435\u043c \u043f\u043e\u043c\u043e\u0447\u044c?";
+          reply = "Здравствуйте! Чем помочь?";
         } else if (explicitServiceComplaint) {
           reply =
             "Сожалею, что так вышло. Спасибо, что написали об этом. Опишите, пожалуйста, что именно не устроило, и я передам обращение администратору и помогу подобрать корректную запись к другому мастеру.";
+        } else if (generatedSmalltalk) {
+          reply = generatedSmalltalk;
         } else if (isOutOfDomainPrompt(t)) {
-          reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
+          reply = "Я помогаю по записи и услугам, но могу коротко поддержать разговор. Если хотите, подберу удобное время и специалиста.";
         } else {
           reply = buildSmalltalkReply(norm(messageForRouting));
         }
@@ -1980,6 +2010,11 @@ export async function POST(request: Request) {
       })
     ) {
       reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
+      nextUi = null;
+    }
+
+    if (route === "chat-only" && !explicitDateTimeQuery && hallucinationSensitiveIntent && looksLikeSensitiveLeakReply(reply)) {
+      reply = "Я помогу с записью и вопросами по услугам. Если нужно, подберу время и специалиста.";
       nextUi = null;
     }
 
