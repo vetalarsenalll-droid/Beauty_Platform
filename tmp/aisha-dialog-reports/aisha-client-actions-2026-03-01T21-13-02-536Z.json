@@ -1,0 +1,77 @@
+{
+  "suite": "client-actions",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T21:12:58.477Z",
+  "passed": true,
+  "scenarios": [
+    {
+      "name": "Client my bookings flow handles auth/result",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какая у меня ближайшая запись",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Client past bookings flow handles auth/result",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какая у меня прошедшая запись",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Client stats flow handles auth/result",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "моя статистика",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Client cancel flow handles auth/result",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "отмени мою ближайшую запись",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Client reschedule flow handles auth/result",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "перенеси мою запись на завтра в 18:00",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Client profile flow handles auth/result",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "покажи мои данные",
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T21:13:02.535Z",
+  "durationMs": 4058
+}
