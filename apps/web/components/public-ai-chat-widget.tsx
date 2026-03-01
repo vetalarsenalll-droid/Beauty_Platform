@@ -220,6 +220,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     if (widgetConfig?.assistantTextColor) vars["--site-assistant-text"] = widgetConfig.assistantTextColor;
     if (widgetConfig?.clientBubbleColor) vars["--site-client-bubble"] = widgetConfig.clientBubbleColor;
     if (widgetConfig?.clientTextColor) vars["--site-client-text"] = widgetConfig.clientTextColor;
+    if (widgetConfig?.quickReplyButtonColor) vars["--site-quick-reply-button"] = widgetConfig.quickReplyButtonColor;
+    if (widgetConfig?.quickReplyTextColor) vars["--site-quick-reply-text"] = widgetConfig.quickReplyTextColor;
     return vars as CSSProperties;
   }, [widgetConfig, mode]);
 
@@ -470,7 +472,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   return (
     <div className={rootClass} style={widgetRootStyle}>
       {open ? (
-        <div className="flex flex-col border border-[color:var(--site-border,#e5e7eb)] bg-[color:var(--site-panel,#fff)]" style={panelStyle}>
+        <div className="flex flex-col overflow-hidden border border-[color:var(--site-border,#e5e7eb)] bg-[color:var(--site-panel,#fff)]" style={panelStyle}>
           <div className="flex items-center justify-between gap-3 border-b border-[color:var(--site-border,#e5e7eb)] px-4 py-3" style={headerStyle}>
             <div className="text-sm font-semibold text-[color:var(--site-text,#111827)]" style={headerActionStyle}>
               {headerTitle}
@@ -597,7 +599,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                 : "rounded-full"
                             } ${
                               isLastAssistant
-                                ? "border-transparent bg-black/5 text-[color:var(--site-text,#111827)] hover:border-[color:var(--site-border,#d1d5db)] hover:bg-black/10"
+                                ? "border-transparent bg-[color:var(--site-quick-reply-button,var(--site-button,#111827))] text-[color:var(--site-quick-reply-text,var(--site-button-text,#fff))] hover:brightness-95"
                                 : "border-[color:var(--site-border,#d1d5db)] bg-black/0 text-[color:var(--site-muted,#6b7280)]"
                             } disabled:cursor-not-allowed disabled:opacity-60`}
                           >
@@ -802,6 +804,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
+
+
+
 
 
 

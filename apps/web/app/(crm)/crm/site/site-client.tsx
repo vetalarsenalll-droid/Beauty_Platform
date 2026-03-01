@@ -452,6 +452,12 @@ const defaultBlockStyle = {
   headerTextColorLight: "",
   headerTextColorDark: "",
   headerTextColor: "",
+  quickReplyButtonColorLight: "",
+  quickReplyButtonColorDark: "",
+  quickReplyButtonColor: "",
+  quickReplyTextColorLight: "",
+  quickReplyTextColorDark: "",
+  quickReplyTextColor: "",
   messageRadius: null,
   shadowColor: "",
   shadowSize: null,
@@ -3183,7 +3189,7 @@ function BlockEditor({
           </label>
           <FieldText
             label="Текст кнопки"
-            value={(block.data.label as string) ?? "AI-чат"}
+            value={(block.data.label as string) ?? "AI-ассистент"}
             onChange={(value) => updateData({ label: value })}
           />
         </>
@@ -3289,6 +3295,12 @@ function BlockStyleEditor({
   const lightHeaderTextColor =
     readRaw("headerTextColorLight") || readRaw("headerTextColor");
   const darkHeaderTextColor = readRaw("headerTextColorDark");
+  const lightQuickReplyButtonColor =
+    readRaw("quickReplyButtonColorLight") || readRaw("quickReplyButtonColor");
+  const darkQuickReplyButtonColor = readRaw("quickReplyButtonColorDark");
+  const lightQuickReplyTextColor =
+    readRaw("quickReplyTextColorLight") || readRaw("quickReplyTextColor");
+  const darkQuickReplyTextColor = readRaw("quickReplyTextColorDark");
   const update = (patch: Partial<BlockStyle>) => {
     onChange(updateBlockStyle(block, patch));
   };
@@ -3722,6 +3734,8 @@ function BlockStyleEditor({
             <ColorField label="Текст клиента" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value), clientTextColor: toStore(value) })} />
             <ColorField label="Цвет плашки" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value), headerBgColor: toStore(value) })} />
             <ColorField label="Цвет текста плашки" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
+            <ColorField label="Цвет кнопок вариантов" value={toDisplay(lightQuickReplyButtonColor)} placeholder={theme.buttonColor} onChange={(value) => update({ quickReplyButtonColorLight: toStore(value), quickReplyButtonColor: toStore(value) })} />
+            <ColorField label="Текст кнопок вариантов" value={toDisplay(lightQuickReplyTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ quickReplyTextColorLight: toStore(value), quickReplyTextColor: toStore(value) })} />
           </>
         )}
         {block.type === "works" && (
@@ -3868,6 +3882,8 @@ function BlockStyleEditor({
                 <ColorField label="Текст клиента" value={toDisplay(darkClientTextColor)} placeholder={theme.darkPalette.buttonTextColor} onChange={(value) => update({ clientTextColorDark: toStore(value) })} />
                 <ColorField label="Цвет плашки" value={toDisplay(darkHeaderBgColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ headerBgColorDark: toStore(value) })} />
                 <ColorField label="Цвет текста плашки" value={toDisplay(darkHeaderTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ headerTextColorDark: toStore(value) })} />
+                <ColorField label="Цвет кнопок вариантов" value={toDisplay(darkQuickReplyButtonColor)} placeholder={theme.darkPalette.buttonColor} onChange={(value) => update({ quickReplyButtonColorDark: toStore(value) })} />
+                <ColorField label="Текст кнопок вариантов" value={toDisplay(darkQuickReplyTextColor)} placeholder={theme.darkPalette.buttonTextColor} onChange={(value) => update({ quickReplyTextColorDark: toStore(value) })} />
               </>
             )}
             {block.type === "works" && (
@@ -4156,6 +4172,12 @@ type BlockStyle = {
   headerTextColorLight: string;
   headerTextColorDark: string;
   headerTextColor: string;
+  quickReplyButtonColorLight: string;
+  quickReplyButtonColorDark: string;
+  quickReplyButtonColor: string;
+  quickReplyTextColorLight: string;
+  quickReplyTextColorDark: string;
+  quickReplyTextColor: string;
   messageRadius: number | null;
   shadowColor: string;
   shadowSize: number | null;
@@ -4208,6 +4230,10 @@ type BlockStyle = {
   headerBgColorDarkResolved: string;
   headerTextColorLightResolved: string;
   headerTextColorDarkResolved: string;
+  quickReplyButtonColorLightResolved: string;
+  quickReplyButtonColorDarkResolved: string;
+  quickReplyTextColorLightResolved: string;
+  quickReplyTextColorDarkResolved: string;
 };
 
 function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
@@ -4346,6 +4372,20 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     "headerTextColor",
     theme.lightPalette.textColor,
     theme.darkPalette.textColor
+  );
+  const quickReplyButtonPair = resolvePair(
+    "quickReplyButtonColorLight",
+    "quickReplyButtonColorDark",
+    "quickReplyButtonColor",
+    theme.lightPalette.buttonColor,
+    theme.darkPalette.buttonColor
+  );
+  const quickReplyTextPair = resolvePair(
+    "quickReplyTextColorLight",
+    "quickReplyTextColorDark",
+    "quickReplyTextColor",
+    theme.lightPalette.buttonTextColor,
+    theme.darkPalette.buttonTextColor
   );
   const gradientEnabledLight =
     typeof style.gradientEnabledLight === "boolean"
@@ -4526,6 +4566,22 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
       "headerTextColorDark",
       "headerTextColor"
     ),
+    quickReplyButtonColorLight:
+      readColor("quickReplyButtonColorLight") || readColor("quickReplyButtonColor"),
+    quickReplyButtonColorDark: readColor("quickReplyButtonColorDark"),
+    quickReplyButtonColor: resolveColor(
+      "quickReplyButtonColorLight",
+      "quickReplyButtonColorDark",
+      "quickReplyButtonColor"
+    ),
+    quickReplyTextColorLight:
+      readColor("quickReplyTextColorLight") || readColor("quickReplyTextColor"),
+    quickReplyTextColorDark: readColor("quickReplyTextColorDark"),
+    quickReplyTextColor: resolveColor(
+      "quickReplyTextColorLight",
+      "quickReplyTextColorDark",
+      "quickReplyTextColor"
+    ),
     messageRadius: toNumber(style.messageRadius),
     sectionBgLightResolved: sectionBgPair.lightResolved,
     sectionBgDarkResolved: sectionBgPair.darkResolved,
@@ -4555,6 +4611,10 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     headerBgColorDarkResolved: headerBgPair.darkResolved,
     headerTextColorLightResolved: headerTextPair.lightResolved,
     headerTextColorDarkResolved: headerTextPair.darkResolved,
+    quickReplyButtonColorLightResolved: quickReplyButtonPair.lightResolved,
+    quickReplyButtonColorDarkResolved: quickReplyButtonPair.darkResolved,
+    quickReplyTextColorLightResolved: quickReplyTextPair.lightResolved,
+    quickReplyTextColorDarkResolved: quickReplyTextPair.darkResolved,
     shadowColor: readColor("shadowColor"),
     shadowSize: toNumber(style.shadowSize),
     gradientEnabled,
@@ -7249,6 +7309,10 @@ function buildAishaWidgetConfig(
       null,
     headerBgColor: style.headerBgColor || style.headerBgColorLight || null,
     headerTextColor: style.headerTextColor || style.headerTextColorLight || null,
+    quickReplyButtonColor:
+      style.quickReplyButtonColor || style.quickReplyButtonColorLight || style.buttonColor || style.buttonColorLightResolved || null,
+    quickReplyTextColor:
+      style.quickReplyTextColor || style.quickReplyTextColorLight || style.buttonTextColor || style.buttonTextColorLightResolved || null,
     messageRadiusPx: style.messageRadius ?? 16,
     panelShadowColor: style.shadowColor || theme.shadowColor || null,
     panelShadowSize: style.shadowSize ?? theme.shadowSize ?? null,
@@ -7338,6 +7402,7 @@ function renderContacts(
     </div>
   );
 }
+
 
 
 

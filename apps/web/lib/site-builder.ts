@@ -181,6 +181,8 @@ export type SiteAishaWidgetConfig = {
   clientTextColor: string | null;
   headerBgColor: string | null;
   headerTextColor: string | null;
+  quickReplyButtonColor: string | null;
+  quickReplyTextColor: string | null;
   messageRadiusPx: number | null;
   panelShadowColor: string | null;
   panelShadowSize: number | null;
@@ -312,6 +314,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfi
       clientTextColor: null,
       headerBgColor: null,
       headerTextColor: null,
+      quickReplyButtonColor: null,
+      quickReplyTextColor: null,
       messageRadiusPx: null,
       panelShadowColor: null,
       panelShadowSize: null,
@@ -410,6 +414,14 @@ export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfi
     headerTextColor:
       textOrNull(style.headerTextColor) ||
       textOrNull(style.headerTextColorLight) ||
+      null,
+    quickReplyButtonColor:
+      textOrNull(style.quickReplyButtonColor) ||
+      textOrNull(style.quickReplyButtonColorLight) ||
+      null,
+    quickReplyTextColor:
+      textOrNull(style.quickReplyTextColor) ||
+      textOrNull(style.quickReplyTextColorLight) ||
       null,
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
