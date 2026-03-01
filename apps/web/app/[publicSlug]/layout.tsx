@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { resolveSiteLoaderConfig } from "@/lib/site-builder";
+import { resolveAishaWidgetConfig, resolveSiteLoaderConfig } from "@/lib/site-builder";
 import PublicSiteOverlayLoader from "@/components/public-site-overlay-loader";
 import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import { loadPublicData } from "./_shared/public-data";
@@ -14,11 +14,14 @@ export default async function PublicSlugLayout({ children, params }: LayoutProps
   const publicSlug = resolvedParams.publicSlug ?? "";
   const data = await loadPublicData(publicSlug);
   const loaderConfig = data ? resolveSiteLoaderConfig(data.draft) : null;
+  const aishaConfig = data ? resolveAishaWidgetConfig(data.draft) : null;
 
   return (
     <PublicSiteOverlayLoader loaderConfig={loaderConfig}>
       {children}
-      {data?.account?.slug ? <PublicAiChatWidget accountSlug={data.account.slug} /> : null}
+      {data?.account?.slug && aishaConfig?.enabled !== false ? (
+        <PublicAiChatWidget accountSlug={data.account.slug} widgetConfig={aishaConfig} />
+      ) : null}
     </PublicSiteOverlayLoader>
   );
 }

@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
 
 type Message = { id?: number; role: "user" | "assistant"; content: string };
 type ChatAction = { type: "open_booking"; bookingUrl: string } | null;
@@ -13,6 +14,10 @@ type ChatMessage = Message & { ui?: ChatUi | null };
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
+  widgetConfig?: SiteAishaWidgetConfig | null;
+  mode?: "floating" | "inline";
+  defaultOpen?: boolean;
+  className?: string;
 };
 
 function stripLegalRefs(text: string) {
@@ -172,8 +177,16 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
     cells.push({ ymd, day, inMonth, disabled });
   }
   return cells;
-}export default function PublicAiChatWidget({ accountSlug }: PublicAiChatWidgetProps) {
-  const [open, setOpen] = useState(false);
+}
+export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
+  const {
+    accountSlug,
+    widgetConfig,
+    mode = "floating",
+    defaultOpen = false,
+    className,
+  } = props;
+  const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
@@ -190,6 +203,50 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
 
   const storageKey = useMemo(() => `ai-thread:${accountSlug}`, [accountSlug]);
   const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
+  const widgetRootStyle = useMemo(() => {
+    const vars: Record<string, string | number> = {};
+    if (mode === "floating") {
+      const bottom = Number(widgetConfig?.offsetBottomPx ?? 16);
+      const right = Number(widgetConfig?.offsetRightPx ?? 16);
+      vars.bottom = `${bottom}px`;
+      vars.right = `${right}px`;
+    }
+    if (widgetConfig?.buttonColor) vars["--site-button"] = widgetConfig.buttonColor;
+    if (widgetConfig?.buttonTextColor) vars["--site-button-text"] = widgetConfig.buttonTextColor;
+    if (widgetConfig?.panelColor) vars["--site-panel"] = widgetConfig.panelColor;
+    if (widgetConfig?.textColor) vars["--site-text"] = widgetConfig.textColor;
+    if (widgetConfig?.borderColor) vars["--site-border"] = widgetConfig.borderColor;
+    if (widgetConfig?.assistantBubbleColor) vars["--site-assistant-bubble"] = widgetConfig.assistantBubbleColor;
+    if (widgetConfig?.assistantTextColor) vars["--site-assistant-text"] = widgetConfig.assistantTextColor;
+    if (widgetConfig?.clientBubbleColor) vars["--site-client-bubble"] = widgetConfig.clientBubbleColor;
+    if (widgetConfig?.clientTextColor) vars["--site-client-text"] = widgetConfig.clientTextColor;
+    return vars as CSSProperties;
+  }, [widgetConfig, mode]);
+
+  const panelWidth = Number(widgetConfig?.panelWidthPx ?? 380);
+  const panelHeightVh = Number(widgetConfig?.panelHeightVh ?? 70);
+  const panelRadius = Number(widgetConfig?.radiusPx ?? 16);
+  const messageRadius = Number(widgetConfig?.messageRadiusPx ?? 16);
+  const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 16));
+  const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
+  const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
+  const fabRadius = Number(widgetConfig?.buttonRadiusPx ?? 999);
+  const buttonRadiusStyle = { borderRadius: `${fabRadius}px` };
+  const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
+  const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
+  const inlineFabPosition: CSSProperties =
+    mode === "inline"
+      ? {
+          position: "absolute",
+          right: `${Number(widgetConfig?.offsetRightPx ?? 16)}px`,
+          bottom: `${Number(widgetConfig?.offsetBottomPx ?? 16)}px`,
+        }
+      : {};
+  const panelBackground =
+    widgetConfig?.gradientEnabled && widgetConfig?.panelGradientFrom && widgetConfig?.panelGradientTo
+      ? `linear-gradient(${widgetConfig.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${widgetConfig.panelGradientFrom}, ${widgetConfig.panelGradientTo})`
+      : undefined;
+
   const lastAssistantIndex = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       if (messages[i]?.role === "assistant") return i;
@@ -198,14 +255,14 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
   }, [messages]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
     const node = bottomRef.current;
     if (!node) return;
     node.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages.length, loading, open, typingVisible]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
     if (messages.length > 0) return;
     const greeting = "Здравствуйте! Я Аиша. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.";
     const greetingUi: ChatUi = {
@@ -377,19 +434,53 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
     setConsentCheckedByMessage({});
   };
 
+  const rootClass = mode === "floating" ? "fixed z-[140]" : `absolute z-[1] ${className ?? ""}`;
+  const panelStyle: CSSProperties =
+    mode === "floating"
+      ? {
+          height: `${panelHeightVh}vh`,
+          width: `min(${panelWidth}px, calc(100vw - 2rem))`,
+          borderRadius: panelRadius,
+          background: panelBackground,
+          backgroundColor: widgetConfig?.panelColor || undefined,
+          boxShadow: panelShadowSize > 0 ? `0 ${Math.round(panelShadowSize)}px ${Math.round(panelShadowSize * 3)}px ${panelShadowColor}` : "none",
+        }
+      : {
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          height: `${panelHeightVh}vh`,
+          maxHeight: `${panelHeightVh}vh`,
+          width: `${panelWidth}px`,
+          maxWidth: "100%",
+          borderRadius: panelRadius,
+          background: panelBackground,
+          backgroundColor: widgetConfig?.panelColor || undefined,
+          boxShadow: panelShadowSize > 0 ? `0 ${Math.round(panelShadowSize)}px ${Math.round(panelShadowSize * 3)}px ${panelShadowColor}` : "none",
+        };
+
+  const headerStyle: CSSProperties = {
+    backgroundColor: widgetConfig?.headerBgColor || undefined,
+    color: widgetConfig?.headerTextColor || undefined,
+  };
+  const headerActionStyle: CSSProperties = {
+    color: widgetConfig?.headerTextColor || undefined,
+  };
+
   return (
-    <div className="fixed bottom-4 right-4 z-[140]">
+    <div className={rootClass} style={widgetRootStyle}>
       {open ? (
-        <div className="flex h-[70vh] w-[min(380px,calc(100vw-2rem))] flex-col rounded-2xl border border-[color:var(--site-border,#e5e7eb)] bg-[color:var(--site-panel,#fff)] shadow-[0_12px_36px_rgba(0,0,0,0.16)]">
-          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--site-border,#e5e7eb)] px-4 py-3">
-            <div className="text-sm font-semibold text-[color:var(--site-text,#111827)]">
-              AI-ассистент записи
+        <div className="flex flex-col border border-[color:var(--site-border,#e5e7eb)] bg-[color:var(--site-panel,#fff)]" style={panelStyle}>
+          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--site-border,#e5e7eb)] px-4 py-3" style={headerStyle}>
+            <div className="text-sm font-semibold text-[color:var(--site-text,#111827)]" style={headerActionStyle}>
+              {headerTitle}
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={clearChat}
                 className="rounded-lg px-2 py-1 text-xs text-[color:var(--site-muted,#6b7280)] hover:bg-black/5"
+                style={headerActionStyle}
               >
                 Очистить
               </button>
@@ -397,6 +488,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                 type="button"
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-2 py-1 text-xs text-[color:var(--site-muted,#6b7280)] hover:bg-black/5"
+                style={headerActionStyle}
               >
                 Закрыть
               </button>
@@ -471,11 +563,12 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                 return (
                   <div
                     key={messageKey}
-                    className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm ${
+                    className={`max-w-[92%] px-3 py-2 text-sm ${
                       msg.role === "user"
-                        ? "ml-auto bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]"
-                        : "bg-black/5 text-[color:var(--site-text,#111827)]"
+                        ? "ml-auto bg-[color:var(--site-client-bubble,var(--site-button,#111827))] text-[color:var(--site-client-text,var(--site-button-text,#fff))]"
+                        : "bg-[color:var(--site-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--site-assistant-text,var(--site-text,#111827))]"
                     }`}
+                    style={messageRadiusStyle}
                   >
                     {shownText ? <div>{shownText}</div> : null}
                     {effectiveOptions.length && !isTypingThis ? (
@@ -497,6 +590,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                               }
                               void sendRawMessage(option.value);
                             }}
+                            style={buttonRadiusStyle}
                             className={`border px-3 py-1.5 text-xs font-medium transition ${
                               isTimeOption
                                 ? "w-[62px] rounded-lg text-center [font-variant-numeric:tabular-nums]"
@@ -526,6 +620,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                                 [messageKey]: prevMonth,
                               }))
                             }
+                            style={buttonRadiusStyle}
                             className="h-7 w-7 rounded-md border border-[color:var(--site-border,#d1d5db)] text-xs disabled:opacity-40"
                           >
                             ‹
@@ -540,6 +635,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                                 [messageKey]: nextMonth,
                               }))
                             }
+                            style={buttonRadiusStyle}
                             className="h-7 w-7 rounded-md border border-[color:var(--site-border,#d1d5db)] text-xs disabled:opacity-40"
                           >
                             ›
@@ -577,6 +673,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                                     [messageKey]: cell.ymd,
                                   }));
                                 }}
+                                style={buttonRadiusStyle}
                                 className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]' : inactive ? 'bg-black/5 text-[color:var(--site-muted,#9ca3af)]' : cell.inMonth ? 'bg-white text-[color:var(--site-text,#111827)]' : 'bg-black/5 text-[color:var(--site-muted,#9ca3af)]'} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
                               >
                                 {cell.day}
@@ -591,6 +688,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                             type="button"
                             disabled={loading || !isLastAssistant || !datePickerValue || !selectedDateIsAvailable}
                             onClick={() => void sendRawMessage(formatYmdRuDate(datePickerValue))}
+                            style={buttonRadiusStyle}
                             className="rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
                           >
                             Выбрать
@@ -612,6 +710,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                                     window.open(href, "_blank", "noopener,noreferrer");
                                   }
                                 }}
+                                style={buttonRadiusStyle}
                                 className="rounded-lg border border-[color:var(--site-border,#d1d5db)] px-3 py-1.5 text-xs disabled:opacity-60"
                               >
                                 Текст ПДн {i + 1}
@@ -638,6 +737,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
                           type="button"
                           disabled={loading || !isLastAssistant || !consentChecked}
                           onClick={() => void sendRawMessage(consentSubmitValue)}
+                          style={buttonRadiusStyle}
                           className="mt-2 rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
                         >
                           Подтвердить
@@ -649,7 +749,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
               })()
             ))}
             {loading ? (
-              <div className="max-w-[90%] rounded-2xl bg-black/5 px-3 py-2 text-sm text-[color:var(--site-muted,#6b7280)]">
+              <div className="max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--site-muted,#6b7280)]" style={messageRadiusStyle}>
                 <div className="flex items-center gap-1">
                   <span
                     className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
@@ -680,6 +780,7 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
               <button
                 type="submit"
                 disabled={!canSend}
+                style={buttonRadiusStyle}
                 className="h-10 rounded-xl bg-[color:var(--site-button,#111827)] px-3 text-sm font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
               >
                 Отпр.
@@ -691,36 +792,16 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-2 rounded-full bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105"
+          className="group flex items-center gap-2 bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
           aria-label="Открыть AI-ассистента"
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
-          <span className="whitespace-nowrap">AI-ассистент</span>
+          <span className="whitespace-nowrap">{fabLabel}</span>
         </button>
       )}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

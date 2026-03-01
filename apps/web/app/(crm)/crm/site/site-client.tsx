@@ -6,6 +6,7 @@ import {
   BLOCK_LABELS,
   BLOCK_VARIANTS,
   type BlockType,
+  type SiteAishaWidgetConfig,
   type SiteBlock,
   type SiteDraft,
   type SiteLoaderConfig,
@@ -21,6 +22,7 @@ import MenuSearch from "@/components/menu-search";
 import BookingClient from "@/app/booking/booking-client";
 import SiteLoader from "@/components/site-loader";
 import GallerySlider from "@/components/gallery-slider";
+import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 
 type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -248,6 +250,11 @@ const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = 
     { id: "typography", label: "Типографика" },
     { id: "effects", label: "Эффекты" },
   ],
+  aisha: [
+    { id: "layout", label: "\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438" },
+    { id: "colors", label: "\u0426\u0432\u0435\u0442\u0430" },
+    { id: "effects", label: "\u042d\u0444\u0444\u0435\u043a\u0442\u044b" },
+  ],
 };
 
 const SOCIAL_ICONS: Record<string, string> = {
@@ -427,6 +434,25 @@ const defaultBlockStyle = {
   mutedColorLight: "",
   mutedColorDark: "",
   mutedColor: "",
+  assistantBubbleColorLight: "",
+  assistantBubbleColorDark: "",
+  assistantBubbleColor: "",
+  assistantTextColorLight: "",
+  assistantTextColorDark: "",
+  assistantTextColor: "",
+  clientBubbleColorLight: "",
+  clientBubbleColorDark: "",
+  clientBubbleColor: "",
+  clientTextColorLight: "",
+  clientTextColorDark: "",
+  clientTextColor: "",
+  headerBgColorLight: "",
+  headerBgColorDark: "",
+  headerBgColor: "",
+  headerTextColorLight: "",
+  headerTextColorDark: "",
+  headerTextColor: "",
+  messageRadius: null,
   shadowColor: "",
   shadowSize: null,
   gradientEnabled: false,
@@ -634,6 +660,31 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     showButton: false,
     buttonText: "Записаться",
     style: defaultBlockStyle,
+  },
+  aisha: {
+    title: "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
+    enabled: true,
+    label: "AI-\u0447\u0430\u0442",
+    offsetBottomPx: 16,
+    offsetRightPx: 16,
+    panelWidthPx: 380,
+    panelHeightVh: 70,
+    style: {
+      ...defaultBlockStyle,
+      buttonColorLight: "#111827",
+      buttonColorDark: "#111827",
+      buttonColor: "#111827",
+      buttonTextColorLight: "#ffffff",
+      buttonTextColorDark: "#ffffff",
+      buttonTextColor: "#ffffff",
+      blockBgLight: "#ffffff",
+      blockBgDark: "#111827",
+      borderColorLight: "#e5e7eb",
+      borderColorDark: "#374151",
+      radius: 16,
+      buttonRadius: 999,
+      messageRadius: 16,
+    },
   },
 };
 
@@ -2994,7 +3045,6 @@ function BlockEditor({
           onChange={updateData}
         />
       )}
-
       {block.type === "works" && (
         <>
           <FieldText
@@ -3116,6 +3166,29 @@ function BlockEditor({
         </>
       )}
 
+            {block.type === "aisha" && (
+        <>
+          <FieldText
+            label="\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a \u0432\u0438\u0434\u0436\u0435\u0442\u0430"
+            value={(block.data.title as string) ?? "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438"}
+            onChange={(value) => updateData({ title: value })}
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={block.data.enabled !== false}
+              onChange={(event) => updateData({ enabled: event.target.checked })}
+            />
+            {"\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430 \u043d\u0430 \u0441\u0430\u0439\u0442\u0435"}
+          </label>
+          <FieldText
+            label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043d\u043e\u043f\u043a\u0438"
+            value={(block.data.label as string) ?? "AI-\u0447\u0430\u0442"}
+            onChange={(value) => updateData({ label: value })}
+          />
+        </>
+      )}
+
       {block.type !== "menu" &&
         block.type !== "cover" &&
         block.type !== "about" &&
@@ -3123,7 +3196,8 @@ function BlockEditor({
         !isSystemBlockType(block.type) &&
         block.type !== "works" &&
         block.type !== "reviews" &&
-        block.type !== "contacts" && (
+        block.type !== "contacts" &&
+        block.type !== "aisha" && (
           <>
             <FieldText
               label="Заголовок"
@@ -3196,6 +3270,23 @@ function BlockStyleEditor({
   const darkTextColor = readRaw("textColorDark");
   const lightMutedColor = readRaw("mutedColorLight") || readRaw("mutedColor");
   const darkMutedColor = readRaw("mutedColorDark");
+  const lightAssistantBubbleColor =
+    readRaw("assistantBubbleColorLight") || readRaw("assistantBubbleColor");
+  const darkAssistantBubbleColor = readRaw("assistantBubbleColorDark");
+  const lightAssistantTextColor =
+    readRaw("assistantTextColorLight") || readRaw("assistantTextColor");
+  const darkAssistantTextColor = readRaw("assistantTextColorDark");
+  const lightClientBubbleColor =
+    readRaw("clientBubbleColorLight") || readRaw("clientBubbleColor");
+  const darkClientBubbleColor = readRaw("clientBubbleColorDark");
+  const lightClientTextColor =
+    readRaw("clientTextColorLight") || readRaw("clientTextColor");
+  const darkClientTextColor = readRaw("clientTextColorDark");
+  const lightHeaderBgColor = readRaw("headerBgColorLight") || readRaw("headerBgColor");
+  const darkHeaderBgColor = readRaw("headerBgColorDark");
+  const lightHeaderTextColor =
+    readRaw("headerTextColorLight") || readRaw("headerTextColor");
+  const darkHeaderTextColor = readRaw("headerTextColorDark");
   const update = (patch: Partial<BlockStyle>) => {
     onChange(updateBlockStyle(block, patch));
   };
@@ -3256,7 +3347,7 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && block.type !== "menu" && block.type !== "booking" && (
+      {inSection("layout") && block.type !== "menu" && block.type !== "booking" && block.type !== "aisha" && (
       <>
         <div className="text-sm">
           Ширина блока: {Math.max(1, (style.gridEndColumn ?? 12) - (style.gridStartColumn ?? 1) + 1)}/12
@@ -3378,6 +3469,30 @@ function BlockStyleEditor({
           className="mt-2 w-full"
         />
       </label>
+      )}
+      {inSection("layout") && block.type === "aisha" && (
+      <>
+        <label className="text-sm">
+          {"\u041e\u0442\u0441\u0442\u0443\u043f \u0441\u043d\u0438\u0437\u0443:"} {Number(block.data.offsetBottomPx ?? 16)}px
+          <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetBottomPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetBottomPx: Number(event.target.value) } })} className="mt-2 w-full" />
+        </label>
+        <label className="text-sm">
+          {"\u041e\u0442\u0441\u0442\u0443\u043f \u0441\u043f\u0440\u0430\u0432\u0430:"} {Number(block.data.offsetRightPx ?? 16)}px
+          <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetRightPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetRightPx: Number(event.target.value) } })} className="mt-2 w-full" />
+        </label>
+        <label className="text-sm">
+          {"\u0428\u0438\u0440\u0438\u043d\u0430 \u043f\u0430\u043d\u0435\u043b\u0438:"} {Number(block.data.panelWidthPx ?? 380)}px
+          <input type="range" min={320} max={620} step={2} value={Number(block.data.panelWidthPx ?? 380)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelWidthPx: Number(event.target.value) } })} className="mt-2 w-full" />
+        </label>
+        <label className="text-sm">
+          {"\u0412\u044b\u0441\u043e\u0442\u0430 \u043f\u0430\u043d\u0435\u043b\u0438:"} {Number(block.data.panelHeightVh ?? 70)}vh
+          <input type="range" min={55} max={95} step={1} value={Number(block.data.panelHeightVh ?? 70)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelHeightVh: Number(event.target.value) } })} className="mt-2 w-full" />
+        </label>
+        <label className="text-sm">
+          {"\u0420\u0430\u0434\u0438\u0443\u0441 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f:"} {Number(style.messageRadius ?? 16)}px
+          <input type="range" min={4} max={32} step={1} value={Number(style.messageRadius ?? 16)} onChange={(event) => update({ messageRadius: Number(event.target.value) })} className="mt-2 w-full" />
+        </label>
+      </>
       )}
       {block.type === "menu" && (
         inSection("layout") && (
@@ -3592,6 +3707,16 @@ function BlockStyleEditor({
             })
           }
         />
+        {block.type === "aisha" && (
+          <>
+            <ColorField label="\u0426\u0432\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(lightAssistantBubbleColor)} placeholder={theme.panelColor} onChange={(value) => update({ assistantBubbleColorLight: toStore(value), assistantBubbleColor: toStore(value) })} />
+            <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(lightAssistantTextColor)} placeholder={theme.textColor} onChange={(value) => update({ assistantTextColorLight: toStore(value), assistantTextColor: toStore(value) })} />
+            <ColorField label="\u0426\u0432\u0435\u0442 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(lightClientBubbleColor)} placeholder={theme.buttonColor} onChange={(value) => update({ clientBubbleColorLight: toStore(value), clientBubbleColor: toStore(value) })} />
+            <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value), clientTextColor: toStore(value) })} />
+            <ColorField label="\u0426\u0432\u0435\u0442 \u043f\u043b\u0430\u0448\u043a\u0438" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value), headerBgColor: toStore(value) })} />
+            <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043d\u043e\u043f\u043a\u0438" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
+          </>
+        )}
         {block.type === "works" && (
           <>
             <ColorField
@@ -3726,6 +3851,16 @@ function BlockStyleEditor({
               placeholder={theme.darkPalette.mutedColor}
               onChange={(value) => update({ mutedColorDark: toStore(value) })}
             />
+            {block.type === "aisha" && (
+              <>
+                <ColorField label="\u0426\u0432\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(darkAssistantBubbleColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ assistantBubbleColorDark: toStore(value) })} />
+                <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(darkAssistantTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ assistantTextColorDark: toStore(value) })} />
+                <ColorField label="\u0426\u0432\u0435\u0442 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(darkClientBubbleColor)} placeholder={theme.darkPalette.buttonColor} onChange={(value) => update({ clientBubbleColorDark: toStore(value) })} />
+                <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(darkClientTextColor)} placeholder={theme.darkPalette.buttonTextColor} onChange={(value) => update({ clientTextColorDark: toStore(value) })} />
+                <ColorField label="\u0426\u0432\u0435\u0442 \u043f\u043b\u0430\u0448\u043a\u0438" value={toDisplay(darkHeaderBgColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ headerBgColorDark: toStore(value) })} />
+                <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043d\u043e\u043f\u043a\u0438" value={toDisplay(darkHeaderTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ headerTextColorDark: toStore(value) })} />
+              </>
+            )}
             {block.type === "works" && (
               <>
                 <ColorField
@@ -3994,6 +4129,25 @@ type BlockStyle = {
   mutedColorLight: string;
   mutedColorDark: string;
   mutedColor: string;
+  assistantBubbleColorLight: string;
+  assistantBubbleColorDark: string;
+  assistantBubbleColor: string;
+  assistantTextColorLight: string;
+  assistantTextColorDark: string;
+  assistantTextColor: string;
+  clientBubbleColorLight: string;
+  clientBubbleColorDark: string;
+  clientBubbleColor: string;
+  clientTextColorLight: string;
+  clientTextColorDark: string;
+  clientTextColor: string;
+  headerBgColorLight: string;
+  headerBgColorDark: string;
+  headerBgColor: string;
+  headerTextColorLight: string;
+  headerTextColorDark: string;
+  headerTextColor: string;
+  messageRadius: number | null;
   shadowColor: string;
   shadowSize: number | null;
   gradientEnabled: boolean;
@@ -4033,6 +4187,18 @@ type BlockStyle = {
   textColorDarkResolved: string;
   mutedColorLightResolved: string;
   mutedColorDarkResolved: string;
+  assistantBubbleColorLightResolved: string;
+  assistantBubbleColorDarkResolved: string;
+  assistantTextColorLightResolved: string;
+  assistantTextColorDarkResolved: string;
+  clientBubbleColorLightResolved: string;
+  clientBubbleColorDarkResolved: string;
+  clientTextColorLightResolved: string;
+  clientTextColorDarkResolved: string;
+  headerBgColorLightResolved: string;
+  headerBgColorDarkResolved: string;
+  headerTextColorLightResolved: string;
+  headerTextColorDarkResolved: string;
 };
 
 function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
@@ -4129,6 +4295,48 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     "mutedColor",
     theme.lightPalette.mutedColor,
     theme.darkPalette.mutedColor
+  );
+  const assistantBubblePair = resolvePair(
+    "assistantBubbleColorLight",
+    "assistantBubbleColorDark",
+    "assistantBubbleColor",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
+  const assistantTextPair = resolvePair(
+    "assistantTextColorLight",
+    "assistantTextColorDark",
+    "assistantTextColor",
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
+  );
+  const clientBubblePair = resolvePair(
+    "clientBubbleColorLight",
+    "clientBubbleColorDark",
+    "clientBubbleColor",
+    theme.lightPalette.buttonColor,
+    theme.darkPalette.buttonColor
+  );
+  const clientTextPair = resolvePair(
+    "clientTextColorLight",
+    "clientTextColorDark",
+    "clientTextColor",
+    theme.lightPalette.buttonTextColor,
+    theme.darkPalette.buttonTextColor
+  );
+  const headerBgPair = resolvePair(
+    "headerBgColorLight",
+    "headerBgColorDark",
+    "headerBgColor",
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
+  );
+  const headerTextPair = resolvePair(
+    "headerTextColorLight",
+    "headerTextColorDark",
+    "headerTextColor",
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
   );
   const gradientEnabledLight =
     typeof style.gradientEnabledLight === "boolean"
@@ -4266,6 +4474,50 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     mutedColorLight: readColor("mutedColorLight") || readColor("mutedColor"),
     mutedColorDark: readColor("mutedColorDark"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    assistantBubbleColorLight:
+      readColor("assistantBubbleColorLight") || readColor("assistantBubbleColor"),
+    assistantBubbleColorDark: readColor("assistantBubbleColorDark"),
+    assistantBubbleColor: resolveColor(
+      "assistantBubbleColorLight",
+      "assistantBubbleColorDark",
+      "assistantBubbleColor"
+    ),
+    assistantTextColorLight:
+      readColor("assistantTextColorLight") || readColor("assistantTextColor"),
+    assistantTextColorDark: readColor("assistantTextColorDark"),
+    assistantTextColor: resolveColor(
+      "assistantTextColorLight",
+      "assistantTextColorDark",
+      "assistantTextColor"
+    ),
+    clientBubbleColorLight:
+      readColor("clientBubbleColorLight") || readColor("clientBubbleColor"),
+    clientBubbleColorDark: readColor("clientBubbleColorDark"),
+    clientBubbleColor: resolveColor(
+      "clientBubbleColorLight",
+      "clientBubbleColorDark",
+      "clientBubbleColor"
+    ),
+    clientTextColorLight:
+      readColor("clientTextColorLight") || readColor("clientTextColor"),
+    clientTextColorDark: readColor("clientTextColorDark"),
+    clientTextColor: resolveColor(
+      "clientTextColorLight",
+      "clientTextColorDark",
+      "clientTextColor"
+    ),
+    headerBgColorLight: readColor("headerBgColorLight") || readColor("headerBgColor"),
+    headerBgColorDark: readColor("headerBgColorDark"),
+    headerBgColor: resolveColor("headerBgColorLight", "headerBgColorDark", "headerBgColor"),
+    headerTextColorLight:
+      readColor("headerTextColorLight") || readColor("headerTextColor"),
+    headerTextColorDark: readColor("headerTextColorDark"),
+    headerTextColor: resolveColor(
+      "headerTextColorLight",
+      "headerTextColorDark",
+      "headerTextColor"
+    ),
+    messageRadius: toNumber(style.messageRadius),
     sectionBgLightResolved: sectionBgPair.lightResolved,
     sectionBgDarkResolved: sectionBgPair.darkResolved,
     blockBgLightResolved: blockBgPair.lightResolved,
@@ -4282,6 +4534,18 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     textColorDarkResolved: textPair.darkResolved,
     mutedColorLightResolved: mutedPair.lightResolved,
     mutedColorDarkResolved: mutedPair.darkResolved,
+    assistantBubbleColorLightResolved: assistantBubblePair.lightResolved,
+    assistantBubbleColorDarkResolved: assistantBubblePair.darkResolved,
+    assistantTextColorLightResolved: assistantTextPair.lightResolved,
+    assistantTextColorDarkResolved: assistantTextPair.darkResolved,
+    clientBubbleColorLightResolved: clientBubblePair.lightResolved,
+    clientBubbleColorDarkResolved: clientBubblePair.darkResolved,
+    clientTextColorLightResolved: clientTextPair.lightResolved,
+    clientTextColorDarkResolved: clientTextPair.darkResolved,
+    headerBgColorLightResolved: headerBgPair.lightResolved,
+    headerBgColorDarkResolved: headerBgPair.darkResolved,
+    headerTextColorLightResolved: headerTextPair.lightResolved,
+    headerTextColorDarkResolved: headerTextPair.darkResolved,
     shadowColor: readColor("shadowColor"),
     shadowSize: toNumber(style.shadowSize),
     gradientEnabled,
@@ -4941,6 +5205,8 @@ function renderBlock(
       return renderReviews(block, theme, style);
     case "contacts":
       return renderContacts(block, account, accountProfile, locations, theme, style);
+    case "aisha":
+      return renderAisha(block, account, theme, style);
     default:
       return null;
   }
@@ -6906,6 +7172,109 @@ function renderReviews(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function buildAishaWidgetConfig(
+  block: SiteBlock,
+  style: BlockStyle,
+  theme: SiteTheme
+): SiteAishaWidgetConfig {
+  const data = (block.data ?? {}) as Record<string, unknown>;
+  const toNumberInRange = (value: unknown, min: number, max: number, fallback: number) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, Math.round(parsed)));
+  };
+
+  return {
+    enabled: data.enabled !== false,
+    headerTitle:
+      typeof data.title === "string" && data.title.trim()
+        ? data.title.trim()
+        : "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
+    label:
+      typeof data.label === "string" && data.label.trim()
+        ? data.label.trim()
+        : "AI-\u0447\u0430\u0442",
+    offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 160, 16),
+    offsetRightPx: toNumberInRange(data.offsetRightPx, 8, 160, 16),
+    panelWidthPx: toNumberInRange(data.panelWidthPx, 320, 620, 380),
+    panelHeightVh: toNumberInRange(data.panelHeightVh, 55, 95, 70),
+    radiusPx: style.radius ?? theme.radius ?? 16,
+    buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 999,
+    buttonColor: style.buttonColor || style.buttonColorLightResolved || null,
+    buttonTextColor: style.buttonTextColor || style.buttonTextColorLightResolved || null,
+    panelColor: style.blockBg || style.blockBgLightResolved || null,
+    textColor: style.textColor || style.textColorLightResolved || null,
+    borderColor: style.borderColor || style.borderColorLightResolved || null,
+    gradientEnabled: style.gradientEnabled,
+    gradientDirection: style.gradientDirection,
+    panelGradientFrom: style.gradientFrom || null,
+    panelGradientTo: style.gradientTo || null,
+    assistantBubbleColor:
+      style.assistantBubbleColor ||
+      style.assistantBubbleColorLight ||
+      style.subBlockBg ||
+      style.subBlockBgLightResolved ||
+      null,
+    assistantTextColor:
+      style.assistantTextColor ||
+      style.assistantTextColorLight ||
+      style.textColor ||
+      style.textColorLightResolved ||
+      null,
+    clientBubbleColor:
+      style.clientBubbleColor ||
+      style.clientBubbleColorLight ||
+      style.buttonColor ||
+      style.buttonColorLightResolved ||
+      null,
+    clientTextColor:
+      style.clientTextColor ||
+      style.clientTextColorLight ||
+      style.buttonTextColor ||
+      style.buttonTextColorLightResolved ||
+      null,
+    headerBgColor: style.headerBgColor || style.headerBgColorLight || null,
+    headerTextColor: style.headerTextColor || style.headerTextColorLight || null,
+    messageRadiusPx: style.messageRadius ?? 16,
+    panelShadowColor: style.shadowColor || theme.shadowColor || null,
+    panelShadowSize: style.shadowSize ?? theme.shadowSize ?? null,
+  };
+}
+
+function renderAisha(
+  block: SiteBlock,
+  account: AccountInfo,
+  theme: SiteTheme,
+  style: BlockStyle
+) {
+  const data = block.data as Record<string, unknown>;
+  const enabled = data.enabled !== false;
+  const widgetConfig = buildAishaWidgetConfig(block, style, theme);
+  const accountSlug = account.publicSlug || account.slug;
+
+  if (!enabled) {
+    return (
+      <div className="rounded-2xl border border-[color:var(--block-border,var(--site-border))] p-4 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+        {"\u0411\u043b\u043e\u043a AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430 \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d. \u0412\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0435\u0433\u043e \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445 \u0441\u0430\u0439\u0442\u0430."}
+      </div>
+    );
+  }
+
+  const inlinePreviewMinHeight = `calc(${widgetConfig.panelHeightVh ?? 70}vh + 24px)`;
+
+  return (
+    <div className="relative w-full overflow-hidden bg-white" style={{ minHeight: inlinePreviewMinHeight }}>
+      <PublicAiChatWidget
+        accountSlug={accountSlug}
+        widgetConfig={widgetConfig}
+        mode="inline"
+        defaultOpen
+        className="inset-0"
+      />
     </div>
   );
 }

@@ -57,7 +57,8 @@ export type BlockType =
   | "works"
   | "reviews"
   | "contacts"
-  | "promos";
+  | "promos"
+  | "aisha";
 
 export type SiteBlock = {
   id: string;
@@ -108,6 +109,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   reviews: "Отзывы",
   contacts: "Контакты",
   promos: "Промо / скидки",
+  aisha: "AI-ассистент",
 };
 
 export const BLOCK_VARIANTS: Record<
@@ -127,6 +129,7 @@ export const BLOCK_VARIANTS: Record<
   reviews: ["v1", "v2"],
   contacts: ["v1", "v2"],
   promos: ["v1", "v2"],
+  aisha: ["v1"],
 };
 
 export type CoverImageSource =
@@ -151,6 +154,36 @@ export type SiteLoaderConfig = {
   backdropColor: string;
   fixedDurationEnabled: boolean;
   fixedDurationSec: number;
+};
+
+export type SiteAishaWidgetConfig = {
+  enabled: boolean;
+  headerTitle: string;
+  label: string;
+  offsetBottomPx: number;
+  offsetRightPx: number;
+  panelWidthPx: number;
+  panelHeightVh: number;
+  radiusPx: number | null;
+  buttonRadiusPx: number | null;
+  buttonColor: string | null;
+  buttonTextColor: string | null;
+  panelColor: string | null;
+  textColor: string | null;
+  borderColor: string | null;
+  gradientEnabled: boolean;
+  gradientDirection: "vertical" | "horizontal";
+  panelGradientFrom: string | null;
+  panelGradientTo: string | null;
+  assistantBubbleColor: string | null;
+  assistantTextColor: string | null;
+  clientBubbleColor: string | null;
+  clientTextColor: string | null;
+  headerBgColor: string | null;
+  headerTextColor: string | null;
+  messageRadiusPx: number | null;
+  panelShadowColor: string | null;
+  panelShadowSize: number | null;
 };
 
 const DEFAULT_LOADER_CONFIG: SiteLoaderConfig = {
@@ -246,6 +279,147 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
         ? data.fixedDurationEnabled
         : DEFAULT_LOADER_CONFIG.fixedDurationEnabled,
     fixedDurationSec: clamp(data.fixedDurationSec, 1, 10, DEFAULT_LOADER_CONFIG.fixedDurationSec),
+  };
+}
+
+
+export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfig {
+  const homeBlocks = draft.pages?.home ?? draft.blocks;
+  const aishaBlock = homeBlocks.find((block) => block.type === "aisha") ?? null;
+  if (!aishaBlock) {
+    return {
+      enabled: true,
+      headerTitle: "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
+      label: "AI-\u0447\u0430\u0442",
+      offsetBottomPx: 16,
+      offsetRightPx: 16,
+      panelWidthPx: 380,
+      panelHeightVh: 70,
+      radiusPx: null,
+      buttonRadiusPx: null,
+      buttonColor: null,
+      buttonTextColor: null,
+      panelColor: null,
+      textColor: null,
+      borderColor: null,
+      gradientEnabled: false,
+      gradientDirection: "vertical",
+      panelGradientFrom: null,
+      panelGradientTo: null,
+      assistantBubbleColor: null,
+      assistantTextColor: null,
+      clientBubbleColor: null,
+      clientTextColor: null,
+      headerBgColor: null,
+      headerTextColor: null,
+      messageRadiusPx: null,
+      panelShadowColor: null,
+      panelShadowSize: null,
+    };
+  }
+  const data =
+    aishaBlock.data && typeof aishaBlock.data === "object"
+      ? (aishaBlock.data as Record<string, unknown>)
+      : {};
+  const style =
+    data.style && typeof data.style === "object"
+      ? (data.style as Record<string, unknown>)
+      : {};
+
+  const numInRange = (value: unknown, min: number, max: number, fallback: number) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, Math.round(n)));
+  };
+  const textOrNull = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+
+  return {
+    enabled: data.enabled !== false,
+    headerTitle:
+      typeof data.title === "string" && data.title.trim() ? data.title.trim() : "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
+    label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-\u0447\u0430\u0442",
+    offsetBottomPx: numInRange(data.offsetBottomPx, 8, 64, 16),
+    offsetRightPx: numInRange(data.offsetRightPx, 8, 64, 16),
+    panelWidthPx: numInRange(data.panelWidthPx, 320, 460, 380),
+    panelHeightVh: numInRange(data.panelHeightVh, 55, 88, 70),
+    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : null,
+    buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
+      ? numInRange(style.buttonRadius, 0, 36, 999)
+      : null,
+    buttonColor:
+      textOrNull(style.buttonColor) ||
+      textOrNull(style.buttonColorLight) ||
+      null,
+    buttonTextColor:
+      textOrNull(style.buttonTextColor) ||
+      textOrNull(style.buttonTextColorLight) ||
+      null,
+    panelColor:
+      textOrNull(style.blockBg) ||
+      textOrNull(style.blockBgLight) ||
+      null,
+    textColor:
+      textOrNull(style.textColor) ||
+      textOrNull(style.textColorLight) ||
+      null,
+    borderColor:
+      textOrNull(style.borderColor) ||
+      textOrNull(style.borderColorLight) ||
+      null,
+    gradientEnabled:
+      typeof style.gradientEnabled === "boolean"
+        ? style.gradientEnabled
+        : typeof style.gradientEnabledLight === "boolean"
+          ? style.gradientEnabledLight
+          : false,
+    gradientDirection:
+      style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? style.gradientDirection
+        : style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
+          ? style.gradientDirectionLight
+          : "vertical",
+    panelGradientFrom:
+      textOrNull(style.gradientFrom) ||
+      textOrNull(style.gradientFromLight) ||
+      null,
+    panelGradientTo:
+      textOrNull(style.gradientTo) ||
+      textOrNull(style.gradientToLight) ||
+      null,
+    assistantBubbleColor:
+      textOrNull(style.assistantBubbleColor) ||
+      textOrNull(style.assistantBubbleColorLight) ||
+      null,
+    assistantTextColor:
+      textOrNull(style.assistantTextColor) ||
+      textOrNull(style.assistantTextColorLight) ||
+      null,
+    clientBubbleColor:
+      textOrNull(style.clientBubbleColor) ||
+      textOrNull(style.clientBubbleColorLight) ||
+      null,
+    clientTextColor:
+      textOrNull(style.clientTextColor) ||
+      textOrNull(style.clientTextColorLight) ||
+      null,
+    headerBgColor:
+      textOrNull(style.headerBgColor) ||
+      textOrNull(style.headerBgColorLight) ||
+      null,
+    headerTextColor:
+      textOrNull(style.headerTextColor) ||
+      textOrNull(style.headerTextColorLight) ||
+      null,
+    messageRadiusPx: Number.isFinite(Number(style.messageRadius))
+      ? numInRange(style.messageRadius, 4, 32, 16)
+      : null,
+    panelShadowColor:
+      textOrNull(style.shadowColor) ||
+      null,
+    panelShadowSize: Number.isFinite(Number(style.shadowSize))
+      ? numInRange(style.shadowSize, 0, 40, 16)
+      : null,
   };
 }
 
@@ -873,5 +1047,4 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     entityPages,
   };
 };
-
 
