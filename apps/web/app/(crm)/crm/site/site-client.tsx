@@ -1,4 +1,3 @@
-﻿
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -3728,14 +3727,14 @@ function BlockStyleEditor({
         />
         {block.type === "aisha" && (
           <>
-            <ColorField label="Цвет ответа ассистента" value={toDisplay(lightAssistantBubbleColor)} placeholder={theme.panelColor} onChange={(value) => update({ assistantBubbleColorLight: toStore(value), assistantBubbleColor: toStore(value) })} />
-            <ColorField label="Текст ассистента" value={toDisplay(lightAssistantTextColor)} placeholder={theme.textColor} onChange={(value) => update({ assistantTextColorLight: toStore(value), assistantTextColor: toStore(value) })} />
-            <ColorField label="Цвет сообщения клиента" value={toDisplay(lightClientBubbleColor)} placeholder={theme.buttonColor} onChange={(value) => update({ clientBubbleColorLight: toStore(value), clientBubbleColor: toStore(value) })} />
-            <ColorField label="Текст клиента" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value), clientTextColor: toStore(value) })} />
-            <ColorField label="Цвет плашки" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value), headerBgColor: toStore(value) })} />
-            <ColorField label="Цвет текста плашки" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
-            <ColorField label="Цвет кнопок вариантов" value={toDisplay(lightQuickReplyButtonColor)} placeholder={theme.buttonColor} onChange={(value) => update({ quickReplyButtonColorLight: toStore(value), quickReplyButtonColor: toStore(value) })} />
-            <ColorField label="Текст кнопок вариантов" value={toDisplay(lightQuickReplyTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ quickReplyTextColorLight: toStore(value), quickReplyTextColor: toStore(value) })} />
+            <ColorField label="Цвет ответа ассистента" value={toDisplay(lightAssistantBubbleColor)} placeholder={theme.panelColor} onChange={(value) => update({ assistantBubbleColorLight: toStore(value) })} />
+            <ColorField label="Текст ассистента" value={toDisplay(lightAssistantTextColor)} placeholder={theme.textColor} onChange={(value) => update({ assistantTextColorLight: toStore(value) })} />
+            <ColorField label="Цвет сообщения клиента" value={toDisplay(lightClientBubbleColor)} placeholder={theme.buttonColor} onChange={(value) => update({ clientBubbleColorLight: toStore(value) })} />
+            <ColorField label="Текст клиента" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value) })} />
+            <ColorField label="Цвет плашки" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value) })} />
+            <ColorField label="Цвет текста плашки" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value) })} />
+            <ColorField label="Цвет кнопок вариантов" value={toDisplay(lightQuickReplyButtonColor)} placeholder={theme.buttonColor} onChange={(value) => update({ quickReplyButtonColorLight: toStore(value) })} />
+            <ColorField label="Текст кнопок вариантов" value={toDisplay(lightQuickReplyTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ quickReplyTextColorLight: toStore(value) })} />
           </>
         )}
         {block.type === "works" && (
@@ -3966,7 +3965,7 @@ function BlockStyleEditor({
                 onChange={(event) =>
                   update({
                     gradientEnabledLight: event.target.checked,
-                    gradientEnabled: event.target.checked,
+                    ...(block.type === "aisha" ? {} : { gradientEnabled: event.target.checked }),
                   })
                 }
               />
@@ -3989,7 +3988,7 @@ function BlockStyleEditor({
                     onChange={(event) =>
                       update({
                         gradientDirectionLight: event.target.value as BlockStyle["gradientDirection"],
-                        gradientDirection: event.target.value as BlockStyle["gradientDirection"],
+                        ...(block.type === "aisha" ? {} : { gradientDirection: event.target.value as BlockStyle["gradientDirection"] }),
                       })
                     }
                     className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
@@ -4002,12 +4001,12 @@ function BlockStyleEditor({
                   <ColorField
                     label="Цвет 1"
                     value={style.gradientFromLight || style.gradientFrom || theme.lightPalette.gradientFrom}
-                    onChange={(value) => update({ gradientFromLight: value, gradientFrom: value })}
+                    onChange={(value) => update(block.type === "aisha" ? { gradientFromLight: value } : { gradientFromLight: value, gradientFrom: value })}
                   />
                   <ColorField
                     label="Цвет 2"
                     value={style.gradientToLight || style.gradientTo || theme.lightPalette.gradientTo}
-                    onChange={(value) => update({ gradientToLight: value, gradientTo: value })}
+                    onChange={(value) => update(block.type === "aisha" ? { gradientToLight: value } : { gradientToLight: value, gradientTo: value })}
                   />
                 </div>
               </>
@@ -7372,15 +7371,15 @@ function buildAishaWidgetConfig(
     radiusPx: style.radius ?? theme.radius ?? 16,
     buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 999,
     buttonColor:
-      style.buttonColor || pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) || null,
+      pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) || style.buttonColor || null,
     buttonTextColor:
-      style.buttonTextColor ||
       pickMode(style.buttonTextColorLightResolved, style.buttonTextColorDarkResolved) ||
+      style.buttonTextColor ||
       null,
-    panelColor: style.blockBg || pickMode(style.blockBgLightResolved, style.blockBgDarkResolved) || null,
-    textColor: style.textColor || pickMode(style.textColorLightResolved, style.textColorDarkResolved) || null,
+    panelColor: pickMode(style.blockBgLightResolved, style.blockBgDarkResolved) || style.blockBg || null,
+    textColor: pickMode(style.textColorLightResolved, style.textColorDarkResolved) || style.textColor || null,
     borderColor:
-      style.borderColor || pickMode(style.borderColorLightResolved, style.borderColorDarkResolved) || null,
+      pickMode(style.borderColorLightResolved, style.borderColorDarkResolved) || style.borderColor || null,
     buttonColorLight: style.buttonColorLightResolved || null,
     buttonColorDark: style.buttonColorDarkResolved || null,
     buttonTextColorLight: style.buttonTextColorLightResolved || null,
@@ -7432,48 +7431,48 @@ function buildAishaWidgetConfig(
     panelGradientToLight,
     panelGradientToDark,
     assistantBubbleColor:
-      style.assistantBubbleColor ||
-      style.subBlockBg ||
       pickMode(style.assistantBubbleColorLightResolved, style.assistantBubbleColorDarkResolved) ||
       pickMode(style.subBlockBgLightResolved, style.subBlockBgDarkResolved) ||
+      style.assistantBubbleColor ||
+      style.subBlockBg ||
       null,
     assistantTextColor:
-      style.assistantTextColor ||
-      style.textColor ||
       pickMode(style.assistantTextColorLightResolved, style.assistantTextColorDarkResolved) ||
       pickMode(style.textColorLightResolved, style.textColorDarkResolved) ||
+      style.assistantTextColor ||
+      style.textColor ||
       null,
     clientBubbleColor:
-      style.clientBubbleColor ||
-      style.buttonColor ||
       pickMode(style.clientBubbleColorLightResolved, style.clientBubbleColorDarkResolved) ||
       pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) ||
+      style.clientBubbleColor ||
+      style.buttonColor ||
       null,
     clientTextColor:
-      style.clientTextColor ||
-      style.buttonTextColor ||
       pickMode(style.clientTextColorLightResolved, style.clientTextColorDarkResolved) ||
       pickMode(style.buttonTextColorLightResolved, style.buttonTextColorDarkResolved) ||
+      style.clientTextColor ||
+      style.buttonTextColor ||
       null,
     headerBgColor:
-      style.headerBgColor ||
       pickMode(style.headerBgColorLightResolved, style.headerBgColorDarkResolved) ||
+      style.headerBgColor ||
       null,
     headerTextColor:
-      style.headerTextColor ||
       pickMode(style.headerTextColorLightResolved, style.headerTextColorDarkResolved) ||
+      style.headerTextColor ||
       null,
     quickReplyButtonColor:
-      style.quickReplyButtonColor ||
       pickMode(style.quickReplyButtonColorLightResolved, style.quickReplyButtonColorDarkResolved) ||
-      style.buttonColor ||
       pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) ||
+      style.quickReplyButtonColor ||
+      style.buttonColor ||
       null,
     quickReplyTextColor:
-      style.quickReplyTextColor ||
       pickMode(style.quickReplyTextColorLightResolved, style.quickReplyTextColorDarkResolved) ||
-      style.buttonTextColor ||
       pickMode(style.buttonTextColorLightResolved, style.buttonTextColorDarkResolved) ||
+      style.quickReplyTextColor ||
+      style.buttonTextColor ||
       null,
     messageRadiusPx: style.messageRadius ?? 16,
     panelShadowColor: style.shadowColor || theme.shadowColor || null,
@@ -7565,4 +7564,3 @@ function renderContacts(
     </div>
   );
 }
-

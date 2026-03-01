@@ -17,7 +17,13 @@ export default async function PublicSlugLayout({ children, params }: LayoutProps
   const loaderConfig = data ? resolveSiteLoaderConfig(data.draft) : null;
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
-  const modeOverride = storedMode === "dark" || storedMode === "light" ? storedMode : undefined;
+  const baseMode = data ? (data.draft.pageThemes?.home ?? data.draft.theme).mode : undefined;
+  const modeOverride =
+    storedMode === "dark" || storedMode === "light"
+      ? storedMode
+      : baseMode === "dark" || baseMode === "light"
+        ? baseMode
+        : undefined;
   const aishaConfig = data ? resolveAishaWidgetConfig(data.draft, modeOverride) : null;
 
   return (

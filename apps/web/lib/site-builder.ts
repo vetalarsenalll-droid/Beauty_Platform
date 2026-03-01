@@ -1,4 +1,4 @@
-﻿export type SiteThemePalette = {
+export type SiteThemePalette = {
   fontHeading: string;
   fontBody: string;
   accentColor: string;
@@ -383,11 +383,10 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     typeof style[key] === "string" ? (style[key] as string).trim() : "";
   const isDark = (modeOverride ?? draft.theme.mode) === "dark";
   const byMode = (base: unknown, light: unknown, dark: unknown) => {
-    const baseVal = textOrNull(base);
-    if (baseVal) return baseVal;
     const lightVal = textOrNull(light);
     const darkVal = textOrNull(dark);
-    return isDark ? darkVal || lightVal : lightVal || darkVal;
+    const baseVal = textOrNull(base);
+    return isDark ? darkVal || lightVal || baseVal : lightVal || darkVal || baseVal;
   };
   const resolvePair = (
     lightKey: string,
@@ -1244,4 +1243,3 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     entityPages,
   };
 };
-
