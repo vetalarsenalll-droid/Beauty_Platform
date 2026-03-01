@@ -1204,6 +1204,8 @@ export async function POST(request: Request) {
       clientTodayYmd <= addDaysYmd(serverNowYmd, 2)
         ? clientTodayYmd
         : serverNowYmd;
+    const nowInDialogTz = getNowInTimeZone(clientTimeZone ?? resolved.account.timeZone);
+    const nowHm = `${String(Math.floor(nowInDialogTz.minutes / 60)).padStart(2, "0")}:${String(nowInDialogTz.minutes % 60).padStart(2, "0")}`;
     const d = draftView(draft);
     const t = norm(message);
 
@@ -1740,6 +1742,13 @@ export async function POST(request: Request) {
           locations,
           services,
           knownClientName: d.clientName,
+          specialists: specialists.map((s) => ({ id: s.id, name: s.name })),
+          todayYmd: nowYmd,
+          nowHm,
+          accountTimeZone: resolved.account.timeZone,
+          clientTimeZone: clientTimeZone ?? null,
+          draftDate: d.date,
+          draftTime: d.time,
         })
       : null;
 

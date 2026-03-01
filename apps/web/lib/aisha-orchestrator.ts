@@ -88,6 +88,13 @@ type RunAishaSmallTalkArgs = {
   accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
   locations: Array<{ id: number; name: string; address: string | null }>;
   services: Array<{ id: number; name: string; baseDurationMin: number; basePrice: number }>;
+  specialists: Array<{ id: number; name: string }>;
+  todayYmd: string;
+  nowHm: string;
+  accountTimeZone: string;
+  clientTimeZone?: string | null;
+  draftDate?: string | null;
+  draftTime?: string | null;
   knownClientName?: string | null;
 };
 
@@ -301,12 +308,20 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     "Если пользователь спрашивает стоимость, но в сообщении нет точной услуги из контекста, предложи уточнить услугу.",
     "Числовые значения цены/длительности можно называть только если они есть в переданном контексте.",
     "Если спрашивают про телефон — если есть номер в профиле, можно его назвать.",
+    "Если спрашивают про дату и время, опирайся на TODAY_YMD/NOW_HM и DRAFT_DATE/DRAFT_TIME из контекста.",
     args.knownClientName ? `Имя клиента: ${args.knownClientName}` : "Имя клиента неизвестно.",
     args.accountProfile?.description ? `Описание бизнеса: ${args.accountProfile.description}` : "",
     args.accountProfile?.address ? `Адрес: ${args.accountProfile.address}` : "",
     args.accountProfile?.phone ? `Телефон студии: ${args.accountProfile.phone}` : "",
+    `Часовой пояс аккаунта: ${args.accountTimeZone}`,
+    `Часовой пояс клиента: ${args.clientTimeZone ?? "неизвестно"}`,
+    `Сегодня (YMD): ${args.todayYmd}`,
+    `Текущее время (HH:mm): ${args.nowHm}`,
+    `Дата в черновике: ${args.draftDate ?? "null"}`,
+    `Время в черновике: ${args.draftTime ?? "null"}`,
     `Локации: ${JSON.stringify(args.locations.slice(0, 20))}`,
     `Услуги: ${JSON.stringify(args.services.slice(0, 50).map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })))}`,
+    `Специалисты: ${JSON.stringify(args.specialists.slice(0, 50))}`,
     `История: ${JSON.stringify(args.recentMessages.slice(-10))}`,
     `Сообщение пользователя: ${args.message}`,
   ]
