@@ -1219,9 +1219,20 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         ui: { kind: "quick_replies", options: haircutOptions.slice(0, 8).map(serviceOption) },
       };
     }
+    const asksServicesList = /(какие|что)\s+.*(услуг|процедур)|список\s+услуг|услуги\s+доступны/i.test(messageNorm);
+    if (d.date && !d.time && asksServicesList) {
+      return {
+        handled: true,
+        reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} доступны услуги в течение дня. Выберите услугу, и затем я покажу доступное время.`,
+        nextStatus: "COLLECTING",
+        ui: { kind: "quick_replies", options: scopedServices.slice(0, 10).map(serviceOption) },
+      };
+    }
     return {
       handled: true,
-      reply: "Выберите услугу, и продолжу запись.",
+      reply: d.date && !d.time
+        ? `Выберите услугу на ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"}, и продолжу запись.`
+        : "Выберите услугу, и продолжу запись.",
       nextStatus: "COLLECTING",
       ui: { kind: "quick_replies", options: scopedServices.slice(0, 10).map(serviceOption) },
     };

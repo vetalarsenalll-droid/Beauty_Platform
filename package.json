@@ -14,7 +14,8 @@
     "test:aisha-dialogs:booking": "node scripts/aisha-dialog-regression.mjs --suite=booking-e2e",
     "test:aisha-dialogs:client": "node scripts/aisha-dialog-regression.mjs --suite=client-actions",
     "prisma:studio": "powershell -ExecutionPolicy Bypass -File ./studio.ps1",
-    "prisma:validate": "powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 validate"
+    "prisma:validate": "powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 validate",
+    "test:aisha-dialogs:super": "node scripts/aisha-dialog-regression.mjs --suite=super"
   },
   "devDependencies": {
     "prisma": "^6.19.1"

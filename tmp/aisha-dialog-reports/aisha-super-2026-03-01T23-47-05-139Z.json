@@ -1,0 +1,39 @@
+{
+  "suite": "super",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T23:47:03.769Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "SUPER: deterministic self booking flow",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня сегодня",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "12:45",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "Balayage",
+          "passed": false,
+          "error": "SUPER: deterministic self booking flow / step 4 (Balayage): expected one of /доступны времен|выберите время/i\nreply:\nНа это время доступна только Irina Belova, выбрала её автоматически.\n\nПроверьте данные:\nЛокация: Beauty Salon Center\nУслуга: Balayage\nСпециалист: Irina Belova\nДата: 02.03.2026\nВремя: 12:45\nСтоимость: 6000 ₽\nДлительность: 150 мин\n\nКак завершим запись?",
+          "reply": "На это время доступна только Irina Belova, выбрала её автоматически.\n\nПроверьте данные:\nЛокация: Beauty Salon Center\nУслуга: Balayage\nСпециалист: Irina Belova\nДата: 02.03.2026\nВремя: 12:45\nСтоимость: 6000 ₽\nДлительность: 150 мин\n\nКак завершим запись?"
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T23:47:05.138Z",
+  "durationMs": 1369
+}

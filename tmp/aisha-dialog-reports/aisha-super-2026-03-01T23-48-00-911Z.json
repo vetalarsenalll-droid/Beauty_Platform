@@ -1,0 +1,44 @@
+{
+  "suite": "super",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T23:47:59.031Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "SUPER: deterministic self booking flow",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня сегодня",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "12:45",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "Balayage",
+          "passed": true
+        },
+        {
+          "index": 5,
+          "sent": "13:15",
+          "passed": false,
+          "error": "SUPER: deterministic self booking flow / step 5 (13:15): expected one of /доступны специалисты|проверьте данные/i\nreply:\nДля персональных данных нужна активная авторизация. Нажмите кнопку ниже, чтобы войти в личный кабинет.",
+          "reply": "Для персональных данных нужна активная авторизация. Нажмите кнопку ниже, чтобы войти в личный кабинет."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T23:48:00.910Z",
+  "durationMs": 1879
+}
