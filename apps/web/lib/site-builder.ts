@@ -285,7 +285,7 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
 }
 
 
-export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfig {
+export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light" | "dark"): SiteAishaWidgetConfig {
   const homeBlocks = draft.pages?.home ?? draft.blocks;
   const aishaBlock = homeBlocks.find((block) => block.type === "aisha") ?? null;
   if (!aishaBlock) {
@@ -337,6 +337,14 @@ export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfi
   };
   const textOrNull = (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : null;
+  const isDark = (modeOverride ?? draft.theme.mode) === "dark";
+  const byMode = (base: unknown, light: unknown, dark: unknown) => {
+    const baseVal = textOrNull(base);
+    if (baseVal) return baseVal;
+    const lightVal = textOrNull(light);
+    const darkVal = textOrNull(dark);
+    return isDark ? darkVal || lightVal : lightVal || darkVal;
+  };
 
   return {
     enabled: data.enabled !== false,
@@ -351,26 +359,11 @@ export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfi
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)
       : null,
-    buttonColor:
-      textOrNull(style.buttonColor) ||
-      textOrNull(style.buttonColorLight) ||
-      null,
-    buttonTextColor:
-      textOrNull(style.buttonTextColor) ||
-      textOrNull(style.buttonTextColorLight) ||
-      null,
-    panelColor:
-      textOrNull(style.blockBg) ||
-      textOrNull(style.blockBgLight) ||
-      null,
-    textColor:
-      textOrNull(style.textColor) ||
-      textOrNull(style.textColorLight) ||
-      null,
-    borderColor:
-      textOrNull(style.borderColor) ||
-      textOrNull(style.borderColorLight) ||
-      null,
+    buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
+    buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
+    panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
+    textColor: byMode(style.textColor, style.textColorLight, style.textColorDark),
+    borderColor: byMode(style.borderColor, style.borderColorLight, style.borderColorDark),
     gradientEnabled:
       typeof style.gradientEnabled === "boolean"
         ? style.gradientEnabled
@@ -383,46 +376,16 @@ export function resolveAishaWidgetConfig(draft: SiteDraft): SiteAishaWidgetConfi
         : style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
           ? style.gradientDirectionLight
           : "vertical",
-    panelGradientFrom:
-      textOrNull(style.gradientFrom) ||
-      textOrNull(style.gradientFromLight) ||
-      null,
-    panelGradientTo:
-      textOrNull(style.gradientTo) ||
-      textOrNull(style.gradientToLight) ||
-      null,
-    assistantBubbleColor:
-      textOrNull(style.assistantBubbleColor) ||
-      textOrNull(style.assistantBubbleColorLight) ||
-      null,
-    assistantTextColor:
-      textOrNull(style.assistantTextColor) ||
-      textOrNull(style.assistantTextColorLight) ||
-      null,
-    clientBubbleColor:
-      textOrNull(style.clientBubbleColor) ||
-      textOrNull(style.clientBubbleColorLight) ||
-      null,
-    clientTextColor:
-      textOrNull(style.clientTextColor) ||
-      textOrNull(style.clientTextColorLight) ||
-      null,
-    headerBgColor:
-      textOrNull(style.headerBgColor) ||
-      textOrNull(style.headerBgColorLight) ||
-      null,
-    headerTextColor:
-      textOrNull(style.headerTextColor) ||
-      textOrNull(style.headerTextColorLight) ||
-      null,
-    quickReplyButtonColor:
-      textOrNull(style.quickReplyButtonColor) ||
-      textOrNull(style.quickReplyButtonColorLight) ||
-      null,
-    quickReplyTextColor:
-      textOrNull(style.quickReplyTextColor) ||
-      textOrNull(style.quickReplyTextColorLight) ||
-      null,
+    panelGradientFrom: byMode(style.gradientFrom, style.gradientFromLight, style.gradientFromDark),
+    panelGradientTo: byMode(style.gradientTo, style.gradientToLight, style.gradientToDark),
+    assistantBubbleColor: byMode(style.assistantBubbleColor, style.assistantBubbleColorLight, style.assistantBubbleColorDark),
+    assistantTextColor: byMode(style.assistantTextColor, style.assistantTextColorLight, style.assistantTextColorDark),
+    clientBubbleColor: byMode(style.clientBubbleColor, style.clientBubbleColorLight, style.clientBubbleColorDark),
+    clientTextColor: byMode(style.clientTextColor, style.clientTextColorLight, style.clientTextColorDark),
+    headerBgColor: byMode(style.headerBgColor, style.headerBgColorLight, style.headerBgColorDark),
+    headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark),
+    quickReplyButtonColor: byMode(style.quickReplyButtonColor, style.quickReplyButtonColorLight, style.quickReplyButtonColorDark),
+    quickReplyTextColor: byMode(style.quickReplyTextColor, style.quickReplyTextColorLight, style.quickReplyTextColorDark),
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
       : null,

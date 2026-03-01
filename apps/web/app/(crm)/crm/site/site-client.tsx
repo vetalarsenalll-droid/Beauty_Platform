@@ -670,7 +670,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
   aisha: {
     title: "AI-ассистент записи",
     enabled: true,
-    label: "AI-чат",
+    label: "AI Ассистент",
     offsetBottomPx: 16,
     offsetRightPx: 16,
     panelWidthPx: 380,
@@ -7257,6 +7257,8 @@ function buildAishaWidgetConfig(
     if (!Number.isFinite(parsed)) return fallback;
     return Math.min(max, Math.max(min, Math.round(parsed)));
   };
+  const isDark = theme.mode === "dark";
+  const pickMode = (light: string, dark: string) => (isDark ? dark || light : light || dark);
 
   return {
     enabled: data.enabled !== false,
@@ -7267,52 +7269,71 @@ function buildAishaWidgetConfig(
     label:
       typeof data.label === "string" && data.label.trim()
         ? data.label.trim()
-        : "AI-чат",
+        : "AI-ассистент",
     offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 160, 16),
     offsetRightPx: toNumberInRange(data.offsetRightPx, 8, 160, 16),
     panelWidthPx: toNumberInRange(data.panelWidthPx, 320, 620, 380),
     panelHeightVh: toNumberInRange(data.panelHeightVh, 55, 95, 70),
     radiusPx: style.radius ?? theme.radius ?? 16,
     buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 999,
-    buttonColor: style.buttonColor || style.buttonColorLightResolved || null,
-    buttonTextColor: style.buttonTextColor || style.buttonTextColorLightResolved || null,
-    panelColor: style.blockBg || style.blockBgLightResolved || null,
-    textColor: style.textColor || style.textColorLightResolved || null,
-    borderColor: style.borderColor || style.borderColorLightResolved || null,
+    buttonColor:
+      style.buttonColor || pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) || null,
+    buttonTextColor:
+      style.buttonTextColor ||
+      pickMode(style.buttonTextColorLightResolved, style.buttonTextColorDarkResolved) ||
+      null,
+    panelColor: style.blockBg || pickMode(style.blockBgLightResolved, style.blockBgDarkResolved) || null,
+    textColor: style.textColor || pickMode(style.textColorLightResolved, style.textColorDarkResolved) || null,
+    borderColor:
+      style.borderColor || pickMode(style.borderColorLightResolved, style.borderColorDarkResolved) || null,
     gradientEnabled: style.gradientEnabled,
     gradientDirection: style.gradientDirection,
     panelGradientFrom: style.gradientFrom || null,
     panelGradientTo: style.gradientTo || null,
     assistantBubbleColor:
       style.assistantBubbleColor ||
-      style.assistantBubbleColorLight ||
       style.subBlockBg ||
-      style.subBlockBgLightResolved ||
+      pickMode(style.assistantBubbleColorLightResolved, style.assistantBubbleColorDarkResolved) ||
+      pickMode(style.subBlockBgLightResolved, style.subBlockBgDarkResolved) ||
       null,
     assistantTextColor:
       style.assistantTextColor ||
-      style.assistantTextColorLight ||
       style.textColor ||
-      style.textColorLightResolved ||
+      pickMode(style.assistantTextColorLightResolved, style.assistantTextColorDarkResolved) ||
+      pickMode(style.textColorLightResolved, style.textColorDarkResolved) ||
       null,
     clientBubbleColor:
       style.clientBubbleColor ||
-      style.clientBubbleColorLight ||
       style.buttonColor ||
-      style.buttonColorLightResolved ||
+      pickMode(style.clientBubbleColorLightResolved, style.clientBubbleColorDarkResolved) ||
+      pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) ||
       null,
     clientTextColor:
       style.clientTextColor ||
-      style.clientTextColorLight ||
       style.buttonTextColor ||
-      style.buttonTextColorLightResolved ||
+      pickMode(style.clientTextColorLightResolved, style.clientTextColorDarkResolved) ||
+      pickMode(style.buttonTextColorLightResolved, style.buttonTextColorDarkResolved) ||
       null,
-    headerBgColor: style.headerBgColor || style.headerBgColorLight || null,
-    headerTextColor: style.headerTextColor || style.headerTextColorLight || null,
+    headerBgColor:
+      style.headerBgColor ||
+      pickMode(style.headerBgColorLightResolved, style.headerBgColorDarkResolved) ||
+      null,
+    headerTextColor:
+      style.headerTextColor ||
+      pickMode(style.headerTextColorLightResolved, style.headerTextColorDarkResolved) ||
+      null,
     quickReplyButtonColor:
-      style.quickReplyButtonColor || style.quickReplyButtonColorLight || style.buttonColor || style.buttonColorLightResolved || null,
+      style.quickReplyButtonColor ||
+      pickMode(style.quickReplyButtonColorLightResolved, style.quickReplyButtonColorDarkResolved) ||
+      style.buttonColor ||
+      pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) ||
+      null,
     quickReplyTextColor:
-      style.quickReplyTextColor || style.quickReplyTextColorLight || style.buttonTextColor || style.buttonTextColorLightResolved || null,
+      style.quickReplyTextColor ||
+      pickMode(style.quickReplyTextColorLightResolved, style.quickReplyTextColorDarkResolved) ||
+      style.buttonTextColor ||
+      pickMode(style.buttonTextColorLightResolved, style.buttonTextColorDarkResolved) ||
+      null,
     messageRadiusPx: style.messageRadius ?? 16,
     panelShadowColor: style.shadowColor || theme.shadowColor || null,
     panelShadowSize: style.shadowSize ?? theme.shadowSize ?? null,
@@ -7402,6 +7423,7 @@ function renderContacts(
     </div>
   );
 }
+
 
 
 

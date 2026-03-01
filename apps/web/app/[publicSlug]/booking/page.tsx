@@ -28,8 +28,8 @@ export default async function PublicBookingPage({ params }: PageProps) {
   const sharedMenuBlock = shouldShowSharedMenu ? menuBlock : null;
   const pageBlocks = data.draft.pages?.booking ?? data.draft.blocks;
   const blocks = sharedMenuBlock
-    ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader")]
-    : pageBlocks.filter((block) => block.type !== "loader");
+    ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.type !== "menu" && block.type !== "loader" && block.type !== "aisha")]
+    : pageBlocks.filter((block) => block.type !== "loader" && block.type !== "aisha");
   const loaderConfig = resolveSiteLoaderConfig(data.draft);
   const cookieStore = await cookies();
   const storedMode = cookieStore.get?.("site-theme-mode")?.value;
