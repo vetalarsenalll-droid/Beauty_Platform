@@ -251,9 +251,9 @@ const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = 
     { id: "effects", label: "Эффекты" },
   ],
   aisha: [
-    { id: "layout", label: "\u041e\u0441\u043d\u043e\u0432\u043d\u044b\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438" },
-    { id: "colors", label: "\u0426\u0432\u0435\u0442\u0430" },
-    { id: "effects", label: "\u042d\u0444\u0444\u0435\u043a\u0442\u044b" },
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "effects", label: "Эффекты" },
   ],
 };
 
@@ -662,9 +662,9 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     style: defaultBlockStyle,
   },
   aisha: {
-    title: "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
+    title: "AI-ассистент записи",
     enabled: true,
-    label: "AI-\u0447\u0430\u0442",
+    label: "AI-чат",
     offsetBottomPx: 16,
     offsetRightPx: 16,
     panelWidthPx: 380,
@@ -3169,8 +3169,8 @@ function BlockEditor({
             {block.type === "aisha" && (
         <>
           <FieldText
-            label="\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a \u0432\u0438\u0434\u0436\u0435\u0442\u0430"
-            value={(block.data.title as string) ?? "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438"}
+            label="Заголовок виджета"
+            value={(block.data.title as string) ?? "AI-ассистент записи"}
             onChange={(value) => updateData({ title: value })}
           />
           <label className="flex items-center gap-2 text-sm">
@@ -3179,11 +3179,11 @@ function BlockEditor({
               checked={block.data.enabled !== false}
               onChange={(event) => updateData({ enabled: event.target.checked })}
             />
-            {"\u041f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430 \u043d\u0430 \u0441\u0430\u0439\u0442\u0435"}
+            {"Показывать AI-ассистента на сайте"}
           </label>
           <FieldText
-            label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043d\u043e\u043f\u043a\u0438"
-            value={(block.data.label as string) ?? "AI-\u0447\u0430\u0442"}
+            label="Текст кнопки"
+            value={(block.data.label as string) ?? "AI-чат"}
             onChange={(value) => updateData({ label: value })}
           />
         </>
@@ -3473,23 +3473,23 @@ function BlockStyleEditor({
       {inSection("layout") && block.type === "aisha" && (
       <>
         <label className="text-sm">
-          {"\u041e\u0442\u0441\u0442\u0443\u043f \u0441\u043d\u0438\u0437\u0443:"} {Number(block.data.offsetBottomPx ?? 16)}px
+          {"Отступ снизу:"} {Number(block.data.offsetBottomPx ?? 16)}px
           <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetBottomPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetBottomPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
-          {"\u041e\u0442\u0441\u0442\u0443\u043f \u0441\u043f\u0440\u0430\u0432\u0430:"} {Number(block.data.offsetRightPx ?? 16)}px
+          {"Отступ справа:"} {Number(block.data.offsetRightPx ?? 16)}px
           <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetRightPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetRightPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
-          {"\u0428\u0438\u0440\u0438\u043d\u0430 \u043f\u0430\u043d\u0435\u043b\u0438:"} {Number(block.data.panelWidthPx ?? 380)}px
+          {"Ширина панели:"} {Number(block.data.panelWidthPx ?? 380)}px
           <input type="range" min={320} max={620} step={2} value={Number(block.data.panelWidthPx ?? 380)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelWidthPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
-          {"\u0412\u044b\u0441\u043e\u0442\u0430 \u043f\u0430\u043d\u0435\u043b\u0438:"} {Number(block.data.panelHeightVh ?? 70)}vh
+          {"Высота панели:"} {Number(block.data.panelHeightVh ?? 70)}vh
           <input type="range" min={55} max={95} step={1} value={Number(block.data.panelHeightVh ?? 70)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelHeightVh: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
-          {"\u0420\u0430\u0434\u0438\u0443\u0441 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f:"} {Number(style.messageRadius ?? 16)}px
+          {"Радиус сообщения:"} {Number(style.messageRadius ?? 16)}px
           <input type="range" min={4} max={32} step={1} value={Number(style.messageRadius ?? 16)} onChange={(event) => update({ messageRadius: Number(event.target.value) })} className="mt-2 w-full" />
         </label>
       </>
@@ -3709,12 +3709,12 @@ function BlockStyleEditor({
         />
         {block.type === "aisha" && (
           <>
-            <ColorField label="\u0426\u0432\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(lightAssistantBubbleColor)} placeholder={theme.panelColor} onChange={(value) => update({ assistantBubbleColorLight: toStore(value), assistantBubbleColor: toStore(value) })} />
-            <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(lightAssistantTextColor)} placeholder={theme.textColor} onChange={(value) => update({ assistantTextColorLight: toStore(value), assistantTextColor: toStore(value) })} />
-            <ColorField label="\u0426\u0432\u0435\u0442 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(lightClientBubbleColor)} placeholder={theme.buttonColor} onChange={(value) => update({ clientBubbleColorLight: toStore(value), clientBubbleColor: toStore(value) })} />
-            <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value), clientTextColor: toStore(value) })} />
-            <ColorField label="\u0426\u0432\u0435\u0442 \u043f\u043b\u0430\u0448\u043a\u0438" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value), headerBgColor: toStore(value) })} />
-            <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043d\u043e\u043f\u043a\u0438" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
+            <ColorField label="Цвет ответа ассистента" value={toDisplay(lightAssistantBubbleColor)} placeholder={theme.panelColor} onChange={(value) => update({ assistantBubbleColorLight: toStore(value), assistantBubbleColor: toStore(value) })} />
+            <ColorField label="Текст ассистента" value={toDisplay(lightAssistantTextColor)} placeholder={theme.textColor} onChange={(value) => update({ assistantTextColorLight: toStore(value), assistantTextColor: toStore(value) })} />
+            <ColorField label="Цвет сообщения клиента" value={toDisplay(lightClientBubbleColor)} placeholder={theme.buttonColor} onChange={(value) => update({ clientBubbleColorLight: toStore(value), clientBubbleColor: toStore(value) })} />
+            <ColorField label="Текст клиента" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value), clientTextColor: toStore(value) })} />
+            <ColorField label="Цвет плашки" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value), headerBgColor: toStore(value) })} />
+            <ColorField label="Текст кнопки" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
           </>
         )}
         {block.type === "works" && (
@@ -3853,12 +3853,12 @@ function BlockStyleEditor({
             />
             {block.type === "aisha" && (
               <>
-                <ColorField label="\u0426\u0432\u0435\u0442 \u043e\u0442\u0432\u0435\u0442\u0430 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(darkAssistantBubbleColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ assistantBubbleColorDark: toStore(value) })} />
-                <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430" value={toDisplay(darkAssistantTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ assistantTextColorDark: toStore(value) })} />
-                <ColorField label="\u0426\u0432\u0435\u0442 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(darkClientBubbleColor)} placeholder={theme.darkPalette.buttonColor} onChange={(value) => update({ clientBubbleColorDark: toStore(value) })} />
-                <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u0430" value={toDisplay(darkClientTextColor)} placeholder={theme.darkPalette.buttonTextColor} onChange={(value) => update({ clientTextColorDark: toStore(value) })} />
-                <ColorField label="\u0426\u0432\u0435\u0442 \u043f\u043b\u0430\u0448\u043a\u0438" value={toDisplay(darkHeaderBgColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ headerBgColorDark: toStore(value) })} />
-                <ColorField label="\u0422\u0435\u043a\u0441\u0442 \u043a\u043d\u043e\u043f\u043a\u0438" value={toDisplay(darkHeaderTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ headerTextColorDark: toStore(value) })} />
+                <ColorField label="Цвет ответа ассистента" value={toDisplay(darkAssistantBubbleColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ assistantBubbleColorDark: toStore(value) })} />
+                <ColorField label="Текст ассистента" value={toDisplay(darkAssistantTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ assistantTextColorDark: toStore(value) })} />
+                <ColorField label="Цвет сообщения клиента" value={toDisplay(darkClientBubbleColor)} placeholder={theme.darkPalette.buttonColor} onChange={(value) => update({ clientBubbleColorDark: toStore(value) })} />
+                <ColorField label="Текст клиента" value={toDisplay(darkClientTextColor)} placeholder={theme.darkPalette.buttonTextColor} onChange={(value) => update({ clientTextColorDark: toStore(value) })} />
+                <ColorField label="Цвет плашки" value={toDisplay(darkHeaderBgColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ headerBgColorDark: toStore(value) })} />
+                <ColorField label="Текст кнопки" value={toDisplay(darkHeaderTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ headerTextColorDark: toStore(value) })} />
               </>
             )}
             {block.type === "works" && (
@@ -7193,11 +7193,11 @@ function buildAishaWidgetConfig(
     headerTitle:
       typeof data.title === "string" && data.title.trim()
         ? data.title.trim()
-        : "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
+        : "AI-ассистент записи",
     label:
       typeof data.label === "string" && data.label.trim()
         ? data.label.trim()
-        : "AI-\u0447\u0430\u0442",
+        : "AI-чат",
     offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 160, 16),
     offsetRightPx: toNumberInRange(data.offsetRightPx, 8, 160, 16),
     panelWidthPx: toNumberInRange(data.panelWidthPx, 320, 620, 380),
@@ -7259,7 +7259,7 @@ function renderAisha(
   if (!enabled) {
     return (
       <div className="rounded-2xl border border-[color:var(--block-border,var(--site-border))] p-4 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
-        {"\u0411\u043b\u043e\u043a AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430 \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d. \u0412\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0435\u0433\u043e \u0432 \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u0445 \u0441\u0430\u0439\u0442\u0430."}
+        {"Блок AI-ассистента выключен. Включите его в настройках сайта."}
       </div>
     );
   }
