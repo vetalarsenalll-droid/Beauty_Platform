@@ -198,6 +198,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [dateByMessage, setDateByMessage] = useState<Record<string, string>>({});
   const [dateMonthByMessage, setDateMonthByMessage] = useState<Record<string, string>>({});
   const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
+  const [siteMode, setSiteMode] = useState<"light" | "dark">(() => {
+    if (typeof document === "undefined") return "light";
+    const root = document.getElementById("public-site-root") ?? document.documentElement;
+    return root?.getAttribute("data-site-theme") === "dark" ? "dark" : "light";
+  });
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -211,19 +216,42 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       vars.bottom = `${bottom}px`;
       vars.right = `${right}px`;
     }
-    if (widgetConfig?.buttonColor) vars["--site-button"] = widgetConfig.buttonColor;
-    if (widgetConfig?.buttonTextColor) vars["--site-button-text"] = widgetConfig.buttonTextColor;
-    if (widgetConfig?.panelColor) vars["--site-panel"] = widgetConfig.panelColor;
-    if (widgetConfig?.textColor) vars["--site-text"] = widgetConfig.textColor;
-    if (widgetConfig?.borderColor) vars["--site-border"] = widgetConfig.borderColor;
-    if (widgetConfig?.assistantBubbleColor) vars["--site-assistant-bubble"] = widgetConfig.assistantBubbleColor;
-    if (widgetConfig?.assistantTextColor) vars["--site-assistant-text"] = widgetConfig.assistantTextColor;
-    if (widgetConfig?.clientBubbleColor) vars["--site-client-bubble"] = widgetConfig.clientBubbleColor;
-    if (widgetConfig?.clientTextColor) vars["--site-client-text"] = widgetConfig.clientTextColor;
-    if (widgetConfig?.quickReplyButtonColor) vars["--site-quick-reply-button"] = widgetConfig.quickReplyButtonColor;
-    if (widgetConfig?.quickReplyTextColor) vars["--site-quick-reply-text"] = widgetConfig.quickReplyTextColor;
+
+    const dark = siteMode === "dark";
+    const defaults = {
+      panel: dark ? "#0B1224" : "#ffffff",
+      text: dark ? "#E5E7EB" : "#111827",
+      muted: dark ? "#9CA3AF" : "#6B7280",
+      border: dark ? "rgba(255,255,255,0.12)" : "#E5E7EB",
+      button: dark ? "#1F2937" : "#111827",
+      buttonText: dark ? "#F9FAFB" : "#FFFFFF",
+      headerBg: dark ? "#111A2F" : "#ffffff",
+      headerText: dark ? "#F3F4F6" : "#111827",
+      assistantBubble: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+      assistantText: dark ? "#E5E7EB" : "#111827",
+      clientBubble: dark ? "#1F2937" : "var(--site-button,#111827)",
+      clientText: dark ? "#F9FAFB" : "var(--site-button-text,#fff)",
+      quickReplyButton: dark ? "#1F2937" : "var(--site-button,#111827)",
+      quickReplyText: dark ? "#F3F4F6" : "var(--site-button-text,#fff)",
+    };
+
+    vars["--site-panel"] = widgetConfig?.panelColor || defaults.panel;
+    vars["--site-text"] = widgetConfig?.textColor || defaults.text;
+    vars["--site-muted"] = defaults.muted;
+    vars["--site-border"] = widgetConfig?.borderColor || defaults.border;
+    vars["--site-button"] = widgetConfig?.buttonColor || defaults.button;
+    vars["--site-button-text"] = widgetConfig?.buttonTextColor || defaults.buttonText;
+    vars["--site-header-bg"] = widgetConfig?.headerBgColor || defaults.headerBg;
+    vars["--site-header-text"] = widgetConfig?.headerTextColor || defaults.headerText;
+    vars["--site-assistant-bubble"] = widgetConfig?.assistantBubbleColor || defaults.assistantBubble;
+    vars["--site-assistant-text"] = widgetConfig?.assistantTextColor || defaults.assistantText;
+    vars["--site-client-bubble"] = widgetConfig?.clientBubbleColor || defaults.clientBubble;
+    vars["--site-client-text"] = widgetConfig?.clientTextColor || defaults.clientText;
+    vars["--site-quick-reply-button"] = widgetConfig?.quickReplyButtonColor || defaults.quickReplyButton;
+    vars["--site-quick-reply-text"] = widgetConfig?.quickReplyTextColor || defaults.quickReplyText;
+
     return vars as CSSProperties;
-  }, [widgetConfig, mode]);
+  }, [widgetConfig, mode, siteMode]);
 
   const panelWidth = Number(widgetConfig?.panelWidthPx ?? 380);
   const panelHeightVh = Number(widgetConfig?.panelHeightVh ?? 70);
@@ -255,6 +283,16 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     }
     return -1;
   }, [messages]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.getElementById("public-site-root") ?? document.documentElement;
+    const readMode = () => (root?.getAttribute("data-site-theme") === "dark" ? "dark" : "light") as "light" | "dark";
+    setSiteMode(readMode());
+    const observer = new MutationObserver(() => setSiteMode(readMode()));
+    observer.observe(root, { attributes: true, attributeFilter: ["data-site-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!open) return
@@ -444,7 +482,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           width: `min(${panelWidth}px, calc(100vw - 2rem))`,
           borderRadius: panelRadius,
           background: panelBackground,
-          backgroundColor: widgetConfig?.panelColor || undefined,
+          backgroundColor: undefined,
           boxShadow: panelShadowSize > 0 ? `0 ${Math.round(panelShadowSize)}px ${Math.round(panelShadowSize * 3)}px ${panelShadowColor}` : "none",
         }
       : {
@@ -462,11 +500,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         };
 
   const headerStyle: CSSProperties = {
-    backgroundColor: widgetConfig?.headerBgColor || undefined,
-    color: widgetConfig?.headerTextColor || undefined,
+    backgroundColor: widgetConfig?.headerBgColor || "var(--site-header-bg, transparent)",
+    color: widgetConfig?.headerTextColor || "var(--site-header-text, var(--site-text,#111827))",
   };
   const headerActionStyle: CSSProperties = {
-    color: widgetConfig?.headerTextColor || undefined,
+    color: widgetConfig?.headerTextColor || "var(--site-header-text, var(--site-text,#111827))",
   };
 
   return (
@@ -804,9 +842,4 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
-
-
-
-
-
 

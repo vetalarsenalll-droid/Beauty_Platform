@@ -7362,7 +7362,7 @@ function renderAisha(
   const inlinePreviewMinHeight = `calc(${widgetConfig.panelHeightVh ?? 70}vh + 24px)`;
 
   return (
-    <div className="relative w-full overflow-hidden bg-white" style={{ minHeight: inlinePreviewMinHeight }}>
+    <div className="relative w-full overflow-hidden" style={{ minHeight: inlinePreviewMinHeight }}>
       <PublicAiChatWidget
         accountSlug={accountSlug}
         widgetConfig={widgetConfig}
@@ -7423,9 +7423,4 @@ function renderContacts(
     </div>
   );
 }
-
-
-
-
-
 
