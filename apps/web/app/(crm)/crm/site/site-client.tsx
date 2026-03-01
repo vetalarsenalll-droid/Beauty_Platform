@@ -7286,6 +7286,44 @@ function buildAishaWidgetConfig(
     textColor: style.textColor || pickMode(style.textColorLightResolved, style.textColorDarkResolved) || null,
     borderColor:
       style.borderColor || pickMode(style.borderColorLightResolved, style.borderColorDarkResolved) || null,
+    buttonColorLight: style.buttonColorLightResolved || null,
+    buttonColorDark: style.buttonColorDarkResolved || null,
+    buttonTextColorLight: style.buttonTextColorLightResolved || null,
+    buttonTextColorDark: style.buttonTextColorDarkResolved || null,
+    panelColorLight: style.blockBgLightResolved || null,
+    panelColorDark: style.blockBgDarkResolved || null,
+    textColorLight: style.textColorLightResolved || null,
+    textColorDark: style.textColorDarkResolved || null,
+    borderColorLight: style.borderColorLightResolved || null,
+    borderColorDark: style.borderColorDarkResolved || null,
+    assistantBubbleColorLight:
+      style.assistantBubbleColorLightResolved || style.subBlockBgLightResolved || null,
+    assistantBubbleColorDark:
+      style.assistantBubbleColorDarkResolved || style.subBlockBgDarkResolved || null,
+    assistantTextColorLight:
+      style.assistantTextColorLightResolved || style.textColorLightResolved || null,
+    assistantTextColorDark:
+      style.assistantTextColorDarkResolved || style.textColorDarkResolved || null,
+    clientBubbleColorLight:
+      style.clientBubbleColorLightResolved || style.buttonColorLightResolved || null,
+    clientBubbleColorDark:
+      style.clientBubbleColorDarkResolved || style.buttonColorDarkResolved || null,
+    clientTextColorLight:
+      style.clientTextColorLightResolved || style.buttonTextColorLightResolved || null,
+    clientTextColorDark:
+      style.clientTextColorDarkResolved || style.buttonTextColorDarkResolved || null,
+    headerBgColorLight: style.headerBgColorLightResolved || null,
+    headerBgColorDark: style.headerBgColorDarkResolved || null,
+    headerTextColorLight: style.headerTextColorLightResolved || null,
+    headerTextColorDark: style.headerTextColorDarkResolved || null,
+    quickReplyButtonColorLight:
+      style.quickReplyButtonColorLightResolved || style.buttonColorLightResolved || null,
+    quickReplyButtonColorDark:
+      style.quickReplyButtonColorDarkResolved || style.buttonColorDarkResolved || null,
+    quickReplyTextColorLight:
+      style.quickReplyTextColorLightResolved || style.buttonTextColorLightResolved || null,
+    quickReplyTextColorDark:
+      style.quickReplyTextColorDarkResolved || style.buttonTextColorDarkResolved || null,
     gradientEnabled: style.gradientEnabled,
     gradientDirection: style.gradientDirection,
     panelGradientFrom: style.gradientFrom || null,

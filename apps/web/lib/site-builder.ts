@@ -171,6 +171,16 @@ export type SiteAishaWidgetConfig = {
   panelColor: string | null;
   textColor: string | null;
   borderColor: string | null;
+  buttonColorLight?: string | null;
+  buttonColorDark?: string | null;
+  buttonTextColorLight?: string | null;
+  buttonTextColorDark?: string | null;
+  panelColorLight?: string | null;
+  panelColorDark?: string | null;
+  textColorLight?: string | null;
+  textColorDark?: string | null;
+  borderColorLight?: string | null;
+  borderColorDark?: string | null;
   gradientEnabled: boolean;
   gradientDirection: "vertical" | "horizontal";
   panelGradientFrom: string | null;
@@ -183,6 +193,22 @@ export type SiteAishaWidgetConfig = {
   headerTextColor: string | null;
   quickReplyButtonColor: string | null;
   quickReplyTextColor: string | null;
+  assistantBubbleColorLight?: string | null;
+  assistantBubbleColorDark?: string | null;
+  assistantTextColorLight?: string | null;
+  assistantTextColorDark?: string | null;
+  clientBubbleColorLight?: string | null;
+  clientBubbleColorDark?: string | null;
+  clientTextColorLight?: string | null;
+  clientTextColorDark?: string | null;
+  headerBgColorLight?: string | null;
+  headerBgColorDark?: string | null;
+  headerTextColorLight?: string | null;
+  headerTextColorDark?: string | null;
+  quickReplyButtonColorLight?: string | null;
+  quickReplyButtonColorDark?: string | null;
+  quickReplyTextColorLight?: string | null;
+  quickReplyTextColorDark?: string | null;
   messageRadiusPx: number | null;
   panelShadowColor: string | null;
   panelShadowSize: number | null;
@@ -337,24 +363,123 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
   };
   const textOrNull = (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : null;
+  const readColor = (key: string) =>
+    typeof style[key] === "string" ? (style[key] as string).trim() : "";
   const isDark = (modeOverride ?? draft.theme.mode) === "dark";
-  const themePalette = isDark ? draft.theme.darkPalette : draft.theme.lightPalette;
-  const byMode = (base: unknown, light: unknown, dark: unknown, fallback?: string) => {
+  const byMode = (base: unknown, light: unknown, dark: unknown) => {
     const baseVal = textOrNull(base);
     if (baseVal) return baseVal;
     const lightVal = textOrNull(light);
     const darkVal = textOrNull(dark);
-    const modeVal = isDark ? darkVal : lightVal;
-    return modeVal || fallback || null;
+    return isDark ? darkVal || lightVal : lightVal || darkVal;
   };
-  const assistantBubbleFallback =
-    typeof themePalette?.textColor === "string" && themePalette.textColor.trim()
-      ? hexToRgba(themePalette.textColor, isDark ? 0.08 : 0.05)
-      : null;
-  const panelShadowFallback =
-    typeof themePalette?.shadowColor === "string" && themePalette.shadowColor.trim()
-      ? themePalette.shadowColor.trim()
-      : null;
+  const resolvePair = (
+    lightKey: string,
+    darkKey: string,
+    legacyKey: string,
+    lightFallback: string,
+    darkFallback: string
+  ) => {
+    const lightRaw = readColor(lightKey) || readColor(legacyKey);
+    const darkRaw = readColor(darkKey);
+    const lightResolved =
+      lightRaw.toLowerCase() == "transparent" ? "transparent" : lightRaw || lightFallback;
+    const darkResolved =
+      darkRaw.toLowerCase() == "transparent" ? "transparent" : darkRaw || darkFallback;
+    return { lightResolved, darkResolved };
+  };
+  const panelPair = resolvePair(
+    "blockBgLight",
+    "blockBgDark",
+    "blockBg",
+    draft.theme.lightPalette.panelColor,
+    draft.theme.darkPalette.panelColor
+  );
+  const textPair = resolvePair(
+    "textColorLight",
+    "textColorDark",
+    "textColor",
+    draft.theme.lightPalette.textColor,
+    draft.theme.darkPalette.textColor
+  );
+  const borderPair = resolvePair(
+    "borderColorLight",
+    "borderColorDark",
+    "borderColor",
+    draft.theme.lightPalette.borderColor,
+    draft.theme.darkPalette.borderColor
+  );
+  const buttonPair = resolvePair(
+    "buttonColorLight",
+    "buttonColorDark",
+    "buttonColor",
+    draft.theme.lightPalette.buttonColor,
+    draft.theme.darkPalette.buttonColor
+  );
+  const buttonTextPair = resolvePair(
+    "buttonTextColorLight",
+    "buttonTextColorDark",
+    "buttonTextColor",
+    draft.theme.lightPalette.buttonTextColor,
+    draft.theme.darkPalette.buttonTextColor
+  );
+  const headerBgPair = resolvePair(
+    "headerBgColorLight",
+    "headerBgColorDark",
+    "headerBgColor",
+    panelPair.lightResolved,
+    panelPair.darkResolved
+  );
+  const headerTextPair = resolvePair(
+    "headerTextColorLight",
+    "headerTextColorDark",
+    "headerTextColor",
+    textPair.lightResolved,
+    textPair.darkResolved
+  );
+  const assistantBubblePair = resolvePair(
+    "assistantBubbleColorLight",
+    "assistantBubbleColorDark",
+    "assistantBubbleColor",
+    "",
+    ""
+  );
+  const assistantTextPair = resolvePair(
+    "assistantTextColorLight",
+    "assistantTextColorDark",
+    "assistantTextColor",
+    textPair.lightResolved,
+    textPair.darkResolved
+  );
+  const clientBubblePair = resolvePair(
+    "clientBubbleColorLight",
+    "clientBubbleColorDark",
+    "clientBubbleColor",
+    buttonPair.lightResolved,
+    buttonPair.darkResolved
+  );
+  const clientTextPair = resolvePair(
+    "clientTextColorLight",
+    "clientTextColorDark",
+    "clientTextColor",
+    buttonTextPair.lightResolved,
+    buttonTextPair.darkResolved
+  );
+  const quickReplyButtonPair = resolvePair(
+    "quickReplyButtonColorLight",
+    "quickReplyButtonColorDark",
+    "quickReplyButtonColor",
+    buttonPair.lightResolved,
+    buttonPair.darkResolved
+  );
+  const quickReplyTextPair = resolvePair(
+    "quickReplyTextColorLight",
+    "quickReplyTextColorDark",
+    "quickReplyTextColor",
+    buttonTextPair.lightResolved,
+    buttonTextPair.darkResolved
+  );
+
 
   return {
     enabled: data.enabled !== false,
@@ -369,16 +494,21 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)
       : null,
-    buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark, themePalette.buttonColor),
-    buttonTextColor: byMode(
-      style.buttonTextColor,
-      style.buttonTextColorLight,
-      style.buttonTextColorDark,
-      themePalette.buttonTextColor
-    ),
-    panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark, themePalette.panelColor),
-    textColor: byMode(style.textColor, style.textColorLight, style.textColorDark, themePalette.textColor),
-    borderColor: byMode(style.borderColor, style.borderColorLight, style.borderColorDark, themePalette.borderColor),
+    buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
+    buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
+    panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
+    textColor: byMode(style.textColor, style.textColorLight, style.textColorDark),
+    borderColor: byMode(style.borderColor, style.borderColorLight, style.borderColorDark),
+    buttonColorLight: textOrNull(buttonPair.lightResolved) || null,
+    buttonColorDark: textOrNull(buttonPair.darkResolved) || null,
+    buttonTextColorLight: textOrNull(buttonTextPair.lightResolved) || null,
+    buttonTextColorDark: textOrNull(buttonTextPair.darkResolved) || null,
+    panelColorLight: textOrNull(panelPair.lightResolved) || null,
+    panelColorDark: textOrNull(panelPair.darkResolved) || null,
+    textColorLight: textOrNull(textPair.lightResolved) || null,
+    textColorDark: textOrNull(textPair.darkResolved) || null,
+    borderColorLight: textOrNull(borderPair.lightResolved) || null,
+    borderColorDark: textOrNull(borderPair.darkResolved) || null,
     gradientEnabled:
       typeof style.gradientEnabled === "boolean"
         ? style.gradientEnabled
@@ -391,55 +521,39 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
         : style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
           ? style.gradientDirectionLight
           : "vertical",
-    panelGradientFrom: byMode(style.gradientFrom, style.gradientFromLight, style.gradientFromDark, null),
-    panelGradientTo: byMode(style.gradientTo, style.gradientToLight, style.gradientToDark, null),
-    assistantBubbleColor: byMode(
-      style.assistantBubbleColor,
-      style.assistantBubbleColorLight,
-      style.assistantBubbleColorDark,
-      assistantBubbleFallback
-    ),
-    assistantTextColor: byMode(
-      style.assistantTextColor,
-      style.assistantTextColorLight,
-      style.assistantTextColorDark,
-      themePalette.textColor
-    ),
-    clientBubbleColor: byMode(
-      style.clientBubbleColor,
-      style.clientBubbleColorLight,
-      style.clientBubbleColorDark,
-      themePalette.buttonColor
-    ),
-    clientTextColor: byMode(
-      style.clientTextColor,
-      style.clientTextColorLight,
-      style.clientTextColorDark,
-      themePalette.buttonTextColor
-    ),
-    headerBgColor: byMode(style.headerBgColor, style.headerBgColorLight, style.headerBgColorDark, themePalette.panelColor),
-    headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark, themePalette.textColor),
-    quickReplyButtonColor: byMode(
-      style.quickReplyButtonColor,
-      style.quickReplyButtonColorLight,
-      style.quickReplyButtonColorDark,
-      themePalette.buttonColor
-    ),
-    quickReplyTextColor: byMode(
-      style.quickReplyTextColor,
-      style.quickReplyTextColorLight,
-      style.quickReplyTextColorDark,
-      themePalette.buttonTextColor
-    ),
+    panelGradientFrom: byMode(style.gradientFrom, style.gradientFromLight, style.gradientFromDark),
+    panelGradientTo: byMode(style.gradientTo, style.gradientToLight, style.gradientToDark),
+    assistantBubbleColor: byMode(style.assistantBubbleColor, style.assistantBubbleColorLight, style.assistantBubbleColorDark),
+    assistantTextColor: byMode(style.assistantTextColor, style.assistantTextColorLight, style.assistantTextColorDark),
+    clientBubbleColor: byMode(style.clientBubbleColor, style.clientBubbleColorLight, style.clientBubbleColorDark),
+    clientTextColor: byMode(style.clientTextColor, style.clientTextColorLight, style.clientTextColorDark),
+    headerBgColor: byMode(style.headerBgColor, style.headerBgColorLight, style.headerBgColorDark),
+    headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark),
+    quickReplyButtonColor: byMode(style.quickReplyButtonColor, style.quickReplyButtonColorLight, style.quickReplyButtonColorDark),
+    quickReplyTextColor: byMode(style.quickReplyTextColor, style.quickReplyTextColorLight, style.quickReplyTextColorDark),
+    assistantBubbleColorLight: textOrNull(assistantBubblePair.lightResolved) || null,
+    assistantBubbleColorDark: textOrNull(assistantBubblePair.darkResolved) || null,
+    assistantTextColorLight: textOrNull(assistantTextPair.lightResolved) || null,
+    assistantTextColorDark: textOrNull(assistantTextPair.darkResolved) || null,
+    clientBubbleColorLight: textOrNull(clientBubblePair.lightResolved) || null,
+    clientBubbleColorDark: textOrNull(clientBubblePair.darkResolved) || null,
+    clientTextColorLight: textOrNull(clientTextPair.lightResolved) || null,
+    clientTextColorDark: textOrNull(clientTextPair.darkResolved) || null,
+    headerBgColorLight: textOrNull(headerBgPair.lightResolved) || null,
+    headerBgColorDark: textOrNull(headerBgPair.darkResolved) || null,
+    headerTextColorLight: textOrNull(headerTextPair.lightResolved) || null,
+    headerTextColorDark: textOrNull(headerTextPair.darkResolved) || null,
+    quickReplyButtonColorLight: textOrNull(quickReplyButtonPair.lightResolved) || null,
+    quickReplyButtonColorDark: textOrNull(quickReplyButtonPair.darkResolved) || null,
+    quickReplyTextColorLight: textOrNull(quickReplyTextPair.lightResolved) || null,
+    quickReplyTextColorDark: textOrNull(quickReplyTextPair.darkResolved) || null,
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
       : null,
-    panelShadowColor: textOrNull(style.shadowColor) || panelShadowFallback,
+    panelShadowColor: textOrNull(style.shadowColor) || null,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
       ? numInRange(style.shadowSize, 0, 40, 16)
-      : Number.isFinite(Number(themePalette.shadowSize))
-        ? numInRange(themePalette.shadowSize, 0, 40, 16)
-        : null,
+      : null,
   };
 }
 

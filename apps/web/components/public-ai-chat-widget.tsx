@@ -198,11 +198,6 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [dateByMessage, setDateByMessage] = useState<Record<string, string>>({});
   const [dateMonthByMessage, setDateMonthByMessage] = useState<Record<string, string>>({});
   const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
-  const [siteMode, setSiteMode] = useState<"light" | "dark">(() => {
-    if (typeof document === "undefined") return "light";
-    const root = document.getElementById("public-site-root") ?? document.documentElement;
-    return root?.getAttribute("data-site-theme") === "dark" ? "dark" : "light";
-  });
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -217,41 +212,42 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       vars.right = `${right}px`;
     }
 
-    const dark = siteMode === "dark";
-    const defaults = {
-      panel: dark ? "#0B1224" : "#ffffff",
-      text: dark ? "#E5E7EB" : "#111827",
-      muted: dark ? "#9CA3AF" : "#6B7280",
-      border: dark ? "rgba(255,255,255,0.12)" : "#E5E7EB",
-      button: dark ? "#1F2937" : "#111827",
-      buttonText: dark ? "#F9FAFB" : "#FFFFFF",
-      headerBg: dark ? "#111A2F" : "#ffffff",
-      headerText: dark ? "#F3F4F6" : "#111827",
-      assistantBubble: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-      assistantText: dark ? "#E5E7EB" : "#111827",
-      clientBubble: dark ? "#1F2937" : "var(--site-button,#111827)",
-      clientText: dark ? "#F9FAFB" : "var(--site-button-text,#fff)",
-      quickReplyButton: dark ? "#1F2937" : "var(--site-button,#111827)",
-      quickReplyText: dark ? "#F3F4F6" : "var(--site-button-text,#fff)",
+    const setVar = (key: string, value?: string | null) => {
+      const trimmed = typeof value === "string" ? value.trim() : "";
+      if (trimmed) vars[key] = trimmed;
     };
 
-    vars["--site-panel"] = widgetConfig?.panelColor || defaults.panel;
-    vars["--site-text"] = widgetConfig?.textColor || defaults.text;
-    vars["--site-muted"] = defaults.muted;
-    vars["--site-border"] = widgetConfig?.borderColor || defaults.border;
-    vars["--site-button"] = widgetConfig?.buttonColor || defaults.button;
-    vars["--site-button-text"] = widgetConfig?.buttonTextColor || defaults.buttonText;
-    vars["--site-header-bg"] = widgetConfig?.headerBgColor || defaults.headerBg;
-    vars["--site-header-text"] = widgetConfig?.headerTextColor || defaults.headerText;
-    vars["--site-assistant-bubble"] = widgetConfig?.assistantBubbleColor || defaults.assistantBubble;
-    vars["--site-assistant-text"] = widgetConfig?.assistantTextColor || defaults.assistantText;
-    vars["--site-client-bubble"] = widgetConfig?.clientBubbleColor || defaults.clientBubble;
-    vars["--site-client-text"] = widgetConfig?.clientTextColor || defaults.clientText;
-    vars["--site-quick-reply-button"] = widgetConfig?.quickReplyButtonColor || defaults.quickReplyButton;
-    vars["--site-quick-reply-text"] = widgetConfig?.quickReplyTextColor || defaults.quickReplyText;
+    setVar("--ai-panel-light", widgetConfig?.panelColorLight ?? widgetConfig?.panelColor);
+    setVar("--ai-panel-dark", widgetConfig?.panelColorDark ?? widgetConfig?.panelColor);
+    setVar("--ai-text-light", widgetConfig?.textColorLight ?? widgetConfig?.textColor);
+    setVar("--ai-text-dark", widgetConfig?.textColorDark ?? widgetConfig?.textColor);
+    setVar("--ai-border-light", widgetConfig?.borderColorLight ?? widgetConfig?.borderColor);
+    setVar("--ai-border-dark", widgetConfig?.borderColorDark ?? widgetConfig?.borderColor);
+    setVar("--ai-button-light", widgetConfig?.buttonColorLight ?? widgetConfig?.buttonColor);
+    setVar("--ai-button-dark", widgetConfig?.buttonColorDark ?? widgetConfig?.buttonColor);
+    setVar("--ai-button-text-light", widgetConfig?.buttonTextColorLight ?? widgetConfig?.buttonTextColor);
+    setVar("--ai-button-text-dark", widgetConfig?.buttonTextColorDark ?? widgetConfig?.buttonTextColor);
+    setVar("--ai-header-bg-light", widgetConfig?.headerBgColorLight ?? widgetConfig?.headerBgColor);
+    setVar("--ai-header-bg-dark", widgetConfig?.headerBgColorDark ?? widgetConfig?.headerBgColor);
+    setVar("--ai-header-text-light", widgetConfig?.headerTextColorLight ?? widgetConfig?.headerTextColor);
+    setVar("--ai-header-text-dark", widgetConfig?.headerTextColorDark ?? widgetConfig?.headerTextColor);
+    setVar("--ai-assistant-bubble-light", widgetConfig?.assistantBubbleColorLight ?? widgetConfig?.assistantBubbleColor);
+    setVar("--ai-assistant-bubble-dark", widgetConfig?.assistantBubbleColorDark ?? widgetConfig?.assistantBubbleColor);
+    setVar("--ai-assistant-text-light", widgetConfig?.assistantTextColorLight ?? widgetConfig?.assistantTextColor);
+    setVar("--ai-assistant-text-dark", widgetConfig?.assistantTextColorDark ?? widgetConfig?.assistantTextColor);
+    setVar("--ai-client-bubble-light", widgetConfig?.clientBubbleColorLight ?? widgetConfig?.clientBubbleColor);
+    setVar("--ai-client-bubble-dark", widgetConfig?.clientBubbleColorDark ?? widgetConfig?.clientBubbleColor);
+    setVar("--ai-client-text-light", widgetConfig?.clientTextColorLight ?? widgetConfig?.clientTextColor);
+    setVar("--ai-client-text-dark", widgetConfig?.clientTextColorDark ?? widgetConfig?.clientTextColor);
+    setVar("--ai-quick-reply-button-light", widgetConfig?.quickReplyButtonColorLight ?? widgetConfig?.quickReplyButtonColor);
+    setVar("--ai-quick-reply-button-dark", widgetConfig?.quickReplyButtonColorDark ?? widgetConfig?.quickReplyButtonColor);
+    setVar("--ai-quick-reply-text-light", widgetConfig?.quickReplyTextColorLight ?? widgetConfig?.quickReplyTextColor);
+    setVar("--ai-quick-reply-text-dark", widgetConfig?.quickReplyTextColorDark ?? widgetConfig?.quickReplyTextColor);
+
 
     return vars as CSSProperties;
-  }, [widgetConfig, mode, siteMode]);
+  }, [widgetConfig, mode]);
+
 
   const panelWidth = Number(widgetConfig?.panelWidthPx ?? 380);
   const panelHeightVh = Number(widgetConfig?.panelHeightVh ?? 70);
@@ -283,16 +279,6 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     }
     return -1;
   }, [messages]);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const root = document.getElementById("public-site-root") ?? document.documentElement;
-    const readMode = () => (root?.getAttribute("data-site-theme") === "dark" ? "dark" : "light") as "light" | "dark";
-    setSiteMode(readMode());
-    const observer = new MutationObserver(() => setSiteMode(readMode()));
-    observer.observe(root, { attributes: true, attributeFilter: ["data-site-theme"] });
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     if (!open) return
@@ -474,7 +460,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setConsentCheckedByMessage({});
   };
 
-  const rootClass = mode === "floating" ? "fixed z-[140]" : `absolute z-[1] ${className ?? ""}`;
+  const rootClass = mode === "floating" ? "public-ai-widget fixed z-[140]" : `public-ai-widget absolute z-[1] ${className ?? ""}`;
   const panelStyle: CSSProperties =
     mode === "floating"
       ? {
@@ -500,26 +486,26 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         };
 
   const headerStyle: CSSProperties = {
-    backgroundColor: widgetConfig?.headerBgColor || "var(--site-header-bg, transparent)",
-    color: widgetConfig?.headerTextColor || "var(--site-header-text, var(--site-text,#111827))",
+    backgroundColor: "var(--ai-header-bg, var(--ai-panel, transparent))",
+    color: "var(--ai-header-text, var(--ai-text,#111827))",
   };
   const headerActionStyle: CSSProperties = {
-    color: widgetConfig?.headerTextColor || "var(--site-header-text, var(--site-text,#111827))",
+    color: "var(--ai-header-text, var(--ai-text,#111827))",
   };
 
   return (
     <div className={rootClass} style={widgetRootStyle}>
       {open ? (
-        <div className="flex flex-col overflow-hidden border border-[color:var(--site-border,#e5e7eb)] bg-[color:var(--site-panel,#fff)]" style={panelStyle}>
-          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--site-border,#e5e7eb)] px-4 py-3" style={headerStyle}>
-            <div className="text-sm font-semibold text-[color:var(--site-text,#111827)]" style={headerActionStyle}>
+        <div className="flex flex-col overflow-hidden border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-panel,#fff)]" style={panelStyle}>
+          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ai-border,#e5e7eb)] px-4 py-3" style={headerStyle}>
+            <div className="text-sm font-semibold text-[color:var(--ai-text,#111827)]" style={headerActionStyle}>
               {headerTitle}
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={clearChat}
-                className="rounded-lg px-2 py-1 text-xs text-[color:var(--site-muted,#6b7280)] hover:bg-black/5"
+                className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5"
                 style={headerActionStyle}
               >
                 Очистить
@@ -527,7 +513,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-2 py-1 text-xs text-[color:var(--site-muted,#6b7280)] hover:bg-black/5"
+                className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5"
                 style={headerActionStyle}
               >
                 Закрыть
@@ -605,8 +591,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                     key={messageKey}
                     className={`max-w-[92%] px-3 py-2 text-sm ${
                       msg.role === "user"
-                        ? "ml-auto bg-[color:var(--site-client-bubble,var(--site-button,#111827))] text-[color:var(--site-client-text,var(--site-button-text,#fff))]"
-                        : "bg-[color:var(--site-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--site-assistant-text,var(--site-text,#111827))]"
+                        ? "ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))]"
+                        : "bg-[color:var(--ai-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))]"
                     }`}
                     style={messageRadiusStyle}
                   >
@@ -637,8 +623,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                 : "rounded-full"
                             } ${
                               isLastAssistant
-                                ? "border-transparent bg-[color:var(--site-quick-reply-button,var(--site-button,#111827))] text-[color:var(--site-quick-reply-text,var(--site-button-text,#fff))] hover:brightness-95"
-                                : "border-[color:var(--site-border,#d1d5db)] bg-black/0 text-[color:var(--site-muted,#6b7280)]"
+                                ? "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95"
+                                : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
                             } disabled:cursor-not-allowed disabled:opacity-60`}
                           >
                             {option.label}
@@ -649,7 +635,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                       </div>
                      ) : null}
                     {ui?.kind === "date_picker" && !isTypingThis ? (
-                      <div className="mt-2 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-white/70 p-2">
+                      <div className="mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/70 p-2">
                         <div className="mb-2 flex items-center justify-between">
                           <button
                             type="button"
@@ -661,7 +647,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               }))
                             }
                             style={buttonRadiusStyle}
-                            className="h-7 w-7 rounded-md border border-[color:var(--site-border,#d1d5db)] text-xs disabled:opacity-40"
+                            className="h-7 w-7 rounded-md border border-[color:var(--ai-border,#d1d5db)] text-xs disabled:opacity-40"
                           >
                             ‹
                           </button>
@@ -676,12 +662,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               }))
                             }
                             style={buttonRadiusStyle}
-                            className="h-7 w-7 rounded-md border border-[color:var(--site-border,#d1d5db)] text-xs disabled:opacity-40"
+                            className="h-7 w-7 rounded-md border border-[color:var(--ai-border,#d1d5db)] text-xs disabled:opacity-40"
                           >
                             ›
                           </button>
                         </div>
-                        <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-[color:var(--site-muted,#6b7280)]">
+                        <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-[color:var(--ai-muted,#6b7280)]">
                           {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) => (
                             <div key={`${messageKey}-${d}`}>{d}</div>
                           ))}
@@ -714,7 +700,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   }));
                                 }}
                                 style={buttonRadiusStyle}
-                                className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--site-button,#111827)] text-[color:var(--site-button-text,#fff)]' : inactive ? 'bg-black/5 text-[color:var(--site-muted,#9ca3af)]' : cell.inMonth ? 'bg-white text-[color:var(--site-text,#111827)]' : 'bg-black/5 text-[color:var(--site-muted,#9ca3af)]'} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
+                                className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]' : inactive ? 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]' : cell.inMonth ? 'bg-white text-[color:var(--ai-text,#111827)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]'} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
                               >
                                 {cell.day}
                               </button>
@@ -723,13 +709,13 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                         </div>
                         {datePickerHint ? <div className="mt-2 text-[11px] text-amber-700">{datePickerHint}</div> : null}
                         <div className="mt-2 flex items-center justify-between">
-                          <div className="text-[11px] text-[color:var(--site-muted,#6b7280)]">{datePickerValue ? formatYmdRuDate(datePickerValue) : "Выберите дату"}</div>
+                          <div className="text-[11px] text-[color:var(--ai-muted,#6b7280)]">{datePickerValue ? formatYmdRuDate(datePickerValue) : "Выберите дату"}</div>
                           <button
                             type="button"
                             disabled={loading || !isLastAssistant || !datePickerValue || !selectedDateIsAvailable}
                             onClick={() => void sendRawMessage(formatYmdRuDate(datePickerValue))}
                             style={buttonRadiusStyle}
-                            className="rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
+                            className="rounded-lg bg-[color:var(--ai-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--ai-button-text,#fff)] disabled:opacity-50"
                           >
                             Выбрать
                           </button>
@@ -737,7 +723,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                       </div>
                     ) : null}
                     {showConsentControl && !isTypingThis ? (
-                      <div className="mt-2 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-white/60 p-2">
+                      <div className="mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/60 p-2">
                         {legalLinks.length ? (
                           <div className="mb-2 flex flex-wrap gap-2">
                             {legalLinks.map((href, i) => (
@@ -751,14 +737,14 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   }
                                 }}
                                 style={buttonRadiusStyle}
-                                className="rounded-lg border border-[color:var(--site-border,#d1d5db)] px-3 py-1.5 text-xs disabled:opacity-60"
+                                className="rounded-lg border border-[color:var(--ai-border,#d1d5db)] px-3 py-1.5 text-xs disabled:opacity-60"
                               >
                                 Текст ПДн {i + 1}
                               </button>
                             ))}
                           </div>
                         ) : null}
-                        <label className="flex items-start gap-2 text-xs text-[color:var(--site-text,#111827)]">
+                        <label className="flex items-start gap-2 text-xs text-[color:var(--ai-text,#111827)]">
                           <input
                             type="checkbox"
                             className="mt-0.5 h-4 w-4"
@@ -778,7 +764,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           disabled={loading || !isLastAssistant || !consentChecked}
                           onClick={() => void sendRawMessage(consentSubmitValue)}
                           style={buttonRadiusStyle}
-                          className="mt-2 rounded-lg bg-[color:var(--site-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
+                          className="mt-2 rounded-lg bg-[color:var(--ai-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--ai-button-text,#fff)] disabled:opacity-50"
                         >
                           Подтвердить
                         </button>
@@ -789,18 +775,18 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               })()
             ))}
             {loading ? (
-              <div className="max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--site-muted,#6b7280)]" style={messageRadiusStyle}>
+              <div className="max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--ai-muted,#6b7280)]" style={messageRadiusStyle}>
                 <div className="flex items-center gap-1">
                   <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
                     style={{ animationDelay: "0ms" }}
                   />
                   <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
                     style={{ animationDelay: "120ms" }}
                   />
                   <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--site-muted,#6b7280)]"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
                     style={{ animationDelay: "240ms" }}
                   />
                 </div>
@@ -809,19 +795,19 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={sendMessage} className="border-t border-[color:var(--site-border,#e5e7eb)] p-3">
+          <form onSubmit={sendMessage} className="border-t border-[color:var(--ai-border,#e5e7eb)] p-3">
             <div className="flex gap-2">
               <input
                 value={text}
                 onChange={(event) => setText(event.target.value)}
                 placeholder="Введите сообщение"
-                className="h-10 flex-1 rounded-xl border border-[color:var(--site-border,#e5e7eb)] bg-transparent px-3 text-sm text-[color:var(--site-text,#111827)] outline-none"
+                className="h-10 flex-1 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-transparent px-3 text-sm text-[color:var(--ai-text,#111827)] outline-none"
               />
               <button
                 type="submit"
                 disabled={!canSend}
                 style={buttonRadiusStyle}
-                className="h-10 rounded-xl bg-[color:var(--site-button,#111827)] px-3 text-sm font-medium text-[color:var(--site-button-text,#fff)] disabled:opacity-50"
+                className="h-10 rounded-xl bg-[color:var(--ai-button,#111827)] px-3 text-sm font-medium text-[color:var(--ai-button-text,#fff)] disabled:opacity-50"
               >
                 Отпр.
               </button>
@@ -832,7 +818,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-2 bg-[color:var(--site-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--site-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
+          className="group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
           aria-label="Открыть AI-ассистента"
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />

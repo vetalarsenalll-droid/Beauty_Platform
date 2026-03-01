@@ -227,6 +227,40 @@
   --block-gradient: var(--block-gradient-light);
 }
 
+[data-site-theme] .public-ai-widget {
+  --ai-panel: var(--ai-panel-light, var(--site-panel));
+  --ai-text: var(--ai-text-light, var(--site-text));
+  --ai-muted: var(--ai-muted-light, var(--site-muted));
+  --ai-border: var(--ai-border-light, var(--site-border));
+  --ai-button: var(--ai-button-light, var(--site-button));
+  --ai-button-text: var(--ai-button-text-light, var(--site-button-text));
+  --ai-header-bg: var(--ai-header-bg-light, var(--ai-panel, var(--site-panel)));
+  --ai-header-text: var(--ai-header-text-light, var(--ai-text, var(--site-text)));
+  --ai-assistant-bubble: var(--ai-assistant-bubble-light, rgba(0,0,0,0.05));
+  --ai-assistant-text: var(--ai-assistant-text-light, var(--ai-text, var(--site-text)));
+  --ai-client-bubble: var(--ai-client-bubble-light, var(--ai-button, var(--site-button)));
+  --ai-client-text: var(--ai-client-text-light, var(--ai-button-text, var(--site-button-text)));
+  --ai-quick-reply-button: var(--ai-quick-reply-button-light, var(--ai-button, var(--site-button)));
+  --ai-quick-reply-text: var(--ai-quick-reply-text-light, var(--ai-button-text, var(--site-button-text)));
+}
+
+[data-site-theme="dark"] .public-ai-widget {
+  --ai-panel: var(--ai-panel-dark, var(--site-panel));
+  --ai-text: var(--ai-text-dark, var(--site-text));
+  --ai-muted: var(--ai-muted-dark, var(--site-muted));
+  --ai-border: var(--ai-border-dark, var(--site-border));
+  --ai-button: var(--ai-button-dark, var(--site-button));
+  --ai-button-text: var(--ai-button-text-dark, var(--site-button-text));
+  --ai-header-bg: var(--ai-header-bg-dark, var(--ai-panel, var(--site-panel)));
+  --ai-header-text: var(--ai-header-text-dark, var(--ai-text, var(--site-text)));
+  --ai-assistant-bubble: var(--ai-assistant-bubble-dark, rgba(255,255,255,0.08));
+  --ai-assistant-text: var(--ai-assistant-text-dark, var(--ai-text, var(--site-text)));
+  --ai-client-bubble: var(--ai-client-bubble-dark, var(--ai-button, var(--site-button)));
+  --ai-client-text: var(--ai-client-text-dark, var(--ai-button-text, var(--site-button-text)));
+  --ai-quick-reply-button: var(--ai-quick-reply-button-dark, var(--ai-button, var(--site-button)));
+  --ai-quick-reply-text: var(--ai-quick-reply-text-dark, var(--ai-button-text, var(--site-button-text)));
+}
+
 #public-site-root[data-site-theme="dark"] .site-block {
   --block-bg: var(--block-bg-dark);
   --block-section-bg: var(--block-section-bg-dark, var(--block-bg));
