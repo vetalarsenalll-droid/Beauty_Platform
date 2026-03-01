@@ -934,7 +934,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         };
       }
     }
-    if (d.date || asksAvailability || d.serviceId) {
+    if (asksAvailability || d.serviceId) {
       let targetDate = d.date ?? new Date().toISOString().slice(0, 10);
       if (wantsNextDateStep(messageNorm) && d.date) {
         targetDate = addDaysYmd(d.date, 1);
@@ -1121,7 +1121,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     }
     return {
       handled: true,
-      reply: "Выберите локацию, и продолжу запись.",
+      reply: "Выберите филиал (локацию), и продолжу запись.",
       nextStatus: "COLLECTING",
       ui: {
         kind: "quick_replies",

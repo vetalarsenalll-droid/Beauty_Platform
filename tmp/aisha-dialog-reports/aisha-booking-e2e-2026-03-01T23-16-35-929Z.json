@@ -1,0 +1,24 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T23:16:33.396Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": false,
+          "error": "Start booking asks for location, not unknown service / step 1 (на завтра запиши меня): expected one of /филиал|локац|beauty salon center|beauty salon riverside/i\nreply:\nНа 03.03.2026 свободных окон не нашла. Выберите дату в календаре, и я покажу доступное время.",
+          "reply": "На 03.03.2026 свободных окон не нашла. Выберите дату в календаре, и я покажу доступное время."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T23:16:35.928Z",
+  "durationMs": 2532
+}

@@ -1505,6 +1505,7 @@ export async function POST(request: Request) {
         ? prevUserNorm
         : "";
     const bookingMessageNorm = carryPrevTimePref ? `${t} ${carryPrevTimePref}` : t;
+    let previouslySelectedSpecialistName: string | null = null;
 
     if (explicitBookingDecline) {
       d.locationId = null;
@@ -1778,14 +1779,29 @@ export async function POST(request: Request) {
         reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
       }
     } else if (shouldRunBookingFlow) {
+      const hasBookingVerb = has(messageForRouting, /(запиш|записаться|записать|хочу|оформи|забронируй|бронь)\b/i);
+      const hasExplicitAvailabilityQuery =
+        (explicitNearestAvailability ||
+          explicitAvailabilityPeriod ||
+          has(message, /(окошк|свобод|время|слот|обед|после обеда|утр|вечер|днем|днём)/i)) &&
+        !hasBookingVerb;
+      const hasInitialBookingSkeleton =
+        !d.locationId &&
+        !d.serviceId &&
+        !d.time &&
+        !hasExplicitAvailabilityQuery &&
+        (explicitBookingText || intent === "booking_start" || hasBookingVerb);
       const asksAvailabilityNow =
-        intent === "ask_availability" ||
-        explicitNearestAvailability ||
-        explicitAvailabilityPeriod ||
-        has(message, /(окошк|свобод|время|слот|обед|после обеда|утр|вечер|днем|днём)/i) ||
-        (explicitCalendarCue && Boolean(d.locationId) && !d.time) ||
-        // If user just selected location while discussing windows/date, keep showing times first.
-        (locationChosenThisTurn && Boolean(d.date) && !d.serviceId && !d.time);
+        !hasInitialBookingSkeleton &&
+        (
+          intent === "ask_availability" ||
+          explicitNearestAvailability ||
+          explicitAvailabilityPeriod ||
+          has(message, /(окошк|свобод|время|слот|обед|после обеда|утр|вечер|днем|днём)/i) ||
+          (explicitCalendarCue && Boolean(d.locationId) && !d.time) ||
+          // If user just selected location while discussing windows/date, keep showing times first.
+          (locationChosenThisTurn && Boolean(d.date) && !d.serviceId && !d.time)
+        );
       const flowResult = await runBookingFlow({
         messageNorm: bookingMessageNorm,
         bookingIntent: shouldRunBookingFlow,
@@ -1798,6 +1814,7 @@ export async function POST(request: Request) {
         locations,
         services,
         specialists,
+        previouslySelectedSpecialistName,
         requiredVersionIds,
         request,
         publicSlug,
