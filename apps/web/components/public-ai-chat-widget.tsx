@@ -350,6 +350,18 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     gradientEnabledByMode && panelGradientFromByMode && panelGradientToByMode
       ? `linear-gradient(${gradientDirectionByMode === "horizontal" ? "to right" : "to bottom"}, ${panelGradientFromByMode}, ${panelGradientToByMode})`
       : undefined;
+  const calendarShellClass =
+    currentMode === "dark"
+      ? "mt-2 rounded-xl border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
+      : "mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/70 p-2";
+  const consentShellClass =
+    currentMode === "dark"
+      ? "mt-2 rounded-xl border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
+      : "mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/60 p-2";
+  const loadingBubbleClass =
+    currentMode === "dark"
+      ? "max-w-[90%] bg-white/10 px-3 py-2 text-sm text-[color:var(--ai-muted,#9ca3af)]"
+      : "max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--ai-muted,#6b7280)]";
 
   const lastAssistantIndex = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -712,7 +724,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                       </div>
                      ) : null}
                     {ui?.kind === "date_picker" && !isTypingThis ? (
-                      <div className="mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/70 p-2">
+                      <div className={calendarShellClass}>
                         <div className="mb-2 flex items-center justify-between">
                           <button
                             type="button"
@@ -777,14 +789,14 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   }));
                                 }}
                                 style={buttonRadiusStyle}
-                                className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]' : inactive ? 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]' : cell.inMonth ? 'bg-white text-[color:var(--ai-text,#111827)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]'} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
+                                className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]' : inactive ? (currentMode === 'dark' ? 'bg-white/5 text-[color:var(--ai-muted,#9ca3af)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]') : cell.inMonth ? (currentMode === 'dark' ? 'bg-white/10 text-[color:var(--ai-text,#f3f4f6)]' : 'bg-white text-[color:var(--ai-text,#111827)]') : (currentMode === 'dark' ? 'bg-white/5 text-[color:var(--ai-muted,#9ca3af)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]')} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
                               >
                                 {cell.day}
                               </button>
                             );
                           })}
                         </div>
-                        {datePickerHint ? <div className="mt-2 text-[11px] text-amber-700">{datePickerHint}</div> : null}
+                        {datePickerHint ? <div className={`mt-2 text-[11px] ${currentMode === "dark" ? "text-amber-300" : "text-amber-700"}`}>{datePickerHint}</div> : null}
                         <div className="mt-2 flex items-center justify-between">
                           <div className="text-[11px] text-[color:var(--ai-muted,#6b7280)]">{datePickerValue ? formatYmdRuDate(datePickerValue) : "Выберите дату"}</div>
                           <button
@@ -800,7 +812,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                       </div>
                     ) : null}
                     {showConsentControl && !isTypingThis ? (
-                      <div className="mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/60 p-2">
+                      <div className={consentShellClass}>
                         {legalLinks.length ? (
                           <div className="mb-2 flex flex-wrap gap-2">
                             {legalLinks.map((href, i) => (
@@ -852,7 +864,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               })()
             ))}
             {loading ? (
-              <div className="max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--ai-muted,#6b7280)]" style={messageRadiusStyle}>
+              <div className={loadingBubbleClass} style={messageRadiusStyle}>
                 <div className="flex items-center gap-1">
                   <span
                     className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
@@ -905,3 +917,4 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
+
