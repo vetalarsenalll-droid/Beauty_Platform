@@ -31,7 +31,7 @@ type ClientMembership = {
 type ClientSessionValue = Awaited<ReturnType<typeof getClientSession>>;
 type AuthLevel = "full" | "thread_only" | "none";
 
-const ASSISTANT_NAME = "РђРёС€Р°";
+const ASSISTANT_NAME = "Аиша";
 const NLU_INTENT_CONFIDENCE_THRESHOLD = 0.38;
 const NLU_INTENT_CONFIDENCE_CRITICAL_THRESHOLD = 0.52;
 
@@ -41,7 +41,7 @@ const asTimeZone = (v: unknown) => (typeof v === "string" && v.trim().length >= 
 const norm = (v: string) =>
   v
     .toLowerCase()
-    .replace(/С‘/g, "Рµ")
+    .replace(/ё/g, "е")
     .replace(/[^\p{L}\p{N}\s:.+\-/]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -71,14 +71,14 @@ function isValidThreadKey(accountId: number, threadId: number, threadKey: string
 }
 
 function parseChoiceFromText(messageNorm: string): number | null {
-  const direct = Number(messageNorm.match(/^\s*(?:в„–|РЅРѕРјРµСЂ\s*)?(\d{1,2})\s*$/i)?.[1] ?? NaN);
+  const direct = Number(messageNorm.match(/^\s*(?:№|номер\s*)?(\d{1,2})\s*$/i)?.[1] ?? NaN);
   if (Number.isFinite(direct)) return direct;
   const map: Array<[RegExp, number]> = [
-    [/^\s*(РѕРґРёРЅ|РїРµСЂРІС‹Р№|РїРµСЂРІР°СЏ|first)\s*$/i, 1],
-    [/^\s*(РґРІР°|РІС‚РѕСЂРѕР№|РІС‚РѕСЂР°СЏ|second)\s*$/i, 2],
-    [/^\s*(С‚СЂРё|С‚СЂРµС‚РёР№|С‚СЂРµС‚СЊСЏ|third)\s*$/i, 3],
-    [/^\s*(С‡РµС‚С‹СЂРµ|С‡РµС‚РІРµСЂС‚С‹Р№|С‡РµС‚РІС‘СЂС‚С‹Р№|С‡РµС‚РІРµСЂС‚Р°СЏ|С‡РµС‚РІС‘СЂС‚Р°СЏ|fourth)\s*$/i, 4],
-    [/^\s*(РїСЏС‚СЊ|РїСЏС‚С‹Р№|РїСЏС‚Р°СЏ|fifth)\s*$/i, 5],
+    [/^\s*(один|первый|первая|first)\s*$/i, 1],
+    [/^\s*(два|второй|вторая|second)\s*$/i, 2],
+    [/^\s*(три|третий|третья|third)\s*$/i, 3],
+    [/^\s*(четыре|четвертый|четвёртый|четвертая|четвёртая|fourth)\s*$/i, 4],
+    [/^\s*(пять|пятый|пятая|fifth)\s*$/i, 5],
   ];
   for (const [re, n] of map) if (re.test(messageNorm)) return n;
   return null;
@@ -262,22 +262,22 @@ const pickSafeNluDate = (candidate: unknown, today: string) => {
 const parseDate = (m: string, today: string) => {
   const t = norm(m);
   const afterDm = t.match(
-    /\bРїРѕСЃР»Рµ\s+(\d{1,2})\s+(СЏРЅРІР°СЂСЏ|С„РµРІСЂР°Р»СЏ|РјР°СЂС‚Р°|Р°РїСЂРµР»СЏ|РјР°СЏ|РёСЋРЅСЏ|РёСЋР»СЏ|Р°РІРіСѓСЃС‚Р°|СЃРµРЅС‚СЏР±СЂСЏ|РѕРєС‚СЏР±СЂСЏ|РЅРѕСЏР±СЂСЏ|РґРµРєР°Р±СЂСЏ)\b/,
+    /\bпосле\s+(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b/,
   );
   if (afterDm) {
     const monthMap = new Map<string, string>([
-      ["СЏРЅРІР°СЂСЏ", "01"],
-      ["С„РµРІСЂР°Р»СЏ", "02"],
-      ["РјР°СЂС‚Р°", "03"],
-      ["Р°РїСЂРµР»СЏ", "04"],
-      ["РјР°СЏ", "05"],
-      ["РёСЋРЅСЏ", "06"],
-      ["РёСЋР»СЏ", "07"],
-      ["Р°РІРіСѓСЃС‚Р°", "08"],
-      ["СЃРµРЅС‚СЏР±СЂСЏ", "09"],
-      ["РѕРєС‚СЏР±СЂСЏ", "10"],
-      ["РЅРѕСЏР±СЂСЏ", "11"],
-      ["РґРµРєР°Р±СЂСЏ", "12"],
+      ["января", "01"],
+      ["февраля", "02"],
+      ["марта", "03"],
+      ["апреля", "04"],
+      ["мая", "05"],
+      ["июня", "06"],
+      ["июля", "07"],
+      ["августа", "08"],
+      ["сентября", "09"],
+      ["октября", "10"],
+      ["ноября", "11"],
+      ["декабря", "12"],
     ]);
     const day = Number(afterDm[1]);
     const month = monthMap.get(afterDm[2]) ?? "01";
@@ -289,49 +289,28 @@ const parseDate = (m: string, today: string) => {
     }
     return addDaysYmd(candidate, 1);
   }
-  if (/\b(СЃРµРіРѕРґРЅСЏ|today)\b/.test(t)) return today;
-  if (/\b(РїРѕСЃР»РµР·Р°РІС‚СЂР°|day after tomorrow)\b/.test(t)) return addDaysYmd(today, 2);
-  if (/\b(Р·Р°РІС‚СЂР°|tomorrow)\b/.test(t)) return addDaysYmd(today, 1);
+  if (/\b(сегодня|today)\b/.test(t)) return today;
+  if (/\b(послезавтра|day after tomorrow)\b/.test(t)) return addDaysYmd(today, 2);
+  if (/\b(завтра|tomorrow)\b/.test(t)) return addDaysYmd(today, 1);
 
   const iso = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-  const dmy = t.match(/\b(\d{1,2})[./](\d{1,2})(?:[./](\d{2}|\d{4}))?\b/);
-  if (dmy) {
-    const day = Number(dmy[1]);
-    const month = Number(dmy[2]);
-    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
-      const baseYear = Number(today.slice(0, 4));
-      const yearRaw = dmy[3] ? Number(dmy[3]) : baseYear;
-      let year = dmy[3]
-        ? String(dmy[3]).length === 2
-          ? 2000 + yearRaw
-          : yearRaw
-        : baseYear;
-      let candidate = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      if (!dmy[3] && candidate < today) {
-        year += 1;
-        candidate = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      }
-      return candidate;
-    }
-  }
-
-  const dmText = t.match(/\b(\d{1,2})\s+(СЏРЅРІР°СЂСЏ|С„РµРІСЂР°Р»СЏ|РјР°СЂС‚Р°|Р°РїСЂРµР»СЏ|РјР°СЏ|РёСЋРЅСЏ|РёСЋР»СЏ|Р°РІРіСѓСЃС‚Р°|СЃРµРЅС‚СЏР±СЂСЏ|РѕРєС‚СЏР±СЂСЏ|РЅРѕСЏР±СЂСЏ|РґРµРєР°Р±СЂСЏ)(?:\s+(\d{4}))?\b/);
+  const dmText = t.match(/\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?\b/);
   if (dmText) {
     const monthMap = new Map<string, string>([
-      ["СЏРЅРІР°СЂСЏ", "01"],
-      ["С„РµРІСЂР°Р»СЏ", "02"],
-      ["РјР°СЂС‚Р°", "03"],
-      ["Р°РїСЂРµР»СЏ", "04"],
-      ["РјР°СЏ", "05"],
-      ["РёСЋРЅСЏ", "06"],
-      ["РёСЋР»СЏ", "07"],
-      ["Р°РІРіСѓСЃС‚Р°", "08"],
-      ["СЃРµРЅС‚СЏР±СЂСЏ", "09"],
-      ["РѕРєС‚СЏР±СЂСЏ", "10"],
-      ["РЅРѕСЏР±СЂСЏ", "11"],
-      ["РґРµРєР°Р±СЂСЏ", "12"],
+      ["января", "01"],
+      ["февраля", "02"],
+      ["марта", "03"],
+      ["апреля", "04"],
+      ["мая", "05"],
+      ["июня", "06"],
+      ["июля", "07"],
+      ["августа", "08"],
+      ["сентября", "09"],
+      ["октября", "10"],
+      ["ноября", "11"],
+      ["декабря", "12"],
     ]);
     const day = Number(dmText[1]);
     const month = monthMap.get(dmText[2]) ?? "01";
@@ -345,34 +324,34 @@ const parseDate = (m: string, today: string) => {
   }
 
   const monthOnly = t.match(
-    /\b(?:РІ\s+)?(?:РїРµСЂРІ(?:С‹С…|С‹Рµ)\s+С‡РёСЃР»(?:Р°С…|Р°)\s+)?(СЏРЅРІР°СЂРµ|С„РµРІСЂР°Р»Рµ|РјР°СЂС‚Рµ|Р°РїСЂРµР»Рµ|РјР°Рµ|РёСЋРЅРµ|РёСЋР»Рµ|Р°РІРіСѓСЃС‚Рµ|СЃРµРЅС‚СЏР±СЂРµ|РѕРєС‚СЏР±СЂРµ|РЅРѕСЏР±СЂРµ|РґРµРєР°Р±СЂРµ|СЏРЅРІР°СЂСЏ|С„РµРІСЂР°Р»СЏ|РјР°СЂС‚Р°|Р°РїСЂРµР»СЏ|РјР°СЏ|РёСЋРЅСЏ|РёСЋР»СЏ|Р°РІРіСѓСЃС‚Р°|СЃРµРЅС‚СЏР±СЂСЏ|РѕРєС‚СЏР±СЂСЏ|РЅРѕСЏР±СЂСЏ|РґРµРєР°Р±СЂСЏ)\b/,
+    /\b(?:в\s+)?(?:перв(?:ых|ые)\s+числ(?:ах|а)\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b/,
   );
   if (monthOnly) {
     const monthMap = new Map<string, string>([
-      ["СЏРЅРІР°СЂРµ", "01"],
-      ["СЏРЅРІР°СЂСЏ", "01"],
-      ["С„РµРІСЂР°Р»Рµ", "02"],
-      ["С„РµРІСЂР°Р»СЏ", "02"],
-      ["РјР°СЂС‚Рµ", "03"],
-      ["РјР°СЂС‚Р°", "03"],
-      ["Р°РїСЂРµР»Рµ", "04"],
-      ["Р°РїСЂРµР»СЏ", "04"],
-      ["РјР°Рµ", "05"],
-      ["РјР°СЏ", "05"],
-      ["РёСЋРЅРµ", "06"],
-      ["РёСЋРЅСЏ", "06"],
-      ["РёСЋР»Рµ", "07"],
-      ["РёСЋР»СЏ", "07"],
-      ["Р°РІРіСѓСЃС‚Рµ", "08"],
-      ["Р°РІРіСѓСЃС‚Р°", "08"],
-      ["СЃРµРЅС‚СЏР±СЂРµ", "09"],
-      ["СЃРµРЅС‚СЏР±СЂСЏ", "09"],
-      ["РѕРєС‚СЏР±СЂРµ", "10"],
-      ["РѕРєС‚СЏР±СЂСЏ", "10"],
-      ["РЅРѕСЏР±СЂРµ", "11"],
-      ["РЅРѕСЏР±СЂСЏ", "11"],
-      ["РґРµРєР°Р±СЂРµ", "12"],
-      ["РґРµРєР°Р±СЂСЏ", "12"],
+      ["январе", "01"],
+      ["января", "01"],
+      ["феврале", "02"],
+      ["февраля", "02"],
+      ["марте", "03"],
+      ["марта", "03"],
+      ["апреле", "04"],
+      ["апреля", "04"],
+      ["мае", "05"],
+      ["мая", "05"],
+      ["июне", "06"],
+      ["июня", "06"],
+      ["июле", "07"],
+      ["июля", "07"],
+      ["августе", "08"],
+      ["августа", "08"],
+      ["сентябре", "09"],
+      ["сентября", "09"],
+      ["октябре", "10"],
+      ["октября", "10"],
+      ["ноябре", "11"],
+      ["ноября", "11"],
+      ["декабре", "12"],
+      ["декабря", "12"],
     ]);
     const month = monthMap.get(monthOnly[1] ?? "") ?? "01";
     let year = Number(today.slice(0, 4));
@@ -397,7 +376,7 @@ const parseTime = (m: string) => {
     const hhmmDotOrSpace = t.match(/\b([01]?\d|2[0-3])[. ]([0-5]\d)\b/);
     if (hhmmDotOrSpace) return `${String(Number(hhmmDotOrSpace[1])).padStart(2, "0")}:${hhmmDotOrSpace[2]}`;
   }
-  const prepHour = t.match(/\b(?:РІ|Рє|at)\s*(\d{1,2})\b/);
+  const prepHour = t.match(/\b(?:в|к|at)\s*(\d{1,2})\b/);
   if (prepHour) {
     const n = Number(prepHour[1]);
     if (n >= 0 && n <= 23) return `${String(n).padStart(2, "0")}:00`;
@@ -416,7 +395,7 @@ const parsePhone = (m: string) => {
   return null;
 };
 const parseName = (m: string) => {
-  const explicit = m.match(/(?:РјРµРЅСЏ Р·РѕРІСѓС‚|РёРјСЏ)\s+([\p{L}-]{2,}(?:\s+[\p{L}-]{2,})?)/iu)?.[1];
+  const explicit = m.match(/(?:меня зовут|имя)\s+([\p{L}-]{2,}(?:\s+[\p{L}-]{2,})?)/iu)?.[1];
   if (explicit) return explicit.trim();
   const inlineWithPhone = m.match(/^\s*([\p{L}-]{2,})(?:\s+([\p{L}-]{2,}))?[\s,;:]+(?:\+7|8|\d{3,})/iu);
   if (inlineWithPhone) return [inlineWithPhone[1], inlineWithPhone[2]].filter(Boolean).join(" ").trim();
@@ -425,8 +404,8 @@ const parseName = (m: string) => {
 
 function hasExplicitConsentGrant(message: string) {
   const t = norm(message);
-  if (/(?:\bРЅРµ\s+СЃРѕРіР»Р°СЃ|Р±РµР·\s+СЃРѕРіР»Р°СЃ|РЅРµ\s+РґР°СЋ\s+СЃРѕРіР»Р°СЃ)/i.test(t)) return false;
-  return /(?:^|\s)(СЃРѕРіР»Р°СЃРµРЅ|СЃРѕРіР»Р°СЃРЅР°|РґР°СЋ\s+СЃРѕРіР»Р°СЃРёРµ|СЃРѕРіР»Р°СЃРёРµ\s+РЅР°\s+РѕР±СЂР°Р±РѕС‚РєСѓ\s+РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹С…\s+РґР°РЅРЅС‹С…)(?:\s|$)/i.test(t);
+  if (/(?:\bне\s+соглас|без\s+соглас|не\s+даю\s+соглас)/i.test(t)) return false;
+  return /(?:^|\s)(согласен|согласна|даю\s+согласие|согласие\s+на\s+обработку\s+персональных\s+данных)(?:\s|$)/i.test(t);
 }
 
 function locationByText(messageNorm: string, locations: LocationLite[]) {
@@ -439,8 +418,8 @@ function locationByText(messageNorm: string, locations: LocationLite[]) {
 }
 
 function serviceByText(messageNorm: string, services: ServiceLite[]) {
-  const hasMale = /(РјСѓР¶|male|men)/i.test(messageNorm);
-  const hasFemale = /(Р¶РµРЅ|female|women)/i.test(messageNorm);
+  const hasMale = /(муж|male|men)/i.test(messageNorm);
+  const hasFemale = /(жен|female|women)/i.test(messageNorm);
   const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const directExact = services.find((x) => {
     const serviceName = norm(x.name);
@@ -460,43 +439,43 @@ function serviceByText(messageNorm: string, services: ServiceLite[]) {
   if (hasMale || hasFemale) {
     const gendered = services.find((x) => {
       const n = norm(x.name);
-      if (hasMale && /(РјСѓР¶|men|male)/i.test(n)) return true;
-      if (hasFemale && /(Р¶РµРЅ|women|female)/i.test(n)) return true;
+      if (hasMale && /(муж|men|male)/i.test(n)) return true;
+      if (hasFemale && /(жен|women|female)/i.test(n)) return true;
       return false;
     });
     if (gendered) return gendered;
     return null;
   }
-  if (/РіРµР»СЊ/.test(messageNorm)) return services.find((x) => /gel polish|РіРµР»СЊ/.test(norm(x.name))) ?? null;
-  if (/РїРµРґРёРє/.test(messageNorm)) return services.find((x) => /pedicure|РїРµРґРёРє/.test(norm(x.name))) ?? null;
-  if (/РјР°РЅРёРє/.test(messageNorm)) return services.find((x) => /manicure|РјР°РЅРёРє/.test(norm(x.name))) ?? null;
+  if (/гель/.test(messageNorm)) return services.find((x) => /gel polish|гель/.test(norm(x.name))) ?? null;
+  if (/педик/.test(messageNorm)) return services.find((x) => /pedicure|педик/.test(norm(x.name))) ?? null;
+  if (/маник/.test(messageNorm)) return services.find((x) => /manicure|маник/.test(norm(x.name))) ?? null;
   return null;
 }
 
 function asksCurrentDate(text: string) {
-  return has(text, /(РєР°РєРѕРµ С‡РёСЃР»Рѕ|РєР°РєР°СЏ СЃРµРіРѕРґРЅСЏ РґР°С‚Р°|РєР°РєРѕР№ СЃРµРіРѕРґРЅСЏ РґРµРЅСЊ|what date is it|today date)/i);
+  return has(text, /(какое число|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
 }
 
 function asksCurrentTime(text: string) {
-  return has(text, /(РєРѕС‚РѕСЂС‹Р№ С‡Р°СЃ|СЃРєРѕР»СЊРєРѕ РІСЂРµРјРµРЅРё|РєР°РєРѕРµ СЃРµР№С‡Р°СЃ РІСЂРµРјСЏ|current time|what time is it)/i);
+  return has(text, /(который час|сколько времени|какое сейчас время|current time|what time is it)/i);
 }
 
 function asksCurrentDateTime(text: string) {
-  return asksCurrentDate(text) || asksCurrentTime(text) || has(text, /(РєР°РєРѕРµ СЃРµР№С‡Р°СЃ С‡РёСЃР»Рѕ Рё РІСЂРµРјСЏ|date and time)/i);
+  return asksCurrentDate(text) || asksCurrentTime(text) || has(text, /(какое сейчас число и время|date and time)/i);
 }
 
 function asksClientOwnName(text: string) {
-  return has(text, /(РєР°Рє РјРµРЅСЏ Р·РѕРІСѓС‚|РјРµРЅСЏ РєР°Рє Р·РѕРІСѓС‚|Р·РЅР°РµС€СЊ РєР°Рє РјРµРЅСЏ Р·РѕРІСѓС‚|РјРѕРµ РёРјСЏ|РјРѕС‘ РёРјСЏ|РєС‚Рѕ СЏ)/i);
+  return has(text, /(как меня зовут|меня как зовут|знаешь как меня зовут|мое имя|моё имя|кто я)/i);
 }
 
 function asksClientRecognition(text: string) {
-  return has(text, /(РјРµРЅСЏ Р·РЅР°РµС€СЊ|Р·РЅР°РµС€СЊ РјРµРЅСЏ|РїРѕРјРЅРёС€СЊ РјРµРЅСЏ|СѓР·РЅР°РµС€СЊ РјРµРЅСЏ|СѓР·РЅР°С‘С€СЊ РјРµРЅСЏ|СЏ Сѓ С‚РµР±СЏ РµСЃС‚СЊ|РµСЃС‚СЊ Р»Рё СЏ РІ Р±Р°Р·Рµ)/i);
+  return has(text, /(меня знаешь|знаешь меня|помнишь меня|узнаешь меня|узнаёшь меня|я у тебя есть|есть ли я в базе)/i);
 }
 
 function isGreetingText(text: string) {
   return has(
     text,
-    /^(РїСЂРёРІРµС‚|РїСЂРёРІРµС‚РёРє|РїСЂРёРІРµС‚СѓР»Рё|РїСЂРёРІРµС‚-РїСЂРёРІРµС‚|Р·РґСЂР°РІСЃС‚РІСѓР№|Р·РґСЂР°СЃС‚РІСѓР№|Р·РґСЂР°РІСЃС‚РІСѓР№С‚Рµ|Р·РґРѕСЂРѕРІРѕ|Р·РґР°СЂРѕРІР°|РґРѕР±СЂС‹Р№ РґРµРЅСЊ|РґРѕР±СЂС‹Р№ РІРµС‡РµСЂ|hello|hi|hey|С…Р°Р№)\b/i,
+    /^(привет|приветик|приветули|привет-привет|здравствуй|здраствуй|здравствуйте|здорово|здарова|добрый день|добрый вечер|hello|hi|hey|хай)\b/i,
   );
 }
 
@@ -516,56 +495,56 @@ function hasAnyPhrase(messageNorm: string, phrases: string[]) {
 function buildSmalltalkReply(messageNorm: string) {
   if (
     hasAnyPhrase(messageNorm, [
-      "РєР°Рє Сѓ С‚РµР±СЏ РґРµР»Р°",
-      "РєР°Рє Сѓ РІР°СЃ РґРµР»Р°",
-      "РєР°Рє РґРµР»Р°",
-      "РєР°Рє Р¶РёР·РЅСЊ",
-      "РєР°Рє РїРѕР¶РёРІР°РµС€СЊ",
-      "РєР°Рє С‚С‹",
+      "как у тебя дела",
+      "как у вас дела",
+      "как дела",
+      "как жизнь",
+      "как поживаешь",
+      "как ты",
     ])
   ) {
     return smalltalkVariant(messageNorm, [
-      "РЎРїР°СЃРёР±Рѕ, РІСЃС‘ С…РѕСЂРѕС€Рѕ. РЇ РЅР° СЃРІСЏР·Рё Рё РіРѕС‚РѕРІР° РїРѕРјРѕС‡СЊ СЃ Р·Р°РїРёСЃСЊСЋ.",
-      "РЎРїР°СЃРёР±Рѕ, РѕС‚Р»РёС‡РЅРѕ. Р•СЃР»Рё С…РѕС‚РёС‚Рµ, РјРѕРіСѓ СЃСЂР°Р·Сѓ РїРѕРґРѕР±СЂР°С‚СЊ СѓРґРѕР±РЅРѕРµ РІСЂРµРјСЏ.",
-      "Р’СЃС‘ С…РѕСЂРѕС€Рѕ, СЃРїР°СЃРёР±Рѕ. РџРѕРјРѕРіСѓ СЃ СѓСЃР»СѓРіР°РјРё Рё Р·Р°РїРёСЃСЊСЋ, РєРѕРіРґР° РІР°Рј СѓРґРѕР±РЅРѕ.",
+      "Спасибо, всё хорошо. Я на связи и готова помочь с записью.",
+      "Спасибо, отлично. Если хотите, могу сразу подобрать удобное время.",
+      "Всё хорошо, спасибо. Помогу с услугами и записью, когда вам удобно.",
     ]);
   }
 
   if (
     hasAnyPhrase(messageNorm, [
-      "С‡РµРј Р·Р°РЅРёРјР°РµС€СЊСЃСЏ",
-      "С‡С‚Рѕ РґРµР»Р°РµС€СЊ",
-      "С‡РµРј Р·Р°РЅСЏС‚Р°",
-      "С‡РµРј С‚С‹ Р·Р°РЅРёРјР°РµС€СЊСЃСЏ",
+      "чем занимаешься",
+      "что делаешь",
+      "чем занята",
+      "чем ты занимаешься",
     ])
   ) {
     return smalltalkVariant(messageNorm, [
-      "РџРѕРјРѕРіР°СЋ СЃ Р·Р°РїРёСЃСЊСЋ: РїРѕРґР±РёСЂР°СЋ СѓСЃР»СѓРіРё, РІСЂРµРјСЏ, СЃРїРµС†РёР°Р»РёСЃС‚Р° Рё РѕС„РѕСЂРјР»СЏСЋ Р·Р°РїРёСЃСЊ.",
-      "РЇ РІРµРґСѓ Р·Р°РїРёСЃСЊ РєР»РёРµРЅС‚РѕРІ: СѓСЃР»СѓРіРё, РґР°С‚С‹, РІСЂРµРјСЏ, СЃРїРµС†РёР°Р»РёСЃС‚С‹ Рё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ Р·Р°РїРёСЃРё.",
-      "РџРѕРјРѕРіР°СЋ РІС‹Р±СЂР°С‚СЊ СѓСЃР»СѓРіСѓ, РЅР°Р№С‚Рё СЃРІРѕР±РѕРґРЅРѕРµ РѕРєРЅРѕ Рё РґРѕРІРµСЃС‚Рё Р·Р°РїРёСЃСЊ РґРѕ РѕС„РѕСЂРјР»РµРЅРёСЏ.",
+      "Помогаю с записью: подбираю услуги, время, специалиста и оформляю запись.",
+      "Я веду запись клиентов: услуги, даты, время, специалисты и подтверждение записи.",
+      "Помогаю выбрать услугу, найти свободное окно и довести запись до оформления.",
     ]);
   }
 
-  if (hasAnyPhrase(messageNorm, ["СЃРїР°СЃРёР±Рѕ", "Р±Р»Р°РіРѕРґР°СЂСЋ", "Р±Р»Р°РіРѕРґР°СЂСЃС‚РІСѓСЋ"])) {
+  if (hasAnyPhrase(messageNorm, ["спасибо", "благодарю", "благодарствую"])) {
     return smalltalkVariant(messageNorm, [
-      "РџРѕР¶Р°Р»СѓР№СЃС‚Р°. Р•СЃР»Рё РЅСѓР¶РЅРѕ, РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ.",
-      "Р Р°РґР° РїРѕРјРѕС‡СЊ. Р•СЃР»Рё С…РѕС‚РёС‚Рµ, РїСЂРѕРґРѕР»Р¶РёРј РїРѕРґР±РѕСЂ РІСЂРµРјРµРЅРё.",
-      "Р’СЃРµРіРґР° РїРѕР¶Р°Р»СѓР№СЃС‚Р°. РњРѕРіСѓ СЃСЂР°Р·Сѓ РїРµСЂРµР№С‚Рё Рє РІС‹Р±РѕСЂСѓ РґР°С‚С‹ Рё РІСЂРµРјРµРЅРё.",
+      "Пожалуйста. Если нужно, помогу с записью.",
+      "Рада помочь. Если хотите, продолжим подбор времени.",
+      "Всегда пожалуйста. Могу сразу перейти к выбору даты и времени.",
     ]);
   }
 
-  if (hasAnyPhrase(messageNorm, ["РєСЂСѓС‚Рѕ", "Р·РґРѕСЂРѕРІРѕ", "СЃСѓРїРµСЂ", "РєР»Р°СЃСЃ", "РѕС‚Р»РёС‡РЅРѕ", "РїСЂРµРєСЂР°СЃРЅРѕ"])) {
+  if (hasAnyPhrase(messageNorm, ["круто", "здорово", "супер", "класс", "отлично", "прекрасно"])) {
     return smalltalkVariant(messageNorm, [
-      "Р—РґРѕСЂРѕРІРѕ. Р•СЃР»Рё С…РѕС‚РёС‚Рµ, РїСЂРѕРґРѕР»Р¶РёРј Рё РїРѕРґР±РµСЂРµРј СѓРґРѕР±РЅРѕРµ РІСЂРµРјСЏ.",
-      "РћС‚Р»РёС‡РЅРѕ. РњРѕРіСѓ РїСЂРµРґР»РѕР¶РёС‚СЊ Р±Р»РёР¶Р°Р№С€РёРµ СЃРІРѕР±РѕРґРЅС‹Рµ СЃР»РѕС‚С‹.",
-      "РЎСѓРїРµСЂ. Р•СЃР»Рё РіРѕС‚РѕРІС‹, РїСЂРѕРґРѕР»Р¶РёРј РѕС„РѕСЂРјР»РµРЅРёРµ Р·Р°РїРёСЃРё.",
+      "Здорово. Если хотите, продолжим и подберем удобное время.",
+      "Отлично. Могу предложить ближайшие свободные слоты.",
+      "Супер. Если готовы, продолжим оформление записи.",
     ]);
   }
 
   return smalltalkVariant(messageNorm, [
-    "РџРѕРЅСЏР»Р° РІР°СЃ. Р•СЃР»Рё С…РѕС‚РёС‚Рµ, РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ: СѓСЃР»СѓРіР°, РґР°С‚Р°, РІСЂРµРјСЏ РёР»Рё СЃРїРµС†РёР°Р»РёСЃС‚.",
-    "РЇ РЅР° СЃРІСЏР·Рё. РњРѕРіСѓ РїРѕРјРѕС‡СЊ СЃ СѓСЃР»СѓРіР°РјРё, РІСЂРµРјРµРЅРµРј Рё РѕС„РѕСЂРјР»РµРЅРёРµРј Р·Р°РїРёСЃРё.",
-    "Р“РѕС‚РѕРІР° РїРѕРјРѕС‡СЊ СЃ Р·Р°РїРёСЃСЊСЋ. РќР°РїРёС€РёС‚Рµ, С‡С‚Рѕ РІР°Рј СѓРґРѕР±РЅРµРµ: СѓСЃР»СѓРіР°, РґР°С‚Р° РёР»Рё РІСЂРµРјСЏ.",
+    "Поняла вас. Если хотите, помогу с записью: услуга, дата, время или специалист.",
+    "Я на связи. Могу помочь с услугами, временем и оформлением записи.",
+    "Готова помочь с записью. Напишите, что вам удобнее: услуга, дата или время.",
   ]);
 }
 
@@ -577,17 +556,17 @@ function formatYmdRu(ymd: string) {
 
 function sanitizeAssistantReplyText(reply: string) {
   return reply
-    .replace(/РїРѕРґСЃРѕР±РёС‚СЊ/gi, "РїРѕРјРѕС‡СЊ")
-    .replace(/РїРѕРґСЃРѕР±Р»СЋ/gi, "РїРѕРјРѕРіСѓ")
-    .replace(/РїРѕРґСЃРѕР±РёС€СЊ/gi, "РїРѕРјРѕР¶РµС€СЊ")
-    .replace(/РїРѕРґСЃРѕР±РёС‚Рµ/gi, "РїРѕРјРѕРіСѓ")
-    .replace(/РєР°РєСѓСЋ РёРјРµРЅРЅРѕ СѓСЃР»СѓРіСѓ РІР°Рј РЅСѓР¶РЅРѕ Р·Р°РїРёСЃР°С‚СЊ/gi, "РЅР° РєР°РєСѓСЋ РёРјРµРЅРЅРѕ СѓСЃР»СѓРіСѓ РІР°СЃ РЅСѓР¶РЅРѕ Р·Р°РїРёСЃР°С‚СЊ")
-    .replace(/РєР°РєСѓСЋ СѓСЃР»СѓРіСѓ РІР°Рј РЅСѓР¶РЅРѕ Р·Р°РїРёСЃР°С‚СЊ/gi, "РЅР° РєР°РєСѓСЋ СѓСЃР»СѓРіСѓ РІР°СЃ РЅСѓР¶РЅРѕ Р·Р°РїРёСЃР°С‚СЊ");
+    .replace(/подсобить/gi, "помочь")
+    .replace(/подсоблю/gi, "помогу")
+    .replace(/подсобишь/gi, "поможешь")
+    .replace(/подсобите/gi, "помогу")
+    .replace(/какую именно услугу вам нужно записать/gi, "на какую именно услугу вас нужно записать")
+    .replace(/какую услугу вам нужно записать/gi, "на какую услугу вас нужно записать");
 }
 
 function serviceQuickOption(service: ServiceLite) {
   return {
-    label: `${service.name} вЂ” ${Math.round(service.basePrice)} в‚Ѕ, ${service.baseDurationMin} РјРёРЅ`,
+    label: `${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`,
     value: service.name,
   };
 }
@@ -606,8 +585,8 @@ function hasKnownServiceNameInText(text: string, services: ServiceLite[]) {
 function looksLikeServiceClaimInReply(text: string) {
   const replyNorm = norm(text);
   return (
-    /(Сѓ РЅР°СЃ (РµСЃС‚СЊ|РґРѕСЃС‚СѓРїРЅ)|РјРѕР¶РµРј Р·Р°РїРёСЃР°С‚СЊ|РґРѕСЃС‚СѓРїРЅС‹Рµ СѓСЃР»СѓРіРё|РІРѕС‚ РЅР°С€Рё СѓСЃР»СѓРіРё|РїСЂРµРґР»Р°РіР°РµРј СѓСЃР»СѓРіРё|СѓСЃР»СѓРіРё:)/i.test(replyNorm) &&
-    /(РјР°РЅРёРє|РїРµРґРёРє|СЃС‚СЂРёР¶|РіРµР»СЊ|РѕРєСЂР°С€|facial|peeling|haircut|coloring|РјР°СЃСЃР°Р¶|РјР°РєРёСЏР¶|СѓРєР»Р°РґРє|С‡РёСЃС‚Рє|РґРµРїРёР»СЏ|СЌРїРёР»СЏ)/i.test(replyNorm)
+    /(у нас (есть|доступн)|можем записать|доступные услуги|вот наши услуги|предлагаем услуги|услуги:)/i.test(replyNorm) &&
+    /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring|массаж|макияж|укладк|чистк|депиля|эпиля)/i.test(replyNorm)
   );
 }
 
@@ -648,20 +627,20 @@ function looksLikeSensitiveLeakReply(text: string) {
 }
 
 function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
-  const hasServiceWord = /(РјР°РЅРёРє|РїРµРґРёРє|СЃС‚СЂРёР¶|РіРµР»СЊ|РѕРєСЂР°С€|facial|peeling|haircut)/i.test(messageNorm);
+  const hasServiceWord = /(маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i.test(messageNorm);
   if (!hasServiceWord) return false;
-  const asks = /(РµСЃС‚СЊ|РЅРµС‚|РёРјРµРµС‚СЃСЏ|РґРѕСЃС‚СѓРїРЅ|Р° .* РЅРµС‚)/i.test(messageNorm);
+  const asks = /(есть|нет|имеется|доступн|а .* нет)/i.test(messageNorm);
   const questionMark = rawMessage.includes("?");
   return asks || questionMark;
 }
 
 function looksLikeUnknownServiceRequest(messageNorm: string) {
-  if (/(С„РёР»РёР°Р»|Р»РѕРєР°С†|С†РµРЅС‚СЂ|riverside|beauty salon|\d{1,2}[:.]\d{2})/i.test(messageNorm)) return false;
-  if (/(РєР°РєРёРµ СѓСЃР»СѓРіРё|С‡С‚Рѕ РїРѕ СѓСЃР»СѓРіР°Рј|РїСЂР°Р№СЃ|РєР°С‚Р°Р»РѕРі|СЃРїРёСЃРѕРє СѓСЃР»СѓРі)/i.test(messageNorm)) return false;
-  if (/(С…РѕС‡Сѓ|РЅСѓР¶РЅ[Р°Рѕ]?|Р·Р°РїРёС€Рё|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|РЅР°)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) return true;
-  // Plain phrase like "СѓРґР°Р»РµРЅРёРµ Р·СѓР±Р°" during booking step should still be treated as a service request.
+  if (/(филиал|локац|центр|riverside|beauty salon|\d{1,2}[:.]\d{2})/i.test(messageNorm)) return false;
+  if (/(какие услуги|что по услугам|прайс|каталог|список услуг)/i.test(messageNorm)) return false;
+  if (/(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) return true;
+  // Plain phrase like "удаление зуба" during booking step should still be treated as a service request.
   if (/^[\p{L}\s\-]{4,}$/iu.test(messageNorm) && messageNorm.split(/\s+/).length <= 4) {
-    if (/(РїСЂРёРІРµС‚|Р·РґСЂР°РІСЃС‚РІ|СЃРїР°СЃРёР±Рѕ|РїРѕРєР°|РґР°|РЅРµС‚|РѕРє|РѕРєРµ|РѕРєРµР№|РґР°Р»СЊС€Рµ|РїСЂРѕРІРµСЂСЊ|РїРѕС‡РµРјСѓ)/i.test(messageNorm)) return false;
+    if (/(привет|здравств|спасибо|пока|да|нет|ок|оке|окей|дальше|проверь|почему)/i.test(messageNorm)) return false;
     return true;
   }
   return false;
@@ -669,78 +648,78 @@ function looksLikeUnknownServiceRequest(messageNorm: string) {
 
 function asksServiceExistence(messageNorm: string) {
   const hasBeautyToken =
-    /(РјР°РЅРёРє|РїРµРґРёРє|РіРµР»СЊ|СЃС‚СЂРёР¶|РѕРєСЂР°С€|СЂРµСЃРЅРёС†|Р±СЂРѕРІ|СЌРїРёР»|РґРµРїРёР»|РґРµРїРµР»|Р»Р°Р·РµСЂ|РјР°СЃСЃР°Р¶|С‡РёСЃС‚Рє|РїРёР»РёРЅРі|peeling|facial|haircut|coloring|bikini|Р±РёРєРёРЅ|РєРѕРЅСЃСѓР»СЊС‚Р°С†|РјСѓР¶СЃРє|Р¶РµРЅСЃРє|РјСѓР¶С‡РёРЅ|Р¶РµРЅС‰РёРЅ|Р±РѕСЂРѕРґ|СѓСЃ[Р°Рѕ]Рј)/i.test(
+    /(маник|педик|гель|стриж|окраш|ресниц|бров|эпил|депил|депел|лазер|массаж|чистк|пилинг|peeling|facial|haircut|coloring|bikini|бикин|консультац|мужск|женск|мужчин|женщин|бород|ус[ао]м)/i.test(
       messageNorm,
     );
-  const asks = /(РµСЃС‚СЊ|РёРјРµРµС‚СЃСЏ|РґРµР»Р°РµС‚Рµ|РґРµР»Р°РµС€СЊ|РјРѕР¶РЅРѕ|РґРѕСЃС‚СѓРїРЅ)/i.test(messageNorm);
+  const asks = /(есть|имеется|делаете|делаешь|можно|доступн)/i.test(messageNorm);
   return hasBeautyToken && asks;
 }
 
 function asksNearestAvailability(messageNorm: string) {
-  return /((Р±Р»РёР¶Р°Р№С€|СЃРІРѕР±РѕРґ).*(РѕРєРѕС€Рє|РѕРєРЅРѕ|СЃР»РѕС‚|РІСЂРµРјСЏ)|(РѕРєРѕС€Рє|РѕРєРЅРѕ|СЃР»РѕС‚|РІСЂРµРјСЏ).*(Р±Р»РёР¶Р°Р№С€|СЃРІРѕР±РѕРґ)|РєРѕРіРґР°.*(Р±Р»РёР¶Р°Р№С€|СЃРІРѕР±РѕРґ))/i.test(
+  return /((ближайш|свобод).*(окошк|окно|слот|время)|(окошк|окно|слот|время).*(ближайш|свобод)|когда.*(ближайш|свобод))/i.test(
     messageNorm,
   );
 }
 
 function asksAvailabilityPeriod(messageNorm: string) {
-  return /(?:РїРѕСЃР»Рµ\s+\d{1,2}\s+(?:СЏРЅРІР°СЂСЏ|С„РµРІСЂР°Р»СЏ|РјР°СЂС‚Р°|Р°РїСЂРµР»СЏ|РјР°СЏ|РёСЋРЅСЏ|РёСЋР»СЏ|Р°РІРіСѓСЃС‚Р°|СЃРµРЅС‚СЏР±СЂСЏ|РѕРєС‚СЏР±СЂСЏ|РЅРѕСЏР±СЂСЏ|РґРµРєР°Р±СЂСЏ)|РІРµСЃСЊ\s+РјРµСЃСЏС†|РґРѕ\s+РєРѕРЅС†Р°\s+РјРµСЃСЏС†Р°|РІ\s+СЌС‚РѕРј\s+РјРµСЃСЏС†Рµ|РІ\s+С‚РµС‡РµРЅРёРµ\s+РјРµСЃСЏС†Р°|РїРѕ\s+РјРµСЃСЏС†Сѓ)/i.test(
+  return /(?:после\s+\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)|весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца|по\s+месяцу)/i.test(
     messageNorm,
   );
 }
 
 function asksGenderSuitability(messageNorm: string) {
-  const asks = /(РїРѕРґС…РѕРґ|РґР»СЏ РїР°СЂРЅ|РґР»СЏ РјСѓР¶С‡РёРЅ|РґР»СЏ РјСѓР¶РёРє|РґР»СЏ РґРµРІСѓС€|РґР»СЏ Р¶РµРЅС‰РёРЅ|Рё Р¶РµРЅСЃРє|Рё РјСѓР¶СЃРє|С‚РѕР¶Рµ РїРѕРґС…РѕРґ)/i.test(messageNorm);
+  const asks = /(подход|для парн|для мужчин|для мужик|для девуш|для женщин|и женск|и мужск|тоже подход)/i.test(messageNorm);
   return asks;
 }
 
 function asksGenderedServices(messageNorm: string) {
-  return /(РјСѓР¶СЃРєРёРµ СѓСЃР»СѓРіРё|Р¶РµРЅСЃРєРёРµ СѓСЃР»СѓРіРё|СѓСЃР»СѓРіРё РґР»СЏ РјСѓР¶С‡РёРЅ|СѓСЃР»СѓРіРё РґР»СЏ Р¶РµРЅС‰РёРЅ|РґР»СЏ РјСѓР¶С‡РёРЅ С‡С‚Рѕ РµСЃС‚СЊ|РґР»СЏ РїР°СЂРЅСЏ С‡С‚Рѕ РµСЃС‚СЊ|РґР»СЏ РґРµРІСѓС€РєРё С‡С‚Рѕ РµСЃС‚СЊ)/i.test(
+  return /(мужские услуги|женские услуги|услуги для мужчин|услуги для женщин|для мужчин что есть|для парня что есть|для девушки что есть)/i.test(
     messageNorm,
   );
 }
 
 function asksServicesFollowUp(messageNorm: string, lastAssistantText: string, previousUserText: string) {
-  const asks = /(РєР°РєРёРµ РёРјРµРЅРЅРѕ РµСЃС‚СЊ|РєР°РєРёРµ РёРјРµРЅРЅРѕ|С‡С‚Рѕ РёРјРµРЅРЅРѕ РµСЃС‚СЊ|Р° РєР°РєРёРµ РµСЃС‚СЊ|Рё РєР°РєРёРµ РµСЃС‚СЊ|С‡С‚Рѕ РµСЃС‚СЊ|РїСЂРёС€Р»Рё СЃРїРёСЃРѕРє|РїРѕРєР°Р¶Рё СЃРїРёСЃРѕРє|СЃРєРёРЅСЊ СЃРїРёСЃРѕРє|СЃРїРёСЃРѕРє СѓСЃР»СѓРі)/i.test(
+  const asks = /(какие именно есть|какие именно|что именно есть|а какие есть|и какие есть|что есть|пришли список|покажи список|скинь список|список услуг)/i.test(
     messageNorm,
   );
   if (!asks) return false;
   const context = `${lastAssistantText} ${previousUserText}`.toLowerCase();
-  const serviceContext = /(СѓСЃР»СѓРі|СѓСЃР»СѓРіР°|РєР°С‚Р°Р»РѕРі|РїСЂР°Р№СЃ|РјР°РЅРёРє|РїРµРґРёРє|СЃС‚СЂРёР¶|РіРµР»СЊ|peeling|facial|haircut|coloring)/i.test(context);
-  const capabilitiesContext = /(С‡С‚Рѕ СѓРјРµРµС€СЊ|С‡РµРј Р·Р°РЅРёРјР°РµС€СЊСЃСЏ|С‡С‚Рѕ С‚С‹ РјРѕР¶РµС€СЊ|Р° С‡С‚Рѕ С‚С‹ РјРѕР¶РµС€СЊ)/i.test(previousUserText);
+  const serviceContext = /(услуг|услуга|каталог|прайс|маник|педик|стриж|гель|peeling|facial|haircut|coloring)/i.test(context);
+  const capabilitiesContext = /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i.test(previousUserText);
   return serviceContext || capabilitiesContext;
 }
 
 function mentionsServiceTopic(messageNorm: string) {
-  return /(СѓСЃР»СѓРі|СѓСЃР»СѓРіР°|РјР°РЅРёРє|РїРµРґРёРє|РіРµР»СЊ|СЃС‚СЂРёР¶|РѕРєСЂР°С€|facial|peeling|haircut|coloring|СЂРµСЃРЅРёС†|Р±СЂРѕРІ|СЌРїРёР»|РґРµРїРёР»|РґРµРїРµР»|Р»Р°Р·РµСЂ|РјР°СЃСЃР°Р¶|РїРёР»РёРЅРі|РєРѕРЅСЃСѓР»СЊС‚Р°С†|Р±РѕСЂРѕРґ|СѓСЃ[Р°Рѕ]Рј)/i.test(
+  return /(услуг|услуга|маник|педик|гель|стриж|окраш|facial|peeling|haircut|coloring|ресниц|бров|эпил|депил|депел|лазер|массаж|пилинг|консультац|бород|ус[ао]м)/i.test(
     messageNorm,
   );
 }
 
 function isServiceComplaintMessage(messageNorm: string) {
   const hasComplaint =
-    /(РЅРµ РїРѕРЅСЂР°РІ|РЅРµ СѓСЃС‚СЂРѕ|РїР»РѕС…|РїР»Р°С…|СѓР¶Р°СЃ|РЅРµРґРѕРІРѕР»|РёСЃРїРѕСЂС‚Рё|СЃРґРµР»Р°Р»[Р°Рё]?\s+РїР»РѕС…|СЃРґРµР»Р°Р»[Р°Рё]?\s+РїР»Р°С…|Р¶Р°Р»РѕР±|РїСЂРµС‚РµРЅР·Рё|РѕР±СЃР»СѓР¶РёРІР°РЅРёРµ.*РЅРµ РїРѕРЅСЂР°РІ|РєСЂРёРІРѕ|Р±РѕР»СЊРЅРѕ)/i.test(
+    /(не понрав|не устро|плох|плах|ужас|недовол|испорти|сделал[аи]?\s+плох|сделал[аи]?\s+плах|жалоб|претензи|обслуживание.*не понрав|криво|больно)/i.test(
       messageNorm,
     );
   const hasServiceOrSpecialist =
     mentionsServiceTopic(messageNorm) ||
-    /(РјР°СЃС‚РµСЂ|СЃРїРµС†РёР°Р»РёСЃС‚|СЃРѕС‚СЂСѓРґРЅРёРє|РѕР»СЊРі|РёСЂРёРЅ|Р°РЅРЅ|РјР°СЂРёСЏ|РїР°РІРµР»|РґРјРёС‚СЂРёР№|СЃРµСЂРіРµР№|РµР»РµРЅР°)/i.test(messageNorm);
+    /(мастер|специалист|сотрудник|ольг|ирин|анн|мария|павел|дмитрий|сергей|елена)/i.test(messageNorm);
   return hasComplaint && hasServiceOrSpecialist;
 }
 
 function asksAssistantQualification(messageNorm: string) {
-  return /(С‚С‹\s+РєРІР°Р»РёС„РёС†РёСЂРѕРІР°РЅРЅС‹Р№\s+СЃРѕС‚СЂСѓРґРЅРёРє|С‚С‹\s+СЃРѕС‚СЂСѓРґРЅРёРє|С‚С‹\s+С‡РµР»РѕРІРµРє|СЂРµР°Р»СЊРЅС‹Р№\s+С‡РµР»РѕРІРµРє|Р¶РёРІРѕР№\s+С‡РµР»РѕРІРµРє)/i.test(
+  return /(ты\s+квалифицированный\s+сотрудник|ты\s+сотрудник|ты\s+человек|реальный\s+человек|живой\s+человек)/i.test(
     messageNorm,
   );
 }
 
 function isOutOfDomainPrompt(messageNorm: string) {
-  return /(Р°РЅРµРєРґРѕС‚|С€СѓС‚Рє|СЃС‚РёС…|РїРµСЃРЅ|РєРѕСЃРјРѕСЃ|РїРѕР»РёС‚РёРє|С„СѓС‚Р±РѕР»|Р±Р°СЃРєРµС‚Р±РѕР»|РєСѓСЂСЃ РІР°Р»СЋС‚|Р±РёС‚РєРѕРёРЅ|РїРѕРіРѕРґР° РІ|РЅРѕРІРѕСЃС‚Рё РјРёСЂР°)/i.test(
+  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира)/i.test(
     messageNorm,
   );
 }
 
 function asksWhoPerformsServices(messageNorm: string) {
-  return /(?:РєС‚Рѕ\s+РґРµР»Р°РµС‚|РєС‚Рѕ\s+РІС‹РїРѕР»РЅСЏРµС‚|РєС‚Рѕ\s+РѕРєР°Р·С‹РІР°РµС‚|РєР°РєРёРµ\s+РјР°СЃС‚РµСЂР°|РєР°РєРѕР№\s+РјР°СЃС‚РµСЂ|РєР°РєРёРµ\s+СЃРїРµС†РёР°Р»РёСЃС‚С‹|Сѓ\s+РєР°РєРёС…\s+РјР°СЃС‚РµСЂРѕРІ|РєС‚Рѕ\s+РёР·\s+РјР°СЃС‚РµСЂРѕРІ|РєС‚Рѕ\s+СЂР°Р±РѕС‚Р°РµС‚|РєС‚Рѕ\s+Р·Р°РІС‚СЂР°\s+СЂР°Р±РѕС‚Р°РµС‚|РєР°РєРёРµ\s+РјР°СЃС‚РµСЂР°\s+Сѓ\s+РІР°СЃ\s+РµСЃС‚СЊ|РєР°РєРёРµ\s+СЃРїРµС†РёР°Р»РёСЃС‚С‹\s+Сѓ\s+РІР°СЃ\s+РµСЃС‚СЊ|РєР°РєРёРµ\s+РјР°СЃС‚РµСЂР°\s+РµСЃС‚СЊ)/iu.test(messageNorm);
+  return /(?:кто\s+делает|кто\s+выполняет|кто\s+оказывает|какие\s+мастера|какой\s+мастер|какие\s+специалисты|у\s+каких\s+мастеров|кто\s+из\s+мастеров|кто\s+работает|кто\s+завтра\s+работает|какие\s+мастера\s+у\s+вас\s+есть|какие\s+специалисты\s+у\s+вас\s+есть|какие\s+мастера\s+есть)/iu.test(messageNorm);
 }
 
 function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {
@@ -756,7 +735,7 @@ function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {
 }
 
 function isAnySpecialistChoiceText(messageNorm: string) {
-  return /\b(Р»СЋР±РѕР№|РєС‚Рѕ СѓРіРѕРґРЅРѕ|РЅРµ РІР°Р¶РЅРѕ|РЅРµРІР°Р¶РЅРѕ)\b/i.test(messageNorm);
+  return /\b(любой|кто угодно|не важно|неважно)\b/i.test(messageNorm);
 }
 
 function specialistSupportsSelection(args: {
@@ -775,34 +754,34 @@ function specialistSupportsSelection(args: {
 }
 
 function isServiceFollowUpText(messageNorm: string) {
-  return /^(Рё РІСЃРµ|Рё РІСЃС‘|Р° РµС‰Рµ|Р° РµС‰С‘|С‡С‚Рѕ РµС‰Рµ|С‡С‚Рѕ РµС‰С‘|РµС‰Рµ РµСЃС‚СЊ|РµС‰С‘ РµСЃС‚СЊ)$/i.test(messageNorm);
+  return /^(и все|и всё|а еще|а ещё|что еще|что ещё|еще есть|ещё есть)$/i.test(messageNorm);
 }
 
 function extractRequestedServicePhrase(messageNorm: string) {
   const stop = new Set([
-    "СЃРµРіРѕРґРЅСЏ",
-    "Р·Р°РІС‚СЂР°",
-    "РїРѕСЃР»РµР·Р°РІС‚СЂР°",
-    "СѓС‚СЂРѕ",
-    "РґРµРЅСЊ",
-    "РІРµС‡РµСЂ",
-    "С‡Р°СЃ",
-    "РІСЂРµРјСЏ",
-    "РґР°С‚Р°",
-    "С„РёР»РёР°Р»",
-    "Р»РѕРєР°С†РёСЏ",
-    "С†РµРЅС‚СЂ",
-    "СЂРёРІРµСЂСЃР°Р№Рґ",
+    "сегодня",
+    "завтра",
+    "послезавтра",
+    "утро",
+    "день",
+    "вечер",
+    "час",
+    "время",
+    "дата",
+    "филиал",
+    "локация",
+    "центр",
+    "риверсайд",
     "riverside",
   ]);
   const matches = Array.from(
-    messageNorm.matchAll(/(?:РЅР°|С…РѕС‡Сѓ|РЅСѓР¶РЅ[Р°Рѕ]?|Р·Р°РїРёС€Рё(?: РјРµРЅСЏ)?(?: РЅР°)?|Р·Р°РїРёСЃР°С‚СЊСЃСЏ РЅР°)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),
+    messageNorm.matchAll(/(?:на|хочу|нужн[ао]?|запиши(?: меня)?(?: на)?|записаться на)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),
   );
   for (let i = matches.length - 1; i >= 0; i -= 1) {
     let candidate = (matches[i]?.[1] ?? "").trim();
     if (!candidate) continue;
     candidate = candidate
-      .replace(/\b(С…РѕС‡Сѓ|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|Р·Р°РїРёСЃР°С‚СЊ|Р·Р°РїРёС€Рё|РїРѕР¶Р°Р»СѓР№СЃС‚Р°|РїР»РёР·|please)\b$/iu, "")
+      .replace(/\b(хочу|записаться|записать|запиши|пожалуйста|плиз|please)\b$/iu, "")
       .replace(/\s+/g, " ")
       .trim();
     if (!candidate) continue;
@@ -823,33 +802,27 @@ function isNluServiceGroundedByText(messageNorm: string, service: ServiceLite | 
 }
 
 function hasLocationCue(messageNorm: string) {
-  return /(Р»РѕРєР°С†|С„РёР»РёР°Р»|Р°РґСЂРµСЃ|С†РµРЅС‚СЂ|СЂРёРІРµСЂ|riverside|beauty salon|РєСѓС‚СѓР·|С‚РІРµСЂСЃРє|Р»СЋР±РѕР№ С„РёР»РёР°Р»)/i.test(messageNorm);
-}
-
-function asksSalonName(messageNorm: string) {
-  return /(?:РєР°Рє\s+РЅР°Р·С‹РІР°(?:РµС‚|СЋС‚СЃСЏ)|РЅР°Р·РІР°РЅРё[РµСЏ]\s+(?:СЃР°Р»РѕРЅ|СЃС‚СѓРґРё|РєР»РёРЅРёРє)|РєР°Рє\s+РЅР°Р·С‹РІР°РµС‚СЃСЏ\s+РІР°С€\s+СЃР°Р»РѕРЅ|РєР°Рє\s+РЅР°Р·С‹РІР°РµС‚СЃСЏ\s+СЃР°Р»РѕРЅ)/i.test(
-    messageNorm,
-  );
+  return /(локац|филиал|адрес|центр|ривер|riverside|beauty salon|кутуз|тверск|любой филиал)/i.test(messageNorm);
 }
 
 function isBookingCarryMessage(messageNorm: string) {
-  return /^(РїРѕС‡РµРјСѓ|Р° РїРѕС‡РµРјСѓ|РїСЂРѕРІРµСЂСЊ|РїСЂРѕРІРµСЂСЏР№|РґР°Р»СЊС€Рµ|РґР°Р»РµРµ|Р° РґР°Р»СЊС€Рµ|С‡С‚Рѕ РґР°Р»СЊС€Рµ|РґР°РІР°Р№|РґР°|РѕРє|РѕРєРµ|РѕРєРµР№|СѓРіСѓ|Р°РіР°)$/i.test(
+  return /^(почему|а почему|проверь|проверяй|дальше|далее|а дальше|что дальше|давай|да|ок|оке|окей|угу|ага)$/i.test(
     messageNorm,
   );
 }
 
 function isSoftBookingMention(messageNorm: string) {
-  return /(РјРѕР¶РµС‚|РµСЃР»Рё|РІРґСЂСѓРі|РїРѕС‚РѕРј).*(Р·Р°РїРёС€СѓСЃСЊ|Р·Р°РїРёСЃР°Р»Р°СЃСЊ|Р·Р°РїРёС€РµРјСЃСЏ|Р·Р°РїРёСЃР°С‚СЊСЃСЏ)/i.test(messageNorm);
+  return /(может|если|вдруг|потом).*(запишусь|записалась|запишемся|записаться)/i.test(messageNorm);
 }
 
 function isBookingDeclineMessage(messageNorm: string) {
-  return /(?:РЅРµ\s+РїСЂРѕСЃРёР»[Р°-СЏ]*.*(?:Р»РѕРєР°С†|С„РёР»РёР°Р»|Р·Р°РїРёСЃ|Р·Р°РїРёСЃСЊ)|РЅРµ\s+РїСЂРµРґР»Р°РіР°Р№.*(?:Р»РѕРєР°С†|С„РёР»РёР°Р»|Р·Р°РїРёСЃ|Р·Р°РїРёСЃСЊ)|РЅРµ\s+С…РѕС‡Сѓ\s+Р·Р°РїРёСЃС‹РІР°С‚СЊСЃСЏ|РЅРµ\s+РЅР°РґРѕ\s+Р·Р°РїРёСЃС‹РІР°С‚СЊ|РЅРµ\s+РїСЂРµРґР»Р°РіР°Р№\s+Р·Р°РїРёСЃСЊ)/i.test(
+  return /(?:не\s+просил[а-я]*.*(?:локац|филиал|запис|запись)|не\s+предлагай.*(?:локац|филиал|запис|запись)|не\s+хочу\s+записываться|не\s+надо\s+записывать|не\s+предлагай\s+запись)/i.test(
     messageNorm,
   );
 }
 
 function isBookingChangeMessage(messageNorm: string) {
-  return /(?:РЅРµ С‚Рѕ|РЅРµРІРµСЂРЅРѕ|РёР·РјРµРЅРё|РґСЂСѓРіРѕРµ|РґСЂСѓРіСѓСЋ|РЅРµ РЅР°|РїРµСЂРµРЅРµСЃРё|РґСЂСѓРіРѕР№)/iu.test(messageNorm);
+  return /(?:не то|неверно|измени|другое|другую|не на|перенеси|другой)/iu.test(messageNorm);
 }
 
 function isConversationalHeuristicIntent(intent: AishaIntent) {
@@ -857,13 +830,13 @@ function isConversationalHeuristicIntent(intent: AishaIntent) {
 }
 
 function isLooseConfirmation(text: string) {
-  return has(text, /^(РґР°|РѕРє|РѕРєРµ|РѕРєРµР№|РїРѕРґС‚РІРµСЂР¶РґР°СЋ|РїРѕС‚РІРµСЂР¶РґР°СЋ|РІРµСЂРЅРѕ|СЃРѕРіР»Р°СЃРµРЅ|СЃРѕРіР»Р°СЃРЅР°)(?:\s|$)/i);
+  return has(text, /^(да|ок|оке|окей|подтверждаю|потверждаю|верно|согласен|согласна)(?:\s|$)/i);
 }
 
 function extractPendingClientAction(recentMessages: Array<{ role: string; content: string }>) {
   const assistantLast = [...recentMessages].reverse().find((m) => m.role === "assistant")?.content ?? "";
   const reschedule = assistantLast.match(
-    /РїРѕРґС‚РІРµСЂР¶РґР°[\p{L}]*\s+РїРµСЂРµРЅ[\p{L}]*\s*#?\s*(\d{1,8})\s+РЅР°\s+(\d{4}-\d{2}-\d{2})\s+([01]?\d|2[0-3])[:.]([0-5]\d)/iu,
+    /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*(\d{1,8})\s+на\s+(\d{4}-\d{2}-\d{2})\s+([01]?\d|2[0-3])[:.]([0-5]\d)/iu,
   );
   if (reschedule) {
     return {
@@ -875,12 +848,12 @@ function extractPendingClientAction(recentMessages: Array<{ role: string; conten
     };
   }
   const cancelId =
-    assistantLast.match(/РїРѕРґС‚РІРµСЂР¶РґР°[\p{L}]*\s+РѕС‚РјРµРЅ[\p{L}]*\s*#?\s*(\d{1,8})/iu)?.[1] ??
-    (/(РґР»СЏ\s+РїРѕРґС‚РІРµСЂР¶РґРµРЅРё[\p{L}]*.*РѕС‚РјРµРЅ[\p{L}]*|РїРѕРґС‚РІРµСЂРґ[\p{L}]*\s+РѕС‚РјРµРЅ[\p{L}]*)/iu.test(assistantLast)
+    assistantLast.match(/подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*(\d{1,8})/iu)?.[1] ??
+    (/(для\s+подтверждени[\p{L}]*.*отмен[\p{L}]*|подтверд[\p{L}]*\s+отмен[\p{L}]*)/iu.test(assistantLast)
       ? assistantLast.match(/#\s*(\d{1,8})\b/)?.[1]
       : null);
   if (cancelId) return { type: "cancel" as const, appointmentId: Number(cancelId) };
-  const asksCancelChoice = /РєР°РєСѓСЋ РёРјРµРЅРЅРѕ Р·Р°РїРёСЃСЊ РІС‹ С…РѕС‚РёС‚Рµ РѕС‚РјРµРЅРёС‚СЊ|СѓС‚РѕС‡РЅРёС‚Рµ, РєР°РєСѓСЋ Р·Р°РїРёСЃСЊ РѕС‚РјРµРЅРёС‚СЊ|РєР°РєСѓСЋ Р·Р°РїРёСЃСЊ РѕС‚РјРµРЅРёС‚СЊ/i.test(
+  const asksCancelChoice = /какую именно запись вы хотите отменить|уточните, какую запись отменить|какую запись отменить/i.test(
     assistantLast,
   );
   if (asksCancelChoice) return { type: "cancel_choice" as const };
@@ -963,39 +936,38 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (isOutOfDomainPrompt(norm(message))) return "out_of_scope";
   if (asksWhoPerformsServices(message)) return "ask_specialists";
   if (asksGenderedServices(message)) return "ask_services";
-  const hasServiceMention = has(message, /(РјР°РЅРёРє|РїРµРґРёРє|СЃС‚СЂРёР¶|РіРµР»СЊ|РѕРєСЂР°С€|facial|peeling|haircut|coloring)/i);
-  const hasBookingCue = has(message, /(С…РѕС‡Сѓ|Р·Р°РїРёС€Рё|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|РґР°РІР°Р№|РЅСѓР¶РЅРѕ|РЅСѓР¶РЅР°|РЅСѓР¶РµРЅ|СЃРґРµР»Р°С‚СЊ|С…РѕС‚РµР»Р°|С…РѕС‚РµР»)/i);
+  const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring)/i);
+  const hasBookingCue = has(message, /(хочу|запиши|записаться|давай|нужно|нужна|нужен|сделать|хотела|хотел)/i);
   if (hasServiceMention && hasBookingCue) return "booking_start";
-  if (has(message, /РїРѕРґС‚РІРµСЂР¶РґР°[\p{L}]*\s+РїРµСЂРµРЅ[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
-  if (has(message, /РїРѕРґС‚РІРµСЂР¶РґР°[\p{L}]*\s+РѕС‚РјРµРЅ[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
-  if (has(message, /(РјРѕРё Р·Р°РїРёСЃРё|РјРѕСЏ Р·Р°РїРёСЃСЊ|РїРѕРєР°Р¶Рё РјРѕРё Р·Р°РїРёСЃРё|РїРѕСЃР»РµРґРЅ(СЏСЏ|СЋСЋ)|РїСЂРµРґСЃС‚РѕСЏС‰(Р°СЏ|СѓСЋ)|Р±Р»РёР¶Р°Р№С€(Р°СЏ|СѓСЋ|СѓСЋ)|РєР°РєР°СЏ Сѓ РјРµРЅСЏ.*Р·Р°РїРёСЃСЊ|РїСЂРѕС€РµРґС€(Р°СЏ|СѓСЋ))/i))
+  if (has(message, /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
+  if (has(message, /подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
+  if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю)|предстоящ(ая|ую)|ближайш(ая|ую|ую)|какая у меня.*запись|прошедш(ая|ую))/i))
     return "my_bookings";
-  if (has(message, /(РјРѕСЏ СЃС‚Р°С‚РёСЃС‚РёРєР°|СЃС‚Р°С‚РёСЃС‚РёРєР°|СЃРєРѕР»СЊРєРѕ СЂР°Р·)/i)) return "my_stats";
-  if (has(message, /^(РїРµСЂРµРЅРµСЃРё|РїРµСЂРµР·Р°РїРёС€Рё)\b/i)) return "reschedule_my_booking";
-  if (has(message, /(РїРµСЂРµРЅРµСЃРё Р·Р°РїРёСЃСЊ|РїРµСЂРµР·Р°РїРёС€Рё|РїРµСЂРµРЅРµСЃС‚Рё #|reschedule|РїРµСЂРµРЅРµСЃРё.*Р·Р°РїРёСЃСЊ|РїРµСЂРµРЅРµСЃРё(С‚СЊ)? (РµРµ|РµС‘|СЌС‚Сѓ)|РјРѕР¶РµС€СЊ.*РїРµСЂРµРЅРµСЃС‚Рё)/i))
+  if (has(message, /(моя статистика|статистика|сколько раз)/i)) return "my_stats";
+  if (has(message, /^(перенеси|перезапиши)\b/i)) return "reschedule_my_booking";
+  if (has(message, /(перенеси запись|перезапиши|перенести #|reschedule|перенеси.*запись|перенеси(ть)? (ее|её|эту)|можешь.*перенести)/i))
     return "reschedule_my_booking";
-  if (has(message, /^(РѕС‚РјРµРЅРё|РѕС‚РјРµРЅРёС‚СЊ|РѕС‚РјРµРЅР°)\b/i)) return "cancel_my_booking";
-  if (has(message, /(РѕС‚РјРµРЅРё Р·Р°РїРёСЃСЊ|РѕС‚РјРµРЅРёС‚СЊ #|cancel booking|РѕС‚РјРµРЅРё.*Р·Р°РїРёСЃСЊ|РѕС‚РјРµРЅР°.*Р·Р°РїРёСЃРё|РѕС‚РјРµРЅРё(С‚СЊ)? (РµРµ|РµС‘|СЌС‚Сѓ)|РјРѕР¶РµС€СЊ.*РѕС‚РјРµРЅРёС‚СЊ)/i))
+  if (has(message, /^(отмени|отменить|отмена)\b/i)) return "cancel_my_booking";
+  if (has(message, /(отмени запись|отменить #|cancel booking|отмени.*запись|отмена.*записи|отмени(ть)? (ее|её|эту)|можешь.*отменить)/i))
     return "cancel_my_booking";
-  if (has(message, /(РїРѕРІС‚РѕСЂРё РїСЂРѕС€Р»СѓСЋ Р·Р°РїРёСЃСЊ|РїРѕРІС‚РѕСЂРё Р·Р°РїРёСЃСЊ)/i)) return "repeat_booking";
-  if (has(message, /(РјРѕРё РґР°РЅРЅС‹Рµ|РјРѕР№ РїСЂРѕС„РёР»СЊ|СЃРјРµРЅРё С‚РµР»РµС„РѕРЅ|РѕР±РЅРѕРІРё С‚РµР»РµС„РѕРЅ)/i)) return "client_profile";
-  if (has(message, /(РґР°Р№ РЅРѕРјРµСЂ|РЅРѕРјРµСЂ СЃС‚СѓРґРёРё|РЅРѕРјРµСЂ С„РёР»РёР°Р»Р°|РЅРѕРјРµСЂ Р»РѕРєР°С†РёРё|С‚РµР»РµС„РѕРЅ)/i)) return "contact_phone";
-  if (has(message, /(РіРґРµ РЅР°С…РѕРґРёС‚СЃСЏ|РіРґРµ РЅР°С…РѕРґРёС‚РµСЃСЊ|РіРґРµ РІС‹ СЂР°Р±РѕС‚Р°РµС‚Рµ|РіРґРµ СЂР°Р±РѕС‚Р°РµС‚Рµ|РіРґРµ С‚С‹ СЂР°Р±РѕС‚Р°РµС€СЊ|РіРґРµ РІР°С€ СЃР°Р»РѕРЅ|Р°РґСЂРµСЃ|РєР°Рє РґРѕР±СЂР°С‚СЊСЃСЏ)/i))
-    return "contact_address";
-  if (has(message, /(РґРѕ СЃРєРѕР»СЊРєРё|РіСЂР°С„РёРє|С‡Р°СЃС‹ СЂР°Р±РѕС‚С‹|СЂР°Р±РѕС‚Р°РµС‚)/i)) return "working_hours";
+  if (has(message, /(повтори прошлую запись|повтори запись)/i)) return "repeat_booking";
+  if (has(message, /(мои данные|мой профиль|смени телефон|обнови телефон)/i)) return "client_profile";
+  if (has(message, /(дай номер|номер студии|номер филиала|номер локации|телефон)/i)) return "contact_phone";
+  if (has(message, /(где находится|где находитесь|где вы работаете|где работаете|где ты работаешь|где ваш салон|адрес|как добраться)/i)) return "contact_address";
+  if (has(message, /(до скольки|график|часы работы|работает)/i)) return "working_hours";
   if (asksServiceExistence(message)) return "ask_services";
-  if (has(message, /(РєРѕРЅСЃСѓР»СЊС‚Р°С†)/i)) return "ask_services";
-  if (has(message, /(РєР°РєРёРµ СѓСЃР»СѓРіРё|С‡С‚Рѕ РїРѕ СѓСЃР»СѓРіР°Рј|РїСЂР°Р№СЃ|РєР°С‚Р°Р»РѕРі СѓСЃР»СѓРі|СЃРїРёСЃРѕРє СѓСЃР»СѓРі|РїСЂРёС€Р»Рё СЃРїРёСЃРѕРє|РїРѕРєР°Р¶Рё СЃРїРёСЃРѕРє|СЃРєРёРЅСЊ СЃРїРёСЃРѕРє)/i))
+  if (has(message, /(консультац)/i)) return "ask_services";
+  if (has(message, /(какие услуги|что по услугам|прайс|каталог услуг|список услуг|пришли список|покажи список|скинь список)/i))
     return "ask_services";
-  if (has(message, /(РєР°РєР°СЏ С†РµРЅР°|СЃРєРѕР»СЊРєРѕ СЃС‚РѕРёС‚|С†РµРЅР°|СЃС‚РѕРёРј|СЃС‚РѕРёРјРѕСЃС‚СЊ|РїРѕ СЃС‚РѕРёРјРѕСЃС‚Рё|РїРѕ РїСЂР°Р№СЃСѓ|С†РµРЅРЅРёРє|РґРµРЅСЊРіРё)/i)) return "ask_price";
+  if (has(message, /(какая цена|сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник|деньги)/i)) return "ask_price";
   if (mentionsServiceTopic(message)) return "ask_services";
-  if (has(message, /(РѕРєРѕС€Рє|СЃРІРѕР±РѕРґ|СЃР»РѕС‚|РЅР° СЃРµРіРѕРґРЅСЏ|РЅР° Р·Р°РІС‚СЂР°|РЅР° РІРµС‡РµСЂ|СЃРµРіРѕРґРЅСЏ РІРµС‡РµСЂРѕРј|СЃРµРіРѕРґРЅСЏ СѓС‚СЂРѕРј|СЃРµРіРѕРґРЅСЏ РґРЅРµРј|СЃРµРіРѕРґРЅСЏ РґРЅС‘Рј|РІРµС‡РµСЂРѕРј|СѓС‚СЂРѕРј|РґРЅРµРј|РґРЅС‘Рј)/i))
+  if (has(message, /(окошк|свобод|слот|на сегодня|на завтра|на вечер|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём)/i))
     return "ask_availability";
-  if (has(message, /(РєС‚Рѕ С‚С‹|РєР°Рє С‚РµР±СЏ Р·РѕРІСѓС‚|С‚РІРѕРµ РёРјСЏ|С‚РІРѕС‘ РёРјСЏ)/i)) return "identity";
-  if (has(message, /(С‡С‚Рѕ СѓРјРµРµС€СЊ|С‡РµРј Р·Р°РЅРёРјР°РµС€СЊСЃСЏ|С‡С‚Рѕ С‚С‹ РјРѕР¶РµС€СЊ)/i)) return "capabilities";
+  if (has(message, /(кто ты|как тебя зовут|твое имя|твоё имя)/i)) return "identity";
+  if (has(message, /(что умеешь|чем занимаешься|что ты можешь)/i)) return "capabilities";
   if (isGreetingText(message)) return "greeting";
-  if (has(message, /(РєР°Рє РґРµР»Р°|РєР°Рє Р¶РёР·РЅСЊ|С‡С‚Рѕ РЅРѕРІРѕРіРѕ|С‡Рµ РєР°РІРѕ|С‡С‘ РєР°РІРѕ)/i)) return "smalltalk";
-  if (has(message, /(Р·Р°РїРёС€|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|Р·Р°РїРёСЃСЊ|РѕС„РѕСЂРјРё|Р·Р°Р±СЂРѕРЅРёСЂСѓР№)/i)) return "booking_start";
+  if (has(message, /(как дела|как жизнь|что нового|че каво|чё каво)/i)) return "smalltalk";
+  if (has(message, /(запиш|записаться|запись|оформи|забронируй)/i)) return "booking_start";
   return "unknown";
 }
 
@@ -1126,7 +1098,7 @@ export async function POST(request: Request) {
   });
 
   const failSoft = async (errorText?: string) => {
-    const reply = "РЎРµР№С‡Р°СЃ РЅРµ РїРѕР»СѓС‡РёР»РѕСЃСЊ РѕС‚РІРµС‚РёС‚СЊ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РµС‰Рµ СЂР°Р·.";
+    const reply = "Сейчас не получилось ответить. Попробуйте еще раз.";
     await prisma.aiMessage.create({ data: { threadId: thread.id, role: "assistant", content: reply } });
     await prisma.aiAction.update({
       where: { id: turnAction.id },
@@ -1206,7 +1178,7 @@ export async function POST(request: Request) {
       const fullName = [s.user.profile?.firstName, s.user.profile?.lastName].filter(Boolean).join(" ").trim();
       return {
         id: s.id,
-        name: fullName || s.user.email || `РЎРїРµС†РёР°Р»РёСЃС‚ #${s.id}`,
+        name: fullName || s.user.email || `Специалист #${s.id}`,
         levelId: s.levelId ?? null,
         locationIds: s.locations.map((x) => x.locationId),
         serviceIds: s.services.map((x) => x.serviceId),
@@ -1224,7 +1196,7 @@ export async function POST(request: Request) {
     const serverNowYmd = getNowInTimeZone(resolved.account.timeZone).ymd;
     const clientTodayYmd = asYmd(body.clientTodayYmd);
     const clientTimeZone = asTimeZone(body.clientTimeZone);
-    // Prefer client local date for natural phrases like "СЃРµРіРѕРґРЅСЏ/Р·Р°РІС‚СЂР°",
+    // Prefer client local date for natural phrases like "сегодня/завтра",
     // but only when it's close to server/account date (anti-spoof sanity window).
     const nowYmd =
       clientTodayYmd &&
@@ -1254,39 +1226,39 @@ export async function POST(request: Request) {
     const pendingClientAction = extractPendingClientAction([...recentMessages].reverse());
     const confirmPendingClientAction = isLooseConfirmation(message) && pendingClientAction;
     const continuePendingCancelChoice =
-      pendingClientAction?.type === "cancel_choice" && has(message, /^(РїРѕСЃР»РµРґРЅ(СЋСЋ|СЏСЏ|РµРµ|Р°СЏ)|Р±Р»РёР¶Р°Р№С€(СѓСЋ|Р°СЏ|РµРµ)|РµРµ|РµС‘|СЌС‚Сѓ)$/i);
+      pendingClientAction?.type === "cancel_choice" && has(message, /^(последн(юю|яя|ее|ая)|ближайш(ую|ая|ее)|ее|её|эту)$/i);
     const messageForRouting = confirmPendingClientAction
       ? pendingClientAction.type === "cancel"
-        ? `РїРѕРґС‚РІРµСЂР¶РґР°СЋ РѕС‚РјРµРЅСѓ #${pendingClientAction.appointmentId}`
-        : `РїРѕРґС‚РІРµСЂР¶РґР°СЋ РїРµСЂРµРЅРѕСЃ #${pendingClientAction.appointmentId} РЅР° ${pendingClientAction.date} ${pendingClientAction.hh}:${pendingClientAction.mm}`
+        ? `подтверждаю отмену #${pendingClientAction.appointmentId}`
+        : `подтверждаю перенос #${pendingClientAction.appointmentId} на ${pendingClientAction.date} ${pendingClientAction.hh}:${pendingClientAction.mm}`
       : continuePendingCancelChoice
-      ? has(message, /Р±Р»РёР¶Р°Р№С€/i)
-        ? "РѕС‚РјРµРЅРё Р±Р»РёР¶Р°Р№С€СѓСЋ Р·Р°РїРёСЃСЊ"
-        : "РѕС‚РјРµРЅРё РїРѕСЃР»РµРґРЅСЋСЋ Р·Р°РїРёСЃСЊ"
+      ? has(message, /ближайш/i)
+        ? "отмени ближайшую запись"
+        : "отмени последнюю запись"
       : message;
     const hasDraftContextEarly = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
 
-    const explicitClientCancelConfirm = has(messageForRouting, /РїРѕРґС‚РІРµСЂР¶РґР°[\p{L}]*\s+РѕС‚РјРµРЅ[\p{L}]*/iu);
-    const explicitClientRescheduleConfirm = has(messageForRouting, /РїРѕРґС‚РІРµСЂР¶РґР°[\p{L}]*\s+РїРµСЂРµРЅ[\p{L}]*/iu);
+    const explicitClientCancelConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+отмен[\p{L}]*/iu);
+    const explicitClientRescheduleConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+перен[\p{L}]*/iu);
     const explicitDateTimeQuery = asksCurrentDateTime(messageForRouting);
-    let explicitBookingDecline = isBookingDeclineMessage(norm(messageForRouting)) || has(messageForRouting, /^(РЅРµ РЅР°РґРѕ|РЅРµ С…РѕС‡Сѓ)$/i);
+    let explicitBookingDecline = isBookingDeclineMessage(norm(messageForRouting)) || has(messageForRouting, /^(не надо|не хочу)$/i);
     const lastAssistantText = recentMessages.find((m) => m.role === "assistant")?.content ?? "";
     const previousUserText = recentMessages.filter((m) => m.role === "user")[1]?.content ?? "";
     const specialistFollowUpLocation = locationByText(t, locations);
     const specialistFollowUpByLocation =
       Boolean(specialistFollowUpLocation) &&
-      /(СЃРїРµС†РёР°Р»РёСЃС‚С‹ РїРѕ С„РёР»РёР°Р»Р°Рј|СЂР°Р±РѕС‚Р°СЋС‚ СЃРїРµС†РёР°Р»РёСЃС‚С‹|СЃРїРµС†РёР°Р»РёСЃС‚С‹ РІ СЃС‚СѓРґРёРё)/i.test(lastAssistantText);
+      /(специалисты по филиалам|работают специалисты|специалисты в студии)/i.test(lastAssistantText);
     if (specialistFollowUpByLocation && specialistFollowUpLocation) {
       d.locationId = specialistFollowUpLocation.id;
     }
-    const explicitCapabilitiesPhrase = has(messageForRouting, /(С‡С‚Рѕ СѓРјРµРµС€СЊ|С‡РµРј Р·Р°РЅРёРјР°РµС€СЊСЃСЏ|С‡С‚Рѕ С‚С‹ РјРѕР¶РµС€СЊ|Р° С‡С‚Рѕ С‚С‹ РјРѕР¶РµС€СЊ)/i);
+    const explicitCapabilitiesPhrase = has(messageForRouting, /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i);
     const explicitServicesFollowUp = asksServicesFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
     const explicitServiceFollowUp =
       isServiceFollowUpText(norm(messageForRouting)) &&
-      /(СѓСЃР»СѓРі|СѓСЃР»СѓРіР°|СЃС‚РѕРёРјРѕСЃС‚СЊ|РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ|men haircut|women haircut|РјР°РЅРёРє|РїРµРґРёРє|СЃС‚СЂРёР¶|РіРµР»СЊ|peeling|facial)/i.test(lastAssistantText);
+      /(услуг|услуга|стоимость|длительность|men haircut|women haircut|маник|педик|стриж|гель|peeling|facial)/i.test(lastAssistantText);
     const serviceSelectionFromCatalog =
       Boolean(serviceByText(norm(messageForRouting), services)) &&
-      /(РґРѕСЃС‚СѓРїРЅС‹Рµ СѓСЃР»СѓРіРё РЅРёР¶Рµ|РІС‹Р±РµСЂРёС‚Рµ РЅСѓР¶РЅСѓСЋ РєРЅРѕРїРєРѕР№|РїРѕРєР°Р¶Рё СѓСЃР»СѓРіРё|РІС‹Р±РµСЂРёС‚Рµ СѓСЃР»СѓРіСѓ|РєР°РєСѓСЋ РёРјРµРЅРЅРѕ СѓСЃР»СѓРіСѓ .*Р·Р°РїРёСЃР°С‚СЊ|РЅР° РєР°РєСѓСЋ РёРјРµРЅРЅРѕ СѓСЃР»СѓРіСѓ .*Р·Р°РїРёСЃР°С‚СЊ)/i.test(lastAssistantText);
+      /(доступные услуги ниже|выберите нужную кнопкой|покажи услуги|выберите услугу|какую именно услугу .*записать|на какую именно услугу .*записать)/i.test(lastAssistantText);
     const heuristicIntent = intentFromHeuristics(messageForRouting);
     const mappedNluIntent = mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
     const nluConfidence = typeof nlu?.confidence === "number" ? nlu.confidence : 0;
@@ -1299,22 +1271,22 @@ export async function POST(request: Request) {
     if ((intent as string) === "reschedule") intent = "reschedule_my_booking";
     if ((intent as string) === "cancel") intent = "cancel_my_booking";
     if ((intent as string) === "my_booking") intent = "my_bookings";
-    const explicitClientReschedulePhrase = has(messageForRouting, /^(РїРµСЂРµРЅРµСЃРё|РїРµСЂРµРЅРµСЃС‚Рё|РїРµСЂРµР·Р°РїРёС€Рё)\b/i);
-    const explicitClientCancelPhrase = has(messageForRouting, /^(РѕС‚РјРµРЅРё|РѕС‚РјРµРЅРёС‚СЊ|РѕС‚РјРµРЅР°)\b/i);
-    const hasClientCancelContext = has(messageForRouting, /(РјРѕСЋ Р·Р°РїРёСЃСЊ|РјРѕРё Р·Р°РїРёСЃРё|Р·Р°РїРёСЃСЊ #|РЅРѕРјРµСЂ Р·Р°РїРёСЃРё|Р±Р»РёР¶Р°Р№С€|РїРѕСЃР»РµРґРЅ|РІРёР·РёС‚|appointment|РїРѕРґС‚РІРµСЂР¶РґР°СЋ РѕС‚РјРµРЅСѓ)/i);
+    const explicitClientReschedulePhrase = has(messageForRouting, /^(перенеси|перенести|перезапиши)\b/i);
+    const explicitClientCancelPhrase = has(messageForRouting, /^(отмени|отменить|отмена)\b/i);
+    const hasClientCancelContext = has(messageForRouting, /(мою запись|мои записи|запись #|номер записи|ближайш|последн|визит|appointment|подтверждаю отмену)/i);
     const cancelMeansDraftAbort = hasDraftContextEarly && explicitClientCancelPhrase && !hasClientCancelContext;
     const explicitWhoDoesServices = asksWhoPerformsServices(norm(messageForRouting));
-    const explicitSpecialistsListCue = /(?:РјР°СЃС‚РµСЂ|СЃРїРµС†РёР°Р»РёСЃС‚)(?:Р°|С‹|РѕРІ)?/iu.test(messageForRouting);
+    const explicitSpecialistsListCue = /(?:мастер|специалист)(?:а|ы|ов)?/iu.test(messageForRouting);
     const explicitServiceComplaint = isServiceComplaintMessage(norm(messageForRouting));
-    const explicitIdentityCue = has(messageForRouting, /(РєС‚Рѕ С‚С‹|РєР°Рє С‚РµР±СЏ Р·РѕРІСѓС‚|С‚РІРѕРµ РёРјСЏ|С‚РІРѕС‘ РёРјСЏ)/i);
+    const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
     const explicitAbuseCue = has(messageForRouting, /(сучк|сука|туп|идиот|дебил|нахер|нахуй|говно|херня)/i);
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
     const explicitAvailabilityPeriod = asksAvailabilityPeriod(norm(messageForRouting));
     const explicitCalendarCue =
       /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\b/u.test(messageForRouting) ||
-      /(?:СЏРЅРІР°СЂ|С„РµРІСЂР°Р»|РјР°СЂС‚|Р°РїСЂРµР»|РјР°СЏ|РјР°Рµ|РёСЋРЅ|РёСЋР»|Р°РІРіСѓСЃС‚|СЃРµРЅС‚СЏР±СЂ|РѕРєС‚СЏР±СЂ|РЅРѕСЏР±СЂ|РґРµРєР°Р±СЂ)/iu.test(messageForRouting);
-    const explicitAvailabilityCue = /(?:СЃРІРѕР±РѕРґ|РѕРєРѕС€Рє|СЃР»РѕС‚|РІСЂРµРј|Р·Р°РїРёСЃ)/iu.test(messageForRouting);
+      /(?:январ|феврал|март|апрел|мая|мае|июн|июл|август|сентябр|октябр|ноябр|декабр)/iu.test(messageForRouting);
+    const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
     const explicitCalendarAvailability = explicitCalendarCue && explicitAvailabilityCue;
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
@@ -1336,9 +1308,9 @@ export async function POST(request: Request) {
     if (explicitCalendarAvailability) intent = "ask_availability";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
-    if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(СѓСЃР»СѓРі|Р·Р°РїРёС€|Р·Р°Р±СЂРѕРЅРёСЂСѓР№|С…РѕС‡Сѓ\s+РЅР°|РЅСѓР¶РЅ[Р°Рѕ]?\s+СѓСЃР»СѓРі)/i))) intent = "ask_services";
+    if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
     if (explicitServicesFollowUp) intent = "ask_services";
-    if (has(messageForRouting, /(РїСЂРёС€Р»Рё СЃРїРёСЃРѕРє|РїРѕРєР°Р¶Рё СЃРїРёСЃРѕРє|СЃРєРёРЅСЊ СЃРїРёСЃРѕРє|СЃРїРёСЃРѕРє СѓСЃР»СѓРі)/i)) intent = "ask_services";
+    if (has(messageForRouting, /(пришли список|покажи список|скинь список|список услуг)/i)) intent = "ask_services";
     if (explicitServiceFollowUp) intent = "ask_services";
     if (!explicitServiceComplaint && (asksGenderedServices(messageForRouting) || asksServiceExistence(messageForRouting) || asksGenderSuitability(norm(messageForRouting)))) {
       intent = "ask_services";
@@ -1347,13 +1319,13 @@ export async function POST(request: Request) {
       intent = "ask_services";
     if (
       !explicitServiceComplaint &&
-      has(messageForRouting, /(СѓСЃР»СѓРі|СѓСЃР»СѓРіР°|СЃС‚СЂРёР¶|РјР°РЅРёРє|РїРµРґРёРє|РіРµР»СЊ|facial|peeling|haircut|coloring)/i) &&
-      has(messageForRouting, /(РµСЃС‚СЊ|РєР°РєРёРµ|РєР°РєРѕР№|РїРѕРґС…РѕРґРёС‚|РґР»СЏ РјСѓР¶С‡РёРЅ|РґР»СЏ Р¶РµРЅС‰РёРЅ)/i)
+      has(messageForRouting, /(услуг|услуга|стриж|маник|педик|гель|facial|peeling|haircut|coloring)/i) &&
+      has(messageForRouting, /(есть|какие|какой|подходит|для мужчин|для женщин)/i)
     ) {
       intent = "ask_services";
     }
     // Hard override for pricing requests: never route these to generic smalltalk.
-    if (has(messageForRouting, /(РєР°РєР°СЏ С†РµРЅР°|СЃРєРѕР»СЊРєРѕ СЃС‚РѕРёС‚|С†РµРЅР°|СЃС‚РѕРёРј|СЃС‚РѕРёРјРѕСЃС‚СЊ|РїРѕ СЃС‚РѕРёРјРѕСЃС‚Рё|РїРѕ РїСЂР°Р№СЃСѓ|С†РµРЅРЅРёРє|РґРµРЅСЊРіРё)/i)) {
+    if (has(messageForRouting, /(какая цена|сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник|деньги)/i)) {
       intent = "ask_price";
     }
     // If user clicked/typed a concrete service right after catalog, continue booking flow.
@@ -1368,8 +1340,8 @@ export async function POST(request: Request) {
     const selectedSpecialistByText = specialistByText(t, specialists);
     const explicitAnySpecialistChoice = isAnySpecialistChoiceText(t);
     const choiceNum = parseChoiceFromText(t);
-    const hasClientActionCue = has(messageForRouting, /(РєР°РєР°СЏ Сѓ РјРµРЅСЏ|РјРѕСЏ СЃС‚Р°С‚РёСЃС‚|РјРѕРё Р·Р°РїРёСЃРё|РјРѕРё РґР°РЅРЅС‹Рµ|РїРѕРєР°Р¶Рё РјРѕРё|Р±Р»РёР¶Р°Р№С€.*Р·Р°РїРёСЃ|РїСЂРѕС€РµРґС€.*Р·Р°РїРёСЃ|РѕС‚РјРµРЅРё РјРѕСЋ|РїРµСЂРµРЅРµСЃРё РјРѕСЋ|Р»РёС‡РЅ(С‹Р№|РѕРіРѕ) РєР°Р±РёРЅРµС‚)/i);
-    const hasPositiveFeedbackCue = has(messageForRouting, /(СЃРїР°СЃРёР±Рѕ|Р±Р»Р°РіРѕРґР°СЂ|РєСЂСѓС‚Рѕ|РѕС‚Р»РёС‡РЅРѕ|Р·РґРѕСЂРѕРІРѕ|РїРѕРЅСЏС‚РЅРѕ|РѕРє\b|РѕРєРµР№|СЏСЃРЅРѕ|СЃСѓРїРµСЂ)/i);
+    const hasClientActionCue = has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|прошедш.*запис|отмени мою|перенеси мою|личн(ый|ого) кабинет)/i);
+    const hasPositiveFeedbackCue = has(messageForRouting, /(спасибо|благодар|круто|отлично|здорово|понятно|ок\b|окей|ясно|супер)/i);
     const explicitBookingText =
       !explicitBookingDecline &&
       !isSoftBookingMention(t) &&
@@ -1378,7 +1350,7 @@ export async function POST(request: Request) {
       !specialistFollowUpByLocation &&
       has(
         message,
-        /(Р·Р°РїРёС€|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|Р·Р°РїРёСЃСЊ|РѕРєРѕС€Рє|СЃРІРѕР±РѕРґ|СЃР»РѕС‚|РЅР° СЃРµРіРѕРґРЅСЏ|РЅР° Р·Р°РІС‚СЂР°|СЃРµРіРѕРґРЅСЏ РІРµС‡РµСЂРѕРј|СЃРµРіРѕРґРЅСЏ СѓС‚СЂРѕРј|СЃРµРіРѕРґРЅСЏ РґРЅРµРј|СЃРµРіРѕРґРЅСЏ РґРЅС‘Рј|РІРµС‡РµСЂРѕРј|СѓС‚СЂРѕРј|РґРЅРµРј|РґРЅС‘Рј|РѕС„РѕСЂРјРё|Р±СЂРѕРЅСЊ|Р·Р°Р±СЂРѕРЅРёСЂСѓР№|СЃР°Рј|С‡РµСЂРµР· Р°СЃСЃРёСЃС‚РµРЅС‚Р°|Р»РѕРєР°С†|С„РёР»РёР°Р»|РІ С†РµРЅС‚СЂ|РІ СЂРёРІРµСЂ|riverside|beauty salon center|beauty salon riverside)/i,
+        /(запиш|записаться|запись|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи|бронь|забронируй|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/i,
       ) ||
       serviceSelectionFromCatalog ||
       Boolean(selectedSpecialistByText) ||
@@ -1394,7 +1366,7 @@ export async function POST(request: Request) {
     const shouldStayInAssistantStages = isConsentStage && d.mode === "ASSISTANT";
     const isConsentStageMessage = has(
       messageForRouting,
-      /(СЃРѕРіР»Р°СЃРµРЅ|СЃРѕРіР»Р°СЃРЅР°|РїРµСЂСЃРѕРЅР°Р»СЊРЅ|РїРѕРґС‚РІРµСЂР¶РґР°СЋ|РїРѕРґС‚РІРµСЂРґРёС‚СЊ|РґР°|РІРµСЂРЅРѕ|Р·Р°РїРёСЃР°С‚СЊСЃСЏ|РѕС„РѕСЂРјРё С‡РµСЂРµР· Р°СЃСЃРёСЃС‚РµРЅС‚Р°)/i,
+      /(согласен|согласна|персональн|подтверждаю|подтвердить|да|верно|записаться|оформи через ассистента)/i,
     );
     const forceBookingByContext =
       hasDraftContext &&
@@ -1410,7 +1382,7 @@ export async function POST(request: Request) {
       !specialistFollowUpByLocation &&
       intent !== "ask_specialists" &&
       Boolean(locationByText(t, locations)) &&
-      has(lastAssistantText, /(РІС‹Р±РµСЂРёС‚Рµ\s+(Р»РѕРєР°С†|С„РёР»РёР°Р»)|РїСЂРѕРґРѕР»Р¶Сѓ Р·Р°РїРёСЃСЊ)/i);
+      has(lastAssistantText, /(выберите\s+(локац|филиал)|продолжу запись)/i);
     const forceBookingOnServiceSelection =
       hasDraftContext &&
       !explicitBookingDecline &&
@@ -1436,7 +1408,7 @@ export async function POST(request: Request) {
         Boolean(parseTime(messageForRouting)) ||
         Boolean(parseDate(messageForRouting, nowYmd)) ||
         Boolean(choiceNum) ||
-        has(messageForRouting, /(СѓСЃР»СѓРі|Р·Р°РїРёС€|Р·Р°Р±СЂРѕРЅРё|РІСЂРµРјСЏ|СЃР»РѕС‚|РѕРєРѕС€Рє|РґР°С‚[Р°СѓРµС‹])/i) ||
+        has(messageForRouting, /(услуг|запиш|заброни|время|слот|окошк|дат[ауеы])/i) ||
         !isConversationalHeuristicIntent(intent)
       );
     if (hasDraftContext && explicitAvailabilityPeriod) {
@@ -1478,7 +1450,7 @@ export async function POST(request: Request) {
       explicitAnySpecialistChoice ||
       has(
         messageForRouting,
-        /(СЃРѕРіР»Р°СЃРµРЅ|СЃРѕРіР»Р°СЃРЅР°|РїРµСЂСЃРѕРЅР°Р»СЊРЅ|РїРѕРґС‚РІРµСЂР¶Рґ|РѕС„РѕСЂРјРё|СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕ|С‡РµСЂРµР· Р°СЃСЃРёСЃС‚РµРЅС‚Р°|РІСЂРµРјСЏ|СЃР»РѕС‚|РѕРєРѕС€Рє|СЃРµРіРѕРґРЅСЏ|Р·Р°РІС‚СЂР°|Р»РѕРєР°С†|С„РёР»РёР°Р»)/i,
+        /(согласен|согласна|персональн|подтвержд|оформи|самостоятельно|через ассистента|время|слот|окошк|сегодня|завтра|локац|филиал)/i,
       );
     const shouldContinueBookingByContext =
       route === "chat-only" && !explicitDateTimeQuery &&
@@ -1515,7 +1487,7 @@ export async function POST(request: Request) {
       !explicitDateTimeQuery;
     const explicitServiceBookingIntent =
       Boolean(serviceByText(t, services)) &&
-      has(messageForRouting, /(С…РѕС‡Сѓ|РЅСѓР¶РЅ[Р°Рѕ]?|РЅР°РґРѕ|Р·Р°РїРёС€|Р·Р°Р±СЂРѕРЅРё)/i) &&
+      has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/i) &&
       !asksServiceExistence(messageForRouting);
     const shouldEnrichDraftForBooking =
       route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent;
@@ -1524,16 +1496,15 @@ export async function POST(request: Request) {
       intent !== "post_completion_smalltalk" &&
       !isGreetingText(messageForRouting) &&
       !hasPositiveFeedbackCue;
-    const hasTimePrefCue = /(СѓС‚СЂ|СѓС‚СЂРѕРј|РґРЅРµРј|РґРЅС‘Рј|РїРѕСЃР»Рµ РѕР±РµРґР°|РІРµС‡РµСЂ|РІРµС‡РµСЂРѕРј)/i.test(t);
+    const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
     const prevUserNorm = norm(previousUserText);
     const carryPrevTimePref =
       !hasTimePrefCue &&
       Boolean(locationByText(t, locations)) &&
-      /(СѓС‚СЂ|СѓС‚СЂРѕРј|РґРЅРµРј|РґРЅС‘Рј|РїРѕСЃР»Рµ РѕР±РµРґР°|РІРµС‡РµСЂ|РІРµС‡РµСЂРѕРј)/i.test(prevUserNorm)
+      /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(prevUserNorm)
         ? prevUserNorm
         : "";
     const bookingMessageNorm = carryPrevTimePref ? `${t} ${carryPrevTimePref}` : t;
-    let previouslySelectedSpecialistName: string | null = null;
 
     if (explicitBookingDecline) {
       d.locationId = null;
@@ -1564,8 +1535,6 @@ export async function POST(request: Request) {
         specialists,
       })
     ) {
-      const prev = specialists.find((x) => x.id === d.specialistId);
-      if (prev) previouslySelectedSpecialistName = prev.name;
       d.specialistId = null;
     }
     const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
@@ -1582,10 +1551,10 @@ export async function POST(request: Request) {
       ((!nluServiceValid && looksLikeUnknownServiceRequest(t)) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
     if (unknownServiceRequested) {
-      const requested = requestedServicePhrase ? `РЈСЃР»СѓРіСѓ В«${requestedServicePhrase}В» РЅРµ РЅР°С€Р»Р°. ` : "РўР°РєРѕР№ СѓСЃР»СѓРіРё РЅРµ РЅР°С€Р»Р°. ";
-      const unknownServiceReply = `${requested}Р’С‹Р±РµСЂРёС‚Рµ, РїРѕР¶Р°Р»СѓР№СЃС‚Р°, РёР· РґРѕСЃС‚СѓРїРЅС‹С…:\n${services
+      const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла. ` : "Такой услуги не нашла. ";
+      const unknownServiceReply = `${requested}Выберите, пожалуйста, из доступных:\n${services
         .slice(0, 12)
-        .map((x, i) => `${i + 1}. ${x.name} вЂ” ${Math.round(x.basePrice)} в‚Ѕ, ${x.baseDurationMin} РјРёРЅ`)
+        .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
         .join("\n")}`;
       await prisma.$transaction([
         prisma.aiMessage.create({ data: { threadId: thread.id, role: "assistant", content: unknownServiceReply } }),
@@ -1611,7 +1580,7 @@ export async function POST(request: Request) {
     if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
       const byText = serviceTextMatch;
       const serviceInquiry = isServiceInquiryMessage(message, t);
-      const explicitServiceChangeRequest = has(message, /(СЃРјРµРЅРё|РёР·РјРµРЅРё|РґСЂСѓРіСѓСЋ СѓСЃР»СѓРіСѓ|РЅРµ РЅР°|РЅРµ СЌС‚Сѓ СѓСЃР»СѓРіСѓ|РІС‹Р±РµСЂРё СѓСЃР»СѓРіСѓ|РїРѕ СѓСЃР»СѓРіРµ)/i);
+      const explicitServiceChangeRequest = has(message, /(смени|измени|другую услугу|не на|не эту услугу|выбери услугу|по услуге)/i);
       const canUseNumberForServiceSelection =
         !d.time || !d.serviceId || explicitServiceChangeRequest;
       if (!serviceInquiry && byText && byText.id !== d.serviceId) {
@@ -1625,8 +1594,6 @@ export async function POST(request: Request) {
             specialists,
           })
         ) {
-          const prev = specialists.find((x) => x.id === d.specialistId);
-          if (prev) previouslySelectedSpecialistName = prev.name;
           d.specialistId = null;
         }
       } else if (
@@ -1647,8 +1614,6 @@ export async function POST(request: Request) {
             specialists,
           })
         ) {
-          const prev = specialists.find((x) => x.id === d.specialistId);
-          if (prev) previouslySelectedSpecialistName = prev.name;
           d.specialistId = null;
         }
       } else if (
@@ -1667,8 +1632,6 @@ export async function POST(request: Request) {
             specialists,
           })
         ) {
-          const prev = specialists.find((x) => x.id === d.specialistId);
-          if (prev) previouslySelectedSpecialistName = prev.name;
           d.specialistId = null;
         }
       }
@@ -1679,22 +1642,22 @@ export async function POST(request: Request) {
       const parsedMonthDateFromRaw = (() => {
         const raw = messageForRouting.toLowerCase();
         const monthMatch = raw.match(
-          /(?:^|\s)(?:РІ|РЅР°)?\s*(СЏРЅРІР°СЂРµ|С„РµРІСЂР°Р»Рµ|РјР°СЂС‚Рµ|Р°РїСЂРµР»Рµ|РјР°Рµ|РёСЋРЅРµ|РёСЋР»Рµ|Р°РІРіСѓСЃС‚Рµ|СЃРµРЅС‚СЏР±СЂРµ|РѕРєС‚СЏР±СЂРµ|РЅРѕСЏР±СЂРµ|РґРµРєР°Р±СЂРµ)(?:\s|$)/u,
+          /(?:^|\s)(?:в|на)?\s*(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)(?:\s|$)/u,
         );
         if (!monthMatch) return null;
         const monthMap: Record<string, string> = {
-          "СЏРЅРІР°СЂРµ": "01",
-          "С„РµРІСЂР°Р»Рµ": "02",
-          "РјР°СЂС‚Рµ": "03",
-          "Р°РїСЂРµР»Рµ": "04",
-          "РјР°Рµ": "05",
-          "РёСЋРЅРµ": "06",
-          "РёСЋР»Рµ": "07",
-          "Р°РІРіСѓСЃС‚Рµ": "08",
-          "СЃРµРЅС‚СЏР±СЂРµ": "09",
-          "РѕРєС‚СЏР±СЂРµ": "10",
-          "РЅРѕСЏР±СЂРµ": "11",
-          "РґРµРєР°Р±СЂРµ": "12",
+          "январе": "01",
+          "феврале": "02",
+          "марте": "03",
+          "апреле": "04",
+          "мае": "05",
+          "июне": "06",
+          "июле": "07",
+          "августе": "08",
+          "сентябре": "09",
+          "октябре": "10",
+          "ноябре": "11",
+          "декабре": "12",
         };
         const month = monthMap[monthMatch[1] ?? ""];
         if (!month) return null;
@@ -1711,8 +1674,8 @@ export async function POST(request: Request) {
       // Time must come from explicit user text (or previously selected slot), not LLM guess.
       d.time = parsedTime || d.time;
       if (selectedSpecialistByText) d.specialistId = selectedSpecialistByText.id;
-      const wantsSelfMode = has(message, /(СЃР°Рј|СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕ|РІ С„РѕСЂРјРµ|РѕРЅР»Р°Р№РЅ)/i);
-      const wantsAssistantMode = has(message, /(РѕС„РѕСЂРјРё|С‡РµСЂРµР· Р°СЃСЃРёСЃС‚РµРЅС‚Р°|РѕС„РѕСЂРјРё С‚С‹|РѕС„РѕСЂРјРё С‚С‹)/i);
+      const wantsSelfMode = has(message, /(сам|самостоятельно|в форме|онлайн)/i);
+      const wantsAssistantMode = has(message, /(оформи|через ассистента|оформи ты|оформи ты)/i);
       if (wantsSelfMode) d.mode = "SELF";
       if (wantsAssistantMode) {
         d.mode = "ASSISTANT";
@@ -1732,7 +1695,7 @@ export async function POST(request: Request) {
     const parsedMessagePhone = parsePhone(message);
     d.clientPhone = parsedMessagePhone || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
 
-    const explicitNameCue = has(message, /(РјРµРЅСЏ\s+Р·РѕРІСѓС‚|РёРјСЏ\s+РєР»РёРµРЅС‚Р°|РєР»РёРµРЅС‚[:\s]|РјРѕРµ\s+РёРјСЏ|РјРѕС‘\s+РёРјСЏ)/i);
+    const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
     const parsedMessageName = parseName(message);
     const shouldCaptureClientName =
       d.mode === "ASSISTANT" ||
@@ -1759,7 +1722,7 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     const publicSlug = buildPublicSlugId(resolved.account.slug, resolved.account.id);
 
-    let reply = `РЇ ${ASSISTANT_NAME}, РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ. Р§С‚Рѕ РЅСѓР¶РЅРѕ?`;
+    let reply = `Я ${ASSISTANT_NAME}, помогу с записью. Что нужно?`;
     let nextStatus = d.status;
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
@@ -1806,20 +1769,20 @@ export async function POST(request: Request) {
       } else if (authLevel === "none") {
         const accountParam = resolved.account.slug || "";
         const loginUrl = accountParam ? `/c/login?account=${encodeURIComponent(accountParam)}` : "/c/login";
-        reply = "Р”Р»СЏ РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹С… РґР°РЅРЅС‹С… РЅСѓР¶РЅР° Р°РєС‚РёРІРЅР°СЏ Р°РІС‚РѕСЂРёР·Р°С†РёСЏ. РќР°Р¶РјРёС‚Рµ РєРЅРѕРїРєСѓ РЅРёР¶Рµ, С‡С‚РѕР±С‹ РІРѕР№С‚Рё РІ Р»РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚.";
+        reply = "Для персональных данных нужна активная авторизация. Нажмите кнопку ниже, чтобы войти в личный кабинет.";
         nextUi = {
           kind: "quick_replies",
-          options: [{ label: "Р’РѕР№С‚Рё РІ Р»РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚", value: "РћС‚РєСЂС‹С‚СЊ Р»РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚", href: loginUrl }],
+          options: [{ label: "Войти в личный кабинет", value: "Открыть личный кабинет", href: loginUrl }],
         };
       } else {
-        reply = "РџРѕРЅСЏР»Р°. РњРѕРіСѓ РїРѕРєР°Р·Р°С‚СЊ РїРѕСЃР»РµРґРЅРёРµ/РїСЂРѕС€РµРґС€РёРµ Р·Р°РїРёСЃРё, СЃС‚Р°С‚РёСЃС‚РёРєСѓ, Р° С‚Р°РєР¶Рµ РїРѕРјРѕС‡СЊ СЃ РїРµСЂРµРЅРѕСЃРѕРј РёР»Рё РѕС‚РјРµРЅРѕР№.";
+        reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
       }
     } else if (shouldRunBookingFlow) {
       const asksAvailabilityNow =
         intent === "ask_availability" ||
         explicitNearestAvailability ||
         explicitAvailabilityPeriod ||
-        has(message, /(РѕРєРѕС€Рє|СЃРІРѕР±РѕРґ|РІСЂРµРјСЏ|СЃР»РѕС‚|РѕР±РµРґ|РїРѕСЃР»Рµ РѕР±РµРґР°|СѓС‚СЂ|РІРµС‡РµСЂ|РґРЅРµРј|РґРЅС‘Рј)/i) ||
+        has(message, /(окошк|свобод|время|слот|обед|после обеда|утр|вечер|днем|днём)/i) ||
         (explicitCalendarCue && Boolean(d.locationId) && !d.time) ||
         // If user just selected location while discussing windows/date, keep showing times first.
         (locationChosenThisTurn && Boolean(d.date) && !d.serviceId && !d.time);
@@ -1835,7 +1798,6 @@ export async function POST(request: Request) {
         locations,
         services,
         specialists,
-        previouslySelectedSpecialistName,
         requiredVersionIds,
         request,
         publicSlug,
@@ -1852,74 +1814,64 @@ export async function POST(request: Request) {
         const nowInClientTz = getNowInTimeZone(clientTimeZone ?? resolved.account.timeZone);
         const hh = String(Math.floor(nowInClientTz.minutes / 60)).padStart(2, "0");
         const mm = String(nowInClientTz.minutes % 60).padStart(2, "0");
-        reply = `РЎРµР№С‡Р°СЃ ${formatYmdRu(nowInClientTz.ymd)}, ${hh}:${mm}.`;
+        reply = `Сейчас ${formatYmdRu(nowInClientTz.ymd)}, ${hh}:${mm}.`;
       } else if (asksClientOwnName(message)) {
         const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
         reply = knownName
-          ? `Р”Р°, РІР°СЃ Р·РѕРІСѓС‚ ${knownName}.`
-          : "РџРѕРєР° РЅРµ РІРёР¶Сѓ РІР°С€РµРіРѕ РёРјРµРЅРё РІ РїСЂРѕС„РёР»Рµ. РњРѕРіСѓ РѕР±СЂР°С‰Р°С‚СЊСЃСЏ РїРѕ РёРјРµРЅРё, РµСЃР»Рё РЅР°РїРёС€РµС‚Рµ РµРіРѕ.";
+          ? `Да, вас зовут ${knownName}.`
+          : "Пока не вижу вашего имени в профиле. Могу обращаться по имени, если напишете его.";
             } else if (asksClientRecognition(message)) {
         const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
         reply = knownName
-          ? `Р”Р°, РІРёР¶Сѓ РІР°СЃ РІ РїСЂРѕС„РёР»Рµ: ${knownName}.`
-          : "РџРѕРєР° РЅРµ РІРёР¶Сѓ РІР°СЃ РІ Р°РІС‚РѕСЂРёР·РѕРІР°РЅРЅРѕРј РїСЂРѕС„РёР»Рµ. РњРѕРіСѓ РїСЂРѕРґРѕР»Р¶РёС‚СЊ Р·Р°РїРёСЃСЊ РєР°Рє РіРѕСЃС‚СЏ РёР»Рё РїРѕСЃР»Рµ РІС…РѕРґР° РІ Р»РёС‡РЅС‹Р№ РєР°Р±РёРЅРµС‚.";
-      } else if (asksSalonName(norm(messageForRouting))) {
-        const accountName = resolved.account.name?.trim();
-        if (accountName) {
-          reply = `РќР°С€ СЃР°Р»РѕРЅ РЅР°Р·С‹РІР°РµС‚СЃСЏ В«${accountName}В».`;
-        } else {
-          reply = "РќР°Р·РІР°РЅРёРµ СЃР°Р»РѕРЅР° СЃРµР№С‡Р°СЃ РЅРµРґРѕСЃС‚СѓРїРЅРѕ.";
-        }
-        if (locations.length) {
-          nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
-        }
+          ? `Да, вижу вас в профиле: ${knownName}.`
+          : "Пока не вижу вас в авторизованном профиле. Могу продолжить запись как гостя или после входа в личный кабинет.";
       } else if (intent === "greeting") {
         const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
-        reply = knownName ? `Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ, ${knownName}! Р§РµРј РїРѕРјРѕС‡СЊ?` : "Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ! Р§РµРј РїРѕРјРѕС‡СЊ?";
+        reply = knownName ? `Здравствуйте, ${knownName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
       } else if (intent === "identity") {
-        reply = `РЇ ${ASSISTANT_NAME}, Р°СЃСЃРёСЃС‚РµРЅС‚ Р·Р°РїРёСЃРё. РџРѕРјРѕРіСѓ СЃ СѓСЃР»СѓРіР°РјРё, РІСЂРµРјРµРЅРµРј, Р·Р°РїРёСЃСЊСЋ Рё РІР°С€РёРјРё РґР°РЅРЅС‹РјРё РєР»РёРµРЅС‚Р°.`;
+        reply = `Я ${ASSISTANT_NAME}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
       } else if (intent === "capabilities") {
-        reply = "РџРѕРјРѕРіР°СЋ СЃ Р·Р°РїРёСЃСЊСЋ, РїРѕРґР±РѕСЂРѕРј СЃРІРѕР±РѕРґРЅС‹С… РѕРєРѕРЅ, РєРѕРЅС‚Р°РєС‚Р°РјРё, Р° С‚Р°РєР¶Рµ РјРѕРіСѓ РїРѕРєР°Р·Р°С‚СЊ РІР°С€Рё Р·Р°РїРёСЃРё Рё СЃС‚Р°С‚РёСЃС‚РёРєСѓ.";
+        reply = "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
       } else if (intent === "out_of_scope") {
         if (generatedSmalltalk) {
-          reply = `${generatedSmalltalk.replace(/[.!?]+$/u, "")}. Р•СЃР»Рё Р·Р°С…РѕС‚РёС‚Рµ, РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ Рё СѓСЃР»СѓРіР°РјРё.`;
+          reply = `${generatedSmalltalk.replace(/[.!?]+$/u, "")}. Если захотите, помогу с записью и услугами.`;
         } else {
-          reply = "РЇ Р°СЃСЃРёСЃС‚РµРЅС‚ Р·Р°РїРёСЃРё. РџРѕРјРѕРіСѓ СЃ СѓСЃР»СѓРіР°РјРё, РґР°С‚Р°РјРё, РІСЂРµРјРµРЅРµРј Рё СЃРїРµС†РёР°Р»РёСЃС‚Р°РјРё. Р§РµРј РїРѕРјРѕС‡СЊ?";
+          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
         }
       } else if (intent === "abuse_or_toxic") {
-        reply = "Р”Р°РІР°Р№С‚Рµ РѕР±С‰Р°С‚СЊСЃСЏ СѓРІР°Р¶РёС‚РµР»СЊРЅРѕ. РЇ РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ Рё РІРѕРїСЂРѕСЃР°РјРё РїРѕ СѓСЃР»СѓРіР°Рј.";
+        reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
       } else if (intent === "post_completion_smalltalk") {
-        reply = "Р—РґРѕСЂРѕРІРѕ, СЂР°РґР°, С‡С‚Рѕ РІР°Рј РїРѕРЅСЂР°РІРёР»РѕСЃСЊ. Р•СЃР»Рё РЅСѓР¶РЅРѕ, РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ.";
+        reply = "Здорово, рада, что вам понравилось. Если нужно, помогу с записью.";
       } else if (intent === "smalltalk") {
         if (isGreetingText(messageForRouting)) {
-          reply = "Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ! Р§РµРј РїРѕРјРѕС‡СЊ?";
+          reply = "Здравствуйте! Чем помочь?";
         } else if (explicitServiceComplaint) {
           reply =
-            "РЎРѕР¶Р°Р»РµСЋ, С‡С‚Рѕ С‚Р°Рє РІС‹С€Р»Рѕ. РЎРїР°СЃРёР±Рѕ, С‡С‚Рѕ РЅР°РїРёСЃР°Р»Рё РѕР± СЌС‚РѕРј. РћРїРёС€РёС‚Рµ, РїРѕР¶Р°Р»СѓР№СЃС‚Р°, С‡С‚Рѕ РёРјРµРЅРЅРѕ РЅРµ СѓСЃС‚СЂРѕРёР»Рѕ, Рё СЏ РїРµСЂРµРґР°Рј РѕР±СЂР°С‰РµРЅРёРµ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂСѓ Рё РїРѕРјРѕРіСѓ РїРѕРґРѕР±СЂР°С‚СЊ РєРѕСЂСЂРµРєС‚РЅСѓСЋ Р·Р°РїРёСЃСЊ Рє РґСЂСѓРіРѕРјСѓ РјР°СЃС‚РµСЂСѓ.";
+            "Сожалею, что так вышло. Спасибо, что написали об этом. Опишите, пожалуйста, что именно не устроило, и я передам обращение администратору и помогу подобрать корректную запись к другому мастеру.";
         } else if (generatedSmalltalk) {
           reply = generatedSmalltalk;
         } else if (isOutOfDomainPrompt(t)) {
-          reply = "РЇ РїРѕРјРѕРіР°СЋ РїРѕ Р·Р°РїРёСЃРё Рё СѓСЃР»СѓРіР°Рј, РЅРѕ РјРѕРіСѓ РєРѕСЂРѕС‚РєРѕ РїРѕРґРґРµСЂР¶Р°С‚СЊ СЂР°Р·РіРѕРІРѕСЂ. Р•СЃР»Рё С…РѕС‚РёС‚Рµ, РїРѕРґР±РµСЂСѓ СѓРґРѕР±РЅРѕРµ РІСЂРµРјСЏ Рё СЃРїРµС†РёР°Р»РёСЃС‚Р°.";
+          reply = "Я помогаю по записи и услугам, но могу коротко поддержать разговор. Если хотите, подберу удобное время и специалиста.";
         } else {
           reply = buildSmalltalkReply(norm(messageForRouting));
         }
       } else if (intent === "contact_phone") {
-        const phoneReply = accountProfile?.phone ? `РќРѕРјРµСЂ СЃС‚СѓРґРёРё: ${accountProfile.phone}.` : "РЎРµР№С‡Р°СЃ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° РЅРµРґРѕСЃС‚СѓРїРµРЅ.";
-        reply = locations.length ? `${phoneReply} Р›РѕРєР°С†РёРё РґРѕСЃС‚СѓРїРЅС‹ РєРЅРѕРїРєР°РјРё РЅРёР¶Рµ.` : phoneReply;
+        const phoneReply = accountProfile?.phone ? `Номер студии: ${accountProfile.phone}.` : "Сейчас номер телефона недоступен.";
+        reply = locations.length ? `${phoneReply} Локации доступны кнопками ниже.` : phoneReply;
         if (locations.length) {
           nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
         }
       } else if (intent === "contact_address") {
         reply = locations.length
-          ? "РќР°С€Рё Р»РѕРєР°С†РёРё РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ РЅСѓР¶РЅСѓСЋ РєРЅРѕРїРєРѕР№."
+          ? "Наши локации ниже. Выберите нужную кнопкой."
           : accountProfile?.address
-          ? `РђРґСЂРµСЃ: ${accountProfile.address}`
-          : "РђРґСЂРµСЃ РїРѕРєР° РЅРµ СѓРєР°Р·Р°РЅ. РњРѕРіСѓ РїРѕРјРѕС‡СЊ СЃ Р·Р°РїРёСЃСЊСЋ РїРѕ СѓРґРѕР±РЅРѕР№ Р»РѕРєР°С†РёРё.";
+          ? `Адрес: ${accountProfile.address}`
+          : "Адрес пока не указан. Могу помочь с записью по удобной локации.";
         if (locations.length) {
           nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
         }
       } else if (intent === "working_hours") {
-        reply = "РћР±С‹С‡РЅРѕ СЂР°Р±РѕС‚Р°РµРј РµР¶РµРґРЅРµРІРЅРѕ СЃ 09:00 РґРѕ 21:00. Р•СЃР»Рё РЅСѓР¶РЅРѕ, РїСЂРѕРІРµСЂСЋ С‚РѕС‡РЅС‹Р№ РіСЂР°С„РёРє РїРѕ РєРѕРЅРєСЂРµС‚РЅРѕР№ Р»РѕРєР°С†РёРё Рё РґР°С‚Рµ.";
+        reply = "Обычно работаем ежедневно с 09:00 до 21:00. Если нужно, проверю точный график по конкретной локации и дате.";
       } else if (intent === "ask_specialists") {
         const dateForSpecialists = parseDate(message, nowYmd) || d.date;
         const locationFromMessage = locationByText(t, locations);
@@ -1930,10 +1882,10 @@ export async function POST(request: Request) {
           const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
           const scoped = specialists.filter((s) => s.locationIds.includes(selectedLocationId));
           if (scoped.length) {
-            reply = `${dateForSpecialists ? `РќР° ${formatYmdRu(dateForSpecialists)} ` : ""}РІ ${selectedLocation?.name ?? "РІС‹Р±СЂР°РЅРЅРѕР№ Р»РѕРєР°С†РёРё"} РґРѕСЃС‚СѓРїРЅС‹ СЃРїРµС†РёР°Р»РёСЃС‚С‹. Р’С‹Р±РµСЂРёС‚Рµ РєРЅРѕРїРєРѕР№ РЅРёР¶Рµ.`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты. Выберите кнопкой ниже.`;
             nextUi = { kind: "quick_replies", options: scoped.slice(0, 16).map((x) => ({ label: x.name, value: x.name })) };
           } else {
-            reply = `${dateForSpecialists ? `РќР° ${formatYmdRu(dateForSpecialists)} ` : ""}РїРѕ СЌС‚РѕР№ Р»РѕРєР°С†РёРё РЅРµ РЅР°С€Р»Р° СЃРїРµС†РёР°Р»РёСЃС‚РѕРІ РІ СЂР°СЃРїРёСЃР°РЅРёРё.`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов в расписании.`;
           }
         } else {
           const byLocation = locations
@@ -1943,64 +1895,64 @@ export async function POST(request: Request) {
             }))
             .filter((x) => x.items.length > 0);
           if (byLocation.length) {
-            reply = `${dateForSpecialists ? `РќР° ${formatYmdRu(dateForSpecialists)} ` : ""}РґРѕСЃС‚СѓРїРЅС‹ СЃРїРµС†РёР°Р»РёСЃС‚С‹ РїРѕ С„РёР»РёР°Р»Р°Рј. Р’С‹Р±РµСЂРёС‚Рµ С„РёР»РёР°Р» РєРЅРѕРїРєРѕР№ РЅРёР¶Рµ.`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}доступны специалисты по филиалам. Выберите филиал кнопкой ниже.`;
             nextUi = { kind: "quick_replies", options: byLocation.slice(0, 12).map((x) => ({ label: x.loc.name, value: x.loc.name })) };
           } else {
-            reply = "РЎРµР№С‡Р°СЃ РЅРµ РЅР°С€Р»Р° СЃРїРµС†РёР°Р»РёСЃС‚РѕРІ РІ СЂР°СЃРїРёСЃР°РЅРёРё. РњРѕРіСѓ РїСЂРѕРІРµСЂРёС‚СЊ РїРѕ РєРѕРЅРєСЂРµС‚РЅРѕР№ Р»РѕРєР°С†РёРё Рё РґР°С‚Рµ.";
+            reply = "Сейчас не нашла специалистов в расписании. Могу проверить по конкретной локации и дате.";
           }
         }
       } else if (asksCurrentDate(message)) {
-        reply = `РЎРµРіРѕРґРЅСЏ ${formatYmdRu(nowYmd)}.`;
+        reply = `Сегодня ${formatYmdRu(nowYmd)}.`;
       } else if (intent === "ask_services") {
         if (isServiceComplaintMessage(t)) {
           reply =
-            "РЎРѕР¶Р°Р»РµСЋ, С‡С‚Рѕ С‚Р°Рє РІС‹С€Р»Рѕ. РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РѕРїРёС€РёС‚Рµ, С‡С‚Рѕ РёРјРµРЅРЅРѕ РЅРµ СѓСЃС‚СЂРѕРёР»Рѕ, Рё СЏ РїРµСЂРµРґР°Рј РѕР±СЂР°С‰РµРЅРёРµ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂСѓ. РўР°РєР¶Рµ РјРѕРіСѓ РїРѕРґРѕР±СЂР°С‚СЊ Р·Р°РїРёСЃСЊ Рє РґСЂСѓРіРѕРјСѓ РјР°СЃС‚РµСЂСѓ.";
+            "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение администратору. Также могу подобрать запись к другому мастеру.";
         } else {
         if (explicitServicesFollowUp) {
           const sample = services.slice(0, 6).map((x) => x.name).join(", ");
-          reply = sample ? `Р”РѕСЃС‚СѓРїРЅС‹Рµ СѓСЃР»СѓРіРё: ${sample}.` : "Р”РѕСЃС‚СѓРїРЅС‹Рµ СѓСЃР»СѓРіРё РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ РЅСѓР¶РЅСѓСЋ РєРЅРѕРїРєРѕР№.";
+          reply = sample ? `Доступные услуги: ${sample}.` : "Доступные услуги ниже. Выберите нужную кнопкой.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         } else {
         const selectedByText = serviceByText(t, services);
-        const maleContext = asksGenderedServices(t) || /(РјСѓР¶СЃРє|РґР»СЏ РјСѓР¶С‡РёРЅ|РґР»СЏ РїР°СЂРЅСЏ)/i.test(t) || /(РјСѓР¶СЃРє|РґР»СЏ РјСѓР¶С‡РёРЅ|РґР»СЏ РїР°СЂРЅСЏ)/i.test(previousUserText);
-        const femaleContext = /(Р¶РµРЅСЃРє|РґР»СЏ Р¶РµРЅС‰РёРЅ|РґР»СЏ РґРµРІСѓС€РєРё)/i.test(t) || /(Р¶РµРЅСЃРє|РґР»СЏ Р¶РµРЅС‰РёРЅ|РґР»СЏ РґРµРІСѓС€РєРё)/i.test(previousUserText);
+        const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
+        const femaleContext = /(женск|для женщин|для девушки)/i.test(t) || /(женск|для женщин|для девушки)/i.test(previousUserText);
         if (selectedByText) {
           const n = norm(selectedByText.name);
-          if (asksGenderSuitability(t) && /(women|Р¶РµРЅ)/i.test(n)) {
-            reply = `В«${selectedByText.name}В» РѕР±С‹С‡РЅРѕ РІС‹Р±РёСЂР°СЋС‚ РґР»СЏ Р¶РµРЅС‰РёРЅ. Р”Р»СЏ РјСѓР¶С‡РёРЅ РјРѕРіСѓ РїСЂРµРґР»РѕР¶РёС‚СЊ В«Men HaircutВ», РµСЃР»Рё РЅСѓР¶РЅРѕ вЂ” СЃСЂР°Р·Сѓ РїРѕРґР±РµСЂСѓ РІСЂРµРјСЏ.`;
-          } else if (asksGenderSuitability(t) && /(men|РјСѓР¶)/i.test(n)) {
-            reply = `В«${selectedByText.name}В» РѕР±С‹С‡РЅРѕ РІС‹Р±РёСЂР°СЋС‚ РґР»СЏ РјСѓР¶С‡РёРЅ. Р”Р»СЏ Р¶РµРЅС‰РёРЅ РјРѕРіСѓ РїСЂРµРґР»РѕР¶РёС‚СЊ В«Women HaircutВ», РµСЃР»Рё РЅСѓР¶РЅРѕ вЂ” СЃСЂР°Р·Сѓ РїРѕРґР±РµСЂСѓ РІСЂРµРјСЏ.`;
+          if (asksGenderSuitability(t) && /(women|жен)/i.test(n)) {
+            reply = `«${selectedByText.name}» обычно выбирают для женщин. Для мужчин могу предложить «Men Haircut», если нужно — сразу подберу время.`;
+          } else if (asksGenderSuitability(t) && /(men|муж)/i.test(n)) {
+            reply = `«${selectedByText.name}» обычно выбирают для мужчин. Для женщин могу предложить «Women Haircut», если нужно — сразу подберу время.`;
           } else {
-            reply = `Р”Р°, СѓСЃР»СѓРіР° В«${selectedByText.name}В» РµСЃС‚СЊ. РЎС‚РѕРёРјРѕСЃС‚СЊ ${Math.round(selectedByText.basePrice)} в‚Ѕ, РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ ${selectedByText.baseDurationMin} РјРёРЅ.`;
+            reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.`;
           }
         } else if (maleContext || femaleContext) {
           const gendered = services.filter((x) => {
             const n = norm(x.name);
-            if (maleContext && /(men|РјСѓР¶)/i.test(n)) return true;
-            if (femaleContext && /(women|Р¶РµРЅ)/i.test(n)) return true;
+            if (maleContext && /(men|муж)/i.test(n)) return true;
+            if (femaleContext && /(women|жен)/i.test(n)) return true;
             return false;
           });
           if (gendered.length) {
-            reply = "РџРѕРґС…РѕРґСЏС‰РёРµ СѓСЃР»СѓРіРё РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ РєРЅРѕРїРєРѕР№.";
+            reply = "Подходящие услуги ниже. Выберите кнопкой.";
             nextUi = { kind: "quick_replies", options: gendered.slice(0, 12).map(serviceQuickOption) };
           } else {
             const suggested = services
-              .filter((x) => /(haircut|СЃС‚СЂРёР¶|manicure|РјР°РЅРёРє|pedicure|РїРµРґРёРє)/i.test(norm(x.name)))
+              .filter((x) => /(haircut|стриж|manicure|маник|pedicure|педик)/i.test(norm(x.name)))
               .slice(0, 8);
-            reply = "РР· РґРѕСЃС‚СѓРїРЅС‹С… СЃРµР№С‡Р°СЃ РјРѕРіСѓ РїСЂРµРґР»РѕР¶РёС‚СЊ РІР°СЂРёР°РЅС‚С‹ РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ РєРЅРѕРїРєРѕР№.";
+            reply = "Из доступных сейчас могу предложить варианты ниже. Выберите кнопкой.";
             const optionsSource = suggested.length ? suggested : services.slice(0, 8);
             nextUi = { kind: "quick_replies", options: optionsSource.map(serviceQuickOption) };
           }
         } else if (asksGenderSuitability(t)) {
-          reply = "Р•СЃС‚СЊ СѓСЃР»СѓРіРё РґР»СЏ РјСѓР¶С‡РёРЅ Рё РґР»СЏ Р¶РµРЅС‰РёРЅ. РќР°РїСЂРёРјРµСЂ: Men Haircut Рё Women Haircut. РќР°РїРёС€РёС‚Рµ, С‡С‚Рѕ РёРјРµРЅРЅРѕ РЅСѓР¶РЅРѕ, Рё СЏ РїРѕРґР±РµСЂСѓ РІР°СЂРёР°РЅС‚.";
-          const genderExamples = services.filter((x) => /(men haircut|women haircut|РјСѓР¶|Р¶РµРЅ)/i.test(norm(x.name))).slice(0, 6);
+          reply = "Есть услуги для мужчин и для женщин. Например: Men Haircut и Women Haircut. Напишите, что именно нужно, и я подберу вариант.";
+          const genderExamples = services.filter((x) => /(men haircut|women haircut|муж|жен)/i.test(norm(x.name))).slice(0, 6);
           if (genderExamples.length) nextUi = { kind: "quick_replies", options: genderExamples.map(serviceQuickOption) };
         } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
           const requested = extractRequestedServicePhrase(t);
-          reply = `${requested ? `РЈСЃР»СѓРіСѓ В«${requested}В» РЅРµ РЅР°С€Р»Р°.` : "РўР°РєРѕР№ СѓСЃР»СѓРіРё РЅРµ РЅР°С€Р»Р°."} Р’С‹Р±РµСЂРёС‚Рµ, РїРѕР¶Р°Р»СѓР№СЃС‚Р°, РёР· РґРѕСЃС‚СѓРїРЅС‹С… РЅРёР¶Рµ.`;
+          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         } else {
-          reply = "Р”РѕСЃС‚СѓРїРЅС‹Рµ СѓСЃР»СѓРіРё РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ РЅСѓР¶РЅСѓСЋ РєРЅРѕРїРєРѕР№.";
+          reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
         }
@@ -2008,25 +1960,25 @@ export async function POST(request: Request) {
       } else if (intent === "ask_price") {
         const selectedByText = serviceByText(t, services);
         if (selectedByText) {
-          reply = `${selectedByText.name}: ${Math.round(selectedByText.basePrice)} в‚Ѕ, ${selectedByText.baseDurationMin} РјРёРЅ.`;
+          reply = `${selectedByText.name}: ${Math.round(selectedByText.basePrice)} ₽, ${selectedByText.baseDurationMin} мин.`;
         } else {
-          reply = "РћСЂРёРµРЅС‚РёСЂС‹ РїРѕ СЃС‚РѕРёРјРѕСЃС‚Рё РІ РєРЅРѕРїРєР°С… РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ СѓСЃР»СѓРіСѓ.";
+          reply = "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else if (mentionsServiceTopic(t)) {
         const selectedByText = serviceByText(t, services);
         if (selectedByText) {
-          reply = `Р”Р°, СѓСЃР»СѓРіР° В«${selectedByText.name}В» РµСЃС‚СЊ. РЎС‚РѕРёРјРѕСЃС‚СЊ ${Math.round(selectedByText.basePrice)} в‚Ѕ, РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ ${selectedByText.baseDurationMin} РјРёРЅ.`;
+          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.`;
         } else {
           const requested = extractRequestedServicePhrase(t);
-          reply = `${requested ? `РЈСЃР»СѓРіСѓ В«${requested}В» РЅРµ РЅР°С€Р»Р°.` : "РўР°РєРѕР№ СѓСЃР»СѓРіРё РЅРµ РЅР°С€Р»Р°."} Р’С‹Р±РµСЂРёС‚Рµ, РїРѕР¶Р°Р»СѓР№СЃС‚Р°, РёР· РґРѕСЃС‚СѓРїРЅС‹С… РЅРёР¶Рµ.`;
+          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else {
         if (isOutOfDomainPrompt(t)) {
-          reply = "РЇ РїРѕРјРѕРіР°СЋ С‚РѕР»СЊРєРѕ РїРѕ Р·Р°РїРёСЃРё Рё СѓСЃР»СѓРіР°Рј. РњРѕРіСѓ РїРѕРґРѕР±СЂР°С‚СЊ РІСЂРµРјСЏ, РјР°СЃС‚РµСЂР° Рё РѕС„РѕСЂРјРёС‚СЊ Р·Р°РїРёСЃСЊ.";
+          reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
-          reply = "РЇ Р°СЃСЃРёСЃС‚РµРЅС‚ Р·Р°РїРёСЃРё. РџРѕРјРѕРіСѓ СЃ СѓСЃР»СѓРіР°РјРё, РґР°С‚Р°РјРё, РІСЂРµРјРµРЅРµРј Рё СЃРїРµС†РёР°Р»РёСЃС‚Р°РјРё. Р§РµРј РїРѕРјРѕС‡СЊ?";
+          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
         }
       }
     }
@@ -2050,7 +2002,7 @@ export async function POST(request: Request) {
 
     reply = sanitizeAssistantReplyText(reply);
     if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
-      reply = "Р”РѕСЃС‚СѓРїРЅС‹Рµ СѓСЃР»СѓРіРё РЅРёР¶Рµ. Р’С‹Р±РµСЂРёС‚Рµ РЅСѓР¶РЅСѓСЋ РєРЅРѕРїРєРѕР№.";
+      reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
       nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
     }
 
@@ -2066,12 +2018,12 @@ export async function POST(request: Request) {
         assistantName: ASSISTANT_NAME,
       })
     ) {
-      reply = "РЇ Р°СЃСЃРёСЃС‚РµРЅС‚ Р·Р°РїРёСЃРё. РџРѕРјРѕРіСѓ СЃ СѓСЃР»СѓРіР°РјРё, РґР°С‚Р°РјРё, РІСЂРµРјРµРЅРµРј Рё СЃРїРµС†РёР°Р»РёСЃС‚Р°РјРё. Р§РµРј РїРѕРјРѕС‡СЊ?";
+      reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
       nextUi = null;
     }
 
     if (route === "chat-only" && !explicitDateTimeQuery && hallucinationSensitiveIntent && looksLikeSensitiveLeakReply(reply)) {
-      reply = "РЇ РїРѕРјРѕРіСѓ СЃ Р·Р°РїРёСЃСЊСЋ Рё РІРѕРїСЂРѕСЃР°РјРё РїРѕ СѓСЃР»СѓРіР°Рј. Р•СЃР»Рё РЅСѓР¶РЅРѕ, РїРѕРґР±РµСЂСѓ РІСЂРµРјСЏ Рё СЃРїРµС†РёР°Р»РёСЃС‚Р°.";
+      reply = "Я помогу с записью и вопросами по услугам. Если нужно, подберу время и специалиста.";
       nextUi = null;
     }
 
@@ -2139,7 +2091,6 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
-
 
 
 

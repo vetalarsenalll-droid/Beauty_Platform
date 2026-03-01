@@ -41,6 +41,7 @@ type FlowCtx = {
   locations: LocationLite[];
   services: ServiceLite[];
   specialists: SpecialistLite[];
+  previouslySelectedSpecialistName?: string | null;
   requiredVersionIds: number[];
   request: Request;
   publicSlug: string;
@@ -455,7 +456,7 @@ function specialistByText(messageNorm: string, specs: SpecialistLite[]) {
   return byToken ?? null;
 }
 
-function autoAssignedSpecialistText(name: string) {
+function autoAssignedSpecialistText(name: string, previousName?: string | null) {
   const firstName = normalizeText(name).split(" ").find(Boolean) ?? "";
   const explicitFemaleNames = new Set([
     "ирина",
@@ -497,6 +498,10 @@ function autoAssignedSpecialistText(name: string) {
     explicitFemaleNames.has(firstName) || ((/[ая]$/.test(firstName) || /(?:a|ia|ya)$/.test(firstName)) && !maleException.has(firstName));
   const availabilityWord = isFemale ? "доступна" : "доступен";
   const pronoun = isFemale ? "её" : "его";
+  if (previousName && normalizeText(previousName) !== normalizeText(name)) {
+    return `Вы выбрали специалиста ${previousName}, но на это время и услугу он недоступен.
+На это время ${availabilityWord} только ${name}, выбрала ${pronoun} автоматически.\n\n`;
+  }
   return `На это время ${availabilityWord} только ${name}, выбрала ${pronoun} автоматически.\n\n`;
 }
 
@@ -650,6 +655,57 @@ async function findServiceAvailableDatesInRange(args: {
   }
   return found;
 }
+
+async function findTimesForServiceAndSpecialist(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  serviceId: number;
+  specialistId: number;
+  date: string;
+}) {
+  const { origin, accountSlug, locationId, serviceId, specialistId, date } = args;
+  const offers = await getOffers(origin, accountSlug, locationId, date);
+  const times = Array.from(
+    new Set(
+      (offers?.times ?? [])
+        .filter((slot) =>
+          slot.services.some(
+            (s) => s.serviceId === serviceId && Array.isArray(s.specialistIds) && s.specialistIds.includes(specialistId),
+          ),
+        )
+        .map((slot) => slot.time),
+    ),
+  );
+  return times.sort((a, b) => a.localeCompare(b));
+}
+
+async function findNextServiceDatesForSpecialist(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  serviceId: number;
+  specialistId: number;
+  fromDate: string;
+  daysAhead: number;
+  maxDates: number;
+}) {
+  const { origin, accountSlug, locationId, serviceId, specialistId, fromDate, daysAhead, maxDates } = args;
+  const found: string[] = [];
+  for (let i = 0; i <= daysAhead && found.length < maxDates; i += 1) {
+    const ymd = addDaysYmd(fromDate, i);
+    const times = await findTimesForServiceAndSpecialist({
+      origin,
+      accountSlug,
+      locationId,
+      serviceId,
+      specialistId,
+      date: ymd,
+    });
+    if (times.length) found.push(ymd);
+  }
+  return found;
+}
 function applyChangeRollback(messageNorm: string, d: DraftLike) {
   if (/(локац|филиал|адрес)/i.test(messageNorm)) {
     d.locationId = null;
@@ -688,6 +744,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     locations,
     services,
     specialists,
+    previouslySelectedSpecialistName,
     requiredVersionIds,
     request,
     choice,
@@ -1204,23 +1261,48 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.time) {
-    const allTimes = await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
     const pref = detectTimePreference(messageNorm);
+    const specialistSelected = Boolean(d.specialistId);
+    const allTimes = specialistSelected
+      ? await findTimesForServiceAndSpecialist({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          specialistId: d.specialistId!,
+          date: d.date,
+        })
+      : await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
     const times = filterByPreference(allTimes, pref);
     if (!times.length) {
-      const nextDates = await findNextServiceDates({
-        origin,
-        accountSlug: account.slug,
-        locationId: d.locationId!,
-        serviceId: d.serviceId!,
-        fromDate: d.date,
-        daysAhead: 35,
-        maxDates: 6,
-      });
+      const nextDates = specialistSelected
+        ? await findNextServiceDatesForSpecialist({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId!,
+            serviceId: d.serviceId!,
+            specialistId: d.specialistId!,
+            fromDate: d.date,
+            daysAhead: 35,
+            maxDates: 6,
+          })
+        : await findNextServiceDates({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId!,
+            serviceId: d.serviceId!,
+            fromDate: d.date,
+            daysAhead: 35,
+            maxDates: 6,
+          });
       return {
         handled: true,
         reply: nextDates.length
-          ? `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Выберите другую дату в календаре.`
+          ? specialistSelected
+            ? `На ${formatYmdRu(d.date)} свободных окон по этой услуге у выбранного специалиста не нашла. Выберите другую дату в календаре.`
+            : `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Выберите другую дату в календаре.`
+          : specialistSelected
+          ? `На ${formatYmdRu(d.date)} свободных окон по этой услуге у выбранного специалиста не нашла. Укажите другую дату.`
           : `На ${formatYmdRu(d.date)} свободных окон по этой услуге не нашла. Укажите другую дату.`,
         nextStatus: "COLLECTING",
         ui: nextDates.length
@@ -1237,12 +1319,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
     return {
       handled: true,
-      reply: `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
+      reply: specialistSelected
+        ? `На ${formatYmdRu(d.date)}${prefText} у выбранного специалиста доступны времена. Выберите время.`
+        : `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
       nextStatus: "COLLECTING",
       ui: { kind: "quick_replies", options: times.map((x) => optionFromLabel(x)) },
     };
   }
-
   if (!d.specialistId) {
     const offers = await getOffers(origin, account.slug, d.locationId!, d.date!);
     const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
@@ -1304,7 +1387,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
     const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
     const effectiveText = effective ? `\nСтоимость: ${Math.round(effective.price)} ₽\nДлительность: ${effective.durationMin} мин` : "";
-    const specialistAutoText = autoSelectedSpecialistName ? autoAssignedSpecialistText(autoSelectedSpecialistName) : "";
+    const specialistAutoText = autoSelectedSpecialistName
+      ? autoAssignedSpecialistText(autoSelectedSpecialistName, previouslySelectedSpecialistName)
+      : "";
     return {
       handled: true,
       reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?`,
@@ -1437,6 +1522,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 
