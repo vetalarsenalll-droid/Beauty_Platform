@@ -7259,6 +7259,16 @@ function buildAishaWidgetConfig(
   };
   const isDark = theme.mode === "dark";
   const pickMode = (light: string, dark: string) => (isDark ? dark || light : light || dark);
+  const gradientEnabledLight = Boolean(style.gradientEnabledLight);
+  const gradientEnabledDark = Boolean(style.gradientEnabledDark);
+  const gradientDirectionLight =
+    style.gradientDirectionLight === "horizontal" ? "horizontal" : "vertical";
+  const gradientDirectionDark =
+    style.gradientDirectionDark === "horizontal" ? "horizontal" : "vertical";
+  const panelGradientFromLight = style.gradientFromLightResolved || null;
+  const panelGradientToLight = style.gradientToLightResolved || null;
+  const panelGradientFromDark = style.gradientFromDarkResolved || panelGradientFromLight;
+  const panelGradientToDark = style.gradientToDarkResolved || panelGradientToLight;
 
   return {
     enabled: data.enabled !== false,
@@ -7324,10 +7334,18 @@ function buildAishaWidgetConfig(
       style.quickReplyTextColorLightResolved || style.buttonTextColorLightResolved || null,
     quickReplyTextColorDark:
       style.quickReplyTextColorDarkResolved || style.buttonTextColorDarkResolved || null,
-    gradientEnabled: style.gradientEnabled,
-    gradientDirection: style.gradientDirection,
-    panelGradientFrom: style.gradientFrom || null,
-    panelGradientTo: style.gradientTo || null,
+    gradientEnabled: isDark ? gradientEnabledDark : gradientEnabledLight,
+    gradientEnabledLight,
+    gradientEnabledDark,
+    gradientDirection: isDark ? gradientDirectionDark : gradientDirectionLight,
+    gradientDirectionLight,
+    gradientDirectionDark,
+    panelGradientFrom: isDark ? panelGradientFromDark : panelGradientFromLight,
+    panelGradientTo: isDark ? panelGradientToDark : panelGradientToLight,
+    panelGradientFromLight,
+    panelGradientFromDark,
+    panelGradientToLight,
+    panelGradientToDark,
     assistantBubbleColor:
       style.assistantBubbleColor ||
       style.subBlockBg ||
@@ -7407,6 +7425,7 @@ function renderAisha(
         mode="inline"
         defaultOpen
         className="inset-0"
+        themeMode={theme.mode}
       />
     </div>
   );

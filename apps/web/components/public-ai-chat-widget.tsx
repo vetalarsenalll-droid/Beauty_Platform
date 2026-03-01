@@ -327,9 +327,25 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           bottom: `${Number(widgetConfig?.offsetBottomPx ?? 16)}px`,
         }
       : {};
+  const gradientEnabledByMode =
+    currentMode === "dark"
+      ? (widgetConfig?.gradientEnabledDark ?? widgetConfig?.gradientEnabled)
+      : (widgetConfig?.gradientEnabledLight ?? widgetConfig?.gradientEnabled);
+  const gradientDirectionByMode =
+    currentMode === "dark"
+      ? (widgetConfig?.gradientDirectionDark ?? widgetConfig?.gradientDirection)
+      : (widgetConfig?.gradientDirectionLight ?? widgetConfig?.gradientDirection);
+  const panelGradientFromByMode =
+    currentMode === "dark"
+      ? (widgetConfig?.panelGradientFromDark ?? widgetConfig?.panelGradientFrom)
+      : (widgetConfig?.panelGradientFromLight ?? widgetConfig?.panelGradientFrom);
+  const panelGradientToByMode =
+    currentMode === "dark"
+      ? (widgetConfig?.panelGradientToDark ?? widgetConfig?.panelGradientTo)
+      : (widgetConfig?.panelGradientToLight ?? widgetConfig?.panelGradientTo);
   const panelBackground =
-    widgetConfig?.gradientEnabled && widgetConfig?.panelGradientFrom && widgetConfig?.panelGradientTo
-      ? `linear-gradient(${widgetConfig.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${widgetConfig.panelGradientFrom}, ${widgetConfig.panelGradientTo})`
+    gradientEnabledByMode && panelGradientFromByMode && panelGradientToByMode
+      ? `linear-gradient(${gradientDirectionByMode === "horizontal" ? "to right" : "to bottom"}, ${panelGradientFromByMode}, ${panelGradientToByMode})`
       : undefined;
 
   const lastAssistantIndex = useMemo(() => {

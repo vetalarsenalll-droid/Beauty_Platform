@@ -182,9 +182,17 @@ export type SiteAishaWidgetConfig = {
   borderColorLight?: string | null;
   borderColorDark?: string | null;
   gradientEnabled: boolean;
+  gradientEnabledLight?: boolean;
+  gradientEnabledDark?: boolean;
   gradientDirection: "vertical" | "horizontal";
+  gradientDirectionLight?: "vertical" | "horizontal";
+  gradientDirectionDark?: "vertical" | "horizontal";
   panelGradientFrom: string | null;
   panelGradientTo: string | null;
+  panelGradientFromLight?: string | null;
+  panelGradientFromDark?: string | null;
+  panelGradientToLight?: string | null;
+  panelGradientToDark?: string | null;
   assistantBubbleColor: string | null;
   assistantTextColor: string | null;
   clientBubbleColor: string | null;
@@ -331,9 +339,17 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       textColor: null,
       borderColor: null,
       gradientEnabled: false,
+      gradientEnabledLight: false,
+      gradientEnabledDark: false,
       gradientDirection: "vertical",
+      gradientDirectionLight: "vertical",
+      gradientDirectionDark: "vertical",
       panelGradientFrom: null,
       panelGradientTo: null,
+      panelGradientFromLight: null,
+      panelGradientFromDark: null,
+      panelGradientToLight: null,
+      panelGradientToDark: null,
       assistantBubbleColor: null,
       assistantTextColor: null,
       clientBubbleColor: null,
@@ -480,6 +496,48 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonTextPair.darkResolved
   );
 
+  const gradientEnabledLight =
+    typeof style.gradientEnabledLight === "boolean"
+      ? style.gradientEnabledLight
+      : typeof style.gradientEnabled === "boolean"
+        ? style.gradientEnabled
+        : false;
+  const gradientEnabledDark =
+    typeof style.gradientEnabledDark === "boolean"
+      ? style.gradientEnabledDark
+      : typeof style.gradientEnabled === "boolean"
+        ? style.gradientEnabled
+        : gradientEnabledLight;
+  const gradientDirectionLight =
+    style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
+      ? style.gradientDirectionLight
+      : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? style.gradientDirection
+        : "vertical";
+  const gradientDirectionDark =
+    style.gradientDirectionDark === "horizontal" || style.gradientDirectionDark === "vertical"
+      ? style.gradientDirectionDark
+      : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+        ? style.gradientDirection
+        : gradientDirectionLight;
+  const panelGradientFromLight =
+    textOrNull(style.gradientFromLight) ||
+    textOrNull(style.gradientFrom) ||
+    textOrNull(draft.theme.lightPalette.gradientFrom);
+  const panelGradientToLight =
+    textOrNull(style.gradientToLight) ||
+    textOrNull(style.gradientTo) ||
+    textOrNull(draft.theme.lightPalette.gradientTo);
+  const panelGradientFromDark =
+    textOrNull(style.gradientFromDark) ||
+    textOrNull(style.gradientFrom) ||
+    textOrNull(draft.theme.darkPalette.gradientFrom) ||
+    panelGradientFromLight;
+  const panelGradientToDark =
+    textOrNull(style.gradientToDark) ||
+    textOrNull(style.gradientTo) ||
+    textOrNull(draft.theme.darkPalette.gradientTo) ||
+    panelGradientToLight;
 
   return {
     enabled: data.enabled !== false,
@@ -509,20 +567,18 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     textColorDark: textOrNull(textPair.darkResolved) || null,
     borderColorLight: textOrNull(borderPair.lightResolved) || null,
     borderColorDark: textOrNull(borderPair.darkResolved) || null,
-    gradientEnabled:
-      typeof style.gradientEnabled === "boolean"
-        ? style.gradientEnabled
-        : typeof style.gradientEnabledLight === "boolean"
-          ? style.gradientEnabledLight
-          : false,
-    gradientDirection:
-      style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
-        ? style.gradientDirection
-        : style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
-          ? style.gradientDirectionLight
-          : "vertical",
-    panelGradientFrom: byMode(style.gradientFrom, style.gradientFromLight, style.gradientFromDark),
-    panelGradientTo: byMode(style.gradientTo, style.gradientToLight, style.gradientToDark),
+    gradientEnabled: isDark ? gradientEnabledDark : gradientEnabledLight,
+    gradientEnabledLight,
+    gradientEnabledDark,
+    gradientDirection: isDark ? gradientDirectionDark : gradientDirectionLight,
+    gradientDirectionLight,
+    gradientDirectionDark,
+    panelGradientFrom: isDark ? panelGradientFromDark : panelGradientFromLight,
+    panelGradientTo: isDark ? panelGradientToDark : panelGradientToLight,
+    panelGradientFromLight,
+    panelGradientFromDark,
+    panelGradientToLight,
+    panelGradientToDark,
     assistantBubbleColor: byMode(style.assistantBubbleColor, style.assistantBubbleColorLight, style.assistantBubbleColorDark),
     assistantTextColor: byMode(style.assistantTextColor, style.assistantTextColorLight, style.assistantTextColorDark),
     clientBubbleColor: byMode(style.clientBubbleColor, style.clientBubbleColorLight, style.clientBubbleColorDark),
