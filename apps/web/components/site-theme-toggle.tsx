@@ -104,6 +104,7 @@ export default function SiteThemeToggle({
     if (typeof window !== "undefined") {
       window.localStorage.setItem(storageKey, nextMode);
       document.cookie = `${cookieKey}=${nextMode}; path=/; max-age=31536000; SameSite=Lax`;
+      window.dispatchEvent(new CustomEvent("site-theme-change", { detail: { mode: nextMode } }));
     }
   };
 

@@ -24,7 +24,7 @@ export default async function PublicSlugLayout({ children, params }: LayoutProps
     <PublicSiteOverlayLoader loaderConfig={loaderConfig}>
       {children}
       {data?.account?.slug && aishaConfig?.enabled !== false ? (
-        <PublicAiChatWidget accountSlug={data.account.slug} widgetConfig={aishaConfig} />
+        <PublicAiChatWidget accountSlug={data.account.slug} widgetConfig={aishaConfig} themeMode={modeOverride} />
       ) : null}
     </PublicSiteOverlayLoader>
   );

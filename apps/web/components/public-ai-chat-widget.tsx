@@ -18,6 +18,7 @@ type PublicAiChatWidgetProps = {
   mode?: "floating" | "inline";
   defaultOpen?: boolean;
   className?: string;
+  themeMode?: "light" | "dark";
 };
 
 function stripLegalRefs(text: string) {
@@ -185,6 +186,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     mode = "floating",
     defaultOpen = false,
     className,
+    themeMode,
   } = props;
   const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState("");
@@ -198,10 +200,51 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [dateByMessage, setDateByMessage] = useState<Record<string, string>>({});
   const [dateMonthByMessage, setDateMonthByMessage] = useState<Record<string, string>>({});
   const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
+  const [currentMode, setCurrentMode] = useState<"light" | "dark">(themeMode ?? "light");
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const storageKey = useMemo(() => `ai-thread:${accountSlug}`, [accountSlug]);
+
+  useEffect(() => {
+    if (themeMode) setCurrentMode(themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    const readStoredMode = () => {
+      if (typeof window === "undefined") return null;
+      const stored = window.localStorage.getItem("site-theme-mode");
+      return stored === "light" || stored === "dark" ? stored : null;
+    };
+
+    const stored = readStoredMode();
+    if (stored) setCurrentMode(stored);
+
+    const onThemeChange = (event: Event) => {
+      const custom = event as CustomEvent<{ mode?: "light" | "dark" }>;
+      const modeFromEvent = custom.detail?.mode;
+      if (modeFromEvent === "light" || modeFromEvent === "dark") {
+        setCurrentMode(modeFromEvent);
+        return;
+      }
+      const next = readStoredMode();
+      if (next) setCurrentMode(next);
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "site-theme-mode") return;
+      if (event.newValue === "light" || event.newValue === "dark") {
+        setCurrentMode(event.newValue);
+      }
+    };
+
+    window.addEventListener("site-theme-change", onThemeChange as EventListener);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("site-theme-change", onThemeChange as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
   const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
   const widgetRootStyle = useMemo(() => {
     const vars: Record<string, string | number> = {};
@@ -244,9 +287,25 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setVar("--ai-quick-reply-text-light", widgetConfig?.quickReplyTextColorLight ?? widgetConfig?.quickReplyTextColor);
     setVar("--ai-quick-reply-text-dark", widgetConfig?.quickReplyTextColorDark ?? widgetConfig?.quickReplyTextColor);
 
+    const pickMode = (light?: string | null, dark?: string | null, base?: string | null) =>
+      currentMode === "dark" ? dark ?? light ?? base : light ?? dark ?? base;
+
+    setVar("--ai-panel", pickMode(widgetConfig?.panelColorLight, widgetConfig?.panelColorDark, widgetConfig?.panelColor));
+    setVar("--ai-text", pickMode(widgetConfig?.textColorLight, widgetConfig?.textColorDark, widgetConfig?.textColor));
+    setVar("--ai-border", pickMode(widgetConfig?.borderColorLight, widgetConfig?.borderColorDark, widgetConfig?.borderColor));
+    setVar("--ai-button", pickMode(widgetConfig?.buttonColorLight, widgetConfig?.buttonColorDark, widgetConfig?.buttonColor));
+    setVar("--ai-button-text", pickMode(widgetConfig?.buttonTextColorLight, widgetConfig?.buttonTextColorDark, widgetConfig?.buttonTextColor));
+    setVar("--ai-header-bg", pickMode(widgetConfig?.headerBgColorLight, widgetConfig?.headerBgColorDark, widgetConfig?.headerBgColor));
+    setVar("--ai-header-text", pickMode(widgetConfig?.headerTextColorLight, widgetConfig?.headerTextColorDark, widgetConfig?.headerTextColor));
+    setVar("--ai-assistant-bubble", pickMode(widgetConfig?.assistantBubbleColorLight, widgetConfig?.assistantBubbleColorDark, widgetConfig?.assistantBubbleColor));
+    setVar("--ai-assistant-text", pickMode(widgetConfig?.assistantTextColorLight, widgetConfig?.assistantTextColorDark, widgetConfig?.assistantTextColor));
+    setVar("--ai-client-bubble", pickMode(widgetConfig?.clientBubbleColorLight, widgetConfig?.clientBubbleColorDark, widgetConfig?.clientBubbleColor));
+    setVar("--ai-client-text", pickMode(widgetConfig?.clientTextColorLight, widgetConfig?.clientTextColorDark, widgetConfig?.clientTextColor));
+    setVar("--ai-quick-reply-button", pickMode(widgetConfig?.quickReplyButtonColorLight, widgetConfig?.quickReplyButtonColorDark, widgetConfig?.quickReplyButtonColor));
+    setVar("--ai-quick-reply-text", pickMode(widgetConfig?.quickReplyTextColorLight, widgetConfig?.quickReplyTextColorDark, widgetConfig?.quickReplyTextColor));
 
     return vars as CSSProperties;
-  }, [widgetConfig, mode]);
+  }, [widgetConfig, mode, currentMode]);
 
 
   const panelWidth = Number(widgetConfig?.panelWidthPx ?? 380);
