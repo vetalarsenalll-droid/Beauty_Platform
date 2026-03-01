@@ -3950,47 +3950,132 @@ function BlockStyleEditor({
       </div>
       )}
       {inSection("effects") && (
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={style.gradientEnabled}
-          onChange={(event) => update({ gradientEnabled: event.target.checked })}
-        />
-        Градиент блока
-      </label>
-      )}
-      {style.gradientEnabled && (
-        inSection("effects") && (
         <>
-          <label className="text-sm">
-            Направление градиента
-            <select
-              value={style.gradientDirection}
-              onChange={(event) =>
-                update({
-                  gradientDirection: event.target.value as BlockStyle["gradientDirection"],
-                })
-              }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="vertical">Сверху вниз</option>
-              <option value="horizontal">Слева направо</option>
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <ColorField
-              label="Цвет 1"
-              value={style.gradientFrom || theme.gradientFrom}
-              onChange={(value) => update({ gradientFrom: value })}
-            />
-            <ColorField
-              label="Цвет 2"
-              value={style.gradientTo || theme.gradientTo}
-              onChange={(value) => update({ gradientTo: value })}
-            />
+          <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+              Градиент: светлая тема
+            </div>
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={
+                  typeof style.gradientEnabledLight === "boolean"
+                    ? style.gradientEnabledLight
+                    : Boolean(style.gradientEnabled)
+                }
+                onChange={(event) =>
+                  update({
+                    gradientEnabledLight: event.target.checked,
+                    gradientEnabled: event.target.checked,
+                  })
+                }
+              />
+              Включить градиент
+            </label>
+            {(typeof style.gradientEnabledLight === "boolean"
+              ? style.gradientEnabledLight
+              : Boolean(style.gradientEnabled)) && (
+              <>
+                <label className="mt-3 block text-sm">
+                  Направление градиента
+                  <select
+                    value={
+                      style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
+                        ? style.gradientDirectionLight
+                        : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+                          ? style.gradientDirection
+                          : "vertical"
+                    }
+                    onChange={(event) =>
+                      update({
+                        gradientDirectionLight: event.target.value as BlockStyle["gradientDirection"],
+                        gradientDirection: event.target.value as BlockStyle["gradientDirection"],
+                      })
+                    }
+                    className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                  >
+                    <option value="vertical">Сверху вниз</option>
+                    <option value="horizontal">Слева направо</option>
+                  </select>
+                </label>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <ColorField
+                    label="Цвет 1"
+                    value={style.gradientFromLight || style.gradientFrom || theme.lightPalette.gradientFrom}
+                    onChange={(value) => update({ gradientFromLight: value, gradientFrom: value })}
+                  />
+                  <ColorField
+                    label="Цвет 2"
+                    value={style.gradientToLight || style.gradientTo || theme.lightPalette.gradientTo}
+                    onChange={(value) => update({ gradientToLight: value, gradientTo: value })}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+              Градиент: темная тема
+            </div>
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={
+                  typeof style.gradientEnabledDark === "boolean"
+                    ? style.gradientEnabledDark
+                    : typeof style.gradientEnabledLight === "boolean"
+                      ? style.gradientEnabledLight
+                      : Boolean(style.gradientEnabled)
+                }
+                onChange={(event) => update({ gradientEnabledDark: event.target.checked })}
+              />
+              Включить градиент
+            </label>
+            {(typeof style.gradientEnabledDark === "boolean"
+              ? style.gradientEnabledDark
+              : typeof style.gradientEnabledLight === "boolean"
+                ? style.gradientEnabledLight
+                : Boolean(style.gradientEnabled)) && (
+              <>
+                <label className="mt-3 block text-sm">
+                  Направление градиента
+                  <select
+                    value={
+                      style.gradientDirectionDark === "horizontal" || style.gradientDirectionDark === "vertical"
+                        ? style.gradientDirectionDark
+                        : style.gradientDirection === "horizontal" || style.gradientDirection === "vertical"
+                          ? style.gradientDirection
+                          : style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
+                            ? style.gradientDirectionLight
+                            : "vertical"
+                    }
+                    onChange={(event) =>
+                      update({
+                        gradientDirectionDark: event.target.value as BlockStyle["gradientDirection"],
+                      })
+                    }
+                    className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                  >
+                    <option value="vertical">Сверху вниз</option>
+                    <option value="horizontal">Слева направо</option>
+                  </select>
+                </label>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <ColorField
+                    label="Цвет 1"
+                    value={style.gradientFromDark || style.gradientFrom || theme.darkPalette.gradientFrom}
+                    onChange={(value) => update({ gradientFromDark: value })}
+                  />
+                  <ColorField
+                    label="Цвет 2"
+                    value={style.gradientToDark || style.gradientTo || theme.darkPalette.gradientTo}
+                    onChange={(value) => update({ gradientToDark: value })}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </>
-        )
       )}
       {inSection("typography") && (
       <label className="text-sm">

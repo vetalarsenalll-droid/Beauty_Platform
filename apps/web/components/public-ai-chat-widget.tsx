@@ -542,8 +542,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           height: `${panelHeightVh}vh`,
           width: `min(${panelWidth}px, calc(100vw - 2rem))`,
           borderRadius: panelRadius,
-          background: panelBackground,
-          backgroundColor: undefined,
+          backgroundImage: panelBackground,
           boxShadow: panelShadowSize > 0 ? `0 ${Math.round(panelShadowSize)}px ${Math.round(panelShadowSize * 3)}px ${panelShadowColor}` : "none",
         }
       : {
@@ -555,7 +554,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           width: `${panelWidth}px`,
           maxWidth: "100%",
           borderRadius: panelRadius,
-          background: panelBackground,
+          backgroundImage: panelBackground,
           backgroundColor: widgetConfig?.panelColor || undefined,
           boxShadow: panelShadowSize > 0 ? `0 ${Math.round(panelShadowSize)}px ${Math.round(panelShadowSize * 3)}px ${panelShadowColor}` : "none",
         };

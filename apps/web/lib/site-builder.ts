@@ -411,6 +411,13 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     draft.theme.lightPalette.panelColor,
     draft.theme.darkPalette.panelColor
   );
+  const subBlockPair = resolvePair(
+    "subBlockBgLight",
+    "subBlockBgDark",
+    "subBlockBg",
+    panelPair.lightResolved,
+    panelPair.darkResolved
+  );
   const textPair = resolvePair(
     "textColorLight",
     "textColorDark",
@@ -457,8 +464,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     "assistantBubbleColorLight",
     "assistantBubbleColorDark",
     "assistantBubbleColor",
-    "",
-    ""
+    subBlockPair.lightResolved,
+    subBlockPair.darkResolved
   );
   const assistantTextPair = resolvePair(
     "assistantTextColorLight",
@@ -548,10 +555,10 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     offsetRightPx: numInRange(data.offsetRightPx, 8, 64, 16),
     panelWidthPx: numInRange(data.panelWidthPx, 320, 460, 380),
     panelHeightVh: numInRange(data.panelHeightVh, 55, 88, 70),
-    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : null,
+    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : draft.theme.radius,
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)
-      : null,
+      : draft.theme.buttonRadius,
     buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
     buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
     panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
@@ -579,14 +586,14 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     panelGradientFromDark,
     panelGradientToLight,
     panelGradientToDark,
-    assistantBubbleColor: byMode(style.assistantBubbleColor, style.assistantBubbleColorLight, style.assistantBubbleColorDark),
-    assistantTextColor: byMode(style.assistantTextColor, style.assistantTextColorLight, style.assistantTextColorDark),
-    clientBubbleColor: byMode(style.clientBubbleColor, style.clientBubbleColorLight, style.clientBubbleColorDark),
-    clientTextColor: byMode(style.clientTextColor, style.clientTextColorLight, style.clientTextColorDark),
+    assistantBubbleColor: byMode(style.assistantBubbleColor, assistantBubblePair.lightResolved, assistantBubblePair.darkResolved),
+    assistantTextColor: byMode(style.assistantTextColor, assistantTextPair.lightResolved, assistantTextPair.darkResolved),
+    clientBubbleColor: byMode(style.clientBubbleColor, clientBubblePair.lightResolved, clientBubblePair.darkResolved),
+    clientTextColor: byMode(style.clientTextColor, clientTextPair.lightResolved, clientTextPair.darkResolved),
     headerBgColor: byMode(style.headerBgColor, style.headerBgColorLight, style.headerBgColorDark),
     headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark),
-    quickReplyButtonColor: byMode(style.quickReplyButtonColor, style.quickReplyButtonColorLight, style.quickReplyButtonColorDark),
-    quickReplyTextColor: byMode(style.quickReplyTextColor, style.quickReplyTextColorLight, style.quickReplyTextColorDark),
+    quickReplyButtonColor: byMode(style.quickReplyButtonColor, quickReplyButtonPair.lightResolved, quickReplyButtonPair.darkResolved),
+    quickReplyTextColor: byMode(style.quickReplyTextColor, quickReplyTextPair.lightResolved, quickReplyTextPair.darkResolved),
     assistantBubbleColorLight: textOrNull(assistantBubblePair.lightResolved) || null,
     assistantBubbleColorDark: textOrNull(assistantBubblePair.darkResolved) || null,
     assistantTextColorLight: textOrNull(assistantTextPair.lightResolved) || null,
@@ -606,10 +613,10 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
       : null,
-    panelShadowColor: textOrNull(style.shadowColor) || null,
+    panelShadowColor: textOrNull(style.shadowColor) || textOrNull(draft.theme.shadowColor) || null,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
       ? numInRange(style.shadowSize, 0, 40, 16)
-      : null,
+      : draft.theme.shadowSize,
   };
 }
 
