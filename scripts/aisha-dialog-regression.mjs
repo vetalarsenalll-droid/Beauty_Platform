@@ -206,14 +206,14 @@ function normalizeUiOptions(rawUi) {
     }))
     .filter((opt) => opt.label || opt.value);
 }
-async function sendMessage({ message, threadId }) {
+async function sendMessage({ message, threadId, threadKey }) {
   const url = new URL("/api/v1/public/ai/chat", BASE_URL);
   url.searchParams.set("account", ACCOUNT);
   const res = await withTimeout(
     fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, threadId }),
+      body: JSON.stringify({ message, threadId, threadKey }),
     }),
     TIMEOUT_MS,
     `POST ${url.pathname}`,
@@ -229,7 +229,9 @@ async function sendMessage({ message, threadId }) {
   }
   return {
     threadId: Number(payload.data.threadId),
+    threadKey: typeof payload.data.threadKey === "string" ? payload.data.threadKey : null,
     reply: String(payload.data.reply),
+    uiOptions: normalizeUiOptions(payload.data.ui),
   };
 }
 
@@ -394,6 +396,7 @@ function writeReport(report) {
 
 async function runScenario(scenario, report) {
   let threadId = null;
+  let threadKey = null;
   let lastReply = "";
   let lastUiOptions = [];
   const scenarioReport = { name: scenario.name, passed: true, steps: [] };
@@ -421,8 +424,9 @@ async function runScenario(scenario, report) {
       continue;
     }
     try {
-      const { threadId: nextThreadId, reply, uiOptions } = await sendMessage({ message: messageToSend, threadId });
+      const { threadId: nextThreadId, threadKey: nextThreadKey, reply, uiOptions } = await sendMessage({ message: messageToSend, threadId, threadKey });
       threadId = Number.isInteger(nextThreadId) && nextThreadId > 0 ? nextThreadId : threadId;
+      threadKey = typeof nextThreadKey === "string" ? nextThreadKey : threadKey;
       lastReply = reply;
       lastUiOptions = Array.isArray(uiOptions) ? uiOptions : [];
       assertStep({ scenarioName: scenario.name, stepIndex: i, step, reply });

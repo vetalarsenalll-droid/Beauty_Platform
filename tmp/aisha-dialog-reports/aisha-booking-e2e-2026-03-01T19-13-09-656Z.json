@@ -1,0 +1,24 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T19:13:08.546Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": false,
+          "error": "Start booking asks for location, not unknown service / step 1 (на завтра запиши меня): expected one of /филиал|локац|beauty salon center|beauty salon riverside/i\nreply:\nТакой услуги не нашла. Выберите, пожалуйста, из доступных:\n1. Balayage — 5500 ₽, 180 мин\n2. Men Haircut — 1200 ₽, 45 мин\n3. Women Haircut — 1800 ₽, 60 мин\n4. Hydra Facial — 3800 ₽, 75 мин\n5. Basic Facial — 2500 ₽, 60 мин\n6. Peeling — 2100 ₽, 45 мин\n7. Pedicure — 1900 ₽, 75 мин\n8. Gel Polish — 2200 ₽, 90 мин\n9. Manicure — 1400 ₽, 60 мин\n10. Hair Coloring — 3500 ₽, 120 мин",
+          "reply": "Такой услуги не нашла. Выберите, пожалуйста, из доступных:\n1. Balayage — 5500 ₽, 180 мин\n2. Men Haircut — 1200 ₽, 45 мин\n3. Women Haircut — 1800 ₽, 60 мин\n4. Hydra Facial — 3800 ₽, 75 мин\n5. Basic Facial — 2500 ₽, 60 мин\n6. Peeling — 2100 ₽, 45 мин\n7. Pedicure — 1900 ₽, 75 мин\n8. Gel Polish — 2200 ₽, 90 мин\n9. Manicure — 1400 ₽, 60 мин\n10. Hair Coloring — 3500 ₽, 120 мин"
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T19:13:09.655Z",
+  "durationMs": 1109
+}

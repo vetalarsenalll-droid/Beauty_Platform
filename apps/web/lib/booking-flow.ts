@@ -1343,7 +1343,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       return {
         handled: true,
         reply:
-          "Для оформления через ассистента нужны имя и телефон клиента. " +
+          "Для оформления через ассистента нужны имя и номер телефона клиента. " +
           `${invalidPhoneHint ? `${invalidPhoneHint} ` : ""}` +
           "Напишите одним сообщением, например: «Надежда +7XXXXXXXXXX».",
         nextStatus: "WAITING_CONSENT",

@@ -1,0 +1,184 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T20:58:32.327Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Nearest availability should return windows immediately",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а свободное окошко когда ближайшее?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability in March",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "в марте есть время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Booking service-first path",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу на маникюр завтра",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Unknown service should be rejected with available options",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши на удаление зуба",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "удаление зуба",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "E2E booking self mode",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня на завтра",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "покажи все свободное время",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "10:00",
+          "passed": true
+        },
+        {
+          "index": 5,
+          "sent": "Balayage",
+          "passed": true
+        },
+        {
+          "index": 6,
+          "sent": "pick:specialist",
+          "skipped": true,
+          "reason": "ifReply"
+        },
+        {
+          "index": 7,
+          "sent": "самостоятельно",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "E2E booking assistant mode",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу записаться на завтра",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "покажи все свободное время",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "10:00",
+          "passed": true
+        },
+        {
+          "index": 5,
+          "sent": "Balayage",
+          "passed": true
+        },
+        {
+          "index": 6,
+          "sent": "pick:specialist",
+          "skipped": true,
+          "reason": "ifReply"
+        },
+        {
+          "index": 7,
+          "sent": "оформи через ассистента",
+          "passed": false,
+          "error": "E2E booking assistant mode / step 7 (pick:mode_assistant): expected one of /согласие|персональн|имя и номер|проверьте данные/i\nreply:\nДля оформления через ассистента нужны имя и телефон клиента. Напишите одним сообщением, например: «Надежда +7XXXXXXXXXX».",
+          "reply": "Для оформления через ассистента нужны имя и телефон клиента. Напишите одним сообщением, например: «Надежда +7XXXXXXXXXX»."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T20:58:52.168Z",
+  "durationMs": 19841
+}

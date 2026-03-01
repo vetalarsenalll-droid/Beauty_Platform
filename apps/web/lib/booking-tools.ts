@@ -1,4 +1,5 @@
-﻿import { prisma } from "@/lib/prisma";
+﻿import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { isPastDateOrTimeInTz, toMinutes, zonedDayRangeUtc, zonedTimeToUtc } from "@/lib/public-booking";
 
 export type Mode = "SELF" | "ASSISTANT";
@@ -178,71 +179,88 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
 
   const endAt = new Date(startAt);
   endAt.setUTCMinutes(endAt.getUTCMinutes() + effective.durationMin);
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      accountId,
-      locationId: d.locationId!,
-      specialistId: d.specialistId!,
-      status: { notIn: ["CANCELLED", "NO_SHOW"] },
-      startAt: { lt: endAt },
-      endAt: { gt: startAt },
-    },
-    select: { id: true },
-  });
-  if (conflict) return { ok: false as const, code: "slot_busy" as const };
+  const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? null;
+  const ua = request.headers.get("user-agent") ?? null;
 
-  const clientProfile = await prisma.client.findFirst({
-    where: { accountId, phone: d.clientPhone! },
-    select: { id: true, firstName: true },
-  });
-  const clientId = clientProfile
-    ? (
-        await prisma.client.update({
-          where: { id: clientProfile.id },
-          data: { firstName: clientProfile.firstName || d.clientName! },
-        })
-      ).id
-    : (await prisma.client.create({ data: { accountId, firstName: d.clientName!, phone: d.clientPhone! } })).id;
+  try {
+    const appointmentId = await prisma.$transaction(
+      async (tx) => {
+        const conflict = await tx.appointment.findFirst({
+          where: {
+            accountId,
+            locationId: d.locationId!,
+            specialistId: d.specialistId!,
+            status: { notIn: ["CANCELLED", "NO_SHOW"] },
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+          },
+          select: { id: true },
+        });
+        if (conflict) return null;
 
-  const appt = await prisma.appointment.create({
-    data: {
-      accountId,
-      locationId: d.locationId!,
-      specialistId: d.specialistId!,
-      clientId,
-      startAt,
-      endAt,
-      status: "NEW",
-      priceTotal: Number(effective.price),
-      durationTotalMin: effective.durationMin,
-      source: "ai_assistant",
-      services: {
-        create: [{ serviceId: service.id, price: Number(effective.price), durationMin: effective.durationMin }],
+        const clientProfile = await tx.client.findFirst({
+          where: { accountId, phone: d.clientPhone! },
+          select: { id: true, firstName: true },
+        });
+        const clientId = clientProfile
+          ? (
+              await tx.client.update({
+                where: { id: clientProfile.id },
+                data: { firstName: clientProfile.firstName || d.clientName! },
+              })
+            ).id
+          : (await tx.client.create({ data: { accountId, firstName: d.clientName!, phone: d.clientPhone! } })).id;
+
+        const appt = await tx.appointment.create({
+          data: {
+            accountId,
+            locationId: d.locationId!,
+            specialistId: d.specialistId!,
+            clientId,
+            startAt,
+            endAt,
+            status: "NEW",
+            priceTotal: Number(effective.price),
+            durationTotalMin: effective.durationMin,
+            source: "ai_assistant",
+            services: {
+              create: [{ serviceId: service.id, price: Number(effective.price), durationMin: effective.durationMin }],
+            },
+          },
+          select: { id: true },
+        });
+
+        await tx.appointmentStatusHistory.create({
+          data: { appointmentId: appt.id, actorType: "assistant", toStatus: "NEW" },
+        });
+
+        if (requiredVersionIds.length) {
+          await tx.legalAcceptance.createMany({
+            data: requiredVersionIds.map((v) => ({
+              accountId,
+              documentVersionId: v,
+              appointmentId: appt.id,
+              clientId,
+              source: "public_booking",
+              ip,
+              userAgent: ua,
+            })),
+          });
+        }
+
+        return appt.id;
       },
-    },
-    select: { id: true },
-  });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
-  await prisma.appointmentStatusHistory.create({
-    data: { appointmentId: appt.id, actorType: "assistant", toStatus: "NEW" },
-  });
-
-  if (requiredVersionIds.length) {
-    const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? null;
-    const ua = request.headers.get("user-agent") ?? null;
-    await prisma.legalAcceptance.createMany({
-      data: requiredVersionIds.map((v) => ({
-        accountId,
-        documentVersionId: v,
-        appointmentId: appt.id,
-        clientId,
-        source: "public_booking",
-        ip,
-        userAgent: ua,
-      })),
-    });
+    if (!appointmentId) return { ok: false as const, code: "slot_busy" as const };
+    return { ok: true as const, appointmentId };
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code ?? "";
+    if (code === "P2034") {
+      return { ok: false as const, code: "slot_busy" as const };
+    }
+    throw error;
   }
-
-  return { ok: true as const, appointmentId: appt.id };
 }
 

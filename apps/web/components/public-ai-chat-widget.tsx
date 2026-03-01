@@ -12,6 +12,8 @@ type ChatUi =
   | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null };
 type ChatMessage = Message & { ui?: ChatUi | null };
 
+type StoredThreadState = { threadId: number; threadKey: string | null };
+
 type PublicAiChatWidgetProps = {
   accountSlug: string;
   widgetConfig?: SiteAishaWidgetConfig | null;
@@ -179,6 +181,26 @@ function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: stri
   }
   return cells;
 }
+
+function parseStoredThreadState(raw: string | null): StoredThreadState | null {
+  if (!raw) return null;
+  const numeric = Number(raw);
+  if (Number.isInteger(numeric) && numeric > 0) return { threadId: numeric, threadKey: null };
+  try {
+    const parsed = JSON.parse(raw) as { threadId?: unknown; threadKey?: unknown };
+    const threadId = Number(parsed?.threadId);
+    if (!Number.isInteger(threadId) || threadId <= 0) return null;
+    const threadKey = typeof parsed?.threadKey === "string" && parsed.threadKey.trim().length >= 16 ? parsed.threadKey.trim() : null;
+    return { threadId, threadKey };
+  } catch {
+    return null;
+  }
+}
+
+function saveThreadState(storageKey: string, threadId: number, threadKey: string | null) {
+  window.localStorage.setItem(storageKey, JSON.stringify({ threadId, threadKey }));
+}
+
 export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const {
     accountSlug,
@@ -192,6 +214,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
+  const [threadKey, setThreadKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
   const [typingTarget, setTypingTarget] = useState("");
@@ -410,11 +433,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const savedThreadIdRaw = window.localStorage.getItem(storageKey);
-      const savedThreadId = savedThreadIdRaw ? Number(savedThreadIdRaw) : null;
+      const savedThread = parseStoredThreadState(window.localStorage.getItem(storageKey));
       const threadQuery =
-        Number.isInteger(savedThreadId) && savedThreadId! > 0
-          ? `&threadId=${savedThreadId}`
+        savedThread && savedThread.threadId > 0
+          ? `&threadId=${savedThread.threadId}${savedThread.threadKey ? `&threadKey=${encodeURIComponent(savedThread.threadKey)}` : ""}`
           : "";
       const response = await fetch(
         `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}${threadQuery}`,
@@ -424,9 +446,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       if (!response.ok || !payload?.data || cancelled) return;
 
       const nextThreadId = Number(payload.data.threadId);
+      const nextThreadKey = typeof payload.data.threadKey === "string" ? payload.data.threadKey : null;
       if (Number.isInteger(nextThreadId) && nextThreadId > 0) {
         setThreadId(nextThreadId);
-        window.localStorage.setItem(storageKey, String(nextThreadId));
+        setThreadKey(nextThreadKey);
+        saveThreadState(storageKey, nextThreadId, nextThreadKey);
       }
       const apiMessages = Array.isArray(payload.data.messages) ? (payload.data.messages as Message[]) : [];
       setMessages(apiMessages.length > 0 ? apiMessages.map((m) => ({ ...m, ui: null })) : []);
@@ -459,6 +483,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         body: JSON.stringify({
           message: userText,
           threadId,
+          threadKey,
           clientTodayYmd,
           clientTimeZone,
         }),
@@ -526,25 +551,30 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     if (threadId) {
       try {
         const response = await fetch(
-          `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}&threadId=${threadId}`,
+          `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}&threadId=${threadId}${threadKey ? `&threadKey=${encodeURIComponent(threadKey)}` : ""}`,
           { method: "DELETE", credentials: "include" }
         );
         const payload = await response.json().catch(() => null);
         const nextThreadId = Number(payload?.data?.threadId);
+        const nextThreadKey = typeof payload?.data?.threadKey === "string" ? payload.data.threadKey : null;
         if (response.ok && Number.isInteger(nextThreadId) && nextThreadId > 0) {
           setThreadId(nextThreadId);
-          window.localStorage.setItem(storageKey, String(nextThreadId));
+          setThreadKey(nextThreadKey);
+          saveThreadState(storageKey, nextThreadId, nextThreadKey);
         } else {
           window.localStorage.removeItem(storageKey);
           setThreadId(null);
+          setThreadKey(null);
         }
       } catch {
         window.localStorage.removeItem(storageKey);
         setThreadId(null);
+        setThreadKey(null);
       }
     } else {
       window.localStorage.removeItem(storageKey);
       setThreadId(null);
+      setThreadKey(null);
     }
     setMessages([]);
     setConsentCheckedByMessage({});

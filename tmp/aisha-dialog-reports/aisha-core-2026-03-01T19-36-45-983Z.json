@@ -1,0 +1,188 @@
+{
+  "suite": "core",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-01T19:36:34.336Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Greeting basic",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abuse de-escalation",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет сучка",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identity intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто ты",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Capabilities intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "что умеешь",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Capabilities follow-up should route to DB services",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а что ты можешь?",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "а какие именно есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Current datetime intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какое сейчас число и время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Contact phone intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "дай номер",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Working hours intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "до скольки работаете?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Address intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "где находитесь?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Services list intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какие услуги есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Services for men intent",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "мужские услуги есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Specific price intent grounded",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "сколько стоит peeling",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "General price intent grounded",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "по стоимости сориентируй",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Specialists generic",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какие мастера есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Who works tomorrow + location keeps specialist flow",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто завтра работает",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Riverside",
+          "passed": false,
+          "error": "Who works tomorrow + location keeps specialist flow / step 2 (Beauty Salon Riverside): expected one of /специалист|мастер|работают/i\nreply:\nВыберите услугу, и продолжу запись.",
+          "reply": "Выберите услугу, и продолжу запись."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-01T19:36:45.982Z",
+  "durationMs": 11646
+}

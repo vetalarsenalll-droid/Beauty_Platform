@@ -1,4 +1,4 @@
-﻿import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -10,6 +10,7 @@ import { ANTI_HALLUCINATION_RULES, AishaIntent, routeForIntent } from "@/lib/dia
 import { INTENT_ACTION_MATRIX } from "@/lib/intent-action-matrix";
 import { runClientAccountFlow } from "@/lib/client-account-flow";
 import { getNowInTimeZone, resolvePublicAccount } from "@/lib/public-booking";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { createHmac, timingSafeEqual } from "crypto";
 
 const prismaAny = prisma as any;
@@ -993,6 +994,13 @@ function mapNluIntent(intent: AishaNluIntent): AishaIntent {
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+  const limited = enforceRateLimit({
+    request,
+    scope: `public:ai:chat:get:${resolved.account.id}`,
+    limit: 300,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
   const url = new URL(request.url);
   const threadId = asThreadId(url.searchParams.get("threadId"));
   const threadKey = asThreadKey(url.searchParams.get("threadKey"));
@@ -1007,15 +1015,24 @@ export async function GET(request: Request) {
   });
   const messages = await prisma.aiMessage.findMany({
     where: { threadId: thread.id },
-    orderBy: { id: "asc" },
+    orderBy: { id: "desc" },
+    take: 120,
     select: { id: true, role: true, content: true },
   });
+  messages.reverse();
   return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, messages, draft: draftView(draft) });
 }
 
 export async function DELETE(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+  const limited = enforceRateLimit({
+    request,
+    scope: `public:ai:chat:delete:${resolved.account.id}`,
+    limit: 90,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
   const url = new URL(request.url);
   const threadId = asThreadId(url.searchParams.get("threadId"));
   const threadKey = asThreadKey(url.searchParams.get("threadKey"));
@@ -1045,6 +1062,13 @@ export async function DELETE(request: Request) {
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+  const limited = enforceRateLimit({
+    request,
+    scope: `public:ai:chat:post:${resolved.account.id}`,
+    limit: 240,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
 
   const body = (await request.json().catch(() => null)) as Body | null;
   if (!body || typeof body !== "object") return jsonError("VALIDATION_FAILED", "Invalid JSON body", null, 400);
@@ -1440,9 +1464,17 @@ export async function POST(request: Request) {
         Boolean(selectedSpecialistByText));
     // In assistant completion stages, every follow-up must be processed by deterministic booking-flow
     // to enforce phone validation, consent, and explicit final confirmation.
+    const conversationalAssistantStageIntent =
+      intent === "greeting" ||
+      intent === "smalltalk" ||
+      intent === "identity" ||
+      intent === "capabilities" ||
+      intent === "out_of_scope" ||
+      intent === "abuse_or_toxic";
     const forceAssistantStageFlow =
       shouldStayInAssistantStages &&
       hasDraftContext &&
+      !conversationalAssistantStageIntent &&
       !explicitBookingDecline &&
       !forceClientActions &&
       !explicitDateTimeQuery;
@@ -1455,6 +1487,7 @@ export async function POST(request: Request) {
     const shouldRunBookingFlow =
       (route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent) &&
       intent !== "post_completion_smalltalk" &&
+      !isGreetingText(messageForRouting) &&
       !hasPositiveFeedbackCue;
     const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
     const prevUserNorm = norm(previousUserText);
@@ -1767,7 +1800,7 @@ export async function POST(request: Request) {
       } else if (intent === "capabilities") {
         reply = "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
       } else if (intent === "out_of_scope") {
-        reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами.";
+        reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
       } else if (intent === "abuse_or_toxic") {
         reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
       } else if (intent === "post_completion_smalltalk") {
@@ -1906,7 +1939,7 @@ export async function POST(request: Request) {
         if (isOutOfDomainPrompt(t)) {
           reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
         } else {
-          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами.";
+          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
         }
       }
     }
@@ -1946,7 +1979,7 @@ export async function POST(request: Request) {
         assistantName: ASSISTANT_NAME,
       })
     ) {
-      reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами.";
+      reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
       nextUi = null;
     }
 

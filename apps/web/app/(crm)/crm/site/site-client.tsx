@@ -3525,7 +3525,7 @@ function BlockStyleEditor({
       <>
         <label className="text-sm">
           {"Отступ снизу:"} {Number(block.data.offsetBottomPx ?? 16)}px
-          <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetBottomPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetBottomPx: Number(event.target.value) } })} className="mt-2 w-full" />
+          <input type="range" min={8} max={64} step={1} value={Number(block.data.offsetBottomPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetBottomPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
           {"Отступ справа:"} {Number(block.data.offsetRightPx ?? 16)}px
@@ -3533,7 +3533,7 @@ function BlockStyleEditor({
         </label>
         <label className="text-sm">
           {"Ширина панели:"} {Number(block.data.panelWidthPx ?? 380)}px
-          <input type="range" min={320} max={620} step={2} value={Number(block.data.panelWidthPx ?? 380)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelWidthPx: Number(event.target.value) } })} className="mt-2 w-full" />
+          <input type="range" min={320} max={460} step={2} value={Number(block.data.panelWidthPx ?? 380)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelWidthPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
           {"Высота панели:"} {Number(block.data.panelHeightVh ?? 70)}vh
@@ -7439,9 +7439,9 @@ function buildAishaWidgetConfig(
       typeof data.label === "string" && data.label.trim()
         ? data.label.trim()
         : "AI-ассистент",
-    offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 160, 16),
+    offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 64, 16),
     offsetRightPx: toNumberInRange(data.offsetRightPx, 8, 160, 16),
-    panelWidthPx: toNumberInRange(data.panelWidthPx, 320, 620, 380),
+    panelWidthPx: toNumberInRange(data.panelWidthPx, 320, 460, 380),
     panelHeightVh: toNumberInRange(data.panelHeightVh, 55, 95, 70),
     radiusPx: style.radius ?? theme.radius ?? 16,
     buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 999,
