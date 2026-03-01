@@ -712,7 +712,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                 : "rounded-full"
                             } ${
                               isLastAssistant
-                                ? "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95"
+                                ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
                                 : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
                             } disabled:cursor-not-allowed disabled:opacity-60`}
                           >
@@ -736,11 +736,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               }))
                             }
                             style={buttonRadiusStyle}
-                            className="h-7 w-7 rounded-md border border-[color:var(--ai-border,#d1d5db)] text-xs disabled:opacity-40"
+                            className={`h-7 w-7 rounded-md border text-xs disabled:opacity-40 ${currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)]" : "border-[color:var(--ai-border,#d1d5db)] bg-white text-[color:var(--ai-text,#111827)]"}`}
                           >
                             ‹
                           </button>
-                          <div className="text-xs font-medium">{getMonthLabelRu(datePickerViewMonth)}</div>
+                          <div className={`text-xs font-medium ${currentMode === "dark" ? "text-[color:var(--ai-text,#f3f4f6)]" : "text-[color:var(--ai-text,#111827)]"}`}>{getMonthLabelRu(datePickerViewMonth)}</div>
                           <button
                             type="button"
                             disabled={loading || !isLastAssistant || !canNextMonth}
@@ -751,7 +751,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               }))
                             }
                             style={buttonRadiusStyle}
-                            className="h-7 w-7 rounded-md border border-[color:var(--ai-border,#d1d5db)] text-xs disabled:opacity-40"
+                            className={`h-7 w-7 rounded-md border text-xs disabled:opacity-40 ${currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)]" : "border-[color:var(--ai-border,#d1d5db)] bg-white text-[color:var(--ai-text,#111827)]"}`}
                           >
                             ›
                           </button>
@@ -789,7 +789,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   }));
                                 }}
                                 style={buttonRadiusStyle}
-                                className={`h-7 rounded-md text-[11px] ${selected ? 'bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]' : inactive ? (currentMode === 'dark' ? 'bg-white/5 text-[color:var(--ai-muted,#9ca3af)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]') : cell.inMonth ? (currentMode === 'dark' ? 'bg-white/10 text-[color:var(--ai-text,#f3f4f6)]' : 'bg-white text-[color:var(--ai-text,#111827)]') : (currentMode === 'dark' ? 'bg-white/5 text-[color:var(--ai-muted,#9ca3af)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]')} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
+                                className={`h-7 rounded-md text-[11px] ${selected ? (currentMode === 'dark' ? 'bg-[color:var(--ai-client-bubble,#0b1220)] text-[color:var(--ai-client-text,#f8fafc)] ring-1 ring-[color:var(--ai-border,#334155)]' : 'bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]') : inactive ? (currentMode === 'dark' ? 'bg-white/5 text-[color:var(--ai-muted,#9ca3af)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]') : cell.inMonth ? (currentMode === 'dark' ? 'bg-white/10 text-[color:var(--ai-text,#f3f4f6)]' : 'bg-white text-[color:var(--ai-text,#111827)]') : (currentMode === 'dark' ? 'bg-white/5 text-[color:var(--ai-muted,#9ca3af)]' : 'bg-black/5 text-[color:var(--ai-muted,#9ca3af)]')} ${inactive ? 'cursor-not-allowed' : ''} disabled:opacity-35`}
                               >
                                 {cell.day}
                               </button>
@@ -804,7 +804,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                             disabled={loading || !isLastAssistant || !datePickerValue || !selectedDateIsAvailable}
                             onClick={() => void sendRawMessage(formatYmdRuDate(datePickerValue))}
                             style={buttonRadiusStyle}
-                            className="rounded-lg bg-[color:var(--ai-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--ai-button-text,#fff)] disabled:opacity-50"
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${currentMode === "dark" ? "bg-[color:var(--ai-button,#1f2937)] text-[color:var(--ai-button-text,#f9fafb)] ring-1 ring-[color:var(--ai-border,#334155)]" : "bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]"}`}
                           >
                             Выбрать
                           </button>
@@ -826,7 +826,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   }
                                 }}
                                 style={buttonRadiusStyle}
-                                className="rounded-lg border border-[color:var(--ai-border,#d1d5db)] px-3 py-1.5 text-xs disabled:opacity-60"
+                                className={`rounded-lg border px-3 py-1.5 text-xs disabled:opacity-60 ${currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/10" : "border-[color:var(--ai-border,#d1d5db)] bg-white text-[color:var(--ai-text,#111827)]"}`}
                               >
                                 Текст ПДн {i + 1}
                               </button>
@@ -853,7 +853,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           disabled={loading || !isLastAssistant || !consentChecked}
                           onClick={() => void sendRawMessage(consentSubmitValue)}
                           style={buttonRadiusStyle}
-                          className="mt-2 rounded-lg bg-[color:var(--ai-button,#111827)] px-3 py-1.5 text-xs font-medium text-[color:var(--ai-button-text,#fff)] disabled:opacity-50"
+                          className={`mt-2 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${currentMode === "dark" ? "bg-[color:var(--ai-button,#1f2937)] text-[color:var(--ai-button-text,#f9fafb)] ring-1 ring-[color:var(--ai-border,#334155)]" : "bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]"}`}
                         >
                           Подтвердить
                         </button>
@@ -917,4 +917,3 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
-
