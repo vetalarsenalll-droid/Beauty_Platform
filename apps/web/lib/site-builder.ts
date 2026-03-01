@@ -338,13 +338,23 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
   const textOrNull = (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : null;
   const isDark = (modeOverride ?? draft.theme.mode) === "dark";
-  const byMode = (base: unknown, light: unknown, dark: unknown) => {
+  const themePalette = isDark ? draft.theme.darkPalette : draft.theme.lightPalette;
+  const byMode = (base: unknown, light: unknown, dark: unknown, fallback?: string) => {
     const baseVal = textOrNull(base);
     if (baseVal) return baseVal;
     const lightVal = textOrNull(light);
     const darkVal = textOrNull(dark);
-    return isDark ? darkVal || lightVal : lightVal || darkVal;
+    const modeVal = isDark ? darkVal : lightVal;
+    return modeVal || fallback || null;
   };
+  const assistantBubbleFallback =
+    typeof themePalette?.textColor === "string" && themePalette.textColor.trim()
+      ? hexToRgba(themePalette.textColor, isDark ? 0.08 : 0.05)
+      : null;
+  const panelShadowFallback =
+    typeof themePalette?.shadowColor === "string" && themePalette.shadowColor.trim()
+      ? themePalette.shadowColor.trim()
+      : null;
 
   return {
     enabled: data.enabled !== false,
@@ -359,11 +369,16 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)
       : null,
-    buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
-    buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
-    panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
-    textColor: byMode(style.textColor, style.textColorLight, style.textColorDark),
-    borderColor: byMode(style.borderColor, style.borderColorLight, style.borderColorDark),
+    buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark, themePalette.buttonColor),
+    buttonTextColor: byMode(
+      style.buttonTextColor,
+      style.buttonTextColorLight,
+      style.buttonTextColorDark,
+      themePalette.buttonTextColor
+    ),
+    panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark, themePalette.panelColor),
+    textColor: byMode(style.textColor, style.textColorLight, style.textColorDark, themePalette.textColor),
+    borderColor: byMode(style.borderColor, style.borderColorLight, style.borderColorDark, themePalette.borderColor),
     gradientEnabled:
       typeof style.gradientEnabled === "boolean"
         ? style.gradientEnabled
@@ -376,25 +391,55 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
         : style.gradientDirectionLight === "horizontal" || style.gradientDirectionLight === "vertical"
           ? style.gradientDirectionLight
           : "vertical",
-    panelGradientFrom: byMode(style.gradientFrom, style.gradientFromLight, style.gradientFromDark),
-    panelGradientTo: byMode(style.gradientTo, style.gradientToLight, style.gradientToDark),
-    assistantBubbleColor: byMode(style.assistantBubbleColor, style.assistantBubbleColorLight, style.assistantBubbleColorDark),
-    assistantTextColor: byMode(style.assistantTextColor, style.assistantTextColorLight, style.assistantTextColorDark),
-    clientBubbleColor: byMode(style.clientBubbleColor, style.clientBubbleColorLight, style.clientBubbleColorDark),
-    clientTextColor: byMode(style.clientTextColor, style.clientTextColorLight, style.clientTextColorDark),
-    headerBgColor: byMode(style.headerBgColor, style.headerBgColorLight, style.headerBgColorDark),
-    headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark),
-    quickReplyButtonColor: byMode(style.quickReplyButtonColor, style.quickReplyButtonColorLight, style.quickReplyButtonColorDark),
-    quickReplyTextColor: byMode(style.quickReplyTextColor, style.quickReplyTextColorLight, style.quickReplyTextColorDark),
+    panelGradientFrom: byMode(style.gradientFrom, style.gradientFromLight, style.gradientFromDark, null),
+    panelGradientTo: byMode(style.gradientTo, style.gradientToLight, style.gradientToDark, null),
+    assistantBubbleColor: byMode(
+      style.assistantBubbleColor,
+      style.assistantBubbleColorLight,
+      style.assistantBubbleColorDark,
+      assistantBubbleFallback
+    ),
+    assistantTextColor: byMode(
+      style.assistantTextColor,
+      style.assistantTextColorLight,
+      style.assistantTextColorDark,
+      themePalette.textColor
+    ),
+    clientBubbleColor: byMode(
+      style.clientBubbleColor,
+      style.clientBubbleColorLight,
+      style.clientBubbleColorDark,
+      themePalette.buttonColor
+    ),
+    clientTextColor: byMode(
+      style.clientTextColor,
+      style.clientTextColorLight,
+      style.clientTextColorDark,
+      themePalette.buttonTextColor
+    ),
+    headerBgColor: byMode(style.headerBgColor, style.headerBgColorLight, style.headerBgColorDark, themePalette.panelColor),
+    headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark, themePalette.textColor),
+    quickReplyButtonColor: byMode(
+      style.quickReplyButtonColor,
+      style.quickReplyButtonColorLight,
+      style.quickReplyButtonColorDark,
+      themePalette.buttonColor
+    ),
+    quickReplyTextColor: byMode(
+      style.quickReplyTextColor,
+      style.quickReplyTextColorLight,
+      style.quickReplyTextColorDark,
+      themePalette.buttonTextColor
+    ),
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
       : null,
-    panelShadowColor:
-      textOrNull(style.shadowColor) ||
-      null,
+    panelShadowColor: textOrNull(style.shadowColor) || panelShadowFallback,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
       ? numInRange(style.shadowSize, 0, 40, 16)
-      : null,
+      : Number.isFinite(Number(themePalette.shadowSize))
+        ? numInRange(themePalette.shadowSize, 0, 40, 16)
+        : null,
   };
 }
 
