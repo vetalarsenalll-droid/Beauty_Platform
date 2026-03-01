@@ -324,9 +324,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
   const aishaBlock = homeBlocks.find((block) => block.type === "aisha") ?? null;
   if (!aishaBlock) {
     return {
-      enabled: true,
-      headerTitle: "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
-      label: "AI-\u0447\u0430\u0442",
+      enabled: false,
+      headerTitle: "AI-ассистент записи",
+      label: "AI-чат",
       offsetBottomPx: 16,
       offsetRightPx: 16,
       panelWidthPx: 380,
@@ -381,7 +381,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     typeof value === "string" && value.trim() ? value.trim() : null;
   const readColor = (key: string) =>
     typeof style[key] === "string" ? (style[key] as string).trim() : "";
-  const isDark = (modeOverride ?? draft.theme.mode) === "dark";
+  const theme = draft.pageThemes?.home ?? draft.theme;
+  const isDark = (modeOverride ?? theme.mode) === "dark";
   const byMode = (base: unknown, light: unknown, dark: unknown) => {
     const lightVal = textOrNull(light);
     const darkVal = textOrNull(dark);
@@ -407,8 +408,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     "blockBgLight",
     "blockBgDark",
     "blockBg",
-    draft.theme.lightPalette.panelColor,
-    draft.theme.darkPalette.panelColor
+    theme.lightPalette.panelColor,
+    theme.darkPalette.panelColor
   );
   const subBlockPair = resolvePair(
     "subBlockBgLight",
@@ -421,29 +422,29 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     "textColorLight",
     "textColorDark",
     "textColor",
-    draft.theme.lightPalette.textColor,
-    draft.theme.darkPalette.textColor
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
   );
   const borderPair = resolvePair(
     "borderColorLight",
     "borderColorDark",
     "borderColor",
-    draft.theme.lightPalette.borderColor,
-    draft.theme.darkPalette.borderColor
+    theme.lightPalette.borderColor,
+    theme.darkPalette.borderColor
   );
   const buttonPair = resolvePair(
     "buttonColorLight",
     "buttonColorDark",
     "buttonColor",
-    draft.theme.lightPalette.buttonColor,
-    draft.theme.darkPalette.buttonColor
+    theme.lightPalette.buttonColor,
+    theme.darkPalette.buttonColor
   );
   const buttonTextPair = resolvePair(
     "buttonTextColorLight",
     "buttonTextColorDark",
     "buttonTextColor",
-    draft.theme.lightPalette.buttonTextColor,
-    draft.theme.darkPalette.buttonTextColor
+    theme.lightPalette.buttonTextColor,
+    theme.darkPalette.buttonTextColor
   );
   const headerBgPair = resolvePair(
     "headerBgColorLight",
@@ -529,35 +530,35 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
   const panelGradientFromLight =
     textOrNull(style.gradientFromLight) ||
     textOrNull(style.gradientFrom) ||
-    textOrNull(draft.theme.lightPalette.gradientFrom);
+    textOrNull(theme.lightPalette.gradientFrom);
   const panelGradientToLight =
     textOrNull(style.gradientToLight) ||
     textOrNull(style.gradientTo) ||
-    textOrNull(draft.theme.lightPalette.gradientTo);
+    textOrNull(theme.lightPalette.gradientTo);
   const panelGradientFromDark =
     textOrNull(style.gradientFromDark) ||
     textOrNull(style.gradientFrom) ||
-    textOrNull(draft.theme.darkPalette.gradientFrom) ||
+    textOrNull(theme.darkPalette.gradientFrom) ||
     panelGradientFromLight;
   const panelGradientToDark =
     textOrNull(style.gradientToDark) ||
     textOrNull(style.gradientTo) ||
-    textOrNull(draft.theme.darkPalette.gradientTo) ||
+    textOrNull(theme.darkPalette.gradientTo) ||
     panelGradientToLight;
 
   return {
     enabled: data.enabled !== false,
     headerTitle:
-      typeof data.title === "string" && data.title.trim() ? data.title.trim() : "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438",
-    label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-\u0447\u0430\u0442",
+      typeof data.title === "string" && data.title.trim() ? data.title.trim() : "AI-ассистент записи",
+    label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-чат",
     offsetBottomPx: numInRange(data.offsetBottomPx, 8, 64, 16),
     offsetRightPx: numInRange(data.offsetRightPx, 8, 64, 16),
     panelWidthPx: numInRange(data.panelWidthPx, 320, 460, 380),
     panelHeightVh: numInRange(data.panelHeightVh, 55, 88, 70),
-    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : draft.theme.radius,
+    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : theme.radius,
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)
-      : draft.theme.buttonRadius,
+      : theme.buttonRadius,
     buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
     buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
     panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
@@ -612,10 +613,10 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
       : null,
-    panelShadowColor: textOrNull(style.shadowColor) || textOrNull(draft.theme.shadowColor) || null,
+    panelShadowColor: textOrNull(style.shadowColor) || textOrNull(theme.shadowColor) || null,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
       ? numInRange(style.shadowSize, 0, 40, 16)
-      : draft.theme.shadowSize,
+      : theme.shadowSize,
   };
 }
 
@@ -1243,3 +1244,4 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     entityPages,
   };
 };
+

@@ -464,6 +464,10 @@ const defaultBlockStyle = {
   gradientDirection: "vertical",
   gradientFrom: "",
   gradientTo: "",
+  gradientFromLight: "",
+  gradientToLight: "",
+  gradientFromDark: "",
+  gradientToDark: "",
   textAlign: "left",
   textAlignHeading: "left",
   textAlignSubheading: "left",
@@ -676,19 +680,53 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     panelHeightVh: 70,
     style: {
       ...defaultBlockStyle,
+      blockBgLight: "#ffffff",
+      blockBgDark: "#111827",
+      blockBg: "#ffffff",
+      textColorLight: "#111827",
+      textColorDark: "#f3f4f6",
+      textColor: "#111827",
+      mutedColorLight: "#6b7280",
+      mutedColorDark: "#9ca3af",
+      mutedColor: "#6b7280",
+      borderColorLight: "#e5e7eb",
+      borderColorDark: "#374151",
+      borderColor: "#e5e7eb",
       buttonColorLight: "#111827",
       buttonColorDark: "#111827",
       buttonColor: "#111827",
       buttonTextColorLight: "#ffffff",
       buttonTextColorDark: "#ffffff",
       buttonTextColor: "#ffffff",
-      blockBgLight: "#ffffff",
-      blockBgDark: "#111827",
-      borderColorLight: "#e5e7eb",
-      borderColorDark: "#374151",
+      assistantBubbleColorLight: "#f3f4f6",
+      assistantBubbleColorDark: "#0f172a",
+      assistantTextColorLight: "#111827",
+      assistantTextColorDark: "#f3f4f6",
+      clientBubbleColorLight: "#111827",
+      clientBubbleColorDark: "#111827",
+      clientTextColorLight: "#ffffff",
+      clientTextColorDark: "#ffffff",
+      headerBgColorLight: "#ffffff",
+      headerBgColorDark: "#0f172a",
+      headerTextColorLight: "#111827",
+      headerTextColorDark: "#f3f4f6",
+      quickReplyButtonColorLight: "#111827",
+      quickReplyButtonColorDark: "#111827",
+      quickReplyTextColorLight: "#ffffff",
+      quickReplyTextColorDark: "#ffffff",
       radius: 16,
       buttonRadius: 999,
       messageRadius: 16,
+      shadowColor: "rgba(17,24,39,0.16)",
+      shadowSize: 16,
+      gradientEnabledLight: false,
+      gradientEnabledDark: false,
+      gradientDirectionLight: "vertical",
+      gradientDirectionDark: "vertical",
+      gradientFromLight: "#ffffff",
+      gradientToLight: "#ffffff",
+      gradientFromDark: "#111827",
+      gradientToDark: "#111827",
     },
   },
 };
@@ -4273,6 +4311,10 @@ type BlockStyle = {
   gradientDirectionDark: "vertical" | "horizontal";
   gradientFrom: string;
   gradientTo: string;
+  gradientFromLight: string;
+  gradientToLight: string;
+  gradientFromDark: string;
+  gradientToDark: string;
   gradientFromLightResolved: string;
   gradientToLightResolved: string;
   gradientFromDarkResolved: string;
@@ -4709,6 +4751,10 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     gradientDirectionDark,
     gradientFrom,
     gradientTo,
+    gradientFromLight: gradientFromLightRaw,
+    gradientToLight: gradientToLightRaw,
+    gradientFromDark: gradientFromDarkRaw,
+    gradientToDark: gradientToDarkRaw,
     gradientFromLightResolved,
     gradientToLightResolved,
     gradientFromDarkResolved,
@@ -7564,3 +7610,4 @@ function renderContacts(
     </div>
   );
 }
+

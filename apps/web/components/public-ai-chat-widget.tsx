@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
@@ -211,6 +211,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   }, [themeMode]);
 
   useEffect(() => {
+    // Inline mode in CRM preview is controlled by `themeMode` prop, not shared site storage.
+    if (mode === "inline") return;
+
     const readStoredMode = () => {
       if (typeof window === "undefined") return null;
       const stored = window.localStorage.getItem("site-theme-mode");
@@ -244,7 +247,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       window.removeEventListener("site-theme-change", onThemeChange as EventListener);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [mode]);
   const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
   const widgetRootStyle = useMemo(() => {
     const vars: Record<string, string | number> = {};
@@ -902,4 +905,3 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
-
