@@ -3257,6 +3257,8 @@ function BlockStyleEditor({
       : value.trim();
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");
+  const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
+  const darkBlockBg = readRaw("blockBgDark");
   const lightSubBlockBg = readRaw("subBlockBgLight") || readRaw("subBlockBg");
   const darkSubBlockBg = readRaw("subBlockBgDark");
   const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
@@ -3624,11 +3626,16 @@ function BlockStyleEditor({
       <div className="grid grid-cols-2 gap-3">
         <ColorField
           label="Фон блока"
-          value={toDisplay(lightSectionBg)}
+          value={toDisplay(block.type === "aisha" ? lightBlockBg : lightSectionBg)}
           placeholder={theme.panelColor}
           onChange={(value) =>
             update(
-              block.type === "works"
+              block.type === "aisha"
+                ? {
+                    blockBgLight: toStore(value),
+                    blockBg: toStore(value),
+                  }
+                : block.type === "works"
                 ? {
                     sectionBgLight: toStore(value),
                     sectionBg: toStore(value),
@@ -3714,7 +3721,7 @@ function BlockStyleEditor({
             <ColorField label="Цвет сообщения клиента" value={toDisplay(lightClientBubbleColor)} placeholder={theme.buttonColor} onChange={(value) => update({ clientBubbleColorLight: toStore(value), clientBubbleColor: toStore(value) })} />
             <ColorField label="Текст клиента" value={toDisplay(lightClientTextColor)} placeholder={theme.buttonTextColor} onChange={(value) => update({ clientTextColorLight: toStore(value), clientTextColor: toStore(value) })} />
             <ColorField label="Цвет плашки" value={toDisplay(lightHeaderBgColor)} placeholder={theme.panelColor} onChange={(value) => update({ headerBgColorLight: toStore(value), headerBgColor: toStore(value) })} />
-            <ColorField label="Текст кнопки" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
+            <ColorField label="Цвет текста плашки" value={toDisplay(lightHeaderTextColor)} placeholder={theme.textColor} onChange={(value) => update({ headerTextColorLight: toStore(value), headerTextColor: toStore(value) })} />
           </>
         )}
         {block.type === "works" && (
@@ -3803,11 +3810,13 @@ function BlockStyleEditor({
         <div className="mt-3 grid grid-cols-2 gap-3">
             <ColorField
               label="Фон блока"
-              value={toDisplay(darkSectionBg)}
+              value={toDisplay(block.type === "aisha" ? darkBlockBg : darkSectionBg)}
               placeholder={theme.darkPalette.panelColor}
               onChange={(value) =>
                 update(
-                  block.type === "works"
+                  block.type === "aisha"
+                    ? { blockBgDark: toStore(value) }
+                    : block.type === "works"
                     ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
                     : { sectionBgDark: toStore(value) }
                 )
@@ -3858,7 +3867,7 @@ function BlockStyleEditor({
                 <ColorField label="Цвет сообщения клиента" value={toDisplay(darkClientBubbleColor)} placeholder={theme.darkPalette.buttonColor} onChange={(value) => update({ clientBubbleColorDark: toStore(value) })} />
                 <ColorField label="Текст клиента" value={toDisplay(darkClientTextColor)} placeholder={theme.darkPalette.buttonTextColor} onChange={(value) => update({ clientTextColorDark: toStore(value) })} />
                 <ColorField label="Цвет плашки" value={toDisplay(darkHeaderBgColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ headerBgColorDark: toStore(value) })} />
-                <ColorField label="Текст кнопки" value={toDisplay(darkHeaderTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ headerTextColorDark: toStore(value) })} />
+                <ColorField label="Цвет текста плашки" value={toDisplay(darkHeaderTextColor)} placeholder={theme.darkPalette.textColor} onChange={(value) => update({ headerTextColorDark: toStore(value) })} />
               </>
             )}
             {block.type === "works" && (
@@ -4910,6 +4919,7 @@ function BlockPreview({
   const isMenu = block.type === "menu";
   const isGallery = block.type === "works";
   const isCover = block.type === "cover";
+  const isAisha = block.type === "aisha";
   const isFullscreenGallery = isGallery && block.variant === "v2";
   const blockWidthColumns = isMenu
     ? MAX_BLOCK_COLUMNS
@@ -4935,7 +4945,7 @@ function BlockPreview({
   const gradientEnabled = style.gradientEnabled;
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
-  const containerClass = isBooking || isMenu || isGallery || isCover
+  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -4969,15 +4979,15 @@ function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: isGallery || isBooking || isMenu || isCover ? "100%" : gridWidthPercent,
+        width: isGallery || isBooking || isMenu || isCover || isAisha ? "100%" : gridWidthPercent,
         maxWidth: "100%",
-        marginLeft: isGallery || isBooking || isMenu || isCover ? "auto" : gridLeftPercent,
-        marginRight: isGallery || isBooking || isMenu || isCover ? "auto" : 0,
-        marginTop: isGallery || isBooking || isCover ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking || isCover ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isCover ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking || isCover ? style.marginBottom : undefined,
-        backgroundColor: isMenu || isCover
+        marginLeft: isGallery || isBooking || isMenu || isCover || isAisha ? "auto" : gridLeftPercent,
+        marginRight: isGallery || isBooking || isMenu || isCover || isAisha ? "auto" : 0,
+        marginTop: isGallery || isBooking || isCover || isAisha ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isCover || isAisha ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isCover || isAisha ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isCover || isAisha ? style.marginBottom : undefined,
+        backgroundColor: isMenu || isCover || isAisha
           ? "transparent"
           : isGallery
             ? sectionBg
@@ -5000,23 +5010,23 @@ function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isCover ? 0 : blockRadius,
-            backgroundColor: isBooking || isCover
+            borderRadius: isBooking || isCover || isAisha ? 0 : blockRadius,
+            backgroundColor: isBooking || isCover || isAisha
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isCover
+            backgroundImage: isBooking || isCover || isAisha
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery || isCover ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || isCover || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery || isCover || isAisha ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isMenu || isGallery || isCover || shadowSize <= 0
+              isBooking || isMenu || isGallery || isCover || isAisha || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-muted" as string]: mutedColor,
@@ -7328,6 +7338,7 @@ function renderContacts(
     </div>
   );
 }
+
 
 
 
