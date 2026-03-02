@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
@@ -700,7 +700,24 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   ? options.filter((o) => !/согласен на обработку персональных данных/i.test(o.value))
                   : options;
                 const isTimeValue = (v: string) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v.trim());
-                const hasAnyTimeOptions = effectiveOptions.some((o) => isTimeValue(o.value) || isTimeValue(o.label));
+                const normalizeQuick = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
+                const timeControlKind = (option: QuickReply): "show_all" | "part_of_day" | null => {
+                  const value = normalizeQuick(option.value);
+                  if (value === "\u043f\u043e\u043a\u0430\u0436\u0438 \u0432\u0441\u0435 \u0432\u0440\u0435\u043c\u044f") return "show_all";
+                  if (
+                    value === "\u0443\u0442\u0440\u043e\u043c" ||
+                    value === "\u0434\u043d\u0435\u043c" ||
+                    value === "\u0432\u0435\u0447\u0435\u0440\u043e\u043c"
+                  ) {
+                    return "part_of_day";
+                  }
+                  return null;
+                };
+                const timeControlOptions = effectiveOptions.filter((o) => timeControlKind(o) !== null);
+                const showAllTimeOptions = timeControlOptions.filter((o) => timeControlKind(o) === "show_all");
+                const partOfDayOptions = timeControlOptions.filter((o) => timeControlKind(o) === "part_of_day");
+                const regularOptions = effectiveOptions.filter((o) => timeControlKind(o) === null);
+                const hasAnyTimeOptions = regularOptions.some((o) => isTimeValue(o.value) || isTimeValue(o.label));
                 const consentSubmitValue =
                   ui?.kind === "consent"
                     ? ui.consentValue
@@ -717,40 +734,104 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   >
                     {shownText ? <div>{shownText}</div> : null}
                     {effectiveOptions.length && !isTypingThis ? (
-                      <div className={`mt-2 flex flex-wrap gap-1.5 ${hasAnyTimeOptions ? "items-stretch" : ""}`}>
-                        {effectiveOptions.map((option) => (
-                          (() => {
-                            const isTimeOption = isTimeValue(option.value) || isTimeValue(option.label);
-                            return (
-                          <button
-                            key={`${option.label}:${option.value}`}
-                            type="button"
-                            disabled={loading || !isLastAssistant}
-                            onClick={() => {
-                              if (option.href) {
-                                if (typeof window !== "undefined") {
-                                  window.location.assign(option.href);
-                                }
-                                return;
-                              }
-                              void sendRawMessage(option.value);
-                            }}
-                            style={buttonRadiusStyle}
-                            className={`border px-3 py-1.5 text-xs font-medium transition ${
-                              isTimeOption
-                                ? "w-[62px] rounded-lg text-center [font-variant-numeric:tabular-nums]"
-                                : "rounded-full"
-                            } ${
-                              isLastAssistant
-                                ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
-                                : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
-                            } disabled:cursor-not-allowed disabled:opacity-60`}
-                          >
-                            {option.label}
-                          </button>
-                            );
-                          })()
-                        ))}
+                      <div className="mt-2 space-y-2">
+                        {timeControlOptions.length ? (
+                          <div className="space-y-1">
+                            {showAllTimeOptions.length ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {showAllTimeOptions.map((option) => (
+                                  <button
+                                    key={`${option.label}:${option.value}`}
+                                    type="button"
+                                    disabled={loading || !isLastAssistant}
+                                    onClick={() => {
+                                      if (option.href) {
+                                        if (typeof window !== "undefined") {
+                                          window.location.assign(option.href);
+                                        }
+                                        return;
+                                      }
+                                      void sendRawMessage(option.value);
+                                    }}
+                                    style={buttonRadiusStyle}
+                                    className={`border px-3 py-1.5 text-xs font-medium transition rounded-full ${
+                                      isLastAssistant
+                                        ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
+                                        : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                            {partOfDayOptions.length ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {partOfDayOptions.map((option) => (
+                                  <button
+                                    key={`${option.label}:${option.value}`}
+                                    type="button"
+                                    disabled={loading || !isLastAssistant}
+                                    onClick={() => {
+                                      if (option.href) {
+                                        if (typeof window !== "undefined") {
+                                          window.location.assign(option.href);
+                                        }
+                                        return;
+                                      }
+                                      void sendRawMessage(option.value);
+                                    }}
+                                    style={buttonRadiusStyle}
+                                    className={`border px-3 py-1.5 text-xs font-medium transition rounded-full ${
+                                      isLastAssistant
+                                        ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
+                                        : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {regularOptions.length ? (
+                          <div className={`flex flex-wrap gap-1.5 ${hasAnyTimeOptions ? "items-stretch" : ""}`}>
+                            {regularOptions.map((option) => (
+                              (() => {
+                                const isTimeOption = isTimeValue(option.value) || isTimeValue(option.label);
+                                return (
+                                  <button
+                                    key={`${option.label}:${option.value}`}
+                                    type="button"
+                                    disabled={loading || !isLastAssistant}
+                                    onClick={() => {
+                                      if (option.href) {
+                                        if (typeof window !== "undefined") {
+                                          window.location.assign(option.href);
+                                        }
+                                        return;
+                                      }
+                                      void sendRawMessage(option.value);
+                                    }}
+                                    style={buttonRadiusStyle}
+                                    className={`border px-3 py-1.5 text-xs font-medium transition ${
+                                      isTimeOption
+                                        ? "w-[62px] rounded-lg text-center [font-variant-numeric:tabular-nums]"
+                                        : "rounded-full"
+                                    } ${
+                                      isLastAssistant
+                                        ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
+                                        : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                );
+                              })()
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                      ) : null}
                     {ui?.kind === "date_picker" && !isTypingThis ? (
@@ -947,3 +1028,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
+
+
+
+
+

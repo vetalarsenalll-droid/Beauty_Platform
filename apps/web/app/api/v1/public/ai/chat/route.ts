@@ -840,12 +840,24 @@ function buildBookingBridgeFallback(
   ]);
 }
 
-function buildBookingReengageUi(args: { locations: LocationLite[]; services: ServiceLite[] }): ChatUi {
-  const options: Array<{ label: string; value: string }> = [
-    { label: "Записаться сегодня", value: "запиши меня сегодня" },
-    { label: "Показать услуги", value: "какие у вас есть услуги" },
-    { label: "Выбрать филиал", value: "покажи филиалы" },
-  ];
+function buildBookingReengageUi(args: { locations: LocationLite[]; services: ServiceLite[]; focusDate?: string | null }): ChatUi {
+  const dateLabel = args.focusDate ? formatYmdRu(args.focusDate) : null;
+  const options: Array<{ label: string; value: string }> = [];
+
+  if (dateLabel) {
+    options.push({ label: `Показать время на ${dateLabel}`, value: `покажи время на ${dateLabel}` });
+    options.push({ label: `Показать услуги на ${dateLabel}`, value: `какие услуги доступны на ${dateLabel}` });
+    options.push({ label: `Показать специалистов на ${dateLabel}`, value: `какие специалисты доступны на ${dateLabel}` });
+  } else {
+    options.push({ label: "Записаться сегодня", value: "запиши меня сегодня" });
+    options.push({ label: "Показать время", value: "покажи свободное время" });
+    options.push({ label: "Показать услуги", value: "какие у вас есть услуги" });
+    options.push({ label: "Показать специалистов", value: "какие специалисты у вас есть" });
+  }
+
+  if (args.locations.length > 1) {
+    options.push({ label: "Показать локации", value: "покажи филиалы" });
+  }
 
   return { kind: "quick_replies", options };
 }
@@ -1438,6 +1450,9 @@ export async function POST(request: Request) {
       /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\b/u.test(messageForRouting) ||
       /(?:январ|феврал|март|апрел|мая|мае|июн|июл|август|сентябр|октябр|ноябр|декабр)/iu.test(messageForRouting);
     const explicitDateOnlyInput = /^\s*(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\s*$/u.test(messageForRouting);
+    const explicitBookingStartByDatePhrase =
+      has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) &&
+      explicitCalendarCue;
     const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
     const explicitAlternativeSpecialistsInDraft =
       hasDraftContextEarly &&
@@ -1476,6 +1491,7 @@ export async function POST(request: Request) {
     if (explicitAvailabilityPeriod) intent = "ask_availability";
     if (explicitCalendarAvailability) intent = "ask_availability";
     if (hasDraftContextEarly && d.locationId && d.serviceId && !d.time && explicitDateOnlyInput) intent = "booking_start";
+    if (explicitBookingStartByDatePhrase) intent = "booking_start";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
     if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
@@ -1935,7 +1951,7 @@ export async function POST(request: Request) {
       : null;
 
     const consecutiveNonBookingTurns = countConsecutiveNonBookingUserTurns(recentMessages);
-    const hasBookingVerbCue = has(messageForRouting, /(запиш|записаться|записать|хочу|сделать|оформи|забронируй|бронь)\b/i);
+    const hasBookingVerbCue = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|хочу|сделать|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
     const hasServiceTopicCue = mentionsServiceTopic(t) || Boolean(serviceByText(t, services));
 
     const shouldSoftReturnToBooking =
@@ -1948,7 +1964,8 @@ export async function POST(request: Request) {
       !hasServiceTopicCue &&
       !isGreetingText(messageForRouting) &&
       !isPauseConversationMessage(t) &&
-      !asksWhyNoAnswer(t);
+      !asksWhyNoAnswer(t) &&
+      !explicitBookingStartByDatePhrase;
 
     const bridgeFocusServiceName =
       serviceByText(t, services)?.name ??
@@ -2276,7 +2293,13 @@ export async function POST(request: Request) {
         reply = bridge;
       }
       if (!nextUi && consecutiveNonBookingTurns >= 1) {
-        nextUi = buildBookingReengageUi({ locations, services });
+        nextUi = buildBookingReengageUi({ locations, services, focusDate: bridgeFocusDate });
+      }
+      if (bridgeFocusDate && locations.length === 1) {
+        const onlyLocationName = locations[0]?.name ?? "выбранная локация";
+        if (!new RegExp(onlyLocationName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(reply)) {
+          reply = `${reply.replace(/[.!?]+$/u, "")}. На ${formatYmdRu(bridgeFocusDate)} доступна локация: ${onlyLocationName}.`;
+        }
       }
     }
 
@@ -2290,8 +2313,14 @@ export async function POST(request: Request) {
       const bridge = "Если хотите, могу сразу перейти к записи и подобрать удобное время.";
       const base = buildOutOfScopeConversationalReply(t);
       reply = base.replace(/[.!?]+$/u, "") + ". " + bridge;
-      nextUi = buildBookingReengageUi({ locations, services });
+      nextUi = buildBookingReengageUi({ locations, services, focusDate: bridgeFocusDate });
     }
+
+    // De-duplicate accidental double soft-bridge sentence.
+    reply = reply.replace(
+      /(Если захотите, помогу с записью:[^.!?]*[.!?])\s*Если захотите, помогу с записью:[^.!?]*[.!?]/iu,
+      "$1",
+    );
 
     reply = sanitizeAssistantReplyText(reply);
     if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
@@ -2314,11 +2343,11 @@ export async function POST(request: Request) {
       nextUi = null;
     }
 
-    if (route === "chat-only" && !isBookingOrAccountCue(t) && /^(?:выберите\s+филиал)/i.test(norm(reply))) {
-      const bridge = "Если захотите, помогу с записью: подберем удобную дату и время.";
+    if (route === "chat-only" && !isBookingOrAccountCue(t) && !/^если захотите, помогу с записью/i.test(norm(reply)) && /^(?:выберите\s+филиал)/i.test(norm(reply))) {
+      const bridge = "Ниже можно сразу выбрать удобный шаг для записи.";
       const base = buildOutOfScopeConversationalReply(t);
       reply = base.replace(/[.!?]+$/u, "") + ". " + bridge;
-      nextUi = buildBookingReengageUi({ locations, services });
+      nextUi = buildBookingReengageUi({ locations, services, focusDate: bridgeFocusDate });
     }
 
     await prisma.$transaction([
@@ -2385,6 +2414,10 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
 
 
 
