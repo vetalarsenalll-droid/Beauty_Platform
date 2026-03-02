@@ -363,7 +363,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     /(мои записи|моя запись|покажи мои записи|последняя запись|прошедш|история записей|какая у меня.*запись|какая запись|какие записи|что с моей записью|что по моей записи|ближайшая запись|предстоящая запись)/i,
   );
   const asksLatestSingle = has(messageNorm, /(какая последняя запись|последнюю покажи|последняя запись|последний визит)/i);
-  const asksNearest = has(messageNorm, /(ближайш|предстоящ|следующ|скоро.*запись)/i);
+  const asksNearest = has(messageNorm, /(ближайш|следующ|скоро.*запись)/i);
   const asksPast = has(messageNorm, /(прошедш|прошлая|история)/i);
   const asksAllBookings = has(messageNorm, /(?:^|\\s)(?:все|всё)(?:\\s+(?:записи|напиши|покажи|выведи))?(?:\\s|$)/i);
   const asksAllPast =
@@ -437,22 +437,23 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     if (asksDetails && requestedId) {
       const found = items.find((x) => x.id === requestedId);
       if (!found) return { handled: true, reply: `Запись #${requestedId} не нашла.`, ui: buildClientActionsMenuUi() };
+      const isPastOrClosed = found.startAt < now || found.status === "DONE" || found.status === "CANCELLED";
       return {
         handled: true,
         reply: bookingDetailsText(found, accountTimeZone),
-        ui: { kind: "quick_replies", options: [qr("Отменить эту запись", `отмени запись #${found.id}`), qr("Перенести эту запись", `перенеси запись #${found.id}`), qr("К списку записей", "какие у меня записи")] },
+        ui: isPastOrClosed
+          ? { kind: "quick_replies", options: [qr("К списку записей", "какие у меня записи")] }
+          : {
+              kind: "quick_replies",
+              options: [
+                qr("Отменить эту запись", `отмени запись #${found.id}`),
+                qr("Перенести эту запись", `перенеси запись #${found.id}`),
+                qr("К списку записей", "какие у меня записи"),
+              ],
+            },
       };
     }
 
-    if (asksNearest) {
-      const near = upcoming[0];
-      if (!near) return { handled: true, reply: "Ближайших предстоящих записей не нашла.", ui: buildClientActionsMenuUi() };
-      return {
-        handled: true,
-        reply: `Ближайшая запись: ${bookingShortLabel(near, accountTimeZone)} — ${near.status}.`,
-        ui: { kind: "quick_replies", options: [qr(`Открыть #${near.id}`, `покажи запись #${near.id}`), ...clientActionsMenuOptions()] },
-      };
-    }
 
     if (asksAllPast || asksPastList) {
       const scoped = applyFilters(past);
@@ -474,6 +475,17 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
       const scoped = applyFilters(upcoming);
       if (!scoped.length) return { handled: true, reply: "Предстоящих записей по этому запросу не нашла.", ui: buildClientActionsMenuUi() };
       return listBookingsResponse({ title: "Предстоящие записи", items: scoped, page, scopeValue: "предстоящие записи", accountTimeZone });
+    }
+
+
+    if (asksNearest) {
+      const near = upcoming[0];
+      if (!near) return { handled: true, reply: "Ближайших предстоящих записей не нашла.", ui: buildClientActionsMenuUi() };
+      return {
+        handled: true,
+        reply: `Ближайшая запись: ${bookingShortLabel(near, accountTimeZone)} — ${near.status}.`,
+        ui: { kind: "quick_replies", options: [qr(`Открыть #${near.id}`, `покажи запись #${near.id}`), ...clientActionsMenuOptions()] },
+      };
     }
 
     if (asksAll || asksAllBookings) {
@@ -819,6 +831,9 @@ function clientActionsMenuOptions(): ChatUiOption[] {
     qr("Статистика", "моя статистика"),
   ];
 }
+
+
+
 
 
 

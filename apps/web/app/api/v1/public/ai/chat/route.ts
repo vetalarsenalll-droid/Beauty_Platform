@@ -1103,7 +1103,7 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (hasServiceMention && hasBookingCue) return "booking_start";
   if (has(message, /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
   if (has(message, /подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
-  if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю|ие|их)|предстоящ(ая|ую|ие|их)|ближайш(ая|ую|ие|их)|какая у меня.*запись|прошедш(ая|ую|ие|их)|последнюю покажи)/i))
+  if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю|ие|их)|предстоящ(ая|ую|ие|их)|ближайш(ая|ую|ие|их)|какая у меня.*запись|прошедш(ая|ую|ие|их)|последнюю покажи|покажи запись\s*#\s*\d{1,8}|запись\s*#\s*\d{1,8}|запись\s*№\s*\d{1,8})/i))
     return "my_bookings";
   if (has(message, /(моя статистика|статистика|сколько раз)/i)) return "my_stats";
   if (has(message, /^(перенеси|перезапиши)\b/i)) return "reschedule_my_booking";
@@ -1539,8 +1539,9 @@ export async function POST(request: Request) {
       /^(?:все|всё|все напиши|всё напиши|все покажи|всё покажи|все записи|все прошедшие|все предстоящие|прошедшие|предстоящие|ближайшие|последние)$/iu.test(
         messageForRouting.trim(),
       ) && /(?:запис|прошедш|предстоящ|ближайш|последн)/i.test(lastAssistantText);
-    const hasClientActionCue = explicitClientListFollowUp || has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|предстоящ.*запис|последн.*запис|прошедш.*запис|отмени мою|перенеси мою|перенести мою|перенести свою|хочу .*перенест|личн(ый|ого) кабинет)/i);
-    if (explicitClientListFollowUp) intent = "my_bookings";
+    const explicitClientBookingDetailsCue = has(messageForRouting, /(покажи запись\s*#\s*\d{1,8}|запись\s*#\s*\d{1,8}|запись\s*№\s*\d{1,8}|подробн\p{L}*\s+запис\p{L}*\s*#?\s*\d{1,8})/iu);
+    const hasClientActionCue = explicitClientListFollowUp || explicitClientBookingDetailsCue || has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|предстоящ.*запис|последн.*запис|прошедш.*запис|отмени мою|перенеси мою|перенести мою|перенести свою|хочу .*перенест|личн(ый|ого) кабинет)/i);
+    if (explicitClientListFollowUp || explicitClientBookingDetailsCue) intent = "my_bookings";
     const hasPositiveFeedbackCue = has(messageForRouting, /(спасибо|благодар|круто|отлично|здорово|понятно|ок\b|окей|ясно|супер)/i);
     const specialistPromptedByAssistant =
       hasDraftContextEarly &&
@@ -1783,11 +1784,12 @@ export async function POST(request: Request) {
       ((!nluServiceValid && looksLikeUnknownServiceRequest(t)) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
     if (unknownServiceRequested) {
-      const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла. ` : "Такой услуги не нашла. ";
-      const unknownServiceReply = `${requested}Выберите, пожалуйста, из доступных:\n${services
-        .slice(0, 12)
-        .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(x.basePrice)} ₽, ${x.baseDurationMin} мин`)
-        .join("\n")}`;
+      const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла.` : "Такой услуги не нашла.";
+      const unknownServiceReply = `${requested} Выберите, пожалуйста, из доступных ниже.`;
+      const unknownServiceUi: ChatUi = {
+        kind: "quick_replies",
+        options: services.slice(0, 12).map(serviceQuickOption),
+      };
       await prisma.$transaction([
         prisma.aiMessage.create({ data: { threadId: thread.id, role: "assistant", content: unknownServiceReply } }),
         prismaAny.aiBookingDraft.update({
@@ -1806,7 +1808,7 @@ export async function POST(request: Request) {
           },
         }),
       ]);
-      return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply: unknownServiceReply, action: null, ui: null, draft: d });
+      return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply: unknownServiceReply, action: null, ui: unknownServiceUi, draft: d });
     }
 
     if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
@@ -2339,7 +2341,9 @@ export async function POST(request: Request) {
       !isBookingOrAccountCue(t)
     ) {
       const bridgeCandidate = (contextualBookingBridge ?? "").trim();
+      const allowModelBridge = !explicitOutOfScopeCue && !isGeneralQuestionOutsideBooking(t) && !isOutOfDomainPrompt(t);
       const bridge =
+        allowModelBridge &&
         bridgeCandidate &&
         !looksLikeHardBookingPushReply(bridgeCandidate) &&
         !/выберите\s+(филиал|услугу|дату|время)/i.test(bridgeCandidate)
@@ -2472,6 +2476,9 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
 
 
 
