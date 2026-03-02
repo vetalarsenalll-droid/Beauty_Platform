@@ -2,7 +2,7 @@
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { AishaNluIntent, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
+import { AishaNluIntent, runAishaBookingBridge, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import { runBookingFlow } from "@/lib/booking-flow";
 import type { ChatUi } from "@/lib/booking-flow";
 import { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
@@ -453,7 +453,7 @@ function serviceByText(messageNorm: string, services: ServiceLite[]) {
 }
 
 function asksCurrentDate(text: string) {
-  return has(text, /(какое число|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
+  return has(text, /(какое число|какое сегодня число|какое число сегодня|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
 }
 
 function asksCurrentTime(text: string) {
@@ -493,6 +493,13 @@ function hasAnyPhrase(messageNorm: string, phrases: string[]) {
 }
 
 function buildSmalltalkReply(messageNorm: string) {
+  if (asksWhyNoAnswer(messageNorm)) {
+    return "Не игнорирую вас. Иногда отвечаю слишком коротко, но сейчас в диалоге и готова продолжить.";
+  }
+
+  if (isPauseConversationMessage(messageNorm)) {
+    return "Хорошо, без проблем. Я на связи, когда захотите продолжить.";
+  }
   if (
     hasAnyPhrase(messageNorm, [
       "как у тебя дела",
@@ -560,8 +567,15 @@ function sanitizeAssistantReplyText(reply: string) {
     .replace(/подсоблю/gi, "помогу")
     .replace(/подсобишь/gi, "поможешь")
     .replace(/подсобите/gi, "помогу")
+    .replace(/для тебя/gi, "для вас")
+    .replace(/ты/gi, "вы")
+    .replace(/тебе/gi, "вам")
+    .replace(/тебя/gi, "вас")
+    .replace(/выбирай/gi, "выберите")
+    .replace(/подберем/gi, "подберу")
     .replace(/какую именно услугу вам нужно записать/gi, "на какую именно услугу вас нужно записать")
-    .replace(/какую услугу вам нужно записать/gi, "на какую услугу вас нужно записать");
+    .replace(/какую услугу вам нужно записать/gi, "на какую услугу вас нужно записать")
+    .replace(/Как могу помочь./g, "Как могу помочь?");
 }
 
 function serviceQuickOption(service: ServiceLite) {
@@ -713,9 +727,22 @@ function asksAssistantQualification(messageNorm: string) {
 }
 
 function isOutOfDomainPrompt(messageNorm: string) {
-  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди)/i.test(
+  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди|пушкин|пушкина)/i.test(
     messageNorm,
   );
+}
+
+function isGeneralQuestionOutsideBooking(messageNorm: string) {
+  const hasQuestionCue =
+    messageNorm.includes("?") ||
+    /^(кто|что|почему|зачем|как|сколько|где|когда|какой|какая|какие|какую)\b/i.test(messageNorm);
+  if (!hasQuestionCue) return false;
+
+  const bookingOrAccountCue =
+    /(запис|бронь|слот|окошк|время|дата|услуг|мастер|специалист|филиал|локац|адрес|телефон|номер|мой|мои|статист|отмени|перенеси|профил|кабинет|консультац)/i.test(
+      messageNorm,
+    );
+  return !bookingOrAccountCue;
 }
 
 function isPauseConversationMessage(messageNorm: string) {
@@ -726,6 +753,11 @@ function asksWhyNoAnswer(messageNorm: string) {
   return /(почему не ответил|почему не ответила|почему ты не ответил|почему ты не ответила|а на вопрос почему не ответила)/i.test(messageNorm);
 }
 
+function looksLikeHardBookingPushReply(replyText: string) {
+  const r = norm(replyText);
+  return /(выберите\s+(филиал|локац|услуг|дат|врем)|продолжу\s+запис|подберу\s+время|запишу\s+вас)/i.test(r);
+}
+
 function buildOutOfScopeConversationalReply(messageNorm: string) {
   if (asksWhyNoAnswer(messageNorm)) {
     return "Я не игнорирую вас. По темам вне записи отвечаю коротко и без выдумок. Можем продолжить разговор или перейти к записи.";
@@ -733,10 +765,93 @@ function buildOutOfScopeConversationalReply(messageNorm: string) {
   if (/(кто убил кеннед|убил кенеди|убийств.*кеннед)/i.test(messageNorm)) {
     return "По официальной версии Ли Харви Освальд. Если хотите, коротко расскажу и альтернативные версии без споров.";
   }
+  if (/(кто убил пушкин|убил пушкина|гибел[ьи].*пушкин)/i.test(messageNorm)) {
+    return "Александр Пушкин был смертельно ранен на дуэли с Жоржем Дантесом в 1837 году.";
+  }
+  if (/(сам(ая|ый).*(больш|крупн).*(планет)|какая.*сам.*больш.*планет|какая.*больш.*из\s+них)/i.test(messageNorm)) {
+    return "Самая большая планета Солнечной системы — Юпитер.";
+  }
   if (isPauseConversationMessage(messageNorm)) {
     return "Хорошо, без проблем. Я на связи, когда будете готовы продолжить.";
   }
-  return "Могу коротко поддержать разговор, а по записи помогу с услугами, датой и временем.";
+  return "Если захотите, помогу с записью: подберу услугу, удобную дату и время.";
+}
+
+function isGenericBookingTemplateReply(text: string) {
+  const t = norm(text);
+  return t === norm("Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?");
+}
+
+function isBookingOrAccountCue(messageNorm: string) {
+  return /(запис|бронь|слот|окошк|время|дата|услуг|мастер|спец|специал|специалист|филиал|локац|адрес|телефон|номер|мой|мои|статист|отмени|перенеси|профил|кабинет|консультац|цена|прайс|стоим)/i.test(
+    messageNorm,
+  );
+}
+
+function isLikelyNonBookingTurn(messageNorm: string) {
+  if (!messageNorm) return false;
+  if (isBookingOrAccountCue(messageNorm)) return false;
+  if (isOutOfDomainPrompt(messageNorm) || isGeneralQuestionOutsideBooking(messageNorm)) return true;
+  if (isPauseConversationMessage(messageNorm) || asksWhyNoAnswer(messageNorm)) return true;
+  if (/^(да|ага|угу|ок|окей|ладно|понятно|ясно|еще|ещё|и что|продолжай|ну)$/i.test(messageNorm)) return true;
+  if (/\b(давай|расскажи|подробнее|объясни|обьясни)\b/i.test(messageNorm)) return true;
+  if (/\b(а\s+)?какие\s+есть\b/i.test(messageNorm)) return true;
+  if (/^(что дальше|и дальше|ещё подробнее|еще подробнее)$/i.test(messageNorm)) return true;
+  return false;
+}
+
+function countConsecutiveNonBookingUserTurns(recentMessages: Array<{ role: string; content: string }>) {
+  let count = 0;
+  for (const m of recentMessages) {
+    if (m.role !== "user") continue;
+    const messageNorm = norm(m.content ?? "");
+    if (isLikelyNonBookingTurn(messageNorm)) {
+      count += 1;
+      continue;
+    }
+    break;
+  }
+  return count;
+}
+
+function buildBookingBridgeFallback(
+  messageNorm: string,
+  hints?: { serviceName?: string | null; date?: string | null; timePreference?: "morning" | "day" | "evening" | null },
+) {
+  if (hints?.serviceName) {
+    return `Если хотите, подберу запись на «${hints.serviceName}» в удобное для вас время.`;
+  }
+  if (hints?.date) {
+    return `Если хотите, могу подобрать удобную запись на ${formatYmdRu(hints.date)}.`;
+  }
+  if (hints?.timePreference === "morning") {
+    return "Если хотите, подберу удобные утренние слоты для записи.";
+  }
+  if (hints?.timePreference === "evening") {
+    return "Если хотите, подберу удобные вечерние слоты для записи.";
+  }
+  if (hints?.timePreference === "day") {
+    return "Если хотите, подберу удобные дневные слоты для записи.";
+  }
+  return smalltalkVariant(messageNorm, [
+    "Если хотите, могу сразу подобрать удобную запись: услугу, дату и время.",
+    "Если удобно, перейдем к записи и найдем подходящее время.",
+    "Могу помочь сразу оформить запись на удобный день и время.",
+  ]);
+}
+
+function buildBookingReengageUi(args: { locations: LocationLite[]; services: ServiceLite[] }): ChatUi {
+  const options: Array<{ label: string; value: string }> = [
+    { label: "Записаться сегодня", value: "запиши меня сегодня" },
+    { label: "Показать услуги", value: "какие у вас есть услуги" },
+    { label: "Выбрать филиал", value: "покажи филиалы" },
+  ];
+
+  return { kind: "quick_replies", options };
+}
+
+function asksSpecialistsByShortText(messageNorm: string) {
+  return /^(?:аs+)?(?:спец|специал|специалист|специалисты|специаличты|спецы|мастер|мастера)??$/iu.test(messageNorm);
 }
 
 function asksWhoPerformsServices(messageNorm: string) {
@@ -827,7 +942,7 @@ function hasLocationCue(messageNorm: string) {
 }
 
 function asksSalonName(messageNorm: string) {
-  return /(?:какs+салонs+называ(?:ется|ют)|какs+вашs+салонs+называ(?:ется|ют)|какs+называетсяs+салон|какs+называетсяs+вашs+салон|названи[ея]s+(?:салон|студи|клиник))/i.test(
+  return /(?:как\s+салон\s+называ(?:ется|ют)|как\s+ваш\s+салон\s+называ(?:ется|ют)|как\s+называется\s+салон|как\s+называется\s+ваш\s+салон|названи[ея]\s+(?:салон|студи|клиник))/i.test(
     messageNorm,
   );
 }
@@ -963,7 +1078,9 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (isPauseConversationMessage(norm(message))) return "smalltalk";
   if (asksAssistantQualification(norm(message))) return "identity";
   if (isOutOfDomainPrompt(norm(message))) return "out_of_scope";
+  if (isGeneralQuestionOutsideBooking(norm(message))) return "out_of_scope";
   if (asksWhoPerformsServices(message)) return "ask_specialists";
+  if (asksSpecialistsByShortText(message)) return "ask_specialists";
   if (asksGenderedServices(message)) return "ask_services";
   const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|facial|peeling|haircut|coloring)/i);
   const hasBookingCue = has(message, /(хочу|запиши|записаться|давай|нужно|нужна|нужен|сделать|хотела|хотел)/i);
@@ -1307,12 +1424,14 @@ export async function POST(request: Request) {
     const hasClientCancelContext = has(messageForRouting, /(мою запись|мои записи|запись #|номер записи|ближайш|последн|визит|appointment|подтверждаю отмену)/i);
     const cancelMeansDraftAbort = hasDraftContextEarly && explicitClientCancelPhrase && !hasClientCancelContext;
     const explicitWhoDoesServices = asksWhoPerformsServices(norm(messageForRouting));
-    const explicitSpecialistsListCue = /(?:мастер|специалист)(?:а|ы|ов)?/iu.test(messageForRouting);
+    const explicitSpecialistsListCue = /(?:мастер|мастера|масетера|масетер|масетр|спец|специал|специалист|специалич|спицал)(?:а|ы|ов|ты)?/iu.test(messageForRouting);
+    const explicitSpecialistsShortCue = asksSpecialistsByShortText(t);
     const explicitServiceComplaint = isServiceComplaintMessage(norm(messageForRouting));
     const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
     const explicitAbuseCue = has(messageForRouting, /(сучк|сука|туп|идиот|дебил|нахер|нахуй|говно|херня)/i);
     const explicitOutOfScopeCue = isOutOfDomainPrompt(norm(messageForRouting));
+    const explicitPauseConversation = isPauseConversationMessage(norm(messageForRouting));
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
     const explicitAvailabilityPeriod = asksAvailabilityPeriod(norm(messageForRouting));
     const explicitCalendarCue =
@@ -1320,6 +1439,13 @@ export async function POST(request: Request) {
       /(?:январ|феврал|март|апрел|мая|мае|июн|июл|август|сентябр|октябр|ноябр|декабр)/iu.test(messageForRouting);
     const explicitDateOnlyInput = /^\s*(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\s*$/u.test(messageForRouting);
     const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
+    const explicitAlternativeSpecialistsInDraft =
+      hasDraftContextEarly &&
+      Boolean(d.serviceId) &&
+      /(?:друг(?:ие|ой)|ещ[её]|кроме|кто\s+делает\s+эту\s+услуг|кто\s+выполняет\s+эту\s+услуг|есть\s+кто\s+делает\s+эту\s+услуг)/iu.test(
+        messageForRouting,
+      ) &&
+      /(?:мастер|масет|спец|специал|кто\s+делает|кто\s+выполняет)/iu.test(messageForRouting);
     const explicitCalendarAvailability = explicitCalendarCue && explicitAvailabilityCue;
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
@@ -1328,10 +1454,19 @@ export async function POST(request: Request) {
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (specialistFollowUpByLocation) intent = "ask_specialists";
-    if (explicitWhoDoesServices || explicitSpecialistsListCue) intent = "ask_specialists";
+    if (explicitWhoDoesServices || explicitSpecialistsListCue || explicitSpecialistsShortCue || explicitAlternativeSpecialistsInDraft) intent = "ask_specialists";
     if (explicitIdentityCue) intent = "identity";
     if (explicitAssistantQualification) intent = "identity";
     if (explicitOutOfScopeCue) intent = "out_of_scope";
+    if (explicitPauseConversation) intent = "smalltalk";
+    if (
+      (intent === "unknown" || intent === "identity") &&
+      !explicitIdentityCue &&
+      !explicitAssistantQualification &&
+      isGeneralQuestionOutsideBooking(norm(messageForRouting))
+    ) {
+      intent = "out_of_scope";
+    }
     if (explicitAbuseCue) intent = "abuse_or_toxic";
     if (cancelMeansDraftAbort) {
       explicitBookingDecline = true;
@@ -1377,6 +1512,11 @@ export async function POST(request: Request) {
     const choiceNum = parseChoiceFromText(t);
     const hasClientActionCue = has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|прошедш.*запис|отмени мою|перенеси мою|личн(ый|ого) кабинет)/i);
     const hasPositiveFeedbackCue = has(messageForRouting, /(спасибо|благодар|круто|отлично|здорово|понятно|ок\b|окей|ясно|супер)/i);
+    const specialistPromptedByAssistant =
+      hasDraftContextEarly &&
+      has(lastAssistantText, /(доступны специалисты|выберите специалиста|выберите кнопкой ниже)/i);
+    const looksLikeSpecialistChoiceText = /^[\p{L}\s\-]{3,}$/u.test(messageForRouting.trim());
+
     const explicitBookingText =
       !explicitBookingDecline &&
       !isSoftBookingMention(t) &&
@@ -1389,7 +1529,8 @@ export async function POST(request: Request) {
       ) ||
       serviceSelectionFromCatalog ||
       Boolean(selectedSpecialistByText) ||
-      explicitAnySpecialistChoice;
+      explicitAnySpecialistChoice ||
+      (specialistPromptedByAssistant && looksLikeSpecialistChoiceText);
     const hasDraftContext = hasDraftContextEarly;
     const forceClientActions =
       confirmPendingClientAction ||
@@ -1410,7 +1551,7 @@ export async function POST(request: Request) {
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !forceClientActions &&
       !forceChatOnlyInfoIntent &&
-      (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t) || isBookingChangeMessage(t));
+      (explicitBookingText || explicitAlternativeSpecialistsInDraft || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t) || isBookingChangeMessage(t));
     const forceBookingOnPromptedLocationChoice =
       !explicitBookingDecline &&
       !forceClientActions &&
@@ -1529,10 +1670,10 @@ export async function POST(request: Request) {
       has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/i) &&
       !asksServiceExistence(messageForRouting);
     const shouldEnrichDraftForBooking =
-      route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent;
+      route === "booking-flow" || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent;
     const shouldRunBookingFlow =
       !forceChatOnlyInfoIntent &&
-      (route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent) &&
+      (route === "booking-flow" || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent) &&
       intent !== "post_completion_smalltalk" &&
       !isGreetingText(messageForRouting) &&
       !hasPositiveFeedbackCue;
@@ -1793,6 +1934,48 @@ export async function POST(request: Request) {
         })
       : null;
 
+    const consecutiveNonBookingTurns = countConsecutiveNonBookingUserTurns(recentMessages);
+    const hasBookingVerbCue = has(messageForRouting, /(запиш|записаться|записать|хочу|сделать|оформи|забронируй|бронь)\b/i);
+    const hasServiceTopicCue = mentionsServiceTopic(t) || Boolean(serviceByText(t, services));
+
+    const shouldSoftReturnToBooking =
+      route === "chat-only" &&
+      (intent === "smalltalk" || intent === "out_of_scope") &&
+      !explicitDateTimeQuery &&
+      !hasDraftContext &&
+      !isBookingOrAccountCue(t) &&
+      !hasBookingVerbCue &&
+      !hasServiceTopicCue &&
+      !isGreetingText(messageForRouting) &&
+      !isPauseConversationMessage(t) &&
+      !asksWhyNoAnswer(t);
+
+    const bridgeFocusServiceName =
+      serviceByText(t, services)?.name ??
+      (d.serviceId ? services.find((s) => s.id === d.serviceId)?.name ?? null : null);
+    const bridgeFocusLocationName =
+      d.locationId ? locations.find((x) => x.id === d.locationId)?.name ?? null : null;
+    const bridgeFocusDate = parseDate(messageForRouting, nowYmd) || d.date || null;
+    const bridgeFocusTimePreference: "morning" | "day" | "evening" | null =
+      /(утр|утром)/i.test(t) ? "morning" : /(вечер|вечером)/i.test(t) ? "evening" : /(днем|днём|после обеда)/i.test(t) ? "day" : null;
+
+    const contextualBookingBridge = shouldSoftReturnToBooking
+      ? await runAishaBookingBridge({
+          accountId: resolved.account.id,
+          assistantName: ASSISTANT_NAME,
+          message: messageForRouting,
+          baseReply: reply,
+          accountProfile,
+          locations,
+          services,
+          todayYmd: nowYmd,
+          nowHm,
+          accountTimeZone: resolved.account.timeZone,
+          clientTimeZone: clientTimeZone ?? null,
+          draftDate: d.date,
+          draftTime: d.time,
+        })
+      : null;
 
     if (route === "client-actions") {
       const effectiveClientId = client?.clientId ?? thread.clientId ?? null;
@@ -1893,8 +2076,13 @@ export async function POST(request: Request) {
       } else if (intent === "capabilities") {
         reply = "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
       } else if (intent === "out_of_scope") {
-        if (generatedSmalltalk) {
-          reply = `${generatedSmalltalk.replace(/[.!?]+$/u, "")}. Если захотите, помогу с записью и услугами.`;
+        if (
+          generatedSmalltalk &&
+          !isGenericBookingTemplateReply(generatedSmalltalk) &&
+          !isGeneralQuestionOutsideBooking(norm(messageForRouting)) &&
+          !explicitOutOfScopeCue
+        ) {
+          reply = generatedSmalltalk;
         } else {
           reply = buildOutOfScopeConversationalReply(norm(messageForRouting));
         }
@@ -1913,7 +2101,7 @@ export async function POST(request: Request) {
         } else if (generatedSmalltalk) {
           reply = generatedSmalltalk;
         } else if (isOutOfDomainPrompt(t)) {
-          reply = "Я помогаю по записи и услугам, но могу коротко поддержать разговор. Если хотите, подберу удобное время и специалиста.";
+          reply = buildOutOfScopeConversationalReply(t);
         } else {
           reply = buildSmalltalkReply(norm(messageForRouting));
         }
@@ -2041,8 +2229,8 @@ export async function POST(request: Request) {
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         }
       } else {
-        if (isOutOfDomainPrompt(t)) {
-          reply = "Я помогаю только по записи и услугам. Могу подобрать время, мастера и оформить запись.";
+        if (isOutOfDomainPrompt(t) || isGeneralQuestionOutsideBooking(t)) {
+          reply = buildOutOfScopeConversationalReply(t);
         } else {
           reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
         }
@@ -2051,6 +2239,9 @@ export async function POST(request: Request) {
     const canNaturalizeReply =
       route === "chat-only" && !explicitDateTimeQuery &&
       (intent === "capabilities" || intent === "greeting" || intent === "smalltalk") &&
+      !isPauseConversationMessage(t) &&
+      !asksWhyNoAnswer(t) &&
+      !isGeneralQuestionOutsideBooking(t) &&
       !nextUi &&
       !reply.includes("\n") &&
       reply.length <= 260;
@@ -2066,14 +2257,49 @@ export async function POST(request: Request) {
       if (naturalized) reply = naturalized;
     }
 
+    if (
+      shouldSoftReturnToBooking &&
+      route === "chat-only" &&
+      !hasDraftContext &&
+      !isBookingOrAccountCue(t)
+    ) {
+      const bridgeCandidate = (contextualBookingBridge ?? "").trim();
+      const bridge =
+        bridgeCandidate &&
+        !looksLikeHardBookingPushReply(bridgeCandidate) &&
+        !/выберите\s+(филиал|услугу|дату|время)/i.test(bridgeCandidate)
+          ? bridgeCandidate
+          : buildBookingBridgeFallback(t, { serviceName: bridgeFocusServiceName, date: bridgeFocusDate, timePreference: bridgeFocusTimePreference });
+      if (reply && !/подбер[уё].*запис|услуг.*дат|дата.*время|перейд(ем|у)\s+к\s+записи/i.test(norm(reply))) {
+        reply = reply.replace(/[.!?]+$/u, "") + ". " + bridge;
+      } else if (!reply) {
+        reply = bridge;
+      }
+      if (!nextUi && consecutiveNonBookingTurns >= 1) {
+        nextUi = buildBookingReengageUi({ locations, services });
+      }
+    }
+
+    if (
+      route === "chat-only" &&
+      (intent === "smalltalk" || intent === "out_of_scope") &&
+      !hasDraftContext &&
+      !isBookingOrAccountCue(t) &&
+      looksLikeHardBookingPushReply(reply)
+    ) {
+      const bridge = "Если хотите, могу сразу перейти к записи и подобрать удобное время.";
+      const base = buildOutOfScopeConversationalReply(t);
+      reply = base.replace(/[.!?]+$/u, "") + ". " + bridge;
+      nextUi = buildBookingReengageUi({ locations, services });
+    }
+
     reply = sanitizeAssistantReplyText(reply);
     if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
       reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
       nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
     }
 
-    const hallucinationSensitiveIntent =
-      intent === "smalltalk" || intent === "out_of_scope";
+    const hallucinationSensitiveIntent = intent === "smalltalk";
     if (
       route === "chat-only" && !explicitDateTimeQuery &&
       hallucinationSensitiveIntent &&
@@ -2088,9 +2314,11 @@ export async function POST(request: Request) {
       nextUi = null;
     }
 
-    if (route === "chat-only" && !explicitDateTimeQuery && hallucinationSensitiveIntent && looksLikeSensitiveLeakReply(reply)) {
-      reply = "Я помогу с записью и вопросами по услугам. Если нужно, подберу время и специалиста.";
-      nextUi = null;
+    if (route === "chat-only" && !isBookingOrAccountCue(t) && /^(?:выберите\s+филиал)/i.test(norm(reply))) {
+      const bridge = "Если захотите, помогу с записью: подберем удобную дату и время.";
+      const base = buildOutOfScopeConversationalReply(t);
+      reply = base.replace(/[.!?]+$/u, "") + ". " + bridge;
+      nextUi = buildBookingReengageUi({ locations, services });
     }
 
     await prisma.$transaction([
@@ -2157,6 +2385,10 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
 
 
 

@@ -98,6 +98,26 @@ type RunAishaSmallTalkArgs = {
   knownClientName?: string | null;
 };
 
+
+type RunAishaBookingBridgeArgs = {
+  accountId: number;
+  assistantName: string;
+  message: string;
+  baseReply: string;
+  accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
+  locations: Array<{ id: number; name: string; address: string | null }>;
+  services: Array<{ id: number; name: string; baseDurationMin: number; basePrice: number }>;
+  todayYmd: string;
+  nowHm: string;
+  accountTimeZone: string;
+  clientTimeZone?: string | null;
+  draftDate?: string | null;
+  draftTime?: string | null;
+  focusServiceName?: string | null;
+  focusLocationName?: string | null;
+  focusDate?: string | null;
+  focusTimePreference?: "morning" | "day" | "evening" | null;
+};
 type RunAishaNaturalizeArgs = {
   accountId: number;
   assistantName: string;
@@ -335,6 +355,54 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     ]);
     const text = completion.content?.trim();
     return text ? text.slice(0, 500) : null;
+  } catch {
+    return null;
+  }
+}
+
+
+export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Promise<string | null> {
+  if (!canUseNlu("account:" + args.accountId)) return null;
+
+  const prompt = [
+    "Ты " + args.assistantName + ", дружелюбный ассистент записи.",
+    "Сгенерируй ОДНУ короткую фразу-мост к записи (на русском, 1 предложение).",
+    "Фраза должна звучать естественно в контексте текущего ответа и мягко предлагать помощь с записью.",
+    "Всегда обращайся к пользователю на Вы, не используй «ты/тебя/тебе/выбирай».",
+    "Не дублируй дословно уже сказанное в BASE_REPLY.",
+    "Не выдумывай факты, услуги, цены, адреса, акции, даты и время.",
+    "Можно предлагать: подобрать услугу, дату, время, специалиста.",
+    "Если данных недостаточно, используй нейтральную формулировку без конкретики.",
+    "Не перечисляй конкретные услуги, если пользователь о них прямо не спрашивал.",
+    "Отвечай только одной фразой, без списков и без кавычек.",
+    args.accountProfile?.description ? "Описание бизнеса: " + args.accountProfile.description : "",
+    "Часовой пояс аккаунта: " + args.accountTimeZone,
+    "Часовой пояс клиента: " + (args.clientTimeZone ?? "неизвестно"),
+    "Сегодня (YMD): " + args.todayYmd,
+    "Текущее время (HH:mm): " + args.nowHm,
+    "Дата в черновике: " + (args.draftDate ?? "null"),
+    "Время в черновике: " + (args.draftTime ?? "null"),
+    "Локации: " + JSON.stringify(args.locations.slice(0, 5).map((x) => ({ id: x.id, name: x.name }))),
+    "Услуги: " + JSON.stringify(args.services.slice(0, 8).map((x) => ({ id: x.id, name: x.name }))),
+    args.focusServiceName ? "Фокус-услуга: " + args.focusServiceName : "",
+    args.focusLocationName ? "Фокус-локация: " + args.focusLocationName : "",
+    args.focusDate ? "Фокус-дата: " + args.focusDate : "",
+    args.focusTimePreference ? "Фокус-время-суток: " + args.focusTimePreference : "",
+    "Если есть Фокус-поля и они уместны, мягко используй их в фразе без выдумок.",
+    "Сообщение пользователя: " + args.message,
+    "BASE_REPLY: " + args.baseReply,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const completion = await createGigaChatCompletion([
+      { role: "system", content: "Сформулируй один короткий мост к записи. Факты не выдумывать." },
+      { role: "user", content: prompt },
+    ]);
+    const out = completion.content?.trim();
+    if (!out) return null;
+    return out.slice(0, 220);
   } catch {
     return null;
   }

@@ -201,6 +201,18 @@ function serviceOption(service: ServiceLite): ChatUiOption {
   );
 }
 
+function buildTimeOptionsWithControls(times: string[], limit: number | null = 24): ChatUiOption[] {
+  const shown = limit == null ? times : times.slice(0, limit);
+  const options = shown.map((tm) => optionFromLabel(tm));
+  if (limit != null && times.length > shown.length) {
+    options.push(optionFromLabel("Показать всё время", "покажи все время"));
+  }
+  options.push(optionFromLabel("Утро", "утром"));
+  options.push(optionFromLabel("День", "днем"));
+  options.push(optionFromLabel("Вечер", "вечером"));
+  return options;
+}
+
 function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
   const iso = messageNorm.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
@@ -394,13 +406,13 @@ function wantsNextDateStep(messageNorm: string) {
 }
 
 function asksDateChoices(messageNorm: string) {
-  return /(?:какие\s+дни|какие\s+числа|свободные\s+дни|свободные\s+числа|по\s+датам|по\s+числам|на\s+какие\s+дни|на\s+какие\s+числа)/iu.test(
+  return /(?:какие\s+дни|какие\s+числа|свободные\s+дни|свободные\s+числа|по\s+датам|по\s+числам|на\s+какие\s+дни|на\s+какие\s+числа|все\s+даты|все\s+дни|все\s+числа|покажи\s+даты|покажи\s+все\s+даты|покажи\s+календарь|весь\s+календарь|календарь)/iu.test(
     messageNorm,
   );
 }
 
 function wantsOtherDates(messageNorm: string) {
-  return /(?:другие\s+числа|другие\s+дни|другие\s+даты|другая\s+дата|на\s+другую\s+дату|на\s+другие\s+числа|на\s+другие\s+дни)/iu.test(
+  return /(?:другие\s+числа|другие\s+дни|другие\s+даты|другая\s+дата|на\s+другую\s+дату|на\s+другие\s+числа|на\s+другие\s+дни|другой\s+период|на\s+другой\s+период)/iu.test(
     messageNorm,
   );
 }
@@ -429,6 +441,14 @@ function asksAboutSpecialists(messageNorm: string) {
   return /(?:\u0443 \u043a\u0430\u043a\u0438\u0445 \u043c\u0430\u0441\u0442|\u043a\u0430\u043a\u0438\u0435 \u043c\u0430\u0441\u0442|\u043a\u0430\u043a\u043e\u0439 \u043c\u0430\u0441\u0442\u0435\u0440|\u043a\u0430\u043a\u0438\u0435 \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442\u044b|\u043a\u0430\u043a\u043e\u0439 \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442|\u043c\u0430\u0441\u0442\u0435\u0440(?:\u0430|\u044b)?|\u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442(?:\u0430|\u044b)?)/iu.test(
     messageNorm,
   );
+}
+
+function asksAlternativeSpecialists(messageNorm: string) {
+  const asksSpecialistTopic =
+    asksAboutSpecialists(messageNorm) ||
+    /(?:\u043c\u0430\u0441\u0435\u0442\u0435\u0440|\u043c\u0430\u0441\u0435\u0442\u0440|\u043c\u0430\u0441\u0442\u0435\u0440|\u0441\u043f\u0435\u0446|\u043a\u0442\u043e\s+\u0434\u0435\u043b\u0430\u0435\u0442|\u043a\u0442\u043e\s+\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442|\u043a\u0442\u043e\s+\u0438\u0437\s+\u043c\u0430\u0441\u0442\u0435\u0440\u043e\u0432)/iu.test(messageNorm);
+  const asksAlternativeCue = /(?:\u0434\u0440\u0443\u0433\u0438\u0435|\u0434\u0440\u0443\u0433\u043e\u0439|\u0434\u0440\u0443\u0433\u043e\u0433\u043e|\u0435\u0449\u0435|\u0435\u0449\u0451|\u043a\u0440\u043e\u043c\u0435|\u0438\u043d\u043e\u0439|\u0430\s+\u043a\u0442\u043e\s+\u0435\u0449\u0435|\u0430\s+\u043a\u0442\u043e\s+\u0435\u0449\u0451|\u0435\u0441\u0442\u044c\s+\u043a\u0442\u043e)/iu.test(messageNorm);
+  return asksSpecialistTopic && asksAlternativeCue;
 }
 
 function normalizeText(v: string) {
@@ -855,6 +875,41 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     };
   }
 
+  if ((asksDateList || asksAnotherDate) && d.locationId && !d.serviceId) {
+    const rangeStart = monthOnlyDate ? monthOnlyDate : d.date ? addDaysYmd(d.date, 1) : todayYmd;
+    const rangeEnd = monthOnlyDate ? endOfMonthYmd(monthOnlyDate) : addDaysYmd(rangeStart, 60);
+    const daysAhead = Math.max(1, dateDistanceDays(rangeStart, rangeEnd) + 1);
+    const nearestDates = await findNearestDateWindows({
+      origin,
+      accountSlug: account.slug,
+      locations: locations.filter((x) => x.id === d.locationId),
+      fromDate: rangeStart,
+      serviceId: null,
+      preference: detectTimePreference(messageNorm),
+      daysAhead,
+      maxDates: daysAhead,
+      limit: 24,
+    });
+    const availableDates = nearestDates.map((x) => x.date);
+    d.date = null;
+    d.time = null;
+    d.specialistId = null;
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    return {
+      handled: true,
+      reply: "Показываю даты в календаре по выбранному филиалу. Выберите удобную дату.",
+      nextStatus: "COLLECTING",
+      ui: {
+        kind: "date_picker",
+        minDate: rangeStart,
+        maxDate: rangeEnd,
+        initialDate: rangeStart,
+        availableDates: availableDates.length ? availableDates : null,
+      },
+    };
+  }
+
   let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
   let autoSelectedSpecialistName: string | null = null;
@@ -1036,7 +1091,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             nextStatus: "COLLECTING",
             ui: {
               kind: "quick_replies",
-              options: onlyLocation.times.slice(0, 24).map((tm) => optionFromLabel(tm)),
+              options: buildTimeOptionsWithControls(onlyLocation.times, 24),
             },
           };
         }
@@ -1201,7 +1256,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"
           } есть свободное время. Можете выбрать время, а затем услугу.`,
           nextStatus: "COLLECTING",
-          ui: { kind: "quick_replies", options: (timeLimit == null ? times : times.slice(0, 24)).map((x) => optionFromLabel(x)) },
+          ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, timeLimit == null ? null : 24) },
         };
       }
       return {
@@ -1334,7 +1389,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         ? `На ${formatYmdRu(d.date)}${prefText} у выбранного специалиста доступны времена. Выберите время.`
         : `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
       nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: times.map((x) => optionFromLabel(x)) },
+      ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, null) },
     };
   }
   if (!d.specialistId) {
@@ -1394,6 +1449,165 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.mode) {
+    const selectedDate = d.date;
+    const selectedTime = d.time;
+    const specialistScope = specialists.filter((s) => {
+      if (d.locationId && !s.locationIds.includes(d.locationId)) return false;
+      if (d.serviceId && s.serviceIds?.length && !s.serviceIds.includes(d.serviceId)) return false;
+      return true;
+    });
+    const selectedSpecialistByMessage = specialistByText(messageNorm, specialistScope);
+    if (selectedSpecialistByMessage && selectedSpecialistByMessage.id !== d.specialistId && d.locationId && d.serviceId && d.date) {
+      const offers = await getOffers(origin, account.slug, d.locationId, d.date);
+      const offerAtCurrentTime = selectedTime ? (offers?.times ?? []).find((x) => x.time === selectedTime) ?? null : null;
+      const serviceAtCurrentTime = offerAtCurrentTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
+      const selectedIsAvailableAtCurrentTime =
+        !!selectedTime &&
+        !!serviceAtCurrentTime?.specialistIds?.length &&
+        serviceAtCurrentTime.specialistIds.includes(selectedSpecialistByMessage.id);
+
+      if (selectedIsAvailableAtCurrentTime) {
+        d.specialistId = selectedSpecialistByMessage.id;
+      } else {
+        const specialistTimes = await findTimesForServiceAndSpecialist({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          specialistId: selectedSpecialistByMessage.id,
+          date: d.date,
+        });
+        if (specialistTimes.length) {
+          d.specialistId = selectedSpecialistByMessage.id;
+          d.time = null;
+          d.mode = null;
+          d.consentConfirmedAt = null;
+          return {
+            handled: true,
+            reply: `У ${selectedSpecialistByMessage.name} на ${formatYmdRu(selectedDate)} доступны времена. Выберите время.`,
+            nextStatus: "COLLECTING",
+            ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(specialistTimes, 24) },
+          };
+        }
+
+        const nextSpecialistDates = await findNextServiceDatesForSpecialist({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          specialistId: selectedSpecialistByMessage.id,
+          fromDate: d.date,
+          daysAhead: 35,
+          maxDates: 6,
+        });
+        if (nextSpecialistDates.length) {
+          d.specialistId = selectedSpecialistByMessage.id;
+          d.date = null;
+          d.time = null;
+          d.mode = null;
+          d.consentConfirmedAt = null;
+          return {
+            handled: true,
+            reply: `У ${selectedSpecialistByMessage.name} на ${formatYmdRu(selectedDate)} свободных окон по этой услуге не нашла. Выберите другую дату в календаре.`,
+            nextStatus: "COLLECTING",
+            ui: {
+              kind: "date_picker",
+              minDate: nextSpecialistDates[0]!,
+              maxDate: nextSpecialistDates[nextSpecialistDates.length - 1]!,
+              initialDate: nextSpecialistDates[0]!,
+              availableDates: nextSpecialistDates,
+            },
+          };
+        }
+
+        return {
+          handled: true,
+          reply: `У ${selectedSpecialistByMessage.name} пока нет доступных окон по этой услуге. Могу подобрать другого специалиста или услугу.`,
+          nextStatus: "COLLECTING",
+        };
+      }
+    }
+
+    if (d.locationId && d.serviceId && d.date && d.time && d.specialistId && asksAlternativeSpecialists(messageNorm)) {
+      const offers = await getOffers(origin, account.slug, d.locationId, d.date);
+      const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
+      const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
+      const specialistIdsAtTime = offerService?.specialistIds ?? [];
+      const alternativesAtSameTime = specialists.filter((s) => specialistIdsAtTime.includes(s.id) && s.id !== d.specialistId);
+
+      if (alternativesAtSameTime.length) {
+        d.specialistId = null;
+        return {
+          handled: true,
+          reply: `На ${formatYmdRu(d.date)} в ${d.time} по этой услуге доступны и другие специалисты. Выберите мастера кнопкой ниже.`,
+          nextStatus: "CHECKING",
+          ui: { kind: "quick_replies", options: alternativesAtSameTime.map((x) => optionFromLabel(x.name)) },
+        };
+      }
+
+      const timesWithOtherSpecialists = Array.from(
+        new Set(
+          (offers?.times ?? [])
+            .filter((slot) => {
+              const svc = slot.services.find((s) => s.serviceId === d.serviceId);
+              if (!svc?.specialistIds?.length) return false;
+              return svc.specialistIds.some((id) => id !== d.specialistId);
+            })
+            .map((slot) => slot.time),
+        ),
+      ).filter((tm) => tm !== d.time);
+
+      if (timesWithOtherSpecialists.length) {
+        const currentSpecialistName = specialists.find((x) => x.id === d.specialistId)?.name ?? "выбранный специалист";
+        d.time = null;
+        d.specialistId = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: `На ${formatYmdRu(selectedDate)} в ${selectedTime} доступен только ${currentSpecialistName}. Выберите другое время, и покажу других специалистов.`,
+          nextStatus: "COLLECTING",
+          ui: { kind: "quick_replies", options: timesWithOtherSpecialists.slice(0, 12).map((tm) => optionFromLabel(tm)) },
+        };
+      }
+
+      const nextDates = await findNextServiceDates({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        serviceId: d.serviceId,
+        fromDate: d.date,
+        daysAhead: 35,
+        maxDates: 6,
+      });
+      const currentSpecialistName = specialists.find((x) => x.id === d.specialistId)?.name ?? "выбранный специалист";
+      if (nextDates.length) {
+        d.date = null;
+        d.time = null;
+        d.specialistId = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: `На ${formatYmdRu(selectedDate)} по этой услуге доступен только ${currentSpecialistName}. Выберите другую дату, и покажу варианты с другими специалистами.`,
+          nextStatus: "COLLECTING",
+          ui: {
+            kind: "date_picker",
+            minDate: nextDates[0]!,
+            maxDate: nextDates[nextDates.length - 1]!,
+            initialDate: nextDates[0]!,
+            availableDates: nextDates,
+          },
+        };
+      }
+
+      return {
+        handled: true,
+        reply: "По этой услуге и дате на выбранное время доступен только один специалист. Могу подобрать другую дату или услугу.",
+        nextStatus: "COLLECTING",
+      };
+    }
+
     const selectedService = services.find((x) => x.id === d.serviceId) ?? null;
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
     const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
@@ -1533,20 +1747,6 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
