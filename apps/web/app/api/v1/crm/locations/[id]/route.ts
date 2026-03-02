@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -95,6 +95,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const data: {
     name?: string;
     address?: string;
+    description?: string | null;
     phone?: string | null;
     status?: string;
     websiteUrl?: string | null;
@@ -109,6 +110,8 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.address !== undefined) data.address = String(body.address).trim();
+  if (body.description !== undefined)
+    data.description = body.description ? String(body.description).trim() : null;
   if (body.phone !== undefined)
     data.phone = body.phone ? String(body.phone).trim() : null;
   if (body.status !== undefined) {
@@ -197,6 +200,7 @@ export async function PATCH(request: Request, { params }: Params) {
     id: updated.id,
     name: updated.name,
     address: updated.address,
+    description: updated.description,
     phone: updated.phone,
     status: updated.status,
     websiteUrl: updated.websiteUrl,
@@ -237,6 +241,7 @@ export async function GET(_request: Request, { params }: Params) {
     id: location.id,
     name: location.name,
     address: location.address,
+    description: location.description,
     phone: location.phone,
     status: location.status,
     websiteUrl: location.websiteUrl,
@@ -289,3 +294,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   const response = jsonOk({ id: archived.id, status: archived.status });
   return applyCrmAccessCookie(response, auth);
 }
+

@@ -11,6 +11,7 @@ type LocationSummary = {
   id: number;
   name: string;
   address: string;
+  description: string | null;
   phone: string | null;
   status: string;
   websiteUrl: string | null;

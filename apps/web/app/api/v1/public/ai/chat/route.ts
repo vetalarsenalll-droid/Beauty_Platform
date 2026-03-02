@@ -1281,7 +1281,7 @@ export async function POST(request: Request) {
     const [locationsRaw, servicesRaw, specialistsRaw, requiredDocs, accountProfile, customPrompt] = await Promise.all([
       prisma.location.findMany({
         where: { accountId: resolved.account.id, status: "ACTIVE" },
-        select: { id: true, name: true, address: true },
+        select: { id: true, name: true, address: true, description: true },
         orderBy: { createdAt: "asc" },
       }),
       prisma.service.findMany({
@@ -1289,6 +1289,7 @@ export async function POST(request: Request) {
         select: {
           id: true,
           name: true,
+          description: true,
           baseDurationMin: true,
           basePrice: true,
           levelConfigs: { select: { levelId: true, durationMin: true, price: true } },
@@ -1302,6 +1303,7 @@ export async function POST(request: Request) {
         select: {
           id: true,
           levelId: true,
+          bio: true,
           user: { select: { email: true, profile: { select: { firstName: true, lastName: true } } } },
           locations: { select: { locationId: true } },
           services: { select: { serviceId: true } },
@@ -1324,6 +1326,7 @@ export async function POST(request: Request) {
       id: s.id,
       name: s.name,
       baseDurationMin: s.baseDurationMin,
+      description: s.description ?? null,
       basePrice: Number(s.basePrice),
       levelConfigs: s.levelConfigs.map((x) => ({
         levelId: x.levelId,
@@ -1343,6 +1346,7 @@ export async function POST(request: Request) {
         id: s.id,
         name: fullName || s.user.email || `Специалист #${s.id}`,
         levelId: s.levelId ?? null,
+        bio: s.bio ?? null,
         locationIds: s.locations.map((x) => x.locationId),
         serviceIds: s.services.map((x) => x.serviceId),
       };
@@ -1399,6 +1403,14 @@ export async function POST(request: Request) {
         ? "отмени ближайшую запись"
         : "отмени последнюю запись"
       : message;
+    const selectedLocationByMessage = locationByText(t, locations);
+    const selectedSpecialistByMessage = specialistByText(t, specialists);
+    const explicitLocationDetailsCue =
+      Boolean(selectedLocationByMessage) &&
+      has(messageForRouting, /(расскажи|подроб|что за|инфо|описан|о филиал|о локац|про|где находится|адрес)/i);
+    const explicitSpecialistDetailsCue =
+      Boolean(selectedSpecialistByMessage) &&
+      has(messageForRouting, /(расскажи|подроб|что за|кто это|био|опыт|стаж|чем занимается|что умеет|какие услуги|что делает)/i);
     const hasDraftContextEarly = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode) && d.status !== "COMPLETED";
 
     const explicitClientCancelConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+отмен[\p{L}]*/iu);
@@ -1478,6 +1490,8 @@ export async function POST(request: Request) {
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (specialistFollowUpByLocation) intent = "ask_specialists";
     if (explicitWhoDoesServices || explicitSpecialistsListCue || explicitSpecialistsShortCue || explicitAlternativeSpecialistsInDraft) intent = "ask_specialists";
+    if (explicitLocationDetailsCue && selectedLocationByMessage) intent = "contact_address";
+    if (explicitSpecialistDetailsCue && selectedSpecialistByMessage) intent = "ask_specialists";
     if (explicitIdentityCue) intent = "identity";
     if (explicitAssistantQualification) intent = "identity";
     if (explicitOutOfScopeCue && !explicitDateBookingRequest) intent = "out_of_scope";
@@ -2189,7 +2203,20 @@ export async function POST(request: Request) {
           nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
         }
       } else if (intent === "contact_address") {
-        if (locations.length) {
+        const selectedLocation = selectedLocationByMessage;
+        if (selectedLocation && explicitLocationDetailsCue) {
+          const desc = (selectedLocation.description ?? "").trim();
+          const addr = selectedLocation.address ? selectedLocation.address : "адрес уточняется";
+          reply = selectedLocation.name + ": " + addr + (desc ? " Описание: " + desc : "") + " Если хотите, подберу запись именно в этом филиале.";
+          nextUi = {
+            kind: "quick_replies",
+            options: [
+              { label: "Записаться в этот филиал", value: selectedLocation.name },
+              { label: "Показать специалистов", value: "какие специалисты в " + selectedLocation.name },
+              { label: "Показать услуги", value: "какие услуги в " + selectedLocation.name },
+            ],
+          };
+        } else if (locations.length) {
           const addressLines = locations
             .slice(0, 12)
             .map((x, i) => `${i + 1}. ${x.name}${x.address ? " — " + x.address : " — адрес уточняется"}`)
@@ -2207,13 +2234,37 @@ export async function POST(request: Request) {
         const dateForSpecialists = parseDate(message, nowYmd) || d.date;
         const locationFromMessage = locationByText(t, locations);
         const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
+        const specialistFromMessage = selectedSpecialistByMessage;
 
-        if (selectedLocationId) {
+        if (specialistFromMessage && explicitSpecialistDetailsCue) {
+          const specialistLocations = locations
+            .filter((loc) => specialistFromMessage.locationIds.includes(loc.id))
+            .map((loc) => loc.name);
+          const specialistServices = services
+            .filter((srv) => specialistFromMessage.serviceIds.includes(srv.id))
+            .map((srv) => srv.name);
+          const bio = (specialistFromMessage.bio ?? "").trim();
+          const locText = specialistLocations.length ? specialistLocations.slice(0, 3).join(", ") : "локация уточняется";
+          const srvText = specialistServices.length ? specialistServices.slice(0, 6).join(", ") : "услуги уточняются";
+          reply = specialistFromMessage.name + ": " + (bio ? bio + " " : "") + "Работает в: " + locText + ". Выполняет услуги: " + srvText + ". Если хотите, подберу ближайшее время к этому специалисту.";
+          nextUi = {
+            kind: "quick_replies",
+            options: [
+              { label: "Записаться к этому специалисту", value: "запиши меня к " + specialistFromMessage.name },
+              { label: "Показать его услуги", value: "какие услуги делает " + specialistFromMessage.name },
+            ],
+          };
+        } else if (selectedLocationId) {
           d.locationId = selectedLocationId;
           const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
           const scoped = specialists.filter((s) => s.locationIds.includes(selectedLocationId));
           if (scoped.length) {
-            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты. Выберите кнопкой ниже.`;
+            const specialistLines = scoped
+              .slice(0, 5)
+              .map((x, i) => `${i + 1}. ${x.name}${x.bio?.trim() ? ` — ${x.bio.trim().slice(0, 140)}` : ""}`)
+              .join("\n");
+            const locationDetails = selectedLocation?.address ? ` Адрес: ${selectedLocation.address}.` : "";
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты.${locationDetails}${specialistLines ? `\n${specialistLines}` : ""}\nВыберите кнопкой ниже.`;
             nextUi = { kind: "quick_replies", options: scoped.slice(0, 16).map((x) => ({ label: x.name, value: x.name })) };
           } else {
             reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов в расписании.`;
@@ -2226,7 +2277,11 @@ export async function POST(request: Request) {
             }))
             .filter((x) => x.items.length > 0);
           if (byLocation.length) {
-            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}доступны специалисты по филиалам. Выберите филиал кнопкой ниже.`;
+            const locationLines = byLocation
+              .slice(0, 6)
+              .map((x, i) => `${i + 1}. ${x.loc.name}${x.loc.address ? ` — ${x.loc.address}` : ""}`)
+              .join("\n");
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}доступны специалисты по филиалам.${locationLines ? `\n${locationLines}` : ""}\nВыберите филиал кнопкой ниже.`;
             nextUi = { kind: "quick_replies", options: byLocation.slice(0, 12).map((x) => ({ label: x.loc.name, value: x.loc.name })) };
           } else {
             reply = "Сейчас не нашла специалистов в расписании. Могу проверить по конкретной локации и дате.";
@@ -2238,60 +2293,75 @@ export async function POST(request: Request) {
         if (isServiceComplaintMessage(t)) {
           reply =
             "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение администратору. Также могу подобрать запись к другому мастеру.";
-        } else {
-        if (explicitServicesFollowUp) {
+        } else if (explicitServicesFollowUp) {
           const sample = services.slice(0, 6).map((x) => x.name).join(", ");
           reply = sample ? `Доступные услуги: ${sample}.` : "Доступные услуги ниже. Выберите нужную кнопкой.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
         } else {
-        const selectedByText = serviceByText(t, services);
-        const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
-        const femaleContext = /(женск|для женщин|для девушки)/i.test(t) || /(женск|для женщин|для девушки)/i.test(previousUserText);
-        if (selectedByText) {
-          const n = norm(selectedByText.name);
-          if (asksGenderSuitability(t) && /(women|жен)/i.test(n)) {
-            reply = `«${selectedByText.name}» обычно выбирают для женщин. Для мужчин могу предложить «Men Haircut», если нужно — сразу подберу время.`;
-          } else if (asksGenderSuitability(t) && /(men|муж)/i.test(n)) {
-            reply = `«${selectedByText.name}» обычно выбирают для мужчин. Для женщин могу предложить «Women Haircut», если нужно — сразу подберу время.`;
+          const selectedByText = serviceByText(t, services);
+          const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
+          const femaleContext = /(женск|для женщин|для девушки)/i.test(t) || /(женск|для женщин|для девушки)/i.test(previousUserText);
+
+          if (selectedByText) {
+            const n = norm(selectedByText.name);
+            const description = (selectedByText.description ?? "").trim();
+            if (asksGenderSuitability(t) && /(women|жен)/i.test(n)) {
+              reply = `«${selectedByText.name}» обычно выбирают для женщин. Для мужчин могу предложить «Men Haircut», если нужно — сразу подберу время.`;
+            } else if (asksGenderSuitability(t) && /(men|муж)/i.test(n)) {
+              reply = `«${selectedByText.name}» обычно выбирают для мужчин. Для женщин могу предложить «Women Haircut», если нужно — сразу подберу время.`;
+            } else {
+              reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.${description ? ` Описание: ${description}` : ""} Если хотите, запишу вас на неё.`;
+              nextUi = {
+                kind: "quick_replies",
+                options: [
+                  { label: "Записаться на эту услугу", value: `запиши меня на ${selectedByText.name}` },
+                  { label: "Показать другие услуги", value: "какие услуги есть" },
+                ],
+              };
+            }
+          } else if (maleContext || femaleContext) {
+            const gendered = services.filter((x) => {
+              const n = norm(x.name);
+              if (maleContext && /(men|муж)/i.test(n)) return true;
+              if (femaleContext && /(women|жен)/i.test(n)) return true;
+              return false;
+            });
+            if (gendered.length) {
+              reply = "Подходящие услуги ниже. Выберите кнопкой.";
+              nextUi = { kind: "quick_replies", options: gendered.slice(0, 12).map(serviceQuickOption) };
+            } else {
+              const suggested = services
+                .filter((x) => /(haircut|стриж|manicure|маник|pedicure|педик)/i.test(norm(x.name)))
+                .slice(0, 8);
+              reply = "Из доступных сейчас могу предложить варианты ниже. Выберите кнопкой.";
+              const optionsSource = suggested.length ? suggested : services.slice(0, 8);
+              nextUi = { kind: "quick_replies", options: optionsSource.map(serviceQuickOption) };
+            }
+          } else if (asksGenderSuitability(t)) {
+            reply = "Есть услуги для мужчин и для женщин. Например: Men Haircut и Women Haircut. Напишите, что именно нужно, и я подберу вариант.";
+            const genderExamples = services.filter((x) => /(men haircut|women haircut|муж|жен)/i.test(norm(x.name))).slice(0, 6);
+            if (genderExamples.length) nextUi = { kind: "quick_replies", options: genderExamples.map(serviceQuickOption) };
+          } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
+            const requested = extractRequestedServicePhrase(t);
+            reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
+            nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
           } else {
-            reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.`;
+            reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
+            nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
           }
-        } else if (maleContext || femaleContext) {
-          const gendered = services.filter((x) => {
-            const n = norm(x.name);
-            if (maleContext && /(men|муж)/i.test(n)) return true;
-            if (femaleContext && /(women|жен)/i.test(n)) return true;
-            return false;
-          });
-          if (gendered.length) {
-            reply = "Подходящие услуги ниже. Выберите кнопкой.";
-            nextUi = { kind: "quick_replies", options: gendered.slice(0, 12).map(serviceQuickOption) };
-          } else {
-            const suggested = services
-              .filter((x) => /(haircut|стриж|manicure|маник|pedicure|педик)/i.test(norm(x.name)))
-              .slice(0, 8);
-            reply = "Из доступных сейчас могу предложить варианты ниже. Выберите кнопкой.";
-            const optionsSource = suggested.length ? suggested : services.slice(0, 8);
-            nextUi = { kind: "quick_replies", options: optionsSource.map(serviceQuickOption) };
-          }
-        } else if (asksGenderSuitability(t)) {
-          reply = "Есть услуги для мужчин и для женщин. Например: Men Haircut и Women Haircut. Напишите, что именно нужно, и я подберу вариант.";
-          const genderExamples = services.filter((x) => /(men haircut|women haircut|муж|жен)/i.test(norm(x.name))).slice(0, 6);
-          if (genderExamples.length) nextUi = { kind: "quick_replies", options: genderExamples.map(serviceQuickOption) };
-        } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
-          const requested = extractRequestedServicePhrase(t);
-          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
-          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
-        } else {
-          reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
-          nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
-        }
-        }
         }
       } else if (intent === "ask_price") {
         const selectedByText = serviceByText(t, services);
         if (selectedByText) {
-          reply = `${selectedByText.name}: ${Math.round(selectedByText.basePrice)} ₽, ${selectedByText.baseDurationMin} мин.`;
+          const description = (selectedByText.description ?? "").trim();
+          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.${description ? ` Описание: ${description}` : ""} Если хотите, запишу вас на неё.`;
+          nextUi = {
+            kind: "quick_replies",
+            options: [
+              { label: "Записаться на эту услугу", value: `запиши меня на ${selectedByText.name}` },
+              { label: "Показать другие услуги", value: "какие услуги есть" },
+            ],
+          };
         } else {
           reply = "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
           nextUi = { kind: "quick_replies", options: services.slice(0, 12).map(serviceQuickOption) };
@@ -2299,7 +2369,15 @@ export async function POST(request: Request) {
       } else if (mentionsServiceTopic(t)) {
         const selectedByText = serviceByText(t, services);
         if (selectedByText) {
-          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.`;
+          const description = (selectedByText.description ?? "").trim();
+          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.${description ? ` Описание: ${description}` : ""} Если хотите, запишу вас на неё.`;
+          nextUi = {
+            kind: "quick_replies",
+            options: [
+              { label: "Записаться на эту услугу", value: `запиши меня на ${selectedByText.name}` },
+              { label: "Показать другие услуги", value: "какие услуги есть" },
+            ],
+          };
         } else {
           const requested = extractRequestedServicePhrase(t);
           reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
@@ -2476,6 +2554,13 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
+
+
 
 
 

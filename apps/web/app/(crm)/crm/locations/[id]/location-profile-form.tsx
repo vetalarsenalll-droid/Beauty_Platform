@@ -8,6 +8,7 @@ type LocationProfileFormProps = {
     id: number;
     name: string;
     address: string;
+    description: string | null;
     phone: string | null;
     status: string;
     websiteUrl: string | null;
@@ -28,6 +29,7 @@ export default function LocationProfileForm({
   const router = useRouter();
   const [name, setName] = useState(location.name);
   const [address, setAddress] = useState(location.address);
+  const [description, setDescription] = useState(location.description ?? "");
   const [phone, setPhone] = useState(location.phone ?? "");
   const [status, setStatus] = useState(location.status);
   const [websiteUrl, setWebsiteUrl] = useState(location.websiteUrl ?? "");
@@ -58,6 +60,7 @@ export default function LocationProfileForm({
     const payload: Record<string, unknown> = {
       name: name.trim(),
       address: address.trim(),
+      description: description.trim() ? description.trim() : null,
       phone: phone.trim() ? phone.trim() : null,
       status,
       websiteUrl: websiteUrl.trim() ? websiteUrl.trim() : null,
@@ -124,6 +127,15 @@ export default function LocationProfileForm({
           />
         </label>
       </div>
+      <label className="flex flex-col gap-2 text-sm">
+        Описание
+        <textarea
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          rows={3}
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+        />
+      </label>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           Широта

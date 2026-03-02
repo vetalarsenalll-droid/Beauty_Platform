@@ -206,6 +206,7 @@ export default async function LocationProfilePage({
           id: location.id,
           name: location.name,
           address: location.address,
+          description: location.description,
           phone: location.phone,
           status: location.status,
           websiteUrl: location.websiteUrl,

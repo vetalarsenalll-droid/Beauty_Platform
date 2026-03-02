@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -7,6 +7,7 @@ type DbLocation = {
   id: number;
   name: string;
   address: string;
+  description: string | null;
   phone: string | null;
   status: string;
   websiteUrl: string | null;
@@ -28,6 +29,7 @@ function mapLocation(location: DbLocation) {
     id: location.id,
     name: location.name,
     address: location.address,
+    description: location.description,
     phone: location.phone,
     status: location.status,
     websiteUrl: location.websiteUrl,
@@ -122,6 +124,7 @@ export async function POST(request: Request) {
 
   const name = String(body.name ?? "").trim();
   const address = String(body.address ?? "").trim();
+  const description = body.description ? String(body.description).trim() : null;
   const phone = body.phone ? String(body.phone).trim() : null;
   const statusRaw = body.status ? String(body.status).trim().toUpperCase() : "ACTIVE";
   if (!LOCATION_STATUSES.has(statusRaw)) {
@@ -191,6 +194,7 @@ export async function POST(request: Request) {
       accountId: auth.session.accountId,
       name,
       address,
+      description,
       phone,
       status,
       websiteUrl: normalizedWebsiteUrl,
@@ -215,6 +219,7 @@ export async function POST(request: Request) {
     diffJson: {
       name,
       address,
+      description,
       phone,
       status,
       websiteUrl: normalizedWebsiteUrl,
@@ -232,3 +237,4 @@ export async function POST(request: Request) {
   const response = jsonOk(mapLocation(created as DbLocation), 201);
   return applyCrmAccessCookie(response, auth);
 }
+

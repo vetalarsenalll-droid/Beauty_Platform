@@ -848,6 +848,7 @@ model Location {
   accountId Int
   name        String
   address     String
+  description String?
   phone       String?
   status      String @default("ACTIVE")
   websiteUrl  String?
@@ -1982,6 +1983,8 @@ model AiBookingDraft {
 
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 }
+
+
 
 
 

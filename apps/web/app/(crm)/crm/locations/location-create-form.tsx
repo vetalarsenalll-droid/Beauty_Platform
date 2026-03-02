@@ -5,6 +5,7 @@ import { useState } from "react";
 export default function LocationCreateForm() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [lat, setLat] = useState("");
@@ -20,6 +21,7 @@ export default function LocationCreateForm() {
     const payload: Record<string, unknown> = {
       name,
       address,
+      description: description.trim() ? description.trim() : null,
       phone: phone.trim() ? phone.trim() : null,
       status,
     };
@@ -76,6 +78,15 @@ export default function LocationCreateForm() {
           />
         </label>
       </div>
+      <label className="flex flex-col gap-2 text-sm">
+        Описание
+        <textarea
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          rows={3}
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+        />
+      </label>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           Широта

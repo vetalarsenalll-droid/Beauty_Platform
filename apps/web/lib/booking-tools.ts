@@ -17,17 +17,18 @@ export type DraftLike = {
   consentConfirmedAt: string | null;
 };
 
-export type LocationLite = { id: number; name: string; address: string | null };
+export type LocationLite = { id: number; name: string; address: string | null; description?: string | null };
 export type ServiceLite = {
   id: number;
   name: string;
   baseDurationMin: number;
+  description?: string | null;
   basePrice: number;
   locationIds: number[];
   levelConfigs?: Array<{ levelId: number; durationMin: number | null; price: number | null }>;
   specialistConfigs?: Array<{ specialistId: number; durationOverrideMin: number | null; priceOverride: number | null }>;
 };
-export type SpecialistLite = { id: number; name: string; levelId?: number | null; locationIds: number[]; serviceIds: number[] };
+export type SpecialistLite = { id: number; name: string; levelId?: number | null; bio?: string | null; locationIds: number[]; serviceIds: number[] };
 
 export async function apiData<T>(url: string): Promise<T | null> {
   try {
@@ -278,6 +279,11 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     throw error;
   }
 }
+
+
+
+
+
 
 
 
