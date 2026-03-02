@@ -2,6 +2,8 @@
   bookingSummary,
   createAssistantBooking,
   DraftLike,
+  formatServiceQuickLabel,
+  formatSpecialistQuickLabel,
   getEffectiveServiceForSpecialist,
   getOffers,
   getSlots,
@@ -195,10 +197,11 @@ function optionFromLabel(label: string, value?: string): ChatUiOption {
 }
 
 function serviceOption(service: ServiceLite): ChatUiOption {
-  return optionFromLabel(
-    `${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`,
-    service.name,
-  );
+  return optionFromLabel(formatServiceQuickLabel(service), service.name);
+}
+
+function specialistOption(specialist: SpecialistLite): ChatUiOption {
+  return optionFromLabel(formatSpecialistQuickLabel(specialist), specialist.name);
 }function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): ChatUiOption[] {
   const dateRu = formatYmdRu(dateYmd);
   const options: ChatUiOption[] = [
@@ -1249,7 +1252,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           nextStatus: "COLLECTING",
           ui: {
             kind: "quick_replies",
-            options: availableByLocation.slice(0, 12).map((x) => optionFromLabel(x.name)),
+            options: availableByLocation.slice(0, 12).map((x) => specialistOption(x)),
           },
         };
       }
@@ -1461,7 +1464,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже.`,
         nextStatus: "CHECKING",
-        ui: { kind: "quick_replies", options: specs.map((x) => optionFromLabel(x.name)) },
+        ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x)) },
       };
     }
   }
@@ -1559,7 +1562,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           handled: true,
           reply: `На ${formatYmdRu(d.date)} в ${d.time} по этой услуге доступны и другие специалисты. Выберите мастера кнопкой ниже.`,
           nextStatus: "CHECKING",
-          ui: { kind: "quick_replies", options: alternativesAtSameTime.map((x) => optionFromLabel(x.name)) },
+          ui: { kind: "quick_replies", options: alternativesAtSameTime.map((x) => specialistOption(x)) },
         };
       }
 
@@ -1765,6 +1768,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 

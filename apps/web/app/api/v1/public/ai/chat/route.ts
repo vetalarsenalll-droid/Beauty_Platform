@@ -5,7 +5,7 @@ import { buildPublicSlugId } from "@/lib/public-slug";
 import { AishaNluIntent, runAishaBookingBridge, runAishaNaturalizeReply, runAishaNlu, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import { runBookingFlow } from "@/lib/booking-flow";
 import type { ChatUi } from "@/lib/booking-flow";
-import { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
+import { DraftLike, formatServiceQuickLabel, formatSpecialistQuickLabel, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import { ANTI_HALLUCINATION_RULES, AishaIntent, routeForIntent } from "@/lib/dialog-policy";
 import { INTENT_ACTION_MATRIX } from "@/lib/intent-action-matrix";
 import { runClientAccountFlow } from "@/lib/client-account-flow";
@@ -580,8 +580,15 @@ function sanitizeAssistantReplyText(reply: string) {
 
 function serviceQuickOption(service: ServiceLite) {
   return {
-    label: `${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`,
+    label: formatServiceQuickLabel(service),
     value: service.name,
+  };
+}
+
+function specialistQuickOption(specialist: SpecialistLite) {
+  return {
+    label: formatSpecialistQuickLabel(specialist),
+    value: specialist.name,
   };
 }
 
@@ -1304,6 +1311,7 @@ export async function POST(request: Request) {
           id: true,
           levelId: true,
           bio: true,
+          level: { select: { name: true } },
           user: { select: { email: true, profile: { select: { firstName: true, lastName: true } } } },
           locations: { select: { locationId: true } },
           services: { select: { serviceId: true } },
@@ -1346,6 +1354,7 @@ export async function POST(request: Request) {
         id: s.id,
         name: fullName || s.user.email || `Специалист #${s.id}`,
         levelId: s.levelId ?? null,
+        levelName: s.level?.name ?? null,
         bio: s.bio ?? null,
         locationIds: s.locations.map((x) => x.locationId),
         serviceIds: s.services.map((x) => x.serviceId),
@@ -2265,7 +2274,7 @@ export async function POST(request: Request) {
               .join("\n");
             const locationDetails = selectedLocation?.address ? ` Адрес: ${selectedLocation.address}.` : "";
             reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты.${locationDetails}${specialistLines ? `\n${specialistLines}` : ""}\nВыберите кнопкой ниже.`;
-            nextUi = { kind: "quick_replies", options: scoped.slice(0, 16).map((x) => ({ label: x.name, value: x.name })) };
+            nextUi = { kind: "quick_replies", options: scoped.slice(0, 16).map((x) => specialistQuickOption(x)) };
           } else {
             reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов в расписании.`;
           }

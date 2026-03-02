@@ -853,7 +853,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     buttonTextColor: "#FFFFFF",
     radius: 28,
     buttonRadius: 999,
-    blockSpacing: 28,
+    blockSpacing: 0,
     headingSize: 28,
     subheadingSize: 18,
     textSize: 14,

@@ -28,7 +28,36 @@ export type ServiceLite = {
   levelConfigs?: Array<{ levelId: number; durationMin: number | null; price: number | null }>;
   specialistConfigs?: Array<{ specialistId: number; durationOverrideMin: number | null; priceOverride: number | null }>;
 };
-export type SpecialistLite = { id: number; name: string; levelId?: number | null; bio?: string | null; locationIds: number[]; serviceIds: number[] };
+export type SpecialistLite = { id: number; name: string; levelId?: number | null; levelName?: string | null; bio?: string | null; locationIds: number[]; serviceIds: number[] };
+
+export function serviceLowerBounds(service: ServiceLite) {
+  const prices = [
+    Number(service.basePrice),
+    ...(service.levelConfigs ?? []).map((x) => (x.price == null ? NaN : Number(x.price))),
+    ...(service.specialistConfigs ?? []).map((x) => (x.priceOverride == null ? NaN : Number(x.priceOverride))),
+  ].filter((x) => Number.isFinite(x) && x > 0) as number[];
+
+  const durations = [
+    Number(service.baseDurationMin),
+    ...(service.levelConfigs ?? []).map((x) => (x.durationMin == null ? NaN : Number(x.durationMin))),
+    ...(service.specialistConfigs ?? []).map((x) => (x.durationOverrideMin == null ? NaN : Number(x.durationOverrideMin))),
+  ].filter((x) => Number.isFinite(x) && x > 0) as number[];
+
+  return {
+    minPrice: prices.length ? Math.min(...prices) : Math.round(Number(service.basePrice) || 0),
+    minDuration: durations.length ? Math.min(...durations) : Number(service.baseDurationMin) || 0,
+  };
+}
+
+export function formatServiceQuickLabel(service: ServiceLite) {
+  const { minPrice, minDuration } = serviceLowerBounds(service);
+  return `${service.name} — от ${Math.round(minPrice)} ₽, от ${Math.round(minDuration)} мин`;
+}
+
+export function formatSpecialistQuickLabel(specialist: SpecialistLite) {
+  const lvl = (specialist.levelName ?? "").trim();
+  return lvl ? `${specialist.name} — ${lvl}` : specialist.name;
+}
 
 export async function apiData<T>(url: string): Promise<T | null> {
   try {
@@ -124,7 +153,7 @@ export function bookingSummary(
 export function serviceListText(services: ServiceLite[], limit = 12) {
   return services
     .slice(0, limit)
-    .map((x, i) => `${i + 1}. ${x.name} — ${Math.round(Number(x.basePrice) || 0)} ₽, ${x.baseDurationMin} мин`)
+    .map((x, i) => `${i + 1}. ${formatServiceQuickLabel(x)}`)
     .join("\n");
 }
 
