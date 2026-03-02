@@ -2,9 +2,7 @@
   bookingSummary,
   createAssistantBooking,
   DraftLike,
-  formatServiceQuickLabel,
-  formatSpecialistQuickLabel,
-  getEffectiveServiceForSpecialist,
+      getEffectiveServiceForSpecialist,
   getOffers,
   getSlots,
   LocationLite,
@@ -204,12 +202,26 @@ function optionFromLabel(label: string, value?: string): ChatUiOption {
   return { label, value: value ?? label };
 }
 
-function serviceOption(service: ServiceLite): ChatUiOption {
-  return optionFromLabel(formatServiceQuickLabel(service), service.name);
+function serviceOption(
+  service: ServiceLite,
+  specialist: SpecialistLite | null = null,
+): ChatUiOption {
+  const effective = getEffectiveServiceForSpecialist(service, specialist);
+  const hasSpecialist = Boolean(specialist);
+  const priceText = hasSpecialist ? `${Math.round(effective.price)} ₽` : `от ${Math.round(effective.price)} ₽`;
+  const durationText = hasSpecialist ? `${Math.round(effective.durationMin)} мин` : `от ${Math.round(effective.durationMin)} мин`;
+  return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, service.name);
 }
 
-function specialistOption(specialist: SpecialistLite): ChatUiOption {
-  return optionFromLabel(formatSpecialistQuickLabel(specialist), specialist.name);
+function specialistOption(
+  specialist: SpecialistLite,
+  service: ServiceLite | null = null,
+): ChatUiOption {
+  const level = (specialist.levelName ?? "").trim();
+  const base = level ? `${specialist.name} — ${level}` : specialist.name;
+  if (!service) return optionFromLabel(base, specialist.name);
+  const effective = getEffectiveServiceForSpecialist(service, specialist);
+  return optionFromLabel(`${base} — ${Math.round(effective.price)} ₽, ${Math.round(effective.durationMin)} мин`, specialist.name);
 }
 
 function parseServiceCategoryFilter(messageNorm: string): string | "__all__" | null {
@@ -248,8 +260,12 @@ function serviceCategoryTabOptions(services: ServiceLite[]): ChatUiOption[] {
   ];
 }
 
-function serviceOptionsWithCategoryTabs(servicesAll: ServiceLite[], servicesShown: ServiceLite[]): ChatUiOption[] {
-  return [...serviceCategoryTabOptions(servicesAll), ...servicesShown.map(serviceOption)];
+function serviceOptionsWithCategoryTabs(
+  servicesAll: ServiceLite[],
+  servicesShown: ServiceLite[],
+  specialist: SpecialistLite | null = null,
+): ChatUiOption[] {
+  return [...serviceCategoryTabOptions(servicesAll), ...servicesShown.map((s) => serviceOption(s, specialist))];
 }
 
 function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): ChatUiOption[] {
@@ -1118,7 +1134,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
                   kind: "quick_replies",
                   options: scopedAtLoc
                      .filter((x) => serviceIds.includes(x.id))
-            .map(serviceOption),
+            .map((x) => serviceOption(x, specialists.find((sp) => sp.id === d.specialistId) ?? null)),
                 },
               };
             }
@@ -1287,10 +1303,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         nextStatus: "COLLECTING",
         ui: {
           kind: "quick_replies",
-          options: serviceOptionsWithCategoryTabs(
-            scopedServices,
-            filterServicesByCategory(scopedServices.filter((x) => serviceIds.includes(x.id)), selectedServiceCategoryFilter),
-          ),
+          options: serviceOptionsWithCategoryTabs(scopedServices, filterServicesByCategory(scopedServices.filter((x) => serviceIds.includes(x.id)), selectedServiceCategoryFilter), specialists.find((sp) => sp.id === d.specialistId) ?? null),
         },
       };
     }
@@ -1343,7 +1356,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: "Уточните услугу. Можно выбрать кнопкой ниже или написать услугу сообщением.",
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, haircutOptions) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, haircutOptions, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
       };
     }
     const asksServicesList = /(какие|что)\s+.*(услуг|процедур)|список\s+услуг|услуги\s+доступны/i.test(messageNorm);
@@ -1352,7 +1365,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} доступны услуги в течение дня. Выберите услугу, и затем я покажу доступное время.`,
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
       };
     }
     return {
@@ -1361,7 +1374,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         ? `Выберите услугу на ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"}, и продолжу запись.`
         : "Выберите услугу, и продолжу запись.",
       nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory) },
+      ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
     };
   }
 
@@ -1515,7 +1528,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже.`,
         nextStatus: "CHECKING",
-        ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x)) },
+        ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x, services.find((svc) => svc.id === d.serviceId) ?? null)) },
       };
     }
   }
@@ -1613,7 +1626,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           handled: true,
           reply: `На ${formatYmdRu(d.date)} в ${d.time} по этой услуге доступны и другие специалисты. Выберите мастера кнопкой ниже.`,
           nextStatus: "CHECKING",
-          ui: { kind: "quick_replies", options: alternativesAtSameTime.map((x) => specialistOption(x)) },
+          ui: { kind: "quick_replies", options: alternativesAtSameTime.map((x) => specialistOption(x, services.find((svc) => svc.id === d.serviceId) ?? null)) },
         };
       }
 
@@ -1819,6 +1832,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
+
+
+
 
 
 
