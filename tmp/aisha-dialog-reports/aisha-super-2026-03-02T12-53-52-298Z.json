@@ -2,7 +2,7 @@
   "suite": "super",
   "baseUrl": "http://localhost:3000",
   "account": "beauty-salon",
-  "startedAt": "2026-03-02T07:46:59.632Z",
+  "startedAt": "2026-03-02T12:53:40.089Z",
   "passed": true,
   "scenarios": [
     {
@@ -57,7 +57,7 @@
         },
         {
           "index": 5,
-          "sent": "13:00",
+          "sent": "16:00",
           "passed": true
         },
         {
@@ -89,6 +89,6 @@
       ]
     }
   ],
-  "finishedAt": "2026-03-02T07:47:08.207Z",
-  "durationMs": 8575
+  "finishedAt": "2026-03-02T12:53:52.297Z",
+  "durationMs": 12208
 }

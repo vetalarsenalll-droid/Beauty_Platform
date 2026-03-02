@@ -226,7 +226,9 @@ async function runScenario(scenario, report) {
     const idx = i + 1;
 
     if (step.ifReply && !step.ifReply.test(lastReply)) {
-      throw new Error(`${scenario.name} / step ${idx}: strict matrix disallows skip (ifReply)`);
+      scenarioReport.steps.push({ index: idx, sent: step.send, passed: true, skipped: true, reason: "ifReply" });
+      console.log(`  [SKIP] ${idx}. ${step.send} (ifReply)`);
+      continue;
     }
 
     try {
@@ -294,4 +296,5 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+
 

@@ -703,14 +703,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const normalizeQuick = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
                 const timeControlKind = (option: QuickReply): "show_all" | "part_of_day" | null => {
                   const value = normalizeQuick(option.value);
-                  if (value === "\u043f\u043e\u043a\u0430\u0436\u0438 \u0432\u0441\u0435 \u0432\u0440\u0435\u043c\u044f") return "show_all";
-                  if (
-                    value === "\u0443\u0442\u0440\u043e\u043c" ||
-                    value === "\u0434\u043d\u0435\u043c" ||
-                    value === "\u0432\u0435\u0447\u0435\u0440\u043e\u043c"
-                  ) {
-                    return "part_of_day";
-                  }
+                  const label = normalizeQuick(option.label);
+                  const merged = `${value} ${label}`;
+                  if (/(покажи|показать).*(все|всё).*(врем|слот|окошк)/iu.test(merged)) return "show_all";
+                  if (/(утро|утром|день|днем|днём|вечер|вечером)/iu.test(merged)) return "part_of_day";
                   return null;
                 };
                 const timeControlOptions = effectiveOptions.filter((o) => timeControlKind(o) !== null);
@@ -1028,8 +1024,4 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
-
-
-
-
 

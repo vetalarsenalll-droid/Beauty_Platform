@@ -774,7 +774,11 @@ function buildOutOfScopeConversationalReply(messageNorm: string) {
   if (isPauseConversationMessage(messageNorm)) {
     return "Хорошо, без проблем. Я на связи, когда будете готовы продолжить.";
   }
-  return "Если захотите, помогу с записью: подберу услугу, удобную дату и время.";
+  return smalltalkVariant(messageNorm, [
+    "Поняла вас. Могу коротко поддержать разговор и помочь по вопросам записи.",
+    "Я на связи. Если хотите, продолжим разговор или перейдем к записи.",
+    "Могу отвечать кратко по теме и, если нужно, помочь с записью.",
+  ]);
 }
 
 function isGenericBookingTemplateReply(text: string) {
@@ -863,7 +867,7 @@ function buildBookingReengageUi(args: { locations: LocationLite[]; services: Ser
 }
 
 function asksSpecialistsByShortText(messageNorm: string) {
-  return /^(?:аs+)?(?:спец|специал|специалист|специалисты|специаличты|спецы|мастер|мастера)??$/iu.test(messageNorm);
+  return /^(?:а\s+)?(?:спец|специал|специалист|специалисты|специаличты|спецы|мастер|мастера)\??$/iu.test(messageNorm);
 }
 
 function asksWhoPerformsServices(messageNorm: string) {
@@ -1126,7 +1130,7 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (has(message, /(что умеешь|чем занимаешься|что ты можешь)/i)) return "capabilities";
   if (isGreetingText(message)) return "greeting";
   if (has(message, /(как дела|как жизнь|что нового|че каво|чё каво)/i)) return "smalltalk";
-  if (has(message, /(запиш|записаться|запись|оформи|забронируй)/i)) return "booking_start";
+  if (has(message, /(запиш\p{L}*|записа\p{L}*|запис\p{L}*|оформи\p{L}*|заброни\p{L}*)/iu)) return "booking_start";
   return "unknown";
 }
 
@@ -1453,6 +1457,9 @@ export async function POST(request: Request) {
     const explicitBookingStartByDatePhrase =
       has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) &&
       explicitCalendarCue;
+    const explicitDateBookingRequest =
+      explicitBookingStartByDatePhrase ||
+      (explicitCalendarCue && has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu));
     const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
     const explicitAlternativeSpecialistsInDraft =
       hasDraftContextEarly &&
@@ -1472,8 +1479,8 @@ export async function POST(request: Request) {
     if (explicitWhoDoesServices || explicitSpecialistsListCue || explicitSpecialistsShortCue || explicitAlternativeSpecialistsInDraft) intent = "ask_specialists";
     if (explicitIdentityCue) intent = "identity";
     if (explicitAssistantQualification) intent = "identity";
-    if (explicitOutOfScopeCue) intent = "out_of_scope";
-    if (explicitPauseConversation) intent = "smalltalk";
+    if (explicitOutOfScopeCue && !explicitDateBookingRequest) intent = "out_of_scope";
+    if (explicitPauseConversation && !explicitDateBookingRequest) intent = "smalltalk";
     if (
       (intent === "unknown" || intent === "identity") &&
       !explicitIdentityCue &&
@@ -1491,10 +1498,11 @@ export async function POST(request: Request) {
     if (explicitAvailabilityPeriod) intent = "ask_availability";
     if (explicitCalendarAvailability) intent = "ask_availability";
     if (hasDraftContextEarly && d.locationId && d.serviceId && !d.time && explicitDateOnlyInput) intent = "booking_start";
-    if (explicitBookingStartByDatePhrase) intent = "booking_start";
+    if (explicitDateBookingRequest) intent = "booking_start";
+    if (has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) && !explicitDateTimeQuery && !explicitBookingDecline && !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i)) intent = "booking_start";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
-    if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
+    if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && !has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
     if (explicitServicesFollowUp) intent = "ask_services";
     if (has(messageForRouting, /(пришли список|покажи список|скинь список|список услуг)/i)) intent = "ask_services";
     if (explicitServiceFollowUp) intent = "ask_services";
@@ -1541,7 +1549,7 @@ export async function POST(request: Request) {
       !specialistFollowUpByLocation &&
       has(
         message,
-        /(запиш|записаться|запись|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи|бронь|забронируй|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/i,
+        /(запиш\p{L}*|записа\p{L}*|запис\p{L}*|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи\p{L}*|бронь|заброни\p{L}*|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/iu,
       ) ||
       serviceSelectionFromCatalog ||
       Boolean(selectedSpecialistByText) ||
@@ -1577,6 +1585,18 @@ export async function POST(request: Request) {
       intent !== "ask_specialists" &&
       Boolean(locationByText(t, locations)) &&
       has(lastAssistantText, /(выберите\s+(локац|филиал)|продолжу запись)/i);
+    const forceBookingOnSpecialistQueryInDraft =
+      hasDraftContext &&
+      Boolean(d.serviceId) &&
+      !explicitBookingDecline &&
+      !forceClientActions &&
+      !explicitDateTimeQuery &&
+      !hasClientActionCue &&
+      (
+        intent === "ask_specialists" ||
+        explicitAlternativeSpecialistsInDraft ||
+        /(?:друг(?:ие|ой)|ещ[её]|кроме|кто\s+делает\s+эту\s+услуг|кто\s+выполняет\s+эту\s+услуг|еще\s+мастер|ещ[её]\s+мастер|другие\s+мастера|другие\s+специалисты)/iu.test(messageForRouting)
+      );
     const forceBookingOnServiceSelection =
       hasDraftContext &&
       !explicitBookingDecline &&
@@ -1610,6 +1630,7 @@ export async function POST(request: Request) {
       intent = "ask_availability";
     }
     const forceChatOnlyConversational =
+      !explicitDateBookingRequest &&
       !shouldStayInAssistantStages &&
       !confirmPendingClientAction &&
       !continuePendingCancelChoice &&
@@ -1626,7 +1647,7 @@ export async function POST(request: Request) {
       ? "chat-only"
       : forceClientActions
       ? "client-actions"
-      : forceBookingByContext || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService
+      : forceBookingByContext || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft
       ? "booking-flow"
       : routeForIntent(intent);
     const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
@@ -1681,15 +1702,21 @@ export async function POST(request: Request) {
       !explicitBookingDecline &&
       !forceClientActions &&
       !explicitDateTimeQuery;
+    const explicitBookingRequestCue =
+      has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|хочу|оформи\p{L}*|заброни\p{L}*|бронь)/iu) &&
+      !explicitBookingDecline &&
+      !hasClientActionCue &&
+      !forceClientActions &&
+      !explicitDateTimeQuery;
     const explicitServiceBookingIntent =
       Boolean(serviceByText(t, services)) &&
       has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/i) &&
       !asksServiceExistence(messageForRouting);
     const shouldEnrichDraftForBooking =
-      route === "booking-flow" || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent;
+      route === "booking-flow" || explicitBookingRequestCue || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || explicitServiceBookingIntent;
     const shouldRunBookingFlow =
       !forceChatOnlyInfoIntent &&
-      (route === "booking-flow" || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent) &&
+      (route === "booking-flow" || explicitBookingRequestCue || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || explicitServiceBookingIntent) &&
       intent !== "post_completion_smalltalk" &&
       !isGreetingText(messageForRouting) &&
       !hasPositiveFeedbackCue;
@@ -1965,7 +1992,7 @@ export async function POST(request: Request) {
       !isGreetingText(messageForRouting) &&
       !isPauseConversationMessage(t) &&
       !asksWhyNoAnswer(t) &&
-      !explicitBookingStartByDatePhrase;
+      !explicitDateBookingRequest;
 
     const bridgeFocusServiceName =
       serviceByText(t, services)?.name ??
@@ -1976,6 +2003,12 @@ export async function POST(request: Request) {
     const bridgeFocusTimePreference: "morning" | "day" | "evening" | null =
       /(утр|утром)/i.test(t) ? "morning" : /(вечер|вечером)/i.test(t) ? "evening" : /(днем|днём|после обеда)/i.test(t) ? "day" : null;
 
+    const directBookingKickoffFallback =
+      !hasDraftContextEarly &&
+      !explicitDateTimeQuery &&
+      locations.length > 1 &&
+      has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) &&
+      !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i);
     const contextualBookingBridge = shouldSoftReturnToBooking
       ? await runAishaBookingBridge({
           accountId: resolved.account.id,
@@ -1994,7 +2027,12 @@ export async function POST(request: Request) {
         })
       : null;
 
-    if (route === "client-actions") {
+    if (directBookingKickoffFallback) {
+      reply = d.date
+        ? `На ${formatYmdRu(d.date)} выберите филиал (локацию), и продолжу запись.` 
+        : "Выберите филиал (локацию), и продолжу запись.";
+      nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
+    } else if (route === "client-actions") {
       const effectiveClientId = client?.clientId ?? thread.clientId ?? null;
       const authLevel: AuthLevel = client?.clientId ? "full" : thread.clientId ? "thread_only" : "none";
       const clientFlow = await runClientAccountFlow({
@@ -2019,7 +2057,7 @@ export async function POST(request: Request) {
         reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
       }
     } else if (shouldRunBookingFlow) {
-      const hasBookingVerb = has(messageForRouting, /(запиш|записаться|записать|хочу|оформи|забронируй|бронь)\b/i);
+      const hasBookingVerb = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|хочу|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
       const hasExplicitAvailabilityQuery =
         (explicitNearestAvailability ||
           explicitAvailabilityPeriod ||
@@ -2414,36 +2452,6 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

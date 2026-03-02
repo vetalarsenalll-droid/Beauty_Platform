@@ -199,18 +199,32 @@ function serviceOption(service: ServiceLite): ChatUiOption {
     `${service.name} — ${Math.round(service.basePrice)} ₽, ${service.baseDurationMin} мин`,
     service.name,
   );
+}function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): ChatUiOption[] {
+  const dateRu = formatYmdRu(dateYmd);
+  const options: ChatUiOption[] = [
+    optionFromLabel(`Показать время на ${dateRu}`, `покажи время на ${dateRu}`),
+    optionFromLabel(`Показать услуги на ${dateRu}`, `какие услуги доступны на ${dateRu}`),
+    optionFromLabel(`Показать специалистов на ${dateRu}`, `какие специалисты доступны на ${dateRu}`),
+  ];
+  if (locationsCount > 1) {
+    options.push(optionFromLabel("Выбрать филиал", "покажи филиалы"));
+  }
+  return options;
 }
+
 
 function buildTimeOptionsWithControls(times: string[], limit: number | null = 24): ChatUiOption[] {
   const shown = limit == null ? times : times.slice(0, limit);
-  const options = shown.map((tm) => optionFromLabel(tm));
+  const controls: ChatUiOption[] = [];
   if (limit != null && times.length > shown.length) {
-    options.push(optionFromLabel("Показать всё время", "покажи все время"));
+    controls.push(optionFromLabel("Показать всё время", "покажи все время"));
   }
-  options.push(optionFromLabel("Утро", "утром"));
-  options.push(optionFromLabel("День", "днем"));
-  options.push(optionFromLabel("Вечер", "вечером"));
-  return options;
+  controls.push(optionFromLabel("Утро", "утром"));
+  controls.push(optionFromLabel("День", "днем"));
+  controls.push(optionFromLabel("Вечер", "вечером"));
+
+  // Render order matters for widget UX: show-all row, part-of-day row, then slots.
+  return [...controls, ...shown.map((tm) => optionFromLabel(tm))];
 }
 
 function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
@@ -1174,13 +1188,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
       };
     }
+    const dateContextOptions = d.date ? buildDateContextQuickOptions(d.date, locations.length) : [];
+    const locationOptions = locations.map((x) => optionFromLabel(x.name));
     return {
       handled: true,
-      reply: "Выберите филиал (локацию), и продолжу запись.",
+      reply: d.date
+        ? `На ${formatYmdRu(d.date)} сначала выберите филиал, затем помогу продолжить запись.`
+        : "Выберите филиал (локацию), и продолжу запись.",
       nextStatus: "COLLECTING",
       ui: {
         kind: "quick_replies",
-        options: locations.map((x) => optionFromLabel(x.name)),
+        options: [...dateContextOptions, ...locationOptions].slice(0, 18),
       },
     };
   }
@@ -1422,8 +1440,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           handled: true,
           reply:
             offerService == null
-              ? `На ${d.time} услуга «${serviceName}» недоступна. Выберите другое время кнопкой ниже.`
-              : `На ${d.time} свободных специалистов нет. Выберите другое время кнопкой ниже.`,
+              ? `На ${d.time} услуга «${serviceName}» недоступна. Выберите другое время или другой день.`
+              : `На ${d.time} свободных специалистов нет. Выберите другое время или другой день.`,
           nextStatus: "COLLECTING",
           ui: { kind: "quick_replies", options: shownTimes },
         };
@@ -1747,11 +1765,6 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
-
-
-
-
-
 
 
 
