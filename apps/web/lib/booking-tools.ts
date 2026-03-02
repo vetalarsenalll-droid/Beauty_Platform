@@ -23,6 +23,7 @@ export type ServiceLite = {
   name: string;
   baseDurationMin: number;
   description?: string | null;
+  categoryName?: string | null;
   basePrice: number;
   locationIds: number[];
   levelConfigs?: Array<{ levelId: number; durationMin: number | null; price: number | null }>;
@@ -308,6 +309,9 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     throw error;
   }
 }
+
+
+
 
 
 

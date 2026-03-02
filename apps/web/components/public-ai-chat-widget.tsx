@@ -715,8 +715,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   const value = normalizeQuick(option.value);
                   const label = normalizeQuick(option.label);
                   const merged = `${value} ${label}`;
-                  if (/(покажи|показать).*(все|всё).*(врем|слот|окошк)/iu.test(merged)) return "show_all";
-                  if (/(утро|утром|день|днем|днём|вечер|вечером)/iu.test(merged)) return "part_of_day";
+                  if (/^(покажи все( свободное)? время|показать все( свободное)? время)$/iu.test(value) || /^(покажи всё( свободное)? время|показать всё( свободное)? время)$/iu.test(value)) return "show_all";
+                  if (/^(утро|утром|день|днем|днём|вечер|вечером)$/iu.test(value)) return "part_of_day";
                   return null;
                 };
                 const timeControlOptions = effectiveOptions.filter((o) => timeControlKind(o) !== null);
@@ -1034,5 +1034,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
+
+
 
 

@@ -26,6 +26,14 @@ export type BookingState =
 
 type FlowAction = { type: "open_booking"; bookingUrl: string } | null;
 export type ChatUiOption = { label: string; value: string; href?: string };
+
+const norm = (v: string) =>
+  v
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s:.+\-/]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 export type ChatUi =
   | { kind: "quick_replies"; options: ChatUiOption[] }
   | { kind: "consent"; options: ChatUiOption[]; legalLinks: string[]; consentValue: string }
@@ -202,7 +210,49 @@ function serviceOption(service: ServiceLite): ChatUiOption {
 
 function specialistOption(specialist: SpecialistLite): ChatUiOption {
   return optionFromLabel(formatSpecialistQuickLabel(specialist), specialist.name);
-}function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): ChatUiOption[] {
+}
+
+function parseServiceCategoryFilter(messageNorm: string): string | "__all__" | null {
+  const m = /^\s*категория:\s*(.+?)\s*$/iu.exec(messageNorm);
+  if (!m?.[1]) return null;
+  const value = m[1].trim();
+  if (!value || /^(все|все категории)$/iu.test(value)) return "__all__";
+  return value;
+}
+
+function uniqueServiceCategories(services: ServiceLite[]) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of services) {
+    const raw = (s.categoryName ?? "").trim();
+    if (!raw) continue;
+    const key = norm(raw);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw);
+  }
+  return out;
+}
+
+function filterServicesByCategory(services: ServiceLite[], selected: string | "__all__" | null) {
+  if (!selected || selected === "__all__") return services;
+  const selectedNorm = norm(selected);
+  return services.filter((s) => norm((s.categoryName ?? "").trim()) === selectedNorm);
+}
+
+function serviceCategoryTabOptions(services: ServiceLite[]): ChatUiOption[] {
+  const categories = uniqueServiceCategories(services);
+  return [
+    optionFromLabel("Все категории", "категория: Все категории"),
+    ...categories.map((cat) => optionFromLabel(cat, `категория: ${cat}`)),
+  ];
+}
+
+function serviceOptionsWithCategoryTabs(servicesAll: ServiceLite[], servicesShown: ServiceLite[]): ChatUiOption[] {
+  return [...serviceCategoryTabOptions(servicesAll), ...servicesShown.map(serviceOption)];
+}
+
+function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): ChatUiOption[] {
   const dateRu = formatYmdRu(dateYmd);
   const options: ChatUiOption[] = [
     optionFromLabel(`Показать время на ${dateRu}`, `покажи время на ${dateRu}`),
@@ -1067,9 +1117,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
                 ui: {
                   kind: "quick_replies",
                   options: scopedAtLoc
-                    .filter((x) => serviceIds.includes(x.id))
-                    .slice(0, 10)
-                    .map(serviceOption),
+                     .filter((x) => serviceIds.includes(x.id))
+            .map(serviceOption),
                 },
               };
             }
@@ -1201,12 +1250,14 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       nextStatus: "COLLECTING",
       ui: {
         kind: "quick_replies",
-        options: [...dateContextOptions, ...locationOptions].slice(0, 18),
+        options: [...dateContextOptions, ...locationOptions],
       },
     };
   }
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
+  const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm);
+  const scopedServicesByCategory = filterServicesByCategory(scopedServices, selectedServiceCategoryFilter);
   if (!d.serviceId) {
     if (d.date && d.time) {
       const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
@@ -1236,10 +1287,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         nextStatus: "COLLECTING",
         ui: {
           kind: "quick_replies",
-          options: scopedServices
-            .filter((x) => serviceIds.includes(x.id))
-            .slice(0, 10)
-            .map(serviceOption),
+          options: serviceOptionsWithCategoryTabs(
+            scopedServices,
+            filterServicesByCategory(scopedServices.filter((x) => serviceIds.includes(x.id)), selectedServiceCategoryFilter),
+          ),
         },
       };
     }
@@ -1252,7 +1303,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           nextStatus: "COLLECTING",
           ui: {
             kind: "quick_replies",
-            options: availableByLocation.slice(0, 12).map((x) => specialistOption(x)),
+            options: availableByLocation.map((x) => specialistOption(x)),
           },
         };
       }
@@ -1286,13 +1337,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         nextStatus: "COLLECTING",
       };
     }
-    if (shouldAskServiceClarification(messageNorm, scopedServices)) {
-      const haircutOptions = scopedServices.filter((x) => /(стриж|haircut)/i.test(x.name));
+    if (shouldAskServiceClarification(messageNorm, scopedServicesByCategory)) {
+      const haircutOptions = scopedServicesByCategory.filter((x) => /(стриж|haircut)/i.test(x.name));
       return {
         handled: true,
         reply: "Уточните услугу. Можно выбрать кнопкой ниже или написать услугу сообщением.",
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: haircutOptions.slice(0, 8).map(serviceOption) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, haircutOptions) },
       };
     }
     const asksServicesList = /(какие|что)\s+.*(услуг|процедур)|список\s+услуг|услуги\s+доступны/i.test(messageNorm);
@@ -1301,7 +1352,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} доступны услуги в течение дня. Выберите услугу, и затем я покажу доступное время.`,
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: scopedServices.slice(0, 10).map(serviceOption) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory) },
       };
     }
     return {
@@ -1310,7 +1361,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         ? `Выберите услугу на ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"}, и продолжу запись.`
         : "Выберите услугу, и продолжу запись.",
       nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: scopedServices.slice(0, 10).map(serviceOption) },
+      ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory) },
     };
   }
 
@@ -1768,6 +1819,13 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
+
+
+
+
+
+
 
 
 
