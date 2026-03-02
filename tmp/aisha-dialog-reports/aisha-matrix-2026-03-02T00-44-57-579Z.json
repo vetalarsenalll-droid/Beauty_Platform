@@ -1,0 +1,58 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-02T00:44:53.568Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "MATRIX await-service :: address",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "записаться хочу",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "а адреса филиалов какие?",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "Balayage",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "MATRIX await-service :: phone",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "записаться хочу",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "какой у вас номер?",
+          "passed": false,
+          "error": "MATRIX await-service :: phone / step 3 (какой у вас номер?): expected one of /номер|телефон|\\+7|недоступ/i\nreply:\nВыберите услугу, и продолжу запись."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-02T00:44:57.578Z",
+  "durationMs": 4010
+}

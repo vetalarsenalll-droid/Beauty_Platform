@@ -1,4 +1,4 @@
-import { jsonError, jsonOk } from "@/lib/api";
+﻿import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -805,6 +805,12 @@ function hasLocationCue(messageNorm: string) {
   return /(локац|филиал|адрес|центр|ривер|riverside|beauty salon|кутуз|тверск|любой филиал)/i.test(messageNorm);
 }
 
+function asksSalonName(messageNorm: string) {
+  return /(?:какs+салонs+называ(?:ется|ют)|какs+вашs+салонs+называ(?:ется|ют)|какs+называетсяs+салон|какs+называетсяs+вашs+салон|названи[ея]s+(?:салон|студи|клиник))/i.test(
+    messageNorm,
+  );
+}
+
 function isBookingCarryMessage(messageNorm: string) {
   return /^(почему|а почему|проверь|проверяй|дальше|далее|а дальше|что дальше|давай|да|ок|оке|окей|угу|ага)$/i.test(
     messageNorm,
@@ -952,8 +958,9 @@ function intentFromHeuristics(message: string): AishaIntent {
     return "cancel_my_booking";
   if (has(message, /(повтори прошлую запись|повтори запись)/i)) return "repeat_booking";
   if (has(message, /(мои данные|мой профиль|смени телефон|обнови телефон)/i)) return "client_profile";
-  if (has(message, /(дай номер|номер студии|номер филиала|номер локации|телефон)/i)) return "contact_phone";
+  if (has(message, /(дай номер|какой у вас номер|какой номер|номер студии|номер филиала|номер локации|телефон)/i)) return "contact_phone";
   if (has(message, /(где находится|где находитесь|где вы работаете|где работаете|где ты работаешь|где ваш салон|адрес|как добраться)/i)) return "contact_address";
+  if (has(message, /(как салон называется|как называется салон|как ваш салон называется|как называется ваш салон|название салона)/i)) return "identity";
   if (has(message, /(до скольки|график|часы работы|работает)/i)) return "working_hours";
   if (asksServiceExistence(message)) return "ask_services";
   if (has(message, /(консультац)/i)) return "ask_services";
@@ -1847,6 +1854,9 @@ export async function POST(request: Request) {
         reply = knownName
           ? `Да, вижу вас в профиле: ${knownName}.`
           : "Пока не вижу вас в авторизованном профиле. Могу продолжить запись как гостя или после входа в личный кабинет.";
+      } else if (has(messageForRouting, /(как салон называется|как называется салон|как ваш салон называется|как называется ваш салон|название салона)/i)) {
+        const accountName = resolved.account.name?.trim();
+        reply = accountName ? `Наш салон называется «${accountName}».` : "Название салона сейчас недоступно.";
       } else if (intent === "greeting") {
         const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
         reply = knownName ? `Здравствуйте, ${knownName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
@@ -2117,6 +2127,7 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
 
 
 

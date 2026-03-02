@@ -1,0 +1,34 @@
+{
+  "suite": "super",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-02T00:42:53.235Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "SUPER: deterministic self booking flow",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня сегодня",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "12:45",
+          "passed": false,
+          "error": "SUPER: deterministic self booking flow / step 3 (12:45): expected one of /доступны услуги|выберите услугу/i\nreply:\nНа 02.03.2026 в 12:45 нет доступных услуг в этой локации. Укажите другое время.",
+          "reply": "На 02.03.2026 в 12:45 нет доступных услуг в этой локации. Укажите другое время."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-02T00:42:53.678Z",
+  "durationMs": 443
+}

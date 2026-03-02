@@ -1,0 +1,39 @@
+{
+  "suite": "super",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-02T00:50:39.647Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "SUPER: deterministic self booking flow",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши меня сегодня",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "Balayage",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "сегодня",
+          "passed": false,
+          "error": "SUPER: deterministic self booking flow / step 4 (сегодня): expected one of /время|слот|доступны времен|выберите время|нет свободн/i\nreply:\nНапишите, когда вам подойдет, чтобы я смог записать вас!",
+          "reply": "Напишите, когда вам подойдет, чтобы я смог записать вас!"
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-02T00:50:45.855Z",
+  "durationMs": 6208
+}
