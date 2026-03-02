@@ -1,4 +1,4 @@
-﻿import { createHash } from "crypto";
+import { createHash } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   } | null;
 
   if (!body) {
-    return jsonError("INVALID_BODY", "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ Р·Р°РїСЂРѕСЃ.", null, 400);
+    return jsonError("INVALID_BODY", "Некорректный запрос.", null, 400);
   }
 
   const locationId = Number(body.locationId);
@@ -89,32 +89,32 @@ export async function POST(request: Request) {
     !dateValue ||
     !timeValue
   ) {
-    return jsonError("INVALID_REQUEST", "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РїР°СЂР°РјРµС‚СЂС‹.", null, 400);
+    return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
   if (!holdId) {
-    return jsonError("HOLD_REQUIRED", "РЎРЅР°С‡Р°Р»Р° Р·Р°СЂРµР·РµСЂРІРёСЂСѓР№С‚Рµ СЃР»РѕС‚.", null, 400);
+    return jsonError("HOLD_REQUIRED", "Сначала зарезервируйте слот.", null, 400);
   }
 
   if (clientName.length < 2 || clientPhone.length < 8) {
-    return jsonError("CLIENT_REQUIRED", "РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Рµ РёРјСЏ Рё С‚РµР»РµС„РѕРЅ РєР»РёРµРЅС‚Р°.", null, 400);
+    return jsonError("CLIENT_REQUIRED", "Укажите корректные имя и телефон клиента.", null, 400);
   }
 
   if (dateValue < nowTz.ymd) {
-    return jsonError("PAST_DATE", "РќРµР»СЊР·СЏ Р·Р°РїРёСЃР°С‚СЊСЃСЏ РЅР° РїСЂРѕС€РµРґС€СѓСЋ РґР°С‚Сѓ.", null, 400);
+    return jsonError("PAST_DATE", "Нельзя записаться на прошедшую дату.", null, 400);
   }
   if (isPastDateOrTimeInTz(dateValue, timeValue, tz)) {
-    return jsonError("PAST_TIME", "РќРµР»СЊР·СЏ Р·Р°РїРёСЃР°С‚СЊСЃСЏ РЅР° РїСЂРѕС€РµРґС€РµРµ РІСЂРµРјСЏ.", null, 400);
+    return jsonError("PAST_TIME", "Нельзя записаться на прошедшее время.", null, 400);
   }
 
   const range = zonedDayRangeUtc(dateValue, tz);
   if (!range) {
-    return jsonError("INVALID_DATE", "РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ РґР°С‚Р°.", null, 400);
+    return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   }
   const { dayStartUtc, dayEndUtc } = range;
 
   const startAtUtc = zonedTimeToUtc(dateValue, timeValue, tz);
   if (!startAtUtc || Number.isNaN(startAtUtc.getTime())) {
-    return jsonError("INVALID_TIME", "РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ РІСЂРµРјСЏ.", null, 400);
+    return jsonError("INVALID_TIME", "Некорректное время.", null, 400);
   }
 
   const [location, specialist, service, scheduleEntry] = await Promise.all([
@@ -168,9 +168,9 @@ export async function POST(request: Request) {
     }),
   ]);
 
-  if (!location) return jsonError("LOCATION_NOT_FOUND", "Р›РѕРєР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
-  if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "РЎРїРµС†РёР°Р»РёСЃС‚ РЅРµ РЅР°Р№РґРµРЅ.", null, 404);
-  if (!service) return jsonError("SERVICE_NOT_FOUND", "РЈСЃР»СѓРіР° РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
+  if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
+  if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
+  if (!service) return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
 
   const override = service.specialists.find((item) => item.specialistId === specialist.id);
   const levelConfig = specialist.levelId
@@ -186,13 +186,13 @@ export async function POST(request: Request) {
     toNumber(service.basePrice);
 
   if (!scheduleEntry || scheduleEntry.type !== "WORKING") {
-    return jsonError("NO_WORKDAY", "РЈ СЃРїРµС†РёР°Р»РёСЃС‚Р° РЅРµС‚ СЂР°Р±РѕС‡РµРіРѕ РґРЅСЏ РЅР° РІС‹Р±СЂР°РЅРЅСѓСЋ РґР°С‚Сѓ.", null, 400);
+    return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня на выбранную дату.", null, 400);
   }
 
   if (scheduleEntry.locationId !== locationId) {
     return jsonError(
       "NO_WORKDAY",
-      "РЈ СЃРїРµС†РёР°Р»РёСЃС‚Р° РЅРµС‚ СЂР°Р±РѕС‡РµРіРѕ РґРЅСЏ РІ РІС‹Р±СЂР°РЅРЅРѕР№ Р»РѕРєР°С†РёРё РЅР° СЌС‚Сѓ РґР°С‚Сѓ.",
+      "У специалиста нет рабочего дня в выбранной локации на эту дату.",
       null,
       400
     );
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
     startMinutes < entryStart ||
     startMinutes + durationMin > entryEnd
   ) {
-    return jsonError("OUT_OF_WORKING_HOURS", "РЈ СЃРїРµС†РёР°Р»РёСЃС‚Р° РЅРµС‚ СЂР°Р±РѕС‡РёС… С‡Р°СЃРѕРІ РЅР° РІС‹Р±СЂР°РЅРЅРѕРµ РІСЂРµРјСЏ.", null, 400);
+    return jsonError("OUT_OF_WORKING_HOURS", "У специалиста нет рабочих часов на выбранное время.", null, 400);
   }
 
   const candidateLocal: Window = { start: startMinutes, end: startMinutes + durationMin };
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
     .filter((item) => item.start < item.end);
 
   if (breaks.some((br) => overlaps(candidateLocal, br))) {
-    return jsonError("OVERLAP_BREAK", "Р’С‹Р±СЂР°РЅРЅРѕРµ РІСЂРµРјСЏ РїРѕРїР°РґР°РµС‚ РЅР° РїРµСЂРµСЂС‹РІ.", null, 400);
+    return jsonError("OVERLAP_BREAK", "Выбранное время попадает на перерыв.", null, 400);
   }
 
   const endAtUtc = new Date(startAtUtc);
@@ -240,7 +240,7 @@ export async function POST(request: Request) {
   if (!holdProofValid) {
     const response = jsonError(
       "HOLD_INVALID",
-      "Р РµР·РµСЂРІ РІСЂРµРјРµРЅРё РЅРµ РїРѕРґС‚РІРµСЂР¶РґРµРЅ. РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РІС‹Р±РµСЂРёС‚Рµ СЃР»РѕС‚ СЃРЅРѕРІР°.",
+      "Резерв времени не подтвержден. Пожалуйста, выберите слот снова.",
       null,
       409
     );
@@ -286,7 +286,7 @@ export async function POST(request: Request) {
     if (missing.length > 0) {
       return jsonError(
         "LEGAL_REQUIRED",
-        "РќРµРѕР±С…РѕРґРёРјРѕ СЃРѕРіР»Р°СЃРёРµ СЃ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹РјРё РґРѕРєСѓРјРµРЅС‚Р°РјРё.",
+        "Необходимо согласие с обязательными документами.",
         { missingVersionIds: missing },
         400
       );
@@ -340,13 +340,13 @@ export async function POST(request: Request) {
         });
 
         if (!existing) {
-          return jsonError("IDEMPOTENCY_CONFLICT", "РљРѕРЅС„Р»РёРєС‚ РёРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚Рё.", null, 409);
+          return jsonError("IDEMPOTENCY_CONFLICT", "Конфликт идемпотентности.", null, 409);
         }
 
         if (existing.requestHash !== requestHash) {
           return jsonError(
             "IDEMPOTENCY_CONFLICT",
-            "Р”СЂСѓРіРѕР№ Р·Р°РїСЂРѕСЃ СЃ С‚РµРј Р¶Рµ РєР»СЋС‡РѕРј РёРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚Рё.",
+            "Другой запрос с тем же ключом идемпотентности.",
             null,
             409
           );
@@ -358,7 +358,7 @@ export async function POST(request: Request) {
 
         return jsonError(
           "IDEMPOTENCY_IN_PROGRESS",
-          "Р—Р°РїСЂРѕСЃ СЃ СЌС‚РёРј РєР»СЋС‡РѕРј СѓР¶Рµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ.",
+          "Запрос с этим ключом уже выполняется.",
           null,
           409
         );
@@ -385,7 +385,7 @@ export async function POST(request: Request) {
       if (conflictAppt) {
         return {
           ok: false as const,
-          error: jsonError("TIME_BUSY", "Р’С‹Р±СЂР°РЅРЅРѕРµ РІСЂРµРјСЏ СѓР¶Рµ Р·Р°РЅСЏС‚Рѕ.", null, 409),
+          error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),
         };
       }
 
@@ -402,7 +402,7 @@ export async function POST(request: Request) {
       if (conflictBlock) {
         return {
           ok: false as const,
-          error: jsonError("TIME_BLOCKED", "Р’С‹Р±СЂР°РЅРЅРѕРµ РІСЂРµРјСЏ РЅРµРґРѕСЃС‚СѓРїРЅРѕ.", null, 409),
+          error: jsonError("TIME_BLOCKED", "Выбранное время недоступно.", null, 409),
         };
       }
 
@@ -421,7 +421,7 @@ export async function POST(request: Request) {
       if (conflictHold) {
         return {
           ok: false as const,
-          error: jsonError("TIME_HELD", "Р­С‚Рѕ РІСЂРµРјСЏ СЃРµР№С‡Р°СЃ СЂРµР·РµСЂРІРёСЂСѓРµС‚СЃСЏ РґСЂСѓРіРёРј РєР»РёРµРЅС‚РѕРј.", null, 409),
+          error: jsonError("TIME_HELD", "Это время сейчас резервируется другим клиентом.", null, 409),
         };
       }
 
@@ -441,7 +441,7 @@ export async function POST(request: Request) {
         if (!ownHold) {
           return {
             ok: false as const,
-            error: jsonError("HOLD_EXPIRED", "Р РµР·РµСЂРІ РІСЂРµРјРµРЅРё РёСЃС‚РµРє РёР»Рё РЅРµ РЅР°Р№РґРµРЅ.", null, 409),
+            error: jsonError("HOLD_EXPIRED", "Резерв времени истек или не найден.", null, 409),
           };
         }
       }
@@ -462,7 +462,7 @@ export async function POST(request: Request) {
           ok: false as const,
           error: jsonError(
             "CLIENT_CONFLICT",
-            "РўРµР»РµС„РѕРЅ Рё email РїСЂРёРЅР°РґР»РµР¶Р°С‚ СЂР°Р·РЅС‹Рј РєР»РёРµРЅС‚Р°Рј. РџСЂРѕРІРµСЂСЊС‚Рµ РєРѕРЅС‚Р°РєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ.",
+            "Телефон и email принадлежат разным клиентам. Проверьте контактные данные.",
             null,
             409
           ),

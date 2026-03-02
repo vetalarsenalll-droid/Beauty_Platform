@@ -1259,6 +1259,7 @@ export async function POST(request: Request) {
       d.locationId = specialistFollowUpLocation.id;
     }
     const explicitCapabilitiesPhrase = has(messageForRouting, /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i);
+    const explicitSmalltalkCue = has(messageForRouting, /(как оно|чем занята|чем занят|расскажи что[-\s]?нибудь|поболтаем|давай поговорим|поговорим|что нового|как дела|как жизнь|че каво|чё каво)/i);
     const explicitServicesFollowUp = asksServicesFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
     const explicitServiceFollowUp =
       isServiceFollowUpText(norm(messageForRouting)) &&
@@ -1293,6 +1294,7 @@ export async function POST(request: Request) {
     const explicitCalendarCue =
       /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\b/u.test(messageForRouting) ||
       /(?:январ|феврал|март|апрел|мая|мае|июн|июл|август|сентябр|октябр|ноябр|декабр)/iu.test(messageForRouting);
+    const explicitDateOnlyInput = /^\s*(?:\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\s*$/u.test(messageForRouting);
     const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
     const explicitCalendarAvailability = explicitCalendarCue && explicitAvailabilityCue;
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
@@ -1313,6 +1315,7 @@ export async function POST(request: Request) {
     if (explicitNearestAvailability) intent = "ask_availability";
     if (explicitAvailabilityPeriod) intent = "ask_availability";
     if (explicitCalendarAvailability) intent = "ask_availability";
+    if (hasDraftContextEarly && d.locationId && d.serviceId && !d.time && explicitDateOnlyInput) intent = "booking_start";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
     if (explicitUnknownServiceLike && !serviceRecognizedInMessage && !explicitServiceComplaint && (hasDraftContextEarly || mentionsServiceTopic(norm(messageForRouting)) || has(messageForRouting, /(услуг|запиш|забронируй|хочу\s+на|нужн[ао]?\s+услуг)/i))) intent = "ask_services";
@@ -2127,6 +2130,10 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
 
 
 
