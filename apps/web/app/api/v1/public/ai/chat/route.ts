@@ -1368,11 +1368,13 @@ export async function POST(request: Request) {
       messageForRouting,
       /(согласен|согласна|персональн|подтверждаю|подтвердить|да|верно|записаться|оформи через ассистента)/i,
     );
+    const forceChatOnlyInfoIntent = intent === "contact_address" || intent === "contact_phone" || intent === "working_hours";
     const forceBookingByContext =
       hasDraftContext &&
       !explicitBookingDecline &&
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !forceClientActions &&
+      !forceChatOnlyInfoIntent &&
       (explicitBookingText || (isBookingDomainIntent(intent) && !isInfoOnlyIntent(intent)) || isBookingCarryMessage(t) || isBookingChangeMessage(t));
     const forceBookingOnPromptedLocationChoice =
       !explicitBookingDecline &&
@@ -1400,6 +1402,7 @@ export async function POST(request: Request) {
       !forceClientActions &&
       !explicitDateTimeQuery &&
       !hasClientActionCue &&
+      !forceChatOnlyInfoIntent &&
       !isGreetingText(messageForRouting) &&
       (
         explicitUnknownServiceLike ||
@@ -1427,7 +1430,7 @@ export async function POST(request: Request) {
         intent === "out_of_scope" ||
         intent === "abuse_or_toxic" ||
         intent === "post_completion_smalltalk");
-    const route = explicitDateTimeQuery || forceChatOnlyConversational
+    const route = explicitDateTimeQuery || forceChatOnlyConversational || forceChatOnlyInfoIntent
       ? "chat-only"
       : forceClientActions
       ? "client-actions"
@@ -1458,6 +1461,7 @@ export async function POST(request: Request) {
       (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
       !confirmPendingClientAction &&
       !continuePendingCancelChoice &&
+      !forceChatOnlyInfoIntent &&
       hasDraftContext &&
       looksLikeBookingContinuation &&
       (!isConversationalHeuristicIntent(intent) ||
@@ -1492,6 +1496,7 @@ export async function POST(request: Request) {
     const shouldEnrichDraftForBooking =
       route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent;
     const shouldRunBookingFlow =
+      !forceChatOnlyInfoIntent &&
       (route === "booking-flow" || explicitBookingText || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || explicitServiceBookingIntent) &&
       intent !== "post_completion_smalltalk" &&
       !isGreetingText(messageForRouting) &&
@@ -1879,13 +1884,17 @@ export async function POST(request: Request) {
           nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
         }
       } else if (intent === "contact_address") {
-        reply = locations.length
-          ? "Наши локации ниже. Выберите нужную кнопкой."
-          : accountProfile?.address
-          ? `Адрес: ${accountProfile.address}`
-          : "Адрес пока не указан. Могу помочь с записью по удобной локации.";
         if (locations.length) {
+          const addressLines = locations
+            .slice(0, 12)
+            .map((x, i) => `${i + 1}. ${x.name}${x.address ? " — " + x.address : " — адрес уточняется"}`)
+            .join("\n");
+          reply = `Адреса филиалов:\n${addressLines}`;
           nextUi = { kind: "quick_replies", options: locations.slice(0, 12).map((x) => ({ label: x.name, value: x.name })) };
+        } else {
+          reply = accountProfile?.address
+            ? `Адрес: ${accountProfile.address}`
+            : "Адрес пока не указан. Могу помочь с записью по удобной локации.";
         }
       } else if (intent === "working_hours") {
         reply = "Обычно работаем ежедневно с 09:00 до 21:00. Если нужно, проверю точный график по конкретной локации и дате.";
