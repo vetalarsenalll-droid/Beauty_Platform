@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AppointmentStatus, Prisma, ScheduleEntryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { requireCrmPermission } from "@/lib/auth";
 
 type AppointmentPayload = {
@@ -96,7 +97,7 @@ function parsePayload(raw: unknown): AppointmentPayload {
   const clientId = raw.clientId === null ? null : (toNum(raw.clientId) ?? undefined);
 
   const clientName = toStr(raw.clientName) ?? undefined;
-  const clientPhone = toStr(raw.clientPhone) ?? undefined;
+  const clientPhone = normalizeRuPhone(toStr(raw.clientPhone)) ?? undefined;
   const clientEmail = toStr(raw.clientEmail) ?? undefined;
 
   const startAt = toStr(raw.startAt) ?? undefined;
@@ -365,3 +366,4 @@ export async function PATCH(
 
   return NextResponse.json(serializeAppointment(refreshed ?? appointment));
 }
+

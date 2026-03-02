@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { verifyHoldProofToken, BOOKING_HOLD_COOKIE } from "@/lib/public-booking-hold-proof";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
@@ -63,7 +64,8 @@ export async function POST(request: Request) {
   const timeValue = String(body.time ?? "").trim();
 
   const clientName = String(body.clientName ?? "").trim();
-  const clientPhone = String(body.clientPhone ?? "").trim();
+  const clientPhoneRaw = String(body.clientPhone ?? "").trim();
+  const clientPhone = normalizeRuPhone(clientPhoneRaw);
   const clientEmail = String(body.clientEmail ?? "").trim();
   const comment = String(body.comment ?? "").trim();
   const holdId = Number.isInteger(Number(body.holdId)) ? Number(body.holdId) : null;
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
     return jsonError("HOLD_REQUIRED", "Сначала зарезервируйте слот.", null, 400);
   }
 
-  if (clientName.length < 2 || clientPhone.length < 8) {
+  if (clientName.length < 2 || !clientPhone) {
     return jsonError("CLIENT_REQUIRED", "Укажите корректные имя и телефон клиента.", null, 400);
   }
 
@@ -581,4 +583,7 @@ export async function POST(request: Request) {
     throw error;
   }
 }
+
+
+
 

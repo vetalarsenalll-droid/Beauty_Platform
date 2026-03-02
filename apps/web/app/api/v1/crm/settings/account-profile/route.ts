@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { requireCrmPermission } from "@/lib/auth";
 
 const toText = (value: unknown) => {
@@ -42,7 +43,7 @@ export async function PATCH(request: Request) {
 
   const data = {
     description: toText(body.description),
-    phone: toText(body.phone),
+    phone: normalizeRuPhone(toText(body.phone)),
     email: toText(body.email),
     address: toText(body.address),
     websiteUrl: toText(body.websiteUrl),
@@ -78,3 +79,4 @@ export async function PATCH(request: Request) {
     },
   });
 }
+

@@ -1,4 +1,5 @@
-п»їimport { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ С‚РµР»Рѕ Р·Р°РїСЂРѕСЃР°.",
+      "Некорректное тело запроса.",
       null,
       400
     );
@@ -125,12 +126,12 @@ export async function POST(request: Request) {
   const name = String(body.name ?? "").trim();
   const address = String(body.address ?? "").trim();
   const description = body.description ? String(body.description).trim() : null;
-  const phone = body.phone ? String(body.phone).trim() : null;
+  const phone = normalizeRuPhone(body.phone ? String(body.phone).trim() : null);
   const statusRaw = body.status ? String(body.status).trim().toUpperCase() : "ACTIVE";
   if (!LOCATION_STATUSES.has(statusRaw)) {
     return jsonError(
       "VALIDATION_FAILED",
-      "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ СЃС‚Р°С‚СѓСЃ Р»РѕРєР°С†РёРё. Р”РѕРїСѓСЃС‚РёРјС‹Рµ: ACTIVE, INACTIVE.",
+      "Некорректный статус локации. Допустимые: ACTIVE, INACTIVE.",
       { fields: [{ path: "status", issue: "invalid" }] },
       400
     );
@@ -172,7 +173,7 @@ export async function POST(request: Request) {
   if (!name || !address) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Р—Р°РїРѕР»РЅРёС‚Рµ РЅР°Р·РІР°РЅРёРµ Рё Р°РґСЂРµСЃ Р»РѕРєР°С†РёРё.",
+      "Заполните название и адрес локации.",
       {
         fields: [
           { path: "name", issue: name ? null : "required" },
@@ -213,7 +214,7 @@ export async function POST(request: Request) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "РЎРѕР·РґР°Р» Р»РѕРєР°С†РёСЋ",
+    action: "Создал локацию",
     targetType: "location",
     targetId: created.id,
     diffJson: {
@@ -237,4 +238,5 @@ export async function POST(request: Request) {
   const response = jsonOk(mapLocation(created as DbLocation), 201);
   return applyCrmAccessCookie(response, auth);
 }
+
 

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -104,7 +105,7 @@ export async function PATCH(
     body.lastName !== undefined ? String(body.lastName).trim() : undefined;
   const email = body.email !== undefined ? String(body.email).trim() : undefined;
   const phone =
-    body.phone !== undefined ? String(body.phone).trim() : undefined;
+    body.phone !== undefined ? normalizeRuPhone(String(body.phone).trim()) : undefined;
   let status: UserStatus | undefined;
   if (body.status !== undefined) {
     const parsedStatus = String(body.status).trim();
@@ -348,3 +349,5 @@ export async function DELETE(
   const response = jsonOk({ ok: true });
   return applyCrmAccessCookie(response, auth);
 }
+
+

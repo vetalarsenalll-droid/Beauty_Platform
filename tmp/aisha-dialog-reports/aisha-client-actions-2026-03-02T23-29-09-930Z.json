@@ -1,0 +1,24 @@
+{
+  "suite": "client-actions",
+  "baseUrl": "http://localhost:3000",
+  "account": "beauty-salon",
+  "startedAt": "2026-03-02T23:29:09.040Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Client my bookings flow handles auth/result",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какая у меня ближайшая запись",
+          "passed": false,
+          "error": "Bad response: HTTP 500 null",
+          "reply": ""
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-02T23:29:09.929Z",
+  "durationMs": 889
+}

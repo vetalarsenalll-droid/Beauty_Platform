@@ -1,5 +1,6 @@
 import { UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
   const lastName = String(body.lastName ?? "").trim();
   const email = String(body.email ?? "").trim();
   const phoneInput =
-    body.phone !== undefined ? String(body.phone).trim() : undefined;
+    body.phone !== undefined ? normalizeRuPhone(String(body.phone).trim()) : undefined;
   const bio = body.bio ? String(body.bio).trim() : null;
   const levelId =
     body.levelId !== undefined && body.levelId !== null && body.levelId !== ""
@@ -350,3 +351,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+

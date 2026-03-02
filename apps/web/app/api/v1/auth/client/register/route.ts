@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, getClientAuthCookies } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/api";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { normalizeRuPhone } from "@/lib/phone";
 
 function hashPassword(password: string, saltHex: string) {
   const salt = Buffer.from(saltHex, "hex");
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   const accountSlug = String(body?.accountSlug ?? "").trim();
   const firstName = String(body?.firstName ?? "").trim() || null;
   const lastName = String(body?.lastName ?? "").trim() || null;
-  const phone = String(body?.phone ?? "").trim() || null;
+  const phone = normalizeRuPhone(String(body?.phone ?? "").trim());
 
   if (!email || !password) {
     return jsonError(
@@ -148,3 +149,9 @@ export async function POST(request: Request) {
     refreshExpiresAt: refreshExpiresAt.toISOString(),
   });
 }
+
+
+
+
+
+

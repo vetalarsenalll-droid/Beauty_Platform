@@ -1,4 +1,4 @@
-﻿import {
+import {
   cancelClientBooking,
   findLatestUpcomingBooking,
   getBookingPolicy,
@@ -360,12 +360,14 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
   const asksMyBookings = has(
     messageNorm,
-    /(мои записи|моя запись|покажи мои записи|последняя запись|прошедш|история записей|какая у меня.*запись|какая запись|какие записи|что с моей записью|что по моей записи|ближайшая запись|предстоящая запись)/i,
+    /(мои записи|моя запись|покажи мои записи|последняя запись|прошедш|история записей|какая у меня.*запись|какая запись|какие записи|что с моей записью|что по моей записи|ближайшая запись|предстоящая запись|предстоящие записи|прошедшие записи)/i,
   );
   const asksLatestSingle = has(messageNorm, /(какая последняя запись|последнюю покажи|последняя запись|последний визит)/i);
   const asksNearest = has(messageNorm, /(ближайш|следующ|скоро.*запись)/i);
   const asksPast = has(messageNorm, /(прошедш|прошлая|история)/i);
-  const asksAllBookings = has(messageNorm, /(?:^|\\s)(?:все|всё)(?:\\s+(?:записи|напиши|покажи|выведи))?(?:\\s|$)/i);
+  const asksUpcomingList = has(messageNorm, /(предстоящ(ие|их)|ближайшие|будущие)(?:\s+запис\p{L}*)?/iu);
+  const asksPastList = has(messageNorm, /(прошедш(ие|их)|история( записей)?)(?:\s+запис\p{L}*)?/iu);
+  const asksAllBookings = has(messageNorm, /(?:^|\s)(?:все|всё)(?:\s+(?:записи|напиши|покажи|выведи))?(?:\s|$)/i);
   const asksAllPast =
     has(messageNorm, /(?:все|всё).*(?:прошед|прошл)/i) || has(messageNorm, /(?:прошед|прошл).*(?:все|всё)/i);
 
@@ -385,11 +387,11 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
   const cancelConfirmBare = has(messageNorm, /п?одтверждаю\s+отмену/i);
   const rescheduleConfirm = parseRescheduleConfirm(messageNorm);
 
-  if (!asksMyBookings && !asksLatestSingle && !asksNearest && !asksPast && !asksAllBookings && !asksAllPast && !asksStats && !asksCancel && !asksReschedule && !asksRepeat && !asksProfile && !(parseAppointmentId(messageNorm) != null && has(messageNorm, /(подроб|расшифр|детал|покажи запись|запись\s*#|запись\s*№)/i))) {
+  if (!asksMyBookings && !asksLatestSingle && !asksNearest && !asksPast && !asksUpcomingList && !asksPastList && !asksAllBookings && !asksAllPast && !asksStats && !asksCancel && !asksReschedule && !asksRepeat && !asksProfile && !(parseAppointmentId(messageNorm) != null && has(messageNorm, /(подроб|расшифр|детал|покажи запись|запись\s*#|запись\s*№)/i))) {
     if (!cancelConfirmId && !cancelConfirmBare && !rescheduleConfirm) return { handled: false };
   }
 
-  if (asksMyBookings || asksLatestSingle || asksNearest || asksPast || asksAllBookings || asksAllPast || (parseAppointmentId(messageNorm) != null && has(messageNorm, /(подроб|расшифр|детал|покажи запись|запись\s*#|запись\s*№)/i))) {
+  if (asksMyBookings || asksLatestSingle || asksNearest || asksPast || asksUpcomingList || asksPastList || asksAllBookings || asksAllPast || (parseAppointmentId(messageNorm) != null && has(messageNorm, /(подроб|расшифр|детал|покажи запись|запись\s*#|запись\s*№)/i))) {
     const items = await getClientBookings({ accountId, clientId, limit: 50 });
     if (!items.length) return { handled: true, reply: "У вас пока нет записей.", ui: buildClientActionsMenuUi() };
 
@@ -401,8 +403,6 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
       .filter((x) => x.startAt >= now && x.status !== "CANCELLED")
       .sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 
-    const asksUpcomingList = has(messageNorm, /(предстоящ(ие|их)|ближайшие|будущие)(?:\s+запис)?/i);
-    const asksPastList = has(messageNorm, /(прошедш(ие|их)|история( записей)?)(?:\s+запис)?/i);
     const asksAll = has(messageNorm, /(?:^|\s)(?:все|всё)(?:\s+(?:записи|напиши|покажи|выведи))?(?:\s|$)/i);
     const page = parsePage(messageNorm);
     const requestedId = parseAppointmentId(messageNorm);
@@ -524,7 +524,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
       handled: true,
       reply: `Ваша статистика: визитов всего ${s.total}, завершено ${s.done}, отмен ${s.cancelled}, средний чек ${Math.round(
         s.avgCheck,
-      )} ₽${s.topService ? `, любимая услуга: ${s.topService}` : ""}.`,
+      )} ?${s.topService ? `, любимая услуга: ${s.topService}` : ""}.`,
     };
   }
 
@@ -831,6 +831,10 @@ function clientActionsMenuOptions(): ChatUiOption[] {
     qr("Статистика", "моя статистика"),
   ];
 }
+
+
+
+
 
 
 

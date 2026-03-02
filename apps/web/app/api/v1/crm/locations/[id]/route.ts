@@ -1,4 +1,5 @@
-п»їimport { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import { normalizeRuPhone } from "@/lib/phone";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -12,7 +13,7 @@ function parseLocationId(raw: string) {
     return {
       error: jsonError(
         "VALIDATION_FAILED",
-        "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ id Р»РѕРєР°С†РёРё.",
+        "Некорректный id локации.",
         { fields: [{ path: "id", issue: "invalid" }] },
         400
       ),
@@ -79,14 +80,14 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   if (!location || location.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Р›РѕРєР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
+    return jsonError("NOT_FOUND", "Локация не найдена.", null, 404);
   }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ С‚РµР»Рѕ Р·Р°РїСЂРѕСЃР°.",
+      "Некорректное тело запроса.",
       null,
       400
     );
@@ -113,13 +114,13 @@ export async function PATCH(request: Request, { params }: Params) {
   if (body.description !== undefined)
     data.description = body.description ? String(body.description).trim() : null;
   if (body.phone !== undefined)
-    data.phone = body.phone ? String(body.phone).trim() : null;
+    data.phone = normalizeRuPhone(body.phone ? String(body.phone).trim() : null);
   if (body.status !== undefined) {
     const status = String(body.status).trim().toUpperCase();
     if (!LOCATION_STATUSES.has(status)) {
       return jsonError(
         "VALIDATION_FAILED",
-        "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ СЃС‚Р°С‚СѓСЃ Р»РѕРєР°С†РёРё. Р”РѕРїСѓСЃС‚РёРјС‹Рµ: ACTIVE, INACTIVE.",
+        "Некорректный статус локации. Допустимые: ACTIVE, INACTIVE.",
         { fields: [{ path: "status", issue: "invalid" }] },
         400
       );
@@ -187,7 +188,7 @@ export async function PATCH(request: Request, { params }: Params) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "РћР±РЅРѕРІРёР» Р»РѕРєР°С†РёСЋ",
+    action: "Обновил локацию",
     targetType: "location",
     targetId: updated.id,
     diffJson: {
@@ -234,7 +235,7 @@ export async function GET(_request: Request, { params }: Params) {
   });
 
   if (!location || location.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Р›РѕРєР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
+    return jsonError("NOT_FOUND", "Локация не найдена.", null, 404);
   }
 
   const response = jsonOk({
@@ -274,7 +275,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   if (!location || location.accountId !== auth.session.accountId) {
-    return jsonError("NOT_FOUND", "Р›РѕРєР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
+    return jsonError("NOT_FOUND", "Локация не найдена.", null, 404);
   }
 
   const archived = await prisma.location.update({
@@ -285,7 +286,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "РђСЂС…РёРІРёСЂРѕРІР°Р» Р»РѕРєР°С†РёСЋ",
+    action: "Архивировал локацию",
     targetType: "location",
     targetId: archived.id,
     diffJson: { status: "INACTIVE" },
@@ -294,4 +295,5 @@ export async function DELETE(_request: Request, { params }: Params) {
   const response = jsonOk({ id: archived.id, status: archived.status });
   return applyCrmAccessCookie(response, auth);
 }
+
 
