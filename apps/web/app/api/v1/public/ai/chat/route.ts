@@ -713,9 +713,30 @@ function asksAssistantQualification(messageNorm: string) {
 }
 
 function isOutOfDomainPrompt(messageNorm: string) {
-  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира)/i.test(
+  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди)/i.test(
     messageNorm,
   );
+}
+
+function isPauseConversationMessage(messageNorm: string) {
+  return /(пока ничего|ничего не хочу|пока не хочу|не хочу сейчас|потом|позже|не сейчас|ладно потом)/i.test(messageNorm);
+}
+
+function asksWhyNoAnswer(messageNorm: string) {
+  return /(почему не ответил|почему не ответила|почему ты не ответил|почему ты не ответила|а на вопрос почему не ответила)/i.test(messageNorm);
+}
+
+function buildOutOfScopeConversationalReply(messageNorm: string) {
+  if (asksWhyNoAnswer(messageNorm)) {
+    return "Я не игнорирую вас. По темам вне записи отвечаю коротко и без выдумок. Можем продолжить разговор или перейти к записи.";
+  }
+  if (/(кто убил кеннед|убил кенеди|убийств.*кеннед)/i.test(messageNorm)) {
+    return "По официальной версии Ли Харви Освальд. Если хотите, коротко расскажу и альтернативные версии без споров.";
+  }
+  if (isPauseConversationMessage(messageNorm)) {
+    return "Хорошо, без проблем. Я на связи, когда будете готовы продолжить.";
+  }
+  return "Могу коротко поддержать разговор, а по записи помогу с услугами, датой и временем.";
 }
 
 function asksWhoPerformsServices(messageNorm: string) {
@@ -938,6 +959,8 @@ function resolveIntentModelFirst(args: {
 
 function intentFromHeuristics(message: string): AishaIntent {
   if (asksCurrentDateTime(message)) return "smalltalk";
+  if (asksWhyNoAnswer(norm(message))) return "smalltalk";
+  if (isPauseConversationMessage(norm(message))) return "smalltalk";
   if (asksAssistantQualification(norm(message))) return "identity";
   if (isOutOfDomainPrompt(norm(message))) return "out_of_scope";
   if (asksWhoPerformsServices(message)) return "ask_specialists";
@@ -1289,6 +1312,7 @@ export async function POST(request: Request) {
     const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
     const explicitAbuseCue = has(messageForRouting, /(сучк|сука|туп|идиот|дебил|нахер|нахуй|говно|херня)/i);
+    const explicitOutOfScopeCue = isOutOfDomainPrompt(norm(messageForRouting));
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
     const explicitAvailabilityPeriod = asksAvailabilityPeriod(norm(messageForRouting));
     const explicitCalendarCue =
@@ -1307,6 +1331,7 @@ export async function POST(request: Request) {
     if (explicitWhoDoesServices || explicitSpecialistsListCue) intent = "ask_specialists";
     if (explicitIdentityCue) intent = "identity";
     if (explicitAssistantQualification) intent = "identity";
+    if (explicitOutOfScopeCue) intent = "out_of_scope";
     if (explicitAbuseCue) intent = "abuse_or_toxic";
     if (cancelMeansDraftAbort) {
       explicitBookingDecline = true;
@@ -1871,7 +1896,7 @@ export async function POST(request: Request) {
         if (generatedSmalltalk) {
           reply = `${generatedSmalltalk.replace(/[.!?]+$/u, "")}. Если захотите, помогу с записью и услугами.`;
         } else {
-          reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
+          reply = buildOutOfScopeConversationalReply(norm(messageForRouting));
         }
       } else if (intent === "abuse_or_toxic") {
         reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
@@ -1880,6 +1905,8 @@ export async function POST(request: Request) {
       } else if (intent === "smalltalk") {
         if (isGreetingText(messageForRouting)) {
           reply = "Здравствуйте! Чем помочь?";
+        } else if (asksWhyNoAnswer(t) || isPauseConversationMessage(t)) {
+          reply = buildSmalltalkReply(t);
         } else if (explicitServiceComplaint) {
           reply =
             "Сожалею, что так вышло. Спасибо, что написали об этом. Опишите, пожалуйста, что именно не устроило, и я передам обращение администратору и помогу подобрать корректную запись к другому мастеру.";
@@ -2130,6 +2157,8 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
 
 
 
