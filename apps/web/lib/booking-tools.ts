@@ -165,10 +165,11 @@ type CreateBookingArgs = {
   requiredVersionIds: number[];
   request: Request;
   services: ServiceLite[];
+  preferredClientId?: number | null;
 };
 
 export async function createAssistantBooking(args: CreateBookingArgs) {
-  const { d, accountId, accountTz, requiredVersionIds, request, services } = args;
+  const { d, accountId, accountTz, requiredVersionIds, request, services, preferredClientId = null } = args;
   const startAt = zonedTimeToUtc(String(d.date), String(d.time), accountTz);
   const day = zonedDayRangeUtc(String(d.date), accountTz);
   if (!startAt || !day || isPastDateOrTimeInTz(String(d.date), String(d.time), accountTz)) {
@@ -309,6 +310,8 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     throw error;
   }
 }
+
+
 
 
 

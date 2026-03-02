@@ -5,6 +5,7 @@
       getEffectiveServiceForSpecialist,
   getOffers,
   getSlots,
+  serviceLowerBounds,
   LocationLite,
   ServiceLite,
   specialistsForSlot,
@@ -54,6 +55,7 @@ type FlowCtx = {
   request: Request;
   publicSlug: string;
   todayYmd: string;
+  preferredClientId?: number | null;
 };
 
 type FlowResult = {
@@ -208,8 +210,9 @@ function serviceOption(
 ): ChatUiOption {
   const effective = getEffectiveServiceForSpecialist(service, specialist);
   const hasSpecialist = Boolean(specialist);
-  const priceText = hasSpecialist ? `${Math.round(effective.price)} ₽` : `от ${Math.round(effective.price)} ₽`;
-  const durationText = hasSpecialist ? `${Math.round(effective.durationMin)} мин` : `от ${Math.round(effective.durationMin)} мин`;
+  const bounds = serviceLowerBounds(service);
+  const priceText = hasSpecialist ? `${Math.round(effective.price)} ₽` : `от ${Math.round(bounds.minPrice)} ₽`;
+  const durationText = hasSpecialist ? `${Math.round(effective.durationMin)} мин` : `от ${Math.round(bounds.minDuration)} мин`;
   return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, service.name);
 }
 
@@ -853,6 +856,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     choice,
     publicSlug,
     todayYmd,
+    preferredClientId = null,
   } = ctx;
   const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
@@ -1379,36 +1383,42 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.date) {
-    const minDate = todayYmd;
-    const maxDate = addDaysYmd(todayYmd, 60);
-    const availableDates = d.locationId && d.serviceId
-      ? await findServiceAvailableDatesInRange({
-          origin,
-          accountSlug: account.slug,
-          locationId: d.locationId,
-          serviceId: d.serviceId,
-          fromDate: minDate,
-          daysAhead: 61,
-        })
-      : (
-          await findNearestDateWindows({
+    // If user already in booking path and chose location+service, default to today instead of forcing calendar.
+    if (bookingIntent && d.locationId && d.serviceId) {
+      d.date = todayYmd;
+    }
+    if (!d.date) {
+      const minDate = todayYmd;
+      const maxDate = addDaysYmd(todayYmd, 60);
+      const availableDates = d.locationId && d.serviceId
+        ? await findServiceAvailableDatesInRange({
             origin,
             accountSlug: account.slug,
-            locations,
+            locationId: d.locationId,
+            serviceId: d.serviceId,
             fromDate: minDate,
-            serviceId: d.serviceId ?? null,
-            preference: null,
             daysAhead: 61,
-            maxDates: 61,
-            limit: 24,
           })
-        ).map((x) => x.date);
-    return {
-      handled: true,
-      reply: "Выберите дату в календаре или напишите её сообщением.",
-      nextStatus: "COLLECTING",
-      ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
-    };
+        : (
+            await findNearestDateWindows({
+              origin,
+              accountSlug: account.slug,
+              locations,
+              fromDate: minDate,
+              serviceId: d.serviceId ?? null,
+              preference: null,
+              daysAhead: 61,
+              maxDates: 61,
+              limit: 24,
+            })
+          ).map((x) => x.date);
+      return {
+        handled: true,
+        reply: "Выберите дату в календаре или напишите её сообщением.",
+        nextStatus: "COLLECTING",
+        ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
+      };
+    }
   }
 
   if (!d.time) {
@@ -1795,6 +1805,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     requiredVersionIds,
     request,
     services,
+    preferredClientId,
   });
   if (!created.ok) {
     if (created.code === "slot_busy") {
@@ -1832,6 +1843,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
+
+
+
+
 
 
 

@@ -2228,6 +2228,7 @@ export async function POST(request: Request) {
         request,
         publicSlug,
         todayYmd: nowYmd,
+        preferredClientId: client?.clientId ?? thread.clientId ?? null,
       });
       if (flowResult.handled) {
         reply = flowResult.reply ?? reply;
@@ -2652,6 +2653,8 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
 
 
 
