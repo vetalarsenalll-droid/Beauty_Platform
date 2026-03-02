@@ -1,4 +1,4 @@
-import { jsonError, jsonOk } from "@/lib/api";
+﻿import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
   getAccountSlotStepMinutes,
@@ -43,25 +43,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const locationId = parsePositiveInt(searchParams.get("locationId"));
   const dateValue = String(searchParams.get("date") ?? "").trim();
+  const excludeAppointmentId = parsePositiveInt(searchParams.get("excludeAppointmentId"));
 
   if (!locationId || !dateValue) {
-    return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
+    return jsonError("INVALID_REQUEST", "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РїР°СЂР°РјРµС‚СЂС‹.", null, 400);
   }
 
-  // past date => пусто
+  // past date => РїСѓСЃС‚Рѕ
   if (dateValue < nowTz.ymd) return jsonOk({ date: dateValue, times: [] });
 
   const range = zonedDayRangeUtc(dateValue, tz);
-  if (!range) return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
+  if (!range) return jsonError("INVALID_DATE", "РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ РґР°С‚Р°.", null, 400);
   const { dayStartUtc, dayEndUtc } = range;
 
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
     select: { id: true },
   });
-  if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
+  if (!location) return jsonError("LOCATION_NOT_FOUND", "Р›РѕРєР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
 
-  // специалисты локации + их услуги
+  // СЃРїРµС†РёР°Р»РёСЃС‚С‹ Р»РѕРєР°С†РёРё + РёС… СѓСЃР»СѓРіРё
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: resolved.account.id,
@@ -84,7 +85,7 @@ export async function GET(request: Request) {
 
   if (!allServiceIds.length) return jsonOk({ date: dateValue, times: [] });
 
-  // услуги (для расчёта длительностей)
+  // СѓСЃР»СѓРіРё (РґР»СЏ СЂР°СЃС‡С‘С‚Р° РґР»РёС‚РµР»СЊРЅРѕСЃС‚РµР№)
   const services = await prisma.service.findMany({
     where: {
       accountId: resolved.account.id,
@@ -103,7 +104,7 @@ export async function GET(request: Request) {
   const serviceById = new Map<number, (typeof services)[number]>();
   for (const s of services) serviceById.set(s.id, s);
 
-  // график + записи + блокировки
+  // РіСЂР°С„РёРє + Р·Р°РїРёСЃРё + Р±Р»РѕРєРёСЂРѕРІРєРё
   const [scheduleEntries, appointments, blockedSlots, holds] = await Promise.all([
     prisma.scheduleEntry.findMany({
       where: {
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
         specialistId: { in: specialistIds },
         startAt: { gte: dayStartUtc, lt: dayEndUtc },
         status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
@@ -145,7 +147,7 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  // график locationId > null
+  // РіСЂР°С„РёРє locationId > null
   const scheduleBySpecialist = new Map<number, (typeof scheduleEntries)[number]>();
   for (const e of scheduleEntries) scheduleBySpecialist.set(e.specialistId, e);
 
@@ -170,7 +172,7 @@ export async function GET(request: Request) {
       list.push(w);
       blkBySp.set(b.specialistId, list);
     } else {
-      // location-wide -> всем
+      // location-wide -> РІСЃРµРј
       for (const sp of specialists) {
         const list = blkBySp.get(sp.id) ?? [];
         list.push(w);
@@ -189,7 +191,7 @@ export async function GET(request: Request) {
     holdsBySp.set(item.specialistId, list);
   }
 
-  // ВЫХОД: time -> serviceId -> specialistIds
+  // Р’Р«РҐРћР”: time -> serviceId -> specialistIds
   const offers = new Map<number, Map<number, Set<number>>>();
 
   for (const sp of specialists) {
@@ -201,7 +203,7 @@ export async function GET(request: Request) {
     const entryEnd = toMinutes(entry.endTime ?? "");
     if (entryStart == null || entryEnd == null) continue;
 
-    // какие услуги у этого спеца
+    // РєР°РєРёРµ СѓСЃР»СѓРіРё Сѓ СЌС‚РѕРіРѕ СЃРїРµС†Р°
     const spServiceIds = sp.services.map((x) => x.serviceId).filter((id) => serviceById.has(id));
     if (!spServiceIds.length) continue;
 
@@ -247,16 +249,16 @@ export async function GET(request: Request) {
     }
     if (cursor < entryEnd) free.push({ start: cursor, end: entryEnd });
 
-    // для каждого free segment генерим старты по 15 минут
+    // РґР»СЏ РєР°Р¶РґРѕРіРѕ free segment РіРµРЅРµСЂРёРј СЃС‚Р°СЂС‚С‹ РїРѕ 15 РјРёРЅСѓС‚
     for (const seg of free) {
       let t = ceilToStep(seg.start, slotStepMinutes);
       for (; t + slotStepMinutes <= seg.end; t += slotStepMinutes) {
-        // прошлое сегодня — скрываем
+        // РїСЂРѕС€Р»РѕРµ СЃРµРіРѕРґРЅСЏ вЂ” СЃРєСЂС‹РІР°РµРј
         if (dateValue === nowTz.ymd && t <= nowTz.minutes) continue;
 
         const remaining = seg.end - t;
 
-        // какие услуги помещаются
+        // РєР°РєРёРµ СѓСЃР»СѓРіРё РїРѕРјРµС‰Р°СЋС‚СЃСЏ
         for (const [srvId, dur] of durationByService.entries()) {
           if (dur <= remaining) {
             const timeMap = offers.get(t) ?? new Map<number, Set<number>>();
@@ -270,7 +272,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // сериализация
+  // СЃРµСЂРёР°Р»РёР·Р°С†РёСЏ
   const times = Array.from(offers.entries())
     .sort(([a], [b]) => a - b)
     .map(([t, byService]) => ({
@@ -285,3 +287,5 @@ export async function GET(request: Request) {
 
   return jsonOk({ date: dateValue, times });
 }
+
+

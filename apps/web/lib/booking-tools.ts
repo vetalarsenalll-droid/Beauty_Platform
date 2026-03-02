@@ -61,18 +61,21 @@ export async function getOffers(
   accountSlug: string,
   locationId: number,
   date: string,
+  excludeAppointmentId?: number | null,
 ) {
   const u = new URL("/api/v1/public/booking/offers", origin);
   u.searchParams.set("account", accountSlug);
   u.searchParams.set("locationId", String(locationId));
   u.searchParams.set("date", date);
+  if (excludeAppointmentId && Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0) {
+    u.searchParams.set("excludeAppointmentId", String(excludeAppointmentId));
+  }
   return (
     (await apiData<{ times: Array<{ time: string; services: Array<{ serviceId: number; specialistIds?: number[] }> }> }>(u.toString())) ?? {
       times: [],
     }
   );
 }
-
 export function getEffectiveServiceForSpecialist(service: ServiceLite, specialist: SpecialistLite | null) {
   const override = service.specialistConfigs?.find((x) => specialist && x.specialistId === specialist.id) ?? null;
   const levelCfg =
@@ -198,6 +201,18 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
         });
         if (conflict) return null;
 
+        const holdConflict = await tx.appointmentHold.findFirst({
+          where: {
+            accountId,
+            specialistId: d.specialistId!,
+            expiresAt: { gt: new Date() },
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+          },
+          select: { id: true },
+        });
+        if (holdConflict) return null;
+
         const clientProfile = await tx.client.findFirst({
           where: { accountId, phone: d.clientPhone! },
           select: { id: true, firstName: true },
@@ -263,4 +278,10 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     throw error;
   }
 }
+
+
+
+
+
+
 

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { AppointmentStatus } from "@prisma/client";
 
 export async function getClientBookings(args: { accountId: number; clientId: number; limit?: number }) {
@@ -9,11 +9,13 @@ export async function getClientBookings(args: { accountId: number; clientId: num
     take: limit,
     select: {
       id: true,
+      locationId: true,
+      specialistId: true,
       startAt: true,
       endAt: true,
       status: true,
       priceTotal: true,
-      services: { select: { service: { select: { name: true } } }, take: 1 },
+      services: { select: { serviceId: true, service: { select: { name: true } } }, take: 1 },
       specialist: { select: { user: { select: { profile: { select: { firstName: true, lastName: true } } } } } },
       location: { select: { name: true } },
     },
@@ -139,6 +141,18 @@ export async function rescheduleClientBooking(args: {
     select: { id: true },
   });
   if (conflict) return { ok: false as const, reason: "slot_busy" as const };
+
+  const holdConflict = await prisma.appointmentHold.findFirst({
+    where: {
+      accountId: args.accountId,
+      specialistId: appt.specialistId,
+      expiresAt: { gt: new Date() },
+      startAt: { lt: args.endAt },
+      endAt: { gt: args.startAt },
+    },
+    select: { id: true },
+  });
+  if (holdConflict) return { ok: false as const, reason: "slot_busy" as const };
   await prisma.appointment.update({
     where: { id: appt.id },
     data: { startAt: args.startAt, endAt: args.endAt, status: "CONFIRMED" },
@@ -157,3 +171,7 @@ export async function updateClientPhone(args: { accountId: number; clientId: num
   });
   return updated;
 }
+
+
+
+

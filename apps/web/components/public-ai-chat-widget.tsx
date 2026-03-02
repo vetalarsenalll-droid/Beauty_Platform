@@ -160,6 +160,16 @@ function getMonthLabelRu(ymd: string) {
   return `${names[(p.m - 1 + 12) % 12]} ${p.y}`;
 }
 
+function buildDatePickerSubmitValue(selectedYmd: string, assistantText: string) {
+  const dateRu = formatYmdRuDate(selectedYmd);
+  const idMatch = assistantText.match(/запись\s*#\s*(\d{1,8})/i);
+  const rescheduleContext = /(перенос|перенести|новую дату)/i.test(assistantText);
+  if (idMatch?.[1] && rescheduleContext) {
+    return `перенести #${idMatch[1]} на ${dateRu}`;
+  }
+  return dateRu;
+}
+
 function buildCalendarCells(viewMonthYmd: string, minDate: string, maxDate: string) {
   const p = parseYmd(viewMonthYmd);
   if (!p) return [] as Array<{ ymd: string; day: number; inMonth: boolean; disabled: boolean }>;
@@ -909,7 +919,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           <button
                             type="button"
                             disabled={loading || !isLastAssistant || !datePickerValue || !selectedDateIsAvailable}
-                            onClick={() => void sendRawMessage(formatYmdRuDate(datePickerValue))}
+                            onClick={() => void sendRawMessage(buildDatePickerSubmitValue(datePickerValue, msg.content))}
                             style={buttonRadiusStyle}
                             className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${currentMode === "dark" ? "bg-[color:var(--ai-button,#1f2937)] text-[color:var(--ai-button-text,#f9fafb)] ring-1 ring-[color:var(--ai-border,#334155)]" : "bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]"}`}
                           >
@@ -1024,4 +1034,5 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     </div>
   );
 }
+
 

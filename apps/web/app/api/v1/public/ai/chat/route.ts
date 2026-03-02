@@ -1103,7 +1103,7 @@ function intentFromHeuristics(message: string): AishaIntent {
   if (hasServiceMention && hasBookingCue) return "booking_start";
   if (has(message, /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
   if (has(message, /подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
-  if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю)|предстоящ(ая|ую)|ближайш(ая|ую|ую)|какая у меня.*запись|прошедш(ая|ую))/i))
+  if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю|ие|их)|предстоящ(ая|ую|ие|их)|ближайш(ая|ую|ие|их)|какая у меня.*запись|прошедш(ая|ую|ие|их)|последнюю покажи)/i))
     return "my_bookings";
   if (has(message, /(моя статистика|статистика|сколько раз)/i)) return "my_stats";
   if (has(message, /^(перенеси|перезапиши)\b/i)) return "reschedule_my_booking";
@@ -1436,6 +1436,7 @@ export async function POST(request: Request) {
     if ((intent as string) === "cancel") intent = "cancel_my_booking";
     if ((intent as string) === "my_booking") intent = "my_bookings";
     const explicitClientReschedulePhrase = has(messageForRouting, /^(перенеси|перенести|перезапиши)\b/i);
+    const explicitClientRescheduleRequest = has(messageForRouting, /(перенес(?:и|ти|ть)|перезапиш)/i) && has(messageForRouting, /(мою|свою|моя|своя|запис)/i);
     const explicitClientCancelPhrase = has(messageForRouting, /^(отмени|отменить|отмена)\b/i);
     const hasClientCancelContext = has(messageForRouting, /(мою запись|мои записи|запись #|номер записи|ближайш|последн|визит|appointment|подтверждаю отмену)/i);
     const cancelMeansDraftAbort = hasDraftContextEarly && explicitClientCancelPhrase && !hasClientCancelContext;
@@ -1471,7 +1472,7 @@ export async function POST(request: Request) {
     const explicitCalendarAvailability = explicitCalendarCue && explicitAvailabilityCue;
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
-    if (explicitClientReschedulePhrase) intent = "reschedule_my_booking";
+    if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
     if (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
@@ -1534,7 +1535,12 @@ export async function POST(request: Request) {
     const selectedSpecialistByText = specialistByText(t, specialists);
     const explicitAnySpecialistChoice = isAnySpecialistChoiceText(t);
     const choiceNum = parseChoiceFromText(t);
-    const hasClientActionCue = has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|прошедш.*запис|отмени мою|перенеси мою|личн(ый|ого) кабинет)/i);
+    const explicitClientListFollowUp =
+      /^(?:все|всё|все напиши|всё напиши|все покажи|всё покажи|все записи|все прошедшие|все предстоящие|прошедшие|предстоящие|ближайшие|последние)$/iu.test(
+        messageForRouting.trim(),
+      ) && /(?:запис|прошедш|предстоящ|ближайш|последн)/i.test(lastAssistantText);
+    const hasClientActionCue = explicitClientListFollowUp || has(messageForRouting, /(какая у меня|моя статист|мои записи|мои данные|покажи мои|ближайш.*запис|предстоящ.*запис|последн.*запис|прошедш.*запис|отмени мою|перенеси мою|перенести мою|перенести свою|хочу .*перенест|личн(ый|ого) кабинет)/i);
+    if (explicitClientListFollowUp) intent = "my_bookings";
     const hasPositiveFeedbackCue = has(messageForRouting, /(спасибо|благодар|круто|отлично|здорово|понятно|ок\b|окей|ясно|супер)/i);
     const specialistPromptedByAssistant =
       hasDraftContextEarly &&
@@ -1561,7 +1567,8 @@ export async function POST(request: Request) {
       explicitClientCancelConfirm ||
       explicitClientRescheduleConfirm ||
       (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) ||
-      explicitClientReschedulePhrase;
+      explicitClientReschedulePhrase ||
+      explicitClientRescheduleRequest;
     const isConsentStage = d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION";
     const shouldStayInAssistantStages = isConsentStage && d.mode === "ASSISTANT";
     const isConsentStageMessage = has(
@@ -2042,9 +2049,12 @@ export async function POST(request: Request) {
         accountTimeZone: resolved.account.timeZone,
         clientId: effectiveClientId,
         authMode: authLevel === "none" ? "full" : authLevel,
+        origin,
+        accountSlug: resolved.account.slug,
       });
       if (clientFlow.handled) {
         reply = clientFlow.reply ?? reply;
+        nextUi = clientFlow.ui ?? nextUi;
       } else if (authLevel === "none") {
         const accountParam = resolved.account.slug || "";
         const loginUrl = accountParam ? `/c/login?account=${encodeURIComponent(accountParam)}` : "/c/login";
@@ -2054,7 +2064,17 @@ export async function POST(request: Request) {
           options: [{ label: "Войти в личный кабинет", value: "Открыть личный кабинет", href: loginUrl }],
         };
       } else {
-        reply = "Поняла. Могу показать последние/прошедшие записи, статистику, а также помочь с переносом или отменой.";
+        reply = "Что показать по вашим записям?";
+        nextUi = {
+          kind: "quick_replies",
+          options: [
+            { label: "Предстоящие записи", value: "предстоящие записи" },
+            { label: "Прошедшие записи", value: "прошедшие записи" },
+            { label: "Отменить запись", value: "отмени мою ближайшую запись" },
+            { label: "Перенести запись", value: "перенеси мою запись" },
+            { label: "Статистика", value: "моя статистика" },
+          ],
+        };
       }
     } else if (shouldRunBookingFlow) {
       const hasBookingVerb = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|хочу|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
@@ -2452,14 +2472,6 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
-
-
-
-
-
-
-
-
 
 
 

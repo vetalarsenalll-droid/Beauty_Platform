@@ -1739,7 +1739,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: "Этот слот уже занят. Выберите другое время.",
         nextStatus: "COLLECTING",
-        ui: times.length ? { kind: "quick_replies", options: times.map((tm) => optionFromLabel(tm)) } : null,
+        ui: times.length ? { kind: "quick_replies", options: [optionFromLabel("Выбрать другую дату", "другое число хочу выбрать"), ...times.map((tm) => optionFromLabel(tm))] } : { kind: "quick_replies", options: [optionFromLabel("Выбрать другую дату", "другое число хочу выбрать")] },
       };
     }
     if (created.code === "outside_working_hours") {
@@ -1751,7 +1751,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: "Время вне графика. Выберите другой слот.",
         nextStatus: "COLLECTING",
-        ui: times.length ? { kind: "quick_replies", options: times.map((tm) => optionFromLabel(tm)) } : null,
+        ui: times.length ? { kind: "quick_replies", options: [optionFromLabel("Выбрать другую дату", "другое число хочу выбрать"), ...times.map((tm) => optionFromLabel(tm))] } : { kind: "quick_replies", options: [optionFromLabel("Выбрать другую дату", "другое число хочу выбрать")] },
       };
     }
     if (created.code === "combo_unavailable") return { handled: true, reply: "Эта комбинация локации/услуги/специалиста недоступна.", nextStatus: "COLLECTING" };
@@ -1765,6 +1765,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 
