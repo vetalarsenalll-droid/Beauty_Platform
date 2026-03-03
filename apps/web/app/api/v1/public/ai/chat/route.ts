@@ -1025,10 +1025,26 @@ function countConsecutiveToxicUserTurns(recentMessages: Array<{ role: string; co
   return count;
 }
 
-function buildToxicReply(level: number) {
-  if (level <= 1) return "Понимаю эмоции. Давайте общаться уважительно, и я помогу по записи.";
-  if (level === 2) return "Продолжу разговор в уважительном тоне. Если нужно, помогу с услугами, временем и записью.";
-  return "Останусь в рамках вежливого диалога. Когда будете готовы, помогу с записью или вашими визитами.";
+function buildToxicReply(level: number, messageNorm: string) {
+  if (level <= 1) {
+    return smalltalkVariant(messageNorm, [
+      "Понимаю, тема чувствительная. Могу говорить только в уважительном и безопасном формате.",
+      "Давайте оставим разговор в корректном тоне. Я помогу по записи и услугам.",
+      "Я на связи и могу помочь по услугам и записи. Давайте без грубости.",
+    ]);
+  }
+  if (level === 2) {
+    return smalltalkVariant(messageNorm, [
+      "Продолжу в спокойном тоне. Если хотите, помогу выбрать услугу и время.",
+      "Остаюсь в уважительном формате. Могу сразу перейти к записи.",
+      "Давайте общаться корректно, и я быстро помогу с записью.",
+    ]);
+  }
+  return smalltalkVariant(messageNorm, [
+    "Сохраню вежливый формат диалога. Когда будете готовы, продолжим по записи.",
+    "Я отвечаю только в корректном формате. Могу помочь с услугами и визитами.",
+    "Продолжу в уважительном тоне. Готова помочь с выбором услуги, даты и времени.",
+  ]);
 }
 
 function asksSpecialistsByShortText(messageNorm: string) {
@@ -2160,7 +2176,7 @@ export async function POST(request: Request) {
       !explicitDateTimeQuery &&
       !shouldRunBookingFlow &&
       !explicitServiceComplaint &&
-      (intent === "smalltalk" || intent === "out_of_scope" || intent === "greeting" || intent === "identity" || intent === "capabilities" || (intent === "unknown" && !isBookingOrAccountCue(t)));
+      (intent === "smalltalk" || intent === "out_of_scope" || intent === "abuse_or_toxic" || intent === "greeting" || intent === "identity" || intent === "capabilities" || (intent === "unknown" && !isBookingOrAccountCue(t)));
     const generatedSmalltalk = shouldGenerateSmalltalk
       ? await runAishaSmallTalkReply({
           accountId: resolved.account.id,
@@ -2386,7 +2402,7 @@ export async function POST(request: Request) {
           reply = buildOutOfScopeConversationalReply(norm(messageForRouting));
         }
       } else if (intent === "abuse_or_toxic") {
-        reply = buildToxicReply(consecutiveToxicTurns);
+        reply = conversationalReply && !looksLikeHardBookingPushReply(conversationalReply) ? conversationalReply : buildToxicReply(consecutiveToxicTurns, t);
         if (consecutiveToxicTurns >= 2) nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
       } else if (intent === "post_completion_smalltalk") {
         reply = "Здорово, рада, что вам понравилось. Если нужно, помогу с записью.";
@@ -2902,6 +2918,7 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
 
 
 
