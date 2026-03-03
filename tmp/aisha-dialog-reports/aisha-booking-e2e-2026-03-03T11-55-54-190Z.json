@@ -1,0 +1,79 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-03T11:55:37.846Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Nearest availability should return windows immediately",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а свободное окошко когда ближайшее?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability in March",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "в марте есть время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Booking service-first path",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу на маникюр завтра",
+          "passed": false,
+          "error": "Booking service-first path / step 1 (хочу на маникюр завтра): expected one of /филиал|время|слот|локац|услуга|стоим|мин/i\nreply:\nНа 04. 03.",
+          "reply": "На 04. 03."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-03T11:55:54.188Z",
+  "durationMs": 16342
+}
