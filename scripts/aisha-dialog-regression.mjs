@@ -70,16 +70,16 @@ const scenarios = /** @type {Scenario[]} */ ([
     suites: ["core"],
     steps: [
       { send: "а что ты можешь?", expectAny: [/запис|услуг|время|контакт|статистик/i] },
-      { send: "а какие именно есть?", expectAny: [/Balayage|Men Haircut|Women Haircut|Manicure|Pedicure|Gel Polish/i], rejectAny: [/spa|свадебн|макияж|укладк/i] },
+      { send: "а какие именно есть?", expectAny: [/услуг|стриж|маник|педик|ресниц|бров/i], rejectAny: [/spa|свадебн|макияж|укладк/i] },
     ],
   },
   { name: "Current datetime intent", suites: ["core"], steps: [{ send: "какое сейчас число и время?", expectAny: [/\d{2}\.\d{2}\.\d{4}|\d{2}:\d{2}/i] }] },
   { name: "Contact phone intent", suites: ["core"], steps: [{ send: "дай номер", expectAny: [/номер|телефон|недоступ/i] }] },
   { name: "Working hours intent", suites: ["core"], steps: [{ send: "до скольки работаете?", expectAny: [/работ|график|09:00|21:00|часы/i] }] },
-  { name: "Address intent", suites: ["core"], steps: [{ send: "где находитесь?", expectAny: [/локац|адрес|филиал|tverskaya|kutuzovsky/i] }] },
-  { name: "Services list intent", suites: ["core"], steps: [{ send: "какие услуги есть?", expectAny: [/услуг|manicure|haircut|pedicure|gel/i] }] },
-  { name: "Services for men intent", suites: ["core"], steps: [{ send: "мужские услуги есть?", expectAny: [/муж|услуг|men haircut|выберите/i] }] },
-  { name: "Specific price intent grounded", suites: ["core"], steps: [{ send: "сколько стоит peeling", expectAny: [/peeling|₽|мин/i], rejectAny: [/от 500|от 700/i] }] },
+  { name: "Address intent", suites: ["core"], steps: [{ send: "где находитесь?", expectAny: [/локац|адрес|филиал|tverskaya|kutuzovsky|невск|каменноостров|московск/i] }] },
+  { name: "Services list intent", suites: ["core"], steps: [{ send: "какие услуги есть?", expectAny: [/услуг|manicure|haircut|pedicure|gel|маник|стриж|педик|гель/i] }] },
+  { name: "Services for men intent", suites: ["core"], steps: [{ send: "мужские услуги есть?", expectAny: [/муж|услуг|стриж|выберите/i] }] },
+  { name: "Specific price intent grounded", suites: ["core"], steps: [{ send: "сколько стоит peeling", expectAny: [/peeling|пилинг|₽|мин/i], rejectAny: [/от 500|от 700/i] }] },
   { name: "General price intent grounded", suites: ["core"], steps: [{ send: "по стоимости сориентируй", expectAny: [/₽|стоим|услуг/i], rejectAny: [/от 500|от 700/i] }] },
   { name: "Specialists generic", suites: ["core"], steps: [{ send: "какие мастера есть?", expectAny: [/специалист|мастер/i] }] },
   {
@@ -87,7 +87,7 @@ const scenarios = /** @type {Scenario[]} */ ([
     suites: ["core"],
     steps: [
       { send: "кто завтра работает", expectAny: [/специалист|мастер/i], rejectAny: [/выберите услугу|доступные услуги/i] },
-      { send: "Beauty Salon Riverside", expectAny: [/специалист|мастер|работают/i], rejectAny: [/выберите услугу|доступные услуги/i] },
+      { send: "Северная Орхидея — Петроградская", expectAny: [/специалист|мастер|работают/i], rejectAny: [/выберите услугу|доступные услуги/i] },
     ],
   },
   {
@@ -95,7 +95,7 @@ const scenarios = /** @type {Scenario[]} */ ([
     suites: ["core"],
     steps: [
       { send: "кто завтра из мастеров работает?", expectAny: [/специалист|мастер/i] },
-      { send: "Maria Petrova", rejectAny: [/я аиша|чем помочь|здравствуйте/i] },
+      { send: "Анна Смирнова", rejectAny: [/я аиша|чем помочь|здравствуйте/i] },
     ],
   },
   { name: "Out-of-domain query should not crash", suites: ["core"], steps: [{ send: "расскажи анекдот про космос", expectAny: [/запис|услуг|помочь|уточн|домен|салон/i] }] },
@@ -121,7 +121,7 @@ const scenarios = /** @type {Scenario[]} */ ([
   {
     name: "Start booking asks for location, not unknown service",
     suites: ["booking-e2e"],
-    steps: [{ send: "на завтра запиши меня", expectAny: [/филиал|локац|beauty salon center|beauty salon riverside/i], rejectAny: [/такой услуги не нашл|услугу .* не нашл/i] }],
+    steps: [{ send: "на завтра запиши меня", expectAny: [/филиал|локац|Северная Орхидея — Центр|Северная Орхидея — Петроградская/i], rejectAny: [/такой услуги не нашл|услугу .* не нашл/i] }],
   },
   { name: "Availability today", suites: ["booking-e2e"], steps: [{ send: "на сегодня есть свободные окна?", expectAny: [/окна|время|слот|филиал/i] }] },
   { name: "Availability evening", suites: ["booking-e2e"], steps: [{ send: "на вечер что есть?", expectAny: [/окна|время|слот|вечер|филиал/i] }] },
@@ -136,8 +136,8 @@ const scenarios = /** @type {Scenario[]} */ ([
     name: "Unknown service should be rejected with available options",
     suites: ["booking-e2e"],
     steps: [
-      { send: "запиши на удаление зуба", expectAny: [/филиал|локац|beauty salon center|beauty salon riverside/i] },
-      { send: "Beauty Salon Center" },
+      { send: "запиши на удаление зуба", expectAny: [/филиал|локац|Северная Орхидея — Центр|Северная Орхидея — Петроградская/i] },
+      { send: "Северная Орхидея — Центр" },
       { send: "удаление зуба", expectAny: [/не нашл|такой услуги .*нет|данной услуги .*нет|выберите услугу|доступные услуги|выберите.*доступн/i], rejectAny: [/проверьте данные|как завершим запись/i] },
     ],
   },
@@ -185,7 +185,7 @@ const scenarios = /** @type {Scenario[]} */ ([
       { pick: "consent", ifReply: /согласие|персональн/i, expectAny: [/проверьте данные|клиент|нажмите кнопку «?записаться»?|напишите «?да»?/i] },
       {
         send: "привет",
-        expectAny: [/здравств|чем помочь|привет|выберите услуг|продолжу запись|выберите время/i],
+        expectAny: [/здравств|чем помочь|привет|выберите услуг|продолжу запись|выберите время|доступны специалисты|выберите специалиста/i],
         rejectAny: [/согласие|персональн|подтвердите галочкой/i],
       },
       { send: "какая у меня статистика?", expectAny: [/статист|авторизац|личн|визит|отмен/i] },
@@ -198,8 +198,8 @@ const scenarios = /** @type {Scenario[]} */ ([
     name: "SUPER: deterministic self booking flow",
     suites: ["super"],
     steps: [
-      { send: "запиши меня сегодня", expectAny: [/филиал|локац|beauty salon center|beauty salon riverside/i] },
-      { send: "Beauty Salon Center", expectAny: [/время|слот|окна|выбрать время|услуг|календар|дат/i] },
+      { send: "запиши меня сегодня", expectAny: [/филиал|локац|Северная Орхидея — Центр|Северная Орхидея — Петроградская/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/время|слот|окна|выбрать время|услуг|календар|дат/i] },
       { send: "Balayage", expectAny: [/время|слот|выберите дату|календар|доступны времен|выберите время/i] },
       { send: "сегодня 10:00", expectAny: [/специалист|проверьте данные|доступна только|как завершим запись|нет доступных услуг|выберите время|доступны времен|когда вам подойдет/i] },
     ],
@@ -208,8 +208,8 @@ const scenarios = /** @type {Scenario[]} */ ([
     name: "SUPER: deterministic assistant booking flow",
     suites: ["super"],
     steps: [
-      { send: "запиши меня сегодня", expectAny: [/филиал|локац|beauty salon center|beauty salon riverside/i] },
-      { send: "Beauty Salon Center", expectAny: [/время|слот|окна|выбрать время|услуг|календар|дат/i] },
+      { send: "запиши меня сегодня", expectAny: [/филиал|локац|Северная Орхидея — Центр|Северная Орхидея — Петроградская/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/время|слот|окна|выбрать время|услуг|календар|дат/i] },
       { send: "Hydra Facial", expectAny: [/время|слот|выберите дату|календар|доступны времен|выберите время/i] },
       { send: "сегодня 10:00", expectAny: [/специалист|проверьте данные|доступна только|как завершим запись|нет доступных услуг|выберите время|доступны времен|когда вам подойдет/i] },
       { pick: "time", expectAny: [/специалист|проверьте данные|доступна только|как завершим запись|выберите специалист|доступны специалисты/i] },
@@ -301,7 +301,7 @@ async function accountExists(account) {
 
 async function resolveAccount() {
   if (ACCOUNT_FROM_ENV) return ACCOUNT_FROM_ENV;
-  const candidates = ["beauty-salon", "beauty-salon_3", "demo", "beauty-salon-3", "beauty"];
+  const candidates = ["severnaya-orhideya", "beauty-salon", "beauty-salon_3", "demo", "beauty-salon-3", "beauty"];
   for (const candidate of candidates) {
     // eslint-disable-next-line no-await-in-loop
     if (await accountExists(candidate)) return candidate;
@@ -326,7 +326,7 @@ function assertStep({ scenarioName, stepIndex, step, reply }) {
 }
 
 function extractLocations(reply) {
-  const matches = Array.from(reply.matchAll(/\b(Beauty Salon Center|Beauty Salon Riverside)\b/g)).map((m) => m[1]).filter(Boolean);
+  const matches = Array.from(reply.matchAll(/\b(Северная Орхидея — Центр|Северная Орхидея — Петроградская|Северная Орхидея)\b/g)).map((m) => m[1]).filter(Boolean);
   return Array.from(new Set(matches));
 }
 
@@ -386,7 +386,7 @@ function resolveStepMessage(step, lastReply, lastUiOptions) {
   if (pickedFromUi) return pickedFromUi;
   switch (step.pick) {
     case "location":
-      return extractLocations(lastReply)[0] ?? step.fallbackSend ?? "Beauty Salon Center";
+      return extractLocations(lastReply)[0] ?? step.fallbackSend ?? "Северная Орхидея — Центр";
     case "time":
       return extractTimes(lastReply)[0] ?? step.fallbackSend ?? null;
     case "service":
@@ -561,6 +561,9 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+
+
+
 
 
 

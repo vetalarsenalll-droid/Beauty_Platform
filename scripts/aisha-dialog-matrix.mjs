@@ -12,7 +12,7 @@ const stageTemplates = [
     name: "await-service",
     setup: [
       { send: "записаться хочу", expectAny: [/филиал|локац|beauty salon/i] },
-      { send: "Beauty Salon Center", expectAny: [/услуг|выберите услугу|доступн/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/услуг|выберите услугу|доступн/i] },
     ],
     resume: { send: "Balayage", expectAny: [/времен|выберите время|проверьте данные|доступна только|выберите дату|календар|дата/i] },
   },
@@ -21,7 +21,7 @@ const stageTemplates = [
     name: "await-time",
     setup: [
       { send: "записаться хочу", expectAny: [/филиал|локац|beauty salon/i] },
-      { send: "Beauty Salon Center", expectAny: [/услуг|выберите услугу|доступн/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/услуг|выберите услугу|доступн/i] },
       { send: "Balayage", expectAny: [/времен|выберите время|проверьте данные|доступна только|выберите дату|календар|дата/i] },
     ],
     resume: { send: "12:45", expectAny: [/услуг|специалист|проверьте данные|доступна только|выберите дату|календар|дата|свободных мест|другой день/i] },
@@ -29,7 +29,7 @@ const stageTemplates = [
 ];
 
 const interruptionCases = [
-  { id: "address", send: "а адреса филиалов какие?", expectAny: [/адреса филиалов|адрес|tverskaya|kutuzovsky|center|riverside/i] },
+  { id: "address", send: "а адреса филиалов какие?", expectAny: [/адреса филиалов|адрес|tverskaya|kutuzovsky|невск|каменноостров|московск|center|riverside/i] },
   { id: "phone", send: "какой у вас номер?", expectAny: [/номер|телефон|\+7|недоступ/i] },
   { id: "hours", send: "до скольки работаете?", expectAny: [/работ|график|09:00|21:00|часы/i] },
   { id: "salon-name", send: "как салон называется?", expectAny: [/салон|называется|beauty/i] },
@@ -54,7 +54,7 @@ const specialistDeepDiveCases = [
     id: "specialist-other-services",
     steps: [
       { send: "записаться хочу", expectAny: [/филиал|локац|beauty salon/i] },
-      { send: "Beauty Salon Center", expectAny: [/услуг|выберите услугу|доступн/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/услуг|выберите услугу|доступн/i] },
       { send: "Balayage", expectAny: [/времен|выберите время|проверьте данные|доступна только|выберите дату|календар|дата/i] },
       { send: "02.03.2026", expectAny: [/времен|выберите время|свободных|свободное время|есть свободное|выберите дату|календар/i] },
       { send: "13:15", expectAny: [/специалист|проверьте данные|доступна только|свободных мест|другой день/i] },
@@ -67,7 +67,7 @@ const specialistDeepDiveCases = [
     id: "slot-specific-services",
     steps: [
       { send: "записаться хочу", expectAny: [/филиал|локац|beauty salon/i] },
-      { send: "Beauty Salon Center", expectAny: [/услуг|выберите услугу|доступн/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/услуг|выберите услугу|доступн/i] },
       { send: "02.03.2026", expectAny: [/времен|выберите время|свободных|свободное время|есть свободное|выберите дату|календар/i] },
       { send: "12:45", expectAny: [/доступны услуги|выберите услугу|свободных мест|другой день|нет доступных услуг/i] },
       { send: "а какие услуги доступны именно на это время?", expectAny: [/в 12:45|на это время|доступны услуги|выберите услугу/i] },
@@ -148,7 +148,7 @@ async function accountExists(account) {
 
 async function resolveAccount() {
   if (ACCOUNT_FROM_ENV) return ACCOUNT_FROM_ENV;
-  const candidates = ["beauty-salon", "beauty-salon_3", "demo", "beauty-salon-3", "beauty"];
+  const candidates = ["severnaya-orhideya", "beauty-salon", "beauty-salon_3", "demo", "beauty-salon-3", "beauty"];
   for (const candidate of candidates) {
     // eslint-disable-next-line no-await-in-loop
     if (await accountExists(candidate)) return candidate;
@@ -296,5 +296,6 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+
 
 

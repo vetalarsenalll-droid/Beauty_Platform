@@ -1,4 +1,4 @@
-﻿import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -447,11 +447,8 @@ function serviceByText(messageNorm: string, services: ServiceLite[]) {
     return null;
   }
   if (/гель/.test(messageNorm)) return services.find((x) => /gel polish|гель/.test(norm(x.name))) ?? null;
-  if (/(пилинг|peeling)/i.test(messageNorm)) return services.find((x) => /(пилинг|peeling)/i.test(norm(x.name))) ?? null;
   if (/педик/.test(messageNorm)) return services.find((x) => /pedicure|педик/.test(norm(x.name))) ?? null;
   if (/маник/.test(messageNorm)) return services.find((x) => /manicure|маник/.test(norm(x.name))) ?? null;
-  if (/(ресниц|lashes|lash)/i.test(messageNorm)) return services.find((x) => /(ресниц|lashes|lash)/i.test(norm(x.name))) ?? null;
-  if (/(бров|brow)/i.test(messageNorm)) return services.find((x) => /(бров|brow)/i.test(norm(x.name))) ?? null;
   return null;
 }
 
@@ -686,6 +683,16 @@ function hasKnownServiceNameInText(text: string, services: ServiceLite[]) {
   });
 }
 
+
+function hasKnownLocationNameInText(text: string, locations: LocationLite[]) {
+  const replyNorm = norm(text);
+  return locations.some((l) => {
+    const ln = norm(l.name);
+    const ad = norm(l.address ?? "");
+    return (ln && replyNorm.includes(ln)) || (ad && replyNorm.includes(ad));
+  });
+}
+
 function looksLikeServiceClaimInReply(text: string) {
   const replyNorm = norm(text);
   return (
@@ -817,7 +824,7 @@ function asksAssistantQualification(messageNorm: string) {
 }
 
 function isOutOfDomainPrompt(messageNorm: string) {
-  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди|пушкин|пушкина)/i.test(
+  return /(анекдот|анегдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди|пушкин|пушкина)/i.test(
     messageNorm,
   );
 }
@@ -825,7 +832,8 @@ function isOutOfDomainPrompt(messageNorm: string) {
 function isGeneralQuestionOutsideBooking(messageNorm: string) {
   const hasQuestionCue =
     messageNorm.includes("?") ||
-    /^(кто|что|почему|зачем|как|сколько|где|когда|какой|какая|какие|какую)\b/i.test(messageNorm);
+    /^(кто|что|почему|зачем|как|сколько|где|когда|какой|какая|какие|какую|в чем|о чем)\b/i.test(messageNorm) ||
+    /^(расскажи|объясни|обьясни|подскажи|посоветуй|поделись|поговорим|давай\s+поговорим)\b/i.test(messageNorm);
   if (!hasQuestionCue) return false;
 
   const bookingOrAccountCue =
@@ -851,6 +859,9 @@ function looksLikeHardBookingPushReply(replyText: string) {
 function buildOutOfScopeConversationalReply(messageNorm: string) {
   if (asksWhyNoAnswer(messageNorm)) {
     return "Я не игнорирую вас. По темам вне записи отвечаю коротко и без выдумок. Можем продолжить разговор или перейти к записи.";
+  }
+  if (/(в\s+ч[её]м\s+смысл|смысл\s+ан[еэ]гдот|объясни\s+шутк|поясни\s+шутк)/i.test(messageNorm)) {
+    return "Смысл обычно в игре слов: это лёгкая шутка без скрытого подтекста. Если хотите, расскажу ещё одну покороче.";
   }
   if (/(кто убил кеннед|убил кенеди|убийств.*кеннед)/i.test(messageNorm)) {
     return "По официальной версии Ли Харви Освальд. Если хотите, коротко расскажу и альтернативные версии без споров.";
@@ -908,6 +919,26 @@ function countConsecutiveNonBookingUserTurns(recentMessages: Array<{ role: strin
   return count;
 }
 
+function countConsecutiveToxicUserTurns(recentMessages: Array<{ role: string; content: string }>) {
+  let count = 0;
+  for (const m of recentMessages) {
+    if (m.role !== "user") continue;
+    const t = norm(m.content ?? "");
+    if (/(сучк|сука|туп|идиот|дебил|нахер|нахуй|говно|херня)/i.test(t)) {
+      count += 1;
+      continue;
+    }
+    break;
+  }
+  return count;
+}
+
+function buildToxicReply(level: number) {
+  if (level >= 3) return "Остановлю разговор в таком тоне. Если захотите, вернемся к записи или вашим визитам.";
+  if (level === 2) return "Понимаю эмоции, но давайте без оскорблений. Могу помочь по записи и услугам.";
+  return "Понимаю, что вы раздражены. Давайте общаться уважительно, и я помогу по делу.";
+}
+
 function buildBookingBridgeFallback(
   messageNorm: string,
   hints?: { serviceName?: string | null; date?: string | null; timePreference?: "morning" | "day" | "evening" | null },
@@ -942,8 +973,10 @@ function buildBookingReengageUi(args: { locations: LocationLite[]; services: Ser
     options.push({ label: `Показать время на ${dateLabel}`, value: `покажи время на ${dateLabel}` });
     options.push({ label: `Показать услуги на ${dateLabel}`, value: `какие услуги доступны на ${dateLabel}` });
     options.push({ label: `Показать специалистов на ${dateLabel}`, value: `какие специалисты доступны на ${dateLabel}` });
+    options.push({ label: "Мои записи", value: "какие у меня записи" });
   } else {
     options.push({ label: "Записаться сегодня", value: "запиши меня сегодня" });
+    options.push({ label: "Мои записи", value: "какие у меня записи" });
     options.push({ label: "Показать время", value: "покажи свободное время" });
     options.push({ label: "Показать услуги", value: "какие у вас есть услуги" });
     options.push({ label: "Показать специалистов", value: "какие специалисты у вас есть" });
@@ -954,6 +987,27 @@ function buildBookingReengageUi(args: { locations: LocationLite[]; services: Ser
   }
 
   return { kind: "quick_replies", options };
+}
+
+function buildChatOnlyActionUi(): ChatUi {
+  return {
+    kind: "quick_replies",
+    options: [
+      { label: "Записаться", value: "запиши меня сегодня" },
+      { label: "Мои записи", value: "какие у меня записи" },
+      { label: "Услуги", value: "какие у вас есть услуги" },
+      { label: "Специалисты", value: "какие специалисты у вас есть" },
+    ],
+  };
+}
+
+function keepReplyShort(text: string, maxLen = 220) {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return cleaned;
+  const parts = cleaned.split(/(?<=[.!?])\s+/u).filter(Boolean);
+  const twoSentences = parts.slice(0, 2).join(" ").trim();
+  const compact = twoSentences || cleaned;
+  return compact.length <= maxLen ? compact : `${compact.slice(0, maxLen - 1).trim()}…`;
 }
 
 function asksSpecialistsByShortText(messageNorm: string) {
@@ -1555,7 +1609,6 @@ export async function POST(request: Request) {
     const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
     const explicitAssistantQualification = asksAssistantQualification(norm(messageForRouting));
     const explicitAbuseCue = has(messageForRouting, /(сучк|сука|туп|идиот|дебил|нахер|нахуй|говно|херня)/i);
-    const explicitAddressCue = has(messageForRouting, /(где находится|где находитесь|где ваш салон|адрес|как добраться|где вы работаете|филиал|локац)/i);
     const explicitOutOfScopeCue = isOutOfDomainPrompt(norm(messageForRouting));
     const explicitPauseConversation = isPauseConversationMessage(norm(messageForRouting));
     const explicitNearestAvailability = asksNearestAvailability(norm(messageForRouting));
@@ -1570,6 +1623,11 @@ export async function POST(request: Request) {
     const explicitDateBookingRequest =
       explicitBookingStartByDatePhrase ||
       (explicitCalendarCue && has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu));
+    const explicitStandaloneDateBookingCue =
+      !hasDraftContextEarly &&
+      !explicitDateTimeQuery &&
+      !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i) &&
+      (/^\s*(?:на\s+)?(?:сегодня|завтра|послезавтра)\s*$/iu.test(messageForRouting) || explicitDateOnlyInput);
     const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
     const explicitAlternativeSpecialistsInDraft =
       hasDraftContextEarly &&
@@ -1611,6 +1669,7 @@ export async function POST(request: Request) {
     if (explicitCalendarAvailability) intent = "ask_availability";
     if (hasDraftContextEarly && d.locationId && d.serviceId && !d.time && explicitDateOnlyInput) intent = "booking_start";
     if (explicitDateBookingRequest) intent = "booking_start";
+    if (explicitStandaloneDateBookingCue) intent = "booking_start";
     if (has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) && !explicitDateTimeQuery && !explicitBookingDecline && !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i)) intent = "booking_start";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
@@ -2078,7 +2137,7 @@ export async function POST(request: Request) {
       !explicitDateTimeQuery &&
       !shouldRunBookingFlow &&
       !explicitServiceComplaint &&
-      (intent === "smalltalk" || intent === "out_of_scope");
+      (intent === "smalltalk" || intent === "out_of_scope" || (intent === "unknown" && !isBookingOrAccountCue(t)));
     const generatedSmalltalk = shouldGenerateSmalltalk
       ? await runAishaSmallTalkReply({
           accountId: resolved.account.id,
@@ -2100,6 +2159,7 @@ export async function POST(request: Request) {
       : null;
 
     const consecutiveNonBookingTurns = countConsecutiveNonBookingUserTurns(recentMessages);
+    const consecutiveToxicTurns = countConsecutiveToxicUserTurns(recentMessages);
     const hasBookingVerbCue = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|хочу|сделать|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
     const hasServiceTopicCue = mentionsServiceTopic(t) || Boolean(serviceByText(t, services));
 
@@ -2278,7 +2338,10 @@ export async function POST(request: Request) {
           reply = buildOutOfScopeConversationalReply(norm(messageForRouting));
         }
       } else if (intent === "abuse_or_toxic") {
-        reply = "Давайте общаться уважительно. Я помогу с записью и вопросами по услугам.";
+        reply = buildToxicReply(consecutiveToxicTurns);
+        if (consecutiveToxicTurns >= 2) {
+          nextUi = buildChatOnlyActionUi();
+        }
       } else if (intent === "post_completion_smalltalk") {
         reply = "Здорово, рада, что вам понравилось. Если нужно, помогу с записью.";
       } else if (intent === "smalltalk") {
@@ -2464,14 +2527,8 @@ export async function POST(request: Request) {
               { label: "Показать другие услуги", value: "какие услуги есть" },
             ],
           };
-                } else {
-          const sample = servicesByCategory
-            .slice(0, 3)
-            .map((x) => x.name + " — от " + Math.round(x.basePrice) + " ₽, от " + x.baseDurationMin + " мин")
-            .join("; ");
-          reply = sample
-            ? "Точное совпадение не нашла. По стоимости могу сориентировать так: " + sample + ". Выберите услугу кнопкой ниже."
-            : "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
+        } else {
+          reply = "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
           nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(services, servicesByCategory) };
         }
       } else if (mentionsServiceTopic(t)) {
@@ -2493,7 +2550,9 @@ export async function POST(request: Request) {
           nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(services, servicesByCategory) };
         }
       } else {
-        if (isOutOfDomainPrompt(t) || isGeneralQuestionOutsideBooking(t)) {
+        if (generatedSmalltalk && route === "chat-only" && !isBookingOrAccountCue(t)) {
+          reply = generatedSmalltalk;
+        } else if (isOutOfDomainPrompt(t) || isGeneralQuestionOutsideBooking(t)) {
           reply = buildOutOfScopeConversationalReply(t);
         } else {
           reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
@@ -2521,11 +2580,33 @@ export async function POST(request: Request) {
       if (naturalized) reply = naturalized;
     }
 
+    const isChatOnlyGeneralTurn = route === "chat-only" && !hasDraftContext && !isBookingOrAccountCue(t);
+    const isClarifyingFollowUpTurn =
+      isChatOnlyGeneralTurn &&
+      /(?:в\s+ч[её]м\b|о\s+ч[её]м\b|что\s+име(?:л|ла)\s+в\s+виду|поясни|объясни|расшифруй)/iu.test(t) &&
+      !isBookingOrAccountCue(norm(lastAssistantText));
+    const shouldHardReturnToDomain =
+      isChatOnlyGeneralTurn &&
+      (intent === "smalltalk" || intent === "out_of_scope") &&
+      !explicitDateTimeQuery &&
+      consecutiveNonBookingTurns >= 4 &&
+      !isClarifyingFollowUpTurn;
+
+    if (isChatOnlyGeneralTurn) {
+      reply = keepReplyShort(reply, 220);
+    }
+
+    if (shouldHardReturnToDomain) {
+      reply = "Могу коротко поддержать разговор, но чтобы быть полезной, лучше перейдем к записи или вашим визитам.";
+      nextUi = buildChatOnlyActionUi();
+    }
+
     if (
       shouldSoftReturnToBooking &&
       route === "chat-only" &&
       !hasDraftContext &&
-      !isBookingOrAccountCue(t)
+      !isBookingOrAccountCue(t) &&
+      !shouldHardReturnToDomain
     ) {
       const bridgeCandidate = (contextualBookingBridge ?? "").trim();
       const allowModelBridge = !explicitOutOfScopeCue && !isGeneralQuestionOutsideBooking(t) && !isOutOfDomainPrompt(t);
@@ -2557,7 +2638,8 @@ export async function POST(request: Request) {
       (intent === "smalltalk" || intent === "out_of_scope") &&
       !hasDraftContext &&
       !isBookingOrAccountCue(t) &&
-      looksLikeHardBookingPushReply(reply)
+      looksLikeHardBookingPushReply(reply) &&
+      !shouldHardReturnToDomain
     ) {
       const bridge = "Если хотите, могу сразу перейти к записи и подобрать удобное время.";
       const base = buildOutOfScopeConversationalReply(t);
@@ -2572,6 +2654,12 @@ export async function POST(request: Request) {
     );
 
     reply = sanitizeAssistantReplyText(reply);
+    const looksLikeLocationClaimInReply = /(?:филиал|локац|адрес).*(?:наход|располож|поs+адресу)/i.test(norm(reply));
+    const locationGuardEligibleIntent = intent === "smalltalk" || intent === "out_of_scope" || intent === "unknown";
+    if (route === "chat-only" && locationGuardEligibleIntent && !explicitDateTimeQuery && looksLikeLocationClaimInReply && locations.length > 0 && !hasKnownLocationNameInText(reply, locations)) {
+      reply = "По локациям покажу только актуальные данные аккаунта. Выберите филиал кнопкой ниже.";
+      nextUi = { kind: "quick_replies", options: locations.map((x) => ({ label: x.name, value: x.name })) };
+    }
     if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
       reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
       nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(services, services) };
@@ -2592,7 +2680,7 @@ export async function POST(request: Request) {
       nextUi = null;
     }
 
-    if (route === "chat-only" && !isBookingOrAccountCue(t) && intent !== "contact_address" && intent !== "contact_phone" && intent !== "working_hours" && intent !== "ask_specialists" && intent !== "ask_services" && intent !== "ask_price" && !/^если захотите, помогу с записью/i.test(norm(reply)) && /^(?:выберите\s+филиал)/i.test(norm(reply))) {
+    if (route === "chat-only" && !isBookingOrAccountCue(t) && !shouldHardReturnToDomain && !/^если захотите, помогу с записью/i.test(norm(reply)) && /^(?:выберите\s+филиал)/i.test(norm(reply))) {
       const bridge = "Ниже можно сразу выбрать удобный шаг для записи.";
       const base = buildOutOfScopeConversationalReply(t);
       reply = base.replace(/[.!?]+$/u, "") + ". " + bridge;
