@@ -1,4 +1,4 @@
-import { jsonError, jsonOk } from "@/lib/api";
+﻿import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
   getAccountSlotStepMinutes,
@@ -125,7 +125,12 @@ export async function GET(request: Request) {
 
     serviceId
       ? prisma.service.findFirst({
-          where: { id: serviceId, accountId: resolved.account.id },
+          where: {
+            id: serviceId,
+            accountId: resolved.account.id,
+            isActive: true,
+            locations: { some: { locationId } },
+          },
           select: {
             id: true,
             baseDurationMin: true,
@@ -139,6 +144,10 @@ export async function GET(request: Request) {
         })
       : Promise.resolve(null),
   ]);
+
+  if (serviceId && !service) {
+    return jsonOk({ slots: [] });
+  }
 
   // ✅ Теперь график строго по локации: на специалиста должен быть максимум один entry на день.
   // Но на всякий случай оставим "последний победил" (если вдруг в БД дубликаты).

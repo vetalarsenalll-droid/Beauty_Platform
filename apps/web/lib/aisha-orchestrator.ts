@@ -316,6 +316,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     "Ты можешь поддерживать короткий вежливый разговор на разные бытовые темы.",
     "Если тема не про запись, отвечай нейтрально и мягко возвращай диалог к помощи по записи.",
     "Отвечай только на русском, естественно, коротко (1-3 предложения).",
+    "Избегай шаблонных канцелярских фраз и повторяющихся заготовок.",
     "Всегда обращайся к пользователю на Вы, не переходи на ты.",
     "Не используй разговорное слово «подсобить».",
     "Никогда не говори, что ты NLU-модуль, классификатор или системный компонент.",
@@ -360,6 +361,101 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
   }
 }
 
+
+
+export type AishaChatAction =
+  | "answer_only"
+  | "show_locations"
+  | "show_services"
+  | "show_specialists"
+  | "start_booking"
+  | "show_contact_phone"
+  | "show_contact_address"
+  | "show_working_hours";
+
+type RunAishaChatActionArgs = {
+  accountId: number;
+  message: string;
+  assistantName: string;
+  recentMessages: Array<{ role: string; content: string }>;
+  accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
+  locations: Array<{ id: number; name: string; address: string | null }>;
+  services: Array<{ id: number; name: string; baseDurationMin: number; basePrice: number }>;
+  specialists: Array<{ id: number; name: string; levelName?: string | null }>;
+};
+
+type RunAishaChatActionResult = {
+  action: AishaChatAction;
+  reply: string | null;
+  confidence: number;
+  source: "llm" | "fallback";
+};
+
+function normalizeChatAction(parsed: Record<string, unknown>): RunAishaChatActionResult {
+  const allowed: AishaChatAction[] = [
+    "answer_only",
+    "show_locations",
+    "show_services",
+    "show_specialists",
+    "start_booking",
+    "show_contact_phone",
+    "show_contact_address",
+    "show_working_hours",
+  ];
+  const actionRaw = String(parsed.action ?? "answer_only") as AishaChatAction;
+  const action = allowed.includes(actionRaw) ? actionRaw : "answer_only";
+  const reply = typeof parsed.reply === "string" && parsed.reply.trim() ? parsed.reply.trim().slice(0, 420) : null;
+  const confidence =
+    typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+      ? Math.max(0, Math.min(1, parsed.confidence))
+      : 0.6;
+  return { action, reply, confidence, source: "llm" };
+}
+
+export async function runAishaChatAction(args: RunAishaChatActionArgs): Promise<RunAishaChatActionResult> {
+  const scopeKey = `account:${args.accountId}`;
+  if (!canUseNlu(scopeKey)) {
+    return { action: "answer_only", reply: null, confidence: 0, source: "fallback" };
+  }
+
+  const context = {
+    profile: args.accountProfile,
+    locations: args.locations.map((x) => ({ id: x.id, name: x.name, address: x.address })),
+    services: args.services.map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })),
+    specialists: args.specialists.map((x) => ({ id: x.id, name: x.name, levelName: x.levelName ?? null })),
+    recentMessages: args.recentMessages.slice(-8),
+  };
+
+  const prompt = [
+    `Ты ${args.assistantName}, AI-ассистент записи салона.`,
+    "Определи действие для chat-only режима и дай короткий ответ на русском.",
+    "Не выдумывай факты. Используй только данные из CONTEXT.",
+    "Если пользователь спрашивает про филиалы/адреса -> show_locations/show_contact_address.",
+    "Если про услуги -> show_services.",
+    "Если про специалистов -> show_specialists.",
+    "Если явно хочет записаться -> start_booking.",
+    "Если вопрос общий -> answer_only.",
+    "Верни только JSON.",
+    'JSON schema: {"action":"answer_only","reply":"...","confidence":0.0}',
+    `CONTEXT: ${JSON.stringify(context)}`,
+    `USER_MESSAGE: ${args.message}`,
+  ].join("\n");
+
+  try {
+    const completion = await createGigaChatCompletion([
+      { role: "system", content: "Классифицируй действие и ответь JSON-объектом." },
+      { role: "user", content: prompt },
+    ]);
+    const parsed = extractJsonObject(completion.content);
+    if (!parsed) return { action: "answer_only", reply: null, confidence: 0, source: "fallback" };
+    const out = normalizeChatAction(parsed);
+    markNluSuccess(scopeKey);
+    return out;
+  } catch {
+    markNluFailure(scopeKey);
+    return { action: "answer_only", reply: null, confidence: 0, source: "fallback" };
+  }
+}
 
 export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Promise<string | null> {
   if (!canUseNlu("account:" + args.accountId)) return null;

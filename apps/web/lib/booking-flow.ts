@@ -1277,7 +1277,16 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
   const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm);
-  const scopedServicesByCategory = filterServicesByCategory(scopedServices, selectedServiceCategoryFilter);
+
+  let servicesForSelection = scopedServices;
+  if (d.date && !d.time) {
+    const dayOffers = await getOffers(origin, account.slug, d.locationId!, d.date);
+    const availableServiceIds = new Set(
+      (dayOffers?.times ?? []).flatMap((slot) => (slot.services ?? []).map((svc) => svc.serviceId)),
+    );
+    servicesForSelection = scopedServices.filter((svc) => availableServiceIds.has(svc.id));
+  }
+  const servicesForSelectionByCategory = filterServicesByCategory(servicesForSelection, selectedServiceCategoryFilter);
   if (!d.serviceId) {
     if (d.date && d.time) {
       const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
@@ -1354,13 +1363,40 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         nextStatus: "COLLECTING",
       };
     }
-    if (shouldAskServiceClarification(messageNorm, scopedServicesByCategory)) {
-      const haircutOptions = scopedServicesByCategory.filter((x) => /(стриж|haircut)/i.test(x.name));
+    if (d.date && !d.time && !servicesForSelection.length) {
+      const nextDates = await findNearestDateWindows({
+        origin,
+        accountSlug: account.slug,
+        locations: locations.filter((x) => x.id === d.locationId),
+        fromDate: addDaysYmd(d.date, 1),
+        serviceId: null,
+        preference: null,
+        daysAhead: 45,
+        maxDates: 10,
+        limit: 24,
+      });
+      return {
+        handled: true,
+        reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} по текущему графику нет доступных услуг. Выберите другую дату.`,
+        nextStatus: "COLLECTING",
+        ui: nextDates.length
+          ? {
+              kind: "date_picker",
+              minDate: nextDates[0]!.date,
+              maxDate: nextDates[nextDates.length - 1]!.date,
+              initialDate: nextDates[0]!.date,
+              availableDates: nextDates.map((x) => x.date),
+            }
+          : null,
+      };
+    }
+    if (shouldAskServiceClarification(messageNorm, servicesForSelectionByCategory)) {
+      const haircutOptions = servicesForSelectionByCategory.filter((x) => /(стриж|haircut)/i.test(x.name));
       return {
         handled: true,
         reply: "Уточните услугу. Можно выбрать кнопкой ниже или написать услугу сообщением.",
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, haircutOptions, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, haircutOptions, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
       };
     }
     const asksServicesList = /(какие|что)\s+.*(услуг|процедур)|список\s+услуг|услуги\s+доступны/i.test(messageNorm);
@@ -1369,7 +1405,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} доступны услуги в течение дня. Выберите услугу, и затем я покажу доступное время.`,
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, servicesForSelectionByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
       };
     }
     return {
@@ -1378,7 +1414,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         ? `Выберите услугу на ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"}, и продолжу запись.`
         : "Выберите услугу, и продолжу запись.",
       nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(scopedServices, scopedServicesByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+      ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, servicesForSelectionByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
     };
   }
 

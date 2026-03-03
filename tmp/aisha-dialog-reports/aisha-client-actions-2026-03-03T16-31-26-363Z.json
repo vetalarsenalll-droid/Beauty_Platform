@@ -1,0 +1,24 @@
+{
+  "suite": "client-actions",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-03T16:31:16.438Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Client my bookings flow handles auth/result",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "какая у меня ближайшая запись",
+          "passed": false,
+          "error": "Client my bookings flow handles auth/result / step 1 (какая у меня ближайшая запись): expected one of /запись|авторизац|личн/i\nreply:\nСейчас не получилось ответить. Попробуйте еще раз.",
+          "reply": "Сейчас не получилось ответить. Попробуйте еще раз."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-03T16:31:26.361Z",
+  "durationMs": 9923
+}
