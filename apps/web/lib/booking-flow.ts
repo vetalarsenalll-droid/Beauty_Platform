@@ -1409,8 +1409,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if (!d.date) {
-    // If user already in booking path and chose location+service, default to today instead of forcing calendar.
-    if (bookingIntent && d.locationId && d.serviceId) {
+    // Only default to today when user asked for today explicitly;
+    // otherwise ask to choose date to avoid silent auto-selection.
+    const explicitTodayRequest = /(?:^|\s)(сегодня|today)(?:\s|$)/iu.test(messageNorm);
+    if (bookingIntent && d.locationId && d.serviceId && explicitTodayRequest) {
       d.date = todayYmd;
     }
     if (!d.date) {
@@ -1869,6 +1871,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 

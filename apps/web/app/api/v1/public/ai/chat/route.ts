@@ -467,6 +467,10 @@ function asksCurrentDateTime(text: string) {
   return asksCurrentDate(text) || asksCurrentTime(text) || has(text, /(какое сейчас число и время|date and time)/i);
 }
 
+function asksDraftServiceQuestion(text: string) {
+  return has(text, /(на какую услуг|какая у меня услуг|какую услуг.*записыва|что за услуг.*записыва|на что ты меня записываешь)/i);
+}
+
 function asksClientOwnName(text: string) {
   return has(text, /(как меня зовут|меня как зовут|знаешь как меня зовут|мое имя|моё имя|кто я)/i);
 }
@@ -571,14 +575,16 @@ function sanitizeAssistantReplyText(reply: string) {
     .replace(/подсобишь/gi, "поможешь")
     .replace(/подсобите/gi, "помогу")
     .replace(/для тебя/gi, "для вас")
-    .replace(/ты/gi, "вы")
-    .replace(/тебе/gi, "вам")
-    .replace(/тебя/gi, "вас")
+    .replace(/\bты\b/gi, "вы")
+    .replace(/\bтебе\b/gi, "вам")
+    .replace(/\bтебя\b/gi, "вас")
     .replace(/выбирай/gi, "выберите")
+    .replace(/выбери/gi, "выберите")
+    .replace(/выберитете/gi, "выберите")
     .replace(/подберем/gi, "подберу")
     .replace(/какую именно услугу вам нужно записать/gi, "на какую именно услугу вас нужно записать")
     .replace(/какую услугу вам нужно записать/gi, "на какую услугу вас нужно записать")
-    .replace(/Как могу помочь./g, "Как могу помочь?");
+    .replace(/Как могу помочь\./g, "Как могу помочь?");
 }
 
 function serviceQuickOption(service: ServiceLite) {
@@ -1656,6 +1662,7 @@ export async function POST(request: Request) {
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
     const explicitServiceSpecialistQuestion = asksWhoPerformsServices(norm(messageForRouting));
+    const explicitDraftServiceQuestion = asksDraftServiceQuestion(norm(messageForRouting));
     if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
     if (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
@@ -1774,6 +1781,12 @@ export async function POST(request: Request) {
         has(messageForRouting, /(услуг|запиш|заброни|время|слот|окошк|дат[ауеы])/i) ||
         !isConversationalHeuristicIntent(intent)
       );
+    const forceBookingOnDateOnlyInDraft =
+      hasDraftContext &&
+      explicitDateOnlyInput &&
+      !explicitBookingDecline &&
+      !forceClientActions &&
+      !explicitDateTimeQuery;
     if (hasDraftContext && explicitAvailabilityPeriod) {
       intent = "ask_availability";
     }
@@ -1795,7 +1808,7 @@ export async function POST(request: Request) {
       ? "chat-only"
       : forceClientActions
       ? "client-actions"
-      : forceBookingByContext || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft
+      : forceBookingByContext || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || forceBookingOnDateOnlyInDraft
       ? "booking-flow"
       : routeForIntent(intent);
     const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
@@ -1903,10 +1916,10 @@ export async function POST(request: Request) {
       has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/i) &&
       !asksServiceExistence(messageForRouting);
     const shouldEnrichDraftForBooking =
-      route === "booking-flow" || explicitBookingRequestCue || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || explicitServiceBookingIntent;
+      route === "booking-flow" || explicitBookingRequestCue || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || forceBookingOnDateOnlyInDraft || explicitServiceBookingIntent;
     const shouldRunBookingFlow =
       !forceChatOnlyInfoIntent &&
-      (route === "booking-flow" || explicitBookingRequestCue || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || explicitServiceBookingIntent) &&
+      (route === "booking-flow" || explicitBookingRequestCue || explicitBookingText || explicitAlternativeSpecialistsInDraft || shouldContinueBookingByContext || forceAssistantStageFlow || forceBookingOnPromptedLocationChoice || forceBookingOnServiceSelection || forceBookingAwaitingService || forceBookingOnSpecialistQueryInDraft || forceBookingOnDateOnlyInDraft || explicitServiceBookingIntent) &&
       intent !== "post_completion_smalltalk" &&
       !isGreetingText(messageForRouting) &&
       !hasPositiveFeedbackCue;
@@ -2269,6 +2282,22 @@ export async function POST(request: Request) {
           ],
         };
       }
+    } else if (explicitDraftServiceQuestion && d.serviceId) {
+      const selectedDraftService = services.find((s) => s.id === d.serviceId) ?? null;
+      const selectedDraftLocation = d.locationId ? locations.find((x) => x.id === d.locationId) ?? null : null;
+      if (selectedDraftService) {
+        const locationSuffix = selectedDraftLocation ? ` в филиале «${selectedDraftLocation.name}»` : "";
+        reply = `Сейчас записываю вас на услугу «${selectedDraftService.name}»${locationSuffix}.`;
+      } else {
+        reply = "Пока услуга в записи не выбрана. Могу показать доступные услуги и продолжить запись.";
+      }
+      nextUi = {
+        kind: "quick_replies",
+        options: [
+          { label: "Показать услуги", value: "какие услуги есть" },
+          { label: "Показать время", value: "покажи свободное время" },
+        ],
+      };
     } else if (shouldRunBookingFlow) {
       const hasBookingVerb = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|хочу|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
       const hasExplicitAvailabilityQuery =
@@ -2873,6 +2902,9 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
 
 
 
