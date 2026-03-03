@@ -1,4 +1,4 @@
-﻿import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
@@ -814,7 +814,7 @@ function asksAssistantQualification(messageNorm: string) {
 }
 
 function isOutOfDomainPrompt(messageNorm: string) {
-  return /(анекдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди|пушкин|пушкина)/i.test(
+  return /(анекдот|анегдот|шутк|стих|песн|космос|политик|футбол|баскетбол|курс валют|биткоин|погода в|новости мира|кеннед|кеннеди|кенеди|пушкин|пушкина)/i.test(
     messageNorm,
   );
 }
@@ -822,7 +822,8 @@ function isOutOfDomainPrompt(messageNorm: string) {
 function isGeneralQuestionOutsideBooking(messageNorm: string) {
   const hasQuestionCue =
     messageNorm.includes("?") ||
-    /^(кто|что|почему|зачем|как|сколько|где|когда|какой|какая|какие|какую)\b/i.test(messageNorm);
+    /^(кто|что|почему|зачем|как|сколько|где|когда|какой|какая|какие|какую|в чем|о чем)\b/i.test(messageNorm) ||
+    /^(расскажи|объясни|обьясни|подскажи|посоветуй|поделись|поговорим|давай\s+поговорим)\b/i.test(messageNorm);
   if (!hasQuestionCue) return false;
 
   const bookingOrAccountCue =
@@ -1588,6 +1589,11 @@ export async function POST(request: Request) {
     const explicitDateBookingRequest =
       explicitBookingStartByDatePhrase ||
       (explicitCalendarCue && has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu));
+    const explicitStandaloneDateBookingCue =
+      !hasDraftContextEarly &&
+      !explicitDateTimeQuery &&
+      !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i) &&
+      (/^\s*(?:на\s+)?(?:сегодня|завтра|послезавтра)\s*$/iu.test(messageForRouting) || explicitDateOnlyInput);
     const explicitAvailabilityCue = /(?:свобод|окошк|слот|врем|запис)/iu.test(messageForRouting);
     const explicitAlternativeSpecialistsInDraft =
       hasDraftContextEarly &&
@@ -1629,6 +1635,7 @@ export async function POST(request: Request) {
     if (explicitCalendarAvailability) intent = "ask_availability";
     if (hasDraftContextEarly && d.locationId && d.serviceId && !d.time && explicitDateOnlyInput) intent = "booking_start";
     if (explicitDateBookingRequest) intent = "booking_start";
+    if (explicitStandaloneDateBookingCue) intent = "booking_start";
     if (has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) && !explicitDateTimeQuery && !explicitBookingDecline && !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i)) intent = "booking_start";
     if (explicitServiceComplaint) intent = "smalltalk";
     if (explicitCapabilitiesPhrase) intent = "capabilities";
@@ -2096,7 +2103,7 @@ export async function POST(request: Request) {
       !explicitDateTimeQuery &&
       !shouldRunBookingFlow &&
       !explicitServiceComplaint &&
-      (intent === "smalltalk" || intent === "out_of_scope");
+      (intent === "smalltalk" || intent === "out_of_scope" || (intent === "unknown" && !isBookingOrAccountCue(t)));
     const generatedSmalltalk = shouldGenerateSmalltalk
       ? await runAishaSmallTalkReply({
           accountId: resolved.account.id,
@@ -2505,7 +2512,9 @@ export async function POST(request: Request) {
           nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(services, servicesByCategory) };
         }
       } else {
-        if (isOutOfDomainPrompt(t) || isGeneralQuestionOutsideBooking(t)) {
+        if (generatedSmalltalk && route === "chat-only" && !isBookingOrAccountCue(t)) {
+          reply = generatedSmalltalk;
+        } else if (isOutOfDomainPrompt(t) || isGeneralQuestionOutsideBooking(t)) {
           reply = buildOutOfScopeConversationalReply(t);
         } else {
           reply = "Я ассистент записи. Помогу с услугами, датами, временем и специалистами. Чем помочь?";
@@ -2534,11 +2543,16 @@ export async function POST(request: Request) {
     }
 
     const isChatOnlyGeneralTurn = route === "chat-only" && !hasDraftContext && !isBookingOrAccountCue(t);
+    const isClarifyingFollowUpTurn =
+      isChatOnlyGeneralTurn &&
+      /(?:в\s+ч[её]м\b|о\s+ч[её]м\b|что\s+име(?:л|ла)\s+в\s+виду|поясни|объясни|расшифруй)/iu.test(t) &&
+      !isBookingOrAccountCue(norm(lastAssistantText));
     const shouldHardReturnToDomain =
       isChatOnlyGeneralTurn &&
       (intent === "smalltalk" || intent === "out_of_scope") &&
       !explicitDateTimeQuery &&
-      consecutiveNonBookingTurns >= 3;
+      consecutiveNonBookingTurns >= 3 &&
+      !isClarifyingFollowUpTurn;
 
     if (isChatOnlyGeneralTurn) {
       reply = keepReplyShort(reply, 220);
