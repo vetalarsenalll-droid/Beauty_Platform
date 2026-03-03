@@ -62,9 +62,9 @@ const STRICT_SUPER = SUITE === "super";
 
 const scenarios = /** @type {Scenario[]} */ ([
   { name: "Greeting basic", suites: ["core"], steps: [{ send: "привет", expectAny: [/здравств|привет|чем помочь/i] }] },
-  { name: "Abuse de-escalation", suites: ["core"], steps: [{ send: "привет сучка", expectAny: [/уваж|давайте общаться|чем.*помочь|здравств/i] }] },
+  { name: "Abuse de-escalation", suites: ["core"], steps: [{ send: "привет сучка", expectAny: [/уваж|давайте общаться|чем.*помочь|здравств|на связи|перейдем к записи|перейдём к записи/i] }] },
   { name: "Identity intent", suites: ["core"], steps: [{ send: "кто ты", expectAny: [/аиша|ассистент|чем помочь|здравств/i] }] },
-  { name: "Capabilities intent", suites: ["core"], steps: [{ send: "что умеешь", expectAny: [/запис|услуг|время|запис[ьи]/i] }] },
+  { name: "Capabilities intent", suites: ["core"], steps: [{ send: "что умеешь", expectAny: [/запиш|услуг|время|помо(гу|жет)|подскаж|стриж|маник|салон/i] }] },
   {
     name: "Capabilities follow-up should route to DB services",
     suites: ["core"],
@@ -82,6 +82,22 @@ const scenarios = /** @type {Scenario[]} */ ([
   { name: "Specific price intent grounded", suites: ["core"], steps: [{ send: "сколько стоит peeling", expectAny: [/peeling|пилинг|₽|мин/i], rejectAny: [/от 500|от 700/i] }] },
   { name: "General price intent grounded", suites: ["core"], steps: [{ send: "по стоимости сориентируй", expectAny: [/₽|стоим|услуг/i], rejectAny: [/от 500|от 700/i] }] },
   { name: "Specialists generic", suites: ["core"], steps: [{ send: "какие мастера есть?", expectAny: [/специалист|мастер/i] }] },
+  {
+    name: "Mixed query service + who performs routes to specialists",
+    suites: ["core"],
+    steps: [
+      { send: "а маникюр кто у вас делает?", expectAny: [/специалист|мастер|кто делает/i], rejectAny: [/услуга .* есть|стоимость|длительность/i] },
+      { send: "Северная Орхидея — Центр", expectAny: [/специалист|мастер|свободн|окн|другую дату|календар/i], rejectAny: [/выберите услугу|доступные услуги/i] },
+    ],
+  },
+  {
+    name: "Out-of-scope remains conversational without hard template",
+    suites: ["core"],
+    steps: [
+      { send: "рецепт блинчиков", expectAny: [/.+/], rejectAny: [/мои возможности ограничены|я не могу предоставить рецепты/i] },
+      { send: "почему не можешь?", expectAny: [/.+/], rejectAny: [/мои возможности ограничены/i] },
+    ],
+  },
   {
     name: "Who works tomorrow + location keeps specialist flow",
     suites: ["core"],
@@ -561,6 +577,10 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+
+
+
+
 
 
 

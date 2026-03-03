@@ -1,0 +1,46 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-03T20:59:10.027Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": false,
+          "error": "Availability evening / step 1 (на вечер что есть?): expected one of /окна|время|слот|вечер|филиал/i\nreply:\nТакой услуги не нашла. Выберите, пожалуйста, из доступных ниже.",
+          "reply": "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-03T20:59:12.118Z",
+  "durationMs": 2091
+}

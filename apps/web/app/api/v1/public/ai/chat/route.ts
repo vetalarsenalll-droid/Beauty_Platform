@@ -1030,7 +1030,7 @@ function asksSpecialistsByShortText(messageNorm: string) {
 }
 
 function asksWhoPerformsServices(messageNorm: string) {
-  return /(?:кто\s+делает|кто\s+выполняет|кто\s+оказывает|какие\s+мастера|какой\s+мастер|какие\s+специалисты|у\s+каких\s+мастеров|кто\s+из\s+мастеров|кто\s+завтра\s+из\s+мастеров\s+работает|кто\s+работает|кто\s+завтра\s+работает|какие\s+мастера\s+у\s+вас\s+есть|какие\s+специалисты\s+у\s+вас\s+есть|какие\s+мастера\s+есть)/iu.test(messageNorm);
+  return /(?:кто\s+(?:у\s+вас\s+)?(?:делает|выполняет|оказывает)|кто\s+.*(?:делает|выполняет|оказывает)|какие\s+мастера|какой\s+мастер|какие\s+специалисты|у\s+каких\s+мастеров|кто\s+из\s+мастеров|кто\s+завтра\s+из\s+мастеров\s+работает|кто\s+работает|кто\s+завтра\s+работает|какие\s+мастера\s+у\s+вас\s+есть|какие\s+специалисты\s+у\s+вас\s+есть|какие\s+мастера\s+есть)/iu.test(messageNorm);
 }
 
 function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {
@@ -1594,6 +1594,7 @@ export async function POST(request: Request) {
     const explicitCapabilitiesPhrase = has(messageForRouting, /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i);
     const explicitSmalltalkCue = has(messageForRouting, /(как оно|чем занята|чем занят|расскажи что[-\s]?нибудь|поболтаем|давай поговорим|поговорим|что нового|как дела|как жизнь|че каво|чё каво)/i);
     const explicitServicesFollowUp = asksServicesFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
+    const explicitServiceListRequest = has(messageForRouting, /(?:какие\s+именно\s+есть|что\s+именно\s+есть|какие\s+услуги\s+есть|покажи\s+услуги|список\s+услуг)/i);
     const explicitLocationsFollowUp = asksLocationsFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
     const explicitServiceFollowUp =
       isServiceFollowUpText(norm(messageForRouting)) &&
@@ -1654,11 +1655,14 @@ export async function POST(request: Request) {
     const explicitCalendarAvailability = explicitCalendarCue && explicitAvailabilityCue;
     const explicitUnknownServiceLike = Boolean(extractRequestedServicePhrase(norm(messageForRouting)));
     const serviceRecognizedInMessage = Boolean(serviceByText(norm(messageForRouting), services));
+    const explicitServiceSpecialistQuestion = asksWhoPerformsServices(norm(messageForRouting));
     if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
     if (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) intent = "cancel_my_booking";
     if (explicitClientCancelConfirm) intent = "cancel_my_booking";
     if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
     if (heuristicIntent === "ask_specialists" && intent === "working_hours") intent = "ask_specialists";
+    if (explicitServiceSpecialistQuestion) intent = "ask_specialists";
+    if ((explicitServiceListRequest || explicitServicesFollowUp) && !explicitAvailabilityPeriod) intent = "ask_services";
 // If user clicked/typed a concrete service right after catalog, continue booking flow.
     if (serviceSelectionFromCatalog && !explicitServiceComplaint) {
       intent = "booking_start";
@@ -1818,10 +1822,15 @@ export async function POST(request: Request) {
         : null;
 
     const chatActionConflictsWithSpecialists =
-      (chatActionResult?.action === "show_working_hours" || chatActionResult?.action === "show_contact_address") &&
-      (heuristicIntent === "ask_specialists" || asksWhoPerformsServices(norm(messageForRouting)) || asksSpecialistsByShortText(norm(messageForRouting)) || /мастер|специалист/i.test(norm(messageForRouting)));
+      (chatActionResult?.action === "show_working_hours" ||
+        chatActionResult?.action === "show_contact_address" ||
+        chatActionResult?.action === "show_services") &&
+      (heuristicIntent === "ask_specialists" ||
+        asksWhoPerformsServices(norm(messageForRouting)) ||
+        asksSpecialistsByShortText(norm(messageForRouting)) ||
+        /мастер|специалист|кто\s+.*(?:делает|выполняет|оказывает)/i.test(norm(messageForRouting)));
 
-    if (chatActionResult?.source === "llm" && chatActionResult.confidence >= 0.45 && !chatActionConflictsWithSpecialists) {
+    if (chatActionResult?.source === "llm" && chatActionResult.confidence >= 0.45 && !chatActionConflictsWithSpecialists && !explicitServiceSpecialistQuestion) {
       if (chatActionResult.action === "show_locations" || chatActionResult.action === "show_contact_address") intent = "contact_address";
       if (chatActionResult.action === "show_services") intent = "ask_services";
       if (chatActionResult.action === "show_specialists") intent = "ask_specialists";
@@ -2402,6 +2411,8 @@ export async function POST(request: Request) {
         const locationFromMessage = locationByText(t, locations);
         const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
         const specialistFromMessage = selectedSpecialistByMessage;
+        const selectedServiceForSpecialists = serviceByText(t, services) ?? (d.serviceId ? services.find((x) => x.id === d.serviceId) ?? null : null);
+        if (selectedServiceForSpecialists && d.serviceId !== selectedServiceForSpecialists.id) d.serviceId = selectedServiceForSpecialists.id;
 
         if (specialistFromMessage && explicitSpecialistDetailsCue) {
           const specialistLocations = locations
@@ -2409,6 +2420,7 @@ export async function POST(request: Request) {
             .map((loc) => loc.name);
           const specialistServices = services
             .filter((srv) => specialistFromMessage.serviceIds.includes(srv.id))
+            .filter((srv) => !selectedServiceForSpecialists || srv.id === selectedServiceForSpecialists.id)
             .map((srv) => srv.name);
           const bio = (specialistFromMessage.bio ?? "").trim();
           const locText = specialistLocations.length ? specialistLocations.join(", ") : "локация уточняется";
@@ -2424,7 +2436,9 @@ export async function POST(request: Request) {
                 } else if (selectedLocationId) {
           d.locationId = selectedLocationId;
           const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
-          const scoped = specialists.filter((s) => s.locationIds.includes(selectedLocationId));
+          const scoped = specialists
+            .filter((s) => s.locationIds.includes(selectedLocationId))
+            .filter((s) => !selectedServiceForSpecialists || (s.serviceIds?.length ? s.serviceIds.includes(selectedServiceForSpecialists.id) : true));
           const scopedByLevel = filterSpecialistsByLevel(scoped, selectedSpecialistLevelFilter);
           if (scoped.length) {
             const locationDetails = selectedLocation?.address ? ` Адрес: ${selectedLocation.address}.` : "";
@@ -2433,24 +2447,26 @@ export async function POST(request: Request) {
                 ? `Уровень: ${selectedSpecialistLevelFilter}. `
                 : "";
             if (scopedByLevel.length) {
-              reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты.${locationDetails} ${levelPrefix}Выберите специалиста кнопкой ниже.`;
+              reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} доступны специалисты${selectedServiceForSpecialists ? ` по услуге «${selectedServiceForSpecialists.name}»` : ""}.${locationDetails} ${levelPrefix}Выберите специалиста кнопкой ниже.`;
               nextUi = { kind: "quick_replies", options: specialistOptionsWithTabs(scoped, scopedByLevel) };
             } else {
-              reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} нет специалистов с уровнем «${selectedSpecialistLevelFilter}». Выберите другой уровень кнопкой ниже.`;
+              reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}в ${selectedLocation?.name ?? "выбранной локации"} нет специалистов с уровнем «${selectedSpecialistLevelFilter}»${selectedServiceForSpecialists ? ` по услуге «${selectedServiceForSpecialists.name}»` : ""}. Выберите другой уровень кнопкой ниже.`;
               nextUi = { kind: "quick_replies", options: specialistLevelTabOptions(scoped) };
             }
           } else {
-            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов в расписании.`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}по этой локации не нашла специалистов${selectedServiceForSpecialists ? ` для услуги «${selectedServiceForSpecialists.name}»` : ""} в расписании.`;
           }
         } else {
           const byLocation = locations
             .map((loc) => ({
               loc,
-              items: specialists.filter((s) => s.locationIds.includes(loc.id)),
+              items: specialists
+                .filter((s) => s.locationIds.includes(loc.id))
+                .filter((s) => !selectedServiceForSpecialists || (s.serviceIds?.length ? s.serviceIds.includes(selectedServiceForSpecialists.id) : true)),
             }))
-            ;
+            .filter((x) => x.items.length > 0);
           if (byLocation.length) {
-            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}доступны специалисты по филиалам. Выберите филиал кнопкой ниже.`;
+            reply = `${dateForSpecialists ? `На ${formatYmdRu(dateForSpecialists)} ` : ""}доступны специалисты по филиалам${selectedServiceForSpecialists ? ` для услуги «${selectedServiceForSpecialists.name}»` : ""}. Выберите филиал кнопкой ниже.`;
             nextUi = { kind: "quick_replies", options: byLocation.map((x) => ({ label: x.loc.name, value: x.loc.name })) };
           } else {
             reply = "Сейчас не нашла специалистов в расписании. Могу проверить по конкретной локации и дате.";
@@ -2465,7 +2481,53 @@ export async function POST(request: Request) {
             ? `Категория «${selectedServiceCategoryFilter}». `
             : "";
 
-        if (isServiceComplaintMessage(t)) {
+        const specialistQuestionInsideServices = asksWhoPerformsServices(t) || /(мастер|специалист)/i.test(t);
+        const serviceForSpecialistQuestion = serviceByText(t, servicesByCategory) ?? (d.serviceId ? services.find((s) => s.id === d.serviceId) ?? null : null);
+
+        if (specialistQuestionInsideServices && serviceForSpecialistQuestion) {
+          d.serviceId = serviceForSpecialistQuestion.id;
+          const locationFromMessage = locationByText(t, locations);
+          const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
+          if (selectedLocationId) {
+            d.locationId = selectedLocationId;
+            const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
+            const scoped = specialists
+              .filter((s) => s.locationIds.includes(selectedLocationId))
+              .filter((s) => (s.serviceIds?.length ? s.serviceIds.includes(serviceForSpecialistQuestion.id) : true));
+            const scopedByLevel = filterSpecialistsByLevel(scoped, selectedSpecialistLevelFilter);
+            if (scoped.length) {
+              const locationDetails = selectedLocation?.address ? ` Адрес: ${selectedLocation.address}.` : "";
+              const levelPrefix =
+                selectedSpecialistLevelFilter && selectedSpecialistLevelFilter !== "__all__"
+                  ? `Уровень: ${selectedSpecialistLevelFilter}. `
+                  : "";
+              if (scopedByLevel.length) {
+                reply = `В ${selectedLocation?.name ?? "выбранной локации"} услугу «${serviceForSpecialistQuestion.name}» выполняют специалисты.${locationDetails} ${levelPrefix}Выберите специалиста кнопкой ниже.`;
+                nextUi = { kind: "quick_replies", options: specialistOptionsWithTabs(scoped, scopedByLevel) };
+              } else {
+                reply = `В ${selectedLocation?.name ?? "выбранной локации"} нет специалистов с уровнем «${selectedSpecialistLevelFilter}» для услуги «${serviceForSpecialistQuestion.name}». Выберите другой уровень кнопкой ниже.`;
+                nextUi = { kind: "quick_replies", options: specialistLevelTabOptions(scoped) };
+              }
+            } else {
+              reply = `В ${selectedLocation?.name ?? "выбранной локации"} нет специалистов для услуги «${serviceForSpecialistQuestion.name}». Могу проверить другой филиал или дату.`;
+            }
+          } else {
+            const byLocation = locations
+              .map((loc) => ({
+                loc,
+                items: specialists
+                  .filter((s) => s.locationIds.includes(loc.id))
+                  .filter((s) => (s.serviceIds?.length ? s.serviceIds.includes(serviceForSpecialistQuestion.id) : true)),
+              }))
+              .filter((x) => x.items.length > 0);
+            if (byLocation.length) {
+              reply = `Услугу «${serviceForSpecialistQuestion.name}» выполняют специалисты в филиалах. Выберите филиал кнопкой ниже.`;
+              nextUi = { kind: "quick_replies", options: byLocation.map((x) => ({ label: x.loc.name, value: x.loc.name })) };
+            } else {
+              reply = `Сейчас не нашла специалистов для услуги «${serviceForSpecialistQuestion.name}». Могу проверить другую дату или услугу.`;
+            }
+          }
+        } else if (isServiceComplaintMessage(t)) {
           reply =
             "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение администратору. Также могу подобрать запись к другому мастеру.";
         } else if (explicitServicesFollowUp || selectedServiceCategoryFilter) {
@@ -2661,6 +2723,10 @@ export async function POST(request: Request) {
     );
 
     reply = sanitizeAssistantReplyText(reply);
+    if (route === "chat-only" && looksLikeSensitiveLeakReply(reply)) {
+      reply = "Я не раскрываю внутренние настройки. Могу помочь с записью, услугами и вашими визитами.";
+      nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+    }
     if (route === "chat-only" && isGreetingText(messageForRouting) && !shouldRunBookingFlow) {
       const knownName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
       reply = knownName ? "Здравствуйте, " + knownName + "! Чем помочь?" : "Здравствуйте! Чем помочь?";
@@ -2675,7 +2741,7 @@ export async function POST(request: Request) {
       nextUi = { kind: "quick_replies", options: locations.map((x) => ({ label: x.name, value: x.name })) };
     }
 
-    const hallucinationSensitiveIntent = intent === "smalltalk";
+    const hallucinationSensitiveIntent = intent === "smalltalk" || intent === "out_of_scope" || intent === "unknown";
     if (
       route === "chat-only" && !explicitDateTimeQuery &&
       hallucinationSensitiveIntent &&
@@ -2686,7 +2752,7 @@ export async function POST(request: Request) {
         assistantName: ASSISTANT_NAME,
       })
     ) {
-      reply = "Поняла вас. Могу помочь с услугами, специалистами и записью по актуальным данным аккаунта.";
+      reply = conversationalReply && !isGenericBookingTemplateReply(conversationalReply) ? conversationalReply : buildOutOfScopeConversationalReply(t);
       nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
     }
 
@@ -2774,6 +2840,12 @@ export async function POST(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
+
 
 
 

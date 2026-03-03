@@ -438,9 +438,7 @@ function bookingUrl(publicSlug: string, d: DraftLike) {
 }
 
 function isAffirmative(t: string) {
-  return /^(?:\u0434\u0430|\u0432\u0435\u0440\u043d\u043e|\u0432\u0441\u0435\s+\u0432\u0435\u0440\u043d\u043e|\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e|\u043f\u043e\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e|\u0441\u043e\u0433\u043b\u0430\u0441\u0435\u043d|\u0441\u043e\u0433\u043b\u0430\u0441\u043d\u0430|\u043e\u043a|\u043e\u043a\u0435\u0439)$/iu.test(
-    t.trim(),
-  );
+  return /^(?:да|верно|все\s+верно|подтверждаю|потверждаю|согласен|согласна|ок|окей)$/iu.test(t.trim());
 }
 
 function wantsNewBooking(messageNorm: string) {
@@ -452,27 +450,19 @@ function isGratitudeOrPostCompletion(messageNorm: string) {
 }
 
 function wantsChange(messageNorm: string) {
-  return /(?:\u043d\u0435 \u0442\u043e|\u043d\u0435\u0432\u0435\u0440\u043d\u043e|\u0438\u0437\u043c\u0435\u043d\u0438|\u0434\u0440\u0443\u0433\u043e\u0435|\u0434\u0440\u0443\u0433\u0443\u044e|\u043d\u0435 \u043d\u0430|\u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0438|\u0434\u0440\u0443\u0433\u043e\u0439)/iu.test(
-    messageNorm,
-  );
+  return /(?:не\s+то|неверно|измени|другое|другую|не\s+на|перенеси|другой)/iu.test(messageNorm);
 }
 
 function shouldAskServiceClarification(messageNorm: string, services: ServiceLite[]) {
-  if (!/(стриж|haircut)/i.test(messageNorm)) return false;
-  const variants = services.filter((s) => /(men haircut|women haircut|муж|жен)/i.test(s.name));
+  if (!/стриж/i.test(messageNorm)) return false;
+  const variants = services.filter((s) => /(муж|жен)/i.test(s.name));
   return variants.length > 1;
 }
 
 function detectTimePreference(messageNorm: string): "morning" | "day" | "evening" | null {
-  if (
-    /(?:\u0432\u0435\u0447\u0435\u0440|\u0432\u0435\u0447\u0435\u0440\u043e\u043c|\u043f\u043e\u0441\u043b\u0435 \u0440\u0430\u0431\u043e\u0442\u044b|evening)/iu.test(
-      messageNorm,
-    )
-  )
-    return "evening";
-  if (/(?:\u0443\u0442\u0440|\u0443\u0442\u0440\u043e\u043c|morning)/iu.test(messageNorm)) return "morning";
-  if (/(?:\u0434\u043d\u0435\u043c|\u0434\u043d\u0451\u043c|\u0434\u0435\u043d\u044c|\u043f\u043e\u0441\u043b\u0435 \u043e\u0431\u0435\u0434\u0430|daytime)/iu.test(messageNorm))
-    return "day";
+  if (/(?:вечер|вечером|после\s+работы)/iu.test(messageNorm)) return "evening";
+  if (/(?:утр|утром)/iu.test(messageNorm)) return "morning";
+  if (/(?:днем|днём|день|после\s+обеда)/iu.test(messageNorm)) return "day";
   return null;
 }
 
@@ -524,7 +514,7 @@ function asksAfterDateRange(messageNorm: string) {
 }
 
 function asksAboutSpecialists(messageNorm: string) {
-  return /(?:\u0443 \u043a\u0430\u043a\u0438\u0445 \u043c\u0430\u0441\u0442|\u043a\u0430\u043a\u0438\u0435 \u043c\u0430\u0441\u0442|\u043a\u0430\u043a\u043e\u0439 \u043c\u0430\u0441\u0442\u0435\u0440|\u043a\u0430\u043a\u0438\u0435 \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442\u044b|\u043a\u0430\u043a\u043e\u0439 \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442|\u043c\u0430\u0441\u0442\u0435\u0440(?:\u0430|\u044b)?|\u0441\u043f\u0435\u0446\u0438\u0430\u043b\u0438\u0441\u0442(?:\u0430|\u044b)?)/iu.test(
+  return /(?:у\s+каких\s+маст|какие\s+маст|какой\s+мастер|какие\s+специалисты|какой\s+специалист|мастер(?:а|ы)?|специалист(?:а|ы)?)/iu.test(
     messageNorm,
   );
 }
@@ -532,8 +522,8 @@ function asksAboutSpecialists(messageNorm: string) {
 function asksAlternativeSpecialists(messageNorm: string) {
   const asksSpecialistTopic =
     asksAboutSpecialists(messageNorm) ||
-    /(?:\u043c\u0430\u0441\u0435\u0442\u0435\u0440|\u043c\u0430\u0441\u0435\u0442\u0440|\u043c\u0430\u0441\u0442\u0435\u0440|\u0441\u043f\u0435\u0446|\u043a\u0442\u043e\s+\u0434\u0435\u043b\u0430\u0435\u0442|\u043a\u0442\u043e\s+\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u0442|\u043a\u0442\u043e\s+\u0438\u0437\s+\u043c\u0430\u0441\u0442\u0435\u0440\u043e\u0432)/iu.test(messageNorm);
-  const asksAlternativeCue = /(?:\u0434\u0440\u0443\u0433\u0438\u0435|\u0434\u0440\u0443\u0433\u043e\u0439|\u0434\u0440\u0443\u0433\u043e\u0433\u043e|\u0435\u0449\u0435|\u0435\u0449\u0451|\u043a\u0440\u043e\u043c\u0435|\u0438\u043d\u043e\u0439|\u0430\s+\u043a\u0442\u043e\s+\u0435\u0449\u0435|\u0430\s+\u043a\u0442\u043e\s+\u0435\u0449\u0451|\u0435\u0441\u0442\u044c\s+\u043a\u0442\u043e)/iu.test(messageNorm);
+    /(?:масетер|масетр|мастер|спец|кто\s+делает|кто\s+выполняет|кто\s+из\s+мастеров)/iu.test(messageNorm);
+  const asksAlternativeCue = /(?:другие|другой|другого|еще|ещё|кроме|иной|а\s+кто\s+еще|а\s+кто\s+ещё|есть\s+кто)/iu.test(messageNorm);
   return asksSpecialistTopic && asksAlternativeCue;
 }
 
@@ -1391,7 +1381,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       };
     }
     if (shouldAskServiceClarification(messageNorm, servicesForSelectionByCategory)) {
-      const haircutOptions = servicesForSelectionByCategory.filter((x) => /(стриж|haircut)/i.test(x.name));
+      const haircutOptions = servicesForSelectionByCategory.filter((x) => /стриж/i.test(x.name));
       return {
         handled: true,
         reply: "Уточните услугу. Можно выбрать кнопкой ниже или написать услугу сообщением.",

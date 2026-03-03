@@ -433,6 +433,7 @@ export async function runAishaChatAction(args: RunAishaChatActionArgs): Promise<
     "Если пользователь спрашивает про филиалы/адреса -> show_locations/show_contact_address.",
     "Если про услуги -> show_services.",
     "Если про специалистов -> show_specialists.",
+    "Если в одном сообщении есть услуга и вопрос «кто делает/какой мастер/какие специалисты» -> show_specialists (это приоритетнее, чем show_services).",
     "Если явно хочет записаться -> start_booking.",
     "Если вопрос общий -> answer_only.",
     "Верни только JSON.",
