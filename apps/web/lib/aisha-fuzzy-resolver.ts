@@ -330,9 +330,35 @@ export async function handleEntityClarificationResolution(args: {
     }
   }
 
+  const scopedServices = services
+    .filter((s) => (!d.locationId ? true : s.locationIds.includes(d.locationId)))
+    .filter((s) => {
+      if (!d.specialistId) return true;
+      const sp = specialists.find((x) => x.id === d.specialistId);
+      if (!sp) return true;
+      return sp.serviceIds?.length ? sp.serviceIds.includes(s.id) : true;
+    });
+
   if (d.serviceId && bookingLike) {
     const selectedService = services.find((s) => s.id === d.serviceId) ?? null;
     if (selectedService && !isExactMention(messageNorm, selectedService.name)) {
+      const exactAnyServiceMention = scopedServices.some((s) => isExactMention(messageNorm, s.name));
+      const generic = inferGenericServiceCandidates(messageNorm, scopedServices);
+      if (!exactAnyServiceMention && generic.length > 1) {
+        d.serviceId = null;
+        d.time = null;
+        const reply = "Уточните, пожалуйста, услугу. Нашла несколько подходящих вариантов:";
+        const options = dedupeOptions(generic.map(serviceQuickOption));
+        const payload = await persistClarificationAndBuildPayload({
+          threadId,
+          nextThreadKey,
+          reply,
+          ui: { kind: "quick_replies", options },
+          d,
+        });
+        return { handled: true, payload };
+      }
+
       const options = dedupeOptions([serviceQuickOption(selectedService)]);
       const reply = `Правильно поняла, Вы имели в виду услугу «${selectedService.name}»? Подтвердите выбор кнопкой ниже.`;
       const payload = await persistClarificationAndBuildPayload({
@@ -347,14 +373,6 @@ export async function handleEntityClarificationResolution(args: {
   }
 
   if (!d.serviceId && bookingLike) {
-    const scopedServices = services
-      .filter((s) => (!d.locationId ? true : s.locationIds.includes(d.locationId)))
-      .filter((s) => {
-        if (!d.specialistId) return true;
-        const sp = specialists.find((x) => x.id === d.specialistId);
-        if (!sp) return true;
-        return sp.serviceIds?.length ? sp.serviceIds.includes(s.id) : true;
-      });
 
     const requested = extractRequestedServicePhrase(messageNorm);
     const targetPhrase = requested ? norm(requested) : messageNorm;
