@@ -1,4 +1,4 @@
-﻿import { createGigaChatCompletion } from "@/lib/gigachat";
+import { createGigaChatCompletion } from "@/lib/gigachat";
 
 export type TimePreference = "morning" | "day" | "evening" | null;
 
@@ -215,6 +215,25 @@ function extractJsonObject(text: string) {
   }
 }
 
+function clampReplyText(raw: string, maxChars: number, maxSentences: number) {
+  const clean = raw.replace(/s+/g, " ").trim();
+  if (!clean) return "";
+
+  const bounded = clean.slice(0, maxChars);
+  const sentences =
+    bounded
+      .match(/[^.!?…]+[.!?…]?/g)
+      ?.map((x) => x.trim())
+      .filter(Boolean) ?? [bounded.trim()];
+
+  const picked = sentences.slice(0, Math.max(1, maxSentences)).join(" ").trim();
+  if (!picked) return bounded.trim();
+
+  const ended = /[.!?…]$/.test(picked);
+  if (picked.length < clean.length && !ended) return picked.replace(/[s,:;-]+$/g, "") + ".";
+  return picked;
+}
+
 function normalizeNlu(parsed: Record<string, unknown>): AishaNlu {
   const intentRaw = String(parsed.intent ?? "unknown");
   const intent = (ALLOWED_INTENTS.includes(intentRaw as AishaNluIntent)
@@ -356,7 +375,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
       { role: "user", content: prompt },
     ]);
     const text = completion.content?.trim();
-    return text ? text.slice(0, 500) : null;
+    return text ? clampReplyText(text, 360, 2) : null;
   } catch {
     return null;
   }

@@ -1,4 +1,4 @@
-﻿import {
+import {
   bookingSummary,
   createAssistantBooking,
   DraftLike,
@@ -1449,10 +1449,30 @@ if (!d.serviceId) {
           ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, timeLimit == null ? null : 24) },
         };
       }
+      const nextDates = await findNearestDateWindows({
+        origin,
+        accountSlug: account.slug,
+        locations: locations.filter((x) => x.id === d.locationId),
+        fromDate: addDaysYmd(targetDate, 1),
+        serviceId: null,
+        preference: pref,
+        daysAhead: 45,
+        maxDates: 12,
+        limit: timeLimit,
+      });
       return {
         handled: true,
-        reply: `На ${formatYmdRu(targetDate)}${pref ? " по этому времени суток" : ""} свободных окон не нашла. Могу показать другой период или подобрать по услуге.`,
+        reply: `На ${formatYmdRu(targetDate)}${pref ? " по этому времени суток" : ""} свободных окон, к сожалению, не нашла. Давайте выберем другую дату.`,
         nextStatus: "COLLECTING",
+        ui: nextDates.length
+          ? {
+              kind: "date_picker",
+              minDate: nextDates[0]!.date,
+              maxDate: nextDates[nextDates.length - 1]!.date,
+              initialDate: nextDates[0]!.date,
+              availableDates: nextDates.map((x) => x.date),
+            }
+          : null,
       };
     }
     if (d.date && !d.time && !servicesForSelection.length) {
