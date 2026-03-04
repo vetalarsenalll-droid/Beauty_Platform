@@ -1,0 +1,24 @@
+{
+  "suite": "client-actions",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-04T20:00:11.723Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Client my bookings flow handles auth/result",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "РєР°РєР°СЏ Сѓ РјРµРЅСЏ Р±Р»РёР¶Р°Р№С€Р°СЏ Р·Р°РїРёСЃСЊ",
+          "passed": false,
+          "error": "Bad response: HTTP 500 null",
+          "reply": ""
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-04T20:00:11.969Z",
+  "durationMs": 246
+}

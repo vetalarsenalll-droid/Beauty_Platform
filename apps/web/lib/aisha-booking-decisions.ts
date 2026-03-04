@@ -1,4 +1,4 @@
-﻿import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
+import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
 import {
   isBookingCarryMessage,
   isBookingChangeMessage,
@@ -184,7 +184,7 @@ export function computeBookingDecisions(args: {
       forceBookingOnDateOnlyInDraft ||
       explicitServiceBookingIntent) &&
     intent !== "post_completion_smalltalk" &&
-    !isGreetingText(messageForRouting) &&
+    (!isGreetingText(messageForRouting) || hasDraftContext) &&
     !hasPositiveFeedbackCue;
 
   const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);

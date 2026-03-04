@@ -185,6 +185,15 @@ export async function handlePublicAiChatPost(request: Request) {
     let intent = intentContext.intent;
     let route = intentContext.route;
 
+    const messageNormForRouteGuard = norm(messageForRouting);
+    const explicitAppointmentDetailsRequest =
+      /#\s*\d{1,8}\b/.test(messageForRouting) &&
+      /(\u043f\u043e\u043a\u0430\u0436\u0438|\u0437\u0430\u043f\u0438\u0441|\u0434\u0435\u0442\u0430\u043b|\u043f\u043e\u0434\u0440\u043e\u0431|\u0440\u0430\u0441\u0448\u0438\u0444|booking|record|details?)/i.test(messageNormForRouteGuard);
+    if (explicitAppointmentDetailsRequest) {
+      route = "client-actions";
+      if (intent !== "cancel_my_booking" && intent !== "reschedule_my_booking") intent = "my_bookings";
+    }
+
     const chatActionResult =
       route === "chat-only" &&
       !explicitDateTimeQuery &&

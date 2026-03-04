@@ -22,6 +22,7 @@ export type RouteContractInput = {
 };
 
 export function resolveRouteByContract(args: RouteContractInput, routeForIntentFn: (intent: AishaIntent) => PublicAiRoute): { route: PublicAiRoute; routeReason: RouteReason } {
+  if (args.forceClientActions) return { route: "client-actions", routeReason: ROUTE_REASON.FORCED_CLIENT_ACTIONS };
   if (args.explicitDateTimeQuery || args.forceChatOnlyConversational || args.forceChatOnlyInfoIntent) {
     return {
       route: "chat-only",
@@ -32,7 +33,6 @@ export function resolveRouteByContract(args: RouteContractInput, routeForIntentF
           : ROUTE_REASON.CHAT_ONLY_CONVERSATIONAL,
     };
   }
-  if (args.forceClientActions) return { route: "client-actions", routeReason: ROUTE_REASON.FORCED_CLIENT_ACTIONS };
   if (args.forceBooking) return { route: "booking-flow", routeReason: ROUTE_REASON.FORCED_BOOKING_CONTEXT };
   return { route: routeForIntentFn(args.intent), routeReason: ROUTE_REASON.POLICY_MATRIX };
 }

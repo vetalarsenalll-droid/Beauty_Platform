@@ -1,4 +1,4 @@
-﻿import { runAishaNaturalizeReply } from "@/lib/aisha-orchestrator";
+import { runAishaNaturalizeReply } from "@/lib/aisha-orchestrator";
 import type { ChatUi } from "@/lib/booking-flow";
 import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import {
@@ -178,7 +178,11 @@ export async function postProcessReply(args: {
     nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
   }
   if (route === "chat-only" && isGreetingText(messageForRouting) && !shouldRunBookingFlow) {
-    reply = knownClientName ? `Здравствуйте, ${knownClientName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
+    if (hasDraftContext) {
+      reply = "Здравствуйте. Продолжим запись: выберите услугу, дату или время.";
+    } else {
+      reply = knownClientName ? `Здравствуйте, ${knownClientName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
+    }
   }
   if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
     reply = "Доступные услуги ниже. Выберите нужную кнопкой.";

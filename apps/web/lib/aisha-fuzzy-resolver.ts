@@ -1,4 +1,4 @@
-﻿import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import type { ChatUi } from "@/lib/booking-flow";
 import type { ServiceLite } from "@/lib/booking-tools";
 import { serviceQuickOption, mentionsServiceTopic, looksLikeUnknownServiceRequest, extractRequestedServicePhrase, isNluServiceGroundedByText } from "@/lib/aisha-routing-helpers";
@@ -27,6 +27,8 @@ export async function handleUnknownServiceResolution(args: {
   const requestedServicePhrase = extractRequestedServicePhrase(t);
   const nluServiceGrounded = isNluServiceGroundedByText(t, nluServiceObj);
 
+  const deicticServiceReference = /(?:\u044d\u0442\u0443\s+\u0443\u0441\u043b\u0443\u0433|\u044d\u0442\u0443\s+\u043f\u0440\u043e\u0446\u0435\u0434\u0443\u0440|\u043d\u0430\s+\u043d\u0435\u0451|\u043d\u0430\s+\u043d\u0435\u0435|\u0442\u0443\s+\u0436\u0435|this\s+service|that\s+service)/iu.test(t);
+
   const unknownServiceRequested =
     shouldEnrichDraftForBooking &&
     !d.serviceId &&
@@ -34,7 +36,7 @@ export async function handleUnknownServiceResolution(args: {
     mentionsServiceTopic(t) &&
     ((!nluServiceValid && looksLikeUnknownServiceRequest(t)) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
-  if (!unknownServiceRequested) return { handled: false };
+  if (!unknownServiceRequested || deicticServiceReference) return { handled: false };
 
   const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла.` : "Такой услуги не нашла.";
   const unknownServiceReply = `${requested} Выберите, пожалуйста, из доступных ниже.`;

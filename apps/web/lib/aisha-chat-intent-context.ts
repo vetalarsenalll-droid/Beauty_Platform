@@ -1,4 +1,4 @@
-﻿import type { AishaIntent } from "@/lib/dialog-policy";
+import type { AishaIntent } from "@/lib/dialog-policy";
 import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
 import { parseChoiceFromText } from "@/lib/aisha-chat-thread";
 import { decidePublicAiRoute, type PublicAiRoute } from "@/lib/aisha-chat-router";
@@ -283,7 +283,9 @@ export function buildIntentContext(args: {
     explicitClientRescheduleConfirm ||
     (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) ||
     explicitClientReschedulePhrase ||
-    explicitClientRescheduleRequest;
+    explicitClientRescheduleRequest ||
+    hasClientActionCue ||
+    routing.isClientActionIntent(intent);
 
   const isConsentStage = d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION";
   const shouldStayInAssistantStages = isConsentStage && d.mode === "ASSISTANT";
