@@ -1,0 +1,24 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-04T19:18:44.933Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "РЅР° Р·Р°РІС‚СЂР° Р·Р°РїРёС€Рё РјРµРЅСЏ",
+          "passed": false,
+          "error": "Start booking asks for location, not unknown service / step 1 (РЅР° Р·Р°РІС‚СЂР° Р·Р°РїРёС€Рё РјРµРЅСЏ): expected one of /С„РёР»РёР°Р»|Р»РѕРєР°С†|РЎРµРІРµСЂРЅР°СЏ РћСЂС…РёРґРµСЏ вЂ” Р¦РµРЅС‚СЂ|РЎРµРІРµСЂРЅР°СЏ РћСЂС…РёРґРµСЏ вЂ” РџРµС‚СЂРѕРіСЂР°РґСЃРєР°СЏ/i\nreply:\nПривет! Что-то нужно по поводу волос, ногтей или ещё чего-то из нашего салона?",
+          "reply": "Привет! Что-то нужно по поводу волос, ногтей или ещё чего-то из нашего салона?"
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-04T19:18:51.870Z",
+  "durationMs": 6937
+}

@@ -926,7 +926,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   if (isFuzzyMonthAvailability && monthOnlyDate) {
     d.date = monthOnlyDate;
     d.time = null;
-    d.specialistId = null;
+    if (
+      d.specialistId &&
+      !specialistMatchesCurrentDraft({
+        specialistId: d.specialistId,
+        locationId: d.locationId,
+        serviceId: d.serviceId,
+        specialists,
+      })
+    ) {
+      d.specialistId = null;
+    }
     d.mode = null;
     d.consentConfirmedAt = null;
     const minDate = monthOnlyDate < todayYmd ? todayYmd : monthOnlyDate;
@@ -1916,6 +1926,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 
