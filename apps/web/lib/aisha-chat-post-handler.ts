@@ -280,6 +280,22 @@ export async function handlePublicAiChatPost(request: Request) {
 
     let previouslySelectedSpecialistName: string | null = null;
 
+    const entityClarification = await handleEntityClarificationResolution({
+      shouldEnrichDraftForBooking,
+      shouldRunBookingFlow,
+      messageForRouting,
+      t,
+      d,
+      threadId: thread.id,
+      nextThreadKey,
+      locations,
+      services,
+      specialists,
+    });
+    if (entityClarification.handled && entityClarification.payload) {
+      return jsonOk(entityClarification.payload);
+    }
+
     const draftMutation = applyDraftMutations({
       d,
       message,
@@ -297,22 +313,6 @@ export async function handlePublicAiChatPost(request: Request) {
       messageForRouting,
     });
     const locationChosenThisTurn = draftMutation.locationChosenThisTurn;
-
-    const entityClarification = await handleEntityClarificationResolution({
-      shouldEnrichDraftForBooking,
-      shouldRunBookingFlow,
-      messageForRouting,
-      t,
-      d,
-      threadId: thread.id,
-      nextThreadKey,
-      locations,
-      services,
-      specialists,
-    });
-    if (entityClarification.handled && entityClarification.payload) {
-      return jsonOk(entityClarification.payload);
-    }
 
     const unknownService = await handleUnknownServiceResolution({
       shouldEnrichDraftForBooking,
@@ -719,6 +719,25 @@ export async function handlePublicAiChatPost(request: Request) {
         }
       }
     }
+    if (!nextUi && route === "chat-only" && !shouldRunBookingFlow && (intent === "ask_services" || intent === "ask_price")) {
+      const matchedService = serviceByText(norm(reply), services) ?? serviceByText(t, services);
+      if (matchedService) {
+        nextUi = {
+          kind: "quick_replies",
+          options: [
+            {
+              label: "Записаться на эту услугу",
+              value: `запиши меня на ${matchedService.name}`,
+            },
+            {
+              label: "Показать другие услуги",
+              value: "какие услуги есть",
+            },
+          ],
+        };
+      }
+    }
+
     const postProcessed = await postProcessReply({
       reply,
       nextUi,

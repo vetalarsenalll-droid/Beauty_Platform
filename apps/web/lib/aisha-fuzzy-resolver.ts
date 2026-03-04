@@ -81,6 +81,45 @@ function topEntityCandidates<T>(
   return scored.slice(0, limit);
 }
 
+function normalizePersonToken(raw: string) {
+  return norm(raw)
+    .replace(/(иями|ями|ами|ого|ему|ыми|ими|ой|ей|ою|ею|ий|ый|ая|яя|ое|ее|ых|их|ую|юю|ом|ем|ам|ям|ах|ях|а|я|ы|и|е|у|ю)$/u, "")
+    .trim();
+}
+
+function personTokenScore(query: string, name: string) {
+  const q = normalizePersonToken(query);
+  const n = normalizePersonToken(name);
+  if (!q || !n) return 0;
+  if (q === n) return 5;
+  if (n.startsWith(q) || q.startsWith(n)) return 4;
+  const maxDist = Math.max(1, Math.floor(Math.max(q.length, n.length) / 3));
+  if (levenshteinWithin(q, n, maxDist) <= maxDist) return 2;
+  return 0;
+}
+
+function topSpecialistCandidates(phrase: string, specialists: SpecialistLite[], limit = 5) {
+  const qTokens = tokenizeForFuzzy(norm(phrase));
+  if (!qTokens.length) return [] as Array<{ entity: SpecialistLite; score: number }>;
+  const scored = specialists
+    .map((s) => {
+      const nTokens = tokenizeForFuzzy(norm(s.name));
+      let score = 0;
+      for (const q of qTokens) {
+        let best = 0;
+        for (const n of nTokens) {
+          const val = personTokenScore(q, n);
+          if (val > best) best = val;
+        }
+        score += best;
+      }
+      return { entity: s, score };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+}
+
 function extractRequestedSpecialistPhrase(messageNorm: string) {
   const m =
     /(?:^|\s)(?:к|ко)\s+([\p{L}-]{2,}(?:\s+[\p{L}-]{2,}){0,2})(?:\s|$)/iu.exec(messageNorm) ??
@@ -92,25 +131,115 @@ function isSpecialistDirectRequest(messageNorm: string) {
   return /(?:запиш\p{L}*|хочу|к|ко|мастер|специалист)/iu.test(messageNorm);
 }
 
-function isLocationDirectRequest(messageNorm: string) {
-  return /(филиал|локац|адрес|центр|петроград|московск|ривер|riverside)/i.test(messageNorm);
+function isLocationDirectRequest(messageNorm: string, locations: LocationLite[]) {
+  const m = norm(messageNorm);
+  if (/(филиал|локац|адрес)/i.test(m)) return true;
+
+  const msgTokens = tokenizeForFuzzy(m);
+  if (!msgTokens.length) return false;
+
+  const locationTokens = new Set<string>();
+  for (const loc of locations) {
+    for (const token of tokenizeForFuzzy(loc.name)) locationTokens.add(token);
+    for (const token of tokenizeForFuzzy(loc.address ?? "")) locationTokens.add(token);
+  }
+  if (!locationTokens.size) return false;
+
+  for (const mt of msgTokens) {
+    for (const lt of locationTokens) {
+      if (mt === lt || mt.startsWith(lt) || lt.startsWith(mt)) return true;
+      const maxDist = Math.max(1, Math.floor(Math.max(mt.length, lt.length) / 4));
+      if (levenshteinWithin(mt, lt, maxDist) <= maxDist) return true;
+    }
+  }
+  return false;
 }
 
-function looksLikeLocationChoice(messageNorm: string) {
-  return isLocationDirectRequest(messageNorm) || /(?:^|\s)в\s+[\p{L}-]{3,}/iu.test(messageNorm);
+function looksLikeLocationChoice(messageNorm: string, locations: LocationLite[]) {
+  return isLocationDirectRequest(messageNorm, locations) || /(?:^|\s)в\s+[\p{L}-]{3,}/iu.test(messageNorm);
 }
 
 function inferGenericServiceCandidates(messageNorm: string, services: ServiceLite[]) {
-  const t = norm(messageNorm);
-  return services.filter((s) => {
-    const n = norm(s.name);
-    if (/маник/.test(t)) return /маник/.test(n);
-    if (/педик/.test(t)) return /педик/.test(n);
-    if (/(бров|brow)/i.test(t)) return /(бров|brow)/i.test(n);
-    if (/(ресниц|lash)/i.test(t)) return /(ресниц|lash)/i.test(n);
-    if (/(стриж|haircut)/i.test(t)) return /(стриж|haircut)/i.test(n);
-    return false;
-  });
+  const text = norm(messageNorm);
+  const stop = new Set([
+    "запиши",
+    "записать",
+    "записаться",
+    "хочу",
+    "мне",
+    "меня",
+    "пожалуйста",
+    "нужно",
+    "надо",
+    "на",
+    "в",
+    "к",
+    "сегодня",
+    "завтра",
+    "послезавтра",
+    "утром",
+    "вечером",
+    "днем",
+    "днём",
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+  ]);
+
+  const queryTokens = tokenizeForFuzzy(text).filter((t) => !stop.has(t));
+  if (!queryTokens.length) return [];
+
+  const stem = (token: string) =>
+    token
+      .replace(/(иями|ями|ами|ого|ему|ыми|ими|ой|ей|ий|ый|ая|яя|ое|ее|ых|их|ую|юю|ом|ем|ам|ям|ах|ях|а|я|ы|и|е|у|ю)$/u, "")
+      .trim();
+
+  const tokenScore = (a: string, b: string) => {
+    const aStem = stem(a);
+    const bStem = stem(b);
+    if (a === b || (aStem && bStem && aStem === bStem)) return 3;
+    if (a.startsWith(b) || b.startsWith(a) || (aStem && bStem && (aStem.startsWith(bStem) || bStem.startsWith(aStem)))) return 2;
+    const maxDist = Math.max(1, Math.floor(Math.max(a.length, b.length) / 4));
+    return levenshteinWithin(a, b, maxDist) <= maxDist ? 1 : 0;
+  };
+
+  const scored = services
+    .map((service) => {
+      const nameTokens = tokenizeForFuzzy(norm(service.name));
+      if (!nameTokens.length) return { service, score: 0, matched: 0, strongMatched: 0 };
+
+      let score = 0;
+      let matched = 0;
+      let strongMatched = 0;
+      for (const q of queryTokens) {
+        let best = 0;
+        for (const n of nameTokens) {
+          const sc = tokenScore(q, n);
+          if (sc > best) best = sc;
+        }
+        if (best > 0) matched += 1;
+        if (best >= 2) strongMatched += 1;
+        score += best;
+      }
+
+      return { service, score, matched, strongMatched };
+    })
+    .filter((x) => {
+      if (queryTokens.length === 1) return x.strongMatched >= 1 || x.matched >= 1;
+      return x.strongMatched >= Math.min(2, queryTokens.length) || x.score >= queryTokens.length * 2;
+    })
+    .sort((a, b) => b.score - a.score || b.strongMatched - a.strongMatched || b.matched - a.matched);
+
+  return scored.map((x) => x.service);
 }
 
 function dedupeOptions(options: Array<{ label: string; value: string }>) {
@@ -228,7 +357,7 @@ export async function handleEntityClarificationResolution(args: {
   if (!d.specialistId && bookingLike && isSpecialistDirectRequest(messageNorm)) {
     const requestedSpecialist = extractRequestedSpecialistPhrase(messageNorm);
     if (requestedSpecialist) {
-      const candidates = topEntityCandidates(norm(requestedSpecialist), specialistScope, (s) => [s.name], 5);
+      const candidates = topSpecialistCandidates(requestedSpecialist, specialistScope, 6);
       if (candidates.length) {
         const top = candidates[0]!.entity;
         const topName = top.name;
@@ -247,6 +376,18 @@ export async function handleEntityClarificationResolution(args: {
           });
           return { handled: true, payload };
         }
+      } else if (specialistScope.length) {
+        const shortlist = specialistScope.slice(0, 8);
+        const options = dedupeOptions(shortlist.map((x) => specialistQuickOption(x)));
+        const reply = "Не распознала специалиста в запросе. Выберите, пожалуйста, нужного специалиста кнопкой ниже.";
+        const payload = await persistClarificationAndBuildPayload({
+          threadId,
+          nextThreadKey,
+          reply,
+          ui: { kind: "quick_replies", options },
+          d,
+        });
+        return { handled: true, payload };
       }
     }
   }
@@ -302,7 +443,7 @@ export async function handleEntityClarificationResolution(args: {
     }
   }
 
-  if (!d.locationId && bookingLike && looksLikeLocationChoice(messageNorm)) {
+  if (!d.locationId && bookingLike && looksLikeLocationChoice(messageNorm, locations)) {
     const locationPool = d.specialistId
       ? locations.filter((l) => {
           const sp = specialists.find((s) => s.id === d.specialistId);
