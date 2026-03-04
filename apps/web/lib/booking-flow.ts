@@ -829,6 +829,21 @@ function applyChangeRollback(messageNorm: string, d: DraftLike) {
   d.consentConfirmedAt = null;
 }
 
+function specialistMatchesCurrentDraft(args: {
+  specialistId: number | null;
+  locationId: number | null;
+  serviceId: number | null;
+  specialists: SpecialistLite[];
+}) {
+  const { specialistId, locationId, serviceId, specialists } = args;
+  if (!specialistId) return false;
+  const specialist = specialists.find((s) => s.id === specialistId);
+  if (!specialist) return false;
+  if (locationId && !specialist.locationIds.includes(locationId)) return false;
+  if (serviceId && specialist.serviceIds?.length && !specialist.serviceIds.includes(serviceId)) return false;
+  return true;
+}
+
 export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const {
     d,
@@ -879,7 +894,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     d.date = parsedDate;
     if (shouldResetDependent) {
       d.time = null;
-      d.specialistId = null;
+      if (
+        d.specialistId &&
+        !specialistMatchesCurrentDraft({
+          specialistId: d.specialistId,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          specialists,
+        })
+      ) {
+        d.specialistId = null;
+      }
       d.mode = null;
       d.consentConfirmedAt = null;
     }
@@ -941,7 +966,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     });
     d.date = null;
     d.time = null;
-    d.specialistId = null;
+    if (
+      d.specialistId &&
+      !specialistMatchesCurrentDraft({
+        specialistId: d.specialistId,
+        locationId: d.locationId,
+        serviceId: d.serviceId,
+        specialists,
+      })
+    ) {
+      d.specialistId = null;
+    }
     d.mode = null;
     d.consentConfirmedAt = null;
     return {
@@ -970,7 +1005,17 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const availableDates = nearestDates.map((x) => x.date);
     d.date = null;
     d.time = null;
-    d.specialistId = null;
+    if (
+      d.specialistId &&
+      !specialistMatchesCurrentDraft({
+        specialistId: d.specialistId,
+        locationId: d.locationId,
+        serviceId: d.serviceId,
+        specialists,
+      })
+    ) {
+      d.specialistId = null;
+    }
     d.mode = null;
     d.consentConfirmedAt = null;
     return {
@@ -1871,6 +1916,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 

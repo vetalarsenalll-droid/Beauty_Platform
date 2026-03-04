@@ -12,7 +12,11 @@
 - PROMO_LOYALTY: docs/PROMO_LOYALTY/PROMO_SPEC.md
 - NOTIFICATIONS: docs/NOTIFICATIONS/OUTBOX_WORKER.md
 - AI: docs/AI/GIGACHAT_FREEMIUM.md
+- AI Code Map: docs/AI/aisha-code-map.md
+- AI Code Map (RU): docs/AI/aisha-code-map.ru.md
 - SETTINGS: docs/SETTINGS/SETTINGS_SPEC.md
 - UI: docs/UI/DESIGN_TOKENS.md
 - DB: docs/DB/DB_MAP.md
 - REPO: docs/ARCHITECTURE/REPO_MONOREPO.md
+
+
