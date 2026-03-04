@@ -87,12 +87,32 @@ function normalizePersonToken(raw: string) {
     .trim();
 }
 
+function personLooseKey(v: string) {
+  return normalizePersonToken(v)
+    .replace(/[ьъ]/g, "")
+    .replace(/й/g, "и")
+    .replace(/я/g, "а")
+    .replace(/ё/g, "е")
+    .replace(/[аеёиоуыэю]/g, "")
+    .replace(/(.)\1+/g, "$1")
+    .trim();
+}
+
 function personTokenScore(query: string, name: string) {
   const q = normalizePersonToken(query);
   const n = normalizePersonToken(name);
   if (!q || !n) return 0;
   if (q === n) return 5;
   if (n.startsWith(q) || q.startsWith(n)) return 4;
+
+  const qLoose = personLooseKey(q);
+  const nLoose = personLooseKey(n);
+  if (qLoose && nLoose) {
+    if (qLoose === nLoose || nLoose.startsWith(qLoose) || qLoose.startsWith(nLoose)) return 3;
+    const looseMaxDist = Math.max(1, Math.floor(Math.max(qLoose.length, nLoose.length) / 3));
+    if (levenshteinWithin(qLoose, nLoose, looseMaxDist) <= looseMaxDist) return 2;
+  }
+
   const maxDist = Math.max(1, Math.floor(Math.max(q.length, n.length) / 3));
   if (levenshteinWithin(q, n, maxDist) <= maxDist) return 2;
   return 0;
@@ -101,6 +121,7 @@ function personTokenScore(query: string, name: string) {
 function topSpecialistCandidates(phrase: string, specialists: SpecialistLite[], limit = 5) {
   const qTokens = tokenizeForFuzzy(norm(phrase));
   if (!qTokens.length) return [] as Array<{ entity: SpecialistLite; score: number }>;
+
   const scored = specialists
     .map((s) => {
       const nTokens = tokenizeForFuzzy(norm(s.name));
@@ -117,7 +138,13 @@ function topSpecialistCandidates(phrase: string, specialists: SpecialistLite[], 
     })
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+
+  if (!scored.length) return [];
+
+  const topScore = scored[0]!.score;
+  const strictMin = qTokens.length === 1 ? 3 : qTokens.length * 3;
+  const cutoff = Math.max(strictMin, topScore - 1);
+  return scored.filter((x) => x.score >= cutoff).slice(0, limit);
 }
 
 function extractRequestedSpecialistPhrase(messageNorm: string) {
@@ -348,25 +375,38 @@ export async function handleEntityClarificationResolution(args: {
   specialists: SpecialistLite[];
 }): Promise<{ handled: boolean; payload?: ResolutionPayload }> {
   const { shouldEnrichDraftForBooking, shouldRunBookingFlow, messageForRouting, d, threadId, nextThreadKey, locations, services, specialists } = args;
-  if (!shouldEnrichDraftForBooking && !shouldRunBookingFlow) return { handled: false };
 
   const messageNorm = norm(messageForRouting);
+  const isExactSpecialistButtonChoice = !d.specialistId && specialists.some((s) => norm(s.name) === messageNorm);
+  const isExactLocationButtonChoice = !d.locationId && locations.some((l) => norm(l.name) === messageNorm);
+  if (!shouldEnrichDraftForBooking && !shouldRunBookingFlow && !isExactSpecialistButtonChoice && !isExactLocationButtonChoice) return { handled: false };
   const bookingLike = /(запиш\p{L}*|хочу|нужн[ао]?|бронь|оформи)/iu.test(messageNorm);
+  const modeOrFinalizationCue = /(?:через\s+ассистента|самостоятельно|оформи\s+через\s+ассистента|оформи\s+сам|подтверждаю|согласен|согласна|даю\s+согласие)/iu.test(messageNorm);
+  const hasDeepDraftContext = Boolean(
+    d.serviceId ||
+    d.date ||
+    d.time ||
+    d.mode ||
+    d.status === "WAITING_CONFIRMATION" ||
+    d.status === "WAITING_CONSENT",
+  );
   const specialistScope = d.locationId ? specialists.filter((s) => s.locationIds.includes(d.locationId)) : specialists;
 
-  if (!d.specialistId && bookingLike && isSpecialistDirectRequest(messageNorm)) {
-    const requestedSpecialist = extractRequestedSpecialistPhrase(messageNorm);
+  if (!d.specialistId && ((bookingLike && isSpecialistDirectRequest(messageNorm)) || isExactSpecialistButtonChoice)) {
+    const requestedSpecialist = extractRequestedSpecialistPhrase(messageNorm) ?? (isExactSpecialistButtonChoice ? messageNorm : null);
     if (requestedSpecialist) {
       const candidates = topSpecialistCandidates(requestedSpecialist, specialistScope, 6);
       if (candidates.length) {
         const top = candidates[0]!.entity;
         const topName = top.name;
         const exact = isExactMention(messageNorm, topName);
-        if (exact && candidates[0]!.score >= 7) {
+        if (exact) {
           d.specialistId = top.id;
         } else {
           const options = dedupeOptions(candidates.map((x) => specialistQuickOption(x.entity)));
-          const reply = `Правильно поняла, Вы имели в виду специалиста «${topName}»? Выберите вариант ниже.`;
+          const reply = candidates.length > 1
+            ? "Нашла несколько подходящих специалистов. Выберите вариант ниже."
+            : `Правильно поняла, Вы имели в виду специалиста «${topName}»? Выберите вариант ниже.`;
           const payload = await persistClarificationAndBuildPayload({
             threadId,
             nextThreadKey,
@@ -377,7 +417,7 @@ export async function handleEntityClarificationResolution(args: {
           return { handled: true, payload };
         }
       } else if (specialistScope.length) {
-        const shortlist = specialistScope.slice(0, 8);
+        const shortlist = specialistScope;
         const options = dedupeOptions(shortlist.map((x) => specialistQuickOption(x)));
         const reply = "Не распознала специалиста в запросе. Выберите, пожалуйста, нужного специалиста кнопкой ниже.";
         const payload = await persistClarificationAndBuildPayload({
@@ -411,23 +451,51 @@ export async function handleEntityClarificationResolution(args: {
   if (d.specialistId && !d.locationId) {
     const selected = specialists.find((s) => s.id === d.specialistId) ?? null;
     const specialistLocations = selected ? locations.filter((l) => selected.locationIds.includes(l.id)) : [];
+
     if (specialistLocations.length === 1) {
       d.locationId = specialistLocations[0]!.id;
     } else if (specialistLocations.length > 1) {
-      const reply = `Для специалиста «${selected?.name ?? "выбранного специалиста"}» выберите филиал, и продолжу запись.`;
-      const options = specialistLocations.map((l) => ({ label: l.name, value: l.name }));
-      const payload = await persistClarificationAndBuildPayload({
-        threadId,
-        nextThreadKey,
-        reply,
-        ui: { kind: "quick_replies", options },
-        d,
-      });
-      return { handled: true, payload };
+      const choosingLocationNow =
+        isExactLocationButtonChoice ||
+        looksLikeLocationChoice(messageNorm, specialistLocations);
+
+      if (choosingLocationNow) {
+        const candidates = topEntityCandidates(messageNorm, specialistLocations, (l) => [l.name, l.address ?? ""], 4);
+        if (candidates.length) {
+          const top = candidates[0]!.entity;
+          const exact = isExactMention(messageNorm, top.name);
+          if (exact) {
+            d.locationId = top.id;
+          } else {
+            const reply = `Похоже, Вы имели в виду филиал «${top.name}». Подтвердите выбор кнопкой ниже.`;
+            const options = dedupeOptions(candidates.map((x) => ({ label: x.entity.name, value: x.entity.name })));
+            const payload = await persistClarificationAndBuildPayload({
+              threadId,
+              nextThreadKey,
+              reply,
+              ui: { kind: "quick_replies", options },
+              d,
+            });
+            return { handled: true, payload };
+          }
+        }
+      }
+
+      if (!d.locationId) {
+        const reply = `Для специалиста «${selected?.name ?? "выбранного специалиста"}» выберите филиал, и продолжу запись.`;
+        const options = specialistLocations.map((l) => ({ label: l.name, value: l.name }));
+        const payload = await persistClarificationAndBuildPayload({
+          threadId,
+          nextThreadKey,
+          reply,
+          ui: { kind: "quick_replies", options },
+          d,
+        });
+        return { handled: true, payload };
+      }
     }
   }
-
-  if (d.locationId && bookingLike) {
+  if (d.locationId && bookingLike && !modeOrFinalizationCue && !hasDeepDraftContext) {
     const selectedLocation = locations.find((l) => l.id === d.locationId) ?? null;
     if (selectedLocation && !isExactMention(messageNorm, selectedLocation.name)) {
       const options = dedupeOptions([{ label: selectedLocation.name, value: selectedLocation.name }]);
@@ -443,7 +511,7 @@ export async function handleEntityClarificationResolution(args: {
     }
   }
 
-  if (!d.locationId && bookingLike && looksLikeLocationChoice(messageNorm, locations)) {
+  if (!d.locationId && ((bookingLike && looksLikeLocationChoice(messageNorm, locations)) || isExactLocationButtonChoice)) {
     const locationPool = d.specialistId
       ? locations.filter((l) => {
           const sp = specialists.find((s) => s.id === d.specialistId);
@@ -454,7 +522,7 @@ export async function handleEntityClarificationResolution(args: {
     if (candidates.length) {
       const top = candidates[0]!.entity;
       const exact = isExactMention(messageNorm, top.name);
-      if (exact && candidates[0]!.score >= 7) {
+      if (exact) {
         d.locationId = top.id;
       } else {
         const reply = `Похоже, Вы имели в виду филиал «${top.name}». Подтвердите выбор кнопкой ниже.`;
