@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /* eslint-disable no-console */
 
 import fs from "node:fs";
@@ -249,6 +249,50 @@ const scenarios = /** @type {Scenario[]} */ ([
   { name: "Client cancel flow handles auth/result", suites: ["client-actions"], steps: [{ send: "отмени мою ближайшую запись", expectAny: [/отмен|подтверж|авторизац|личн|не нашл/i] }] },
   { name: "Client reschedule flow handles auth/result", suites: ["client-actions"], steps: [{ send: "перенеси мою запись на завтра в 18:00", expectAny: [/перен|подтверж|авторизац|личн|не нашл|слот/i] }] },
   { name: "Client profile flow handles auth/result", suites: ["client-actions"], steps: [{ send: "покажи мои данные", expectAny: [/профил|данн|авторизац|личн/i] }] },
+
+  {
+    name: "Typo booking verb should continue booking",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "запини меня на маникюр", expectAny: [/филиал|локац|время|услуг|календар|дата/i], rejectAny: [/могу коротко поддержать разговор|продолжим разговор/i] },
+    ],
+  },
+  {
+    name: "Typo location name should still resolve",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "запиши меня на завтра", expectAny: [/филиал|локац/i] },
+      { send: "северная орхидея петроградскя", expectAny: [/услуг|время|слот|доступны|выберите/i], rejectAny: [/не поняла|уточните филиал/i] },
+    ],
+  },
+  {
+    name: "Typo specialist name should still resolve",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "запиши меня на завтра", expectAny: [/филиал|локац/i] },
+      { pick: "location", expectAny: [/время|слот|услуг|выберите/i] },
+      { pick: "time", expectAny: [/услуг|специалист|выберите/i] },
+      { pick: "service", ifReply: /услуг|выберите услугу/i, expectAny: [/специалист|проверьте данные|выберите/i] },
+      { send: "анна смрнова", ifReply: /специалист|выберите специалиста/i, expectAny: [/проверьте данные|как завершим запись|доступны специалисты/i] },
+    ],
+  },
+  {
+    name: "Selected service should not reset to full catalog by pronoun",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "что есть для рук", expectAny: [/услуг|рук|маник|spa|выберите/i] },
+      { send: "запиши на эту услугу", expectAny: [/филиал|локац|дата|время|выбрана услуга/i], rejectAny: [/доступные услуги ниже|выберите услугу кнопкой ниже/i] },
+    ],
+  },
+  {
+    name: "Active draft should not be hijacked by smalltalk",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "запиши меня на завтра", expectAny: [/филиал|локац/i] },
+      { pick: "location", expectAny: [/время|слот|услуг|выберите/i] },
+      { send: "привет", expectAny: [/выберите|время|услуг|продолжу запись|чем помочь/i], rejectAny: [/могу коротко поддержать разговор/i] },
+    ],
+  },
 ]);
 
 function activeScenarios() {
@@ -577,6 +621,7 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+
 
 
 
