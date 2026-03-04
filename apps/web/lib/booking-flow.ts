@@ -450,7 +450,9 @@ function isGratitudeOrPostCompletion(messageNorm: string) {
 }
 
 function wantsChange(messageNorm: string) {
-  return /(?:не\s+то|неверно|измени|другое|другую|не\s+на|перенеси|другой)/iu.test(messageNorm);
+  return /(?:не\s+то|неверно|измени|смени|друг(?:ой|ую|ое)\s+(?:дат|день|врем|услуг|мастер|специалист|филиал|локац)|не\s+на\s+эту\s+услуг|перенеси\s+(?:время|дату))/iu.test(
+    messageNorm,
+  );
 }
 
 function shouldAskServiceClarification(messageNorm: string, services: ServiceLite[]) {
@@ -788,7 +790,7 @@ async function findNextServiceDatesForSpecialist(args: {
 }) {
   const { origin, accountSlug, locationId, serviceId, specialistId, fromDate, daysAhead, maxDates } = args;
   const found: string[] = [];
-  for (let i = 0; i <= daysAhead && found.length < maxDates; i += 1) {
+  for (let i = 1; i <= daysAhead && found.length < maxDates; i += 1) {
     const ymd = addDaysYmd(fromDate, i);
     const times = await findTimesForServiceAndSpecialist({
       origin,
@@ -803,28 +805,34 @@ async function findNextServiceDatesForSpecialist(args: {
   return found;
 }
 function applyChangeRollback(messageNorm: string, d: DraftLike) {
-  if (/(локац|филиал|адрес)/i.test(messageNorm)) {
+  const changeLocation = /(локац|филиал|адрес)/i.test(messageNorm);
+  const changeService = /(услуг|маник|педик|стриж|гель|окраш|facial|peeling|hair)/i.test(messageNorm);
+  const changeDate = /(дата|день|завтра|сегодня|числ|марта|февраля|января|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(messageNorm);
+  const changeTime = /(время|час|утр|вечер|днем|днём|:\d{2}|\d{1,2}[.]\d{2})/i.test(messageNorm);
+  const changeSpecialist = /(мастер|специалист|к [а-яa-z]+$)/i.test(messageNorm);
+
+  if (changeLocation) {
     d.locationId = null;
-    d.specialistId = null;
     d.time = null;
+    d.specialistId = null;
   }
-  if (/(услуг|маник|педик|стриж|гель|окраш|facial|peeling|hair)/i.test(messageNorm)) {
+  if (changeService) {
     d.serviceId = null;
-    d.specialistId = null;
     d.time = null;
+    d.specialistId = null;
   }
-  if (/(дата|день|завтра|сегодня|числ|марта|февраля|января|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(messageNorm)) {
+  if (changeDate) {
     d.date = null;
     d.time = null;
-    d.specialistId = null;
   }
-  if (/(время|час|утр|вечер|днем|днём|:\d{2}|\d{1,2}[.]\d{2})/i.test(messageNorm)) {
+  if (changeTime) {
     d.time = null;
-    d.specialistId = null;
   }
-  if (/(мастер|специалист|к [а-яa-z]+$)/i.test(messageNorm)) {
+  if (changeSpecialist) {
     d.specialistId = null;
+    d.time = null;
   }
+
   d.mode = null;
   d.consentConfirmedAt = null;
 }
@@ -966,14 +974,25 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     const rangeStart = monthOnlyDate ? monthOnlyDate : d.date ? addDaysYmd(d.date, 1) : todayYmd;
     const rangeEnd = monthOnlyDate ? endOfMonthYmd(monthOnlyDate) : addDaysYmd(rangeStart, 45);
     const daysAhead = Math.max(1, dateDistanceDays(rangeStart, rangeEnd) + 1);
-    const availableDates = await findServiceAvailableDatesInRange({
-      origin,
-      accountSlug: account.slug,
-      locationId: d.locationId,
-      serviceId: d.serviceId,
-      fromDate: rangeStart,
-      daysAhead,
-    });
+    const availableDates = d.specialistId
+      ? await findNextServiceDatesForSpecialist({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          specialistId: d.specialistId,
+          fromDate: rangeStart,
+          daysAhead,
+          maxDates: daysAhead,
+        })
+      : await findServiceAvailableDatesInRange({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: d.serviceId,
+          fromDate: rangeStart,
+          daysAhead,
+        });
     d.date = null;
     d.time = null;
     if (
@@ -1099,7 +1118,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     };
   }
 
-  if (d.locationId && d.serviceId && d.date && d.time) nextStatus = "CHECKING";
+  if (d.locationId && d.serviceId && d.date && d.time && d.specialistId) nextStatus = "CHECKING";
 
   if (!d.locationId) {
     if (!bookingIntent && !d.serviceId && !d.time && asksAboutSpecialists(messageNorm) && d.date) {
@@ -1122,7 +1141,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       }
     }
     if (asksAvailability || d.serviceId) {
-      let targetDate = d.date ?? new Date().toISOString().slice(0, 10);
+      let targetDate = d.date ?? todayYmd;
       if (wantsNextDateStep(messageNorm) && d.date) {
         targetDate = addDaysYmd(d.date, 1);
         d.date = targetDate;
@@ -1327,7 +1346,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   if (d.date && !d.time) {
     const dayOffers = await getOffers(origin, account.slug, d.locationId!, d.date);
     const availableServiceIds = new Set(
-      (dayOffers?.times ?? []).flatMap((slot) => (slot.services ?? []).map((svc) => svc.serviceId)),
+      (dayOffers?.times ?? []).flatMap((slot) =>
+        (slot.services ?? [])
+          .filter((svc) => !d.specialistId || (svc.specialistIds?.length ?? 0) === 0 || svc.specialistIds?.includes(d.specialistId) === true)
+          .map((svc) => svc.serviceId),
+      ),
     );
     servicesForSelection = scopedServices.filter((svc) => availableServiceIds.has(svc.id));
   }
@@ -1346,7 +1369,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         };
       }
       // Use slot offer matrix as source of truth while user is choosing service.
-      const serviceIds = offerAtTime.services.map((x) => x.serviceId);
+      const serviceIds = offerAtTime.services
+        .filter((svc) => !d.specialistId || (svc.specialistIds?.length ?? 0) === 0 || svc.specialistIds?.includes(d.specialistId) === true)
+        .map((x) => x.serviceId);
       if (!serviceIds.length) {
         return {
           handled: true,
@@ -1386,7 +1411,6 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     }
     if (asksAvailability) {
       const targetDate = d.date ?? todayYmd;
-      if (!d.date) d.date = targetDate;
       const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
       const allTimes = Array.from(new Set((offers?.times ?? []).filter((x) => (x.services?.length ?? 0) > 0).map((x) => x.time)));
       const pref = detectTimePreference(messageNorm);
@@ -1474,14 +1498,25 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       const minDate = todayYmd;
       const maxDate = addDaysYmd(todayYmd, 60);
       const availableDates = d.locationId && d.serviceId
-        ? await findServiceAvailableDatesInRange({
-            origin,
-            accountSlug: account.slug,
-            locationId: d.locationId,
-            serviceId: d.serviceId,
-            fromDate: minDate,
-            daysAhead: 61,
-          })
+        ? d.specialistId
+          ? await findNextServiceDatesForSpecialist({
+              origin,
+              accountSlug: account.slug,
+              locationId: d.locationId,
+              serviceId: d.serviceId,
+              specialistId: d.specialistId,
+              fromDate: minDate,
+              daysAhead: 61,
+              maxDates: 61,
+            })
+          : await findServiceAvailableDatesInRange({
+              origin,
+              accountSlug: account.slug,
+              locationId: d.locationId,
+              serviceId: d.serviceId,
+              fromDate: minDate,
+              daysAhead: 61,
+            })
         : (
             await findNearestDateWindows({
               origin,
@@ -1622,6 +1657,89 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже.`,
         nextStatus: "CHECKING",
         ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x, services.find((svc) => svc.id === d.serviceId) ?? null)) },
+      };
+    }
+  }
+
+  if (d.locationId && d.serviceId && d.date && d.time && d.specialistId) {
+    const selectedDate = d.date;
+    const selectedTime = d.time;
+    const offers = await getOffers(origin, account.slug, d.locationId, d.date);
+    const offerAtTime = (offers?.times ?? []).find((x) => x.time === selectedTime) ?? null;
+    const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
+    const specialistAvailableAtSlot =
+      !!offerService &&
+      ((offerService.specialistIds?.length ?? 0) === 0 || offerService.specialistIds?.includes(d.specialistId) === true);
+
+    if (!specialistAvailableAtSlot) {
+      const selectedSpecialistName = specialists.find((x) => x.id === d.specialistId)?.name ?? "выбранный специалист";
+      const specialistTimes = await findTimesForServiceAndSpecialist({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        serviceId: d.serviceId,
+        specialistId: d.specialistId,
+        date: selectedDate,
+      });
+
+      if (specialistTimes.length) {
+        d.time = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: "На " + selectedTime + " у " + selectedSpecialistName + " окно недоступно. Выберите другое время.",
+          nextStatus: "COLLECTING",
+          ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(specialistTimes, 24) },
+        };
+      }
+
+      const nextSpecialistDates = await findNextServiceDatesForSpecialist({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        serviceId: d.serviceId,
+        specialistId: d.specialistId,
+        fromDate: selectedDate,
+        daysAhead: 35,
+        maxDates: 6,
+      });
+
+      if (nextSpecialistDates.length) {
+        d.date = null;
+        d.time = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: "У " + selectedSpecialistName + " на " + formatYmdRu(selectedDate) + " нет свободных окон по этой услуге. Выберите другую дату.",
+          nextStatus: "COLLECTING",
+          ui: {
+            kind: "date_picker",
+            minDate: nextSpecialistDates[0]!,
+            maxDate: nextSpecialistDates[nextSpecialistDates.length - 1]!,
+            initialDate: nextSpecialistDates[0]!,
+            availableDates: nextSpecialistDates,
+          },
+        };
+      }
+
+      const alternativeSpecs = specialists.filter((s) => {
+        if (d.locationId && !s.locationIds.includes(d.locationId)) return false;
+        if (d.serviceId && s.serviceIds?.length && !s.serviceIds.includes(d.serviceId)) return false;
+        return s.id !== d.specialistId;
+      });
+      d.specialistId = null;
+      d.time = null;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+      return {
+        handled: true,
+        reply: "У " + selectedSpecialistName + " нет доступных окон на выбранный слот. Выберите другого специалиста или другое время.",
+        nextStatus: "COLLECTING",
+        ui: alternativeSpecs.length
+          ? { kind: "quick_replies", options: alternativeSpecs.map((x) => specialistOption(x, services.find((svc) => svc.id === d.serviceId) ?? null)) }
+          : null,
       };
     }
   }
@@ -1926,6 +2044,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
 
 
 
