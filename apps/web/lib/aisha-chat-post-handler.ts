@@ -7,7 +7,7 @@ import { parseDate } from "@/lib/aisha-chat-parsers";
 import { buildTurnContext } from "@/lib/aisha-chat-turn-context";
 import { applyDraftMutations } from "@/lib/aisha-draft-mutations";
 import { computeBookingDecisions } from "@/lib/aisha-booking-decisions";
-import { handleUnknownServiceResolution } from "@/lib/aisha-fuzzy-resolver";
+import { handleEntityClarificationResolution, handleUnknownServiceResolution } from "@/lib/aisha-fuzzy-resolver";
 import { postProcessReply } from "@/lib/aisha-chat-postprocess";
 import { createFailSoftHandler, preparePostTurn, saveTurn } from "@/lib/aisha-turn-persistence";
 import { handleClientActionsDomain } from "@/lib/aisha-handle-client-actions";
@@ -297,6 +297,22 @@ export async function handlePublicAiChatPost(request: Request) {
       messageForRouting,
     });
     const locationChosenThisTurn = draftMutation.locationChosenThisTurn;
+
+    const entityClarification = await handleEntityClarificationResolution({
+      shouldEnrichDraftForBooking,
+      shouldRunBookingFlow,
+      messageForRouting,
+      t,
+      d,
+      threadId: thread.id,
+      nextThreadKey,
+      locations,
+      services,
+      specialists,
+    });
+    if (entityClarification.handled && entityClarification.payload) {
+      return jsonOk(entityClarification.payload);
+    }
 
     const unknownService = await handleUnknownServiceResolution({
       shouldEnrichDraftForBooking,
