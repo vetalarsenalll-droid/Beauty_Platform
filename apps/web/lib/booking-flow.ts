@@ -1191,7 +1191,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
             const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
             // At "choose service after selecting time" step, trust offer matrix for that slot.
             // Extra strict per-service recheck here caused false negatives vs online booking.
-            const serviceIds = offerAtTime?.services.map((x) => x.serviceId) ?? [];
+            const serviceIds = (offerAtTime?.services ?? [])
+              .filter((svc) => !d.specialistId || (svc.specialistIds?.length ?? 0) === 0 || svc.specialistIds?.includes(d.specialistId) === true)
+              .map((x) => x.serviceId);
             const scopedAtLoc = services.filter((svc) => svc.locationIds.includes(d.locationId!));
             if (serviceIds.length) {
               return {
@@ -1210,7 +1212,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           if (d.serviceId) {
             const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
             const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
-            const serviceIds = offerAtTime?.services.map((x) => x.serviceId) ?? [];
+            const serviceIds = (offerAtTime?.services ?? [])
+              .filter((svc) => !d.specialistId || (svc.specialistIds?.length ?? 0) === 0 || svc.specialistIds?.includes(d.specialistId) === true)
+              .map((x) => x.serviceId);
             if (!serviceIds.includes(d.serviceId)) {
               const candidateTimes = Array.from(
                 new Set((offers?.times ?? []).filter((x) => x.services.some((s) => s.serviceId === d.serviceId)).map((x) => x.time)),
@@ -1342,7 +1346,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
   const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm);
 
-  let servicesForSelection = scopedServices;
+  const selectedSpecialistForSelection = d.specialistId ? specialists.find((sp) => sp.id === d.specialistId) ?? null : null;
+  let servicesForSelection = selectedSpecialistForSelection
+    ? scopedServices.filter((svc) => (selectedSpecialistForSelection.serviceIds?.length ? selectedSpecialistForSelection.serviceIds.includes(svc.id) : true))
+    : scopedServices;
   if (d.date && !d.time) {
     const dayOffers = await getOffers(origin, account.slug, d.locationId!, d.date);
     const availableServiceIds = new Set(
