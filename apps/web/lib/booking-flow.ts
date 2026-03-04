@@ -1186,7 +1186,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           };
         }
         if (resolvedLocationFromTime) {
-          if (!d.serviceId) {
+if (!d.serviceId) {
             const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
             const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
             // At "choose service after selecting time" step, trust offer matrix for that slot.
@@ -1362,6 +1362,22 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     servicesForSelection = scopedServices.filter((svc) => availableServiceIds.has(svc.id));
   }
   const servicesForSelectionByCategory = filterServicesByCategory(servicesForSelection, selectedServiceCategoryFilter);
+  if (!d.serviceId && d.specialistId && !servicesForSelection.length) {
+    const selectedSpecialistName = specialists.find((x) => x.id === d.specialistId)?.name ?? "выбранный специалист";
+    const alternativeSpecialists = specialists.filter((s) => {
+      if (!d.locationId || !s.locationIds.includes(d.locationId)) return false;
+      if (s.id === d.specialistId) return false;
+      return s.serviceIds?.length ? s.serviceIds.some((id) => scopedServices.some((svc) => svc.id === id)) : true;
+    });
+    return {
+      handled: true,
+      reply: "У выбранного специалиста в этой локации нет доступных услуг. Выберите другого специалиста или смените филиал.",
+      nextStatus: "COLLECTING",
+      ui: alternativeSpecialists.length
+        ? { kind: "quick_replies", options: alternativeSpecialists.map((x) => specialistOption(x)) }
+        : null,
+    };
+  }
   if (!d.serviceId) {
     if (d.date && d.time) {
       const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
@@ -1662,7 +1678,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       return {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже.`,
-        nextStatus: "CHECKING",
+        nextStatus: "COLLECTING",
         ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x, services.find((svc) => svc.id === d.serviceId) ?? null)) },
       };
     }
