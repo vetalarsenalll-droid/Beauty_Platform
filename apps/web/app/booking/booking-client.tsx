@@ -73,6 +73,16 @@ type Slot = {
   specialistId: number;
 };
 
+type ActiveHold = {
+  holdId: number;
+  expiresAt: string;
+  locationId: number;
+  specialistId: number;
+  serviceId: number;
+  date: string;
+  time: string;
+};
+
 type ContextData = {
   account: PublicAccount;
   locations: Location[];
@@ -971,6 +981,7 @@ export default function BookingClient({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [activeHold, setActiveHold] = useState<ActiveHold | null>(null);
 
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
   const [loadingClientProfile, setLoadingClientProfile] = useState(false);
@@ -989,6 +1000,7 @@ export default function BookingClient({
     loaderConfig && loaderConfig.showBookingInline ? loaderConfig : null;
 
   const idempotencyKeyRef = useRef<string | null>(null);
+  const holdRequestIdRef = useRef(0);
   useEffect(() => {
     idempotencyKeyRef.current = null;
   }, [
@@ -1010,6 +1022,82 @@ export default function BookingClient({
     }
     return idempotencyKeyRef.current;
   };
+
+  const holdSelection = useMemo(
+    () =>
+      locationId && specialistId && serviceId && timeChoice
+        ? {
+            locationId,
+            specialistId,
+            serviceId,
+            date: dateYmd,
+            time: timeChoice,
+          }
+        : null,
+    [locationId, specialistId, serviceId, dateYmd, timeChoice]
+  );
+
+  const isHoldStillFresh = (value: string, skewMs = 7000) =>
+    Number.isFinite(new Date(value).getTime()) &&
+    new Date(value).getTime() > Date.now() + skewMs;
+
+  const holdMatchesSelection = (hold: ActiveHold | null, selection: NonNullable<typeof holdSelection>) =>
+    !!hold &&
+    hold.locationId === selection.locationId &&
+    hold.specialistId === selection.specialistId &&
+    hold.serviceId === selection.serviceId &&
+    hold.date === selection.date &&
+    hold.time === selection.time;
+
+  const reserveHold = async (selection: NonNullable<typeof holdSelection>, replaceHoldId?: number | null) => {
+    const hold = await fetchJson<{ holdId: number; expiresAt: string }>(
+      buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" }),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          locationId: selection.locationId,
+          specialistId: selection.specialistId,
+          serviceId: selection.serviceId,
+          date: selection.date,
+          time: selection.time,
+          ...(replaceHoldId ? { replaceHoldId } : {}),
+        }),
+      }
+    );
+    return hold;
+  };
+
+  useEffect(() => {
+    if (!holdSelection || submitSuccess) return;
+
+    const sameSelection = holdMatchesSelection(activeHold, holdSelection);
+    if (sameSelection && activeHold && isHoldStillFresh(activeHold.expiresAt, 45000)) return;
+
+    const requestId = ++holdRequestIdRef.current;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const hold = await reserveHold(holdSelection, activeHold?.holdId ?? null);
+        if (cancelled || requestId !== holdRequestIdRef.current) return;
+        setActiveHold({
+          holdId: hold.holdId,
+          expiresAt: hold.expiresAt,
+          ...holdSelection,
+        });
+      } catch (error) {
+        if (cancelled || requestId !== holdRequestIdRef.current) return;
+        setSubmitError((error as Error).message);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [holdSelection, submitSuccess, activeHold]);
 
   // ✅ один раз синхронизируем дату с today в TZ аккаунта после загрузки контекста
   const didInitDateRef = useRef(false);
@@ -2350,6 +2438,7 @@ export default function BookingClient({
     setLegalConsents({});
     setSubmitError(null);
     setSubmitSuccess(false);
+    setActiveHold(null);
     setDateYmd(todayYmdTz);
     setTimeBucket("all");
     setQuery("");
@@ -2372,22 +2461,23 @@ export default function BookingClient({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const hold = await fetchJson<{ holdId: number; expiresAt: string }>(
-        buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" }),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            locationId,
-            specialistId,
-            serviceId,
-            date: dateYmd,
-            time: timeChoice,
-          }),
-        }
-      );
+      if (!holdSelection) {
+        setSubmitError("Choose a valid date and time.");
+        return;
+      }
+
+      const hold =
+        holdMatchesSelection(activeHold, holdSelection) && activeHold && isHoldStillFresh(activeHold.expiresAt)
+          ? { holdId: activeHold.holdId, expiresAt: activeHold.expiresAt }
+          : await reserveHold(holdSelection, activeHold?.holdId ?? null);
+
+      if (!activeHold || activeHold.holdId !== hold.holdId || activeHold.expiresAt !== hold.expiresAt) {
+        setActiveHold({
+          holdId: hold.holdId,
+          expiresAt: hold.expiresAt,
+          ...holdSelection,
+        });
+      }
 
       await fetchJson<{ appointmentId: number }>(
         buildUrl("/api/v1/public/booking/appointments", { account: accountSlug ?? "" }),

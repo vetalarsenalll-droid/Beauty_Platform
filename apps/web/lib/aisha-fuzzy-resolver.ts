@@ -548,7 +548,7 @@ export async function handleEntityClarificationResolution(args: {
       return sp.serviceIds?.length ? sp.serviceIds.includes(s.id) : true;
     });
 
-  if (d.serviceId && bookingLike) {
+  if (d.serviceId && bookingLike && !modeOrFinalizationCue && !hasDeepDraftContext) {
     const selectedService = services.find((s) => s.id === d.serviceId) ?? null;
     if (selectedService && !isExactMention(messageNorm, selectedService.name)) {
       const exactAnyServiceMention = scopedServices.some((s) => isExactMention(messageNorm, s.name));

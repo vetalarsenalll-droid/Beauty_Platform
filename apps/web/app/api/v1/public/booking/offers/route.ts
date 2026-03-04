@@ -44,6 +44,8 @@ export async function GET(request: Request) {
   const locationId = parsePositiveInt(searchParams.get("locationId"));
   const dateValue = String(searchParams.get("date") ?? "").trim();
   const excludeAppointmentId = parsePositiveInt(searchParams.get("excludeAppointmentId"));
+  const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
+  const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
 
   if (!locationId || !dateValue) {
     return jsonError("INVALID_REQUEST", "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РїР°СЂР°РјРµС‚СЂС‹.", null, 400);
@@ -142,6 +144,7 @@ export async function GET(request: Request) {
         expiresAt: { gt: new Date() },
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc },
+        ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),

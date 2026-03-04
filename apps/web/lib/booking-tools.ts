@@ -77,12 +77,14 @@ export async function getSlots(
   locationId: number,
   serviceId: number,
   date: string,
+  holdOwnerMarker?: number | null,
 ) {
   const u = new URL("/api/v1/public/booking/slots", origin);
   u.searchParams.set("account", accountSlug);
   u.searchParams.set("locationId", String(locationId));
   u.searchParams.set("serviceId", String(serviceId));
   u.searchParams.set("date", date);
+  if (Number.isInteger(Number(holdOwnerMarker))) u.searchParams.set("holdOwnerMarker", String(holdOwnerMarker));
   const slots = await apiData<{ slots: Array<{ time: string }> }>(u.toString());
   return Array.from(new Set((slots?.slots ?? []).map((x) => x.time))).sort((a, b) => (toMinutes(a) ?? 0) - (toMinutes(b) ?? 0));
 }
@@ -93,6 +95,7 @@ export async function getOffers(
   locationId: number,
   date: string,
   excludeAppointmentId?: number | null,
+  holdOwnerMarker?: number | null,
 ) {
   const u = new URL("/api/v1/public/booking/offers", origin);
   u.searchParams.set("account", accountSlug);
@@ -101,6 +104,7 @@ export async function getOffers(
   if (excludeAppointmentId && Number.isInteger(excludeAppointmentId) && excludeAppointmentId > 0) {
     u.searchParams.set("excludeAppointmentId", String(excludeAppointmentId));
   }
+  if (Number.isInteger(Number(holdOwnerMarker))) u.searchParams.set("holdOwnerMarker", String(holdOwnerMarker));
   return (
     (await apiData<{ times: Array<{ time: string; services: Array<{ serviceId: number; specialistIds?: number[] }> }> }>(u.toString())) ?? {
       times: [],
@@ -166,10 +170,101 @@ type CreateBookingArgs = {
   request: Request;
   services: ServiceLite[];
   preferredClientId?: number | null;
+  holdOwnerMarker?: number | null;
 };
 
+export async function reserveAssistantSlotHold(args: {
+  accountId: number;
+  locationId: number;
+  specialistId: number;
+  date: string;
+  time: string;
+  durationMin: number;
+  accountTz: string;
+  holdOwnerMarker: number;
+}) {
+  const { accountId, locationId, specialistId, date, time, durationMin, accountTz, holdOwnerMarker } = args;
+  const startAt = zonedTimeToUtc(String(date), String(time), accountTz);
+  const day = zonedDayRangeUtc(String(date), accountTz);
+  if (!startAt || !day || isPastDateOrTimeInTz(String(date), String(time), accountTz)) return false;
+
+  const endAt = new Date(startAt);
+  endAt.setUTCMinutes(endAt.getUTCMinutes() + Number(durationMin || 0));
+  const now = new Date();
+
+  const setting = await prisma.accountSetting.findUnique({
+    where: { accountId },
+    select: { holdTtlMinutes: true },
+  });
+  const ttlMinutes = Math.min(Math.max(setting?.holdTtlMinutes ?? 5, 1), 30);
+  const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000);
+
+  try {
+    const ok = await prisma.$transaction(async (tx) => {
+      const [conflictAppt, conflictBlock, conflictHold] = await Promise.all([
+        tx.appointment.findFirst({
+          where: {
+            accountId,
+            locationId,
+            specialistId,
+            status: { notIn: ["CANCELLED", "NO_SHOW"] },
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+          },
+          select: { id: true },
+        }),
+        tx.blockedSlot.findFirst({
+          where: {
+            accountId,
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+            OR: [{ locationId }, { specialistId }],
+          },
+          select: { id: true },
+        }),
+        tx.appointmentHold.findFirst({
+          where: {
+            accountId,
+            specialistId,
+            expiresAt: { gt: now },
+            startAt: { lt: endAt },
+            endAt: { gt: startAt },
+            clientId: { not: holdOwnerMarker },
+          },
+          select: { id: true },
+        }),
+      ]);
+
+      if (conflictAppt || conflictBlock || conflictHold) return false;
+
+      await tx.appointmentHold.deleteMany({
+        where: { accountId, clientId: holdOwnerMarker },
+      });
+
+      await tx.appointmentHold.create({
+        data: {
+          accountId,
+          specialistId,
+          clientId: holdOwnerMarker,
+          startAt,
+          endAt,
+          expiresAt,
+        },
+      });
+
+      return true;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    return ok;
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code ?? "";
+    if (code === "P2034") return false;
+    throw error;
+  }
+}
+
 export async function createAssistantBooking(args: CreateBookingArgs) {
-  const { d, accountId, accountTz, requiredVersionIds, request, services, preferredClientId = null } = args;
+  const { d, accountId, accountTz, requiredVersionIds, request, services, preferredClientId = null, holdOwnerMarker = null } = args;
   const startAt = zonedTimeToUtc(String(d.date), String(d.time), accountTz);
   const day = zonedDayRangeUtc(String(d.date), accountTz);
   if (!startAt || !day || isPastDateOrTimeInTz(String(d.date), String(d.time), accountTz)) {
@@ -240,6 +335,7 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
             expiresAt: { gt: new Date() },
             startAt: { lt: endAt },
             endAt: { gt: startAt },
+            ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
           },
           select: { id: true },
         });

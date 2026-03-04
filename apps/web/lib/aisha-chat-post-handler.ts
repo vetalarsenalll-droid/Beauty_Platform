@@ -447,6 +447,7 @@ export async function handlePublicAiChatPost(request: Request) {
         publicSlug,
         todayYmd: nowYmd,
         preferredClientId: client?.clientId ?? thread.clientId ?? null,
+        holdOwnerMarker: -thread.id,
       },
       shouldRunBookingFlow,
       currentReply: reply,

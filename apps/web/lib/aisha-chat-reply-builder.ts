@@ -130,6 +130,7 @@ export async function runBookingFlowBranch(args: {
   publicSlug: string;
   todayYmd: string;
   preferredClientId: number | null;
+  holdOwnerMarker?: number | null;
 }): Promise<{ handled: boolean; reply?: string; nextStatus?: string; nextAction?: { type: "open_booking"; bookingUrl: string } | null; ui?: ChatUi | null }> {
   const {
     message,
@@ -155,6 +156,7 @@ export async function runBookingFlowBranch(args: {
     publicSlug,
     todayYmd,
     preferredClientId,
+    holdOwnerMarker = null,
   } = args;
 
   const hasBookingVerb = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|хочу|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
@@ -198,6 +200,7 @@ export async function runBookingFlowBranch(args: {
     publicSlug,
     todayYmd,
     preferredClientId,
+    holdOwnerMarker,
   });
 
   return {

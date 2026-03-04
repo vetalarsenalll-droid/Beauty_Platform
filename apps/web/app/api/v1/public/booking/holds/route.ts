@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   BOOKING_HOLD_COOKIE,
   createHoldProofToken,
+  verifyHoldProofToken,
 } from "@/lib/public-booking-hold-proof";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
@@ -22,6 +23,19 @@ const toNumber = (value: unknown) => {
 
 type Window = { start: number; end: number };
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
+const readCookieValue = (request: Request, name: string) => {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  if (!cookieHeader) return "";
+  const pairs = cookieHeader.split(";");
+  for (const pair of pairs) {
+    const idx = pair.indexOf("=");
+    if (idx <= 0) continue;
+    const key = pair.slice(0, idx).trim();
+    if (key !== name) continue;
+    return decodeURIComponent(pair.slice(idx + 1).trim());
+  }
+  return "";
+};
 
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
@@ -44,6 +58,7 @@ export async function POST(request: Request) {
     serviceId?: number;
     date?: string;
     time?: string;
+    replaceHoldId?: number;
   } | null;
 
   if (!body) {
@@ -55,6 +70,8 @@ export async function POST(request: Request) {
   const serviceId = Number(body.serviceId);
   const dateValue = String(body.date ?? "").trim();
   const timeValue = String(body.time ?? "").trim();
+  const replaceHoldId = Number.isInteger(Number(body.replaceHoldId)) ? Number(body.replaceHoldId) : null;
+  const holdProofToken = readCookieValue(request, BOOKING_HOLD_COOKIE);
 
   if (
     !Number.isInteger(locationId) ||
@@ -184,6 +201,33 @@ export async function POST(request: Request) {
     try {
       const result = await prisma.$transaction(
         async (tx) => {
+          if (replaceHoldId && holdProofToken) {
+            const replaceHold = await tx.appointmentHold.findFirst({
+              where: { id: replaceHoldId, accountId: resolved.account.id },
+              select: {
+                id: true,
+                specialistId: true,
+                startAt: true,
+                endAt: true,
+              },
+            });
+
+            if (
+              replaceHold &&
+              verifyHoldProofToken(holdProofToken, {
+                holdId: replaceHold.id,
+                accountId: resolved.account.id,
+                specialistId: replaceHold.specialistId,
+                startAt: replaceHold.startAt,
+                endAt: replaceHold.endAt,
+              })
+            ) {
+              await tx.appointmentHold.deleteMany({
+                where: { id: replaceHold.id, accountId: resolved.account.id },
+              });
+            }
+          }
+
           const [conflictAppt, conflictBlock, conflictHold] = await Promise.all([
             tx.appointment.findFirst({
               where: {
@@ -212,6 +256,7 @@ export async function POST(request: Request) {
                 expiresAt: { gt: now },
                 startAt: { lt: endAtUtc },
                 endAt: { gt: startAtUtc },
+                ...(replaceHoldId ? { id: { not: replaceHoldId } } : {}),
               },
               select: { id: true },
             }),

@@ -1,6 +1,7 @@
 import {
   bookingSummary,
   createAssistantBooking,
+  reserveAssistantSlotHold,
   DraftLike,
       getEffectiveServiceForSpecialist,
   getOffers,
@@ -56,6 +57,7 @@ type FlowCtx = {
   publicSlug: string;
   todayYmd: string;
   preferredClientId?: number | null;
+  holdOwnerMarker?: number | null;
 };
 
 type FlowResult = {
@@ -870,6 +872,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     publicSlug,
     todayYmd,
     preferredClientId = null,
+    holdOwnerMarker = null,
   } = ctx;
   const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
@@ -1187,7 +1190,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
         }
         if (resolvedLocationFromTime) {
 if (!d.serviceId) {
-            const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
+            const offers = await getOffers(origin, account.slug, d.locationId!, targetDate, undefined, holdOwnerMarker ?? undefined);
             const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
             // At "choose service after selecting time" step, trust offer matrix for that slot.
             // Extra strict per-service recheck here caused false negatives vs online booking.
@@ -1210,7 +1213,7 @@ if (!d.serviceId) {
             }
           }
           if (d.serviceId) {
-            const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
+            const offers = await getOffers(origin, account.slug, d.locationId!, targetDate, undefined, holdOwnerMarker ?? undefined);
             const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
             const serviceIds = (offerAtTime?.services ?? [])
               .filter((svc) => !d.specialistId || (svc.specialistIds?.length ?? 0) === 0 || svc.specialistIds?.includes(d.specialistId) === true)
@@ -1351,7 +1354,7 @@ if (!d.serviceId) {
     ? scopedServices.filter((svc) => (selectedSpecialistForSelection.serviceIds?.length ? selectedSpecialistForSelection.serviceIds.includes(svc.id) : true))
     : scopedServices;
   if (d.date && !d.time) {
-    const dayOffers = await getOffers(origin, account.slug, d.locationId!, d.date);
+    const dayOffers = await getOffers(origin, account.slug, d.locationId!, d.date, undefined, holdOwnerMarker ?? undefined);
     const availableServiceIds = new Set(
       (dayOffers?.times ?? []).flatMap((slot) =>
         (slot.services ?? [])
@@ -1380,7 +1383,7 @@ if (!d.serviceId) {
   }
   if (!d.serviceId) {
     if (d.date && d.time) {
-      const offers = await getOffers(origin, account.slug, d.locationId!, d.date);
+      const offers = await getOffers(origin, account.slug, d.locationId!, d.date, undefined, holdOwnerMarker ?? undefined);
       const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
       const availableTimes = Array.from(new Set((offers?.times ?? []).map((x) => x.time))).slice(0, 24);
       if (!offerAtTime || !offerAtTime.services.length) {
@@ -1434,7 +1437,7 @@ if (!d.serviceId) {
     }
     if (asksAvailability) {
       const targetDate = d.date ?? todayYmd;
-      const offers = await getOffers(origin, account.slug, d.locationId!, targetDate);
+      const offers = await getOffers(origin, account.slug, d.locationId!, targetDate, undefined, holdOwnerMarker ?? undefined);
       const allTimes = Array.from(new Set((offers?.times ?? []).filter((x) => (x.services?.length ?? 0) > 0).map((x) => x.time)));
       const pref = detectTimePreference(messageNorm);
       const times = filterByPreference(allTimes, pref);
@@ -1594,7 +1597,7 @@ if (!d.serviceId) {
           specialistId: d.specialistId!,
           date: d.date,
         })
-      : await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date);
+      : await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date, holdOwnerMarker ?? undefined);
     const times = filterByPreference(allTimes, pref);
     if (!times.length) {
       const nextDates = specialistSelected
@@ -1649,7 +1652,7 @@ if (!d.serviceId) {
     };
   }
   if (!d.specialistId) {
-    const offers = await getOffers(origin, account.slug, d.locationId!, d.date!);
+    const offers = await getOffers(origin, account.slug, d.locationId!, d.date!, undefined, holdOwnerMarker ?? undefined);
     const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
     const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
     let specs =
@@ -1669,7 +1672,7 @@ if (!d.serviceId) {
       );
       const times = offerTimesForService.length
         ? offerTimesForService
-        : await getSlots(origin, account.slug, d.locationId!, d.serviceId!, d.date!);
+        : await getSlots(origin, account.slug, d.locationId!, d.serviceId!, d.date!, holdOwnerMarker ?? undefined);
       const suggestedTimes = times.filter((tm) => tm !== d.time).slice(0, 8);
       if (times.length) {
         const serviceName = services.find((x) => x.id === d.serviceId)?.name ?? "выбранная услуга";
@@ -1707,7 +1710,7 @@ if (!d.serviceId) {
   if (d.locationId && d.serviceId && d.date && d.time && d.specialistId) {
     const selectedDate = d.date;
     const selectedTime = d.time;
-    const offers = await getOffers(origin, account.slug, d.locationId, d.date);
+    const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
     const offerAtTime = (offers?.times ?? []).find((x) => x.time === selectedTime) ?? null;
     const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
     const specialistAvailableAtSlot =
@@ -1797,7 +1800,7 @@ if (!d.serviceId) {
     });
     const selectedSpecialistByMessage = specialistByText(messageNorm, specialistScope);
     if (selectedSpecialistByMessage && selectedSpecialistByMessage.id !== d.specialistId && d.locationId && d.serviceId && d.date) {
-      const offers = await getOffers(origin, account.slug, d.locationId, d.date);
+      const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
       const offerAtCurrentTime = selectedTime ? (offers?.times ?? []).find((x) => x.time === selectedTime) ?? null : null;
       const serviceAtCurrentTime = offerAtCurrentTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
       const selectedIsAvailableAtCurrentTime =
@@ -1868,7 +1871,7 @@ if (!d.serviceId) {
     }
 
     if (d.locationId && d.serviceId && d.date && d.time && d.specialistId && asksAlternativeSpecialists(messageNorm)) {
-      const offers = await getOffers(origin, account.slug, d.locationId, d.date);
+      const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
       const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
       const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
       const specialistIdsAtTime = offerService?.specialistIds ?? [];
@@ -1950,6 +1953,32 @@ if (!d.serviceId) {
     const selectedService = services.find((x) => x.id === d.serviceId) ?? null;
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
     const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
+
+    if (holdOwnerMarker != null && d.locationId && d.specialistId && d.date && d.time && effective) {
+      const holdOk = await reserveAssistantSlotHold({
+        accountId: account.id,
+        locationId: d.locationId,
+        specialistId: d.specialistId,
+        date: d.date,
+        time: d.time,
+        durationMin: effective.durationMin,
+        accountTz: account.timeZone,
+        holdOwnerMarker,
+      });
+      if (!holdOk) {
+        const times = await getSlots(origin, account.slug, d.locationId, d.serviceId!, d.date, holdOwnerMarker ?? undefined);
+        d.time = null;
+        return {
+          handled: true,
+          reply: "Этот слот только что заняли. Выберите, пожалуйста, другое время.",
+          nextStatus: "COLLECTING",
+          ui: {
+            kind: "quick_replies",
+            options: buildTimeOptionsWithControls(times, 24),
+          },
+        };
+      }
+    }
     const effectiveText = effective ? `\nСтоимость: ${Math.round(effective.price)} ₽\nДлительность: ${effective.durationMin} мин` : "";
     const specialistAutoText = autoSelectedSpecialistName
       ? autoAssignedSpecialistText(autoSelectedSpecialistName, previouslySelectedSpecialistName)
@@ -2055,7 +2084,7 @@ if (!d.serviceId) {
     if (created.code === "slot_busy") {
       const times =
         d.locationId && d.serviceId && d.date
-          ? (await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date)).slice(0, 24)
+          ? (await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date, holdOwnerMarker ?? undefined)).slice(0, 24)
           : [];
       return {
         handled: true,
@@ -2067,7 +2096,7 @@ if (!d.serviceId) {
     if (created.code === "outside_working_hours") {
       const times =
         d.locationId && d.serviceId && d.date
-          ? (await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date)).slice(0, 24)
+          ? (await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date, holdOwnerMarker ?? undefined)).slice(0, 24)
           : [];
       return {
         handled: true,

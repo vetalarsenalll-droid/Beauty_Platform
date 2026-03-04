@@ -35,6 +35,8 @@ export async function GET(request: Request) {
   // если параметр отсутствует -> null, а не 0
   const serviceId = parsePositiveInt(searchParams.get("serviceId"));
   const specialistId = parsePositiveInt(searchParams.get("specialistId"));
+  const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
+  const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
 
   if (!locationId || !dateValue) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
@@ -119,6 +121,7 @@ export async function GET(request: Request) {
         expiresAt: { gt: new Date() },
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc },
+        ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
