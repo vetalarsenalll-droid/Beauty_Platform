@@ -10,6 +10,7 @@ import {
   parsePositiveInt,
   getNowInTimeZone,
 } from "@/lib/public-booking";
+import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
 
 type Window = { start: number; end: number };
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
@@ -18,6 +19,20 @@ const toRangeInTz = (startAt: Date, endAt: Date, timeZone: string) => ({
   start: toZonedLocalMinutes(startAt, timeZone),
   end: toZonedLocalMinutes(endAt, timeZone),
 });
+
+function readCookieValue(request: Request, name: string) {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  if (!cookieHeader) return "";
+  const pairs = cookieHeader.split(";");
+  for (const pair of pairs) {
+    const idx = pair.indexOf("=");
+    if (idx <= 0) continue;
+    const key = pair.slice(0, idx).trim();
+    if (key !== name) continue;
+    return decodeURIComponent(pair.slice(idx + 1).trim());
+  }
+  return "";
+}
 
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
@@ -37,6 +52,12 @@ export async function GET(request: Request) {
   const specialistId = parsePositiveInt(searchParams.get("specialistId"));
   const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
   const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
+  const holdProofToken = readCookieValue(request, BOOKING_HOLD_COOKIE);
+  const holdProofPayload = parseHoldProofToken(holdProofToken);
+  const ownProofHoldId =
+    holdProofPayload && holdProofPayload.accountId === resolved.account.id
+      ? holdProofPayload.holdId
+      : null;
 
   if (!locationId || !dateValue) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
@@ -96,7 +117,8 @@ export async function GET(request: Request) {
         accountId: resolved.account.id,
         locationId,
         specialistId: { in: specialistIds },
-        startAt: { gte: dayStartUtc, lt: dayEndUtc },
+        startAt: { lt: dayEndUtc },
+        endAt: { gt: dayStartUtc },
         status: { notIn: ["CANCELLED", "NO_SHOW"] },
       },
       select: { specialistId: true, startAt: true, endAt: true },
@@ -122,6 +144,7 @@ export async function GET(request: Request) {
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc },
         ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
+        ...(ownProofHoldId ? { id: { not: ownProofHoldId } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),

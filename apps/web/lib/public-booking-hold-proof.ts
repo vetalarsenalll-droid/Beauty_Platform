@@ -39,20 +39,14 @@ function safeEqual(a: string, b: string) {
   return timingSafeEqual(aBuf, bBuf);
 }
 
-export function createHoldProofToken(payload: HoldProofPayload) {
-  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const signature = sign(encoded);
-  return `${encoded}.${signature}`;
-}
-
-export function verifyHoldProofToken(token: string, expected: VerifyInput) {
-  if (!token || !token.includes(".")) return false;
+function parsePayload(token: string): HoldProofPayload | null {
+  if (!token || !token.includes(".")) return null;
 
   const [encoded, signature] = token.split(".", 2);
-  if (!encoded || !signature) return false;
+  if (!encoded || !signature) return null;
 
   const expectedSignature = sign(encoded);
-  if (!safeEqual(signature, expectedSignature)) return false;
+  if (!safeEqual(signature, expectedSignature)) return null;
 
   try {
     const payload = JSON.parse(
@@ -67,19 +61,43 @@ export function verifyHoldProofToken(token: string, expected: VerifyInput) {
       typeof payload.endAt !== "string" ||
       typeof payload.expiresAt !== "string"
     ) {
-      return false;
+      return null;
     }
 
-    if (new Date(payload.expiresAt).getTime() <= Date.now()) return false;
+    if (new Date(payload.expiresAt).getTime() <= Date.now()) return null;
 
-    return (
-      payload.holdId === expected.holdId &&
-      payload.accountId === expected.accountId &&
-      payload.specialistId === expected.specialistId &&
-      payload.startAt === expected.startAt.toISOString() &&
-      payload.endAt === expected.endAt.toISOString()
-    );
+    return {
+      holdId: payload.holdId,
+      accountId: payload.accountId,
+      specialistId: payload.specialistId,
+      startAt: payload.startAt,
+      endAt: payload.endAt,
+      expiresAt: payload.expiresAt,
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function createHoldProofToken(payload: HoldProofPayload) {
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = sign(encoded);
+  return `${encoded}.${signature}`;
+}
+
+export function parseHoldProofToken(token: string) {
+  return parsePayload(token);
+}
+
+export function verifyHoldProofToken(token: string, expected: VerifyInput) {
+  const payload = parsePayload(token);
+  if (!payload) return false;
+
+  return (
+    payload.holdId === expected.holdId &&
+    payload.accountId === expected.accountId &&
+    payload.specialistId === expected.specialistId &&
+    payload.startAt === expected.startAt.toISOString() &&
+    payload.endAt === expected.endAt.toISOString()
+  );
 }

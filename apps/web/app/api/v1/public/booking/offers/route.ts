@@ -10,6 +10,7 @@ import {
   parsePositiveInt,
   getNowInTimeZone,
 } from "@/lib/public-booking";
+import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
 
 type Window = { start: number; end: number };
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
@@ -32,6 +33,20 @@ function ceilToStep(mins: number, step: number) {
   return Math.ceil(mins / step) * step;
 }
 
+function readCookieValue(request: Request, name: string) {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  if (!cookieHeader) return "";
+  const pairs = cookieHeader.split(";");
+  for (const pair of pairs) {
+    const idx = pair.indexOf("=");
+    if (idx <= 0) continue;
+    const key = pair.slice(0, idx).trim();
+    if (key !== name) continue;
+    return decodeURIComponent(pair.slice(idx + 1).trim());
+  }
+  return "";
+}
+
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -46,23 +61,29 @@ export async function GET(request: Request) {
   const excludeAppointmentId = parsePositiveInt(searchParams.get("excludeAppointmentId"));
   const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
   const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
+  const holdProofToken = readCookieValue(request, BOOKING_HOLD_COOKIE);
+  const holdProofPayload = parseHoldProofToken(holdProofToken);
+  const ownProofHoldId =
+    holdProofPayload && holdProofPayload.accountId === resolved.account.id
+      ? holdProofPayload.holdId
+      : null;
 
   if (!locationId || !dateValue) {
-    return jsonError("INVALID_REQUEST", "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РїР°СЂР°РјРµС‚СЂС‹.", null, 400);
+    return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
 
   // past date => РїСѓСЃС‚Рѕ
   if (dateValue < nowTz.ymd) return jsonOk({ date: dateValue, times: [] });
 
   const range = zonedDayRangeUtc(dateValue, tz);
-  if (!range) return jsonError("INVALID_DATE", "РќРµРєРѕСЂСЂРµРєС‚РЅР°СЏ РґР°С‚Р°.", null, 400);
+  if (!range) return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   const { dayStartUtc, dayEndUtc } = range;
 
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
     select: { id: true },
   });
-  if (!location) return jsonError("LOCATION_NOT_FOUND", "Р›РѕРєР°С†РёСЏ РЅРµ РЅР°Р№РґРµРЅР°.", null, 404);
+  if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
 
   // СЃРїРµС†РёР°Р»РёСЃС‚С‹ Р»РѕРєР°С†РёРё + РёС… СѓСЃР»СѓРіРё
   const specialists = await prisma.specialistProfile.findMany({
@@ -122,7 +143,8 @@ export async function GET(request: Request) {
         accountId: resolved.account.id,
         locationId,
         specialistId: { in: specialistIds },
-        startAt: { gte: dayStartUtc, lt: dayEndUtc },
+        startAt: { lt: dayEndUtc },
+        endAt: { gt: dayStartUtc },
         status: { notIn: ["CANCELLED", "NO_SHOW"] },
         ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
       },
@@ -145,6 +167,7 @@ export async function GET(request: Request) {
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc },
         ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
+        ...(ownProofHoldId ? { id: { not: ownProofHoldId } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),

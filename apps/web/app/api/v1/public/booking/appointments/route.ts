@@ -129,6 +129,7 @@ export async function POST(request: Request) {
         id: specialistId,
         accountId: resolved.account.id,
         locations: { some: { locationId } },
+        services: { some: { serviceId } },
       },
       select: { id: true, levelId: true },
     }),

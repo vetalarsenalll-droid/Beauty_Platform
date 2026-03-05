@@ -10,6 +10,7 @@ import {
   zonedDayRangeUtc,
   toZonedLocalMinutes,
 } from "@/lib/public-booking";
+import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
 
 const DEFAULT_DAYS = 14;
 const MAX_DAYS = 93;
@@ -65,6 +66,20 @@ function ceilToStep(mins: number, step: number) {
   return Math.ceil(mins / step) * step;
 }
 
+function readCookieValue(request: Request, name: string) {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  if (!cookieHeader) return "";
+  const pairs = cookieHeader.split(";");
+  for (const pair of pairs) {
+    const idx = pair.indexOf("=");
+    if (idx <= 0) continue;
+    const key = pair.slice(0, idx).trim();
+    if (key !== name) continue;
+    return decodeURIComponent(pair.slice(idx + 1).trim());
+  }
+  return "";
+}
+
 export async function GET(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -80,6 +95,12 @@ export async function GET(request: Request) {
   const specialistId = parsePositiveInt(searchParams.get("specialistId")); // optional
   const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
   const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
+  const holdProofToken = readCookieValue(request, BOOKING_HOLD_COOKIE);
+  const holdProofPayload = parseHoldProofToken(holdProofToken);
+  const ownProofHoldId =
+    holdProofPayload && holdProofPayload.accountId === resolved.account.id
+      ? holdProofPayload.holdId
+      : null;
 
   const startYmd = String(searchParams.get("start") ?? "").trim() || nowTz.ymd;
 
@@ -192,6 +213,7 @@ export async function GET(request: Request) {
         startAt: { lt: rangeEndUtc },
         endAt: { gt: rangeStartUtc },
         ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
+        ...(ownProofHoldId ? { id: { not: ownProofHoldId } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),

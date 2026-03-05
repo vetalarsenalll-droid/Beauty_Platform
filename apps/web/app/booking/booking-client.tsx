@@ -2491,6 +2491,28 @@ export default function BookingClient({
       return;
     }
 
+    if (isDateFirst) {
+      const allowedServiceIds = new Set<number>(offersByTime[timeChoice!] ?? []);
+      if (!serviceId || !allowedServiceIds.has(serviceId)) {
+        setSubmitError("Choose a valid service for selected time.");
+        return;
+      }
+
+      const specialistStillAvailable = dateFirstServiceSlots.some(
+        (slot) => slot.time === timeChoice && slot.specialistId === specialistId
+      );
+      if (!specialistStillAvailable) {
+        setSubmitError("Choose a valid specialist for selected time.");
+        return;
+      }
+    } else {
+      const specialistIdsAtTime = calendarByDate.get(dateYmd)?.get(timeChoice!) ?? [];
+      if (!specialistIdsAtTime.includes(specialistId!)) {
+        setSubmitError("Choose a valid specialist for selected time.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -2841,7 +2863,23 @@ export default function BookingClient({
                             onBucket={setTimeBucket}
                             onSelect={(t) => {
                               if (isPastTimeOnDate(dateYmd, t, nowTz)) return;
+                              const changed = t !== timeChoice;
                               setTimeChoice(t);
+                              if (!changed) return;
+
+                              setSubmitError(null);
+                              setSubmitSuccess(false);
+
+                              if (isServiceFirst || isDateFirst) {
+                                setSpecialistId(null);
+                              }
+
+                              if (isDateFirst && serviceId) {
+                                const allowedServiceIds = new Set<number>(offersByTime[t] ?? []);
+                                if (!allowedServiceIds.has(serviceId)) {
+                                  setServiceId(null);
+                                }
+                              }
                             }}
                           />
                         )}
