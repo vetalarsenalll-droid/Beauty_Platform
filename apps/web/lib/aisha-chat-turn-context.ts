@@ -1,7 +1,7 @@
 ﻿import { runAishaNlu } from "@/lib/aisha-orchestrator";
 import { getNowInTimeZone } from "@/lib/public-booking";
-import { asTimeZone, asYmd } from "@/lib/aisha-chat-thread";
-import { addDaysYmd, draftView } from "@/lib/aisha-chat-parsers";
+import { asTimeZone } from "@/lib/aisha-chat-thread";
+import { draftView } from "@/lib/aisha-chat-parsers";
 import { loadPublicAiChatContext } from "@/lib/aisha-chat-preload";
 import { buildIntentContext } from "@/lib/aisha-chat-intent-context";
 import { prisma } from "@/lib/prisma";
@@ -34,14 +34,11 @@ export async function buildTurnContext(args: {
   const { locations, services, specialists, requiredVersionIds, accountProfile, customPrompt } = await loadPublicAiChatContext(account.id);
 
   const serverNowYmd = getNowInTimeZone(account.timeZone).ymd;
-  const clientTodayYmd = asYmd(body.clientTodayYmd);
   const clientTimeZone = asTimeZone(body.clientTimeZone);
-  const nowYmd =
-    clientTodayYmd &&
-    clientTodayYmd >= addDaysYmd(serverNowYmd, -2) &&
-    clientTodayYmd <= addDaysYmd(serverNowYmd, 2)
-      ? clientTodayYmd
-      : serverNowYmd;
+  // Booking availability should always anchor to account timezone day.
+  // Client-provided today can drift and cause AI/online mismatch around day boundaries.
+  const nowYmd = serverNowYmd;
+
 
   const nowInDialogTz = getNowInTimeZone(clientTimeZone ?? account.timeZone);
   const nowHm = `${String(Math.floor(nowInDialogTz.minutes / 60)).padStart(2, "0")}:${String(nowInDialogTz.minutes % 60).padStart(2, "0")}`;
@@ -92,3 +89,5 @@ export async function buildTurnContext(args: {
     intentContext,
   };
 }
+
+

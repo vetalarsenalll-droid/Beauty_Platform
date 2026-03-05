@@ -1,4 +1,4 @@
-import {
+﻿import {
   bookingSummary,
   createAssistantBooking,
   reserveAssistantSlotHold,
@@ -789,10 +789,12 @@ async function findNextServiceDatesForSpecialist(args: {
   fromDate: string;
   daysAhead: number;
   maxDates: number;
+  includeFromDate?: boolean;
 }) {
-  const { origin, accountSlug, locationId, serviceId, specialistId, fromDate, daysAhead, maxDates } = args;
+  const { origin, accountSlug, locationId, serviceId, specialistId, fromDate, daysAhead, maxDates, includeFromDate = false } = args;
   const found: string[] = [];
-  for (let i = 1; i <= daysAhead && found.length < maxDates; i += 1) {
+  const startOffset = includeFromDate ? 0 : 1;
+  for (let i = startOffset; i <= daysAhead && found.length < maxDates; i += 1) {
     const ymd = addDaysYmd(fromDate, i);
     const times = await findTimesForServiceAndSpecialist({
       origin,
@@ -1554,6 +1556,7 @@ if (!d.serviceId) {
               fromDate: minDate,
               daysAhead: 61,
               maxDates: 61,
+              includeFromDate: true,
             })
           : await findServiceAvailableDatesInRange({
               origin,

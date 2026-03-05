@@ -82,9 +82,30 @@ function topEntityCandidates<T>(
 }
 
 function normalizePersonToken(raw: string) {
-  return norm(raw)
+  const base = norm(raw)
     .replace(/(иями|ями|ами|ого|ему|ыми|ими|ой|ей|ою|ею|ий|ый|ая|яя|ое|ее|ых|их|ую|юю|ом|ем|ам|ям|ах|ях|а|я|ы|и|е|у|ю)$/u, "")
     .trim();
+
+  const nickMap: Array<[RegExp, string]> = [
+    [/^наташ/u, "наталь"],
+    [/^даш/u, "дарь"],
+    [/^тан[яею]/u, "татьян"],
+    [/^кат[яею]/u, "екатерин"],
+    [/^свет[аеы]/u, "светлан"],
+    [/^лен[аеы]/u, "елен"],
+    [/^ол[яею]/u, "ольг"],
+    [/^ир[аеи]/u, "ирин"],
+    [/^юл[яею]/u, "юли"],
+    [/^пол[ияею]/u, "полин"],
+    [/^вик[аею]/u, "виктори"],
+    [/^алис[аеы]/u, "алис"],
+    [/^ан[яею]/u, "анн"],
+  ];
+  for (const [re, normalized] of nickMap) {
+    if (re.test(base)) return normalized;
+  }
+
+  return base;
 }
 
 function personLooseKey(v: string) {
@@ -644,3 +665,4 @@ export async function handleEntityClarificationResolution(args: {
 
   return { handled: false };
 }
+
