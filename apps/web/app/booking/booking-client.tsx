@@ -103,6 +103,7 @@ type SlotsData = {
 };
 
 type ClientProfile = {
+  id: number | null;
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
@@ -572,7 +573,7 @@ function DatePickerLike({
 
   const isDisabledDate = (ymd: string) => {
     if (isPastYmd(ymd, disabledBeforeYmd)) return true;
-    if (!availableDates.has(ymd)) return true;
+    if (availableDates.size > 0 && !availableDates.has(ymd)) return true;
     return false;
   };
 
@@ -996,6 +997,7 @@ export default function BookingClient({
   const platformLegalDocs = context?.platformLegalDocuments ?? [];
   const nowTz = useMemo(() => getNowInTimeZone(accountTz), [accountTz]);
   const todayYmdTz = nowTz.ymd;
+  const holdOwnerMarker = clientProfile?.id ?? null;
   const effectiveInlineLoader =
     loaderConfig && loaderConfig.showBookingInline ? loaderConfig : null;
 
@@ -1068,6 +1070,19 @@ export default function BookingClient({
       }
     );
     return hold;
+  };
+
+  const releaseHold = async (holdId: number) => {
+    await fetchJson<{ ok: boolean }>(
+      buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" }),
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ holdId }),
+      }
+    );
   };
 
   useEffect(() => {
@@ -1388,6 +1403,7 @@ export default function BookingClient({
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
+    calendarKeyRef.current = null;
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
     setSubmitError(null);
@@ -1407,6 +1423,7 @@ export default function BookingClient({
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
+    calendarKeyRef.current = null;
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
     setSubmitError(null);
@@ -1503,6 +1520,7 @@ export default function BookingClient({
         }
         if (!next && data?.user?.email) {
           next = {
+            id: null,
             firstName: null,
             lastName: null,
             phone: null,
@@ -1692,6 +1710,7 @@ export default function BookingClient({
       accountSlug ?? "",
       accountTz,
       todayYmdTz,
+      holdOwnerMarker ?? "",
       debouncedCalendarQueryStartYmd,
       calendarQueryDays,
       currentStepKey ?? "",
@@ -1737,6 +1756,7 @@ export default function BookingClient({
         specialistId: isSpecialistFirst ? specialistId ?? "" : "",
         start: debouncedCalendarQueryStartYmd,
         days: calendarQueryDays,
+        holdOwnerMarker,
         account: accountSlug ?? "",
       })
     )
@@ -1767,6 +1787,7 @@ export default function BookingClient({
         if (!mounted || calendarRequestIdRef.current !== requestId) return;
         setCalendarError(e.message);
         setCalendar(null);
+        calendarKeyRef.current = null;
       })
       .finally(() => {
         if (calendarRequestIdRef.current === requestId) {
@@ -1785,6 +1806,7 @@ export default function BookingClient({
     serviceId,
     specialistId,
     accountSlug,
+    holdOwnerMarker,
     todayYmdTz,
     nowTz,
     dateYmd,
@@ -1826,6 +1848,7 @@ export default function BookingClient({
           locationId: safeLocationId,
           date: dateYmd,
           serviceId: s.id,
+          holdOwnerMarker,
           account: accountSlug ?? "",
         })
       ).then((d) => ({
@@ -1874,6 +1897,7 @@ export default function BookingClient({
     dateYmd,
     services,
     accountSlug,
+    holdOwnerMarker,
     todayYmdTz,
     nowTz,
   ]);
@@ -1909,6 +1933,7 @@ export default function BookingClient({
           serviceId: s.id,
           start: debouncedCalendarQueryStartYmd,
           days: calendarQueryDays,
+          holdOwnerMarker,
           account: accountSlug ?? "",
         })
       ).then((d) => d.days ?? [])
@@ -1944,6 +1969,7 @@ export default function BookingClient({
     locationId,
     services,
     accountSlug,
+    holdOwnerMarker,
     debouncedCalendarQueryStartYmd,
     calendarQueryDays,
   ]);
@@ -1994,6 +2020,7 @@ export default function BookingClient({
         locationId: safeLocationId,
         date: dateYmd,
         serviceId,
+        holdOwnerMarker,
         account: accountSlug ?? "",
       })
     )
@@ -2024,6 +2051,7 @@ export default function BookingClient({
     timeChoice,
     serviceId,
     accountSlug,
+    holdOwnerMarker,
     todayYmdTz,
     nowTz,
   ]);
@@ -2427,6 +2455,7 @@ export default function BookingClient({
   };
 
   const resetAll = () => {
+    const holdToRelease = activeHold?.holdId ?? null;
     const defaults = getContactDefaults();
     setServiceId(null);
     setSpecialistId(null);
@@ -2445,7 +2474,11 @@ export default function BookingClient({
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
+    calendarKeyRef.current = null;
     setStepIndex(0);
+    if (holdToRelease) {
+      void releaseHold(holdToRelease).catch(() => {});
+    }
   };
 
   const submitAppointment = async () => {

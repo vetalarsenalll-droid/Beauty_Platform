@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { jsonError, jsonOk } from "@/lib/api";
+import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   BOOKING_HOLD_COOKIE,
@@ -72,6 +73,11 @@ export async function POST(request: Request) {
   const timeValue = String(body.time ?? "").trim();
   const replaceHoldId = Number.isInteger(Number(body.replaceHoldId)) ? Number(body.replaceHoldId) : null;
   const holdProofToken = readCookieValue(request, BOOKING_HOLD_COOKIE);
+  const session = await getClientSession();
+  const holdClientId =
+    session?.clients.find((item) => item.accountId === resolved.account.id)?.clientId ??
+    session?.clients.find((item) => item.accountSlug === resolved.account.slug)?.clientId ??
+    null;
 
   if (
     !Number.isInteger(locationId) ||
@@ -257,6 +263,7 @@ export async function POST(request: Request) {
                 startAt: { lt: endAtUtc },
                 endAt: { gt: startAtUtc },
                 ...(replaceHoldId ? { id: { not: replaceHoldId } } : {}),
+                ...(holdClientId != null ? { NOT: { clientId: holdClientId } } : {}),
               },
               select: { id: true },
             }),
@@ -270,6 +277,7 @@ export async function POST(request: Request) {
             data: {
               accountId: resolved.account.id,
               specialistId,
+              clientId: holdClientId,
               startAt: startAtUtc,
               endAt: endAtUtc,
               expiresAt,
@@ -325,4 +333,63 @@ export async function POST(request: Request) {
   }
 
   return jsonError("TIME_BUSY", "Выбранное время недоступно.", null, 409);
+}
+
+
+export async function DELETE(request: Request) {
+  const resolved = await resolvePublicAccount(request);
+  if (resolved.response) return resolved.response;
+
+  const body = (await request.json().catch(() => null)) as { holdId?: number } | null;
+  const holdId = Number.isInteger(Number(body?.holdId)) ? Number(body?.holdId) : null;
+  if (!holdId) {
+    return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
+  }
+
+  const holdProofToken = readCookieValue(request, BOOKING_HOLD_COOKIE);
+  if (!holdProofToken) {
+    return jsonError("HOLD_FORBIDDEN", "Резерв не подтвержден.", null, 403);
+  }
+
+  const hold = await prisma.appointmentHold.findFirst({
+    where: { id: holdId, accountId: resolved.account.id },
+    select: { id: true, specialistId: true, startAt: true, endAt: true },
+  });
+
+  if (!hold) {
+    const response = jsonOk({ ok: true });
+    response.cookies.set(BOOKING_HOLD_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+    return response;
+  }
+
+  const valid = verifyHoldProofToken(holdProofToken, {
+    holdId: hold.id,
+    accountId: resolved.account.id,
+    specialistId: hold.specialistId,
+    startAt: hold.startAt,
+    endAt: hold.endAt,
+  });
+  if (!valid) {
+    return jsonError("HOLD_FORBIDDEN", "Резерв не подтвержден.", null, 403);
+  }
+
+  await prisma.appointmentHold.deleteMany({
+    where: { id: hold.id, accountId: resolved.account.id },
+  });
+
+  const response = jsonOk({ ok: true });
+  response.cookies.set(BOOKING_HOLD_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
 }

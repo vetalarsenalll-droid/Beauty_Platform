@@ -78,6 +78,8 @@ export async function GET(request: Request) {
   const locationId = parsePositiveInt(searchParams.get("locationId"));
   const serviceId = parsePositiveInt(searchParams.get("serviceId"));
   const specialistId = parsePositiveInt(searchParams.get("specialistId")); // optional
+  const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
+  const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
 
   const startYmd = String(searchParams.get("start") ?? "").trim() || nowTz.ymd;
 
@@ -189,6 +191,7 @@ export async function GET(request: Request) {
         expiresAt: { gt: new Date() },
         startAt: { lt: rangeEndUtc },
         endAt: { gt: rangeStartUtc },
+        ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
