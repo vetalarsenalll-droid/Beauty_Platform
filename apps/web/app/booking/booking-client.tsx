@@ -2454,7 +2454,47 @@ export default function BookingClient({
     };
   };
 
+  const clearBrowserBookingState = () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.sessionStorage.removeItem(
+        bookingStateStorageKey(accountSlug, accountPublicSlug)
+      );
+      persistedStateRef.current = null;
+    } catch {
+      // ignore storage errors
+    }
+
+    try {
+      const u = new URL(window.location.href);
+      const paramsToDrop = [
+        "locationId",
+        "serviceId",
+        "specialistId",
+        "date",
+        "time",
+        "scenario",
+        "start",
+      ];
+      let changed = false;
+      for (const key of paramsToDrop) {
+        if (!u.searchParams.has(key)) continue;
+        u.searchParams.delete(key);
+        changed = true;
+      }
+      if (changed) {
+        const next = u.pathname + (u.search ? u.search : "") + u.hash;
+        window.history.replaceState(null, "", next);
+      }
+    } catch {
+      // ignore URL rewrite errors
+    }
+  };
+
   const resetAll = () => {
+    clearBrowserBookingState();
+
     const holdToRelease = activeHold?.holdId ?? null;
     const defaults = getContactDefaults();
     setServiceId(null);

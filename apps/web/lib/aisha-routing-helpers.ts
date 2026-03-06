@@ -121,6 +121,9 @@ export function locationByText(messageNorm: string, locations: LocationLite[]) {
 }
 
 export function serviceByText(messageNorm: string, services: ServiceLite[]) {
+  if (/^\s*категория:\s*.+$/iu.test(messageNorm)) return null;
+  if (/^(?:брови|ресницы|ногтевой\s+сервис|парикмахерские\s+услуги)$/iu.test(messageNorm.trim())) return null;
+
   const hasMale = /(муж)/i.test(messageNorm);
   const hasFemale = /(жен)/i.test(messageNorm);
   const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -330,20 +333,64 @@ export function specialistQuickOption(specialist: SpecialistLite) {
   };
 }
 
-export function parseServiceCategoryFilter(message: string): string | "__all__" | null {
-  const m = /^\s*категория:\s*(.+?)\s*$/iu.exec(message);
-  if (!m?.[1]) return null;
-  const value = m[1].trim();
-  if (!value || /^(все|все категории)$/iu.test(value)) return "__all__";
-  return value;
+function resolveFacetValueFromMessage(message: string, values: string[]) {
+  if (!values.length) return null;
+  const normalizedMessage = norm(message);
+  if (!normalizedMessage) return null;
+
+  let best: { value: string; score: number } | null = null;
+  let second = -1;
+  for (const value of values) {
+    const valueNorm = norm(value);
+    if (!valueNorm) continue;
+    let score = 0;
+    if (normalizedMessage === valueNorm) score += 8;
+    if (normalizedMessage.includes(valueNorm)) score += 6;
+    if (valueNorm.includes(normalizedMessage) && normalizedMessage.length >= 3) score += 4;
+    const valueTokens = tokenizeForFuzzy(valueNorm);
+    for (const token of valueTokens) {
+      if (normalizedMessage.includes(token)) score += token.length >= 6 ? 3 : 2;
+    }
+
+    if (!best || score > best.score) {
+      second = best ? best.score : -1;
+      best = { value, score };
+    } else if (score > second) {
+      second = score;
+    }
+  }
+
+  if (!best || best.score < 3) return null;
+  if (second >= 0 && best.score - second < 1) return null;
+  return best.value;
 }
 
-export function parseSpecialistLevelFilter(message: string): string | "__all__" | null {
+export function parseServiceCategoryFilter(message: string, services: ServiceLite[] = []): string | "__all__" | null {
+  const m = /^\s*категория:\s*(.+?)\s*$/iu.exec(message);
+  if (m?.[1]) {
+    const value = m[1].trim();
+    if (!value || /^(все|все категории)$/iu.test(value)) return "__all__";
+    return value;
+  }
+
+  if (/(?:все|все категории|любая категория|без категории)/iu.test(message)) return "__all__";
+  if (!/(?:категор|раздел|направлен)/iu.test(message)) return null;
+
+  return resolveFacetValueFromMessage(message, uniqueServiceCategories(services));
+}
+
+export function parseSpecialistLevelFilter(message: string, specialists: SpecialistLite[] = []): string | "__all__" | null {
   const m = /^\s*уровень:\s*(.+?)\s*$/iu.exec(message);
-  if (!m?.[1]) return null;
-  const value = m[1].trim();
-  if (!value || /^(все|все уровни)$/iu.test(value)) return "__all__";
-  return value;
+  if (m?.[1]) {
+    const value = m[1].trim();
+    if (!value || /^(все|все уровни)$/iu.test(value)) return "__all__";
+    return value;
+  }
+
+  if (/(?:все|все уровни|любой уровень|без уровня)/iu.test(message)) return "__all__";
+  if (!/(?:уров|категор(?:ия)?\s+специал|грейд|grade|junior|middle|senior|топ[-\s]?мастер|мастер)/iu.test(message)) return null;
+
+  return resolveFacetValueFromMessage(message, uniqueSpecialistLevels(specialists));
 }
 
 export function uniqueServiceCategories(services: ServiceLite[]) {

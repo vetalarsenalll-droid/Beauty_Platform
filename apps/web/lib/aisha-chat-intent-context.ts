@@ -136,8 +136,8 @@ export function buildIntentContext(args: {
 
   const selectedLocationByMessage = routing.locationByText(t, locations);
   const selectedSpecialistByMessage = routing.specialistByText(t, specialists);
-  const selectedServiceCategoryFilter = routing.parseServiceCategoryFilter(messageForRouting);
-  const selectedSpecialistLevelFilter = routing.parseSpecialistLevelFilter(messageForRouting);
+  const selectedServiceCategoryFilter = routing.parseServiceCategoryFilter(messageForRouting, services);
+  const selectedSpecialistLevelFilter = routing.parseSpecialistLevelFilter(messageForRouting, specialists);
   const explicitLocationDetailsCue =
     Boolean(selectedLocationByMessage) &&
     has(messageForRouting, /(расскажи|подроб|что за|инфо|описан|о филиал|о локац|про|где находится|адрес)/i);
@@ -232,6 +232,7 @@ export function buildIntentContext(args: {
   const serviceRecognizedInMessage = Boolean(routing.serviceByText(norm(messageForRouting), services));
   const explicitServiceSpecialistQuestion = routing.asksWhoPerformsServices(norm(messageForRouting));
   const explicitDraftServiceQuestion = routing.asksDraftServiceQuestion(norm(messageForRouting));
+  const explicitCategoryFilterRequest = Boolean(selectedServiceCategoryFilter);
 
   if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
   if (explicitBookingTypoCue && !explicitBookingDecline) intent = "booking_start";
@@ -242,6 +243,7 @@ export function buildIntentContext(args: {
   if (explicitServiceSpecialistQuestion) intent = "ask_specialists";
   if (specialistNameFollowUpFromContext) intent = "ask_specialists";
   if ((explicitServiceListRequest || explicitServicesFollowUp) && !explicitAvailabilityPeriod) intent = "ask_services";
+  if (explicitCategoryFilterRequest && !explicitServiceSpecialistQuestion) intent = "ask_services";
   if (serviceSelectionFromCatalog && !explicitServiceComplaint) intent = "booking_start";
   if (hasDraftContextEarly && Boolean(routing.serviceByText(norm(messageForRouting), services)) && !explicitServiceComplaint) intent = "booking_set_service";
 

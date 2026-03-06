@@ -66,10 +66,15 @@ function parsePayload(token: string): HoldProofPayload | null {
 
     if (new Date(payload.expiresAt).getTime() <= Date.now()) return null;
 
+    const { holdId, accountId, specialistId } = payload;
+    if (typeof holdId !== "number" || typeof accountId !== "number" || typeof specialistId !== "number") {
+      return null;
+    }
+
     return {
-      holdId: payload.holdId,
-      accountId: payload.accountId,
-      specialistId: payload.specialistId,
+      holdId,
+      accountId,
+      specialistId,
       startAt: payload.startAt,
       endAt: payload.endAt,
       expiresAt: payload.expiresAt,

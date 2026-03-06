@@ -229,12 +229,52 @@ function specialistOption(
   return optionFromLabel(`${base} — ${Math.round(effective.price)} ₽, ${Math.round(effective.durationMin)} мин`, specialist.name);
 }
 
-function parseServiceCategoryFilter(messageNorm: string): string | "__all__" | null {
+function resolveServiceCategoryFromMessage(message: string, values: string[]) {
+  if (!values.length) return null;
+  const msg = norm(message);
+  if (!msg) return null;
+
+  let best: { value: string; score: number } | null = null;
+  let second = -1;
+  for (const value of values) {
+    const v = norm(value);
+    if (!v) continue;
+
+    let score = 0;
+    if (msg === v) score += 8;
+    if (msg.includes(v)) score += 6;
+    if (v.includes(msg) && msg.length >= 3) score += 4;
+
+    const tokens = v.split(/\s+/).filter((t) => t.length >= 3);
+    for (const token of tokens) {
+      if (msg.includes(token)) score += token.length >= 6 ? 3 : 2;
+    }
+
+    if (!best || score > best.score) {
+      second = best ? best.score : -1;
+      best = { value, score };
+    } else if (score > second) {
+      second = score;
+    }
+  }
+
+  if (!best || best.score < 3) return null;
+  if (second >= 0 && best.score - second < 1) return null;
+  return best.value;
+}
+
+function parseServiceCategoryFilter(messageNorm: string, services: ServiceLite[]): string | "__all__" | null {
   const m = /^\s*категория:\s*(.+?)\s*$/iu.exec(messageNorm);
-  if (!m?.[1]) return null;
-  const value = m[1].trim();
-  if (!value || /^(все|все категории)$/iu.test(value)) return "__all__";
-  return value;
+  if (m?.[1]) {
+    const value = m[1].trim();
+    if (!value || /^(все|все категории)$/iu.test(value)) return "__all__";
+    return value;
+  }
+
+  if (/(?:все|все категории|любая категория|без категории)/iu.test(messageNorm)) return "__all__";
+  if (!/(?:категор|раздел|направлен)/iu.test(messageNorm)) return null;
+
+  return resolveServiceCategoryFromMessage(messageNorm, uniqueServiceCategories(services));
 }
 
 function uniqueServiceCategories(services: ServiceLite[]) {
@@ -1349,7 +1389,7 @@ if (!d.serviceId) {
   }
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
-  const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm);
+  const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm, scopedServices);
 
   const selectedSpecialistForSelection = d.specialistId ? specialists.find((sp) => sp.id === d.specialistId) ?? null : null;
   let servicesForSelection = selectedSpecialistForSelection
@@ -1957,7 +1997,7 @@ if (!d.serviceId) {
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
     const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
 
-    if (holdOwnerMarker != null && d.locationId && d.specialistId && d.date && d.time && effective) {
+    if (d.mode === "ASSISTANT" && holdOwnerMarker != null && d.locationId && d.specialistId && d.date && d.time && effective) {
       const holdOk = await reserveAssistantSlotHold({
         accountId: account.id,
         locationId: d.locationId,
