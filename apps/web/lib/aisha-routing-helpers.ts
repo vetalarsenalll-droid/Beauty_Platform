@@ -542,7 +542,7 @@ export function looksLikeUnknownServiceRequest(messageNorm: string) {
 
 export function asksServiceExistence(messageNorm: string) {
   const hasBeautyToken =
-    /(маник|педик|гель|стриж|окраш|ресниц|бров|эпил|депил|депел|лазер|массаж|чистк|пилинг|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|peeling|facial|haircut|coloring|tattoo|бикин|консультац|мужск|женск|мужчин|женщин|бород|ус[ао]м)/i.test(
+    /(маник|педик|ногт|гель|стриж|окраш|волос|ресниц|бров|эпил|депил|депел|лазер|массаж|чистк|пилинг|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|peeling|facial|haircut|coloring|tattoo|бикин|консультац|мужск|женск|мужчин|женщин|бород|ус[ао]м)/i.test(
       messageNorm,
     );
   const asks = /(есть|имеется|делаете|делаешь|можно|доступн)/i.test(messageNorm);
@@ -604,7 +604,7 @@ export function asksLocationsFollowUp(messageNorm: string, lastAssistantText: st
 }
 
 export function mentionsServiceTopic(messageNorm: string) {
-  return /(услуг|услуга|маник|педик|гель|стриж|окраш|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|ресниц|бров|эпил|депил|депел|лазер|массаж|пилинг|консультац|бород|ус[ао]м)/i.test(
+  return /(услуг|услуга|маник|педик|ногт|гель|стриж|окраш|волос|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|ресниц|бров|эпил|депил|депел|лазер|массаж|пилинг|консультац|бород|ус[ао]м)/i.test(
     messageNorm,
   );
 }
@@ -688,7 +688,7 @@ export function isGenericBookingTemplateReply(text: string) {
 
 export function isBookingOrAccountCue(messageNorm: string) {
   if (hasBookingVerbTypo(messageNorm)) return true;
-  return /(запис|запиг|бронь|слот|окошк|время|дата|услуг|мастер|спец|специал|специалист|филиал|локац|адрес|телефон|номер|мой|мои|статист|отмени|перенеси|профил|кабинет|консультац|цена|прайс|стоим)/i.test(
+  return /(запис|запиг|хоч|бронь|слот|окошк|время|дата|услуг|маник|педик|ногт|волос|ресниц|бров|мастер|спец|специал|специалист|филиал|локац|адрес|телефон|номер|мой|мои|статист|отмени|перенеси|профил|кабинет|консультац|цена|прайс|стоим)/i.test(
     messageNorm,
   );
 }
@@ -1111,8 +1111,8 @@ export function intentFromHeuristics(message: string): AishaIntent {
   if (asksWhoPerformsServices(message)) return "ask_specialists";
   if (asksSpecialistsByShortText(message)) return "ask_specialists";
   if (asksGenderedServices(message)) return "ask_services";
-  const hasServiceMention = has(message, /(маник|педик|стриж|гель|окраш|тату|татуир)/i);
-  const hasBookingCue = has(message, /(хочу|запиши|записаться|давай|нужно|нужна|нужен|сделать|хотела|хотел)/i) || hasBookingVerbTypo(message);
+  const hasServiceMention = has(message, /(маник|педик|ногт|стриж|гель|окраш|волос|бров|ресниц|тату|татуир)/i);
+  const hasBookingCue = has(message, /(хоч|запиши|записаться|давай|нужн\p{L}*|сделать|хотел\p{L}*)/iu) || hasBookingVerbTypo(message);
   if (hasServiceMention && hasBookingCue) return "booking_start";
   if (has(message, /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
   if (has(message, /подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
@@ -1172,4 +1172,6 @@ export function mapNluIntent(intent: AishaNluIntent): AishaIntent {
       return intent as AishaIntent;
   }
 }
+
+
 

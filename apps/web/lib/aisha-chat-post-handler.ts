@@ -1,4 +1,4 @@
-import { jsonOk } from "@/lib/api";
+﻿import { jsonOk } from "@/lib/api";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import { runAishaBookingBridge, runAishaChatAction, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import type { ChatUi } from "@/lib/booking-flow";
@@ -363,12 +363,12 @@ export async function handlePublicAiChatPost(request: Request) {
 
     const consecutiveNonBookingTurns = countConsecutiveNonBookingUserTurns(recentMessages);
     const consecutiveToxicTurns = countConsecutiveToxicUserTurns(recentMessages);
-    const hasBookingVerbCue = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|хочу|сделать|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
+    const hasBookingVerbCue = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|хоч\p{L}*|сделать|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
     const hasServiceTopicCue = mentionsServiceTopic(t) || Boolean(serviceByText(t, services));
 
     const shouldSoftReturnToBooking =
       route === "chat-only" &&
-      (intent === "smalltalk" || intent === "out_of_scope") &&
+      intent === "out_of_scope" &&
       !explicitDateTimeQuery &&
       !hasDraftContext &&
       !isBookingOrAccountCue(t) &&
@@ -378,13 +378,13 @@ export async function handlePublicAiChatPost(request: Request) {
       !isPauseConversationMessage(t) &&
       !asksWhyNoAnswer(t) &&
       !explicitDateBookingRequest &&
-      consecutiveNonBookingTurns >= 2;
+      consecutiveNonBookingTurns >= 4;
 
     const shouldHardReturnToDomain =
       route === "chat-only" &&
       !hasDraftContext &&
       !isBookingOrAccountCue(t) &&
-      consecutiveNonBookingTurns >= 8;
+      consecutiveNonBookingTurns >= 12;
 
     const bridgeFocusServiceName =
       serviceByText(t, services)?.name ??
@@ -803,3 +803,4 @@ export async function handlePublicAiChatPost(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
