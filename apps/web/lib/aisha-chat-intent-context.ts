@@ -1,4 +1,4 @@
-import type { AishaIntent } from "@/lib/dialog-policy";
+﻿import type { AishaIntent } from "@/lib/dialog-policy";
 import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
 import { parseChoiceFromText } from "@/lib/aisha-chat-thread";
 import { decidePublicAiRoute, type PublicAiRoute } from "@/lib/aisha-chat-router";
@@ -354,7 +354,7 @@ export function buildIntentContext(args: {
       Boolean(parseDate(messageForRouting, nowYmd)) ||
       Boolean(choiceNum) ||
       has(messageForRouting, /(услуг|запиш|заброни|время|слот|окошк|дат[ауеы])/i) ||
-      !routing.isConversationalHeuristicIntent(intent));
+      (routing.isBookingDomainIntent(intent) && !routing.isInfoOnlyIntent(intent)));
 
   const forceBookingOnDateOnlyInDraft =
     hasDraftContext &&
@@ -487,3 +487,6 @@ export function buildIntentContext(args: {
     useNluIntent,
   };
 }
+
+
+

@@ -983,6 +983,8 @@ export default function BookingClient({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [activeHold, setActiveHold] = useState<ActiveHold | null>(null);
+  const activeHoldRef = useRef<ActiveHold | null>(null);
+  const submitSuccessRef = useRef(false);
 
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
   const [loadingClientProfile, setLoadingClientProfile] = useState(false);
@@ -1114,6 +1116,39 @@ export default function BookingClient({
     };
   }, [holdSelection, submitSuccess, activeHold]);
 
+  useEffect(() => {
+    activeHoldRef.current = activeHold;
+  }, [activeHold]);
+
+  useEffect(() => {
+    submitSuccessRef.current = submitSuccess;
+  }, [submitSuccess]);
+
+  useEffect(() => {
+    return () => {
+      const hold = activeHoldRef.current;
+      if (!hold || submitSuccessRef.current) return;
+
+      const url = buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" });
+      const body = JSON.stringify({ holdId: hold.holdId });
+
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          const payload = new Blob([body], { type: "application/json" });
+          navigator.sendBeacon(url, payload);
+          return;
+        }
+        void fetch(url, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        });
+      } catch {
+        // ignore cleanup errors on unload
+      }
+    };
+  }, [accountSlug]);
   // ✅ один раз синхронизируем дату с today в TZ аккаунта после загрузки контекста
   const didInitDateRef = useRef(false);
   useEffect(() => {
@@ -3502,6 +3537,9 @@ export default function BookingClient({
     </div>
   );
 }
+
+
+
 
 
 

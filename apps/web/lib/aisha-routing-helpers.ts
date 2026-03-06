@@ -1,4 +1,4 @@
-import type { ChatUi } from "@/lib/booking-flow";
+﻿import type { ChatUi } from "@/lib/booking-flow";
 import { formatServiceQuickLabel, formatSpecialistQuickLabel } from "@/lib/booking-tools";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaIntent } from "@/lib/dialog-policy";
@@ -835,7 +835,7 @@ export function applyDraftConsistencyGuard(args: {
   return { reply, ui, reason };
 }
 export function keepReplyShort(text: string, maxSentences = 2) {
-  const clean = text.replace(/s+/g, " ").trim();
+  const clean = text.replace(/\s+/g, " ").trim();
   if (!clean) return clean;
   const parts = clean.match(/[^.!?]+[.!?]?/g) ?? [clean];
   return parts.slice(0, maxSentences).join(" ").trim();
@@ -1172,3 +1172,4 @@ export function mapNluIntent(intent: AishaNluIntent): AishaIntent {
       return intent as AishaIntent;
   }
 }
+

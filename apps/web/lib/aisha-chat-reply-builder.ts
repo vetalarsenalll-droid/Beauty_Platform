@@ -375,7 +375,7 @@ export function buildBasicChatInfoReply(args: {
   }
 
   if (intent === "working_hours") {
-    reply = "Обычно работаем ежедневно с 09:00 до 21:00. Если нужно, проверю точный график по конкретной локации и дате.";
+    reply = "График может отличаться по филиалам и датам. Выберите локацию, и я подскажу точное время работы.";
     return { handled: true, reply, ui };
   }
 
@@ -521,3 +521,4 @@ export function handleAskSpecialistsBranch(args: {
 
   return { handled: true, reply: "Сейчас не нашла специалистов в расписании. Могу проверить по конкретной локации и дате.", ui: null };
 }
+
