@@ -263,7 +263,7 @@ export function buildSmalltalkReply(messageNorm: string) {
   }
 
   return smalltalkVariant(messageNorm, [
-    "Поняла вас. Если хотите, помогу с записью: услуга, дата, время или специалист.",
+    "Поняла вас. Могу продолжить разговор и, когда захотите, помочь с записью: услуга, дата, время или специалист.",
     "Я на связи. Могу помочь с услугами, временем и оформлением записи.",
     "Готова помочь с записью. Напишите, что вам удобнее: услуга, дата или время.",
   ]);
@@ -476,9 +476,12 @@ export function isServiceInquiryMessage(rawMessage: string, messageNorm: string)
 export function looksLikeUnknownServiceRequest(messageNorm: string) {
   if (/(филиал|локац|центр|riverside|beauty salon|\d{1,2}[:.]\d{2})/i.test(messageNorm)) return false;
   if (/(какие услуги|что по услугам|прайс|каталог|список услуг)/i.test(messageNorm)) return false;
+  if (/[?]/.test(messageNorm)) return false;
+  if (/^(это|а это|что это|как это|почему|зачем|кто|где|когда|я спросил|я спросила|расскажи|объясни|обьясни|можешь)\b/i.test(messageNorm)) return false;
   if (/(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) return true;
   // Plain phrase like "удаление зуба" during booking step should still be treated as a service request.
   if (/^[\p{L}\s\-]{4,}$/iu.test(messageNorm) && messageNorm.split(/\s+/).length <= 4) {
+    if (!mentionsServiceTopic(messageNorm)) return false;
     if (/(привет|здравств|спасибо|пока|да|нет|ок|оке|окей|дальше|проверь|почему)/i.test(messageNorm)) return false;
     return true;
   }
@@ -620,7 +623,7 @@ export function buildOutOfScopeConversationalReply(messageNorm: string) {
     return "Хорошо, без проблем. Я на связи, когда будете готовы продолжить.";
   }
   return smalltalkVariant(messageNorm, [
-    "Поняла вас. Могу коротко поддержать разговор и помочь по вопросам записи.",
+    "Поняла вас. Давайте продолжим разговор: отвечу по теме и, если захотите, мягко перейдем к записи.",
     "Я на связи. Если хотите, продолжим разговор или перейдем к записи.",
     "Могу отвечать кратко по теме и, если нужно, помочь с записью.",
   ]);
@@ -827,7 +830,7 @@ export function asksSpecialistsByShortText(messageNorm: string) {
 }
 
 export function asksWhoPerformsServices(messageNorm: string) {
-  return /(?:кто\s+(?:у\s+вас\s+)?(?:делает|выполняет|оказывает)|кто\s+.*(?:делает|выполняет|оказывает)|какие\s+мастера|какой\s+мастер|какие\s+специалисты|у\s+каких\s+мастеров|кто\s+из\s+мастеров|кто\s+завтра\s+из\s+мастеров\s+работает|кто\s+работает|кто\s+завтра\s+работает|какие\s+мастера\s+у\s+вас\s+есть|какие\s+специалисты\s+у\s+вас\s+есть|какие\s+мастера\s+есть)/iu.test(messageNorm);
+  return /(?:кто\s+(?:у\s+вас\s+)?(?:делает|выполняет|оказывает|из\s+мастеров)|кто\s+у\s+вас\s+.*(?:мастер|специалист)|кто\s+.*(?:делает|выполняет|оказывает)|какие\s+мастера|какой\s+мастер|какие\s+специалисты|у\s+каких\s+мастеров|кто\s+из\s+мастеров|кто\s+завтра\s+из\s+мастеров\s+работает|кто\s+работает|кто\s+завтра\s+работает|какие\s+мастера\s+у\s+вас\s+есть|какие\s+специалисты\s+у\s+вас\s+есть|какие\s+мастера\s+есть|топ[-\s]?мастер|топ[-\s]?мастера|лучшие\s+мастера|ведущие\s+мастера)/iu.test(messageNorm);
 }
 
 export function specialistByText(messageNorm: string, specialists: SpecialistLite[]) {

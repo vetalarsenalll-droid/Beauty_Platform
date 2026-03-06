@@ -193,6 +193,9 @@ export function buildIntentContext(args: {
   const explicitWhoDoesServices = routing.asksWhoPerformsServices(norm(messageForRouting));
   const explicitSpecialistsListCue = /(?:мастер|мастера|масетера|масетер|масетр|спец|специал|специалист|специалич|спицал)(?:а|ы|ов|ты)?/iu.test(messageForRouting);
   const explicitSpecialistsShortCue = routing.asksSpecialistsByShortText(t);
+  const specialistNameFollowUpFromContext =
+    /(?:мастер|специалист|топ[-\s]?мастер)/iu.test(lastAssistantText) &&
+    /^(?:а\s+)?[\p{L}-]{2,}\s+[\p{L}-]{2,}\??$/iu.test(messageForRouting.trim());
   const explicitServiceComplaint = routing.isServiceComplaintMessage(norm(messageForRouting));
   const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
   const explicitAssistantQualification = routing.asksAssistantQualification(norm(messageForRouting));
@@ -237,6 +240,7 @@ export function buildIntentContext(args: {
   if (explicitClientRescheduleConfirm) intent = "reschedule_my_booking";
   if (heuristicIntent === "ask_specialists" && intent === "working_hours") intent = "ask_specialists";
   if (explicitServiceSpecialistQuestion) intent = "ask_specialists";
+  if (specialistNameFollowUpFromContext) intent = "ask_specialists";
   if ((explicitServiceListRequest || explicitServicesFollowUp) && !explicitAvailabilityPeriod) intent = "ask_services";
   if (serviceSelectionFromCatalog && !explicitServiceComplaint) intent = "booking_start";
   if (hasDraftContextEarly && Boolean(routing.serviceByText(norm(messageForRouting), services)) && !explicitServiceComplaint) intent = "booking_set_service";

@@ -377,13 +377,14 @@ export async function handlePublicAiChatPost(request: Request) {
       !isGreetingText(messageForRouting) &&
       !isPauseConversationMessage(t) &&
       !asksWhyNoAnswer(t) &&
-      !explicitDateBookingRequest;
+      !explicitDateBookingRequest &&
+      consecutiveNonBookingTurns >= 2;
 
     const shouldHardReturnToDomain =
       route === "chat-only" &&
       !hasDraftContext &&
       !isBookingOrAccountCue(t) &&
-      consecutiveNonBookingTurns >= 4;
+      consecutiveNonBookingTurns >= 8;
 
     const bridgeFocusServiceName =
       serviceByText(t, services)?.name ??
@@ -802,125 +803,3 @@ export async function handlePublicAiChatPost(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

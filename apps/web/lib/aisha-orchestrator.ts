@@ -216,7 +216,7 @@ function extractJsonObject(text: string) {
 }
 
 function clampReplyText(raw: string, maxChars: number, maxSentences: number) {
-  const clean = raw.replace(/s+/g, " ").trim();
+  const clean = raw.replace(/\s+/g, " ").trim();
   if (!clean) return "";
 
   const bounded = clean.slice(0, maxChars);
@@ -230,7 +230,7 @@ function clampReplyText(raw: string, maxChars: number, maxSentences: number) {
   if (!picked) return bounded.trim();
 
   const ended = /[.!?…]$/.test(picked);
-  if (picked.length < clean.length && !ended) return picked.replace(/[s,:;-]+$/g, "") + ".";
+  if (picked.length < clean.length && !ended) return picked.replace(/[\s,:;-]+$/g, "") + ".";
   return picked;
 }
 
@@ -328,7 +328,7 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
 }
 
 export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promise<string | null> {
-  if (!canUseNlu(`account:${args.accountId}`)) return null;
+  if (!process.env.GIGACHAT_AUTH_KEY?.trim()) return null;
 
   const prompt = [
     `Ты ${args.assistantName}, женский персонаж, дружелюбный AI-ассистент записи.`,
@@ -337,7 +337,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     "Не отвечай, что вы не можете сочинять стихи или песни.",
     "Если тема не про запись, отвечай нейтрально и мягко возвращай диалог к помощи по записи.",
     "На темы секса/интима и эротики отвечай нейтральным отказом без осуждения и переводи к безопасной теме записи.",
-    "Отвечай только на русском, естественно, коротко (1-3 предложения).",
+    "Отвечай только на русском, естественно, коротко (2-6 предложений; если про историю/сказку, можно до 8).",
     "Избегай шаблонных канцелярских фраз и повторяющихся заготовок.",
     "Всегда обращайся к пользователю на Вы, не переходи на ты.",
     "Не используй разговорное слово «подсобить».",
@@ -377,7 +377,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
       { role: "user", content: prompt },
     ]);
     const text = completion.content?.trim();
-    return text ? clampReplyText(text, 360, 2) : null;
+    return text ? clampReplyText(text, 900, 6) : null;
   } catch {
     return null;
   }
@@ -531,7 +531,7 @@ export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Pr
 }
 
 export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Promise<string | null> {
-  if (!canUseNlu(`account:${args.accountId}`)) return null;
+  if (!process.env.GIGACHAT_AUTH_KEY?.trim()) return null;
   if (!args.canonicalReply.trim()) return null;
 
   const prompt = [
@@ -562,9 +562,3 @@ export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Pro
     return null;
   }
 }
-
-
-
-
-
-

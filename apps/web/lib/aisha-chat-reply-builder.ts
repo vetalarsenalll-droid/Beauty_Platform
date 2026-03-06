@@ -413,9 +413,12 @@ export function handleAskSpecialistsBranch(args: {
   const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
   const specialistFromMessage = selectedSpecialistByMessage;
   const selectedServiceForSpecialists = serviceByText(t, services) ?? (d.serviceId ? services.find((x) => x.id === d.serviceId) ?? null : null);
+  const asksNamedSpecialist = /^(?:а\s+)?[\p{L}-]{2,}\s+[\p{L}-]{2,}\??$/iu.test(message.trim());
+  const asksTopSpecialists = /(?:топ[-\s]?мастер|топ[-\s]?мастера|лучшие\s+мастера|ведущие\s+мастера|сильные\s+мастера)/iu.test(t);
+  const asksAllSpecialists = /^(?:все|всё|всех|все\s+напиши|всё\s+напиши|перечисли\s+всех|все\s+покажи|всё\s+покажи)$/iu.test(t.trim());
   if (selectedServiceForSpecialists && d.serviceId !== selectedServiceForSpecialists.id) d.serviceId = selectedServiceForSpecialists.id;
 
-  if (specialistFromMessage && explicitSpecialistDetailsCue) {
+  if (specialistFromMessage && (explicitSpecialistDetailsCue || asksNamedSpecialist)) {
     const specialistLocations = locations
       .filter((loc) => specialistFromMessage.locationIds.includes(loc.id))
       .map((loc) => loc.name);
@@ -443,6 +446,39 @@ export function handleAskSpecialistsBranch(args: {
       ],
     };
     return { handled: true, reply, ui };
+  }
+
+  if (!specialistFromMessage && asksNamedSpecialist) {
+    const reply = "Не нашла специалиста с таким именем. Могу показать всех доступных специалистов или топ-мастеров.";
+    const ui: ChatUi = {
+      kind: "quick_replies",
+      options: [
+        { label: "Показать всех специалистов", value: "покажи всех специалистов" },
+        { label: "Показать топ-мастеров", value: "кто у вас топ мастера" },
+      ],
+    };
+    return { handled: true, reply, ui };
+  }
+
+  if (asksTopSpecialists || asksAllSpecialists) {
+    let scoped = specialists.slice();
+    if (selectedLocationId) scoped = scoped.filter((s) => s.locationIds.includes(selectedLocationId));
+    if (selectedServiceForSpecialists) {
+      scoped = scoped.filter((s) => (s.serviceIds?.length ? s.serviceIds.includes(selectedServiceForSpecialists.id) : true));
+    }
+
+    const topByLevel = scoped.filter((s) => /(топ|ведущ|эксперт|senior|старш)/i.test((s.levelName ?? "").toLowerCase()));
+    const target = asksTopSpecialists ? (topByLevel.length ? topByLevel : scoped) : scoped;
+
+    if (target.length) {
+      const names = target.map((s) => s.name).join(", ");
+      const topPrefix = asksTopSpecialists && topByLevel.length ? "Топ-мастера" : "Специалисты";
+      const reply = topPrefix + ": " + names + ".";
+      const ui: ChatUi = { kind: "quick_replies", options: target.map((s) => ({ label: s.name, value: s.name })) };
+      return { handled: true, reply, ui };
+    }
+
+    return { handled: true, reply: "Сейчас не нашла специалистов по этому запросу. Могу проверить по другой локации или услуге.", ui: null };
   }
 
   if (selectedLocationId) {
