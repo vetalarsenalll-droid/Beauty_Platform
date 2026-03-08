@@ -27,7 +27,7 @@ export async function buildTurnContext(args: {
   const recentMessages = await prisma.aiMessage.findMany({
     where: { threadId },
     orderBy: { id: "desc" },
-    take: 12,
+    take: 40,
     select: { role: true, content: true },
   });
 
@@ -89,5 +89,4 @@ export async function buildTurnContext(args: {
     intentContext,
   };
 }
-
 

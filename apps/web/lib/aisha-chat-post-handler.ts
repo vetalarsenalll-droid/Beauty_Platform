@@ -55,6 +55,15 @@ const norm = (v: string) =>
     .replace(/\s+/g, " ")
     .trim();
 const has = (m: string, r: RegExp) => r.test(norm(m));
+function findRecentBookingDateHint(nowYmd: string, messageForRouting: string, recentMessages: Array<{ role: string; content: string }>) {
+  const recentUserTurns = recentMessages.filter((m) => m.role === "user").slice(0, 8);
+  const candidates = [messageForRouting, ...recentUserTurns.map((m) => m.content ?? "")];
+  for (const candidate of candidates) {
+    const parsed = parseDate(candidate, nowYmd);
+    if (parsed) return parsed;
+  }
+  return null;
+}
 export async function handlePublicAiChatPost(request: Request) {
   const prepared = await preparePostTurn(request);
   if ("response" in prepared) return prepared.response;
@@ -285,6 +294,15 @@ export async function handlePublicAiChatPost(request: Request) {
     const shouldRunBookingFlow = decisions.shouldRunBookingFlow;
     const bookingMessageNorm = decisions.bookingMessageNorm;
 
+    if (!d.date) {
+      const bookingDateHint = [
+        messageForRouting,
+        ...recentMessages.filter((m) => m.role === "user").map((m) => m.content ?? ""),
+      ]
+        .map((txt) => parseDate(txt, nowYmd))
+        .find((x): x is string => Boolean(x));
+      if (bookingDateHint) d.date = bookingDateHint;
+    }
     let previouslySelectedSpecialistName: string | null = null;
 
     const entityClarification = await handleEntityClarificationResolution({
@@ -322,6 +340,11 @@ export async function handlePublicAiChatPost(request: Request) {
       messageForRouting,
     });
     const locationChosenThisTurn = draftMutation.locationChosenThisTurn;
+
+    if (!d.date && (d.locationId || d.serviceId || d.specialistId || shouldRunBookingFlow)) {
+      const bookingDateHintAfterMutations = findRecentBookingDateHint(nowYmd, messageForRouting, recentMessages);
+      if (bookingDateHintAfterMutations) d.date = bookingDateHintAfterMutations;
+    }
 
     const unknownService = await handleUnknownServiceResolution({
       shouldEnrichDraftForBooking,
@@ -814,10 +837,4 @@ export async function handlePublicAiChatPost(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
-
-
-
-
-
-
 

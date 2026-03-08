@@ -55,7 +55,7 @@ export const pickSafeNluDate = (candidate: unknown, today: string) => {
 export const parseDate = (m: string, today: string) => {
   const t = norm(m);
   const afterDm = t.match(
-    /\bпосле\s+(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b/,
+    /(?:^|\s)после\s+(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s|$)/u,
   );
   if (afterDm) {
     const monthMap = new Map<string, string>([
@@ -82,14 +82,16 @@ export const parseDate = (m: string, today: string) => {
     }
     return addDaysYmd(candidate, 1);
   }
-  if (/\b(сегодня|today)\b/.test(t)) return today;
-  if (/\b(послезавтра|day after tomorrow)\b/.test(t)) return addDaysYmd(today, 2);
-  if (/\b(завтра|tomorrow)\b/.test(t)) return addDaysYmd(today, 1);
+  if (/(?:^|\s)(сегодня|today)(?:\s|$)/u.test(t)) return today;
+  if (/(?:^|\s)(послезавтра|day after tomorrow)(?:\s|$)/u.test(t)) return addDaysYmd(today, 2);
+  if (/(?:^|\s)(завтра|tomorrow)(?:\s|$)/u.test(t)) return addDaysYmd(today, 1);
 
   const iso = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
 
-  const dmText = t.match(/\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?\b/);
+  const dmText = t.match(
+    /(?:^|\s)(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{4}))?(?:\s|$)/u,
+  );
   if (dmText) {
     const monthMap = new Map<string, string>([
       ["января", "01"],
@@ -117,7 +119,7 @@ export const parseDate = (m: string, today: string) => {
   }
 
   const monthOnly = t.match(
-    /\b(?:в\s+)?(?:перв(?:ых|ые)\s+числ(?:ах|а)\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b/,
+    /(?:^|\s)(?:в\s+)?(?:перв(?:ых|ые)\s+числ(?:ах|а)\s+)?(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s|$)/u,
   );
   if (monthOnly) {
     const monthMap = new Map<string, string>([
@@ -157,7 +159,6 @@ export const parseDate = (m: string, today: string) => {
   }
   return null;
 };
-
 export const parseTime = (m: string) => {
   const t = norm(m);
   const hhmmColon = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
@@ -200,4 +201,6 @@ export const parseName = (m: string) => {
   if (inlineWithPhone) return [inlineWithPhone[1], inlineWithPhone[2]].filter(Boolean).join(" ").trim();
   return null;
 };
+
+
 

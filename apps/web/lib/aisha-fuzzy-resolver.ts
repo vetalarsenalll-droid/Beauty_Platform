@@ -310,7 +310,7 @@ function inferGenericServiceCandidates(messageNorm: string, services: ServiceLit
 }
 
 function findRecentDateHint(nowYmd: string, recentMessages: Array<{ role: string; content: string }>) {
-  for (const m of recentMessages) {
+  for (const m of recentMessages.slice(0, 8)) {
     if (m.role !== "user") continue;
     const parsed = parseDate(m.content ?? "", nowYmd);
     if (parsed) return parsed;
@@ -767,24 +767,4 @@ export async function handleEntityClarificationResolution(args: {
 
   return { handled: false };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
