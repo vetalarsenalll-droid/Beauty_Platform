@@ -1,4 +1,4 @@
-﻿import {
+import {
   bookingSummary,
   createAssistantBooking,
   reserveAssistantSlotHold,
@@ -327,17 +327,14 @@ function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): 
 }
 
 
-function buildTimeOptionsWithControls(times: string[], limit: number | null = 24): ChatUiOption[] {
-  const shown = limit == null ? times : times.slice(0, limit);
+function buildTimeOptionsWithControls(times: string[], limit: number | null = null): ChatUiOption[] {
+  const shown = times;
   const controls: ChatUiOption[] = [];
-  if (limit != null && times.length > shown.length) {
-    controls.push(optionFromLabel("Показать всё время", "покажи все время"));
-  }
   controls.push(optionFromLabel("Утро", "утром"));
   controls.push(optionFromLabel("День", "днем"));
   controls.push(optionFromLabel("Вечер", "вечером"));
 
-  // Render order matters for widget UX: show-all row, part-of-day row, then slots.
+  // Always show full slot list: no collapse and no "Показать всё время" button.
   return [...controls, ...shown.map((tm) => optionFromLabel(tm))];
 }
 
