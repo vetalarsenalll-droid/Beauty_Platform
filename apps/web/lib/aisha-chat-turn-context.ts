@@ -1,7 +1,7 @@
-﻿import { runAishaNlu } from "@/lib/aisha-orchestrator";
+import { runAishaNlu } from "@/lib/aisha-orchestrator";
 import { getNowInTimeZone } from "@/lib/public-booking";
 import { asTimeZone } from "@/lib/aisha-chat-thread";
-import { draftView } from "@/lib/aisha-chat-parsers";
+import { draftView, normalizeSystemTypos } from "@/lib/aisha-chat-parsers";
 import { loadPublicAiChatContext } from "@/lib/aisha-chat-preload";
 import { buildIntentContext } from "@/lib/aisha-chat-intent-context";
 import { prisma } from "@/lib/prisma";
@@ -43,11 +43,12 @@ export async function buildTurnContext(args: {
   const nowInDialogTz = getNowInTimeZone(clientTimeZone ?? account.timeZone);
   const nowHm = `${String(Math.floor(nowInDialogTz.minutes / 60)).padStart(2, "0")}:${String(nowInDialogTz.minutes % 60).padStart(2, "0")}`;
 
+  const messageForRouting = normalizeSystemTypos(message);
   const d = draftView(draft);
-  const t = norm(message);
+  const t = norm(messageForRouting);
 
   const nluResult = await runAishaNlu({
-    message,
+    message: messageForRouting,
     nowYmd,
     draft: d,
     account,
@@ -61,7 +62,7 @@ export async function buildTurnContext(args: {
   });
 
   const intentContext = buildIntentContext({
-    message,
+    message: messageForRouting,
     t,
     d,
     nowYmd,

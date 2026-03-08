@@ -1,4 +1,4 @@
-﻿import type { DraftLike } from "@/lib/booking-tools";
+import type { DraftLike } from "@/lib/booking-tools";
 
 type Mode = "SELF" | "ASSISTANT";
 
@@ -204,3 +204,18 @@ export const parseName = (m: string) => {
 
 
 
+
+export const normalizeSystemTypos = (text: string) => {
+  if (!text) return text;
+  return text
+    .replace(/\bближа[йи]щ+е[её]\b/giu, "ближайшее")
+    .replace(/\bближа[йи]ш+е[её]\b/giu, "ближайшее")
+    .replace(/\bближа[йи]ш+и[еи]\b/giu, "ближайшие")
+    .replace(/\bзаписат[ьс]я\b/giu, "записаться")
+    .replace(/\bзаписат\b/giu, "записать")
+    .replace(/\bзапш[иы]\b/giu, "запиши")
+    .replace(/\bокн[ао]\b/giu, "окно")
+    .replace(/\bслотт?ы?\b/giu, "слоты")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};

@@ -16,6 +16,7 @@ import { LEXICON } from "@/lib/aisha-lexicon";
 import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 
 const has = (m: string, r: RegExp) => r.test(m.toLowerCase());
+
 export function computeBookingDecisions(args: {
   route: string;
   intent: AishaIntent;
@@ -86,11 +87,6 @@ export function computeBookingDecisions(args: {
     previousUserText,
     locations,
     services,
-    explicitNearestAvailability,
-    explicitAvailabilityPeriod,
-    explicitCalendarCue,
-    d,
-    message,
   } = args;
 
   const looksLikeBookingContinuation =
@@ -105,7 +101,10 @@ export function computeBookingDecisions(args: {
     Boolean(serviceByText(t, services)) ||
     Boolean(selectedSpecialistByText) ||
     explicitAnySpecialistChoice ||
-    has(messageForRouting, /(согласен|согласна|персональн|подтвержд|оформи|самостоятельно|через ассистента|время|слот|окошк|сегодня|завтра|локац|филиал)/i);
+    has(
+      messageForRouting,
+      /(согласен|согласна|персональн|подтвержд|оформи|самостоятельно|через\s+ассистента|время|слот|окошк|сегодня|завтра|локац|филиал)/iu,
+    );
 
   const shouldContinueBookingByContext =
     route === "chat-only" &&
@@ -152,7 +151,7 @@ export function computeBookingDecisions(args: {
 
   const explicitServiceBookingIntent =
     Boolean(serviceByText(t, services)) &&
-    has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/i) &&
+    has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/iu) &&
     !asksServiceExistence(messageForRouting);
 
   const shouldEnrichDraftForBooking =
@@ -187,12 +186,12 @@ export function computeBookingDecisions(args: {
     (!isGreetingText(messageForRouting) || hasDraftContext) &&
     !hasPositiveFeedbackCue;
 
-  const hasTimePrefCue = /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(t);
+  const hasTimePrefCue = /(утр|утром|днем|днём|после\s+обеда|вечер|вечером)/iu.test(t);
   const prevUserNorm = previousUserText.toLowerCase();
   const carryPrevTimePref =
     !hasTimePrefCue &&
     Boolean(locationByText(t, locations)) &&
-    /(утр|утром|днем|днём|после обеда|вечер|вечером)/i.test(prevUserNorm)
+    /(утр|утром|днем|днём|после\s+обеда|вечер|вечером)/iu.test(prevUserNorm)
       ? prevUserNorm
       : "";
 
@@ -206,4 +205,3 @@ export function computeBookingDecisions(args: {
     locationChosenThisTurn: false,
   };
 }
-

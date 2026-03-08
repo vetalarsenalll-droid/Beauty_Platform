@@ -633,7 +633,7 @@ function normalizeText(v: string) {
 function specialistByText(messageNorm: string, specs: SpecialistLite[]) {
   const t = normalizeText(messageNorm);
   if (!t) return null;
-  if (/\b(любой|кто угодно|не важно|неважно)\b/i.test(t)) return specs[0] ?? null;
+  if (/\b(любой|кто угодно|не важно|неважно)\b/i.test(t)) return null;
 
   const direct = specs.find((s) => t.includes(normalizeText(s.name)));
   if (direct) return direct;
@@ -1670,12 +1670,20 @@ if (!d.serviceId) {
               limit: 24,
             })
           ).map((x) => x.date);
-      return {
-        handled: true,
-        reply: "Выберите дату в календаре или напишите её сообщением.",
-        nextStatus: "COLLECTING",
-        ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
-      };
+      const anyDateRequested = /(?:любая\s+дата|любой\s+день|не\s+важно\s+когда|неважно\s+когда)/iu.test(messageNorm);
+      if (anyDateRequested && availableDates.length) {
+        d.date = availableDates[0]!;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+      }
+      if (!d.date) {
+        return {
+          handled: true,
+          reply: "Выберите дату в календаре или напишите её сообщением.",
+          nextStatus: "COLLECTING",
+          ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
+        };
+      }
     }
   }
 
@@ -1735,15 +1743,22 @@ if (!d.serviceId) {
           : null,
       };
     }
-    const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
-    return {
-      handled: true,
-      reply: specialistSelected
-        ? `На ${formatYmdRu(d.date)}${prefText} у выбранного специалиста доступны времена. Выберите время.`
-        : `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
-      nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, null) },
-    };
+    const anyTimeRequested = /(?:любое\s+время|не\s+важно\s+время|неважно\s+время)/iu.test(messageNorm);
+    if (anyTimeRequested && times.length) {
+      d.time = times[0]!;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+    } else {
+      const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
+      return {
+        handled: true,
+        reply: specialistSelected
+          ? `На ${formatYmdRu(d.date)}${prefText} у выбранного специалиста доступны времена. Выберите время.`
+          : `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
+        nextStatus: "COLLECTING",
+        ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, null) },
+      };
+    }
   }
   if (!d.specialistId) {
     const offers = await getOffers(origin, account.slug, d.locationId!, d.date!, undefined, holdOwnerMarker ?? undefined);

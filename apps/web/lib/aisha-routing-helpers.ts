@@ -1,4 +1,4 @@
-﻿import type { ChatUi } from "@/lib/booking-flow";
+import type { ChatUi } from "@/lib/booking-flow";
 import { formatServiceQuickLabel, formatSpecialistQuickLabel } from "@/lib/booking-tools";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaIntent } from "@/lib/dialog-policy";
@@ -569,7 +569,9 @@ export function asksServiceExistence(messageNorm: string) {
 }
 
 export function asksNearestAvailability(messageNorm: string) {
-  return /((ближайш|свобод).*(окошк|окно|слот|время)|(окошк|окно|слот|время).*(ближайш|свобод)|когда.*(ближайш|свобод))/i.test(
+  // Accept common typos: "ближайщее", "ближаишее", etc.
+  const nearestCue = "(?:ближай[шщ]|ближаиш|ближаищ|свобод)";
+  return new RegExp(`(${nearestCue}.*(окошк|окно|слот|время)|(окошк|окно|слот|время).*${nearestCue}|когда.*${nearestCue})`, "iu").test(
     messageNorm,
   );
 }
