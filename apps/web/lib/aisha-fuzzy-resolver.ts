@@ -11,6 +11,7 @@ import {
   looksLikeUnknownServiceRequest,
   isNluServiceGroundedByText,
 } from "@/lib/aisha-routing-helpers";
+import { parseDate } from "@/lib/aisha-chat-parsers";
 
 const prismaAny = prisma as any;
 
@@ -120,6 +121,11 @@ function personTokenScore(query: string, name: string) {
 
 function topSpecialistCandidates(phrase: string, specialists: SpecialistLite[], limit = 5) {
   const stop = new Set([
+    "на",
+    "в",
+    "во",
+    "к",
+    "ко",
     "запиши",
     "записать",
     "записаться",
@@ -131,6 +137,13 @@ function topSpecialistCandidates(phrase: string, specialists: SpecialistLite[], 
     "пожалуйста",
     "плиз",
     "please",
+    "сегодня",
+    "завтра",
+    "послезавтра",
+    "утром",
+    "днем",
+    "днём",
+    "вечером",
   ]);
   const qTokens = tokenizeForFuzzy(norm(phrase)).filter((t) => !stop.has(t));
   if (!qTokens.length) return [] as Array<{ entity: SpecialistLite; score: number }>;
@@ -155,11 +168,12 @@ function topSpecialistCandidates(phrase: string, specialists: SpecialistLite[], 
   if (!scored.length) return [];
 
   const topScore = scored[0]!.score;
-  const strictMin = qTokens.length === 1 ? 3 : qTokens.length * 3;
+  // For single-token person requests (e.g. "к Юле") keep only strong matches when they exist,
+  // otherwise unrelated names may pass through with loose phonetic score.
+  const strictMin = qTokens.length === 1 ? (topScore >= 4 ? 4 : 3) : qTokens.length * 3;
   const cutoff = Math.max(strictMin, topScore - 1);
   return scored.filter((x) => x.score >= cutoff).slice(0, limit);
 }
-
 function extractRequestedSpecialistPhrase(messageNorm: string) {
   const m =
     /(?:^|\s)(?:к|ко)\s+([\p{L}-]{2,}(?:\s+[\p{L}-]{2,}){0,2})(?:\s|$)/iu.exec(messageNorm) ??
@@ -169,12 +183,17 @@ function extractRequestedSpecialistPhrase(messageNorm: string) {
   if (!raw) return null;
 
   const cleaned = raw
+    // Keep only specialist phrase and cut trailing intent fragments like "на маникюр", "в 12:00".
+    .replace(/\s+(?:на|в|во|по|для)\s+.+$/iu, "")
+    .replace(
+      /\s+(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|\d{1,2}[:.]\d{2}|\d{1,2}[.]\d{1,2}(?:[.]\d{2,4})?)$/iu,
+      "",
+    )
     .replace(/\s+(?:запиш\p{L}*|оформи\p{L}*|пожалуйста|плиз|please)$/iu, "")
     .trim();
 
   return cleaned || null;
 }
-
 function isSpecialistDirectRequest(messageNorm: string) {
   return /(?:запиш\p{L}*|хочу|к|ко|мастер|специалист)/iu.test(messageNorm);
 }
@@ -290,6 +309,29 @@ function inferGenericServiceCandidates(messageNorm: string, services: ServiceLit
   return scored.map((x) => x.service);
 }
 
+function findRecentDateHint(nowYmd: string, recentMessages: Array<{ role: string; content: string }>) {
+  for (const m of recentMessages) {
+    if (m.role !== "user") continue;
+    const parsed = parseDate(m.content ?? "", nowYmd);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+function findRecentServiceHint(messageNorm: string, recentMessages: Array<{ role: string; content: string }>) {
+  const candidates = [
+    messageNorm,
+    ...recentMessages
+      .filter((m) => m.role === "user")
+      .map((m) => norm(m.content ?? "")),
+  ].filter(Boolean);
+
+  for (const text of candidates) {
+    const direct = extractRequestedServicePhrase(text);
+    if (direct) return direct;
+    if (mentionsServiceTopic(text) && looksLikeUnknownServiceRequest(text)) return text;
+  }
+  return null;
+}
 function dedupeOptions(options: Array<{ label: string; value: string }>) {
   const seen = new Set<string>();
   const out: Array<{ label: string; value: string }> = [];
@@ -419,6 +461,7 @@ export async function handleEntityClarificationResolution(args: {
   shouldEnrichDraftForBooking: boolean;
   shouldRunBookingFlow: boolean;
   messageForRouting: string;
+  nowYmd: string;
   t: string;
   d: any;
   threadId: number;
@@ -426,10 +469,17 @@ export async function handleEntityClarificationResolution(args: {
   locations: LocationLite[];
   services: ServiceLite[];
   specialists: SpecialistLite[];
+  recentMessages?: Array<{ role: string; content: string }>;
 }): Promise<{ handled: boolean; payload?: ResolutionPayload }> {
-  const { shouldEnrichDraftForBooking, shouldRunBookingFlow, messageForRouting, d, threadId, nextThreadKey, locations, services, specialists } = args;
+  const { shouldEnrichDraftForBooking, shouldRunBookingFlow, messageForRouting, nowYmd, d, threadId, nextThreadKey, locations, services, specialists, recentMessages = [] } = args;
 
   const messageNorm = norm(messageForRouting);
+  const parsedDate = parseDate(messageForRouting, nowYmd);
+  if (parsedDate && !d.date) d.date = parsedDate;
+  if (!d.date && (d.specialistId || d.locationId || d.serviceId)) {
+    const dateHint = findRecentDateHint(nowYmd, recentMessages);
+    if (dateHint) d.date = dateHint;
+  }
   const isExactSpecialistButtonChoice = !d.specialistId && specialists.some((s) => norm(s.name) === messageNorm);
   const isExactLocationButtonChoice = !d.locationId && locations.some((l) => norm(l.name) === messageNorm);
   if (!shouldEnrichDraftForBooking && !shouldRunBookingFlow && !isExactSpecialistButtonChoice && !isExactLocationButtonChoice) return { handled: false };
@@ -453,7 +503,8 @@ export async function handleEntityClarificationResolution(args: {
         const top = candidates[0]!.entity;
         const topName = top.name;
         const exact = isExactMention(messageNorm, topName);
-        if (exact) {
+        const highConfidenceSingle = candidates.length === 1 && (candidates[0]?.score ?? 0) >= 4;
+        if (exact || highConfidenceSingle) {
           d.specialistId = top.id;
         } else {
           const options = dedupeOptions(candidates.map((x) => specialistQuickOption(x.entity)));
@@ -600,6 +651,25 @@ export async function handleEntityClarificationResolution(args: {
       if (!sp) return true;
       return sp.serviceIds?.length ? sp.serviceIds.includes(s.id) : true;
     });
+  if (d.specialistId && d.locationId && !d.serviceId) {
+    const serviceHint = findRecentServiceHint(messageNorm, recentMessages);
+    if (serviceHint) {
+      const hintNorm = norm(serviceHint);
+      const genericFromHint = inferGenericServiceCandidates(hintNorm, scopedServices);
+      if (genericFromHint.length === 1) {
+        d.serviceId = genericFromHint[0]!.id;
+      } else if (genericFromHint.length > 1) {
+        const payload = await persistClarificationAndBuildPayload({
+          threadId,
+          nextThreadKey,
+          reply: "Уточните, пожалуйста, услугу. По вашему запросу нашла подходящие варианты:",
+          ui: { kind: "quick_replies", options: dedupeOptions(genericFromHint.map(serviceQuickOption)) },
+          d,
+        });
+        return { handled: true, payload };
+      }
+    }
+  }
 
   if (d.serviceId && bookingLike && !modeOrFinalizationCue && !hasDeepDraftContext) {
     const selectedService = services.find((s) => s.id === d.serviceId) ?? null;
@@ -697,4 +767,24 @@ export async function handleEntityClarificationResolution(args: {
 
   return { handled: false };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

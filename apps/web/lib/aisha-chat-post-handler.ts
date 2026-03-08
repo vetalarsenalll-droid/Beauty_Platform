@@ -291,6 +291,7 @@ export async function handlePublicAiChatPost(request: Request) {
       shouldEnrichDraftForBooking,
       shouldRunBookingFlow,
       messageForRouting,
+      nowYmd,
       t,
       d,
       threadId: thread.id,
@@ -298,6 +299,7 @@ export async function handlePublicAiChatPost(request: Request) {
       locations,
       services,
       specialists,
+      recentMessages,
     });
     if (entityClarification.handled && entityClarification.payload) {
       return jsonOk(entityClarification.payload);
@@ -812,4 +814,10 @@ export async function handlePublicAiChatPost(request: Request) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }
 }
+
+
+
+
+
+
 
