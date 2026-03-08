@@ -1,0 +1,90 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-08T12:41:07.193Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Nearest availability should return windows immediately",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а свободное окошко когда ближайшее?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability in March",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "в марте есть время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Booking service-first path",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу на маникюр завтра",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Unknown service should be rejected with available options",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши на удаление зуба",
+          "passed": false,
+          "error": "Unknown service should be rejected with available options / step 1 (запиши на удаление зуба): expected one of /филиал|локац|Северная Орхидея — Центр|Северная Орхидея — Петроградская/i\nreply:\nУслугу «удаление зуба» не нашла. Выберите, пожалуйста, из доступных ниже.",
+          "reply": "Услугу «удаление зуба» не нашла. Выберите, пожалуйста, из доступных ниже."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-08T12:41:19.230Z",
+  "durationMs": 12037
+}

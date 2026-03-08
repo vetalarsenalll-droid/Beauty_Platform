@@ -341,18 +341,32 @@ function buildTimeOptionsWithControls(times: string[], limit: number | null = 24
   return [...controls, ...shown.map((tm) => optionFromLabel(tm))];
 }
 
+function isValidYmdParts(year: number, month: number, day: number) {
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  const dt = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  return dt.getUTCFullYear() === year && dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day;
+}
 function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
   const iso = messageNorm.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  if (iso) {
+    const y = Number(iso[1]);
+    const m = Number(iso[2]);
+    const d = Number(iso[3]);
+    if (isValidYmdParts(y, m, d)) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  }
 
   const dmy = messageNorm.match(/\b(\d{1,2})[.](\d{1,2})(?:[.](\d{4}))?\b/);
   if (dmy) {
     const day = Number(dmy[1]);
     const month = Number(dmy[2]);
     let year = dmy[3] ? Number(dmy[3]) : Number(todayYmd.slice(0, 4));
+    if (!isValidYmdParts(year, month, day)) return null;
     let candidate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     if (!dmy[3] && candidate < todayYmd) {
       year += 1;
+      if (!isValidYmdParts(year, month, day)) return null;
       candidate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
     return candidate;
@@ -381,12 +395,14 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
       ["декабря", "12"],
     ]);
     const day = Number(dmText[1]);
-    const month = monthMap.get((dmText[2] ?? "").toLowerCase()) ?? "01";
+    const month = Number(monthMap.get((dmText[2] ?? "").toLowerCase()) ?? "1");
     let year = dmText[3] ? Number(dmText[3]) : Number(todayYmd.slice(0, 4));
-    let candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+    if (!isValidYmdParts(year, month, day)) return null;
+    let candidate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     if (!dmText[3] && candidate < todayYmd) {
       year += 1;
-      candidate = `${year}-${month}-${String(day).padStart(2, "0")}`;
+      if (!isValidYmdParts(year, month, day)) return null;
+      candidate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
     return candidate;
   }
@@ -467,7 +483,6 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
 
   return null;
 }
-
 function bookingUrl(publicSlug: string, d: DraftLike) {
   const u = new URL(`/${publicSlug}/booking`, "http://x");
   if (d.locationId) u.searchParams.set("locationId", String(d.locationId));
@@ -497,12 +512,47 @@ function wantsChange(messageNorm: string) {
   );
 }
 
-function shouldAskServiceClarification(messageNorm: string, services: ServiceLite[]) {
-  if (!/стриж/i.test(messageNorm)) return false;
-  const variants = services.filter((s) => /(муж|жен)/i.test(s.name));
-  return variants.length > 1;
+function extractServiceTopicRoots(messageNorm: string) {
+  const roots = [
+    "маник",
+    "педик",
+    "стриж",
+    "окраш",
+    "бров",
+    "ресниц",
+    "гель",
+    "уход",
+    "ламин",
+    "коррекц",
+    "наращ",
+    "уклад",
+    "пилинг",
+    "чистк",
+    "массаж",
+  ];
+  return roots.filter((root) => new RegExp(root, "i").test(messageNorm));
 }
 
+function getServiceClarificationCandidates(messageNorm: string, services: ServiceLite[]) {
+  const explicitMatches = services.filter((s) => {
+    const n = norm(s.name);
+    return n.length > 0 && messageNorm.includes(n);
+  });
+  if (explicitMatches.length > 1) return explicitMatches;
+
+  const roots = extractServiceTopicRoots(messageNorm);
+  if (!roots.length) return [];
+
+  return services.filter((s) => {
+    const n = norm(s.name);
+    return roots.some((root) => new RegExp(root, "i").test(n));
+  });
+}
+
+function shouldAskServiceClarification(messageNorm: string, services: ServiceLite[]) {
+  const candidates = getServiceClarificationCandidates(messageNorm, services);
+  return candidates.length > 1;
+}
 function detectTimePreference(messageNorm: string): "morning" | "day" | "evening" | null {
   if (/(?:вечер|вечером|после\s+работы)/iu.test(messageNorm)) return "evening";
   if (/(?:утр|утром)/iu.test(messageNorm)) return "morning";
@@ -1548,12 +1598,13 @@ if (!d.serviceId) {
       };
     }
     if (shouldAskServiceClarification(messageNorm, servicesForSelectionByCategory)) {
-      const haircutOptions = servicesForSelectionByCategory.filter((x) => /стриж/i.test(x.name));
+      const clarificationCandidates = getServiceClarificationCandidates(messageNorm, servicesForSelectionByCategory);
+      const optionsSource = clarificationCandidates.length ? clarificationCandidates : servicesForSelectionByCategory;
       return {
         handled: true,
-        reply: "Уточните услугу. Можно выбрать кнопкой ниже или написать услугу сообщением.",
+        reply: "Уточните, пожалуйста, конкретную услугу. Выберите вариант кнопкой ниже или напишите полное название.",
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, haircutOptions, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, optionsSource, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
       };
     }
     const asksServicesList = /(какие|что)\s+.*(услуг|процедур)|список\s+услуг|услуги\s+доступны/i.test(messageNorm);
@@ -1730,7 +1781,31 @@ if (!d.serviceId) {
           ui: { kind: "quick_replies", options: shownTimes },
         };
       }
-      return { handled: true, reply: "На выбранную дату слотов нет. Укажите другую дату.", nextStatus: "COLLECTING" };
+      const nextDates = await findNextServiceDates({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId!,
+        serviceId: d.serviceId!,
+        fromDate: d.date!,
+        daysAhead: 35,
+        maxDates: 6,
+      });
+      return {
+        handled: true,
+        reply: nextDates.length
+          ? `На ${formatYmdRu(d.date)} в ${d.time} свободных специалистов по этой услуге не нашла. Выберите другую дату.`
+          : `На ${formatYmdRu(d.date)} в ${d.time} свободных специалистов по этой услуге не нашла. Укажите другую дату.`,
+        nextStatus: "COLLECTING",
+        ui: nextDates.length
+          ? {
+              kind: "date_picker",
+              minDate: nextDates[0]!,
+              maxDate: nextDates[nextDates.length - 1]!,
+              initialDate: nextDates[0]!,
+              availableDates: nextDates,
+            }
+          : null,
+      };
     }
     const byText = specialistByText(messageNorm, specs);
     if (byText) {
@@ -2159,28 +2234,6 @@ if (!d.serviceId) {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

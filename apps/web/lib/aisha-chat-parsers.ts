@@ -160,15 +160,21 @@ export const parseDate = (m: string, today: string) => {
 
 export const parseTime = (m: string) => {
   const t = norm(m);
-  const hasDateToken =
-    /\b\d{1,2}\.\d{1,2}(?:\.\d{2,4})?\b/.test(t) ||
-    /\b\d{4}-\d{2}-\d{2}\b/.test(t);
   const hhmmColon = t.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
   if (hhmmColon) return `${String(Number(hhmmColon[1])).padStart(2, "0")}:${hhmmColon[2]}`;
-  if (!hasDateToken) {
-    const hhmmDotOrSpace = t.match(/\b([01]?\d|2[0-3])[. ]([0-5]\d)\b/);
-    if (hhmmDotOrSpace) return `${String(Number(hhmmDotOrSpace[1])).padStart(2, "0")}:${hhmmDotOrSpace[2]}`;
+
+  const hhmmDotOrSpace = t.match(/\b([01]?\d|2[0-3])[. ]([0-5]\d)\b(?!\s*[.]\s*\d{2,4})/);
+  if (hhmmDotOrSpace) {
+    const hh = Number(hhmmDotOrSpace[1]);
+    const mm = Number(hhmmDotOrSpace[2]);
+    const maybeDateLike = hh >= 1 && hh <= 31 && mm >= 1 && mm <= 12;
+    const prefix = t.slice(0, hhmmDotOrSpace.index ?? 0);
+    const hasTimeCue = /(?:^|\s)(?:в|к|на|at)\s*$/iu.test(prefix) || /(?:время|час|окно|слот)/iu.test(t);
+    if (!maybeDateLike || hasTimeCue) {
+      return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+    }
   }
+
   const prepHour = t.match(/\b(?:в|к|at)\s*(\d{1,2})\b/);
   if (prepHour) {
     const n = Number(prepHour[1]);
@@ -176,7 +182,6 @@ export const parseTime = (m: string) => {
   }
   return null;
 };
-
 export const parsePhone = (m: string) => {
   const candidates = m.match(/(?:\+7|8)[\d\s().-]*/g) ?? [];
   for (const candidate of candidates) {
@@ -195,3 +200,4 @@ export const parseName = (m: string) => {
   if (inlineWithPhone) return [inlineWithPhone[1], inlineWithPhone[2]].filter(Boolean).join(" ").trim();
   return null;
 };
+

@@ -124,6 +124,7 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
   if (/^\s*категория:\s*.+$/iu.test(messageNorm)) return null;
   if (/^(?:брови|ресницы|ногтевой\s+сервис|парикмахерские\s+услуги)$/iu.test(messageNorm.trim())) return null;
 
+  const messageTokens = tokenizeForFuzzy(messageNorm);
   const hasMale = /(муж)/i.test(messageNorm);
   const hasFemale = /(жен)/i.test(messageNorm);
   const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -142,26 +143,44 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
     });
   const direct = byBoundary ?? services.find((x) => messageNorm.includes(norm(x.name)));
   if (direct) return direct;
+
+  const broadRoots = [
+    "маник",
+    "педик",
+    "стриж",
+    "окраш",
+    "бров",
+    "ресниц",
+    "гель",
+    "уход",
+    "ламин",
+    "коррекц",
+    "наращ",
+    "уклад",
+  ];
+  const activeRoots = broadRoots.filter((root) => new RegExp(root, "i").test(messageNorm));
+  if (activeRoots.length) {
+    const rootMatches = services.filter((s) => {
+      const n = norm(s.name);
+      return activeRoots.some((root) => new RegExp(root, "i").test(n));
+    });
+    if (rootMatches.length > 1 && messageTokens.length <= 4) return null;
+  }
+
   if (hasMale || hasFemale) {
-    const gendered = services.find((x) => {
+    const gendered = services.filter((x) => {
       const n = norm(x.name);
       if (hasMale && /(муж)/i.test(n)) return true;
       if (hasFemale && /(жен)/i.test(n)) return true;
       return false;
     });
-    if (gendered) return gendered;
+    if (gendered.length === 1) return gendered[0]!;
     return null;
   }
-  if (/гель/.test(messageNorm)) return services.find((x) => /gel polish|гель/.test(norm(x.name))) ?? null;
-  if (/(пилинг|peeling)/i.test(messageNorm)) return services.find((x) => /(пилинг|peeling)/i.test(norm(x.name))) ?? null;
-  if (/педик/.test(messageNorm)) return services.find((x) => /педик/.test(norm(x.name))) ?? null;
-  if (/маник/.test(messageNorm)) return services.find((x) => /маник/.test(norm(x.name))) ?? null;
-  if (/(ресниц|lashes|lash)/i.test(messageNorm)) return services.find((x) => /(ресниц|lashes|lash)/i.test(norm(x.name))) ?? null;
-  if (/(бров|brow)/i.test(messageNorm)) return services.find((x) => /(бров|brow)/i.test(norm(x.name))) ?? null;
+
   const fuzzy = bestFuzzyEntity(messageNorm, services, (x) => [x.name, x.categoryName ?? "", x.description ?? ""]);
   return fuzzy ?? null;
 }
-
 export function asksCurrentDate(text: string) {
   return has(text, /(какое число|какое сегодня число|какое число сегодня|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
 }
@@ -1172,6 +1191,4 @@ export function mapNluIntent(intent: AishaNluIntent): AishaIntent {
       return intent as AishaIntent;
   }
 }
-
-
 

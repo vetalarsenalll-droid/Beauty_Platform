@@ -351,8 +351,10 @@ export async function handleUnknownServiceResolution(args: {
   threadId: number;
   nextThreadKey: string | null;
   services: ServiceLite[];
+  specialists: SpecialistLite[];
+  locations: LocationLite[];
 }): Promise<{ handled: boolean; payload?: ResolutionPayload }> {
-  const { shouldEnrichDraftForBooking, d, t, nlu, threadId, nextThreadKey, services } = args;
+  const { shouldEnrichDraftForBooking, d, t, nlu, threadId, nextThreadKey, services, specialists, locations } = args;
 
   const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
   const serviceTextMatch = scopedServices.find((x) => t.includes(x.name.toLowerCase()));
@@ -363,12 +365,42 @@ export async function handleUnknownServiceResolution(args: {
 
   const deicticServiceReference = /(?:эту\s+услуг|эту\s+процедур|на\s+неё|на\s+нее|ту\s+же|this\s+service|that\s+service)/iu.test(t);
 
+  const turnNorm = norm(t);
+  const isSpecialistSelectionTurn = Boolean(
+    turnNorm && specialists.some((s) => {
+      const sn = norm(s.name);
+      return sn === turnNorm || turnNorm.includes(sn) || sn.includes(turnNorm);
+    }),
+  );
+  const isLocationSelectionTurn = Boolean(
+    turnNorm && locations.some((l) => {
+      const ln = norm(l.name);
+      return ln === turnNorm || turnNorm.includes(ln) || ln.includes(turnNorm);
+    }),
+  );
+  const isDateOrTimeTurn =
+    /\b\d{1,2}[:.]\d{2}\b/.test(turnNorm) ||
+    /\b\d{4}-\d{2}-\d{2}\b/.test(turnNorm) ||
+    /\b\d{1,2}[.]\d{1,2}(?:[.]\d{4})?\b/.test(turnNorm) ||
+    /(?:^|\s)(сегодня|завтра|послезавтра|утром|днем|днём|вечером)(?:\s|$)/iu.test(turnNorm);
+  const isUiControlTurn =
+    /^\s*(?:все\s+категории|категория:|все\s+уровни|уровень:|утро|день|вечер|показать\s+время|показать\s+услуги|показать\s+специалистов)\b/iu.test(turnNorm);
+  const hasBookingDraftContext = Boolean(d.locationId || d.date || d.time || d.status === "COLLECTING" || d.status === "CHECKING");
+  const bookingContextActive = shouldEnrichDraftForBooking || hasBookingDraftContext;
+
+  const locationScoped = Boolean(d.locationId);
+  const hasServiceLikePhrase = Boolean(requestedServicePhrase) || mentionsServiceTopic(t) || (locationScoped && looksLikeUnknownServiceRequest(t));
   const unknownServiceRequested =
-    shouldEnrichDraftForBooking &&
+    bookingContextActive &&
+    locationScoped &&
     !d.serviceId &&
     !serviceTextMatch &&
-    mentionsServiceTopic(t) &&
-    ((!nluServiceValid && looksLikeUnknownServiceRequest(t)) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
+    !isSpecialistSelectionTurn &&
+    !isLocationSelectionTurn &&
+    !isDateOrTimeTurn &&
+    !isUiControlTurn &&
+    hasServiceLikePhrase &&
+    (looksLikeUnknownServiceRequest(t) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
   if (!unknownServiceRequested || deicticServiceReference) return { handled: false };
 
@@ -577,7 +609,7 @@ export async function handleEntityClarificationResolution(args: {
       if (!exactAnyServiceMention && generic.length > 1) {
         d.serviceId = null;
         d.time = null;
-        const reply = "Уточните, пожалуйста, услугу. Нашла несколько подходящих вариантов:";
+        const reply = "Уточните, пожалуйста, какая услуга нужна. Нашла несколько подходящих вариантов:";
         const options = dedupeOptions(generic.map(serviceQuickOption));
         const payload = await persistClarificationAndBuildPayload({
           threadId,
@@ -609,7 +641,7 @@ export async function handleEntityClarificationResolution(args: {
 
     const generic = inferGenericServiceCandidates(targetPhrase, scopedServices);
     if (generic.length > 1) {
-      const reply = "Уточните, пожалуйста, услугу. Нашла несколько подходящих вариантов:";
+      const reply = "Уточните, пожалуйста, какая услуга нужна. Нашла несколько подходящих вариантов:";
       const options = dedupeOptions(generic.map(serviceQuickOption));
       const payload = await persistClarificationAndBuildPayload({
         threadId,
@@ -665,9 +697,4 @@ export async function handleEntityClarificationResolution(args: {
 
   return { handled: false };
 }
-
-
-
-
-
 

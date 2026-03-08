@@ -1,0 +1,24 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-08T12:40:35.757Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": false,
+          "error": "Start booking asks for location, not unknown service / step 1 (на завтра запиши меня): expected one of /филиал|локац|Северная Орхидея — Центр|Северная Орхидея — Петроградская/i\nreply:\nТакой услуги не нашла. Выберите, пожалуйста, из доступных ниже.",
+          "reply": "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-08T12:40:36.979Z",
+  "durationMs": 1222
+}

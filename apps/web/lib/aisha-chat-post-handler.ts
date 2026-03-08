@@ -210,16 +210,23 @@ export async function handlePublicAiChatPost(request: Request) {
           })
         : null;
 
+    const lastAssistantTextForAction = recentMessages.find((m) => m.role === "assistant")?.content ?? "";
+
     const llmActionReply =
       chatActionResult?.source === "llm" && chatActionResult.reply && !isGenericBookingTemplateReply(chatActionResult.reply)
         ? chatActionResult.reply
         : null;
 
+    const specialistFlowPromptedByAssistant =
+      /доступны\s+специалисты\s+по\s+филиалам|выберите\s+филиал\s+кнопкой\s+ниже.*специалист|услугу\s+.*выполняют\s+специалисты\s+в\s+филиалах/i.test(lastAssistantTextForAction);
+
     const chatActionConflictsWithSpecialists =
       (chatActionResult?.action === "show_working_hours" ||
         chatActionResult?.action === "show_contact_address" ||
+        chatActionResult?.action === "show_locations" ||
         chatActionResult?.action === "show_services") &&
       (heuristicIntent === "ask_specialists" ||
+        specialistFlowPromptedByAssistant ||
         asksWhoPerformsServices(norm(messageForRouting)) ||
         asksSpecialistsByShortText(norm(messageForRouting)) ||
         /мастер|специалист|кто\s+.*(?:делает|выполняет|оказывает)/i.test(norm(messageForRouting)));
@@ -322,6 +329,8 @@ export async function handlePublicAiChatPost(request: Request) {
       threadId: thread.id,
       nextThreadKey,
       services,
+      specialists,
+      locations,
     });
     if (unknownService.handled && unknownService.payload) {
       return jsonOk(unknownService.payload);

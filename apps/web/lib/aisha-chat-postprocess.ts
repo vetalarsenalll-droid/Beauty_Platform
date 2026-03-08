@@ -1,4 +1,4 @@
-import { runAishaNaturalizeReply } from "@/lib/aisha-orchestrator";
+﻿import { runAishaNaturalizeReply } from "@/lib/aisha-orchestrator";
 import type { ChatUi } from "@/lib/booking-flow";
 import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import {
@@ -156,6 +156,31 @@ export async function postProcessReply(args: {
     }
   }
 
+
+  const shouldAttachSalesBridge =
+    route === "chat-only" &&
+    !shouldHardReturnToDomain &&
+    !hasDraftContext &&
+    !explicitDateTimeQuery &&
+    !isBookingOrAccountCue(t) &&
+    (intent === "smalltalk" || intent === "out_of_scope") &&
+    !isPauseConversationMessage(t) &&
+    !asksWhyNoAnswer(t);
+
+  if (shouldAttachSalesBridge) {
+    const hasBookingBridgeAlready = /(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply));
+    if (!hasBookingBridgeAlready) {
+      const bridge = buildBookingBridgeFallback(t, {
+        serviceName: bridgeFocusServiceName,
+        date: bridgeFocusDate,
+        timePreference: bridgeFocusTimePreference,
+      });
+      reply = reply ? reply.replace(/[.!?]+$/u, "") + ". " + bridge : bridge;
+    }
+    if (!nextUi && consecutiveNonBookingTurns >= 2) {
+      nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+    }
+  }
   reply = reply.replace(/(Если захотите, помогу с записью:[^.!?]*[.!?])\s*Если захотите, помогу с записью:[^.!?]*[.!?]/iu, "$1");
 
   const guardResult = applyDraftConsistencyGuard({
@@ -173,6 +198,16 @@ export async function postProcessReply(args: {
 
   reply = sanitizeAssistantReplyText(reply);
 
+  const looksLikeLatinGibberish =
+    route === "chat-only" &&
+    !isBookingOrAccountCue(t) &&
+    /^[a-z0-9\s.,!?-]{3,}$/i.test(messageForRouting.trim()) &&
+    !/[а-яё]/i.test(messageForRouting);
+
+  if (looksLikeLatinGibberish) {
+    reply = "Похоже, сообщение получилось не совсем понятным. Могу помочь с записью: услуга, дата, время или специалист.";
+    nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+  }
   if (route === "chat-only" && looksLikeSensitiveLeakReply(reply)) {
     reply = "Я не раскрываю внутренние настройки. Могу помочь с записью, услугами и вашими визитами.";
     nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
@@ -232,3 +267,5 @@ export async function postProcessReply(args: {
 
   return { reply, nextUi, guardReason };
 }
+
+
