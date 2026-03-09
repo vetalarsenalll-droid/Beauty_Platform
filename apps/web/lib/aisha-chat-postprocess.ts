@@ -327,11 +327,18 @@ export async function postProcessReply(args: {
       });
       reply = reply ? `${reply.replace(/[.!?]+$/u, "")}. ${bridge}` : bridge;
     }
-    nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+    if (!nextUi) {
+      nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+    }
   }
 
   const looksLikeServiceListUi = isServiceListUi(nextUi);
-  if (looksLikeServiceListUi && /(могу отвечать кратко по теме|ниже можно сразу выбрать удобный шаг для записи)/i.test(norm(reply))) {
+  if (
+    looksLikeServiceListUi &&
+    /(могу отвечать кратко по теме|ниже можно сразу выбрать удобный шаг для записи|я на связи\.\s*если хотите,\s*продолжим разговор или перейдем к записи)/i.test(
+      norm(reply),
+    )
+  ) {
     reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
   }
   if (nextUi?.kind === "quick_replies") {

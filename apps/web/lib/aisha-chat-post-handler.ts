@@ -565,6 +565,7 @@ export async function handlePublicAiChatPost(request: Request) {
           knownClientName,
           accountName: resolved.account.name?.trim() ?? null,
           assistantName: ASSISTANT_NAME,
+          accountDescription: accountProfile?.description ?? null,
           explicitWorkplaceRoleCue,
           conversationalReply,
           explicitServiceComplaint,

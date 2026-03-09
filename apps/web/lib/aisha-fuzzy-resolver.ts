@@ -192,10 +192,42 @@ function extractRequestedSpecialistPhrase(messageNorm: string) {
     .replace(/\s+(?:запиш\p{L}*|оформи\p{L}*|пожалуйста|плиз|please)$/iu, "")
     .trim();
 
-  return cleaned || null;
+  if (!cleaned) return null;
+
+  const stopFirstTokens = new Set([
+    "вам",
+    "тебе",
+    "мне",
+    "нам",
+    "ему",
+    "ей",
+    "им",
+    "сегодня",
+    "завтра",
+    "послезавтра",
+    "утром",
+    "днем",
+    "днём",
+    "вечером",
+    "понедельник",
+    "вторник",
+    "среда",
+    "среду",
+    "четверг",
+    "пятница",
+    "пятницу",
+    "суббота",
+    "субботу",
+    "воскресенье",
+  ]);
+  const first = tokenizeForFuzzy(cleaned)[0] ?? "";
+  if (first && stopFirstTokens.has(first)) return null;
+  if (/(запис\p{L}*|оформи\p{L}*|услуг\p{L}*|врем\p{L}*|дат\p{L}*)/iu.test(cleaned)) return null;
+
+  return cleaned;
 }
 function isSpecialistDirectRequest(messageNorm: string) {
-  return /(?:запиш\p{L}*|хочу|к|ко|мастер|специалист)/iu.test(messageNorm);
+  return /(?:мастер|специалист|\bк\s+[\p{L}-]{2,}\b|\bко\s+[\p{L}-]{2,}\b)/iu.test(messageNorm);
 }
 
 function isLocationDirectRequest(messageNorm: string, locations: LocationLite[]) {
@@ -332,6 +364,20 @@ function findRecentServiceHint(messageNorm: string, recentMessages: Array<{ role
   }
   return null;
 }
+
+function isVagueRequestedServicePhrase(phrase: string | null | undefined) {
+  const p = norm(phrase ?? "");
+  if (!p) return false;
+  if (
+    /(какуюнибудь|какойнибудь|какую-нибудь|какой-нибудь|какую нибудь|какой нибудь|любую|любая|какую\s+услуг\p{L}*|какой\s+услуг\p{L}*|классн\p{L}*)/iu.test(
+      p,
+    )
+  ) {
+    return true;
+  }
+  const tokens = tokenizeForFuzzy(p);
+  return tokens.length <= 2 && tokens.every((t) => /^(услуг\p{L}*|процедур\p{L}*|классн\p{L}*|лучш\p{L}*|люб\p{L}*)$/iu.test(t));
+}
 function dedupeOptions(options: Array<{ label: string; value: string }>) {
   const seen = new Set<string>();
   const out: Array<{ label: string; value: string }> = [];
@@ -403,6 +449,7 @@ export async function handleUnknownServiceResolution(args: {
   const nluServiceValid = Boolean(nlu?.serviceId && scopedServices.some((x) => x.id === nlu.serviceId));
   const nluServiceObj = nlu?.serviceId ? scopedServices.find((x) => x.id === nlu.serviceId) ?? null : null;
   const requestedServicePhrase = extractRequestedServicePhrase(t);
+  const vagueRequestedService = isVagueRequestedServicePhrase(requestedServicePhrase);
   const nluServiceGrounded = isNluServiceGroundedByText(t, nluServiceObj);
 
   const deicticServiceReference = /(?:эту\s+услуг|эту\s+процедур|на\s+неё|на\s+нее|ту\s+же|this\s+service|that\s+service)/iu.test(t);
@@ -440,13 +487,13 @@ export async function handleUnknownServiceResolution(args: {
   const hasServiceLikePhrase = Boolean(requestedServicePhrase) || mentionsServiceTopic(t) || (locationScoped && looksLikeUnknownServiceRequest(t));
   const unknownServiceRequested =
     bookingContextActive &&
-    locationScoped &&
     !d.serviceId &&
     !serviceTextMatch &&
     !isSpecialistSelectionTurn &&
     !isLocationSelectionTurn &&
     !isDateOrTimeTurn &&
     !isUiControlTurn &&
+    !vagueRequestedService &&
     (hasServiceLikePhrase || (locationScoped && looksLikeStandaloneServiceLabel)) &&
     (looksLikeUnknownServiceRequest(t) ||
       Boolean(requestedServicePhrase) ||
@@ -715,12 +762,26 @@ export async function handleEntityClarificationResolution(args: {
   if (!d.serviceId && bookingLike) {
 
     const requested = extractRequestedServicePhrase(messageNorm);
+    const isVagueRequestedService = isVagueRequestedServicePhrase(requested);
     const targetPhrase = requested ? norm(requested) : messageNorm;
 
     const generic = inferGenericServiceCandidates(targetPhrase, scopedServices);
     if (generic.length > 1) {
       const reply = "Уточните, пожалуйста, какая услуга нужна. Нашла несколько подходящих вариантов:";
       const options = dedupeOptions(generic.map(serviceQuickOption));
+      const payload = await persistClarificationAndBuildPayload({
+        threadId,
+        nextThreadKey,
+        reply,
+        ui: { kind: "quick_replies", options },
+        d,
+      });
+      return { handled: true, payload };
+    }
+
+    if (requested && isVagueRequestedService) {
+      const reply = "С удовольствием подберу услугу. Выберите вариант ниже, и продолжу запись.";
+      const options = dedupeOptions((scopedServices.length ? scopedServices : services).map(serviceQuickOption));
       const payload = await persistClarificationAndBuildPayload({
         threadId,
         nextThreadKey,

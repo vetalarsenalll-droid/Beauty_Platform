@@ -222,6 +222,7 @@ export function buildBasicChatInfoReply(args: {
   knownClientName: string;
   accountName: string | null;
   assistantName: string;
+  accountDescription: string | null;
   explicitWorkplaceRoleCue: boolean;
   conversationalReply: string | null;
   explicitServiceComplaint: boolean;
@@ -244,6 +245,7 @@ export function buildBasicChatInfoReply(args: {
     knownClientName,
     accountName,
     assistantName,
+    accountDescription,
     explicitWorkplaceRoleCue,
     conversationalReply,
     explicitServiceComplaint,
@@ -282,6 +284,32 @@ export function buildBasicChatInfoReply(args: {
 
   if (has(messageForRouting, /(как салон называется|как называется салон|как ваш салон называется|как называется ваш салон|название салона)/i)) {
     reply = accountName ? `Наш салон называется «${accountName}».` : "Название салона сейчас недоступно.";
+    return { handled: true, reply, ui };
+  }
+
+  if (
+    has(
+      messageForRouting,
+      /(стерилиз|стерилизац|дезинф|обработк[ауи]\s+инструмент|инструмент[ао]в?.*(обрабаты|стерилиз)|автоклав|ультразв|ультразвуков[а-я]*\s+мойк)/iu,
+    )
+  ) {
+    const profileNorm = norm(accountDescription ?? "");
+    const hasUltrasonicInProfile = /(ультразв|ультразвуков[а-я]*\s+мойк)/iu.test(profileNorm);
+    const hasAutoclaveInProfile = /(автоклав)/iu.test(profileNorm);
+
+    if (hasUltrasonicInProfile && hasAutoclaveInProfile) {
+      reply =
+        "Инструменты обрабатываем поэтапно: сначала очистка и дезинфекция (в том числе ультразвуковая мойка), затем стерилизация в автоклаве. Могу подобрать удобное время для записи.";
+    } else if (hasUltrasonicInProfile) {
+      reply =
+        "Используем ультразвуковую мойку для этапа очистки инструментов, после чего выполняем обязательную стерилизацию по регламенту. Могу подобрать удобное время для записи.";
+    } else if (hasAutoclaveInProfile) {
+      reply =
+        "Основной этап стерилизации — автоклав. Перед стерилизацией инструменты проходят обязательную очистку и дезинфекцию по регламенту. Могу подобрать удобное время для записи.";
+    } else {
+      reply =
+        "Инструменты обрабатываем по санитарному регламенту: очистка, дезинфекция и стерилизация. По вашему филиалу могу уточнить детали и сразу помочь с записью.";
+    }
     return { handled: true, reply, ui };
   }
 
