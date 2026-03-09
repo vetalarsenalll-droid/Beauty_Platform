@@ -261,7 +261,10 @@ export function buildIntentContext(args: {
   const hasClientActionCue =
     explicitClientListFollowUp ||
     explicitClientBookingDetailsCue ||
-    has(messageForRouting, /(какая у меня|мо(?:я|ю)\s+статист\p{L}*|мои записи|мои данные|покажи мои|покажи мою|ближайш.*запис|предстоящ.*запис|последн.*запис|прошедш.*запис|отмени мою|перенеси мою|перенести мою|перенести свою|хочу .*перенест|личн(ый|ого) кабинет)/iu);
+    has(
+      messageForRouting,
+      /(какая у меня|какие у меня.*запис\p{L}*|у меня записи|мо(?:я|ю)\s+статист\p{L}*|мои записи|мои данные|покажи мои|покажи мою|ближайш.*запис|предстоящ.*запис|последн.*запис|прошедш.*запис|отмени мою|перенеси мою|перенести мою|перенести свою|хочу .*перенест|личн(ый|ого) кабинет)/iu,
+    );
   if (explicitClientListFollowUp || explicitClientBookingDetailsCue) intent = "my_bookings";
 
   const hasPositiveFeedbackCue = has(messageForRouting, /(спасибо|благодар|круто|отлично|здорово|понятно|ок\b|окей|ясно|супер)/i);

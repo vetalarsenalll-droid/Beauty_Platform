@@ -320,7 +320,13 @@ export function buildBasicChatInfoReply(args: {
   }
 
   if (intent === "post_completion_smalltalk") {
-    reply = "Здорово, рада, что вам понравилось. Если нужно, помогу с записью.";
+    if (conversationalReply && !looksLikeHardBookingPushReply(conversationalReply)) {
+      reply = conversationalReply;
+    } else if (isOutOfDomainPrompt(t)) {
+      reply = buildOutOfScopeConversationalReply(t);
+    } else {
+      reply = buildSmalltalkReply(t || norm(messageForRouting));
+    }
     return { handled: true, reply, ui };
   }
 

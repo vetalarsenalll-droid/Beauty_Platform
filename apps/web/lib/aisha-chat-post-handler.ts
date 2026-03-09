@@ -473,7 +473,7 @@ export async function handlePublicAiChatPost(request: Request) {
       !explicitDateTimeQuery &&
       locations.length > 1 &&
       has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) &&
-      !has(messageForRouting, /(мои записи|мою запись|статист|профил|кабинет|отмени|перенеси)/i);
+      !has(messageForRouting, /(мои записи|мою запись|у меня записи|какие у меня.*запис\p{L}*|статист|профил|кабинет|отмени|перенеси)/iu);
     const contextualBookingBridge = shouldSoftReturnToBooking
       ? await runAishaBookingBridge({
           accountId: resolved.account.id,
