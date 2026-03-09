@@ -1,4 +1,4 @@
-import type { ChatUi } from "@/lib/booking-flow";
+﻿import type { ChatUi } from "@/lib/booking-flow";
 import { formatServiceQuickLabel, formatSpecialistQuickLabel } from "@/lib/booking-tools";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaIntent } from "@/lib/dialog-policy";
@@ -1139,7 +1139,7 @@ export function intentFromHeuristics(message: string): AishaIntent {
   if (has(message, /подтвержда[\p{L}]*\s+отмен[\p{L}]*\s*#?\s*\d*/iu)) return "cancel_my_booking";
   if (has(message, /(мои записи|моя запись|покажи мои записи|последн(яя|юю|ие|их)|предстоящ(ая|ую|ие|их)|ближайш(ая|ую|ие|их)|какая у меня.*запись|прошедш(ая|ую|ие|их)|последнюю покажи|покажи запись\s*#\s*\d{1,8}|запись\s*#\s*\d{1,8}|запись\s*№\s*\d{1,8})/i))
     return "my_bookings";
-  if (has(message, /(моя статистика|статистика|сколько раз)/i)) return "my_stats";
+  if (has(message, /(мо(?:я|ю)\s+статист\p{L}*|статист\p{L}*|сколько раз)/iu)) return "my_stats";
   if (has(message, /^(перенеси|перезапиши)\b/i)) return "reschedule_my_booking";
   if (has(message, /(перенеси запись|перезапиши|перенести #|reschedule|перенеси.*запись|перенеси(ть)? (ее|её|эту)|можешь.*перенести)/i))
     return "reschedule_my_booking";
@@ -1193,4 +1193,5 @@ export function mapNluIntent(intent: AishaNluIntent): AishaIntent {
       return intent as AishaIntent;
   }
 }
+
 

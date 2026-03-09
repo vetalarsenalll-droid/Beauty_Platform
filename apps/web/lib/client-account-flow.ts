@@ -371,7 +371,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
   const asksAllPast =
     has(messageNorm, /(?:все|всё).*(?:прошед|прошл)/i) || has(messageNorm, /(?:прошед|прошл).*(?:все|всё)/i);
 
-  const asksStats = has(messageNorm, /(моя статистика|статистика|сколько раз|сколько посещений|средний чек)/i);
+  const asksStats = has(messageNorm, /(мо(?:я|ю)\s+статист\p{L}*|статист\p{L}*|сколько раз|сколько посещений|средний чек)/iu);
   const asksCancel = has(
     messageNorm,
     /(отмени(ть)?( запись)?|отмена записи|cancel booking|можешь.*отменить|отмени (ее|её|эту|последнюю|ближайшую))/i,
