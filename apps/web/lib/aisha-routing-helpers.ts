@@ -531,6 +531,47 @@ export function hasUnknownPersonNameInReply(args: {
   return false;
 }
 
+export function hasUnapprovedClientNameAddressingInReply(args: {
+  reply: string;
+  specialists: SpecialistLite[];
+  knownClientName?: string | null;
+  assistantName: string;
+}) {
+  const { reply, specialists, knownClientName, assistantName } = args;
+  const text = reply.trim();
+  if (!text) return false;
+
+  const known = new Set<string>();
+  const pushKnown = (value: string | null | undefined) => {
+    const n = norm(value ?? "");
+    if (!n) return;
+    known.add(n);
+    const first = n.split(/\s+/).filter(Boolean)[0];
+    if (first) known.add(first);
+  };
+  pushKnown(knownClientName ?? null);
+  pushKnown(assistantName);
+  for (const s of specialists) pushKnown(s.name);
+
+  const candidates = new Set<string>();
+  const startAddress = text.match(/^\s*(\p{Lu}\p{Ll}{2,})(?=[,!:])/u);
+  if (startAddress?.[1]) candidates.add(norm(startAddress[1]));
+
+  for (const m of text.matchAll(/(?:^|[.!?]\s*)(?:привет|здравствуйте|добрый день|добрый вечер)\s*,?\s*(\p{Lu}\p{Ll}{2,})(?=[,!:]?)/giu)) {
+    if (m[1]) candidates.add(norm(m[1]));
+  }
+  for (const m of text.matchAll(/имя(?:\s+\p{L}+){0,4}\s*[—-]\s*(\p{Lu}\p{Ll}{2,})/giu)) {
+    if (m[1]) candidates.add(norm(m[1]));
+  }
+
+  if (!candidates.size) return false;
+  if (!knownClientName?.trim()) return true;
+  for (const candidate of candidates) {
+    if (!known.has(candidate)) return true;
+  }
+  return false;
+}
+
 export function looksLikeSensitiveLeakReply(text: string) {
   const t = norm(text);
   return /(system prompt|internal prompt|hidden instruction|internal instruction|api key|token|access key|secret|password|ignore.*instruction|jailbreak)/i.test(t);

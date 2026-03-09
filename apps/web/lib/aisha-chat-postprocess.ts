@@ -11,6 +11,7 @@ import {
   formatYmdRu,
   hasKnownLocationNameInText,
   hasKnownServiceNameInText,
+  hasUnapprovedClientNameAddressingInReply,
   hasUnknownPersonNameInReply,
   isBookingOrAccountCue,
   isGeneralQuestionOutsideBooking,
@@ -240,6 +241,15 @@ export async function postProcessReply(args: {
 
   if (
     route === "chat-only" &&
+    !explicitDateTimeQuery &&
+    hasUnapprovedClientNameAddressingInReply({ reply, specialists, knownClientName, assistantName })
+  ) {
+    reply = knownClientName ? `Здравствуйте, ${knownClientName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
+    if (!nextUi) nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+  }
+
+  if (
+    route === "chat-only" &&
     !isBookingOrAccountCue(t) &&
     intent !== "contact_address" &&
     intent !== "contact_phone" &&
@@ -267,6 +277,21 @@ export async function postProcessReply(args: {
     if (nextUi?.kind === "quick_replies") {
       nextUi = { kind: "quick_replies", options: dedupeQuickReplyOptions(nextUi.options) };
     }
+  }
+
+  const serviceNameNormSet = new Set(services.map((s) => norm(s.name)).filter(Boolean));
+  const looksLikeServiceListUi =
+    nextUi?.kind === "quick_replies" &&
+    nextUi.options.length > 0 &&
+    nextUi.options.some((o) => {
+      const label = norm(o.label ?? "");
+      const value = norm(o.value ?? "");
+      if (!label && !value) return false;
+      if (label === "все категории" || value === "все категории") return true;
+      return serviceNameNormSet.has(label) || serviceNameNormSet.has(value);
+    });
+  if (looksLikeServiceListUi && /(могу отвечать кратко по теме|ниже можно сразу выбрать удобный шаг для записи)/i.test(norm(reply))) {
+    reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
   }
 
   return { reply, nextUi, guardReason };
