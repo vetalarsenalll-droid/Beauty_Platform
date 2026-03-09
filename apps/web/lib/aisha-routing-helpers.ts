@@ -844,7 +844,8 @@ export function applyDraftConsistencyGuard(args: {
 
   if (route === "chat-only" && draft.locationId && /(?:выберите\s+филиал|выберите\s+локац)/iu.test(reply)) {
     const explicitLocationRequest = /(?:филиал|локац|адрес|покажи\s+филиалы)/iu.test(messageNorm);
-    if (!explicitLocationRequest) {
+    const explicitInfoRequest = /(?:до\s+скольки|график|часы\s+работы|работает|телефон|номер|контакт)/iu.test(messageNorm);
+    if (!explicitLocationRequest && !explicitInfoRequest) {
       const locationName = locations.find((x) => x.id === draft.locationId)?.name;
       if (locationName) {
         reply = `Сейчас выбрана локация «${locationName}». Уточните услугу, дату или время, и продолжу запись.`;

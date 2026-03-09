@@ -1,0 +1,84 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-09T12:45:58.352Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "MATRIX await-service :: address",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "записаться хочу",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Северная Орхидея — Центр",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "а адреса филиалов какие?",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "Женская стрижка",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "MATRIX await-service :: phone",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "записаться хочу",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Северная Орхидея — Центр",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "какой у вас номер?",
+          "passed": true
+        },
+        {
+          "index": 4,
+          "sent": "Женская стрижка",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "MATRIX await-service :: hours",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "записаться хочу",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Северная Орхидея — Центр",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "до скольки работаете?",
+          "passed": false,
+          "error": "MATRIX await-service :: hours / step 3 (до скольки работаете?): expected one of /работ|график|09:00|21:00|часы/i\nreply:\nСейчас выбрана локация «Северная Орхидея — Центр». Уточните услугу, дату или время, и продолжу запись."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-09T12:46:04.622Z",
+  "durationMs": 6270
+}

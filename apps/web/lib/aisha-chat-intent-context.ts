@@ -150,8 +150,9 @@ export function buildIntentContext(args: {
   const explicitClientRescheduleConfirm = has(messageForRouting, /подтвержда[\p{L}]*\s+перен[\p{L}]*/iu);
   const explicitDateTimeQuery = routing.asksCurrentDateTime(messageForRouting);
   const explicitBookingDecline = routing.isBookingDeclineMessage(norm(messageForRouting)) || has(messageForRouting, /^(не надо|не хочу)$/i);
-  const lastAssistantText = recentMessages.find((m) => m.role === "assistant")?.content ?? "";
-  const previousUserText = recentMessages.filter((m) => m.role === "user")[1]?.content ?? "";
+  const recentMessagesDesc = [...recentMessages].reverse();
+  const lastAssistantText = recentMessagesDesc.find((m) => m.role === "assistant")?.content ?? "";
+  const previousUserText = recentMessagesDesc.filter((m) => m.role === "user")[1]?.content ?? "";
 
   const specialistFollowUpLocation = routing.locationByText(t, locations);
   const specialistFollowUpByLocation =
@@ -235,6 +236,7 @@ export function buildIntentContext(args: {
   const explicitCategoryFilterRequest = Boolean(selectedServiceCategoryFilter);
 
   if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
+  if (specialistFollowUpByLocation) intent = "ask_specialists";
   if (explicitBookingTypoCue && !explicitBookingDecline) intent = "booking_start";
   if (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) intent = "cancel_my_booking";
   if (explicitClientCancelConfirm) intent = "cancel_my_booking";
@@ -243,6 +245,7 @@ export function buildIntentContext(args: {
   if (explicitServiceSpecialistQuestion) intent = "ask_specialists";
   if (specialistNameFollowUpFromContext) intent = "ask_specialists";
   if ((explicitServiceListRequest || explicitServicesFollowUp) && !explicitAvailabilityPeriod) intent = "ask_services";
+  if (explicitCalendarAvailability) intent = "ask_availability";
   if (explicitCategoryFilterRequest && !explicitServiceSpecialistQuestion) intent = "ask_services";
   if (serviceSelectionFromCatalog && !explicitServiceComplaint) intent = "booking_start";
   if (hasDraftContextEarly && Boolean(routing.serviceByText(norm(messageForRouting), services)) && !explicitServiceComplaint) intent = "booking_set_service";
@@ -341,6 +344,8 @@ export function buildIntentContext(args: {
     hasDraftContext &&
     Boolean(d.locationId) &&
     !d.serviceId &&
+    intent !== "ask_specialists" &&
+    !specialistFollowUpByLocation &&
     !explicitBookingDecline &&
     !forceClientActions &&
     !explicitDateTimeQuery &&

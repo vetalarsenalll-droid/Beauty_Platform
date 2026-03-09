@@ -504,9 +504,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       }
 
       const nextThreadId = Number(payload.data.threadId);
+      const nextThreadKey = typeof payload.data.threadKey === "string" ? payload.data.threadKey : null;
       if (Number.isInteger(nextThreadId) && nextThreadId > 0) {
         setThreadId(nextThreadId);
-        window.localStorage.setItem(storageKey, String(nextThreadId));
+        setThreadKey(nextThreadKey);
+        saveThreadState(storageKey, nextThreadId, nextThreadKey);
       }
 
       const action = (payload.data.action ?? null) as ChatAction;

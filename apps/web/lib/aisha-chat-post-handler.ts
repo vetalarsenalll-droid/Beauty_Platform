@@ -55,6 +55,15 @@ const norm = (v: string) =>
     .replace(/\s+/g, " ")
     .trim();
 const has = (m: string, r: RegExp) => r.test(norm(m));
+function looksLikeStandaloneServiceLabel(messageNorm: string) {
+  return (
+    /^[\p{L}\s\-]{4,}$/iu.test(messageNorm) &&
+    messageNorm.split(/\s+/).length <= 4 &&
+    !/(филиал|локац|адрес|время|слот|окошк|дата|сегодня|завтра|послезавтра|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
+      messageNorm,
+    )
+  );
+}
 function buildServiceDetailsReply(args: {
   serviceName: string;
   basePrice: number;
@@ -249,7 +258,18 @@ export async function handlePublicAiChatPost(request: Request) {
         asksSpecialistsByShortText(norm(messageForRouting)) ||
         /мастер|специалист|кто\s+.*(?:делает|выполняет|оказывает)/i.test(norm(messageForRouting)));
 
-    if (chatActionResult?.source === "llm" && chatActionResult.confidence >= 0.45 && !chatActionConflictsWithSpecialists && !explicitServiceSpecialistQuestion) {
+    if (specialistFlowPromptedByAssistant && locationByText(t, locations) && !serviceByText(t, services) && !explicitBookingDecline) {
+      intent = "ask_specialists";
+      route = "chat-only";
+    }
+
+    if (
+      chatActionResult?.source === "llm" &&
+      chatActionResult.confidence >= 0.45 &&
+      !chatActionConflictsWithSpecialists &&
+      !explicitServiceSpecialistQuestion &&
+      !(specialistFlowPromptedByAssistant && locationByText(t, locations))
+    ) {
       if (chatActionResult.action === "show_locations" || chatActionResult.action === "show_contact_address") intent = "contact_address";
       if (chatActionResult.action === "show_services") intent = "ask_services";
       if (chatActionResult.action === "show_specialists") intent = "ask_specialists";
@@ -369,6 +389,7 @@ export async function handlePublicAiChatPost(request: Request) {
     if (unknownService.handled && unknownService.payload) {
       return jsonOk(unknownService.payload);
     }
+
     const origin = new URL(request.url).origin;
     const publicSlug = buildPublicSlugId(resolved.account.slug, resolved.account.id);
 
@@ -376,6 +397,16 @@ export async function handlePublicAiChatPost(request: Request) {
     let nextStatus = d.status;
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
+    let guardedUnknownServiceInBooking = false;
+    if (route === "booking-flow" && d.locationId && !d.serviceId && looksLikeStandaloneServiceLabel(t)) {
+      const servicesScopedByLocation = services.filter((x) => x.locationIds.includes(d.locationId as number));
+      const selectedByText = serviceByText(t, servicesScopedByLocation);
+      if (!selectedByText) {
+        reply = "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже.";
+        nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesScopedByLocation) };
+        guardedUnknownServiceInBooking = true;
+      }
+    }
     const shouldGenerateSmalltalk =
       route === "chat-only" &&
       !explicitDateTimeQuery &&
@@ -493,7 +524,7 @@ export async function handlePublicAiChatPost(request: Request) {
         preferredClientId: client?.clientId ?? thread.clientId ?? null,
         holdOwnerMarker: -thread.id,
       },
-      shouldRunBookingFlow,
+      shouldRunBookingFlow: guardedUnknownServiceInBooking ? false : shouldRunBookingFlow,
       currentReply: reply,
       currentStatus: nextStatus,
       currentAction: nextAction,

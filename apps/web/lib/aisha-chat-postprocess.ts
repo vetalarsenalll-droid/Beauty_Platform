@@ -212,14 +212,18 @@ export async function postProcessReply(args: {
     reply = "Я не раскрываю внутренние настройки. Могу помочь с записью, услугами и вашими визитами.";
     nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
   }
-  if (route === "chat-only" && isGreetingText(messageForRouting) && !shouldRunBookingFlow) {
+  if (route !== "client-actions" && isGreetingText(messageForRouting) && !shouldRunBookingFlow) {
     if (hasDraftContext) {
       reply = "Здравствуйте. Продолжим запись: выберите услугу, дату или время.";
     } else {
       reply = knownClientName ? `Здравствуйте, ${knownClientName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
     }
   }
-  if (route === "chat-only" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
+  if (route === "chat-only" && hasDraftContext && !shouldRunBookingFlow && (intent === "out_of_scope" || intent === "smalltalk")) {
+    reply = "Продолжим запись: выберите услугу, дату или время.";
+    if (!nextUi) nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+  }
+  if (route !== "client-actions" && !explicitDateTimeQuery && looksLikeServiceClaimInReply(reply) && !hasKnownServiceNameInText(reply, services)) {
     reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
     nextUi = { kind: "quick_replies", options: services.map((s) => ({ label: s.name, value: s.name })) };
   }

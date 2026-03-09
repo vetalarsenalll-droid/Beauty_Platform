@@ -431,6 +431,12 @@ export async function handleUnknownServiceResolution(args: {
   const bookingContextActive = shouldEnrichDraftForBooking || hasBookingDraftContext;
 
   const locationScoped = Boolean(d.locationId);
+  const looksLikeStandaloneServiceLabel =
+    /^[\p{L}\s\-]{4,}$/iu.test(turnNorm) &&
+    turnNorm.split(/\s+/).length <= 4 &&
+    !/(филиал|локац|адрес|время|слот|окошк|дата|сегодня|завтра|послезавтра|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
+      turnNorm,
+    );
   const hasServiceLikePhrase = Boolean(requestedServicePhrase) || mentionsServiceTopic(t) || (locationScoped && looksLikeUnknownServiceRequest(t));
   const unknownServiceRequested =
     bookingContextActive &&
@@ -441,8 +447,10 @@ export async function handleUnknownServiceResolution(args: {
     !isLocationSelectionTurn &&
     !isDateOrTimeTurn &&
     !isUiControlTurn &&
-    hasServiceLikePhrase &&
-    (looksLikeUnknownServiceRequest(t) || (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
+    (hasServiceLikePhrase || (locationScoped && looksLikeStandaloneServiceLabel)) &&
+    (looksLikeUnknownServiceRequest(t) ||
+      Boolean(requestedServicePhrase) ||
+      (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
   if (!unknownServiceRequested || deicticServiceReference) return { handled: false };
 
