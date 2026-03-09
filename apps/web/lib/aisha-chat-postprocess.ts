@@ -49,6 +49,7 @@ export async function postProcessReply(args: {
   consecutiveNonBookingTurns: number;
   consecutiveToxicTurns: number;
   explicitOutOfScopeCue: boolean;
+  explicitServiceComplaint: boolean;
   explicitLocationsFollowUp: boolean;
   explicitAddressCue: boolean;
   bridgeFocusDate: string | null;
@@ -80,6 +81,7 @@ export async function postProcessReply(args: {
     consecutiveNonBookingTurns,
     consecutiveToxicTurns,
     explicitOutOfScopeCue,
+    explicitServiceComplaint,
     explicitLocationsFollowUp,
     explicitAddressCue,
     bridgeFocusDate,
@@ -183,6 +185,7 @@ export async function postProcessReply(args: {
     !shouldHardReturnToDomain &&
     !hasDraftContext &&
     !explicitDateTimeQuery &&
+    !explicitServiceComplaint &&
     !isBookingOrAccountCue(t) &&
     (intent === "smalltalk" || intent === "out_of_scope" || intent === "unknown" || intent === "identity" || intent === "capabilities") &&
     !isPauseConversationMessage(t) &&
@@ -303,7 +306,7 @@ export async function postProcessReply(args: {
       shouldHardReturnToDomain ||
       (shouldSoftReturnToBooking && consecutiveNonBookingTurns >= 1) ||
       (intent === "abuse_or_toxic" && consecutiveToxicTurns >= 2);
-    if (!nextUi && shouldShowChatCta) {
+    if (!nextUi && shouldShowChatCta && !explicitServiceComplaint) {
       nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
     }
     if (nextUi?.kind === "quick_replies") {
@@ -317,6 +320,7 @@ export async function postProcessReply(args: {
     route === "chat-only" &&
     !shouldRunBookingFlow &&
     !explicitDateTimeQuery &&
+    !explicitServiceComplaint &&
     !hasSpecializedUi
   ) {
     if (!/(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply))) {

@@ -846,6 +846,7 @@ export async function handlePublicAiChatPost(request: Request) {
       consecutiveNonBookingTurns,
       consecutiveToxicTurns,
       explicitOutOfScopeCue,
+      explicitServiceComplaint,
       explicitLocationsFollowUp,
       explicitAddressCue,
       bridgeFocusDate,
