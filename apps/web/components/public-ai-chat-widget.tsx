@@ -293,6 +293,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
   const widgetRootStyle = useMemo(() => {
     const vars: Record<string, string | number> = {};
+    // When border color is not configured in CRM, keep borders visually disabled.
+    vars["--ai-border"] = "transparent";
+    vars["--ai-border-light"] = "transparent";
+    vars["--ai-border-dark"] = "transparent";
     if (mode === "floating") {
       const bottom = Number(widgetConfig?.offsetBottomPx ?? 16);
       const right = Number(widgetConfig?.offsetRightPx ?? 16);
@@ -404,6 +408,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     currentMode === "dark"
       ? "max-w-[90%] bg-white/10 px-3 py-2 text-sm text-[color:var(--ai-muted,#9ca3af)]"
       : "max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--ai-muted,#6b7280)]";
+  const effectiveBorderColor =
+    (currentMode === "dark"
+      ? (widgetConfig?.borderColorDark ?? widgetConfig?.borderColor ?? "")
+      : (widgetConfig?.borderColorLight ?? widgetConfig?.borderColor ?? "")
+    ).trim();
+  const hasWidgetBorder = effectiveBorderColor.length > 0;
 
   const lastAssistantIndex = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -652,8 +662,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   return (
     <div className={rootClass} style={widgetRootStyle}>
       {open ? (
-        <div className="flex flex-col overflow-hidden border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-panel,#fff)]" style={panelStyle}>
-          <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ai-border,#e5e7eb)] px-4 py-3" style={headerStyle}>
+        <div className={`flex flex-col overflow-hidden bg-[color:var(--ai-header-bg,var(--ai-panel,#fff))] ${hasWidgetBorder ? "border border-[color:var(--ai-border)]" : "border-0"}`} style={panelStyle}>
+          <div
+            className={`shrink-0 flex items-center justify-between gap-3 px-4 ${hasWidgetBorder ? "py-3 border-b border-[color:var(--ai-border)]" : "py-3 border-0"}`}
+            style={headerStyle}
+          >
             <div className="text-sm font-semibold text-[color:var(--ai-text,#111827)]" style={headerActionStyle}>
               {headerTitle}
             </div>
@@ -677,7 +690,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             </div>
           </div>
 
-          <div ref={scrollerRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
+          <div className="min-h-0 flex flex-1 flex-col bg-[color:var(--ai-panel,#fff)]">
+          <div ref={scrollerRef} className="aisha-chat-scroll flex-1 space-y-3 overflow-y-auto bg-[color:var(--ai-panel,#fff)] px-3 py-3">
             {messages.map((msg, index) => (
               (() => {
                 const messageKey = `${msg.role}-${msg.id ?? index}`;
@@ -1028,7 +1042,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={sendMessage} className="border-t border-[color:var(--ai-border,#e5e7eb)] p-3">
+          <form onSubmit={sendMessage} className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}>
             <div className="relative overflow-hidden rounded-[20px] border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]">
               <textarea
                 ref={inputRef}
@@ -1063,6 +1077,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               </button>
             </div>
           </form>
+          </div>
         </div>
       ) : (
         <button
@@ -1075,6 +1090,27 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           <span className="whitespace-nowrap">{fabLabel}</span>
         </button>
       )}
+      <style jsx>{`
+        .aisha-chat-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: var(--ai-quick-reply-button, var(--ai-button, #111827)) transparent;
+        }
+        .aisha-chat-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+        .aisha-chat-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .aisha-chat-scroll::-webkit-scrollbar-thumb {
+          background: var(--ai-quick-reply-button, var(--ai-button, #111827));
+          border-radius: 999px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        .aisha-chat-scroll::-webkit-scrollbar-thumb:hover {
+          filter: brightness(0.95);
+        }
+      `}</style>
     </div>
   );
 }

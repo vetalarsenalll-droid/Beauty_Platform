@@ -7411,6 +7411,11 @@ function buildAishaWidgetConfig(
   theme: SiteTheme
 ): SiteAishaWidgetConfig {
   const data = (block.data ?? {}) as Record<string, unknown>;
+  const rawStyle = ((block.data as Record<string, unknown>)?.style ?? {}) as Record<string, unknown>;
+  const readRawStyleColor = (key: string) => {
+    const value = rawStyle[key];
+    return typeof value === "string" ? value.trim() : "";
+  };
   const toNumberInRange = (value: unknown, min: number, max: number, fallback: number) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return fallback;
@@ -7428,6 +7433,14 @@ function buildAishaWidgetConfig(
   const panelGradientToLight = style.gradientToLightResolved || null;
   const panelGradientFromDark = style.gradientFromDarkResolved || panelGradientFromLight;
   const panelGradientToDark = style.gradientToDarkResolved || panelGradientToLight;
+  const rawBorderBase = readRawStyleColor("borderColor");
+  const rawBorderLight = readRawStyleColor("borderColorLight");
+  const rawBorderDark = readRawStyleColor("borderColorDark");
+  const hasBorderLight = (rawBorderLight || rawBorderBase).length > 0;
+  const hasBorderDark = (rawBorderDark || rawBorderBase).length > 0;
+  const borderColorLightValue = hasBorderLight ? (style.borderColorLightResolved || style.borderColor || null) : null;
+  const borderColorDarkValue = hasBorderDark ? (style.borderColorDarkResolved || style.borderColorLightResolved || style.borderColor || null) : null;
+  const borderColorActive = isDark ? borderColorDarkValue : borderColorLightValue;
 
   return {
     enabled: data.enabled !== false,
@@ -7453,8 +7466,7 @@ function buildAishaWidgetConfig(
       null,
     panelColor: pickMode(style.blockBgLightResolved, style.blockBgDarkResolved) || style.blockBg || null,
     textColor: pickMode(style.textColorLightResolved, style.textColorDarkResolved) || style.textColor || null,
-    borderColor:
-      pickMode(style.borderColorLightResolved, style.borderColorDarkResolved) || style.borderColor || null,
+    borderColor: borderColorActive,
     buttonColorLight: style.buttonColorLightResolved || null,
     buttonColorDark: style.buttonColorDarkResolved || null,
     buttonTextColorLight: style.buttonTextColorLightResolved || null,
@@ -7463,8 +7475,8 @@ function buildAishaWidgetConfig(
     panelColorDark: style.blockBgDarkResolved || null,
     textColorLight: style.textColorLightResolved || null,
     textColorDark: style.textColorDarkResolved || null,
-    borderColorLight: style.borderColorLightResolved || null,
-    borderColorDark: style.borderColorDarkResolved || null,
+    borderColorLight: borderColorLightValue,
+    borderColorDark: borderColorDarkValue,
     assistantBubbleColorLight:
       style.assistantBubbleColorLightResolved || style.subBlockBgLightResolved || null,
     assistantBubbleColorDark:
