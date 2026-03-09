@@ -96,6 +96,19 @@ export async function postProcessReply(args: {
     contextualBookingBridge,
     draft,
   } = args;
+  const isServiceListUi = (ui: ChatUi | null) =>
+    ui?.kind === "quick_replies" &&
+    ui.options.length > 0 &&
+    ui.options.some((o) => {
+      const label = norm(o.label ?? "");
+      const value = norm(o.value ?? "");
+      if (!label && !value) return false;
+      if (label === "все категории" || value === "все категории") return true;
+      return services.some((s) => {
+        const n = norm(s.name);
+        return n.length > 0 && (label === n || value === n);
+      });
+    });
 
   const canNaturalizeReply =
     route === "chat-only" &&
@@ -125,7 +138,14 @@ export async function postProcessReply(args: {
     nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
   }
 
-  if (shouldSoftReturnToBooking && route === "chat-only" && !hasDraftContext && !isBookingOrAccountCue(t) && !shouldHardReturnToDomain) {
+  if (
+    shouldSoftReturnToBooking &&
+    route === "chat-only" &&
+    !hasDraftContext &&
+    !isBookingOrAccountCue(t) &&
+    !shouldHardReturnToDomain &&
+    !isServiceListUi(nextUi)
+  ) {
     const bridgeCandidate = (contextualBookingBridge ?? "").trim();
     const allowModelBridge = !explicitOutOfScopeCue && !isGeneralQuestionOutsideBooking(t) && !isOutOfDomainPrompt(t);
     const bridge =
@@ -164,9 +184,10 @@ export async function postProcessReply(args: {
     !hasDraftContext &&
     !explicitDateTimeQuery &&
     !isBookingOrAccountCue(t) &&
-    (intent === "smalltalk" || intent === "out_of_scope") &&
+    (intent === "smalltalk" || intent === "out_of_scope" || intent === "unknown" || intent === "identity" || intent === "capabilities") &&
     !isPauseConversationMessage(t) &&
-    !asksWhyNoAnswer(t);
+    !asksWhyNoAnswer(t) &&
+    !isServiceListUi(nextUi);
 
   if (shouldAttachSalesBridge) {
     const hasBookingBridgeAlready = /(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply));
@@ -198,6 +219,10 @@ export async function postProcessReply(args: {
   const guardReason = guardResult.reason;
 
   reply = sanitizeAssistantReplyText(reply);
+
+  if (route === "chat-only" && intent === "smalltalk" && /жду\s+(?:вашего|твоего)\s+ответа/i.test(norm(reply))) {
+    reply = "Я здесь, чтобы помочь: могу рассказать про услуги, специалистов и свободное время, или просто поддержать разговор.";
+  }
 
   const looksLikeLatinGibberish =
     route === "chat-only" &&
@@ -279,19 +304,31 @@ export async function postProcessReply(args: {
     }
   }
 
-  const serviceNameNormSet = new Set(services.map((s) => norm(s.name)).filter(Boolean));
-  const looksLikeServiceListUi =
-    nextUi?.kind === "quick_replies" &&
-    nextUi.options.length > 0 &&
-    nextUi.options.some((o) => {
-      const label = norm(o.label ?? "");
-      const value = norm(o.value ?? "");
-      if (!label && !value) return false;
-      if (label === "все категории" || value === "все категории") return true;
-      return serviceNameNormSet.has(label) || serviceNameNormSet.has(value);
-    });
+  const hasSpecializedUi =
+    nextUi?.kind === "date_picker" || nextUi?.kind === "consent" || isServiceListUi(nextUi);
+  if (
+    route === "chat-only" &&
+    !shouldRunBookingFlow &&
+    !explicitDateTimeQuery &&
+    !hasSpecializedUi
+  ) {
+    if (!/(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply))) {
+      const bridge = buildBookingBridgeFallback(t, {
+        serviceName: bridgeFocusServiceName,
+        date: bridgeFocusDate,
+        timePreference: bridgeFocusTimePreference,
+      });
+      reply = reply ? `${reply.replace(/[.!?]+$/u, "")}. ${bridge}` : bridge;
+    }
+    nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+  }
+
+  const looksLikeServiceListUi = isServiceListUi(nextUi);
   if (looksLikeServiceListUi && /(могу отвечать кратко по теме|ниже можно сразу выбрать удобный шаг для записи)/i.test(norm(reply))) {
     reply = "Доступные услуги ниже. Выберите нужную кнопкой.";
+  }
+  if (nextUi?.kind === "quick_replies") {
+    nextUi = { kind: "quick_replies", options: dedupeQuickReplyOptions(nextUi.options) };
   }
 
   return { reply, nextUi, guardReason };

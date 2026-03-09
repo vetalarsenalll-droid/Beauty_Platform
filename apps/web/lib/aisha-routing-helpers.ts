@@ -554,16 +554,34 @@ export function hasUnapprovedClientNameAddressingInReply(args: {
   for (const s of specialists) pushKnown(s.name);
 
   const candidates = new Set<string>();
-  const startAddress = text.match(/^\s*(\p{Lu}\p{Ll}{2,})(?=[,!:])/u);
-  if (startAddress?.[1]) candidates.add(norm(startAddress[1]));
-
   for (const m of text.matchAll(/(?:^|[.!?]\s*)(?:привет|здравствуйте|добрый день|добрый вечер)\s*,?\s*(\p{Lu}\p{Ll}{2,})(?=[,!:]?)/giu)) {
+    if (m[1]) candidates.add(norm(m[1]));
+  }
+  for (const m of text.matchAll(/(?:^|[.!?]\s*)(\p{Lu}\p{Ll}{2,})\s*,\s*(?:привет|здравствуйте|добрый день|добрый вечер)\b/giu)) {
     if (m[1]) candidates.add(norm(m[1]));
   }
   for (const m of text.matchAll(/имя(?:\s+\p{L}+){0,4}\s*[—-]\s*(\p{Lu}\p{Ll}{2,})/giu)) {
     if (m[1]) candidates.add(norm(m[1]));
   }
 
+  if (!candidates.size) return false;
+  const nonNameWords = new Set([
+    "спасибо",
+    "здравствуйте",
+    "привет",
+    "добрый",
+    "день",
+    "вечер",
+    "хорошо",
+    "отлично",
+    "супер",
+    "класс",
+    "поняла",
+    "понял",
+  ]);
+  for (const candidate of [...candidates]) {
+    if (nonNameWords.has(candidate)) candidates.delete(candidate);
+  }
   if (!candidates.size) return false;
   if (!knownClientName?.trim()) return true;
   for (const candidate of candidates) {

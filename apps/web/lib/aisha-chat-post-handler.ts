@@ -37,6 +37,7 @@ const {
   isPauseConversationMessage,
   asksWhyNoAnswer,
   buildOutOfScopeConversationalReply,
+  buildChatOnlyActionUi,
   isGenericBookingTemplateReply,
   isBookingOrAccountCue,
   countConsecutiveNonBookingUserTurns,
@@ -863,6 +864,21 @@ export async function handlePublicAiChatPost(request: Request) {
     reply = postProcessed.reply;
     nextUi = postProcessed.nextUi;
     const guardReason = postProcessed.guardReason;
+
+    if (explicitBookingDecline && route !== "client-actions" && !explicitDateTimeQuery) {
+      const replyNormAfterPost = norm(reply);
+      const looksLikeForcedBookingReply =
+        /выберите\s+(филиал|локац|услуг|дату|время)|продолжу\s+запис|оформлени[ея]\s+запис|запишу\s+вас/i.test(replyNormAfterPost);
+      const hasBookingChoiceUi =
+        nextUi?.kind === "quick_replies" &&
+        nextUi.options.some((o) => /северная орхидея|записаться|утро|день|вечер|^\d{2}:\d{2}$/i.test((o.value ?? o.label ?? "").trim()));
+      if (looksLikeForcedBookingReply || hasBookingChoiceUi || route === "booking-flow" || shouldRunBookingFlow) {
+        reply = "Хорошо, без записи. Можем просто пообщаться. Если захотите, помогу с услугами, специалистами или свободным временем.";
+        nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
+        route = "chat-only";
+        if (intent === "booking_start" || intent === "reject_or_change") intent = "smalltalk";
+      }
+    }
 
     await saveTurn({
       threadId: thread.id,

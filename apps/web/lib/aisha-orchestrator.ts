@@ -219,6 +219,7 @@ function clampReplyText(raw: string, maxChars: number, maxSentences: number) {
   const clean = raw.replace(/\s+/g, " ").trim();
   if (!clean) return "";
 
+  const wasTruncatedByChars = clean.length > maxChars;
   const bounded = clean.slice(0, maxChars);
   const sentences =
     bounded
@@ -226,11 +227,29 @@ function clampReplyText(raw: string, maxChars: number, maxSentences: number) {
       ?.map((x) => x.trim())
       .filter(Boolean) ?? [bounded.trim()];
 
-  const picked = sentences.slice(0, Math.max(1, maxSentences)).join(" ").trim();
-  if (!picked) return bounded.trim();
+  const maxCount = Math.max(1, maxSentences);
+  let pickedParts = sentences.slice(0, maxCount);
+  const lastPicked = pickedParts[pickedParts.length - 1] ?? "";
+  const lastEnded = /[.!?…]$/.test(lastPicked);
+
+  if (wasTruncatedByChars && !lastEnded && pickedParts.length > 1) {
+    pickedParts = pickedParts.slice(0, -1);
+  }
+
+  let picked = pickedParts.join(" ").trim();
+  if (!picked) picked = bounded.trim();
+  if (!picked) return "";
 
   const ended = /[.!?…]$/.test(picked);
-  if (picked.length < clean.length && !ended) return picked.replace(/[\s,:;-]+$/g, "") + ".";
+  if (picked.length < clean.length && !ended) {
+    const safe = picked.replace(/[\s,:;-]+$/g, "");
+    const lastWord = safe.split(/\s+/).pop() ?? "";
+    if (/^(о|об|обо|в|во|на|по|к|ко|с|со|за|из|у|от|до|для|при|про|над|под|между|через)$/i.test(lastWord)) {
+      const trimmed = safe.replace(new RegExp(`\\s+${lastWord}$`, "i"), "").trim();
+      return trimmed ? `${trimmed}…` : "…";
+    }
+    return `${safe}…`;
+  }
   return picked;
 }
 
@@ -525,7 +544,7 @@ export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Pr
     ]);
     const out = completion.content?.trim();
     if (!out) return null;
-    return out.slice(0, 220);
+    return clampReplyText(out, 220, 1);
   } catch {
     return null;
   }
@@ -558,7 +577,7 @@ export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Pro
     ]);
     const text = completion.content?.trim();
     if (!text) return null;
-    return text.slice(0, 260);
+    return clampReplyText(text, 260, 2);
   } catch {
     return null;
   }
