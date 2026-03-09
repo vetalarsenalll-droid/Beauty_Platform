@@ -55,6 +55,15 @@ const norm = (v: string) =>
     .replace(/\s+/g, " ")
     .trim();
 const has = (m: string, r: RegExp) => r.test(norm(m));
+function buildServiceDetailsReply(args: {
+  serviceName: string;
+  basePrice: number;
+  baseDurationMin: number;
+  description?: string;
+}) {
+  const descriptionPart = args.description ? ` Описание: ${args.description}` : "";
+  return `Да, услуга «${args.serviceName}» есть. Стоимость от ${Math.round(args.basePrice)} ₽, длительность от ${args.baseDurationMin} мин (зависит от уровня специалиста).${descriptionPart} Если хотите, запишу вас на неё.`;
+}
 function findRecentBookingDateHint(nowYmd: string, messageForRouting: string, recentMessages: Array<{ role: string; content: string }>) {
   const recentUserTurns = recentMessages.filter((m) => m.role === "user").slice(0, 8);
   const candidates = [messageForRouting, ...recentUserTurns.map((m) => m.content ?? "")];
@@ -645,7 +654,12 @@ export async function handlePublicAiChatPost(request: Request) {
                 ? `«${selectedByText.name}» обычно выбирают для мужчин. Для женщин могу предложить «${femaleAlt}». Если нужно, сразу подберу время.`
                 : `«${selectedByText.name}» обычно выбирают для мужчин. Если нужно, подберу подходящую женскую услугу и время.`;
             } else {
-              reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.${description ? ` Описание: ${description}` : ""} Если хотите, запишу вас на неё.`;
+              reply = buildServiceDetailsReply({
+                serviceName: selectedByText.name,
+                basePrice: selectedByText.basePrice,
+                baseDurationMin: selectedByText.baseDurationMin,
+                description,
+              });
               nextUi = {
                 kind: "quick_replies",
                 options: [
@@ -705,7 +719,12 @@ export async function handlePublicAiChatPost(request: Request) {
         const selectedByText = serviceByText(t, servicesByCategory);
         if (selectedByText) {
           const description = (selectedByText.description ?? "").trim();
-          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.${description ? ` Описание: ${description}` : ""} Если хотите, запишу вас на неё.`;
+          reply = buildServiceDetailsReply({
+            serviceName: selectedByText.name,
+            basePrice: selectedByText.basePrice,
+            baseDurationMin: selectedByText.baseDurationMin,
+            description,
+          });
           nextUi = {
             kind: "quick_replies",
             options: [
@@ -734,7 +753,12 @@ export async function handlePublicAiChatPost(request: Request) {
         const selectedByText = serviceByText(t, servicesByCategory);
         if (selectedByText) {
           const description = (selectedByText.description ?? "").trim();
-          reply = `Да, услуга «${selectedByText.name}» есть. Стоимость ${Math.round(selectedByText.basePrice)} ₽, длительность ${selectedByText.baseDurationMin} мин.${description ? ` Описание: ${description}` : ""} Если хотите, запишу вас на неё.`;
+          reply = buildServiceDetailsReply({
+            serviceName: selectedByText.name,
+            basePrice: selectedByText.basePrice,
+            baseDurationMin: selectedByText.baseDurationMin,
+            description,
+          });
           nextUi = {
             kind: "quick_replies",
             options: [
