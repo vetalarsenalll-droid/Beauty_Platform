@@ -13,6 +13,7 @@ type ChatUi =
 type ChatMessage = Message & { ui?: ChatUi | null };
 
 type StoredThreadState = { threadId: number; threadKey: string | null };
+const MAX_INPUT_LINES = 4;
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
@@ -211,6 +212,13 @@ function saveThreadState(storageKey: string, threadId: number, threadKey: string
   window.localStorage.setItem(storageKey, JSON.stringify({ threadId, threadKey }));
 }
 
+function clampInputLines(value: string, maxLines: number) {
+  const normalized = value.replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  if (lines.length <= maxLines) return normalized;
+  return lines.slice(0, maxLines).join("\n");
+}
+
 export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const {
     accountSlug,
@@ -234,6 +242,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [dateMonthByMessage, setDateMonthByMessage] = useState<Record<string, string>>({});
   const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
   const [currentMode, setCurrentMode] = useState<"light" | "dark">(themeMode ?? "light");
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -411,6 +420,18 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   }, [messages.length, loading, open, typingVisible]);
 
   useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "40px";
+    const computed = window.getComputedStyle(el);
+    const lineHeight = Number.parseFloat(computed.lineHeight) || 20;
+    const maxHeight = lineHeight * MAX_INPUT_LINES + 16;
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [text]);
+
+
+  useEffect(() => {
     if (!open) return
     if (messages.length > 0) return;
     const greeting = "Здравствуйте! Я Аиша. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.";
@@ -551,12 +572,16 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     }
   };
 
-  const sendMessage = async (event: FormEvent) => {
-    event.preventDefault();
+  const submitCurrentText = async () => {
     if (!canSend) return;
     const userText = text.trim();
     setText("");
     await sendRawMessage(userText);
+  };
+
+  const sendMessage = async (event: FormEvent) => {
+    event.preventDefault();
+    await submitCurrentText();
   };
 
   const clearChat = async () => {
@@ -1004,20 +1029,37 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           </div>
 
           <form onSubmit={sendMessage} className="border-t border-[color:var(--ai-border,#e5e7eb)] p-3">
-            <div className="flex gap-2">
-              <input
+            <div className="relative overflow-hidden rounded-[20px] border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]">
+              <textarea
+                ref={inputRef}
                 value={text}
-                onChange={(event) => setText(event.target.value)}
+                rows={1}
+                onChange={(event) => setText(clampInputLines(event.target.value, MAX_INPUT_LINES))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void submitCurrentText();
+                  }
+                }}
                 placeholder="Введите сообщение"
-                className="h-10 flex-1 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-transparent px-3 text-sm text-[color:var(--ai-text,#111827)] outline-none"
+                className="block min-h-10 w-full resize-none appearance-none border-0 bg-transparent py-2 pl-3 pr-12 text-sm leading-5 text-[color:var(--ai-text,#111827)] shadow-none outline-none placeholder:text-[color:var(--ai-muted,#6b7280)]"
               />
               <button
                 type="submit"
                 disabled={!canSend}
-                style={buttonRadiusStyle}
-                className="h-10 rounded-xl bg-[color:var(--ai-button,#111827)] px-3 text-sm font-medium text-[color:var(--ai-button-text,#fff)] disabled:opacity-50"
+                className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)] shadow-sm transition disabled:opacity-50"
+                aria-label="Отправить сообщение"
               >
-                Отпр.
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path
+                    d="m9.697 12.695l-5.271-.91a2.074 2.074 0 0 1-.167-3.941l14.045-4.968a2.075 2.075 0 0 1 2.66 2.66l-4.968 14.318a2.075 2.075 0 0 1-3.981-.205l-.91-5.546a2.075 2.075 0 0 0-1.408-1.408"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             </div>
           </form>
