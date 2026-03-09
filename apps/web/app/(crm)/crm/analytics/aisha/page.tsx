@@ -7,6 +7,7 @@ const DEFAULT_DAYS = 30;
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZES = [20, 50, 100] as const;
 const MAX_PAGE_LINKS = 7;
+const IN_CHUNK_SIZE = 500;
 
 type TurnPayload = {
   intent?: string | null;
@@ -15,6 +16,7 @@ type TurnPayload = {
   uiKind?: string | null;
   actionType?: string | null;
   nluSource?: string | null;
+  nextStatus?: string | null;
 };
 
 type TopicFilter = "all" | "booking" | "services" | "specialists" | "complaints" | "smalltalk";
@@ -49,6 +51,7 @@ function asPayload(value: unknown): TurnPayload {
     uiKind: typeof v.uiKind === "string" ? v.uiKind : null,
     actionType: typeof v.actionType === "string" ? v.actionType : null,
     nluSource: typeof v.nluSource === "string" ? v.nluSource : null,
+    nextStatus: typeof v.nextStatus === "string" ? v.nextStatus : null,
   };
 }
 
@@ -175,6 +178,32 @@ function paginationWindow(current: number, total: number, maxLinks: number) {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 }
 
+function chunkArray<T>(items: T[], size: number) {
+  if (size <= 0) return [items];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+async function countMessagesByThreadIds(threadIds: number[], role: "user" | "assistant", keywords?: string[]) {
+  if (!threadIds.length) return 0;
+  const chunks = chunkArray(threadIds, IN_CHUNK_SIZE);
+  const counts = await Promise.all(
+    chunks.map((ids) =>
+      prisma.aiMessage.count({
+        where: {
+          role,
+          threadId: { in: ids },
+          ...(keywords?.length
+            ? { OR: keywords.map((k) => ({ content: { contains: k, mode: "insensitive" as const } })) }
+            : {}),
+        },
+      }),
+    ),
+  );
+  return counts.reduce((sum, count) => sum + count, 0);
+}
+
 type PageProps = {
   searchParams?: SearchParamsShape | Promise<SearchParamsShape>;
 };
@@ -203,7 +232,9 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
       ? topicRaw
       : "all";
 
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const anchorDate = new Date();
+  anchorDate.setHours(0, 0, 0, 0);
+  const since = new Date(anchorDate.getTime() - days * 24 * 60 * 60 * 1000);
 
   const threadWhere: any = {
     accountId,
@@ -223,7 +254,8 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
     OR: COMPLAINT_KEYWORDS.map((k) => ({ content: { contains: k, mode: "insensitive" as const } })),
   };
 
-  const [threadsMeta, actionsPeriod, complaintThreadsRows] = await Promise.all([
+  const [threadsMeta, actionsPeriod, complaintThreadsRows, serviceTopicRowsByText, specialistTopicRowsByText] =
+    await Promise.all([
     prisma.aiThread.findMany({
       where: threadWhere,
       orderBy: { id: "desc" },
@@ -231,7 +263,16 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
         id: true,
         createdAt: true,
         clientId: true,
-        bookingDraft: { select: { status: true } },
+        bookingDraft: {
+          select: {
+            status: true,
+            locationId: true,
+            serviceId: true,
+            specialistId: true,
+            date: true,
+            time: true,
+          },
+        },
         actions: {
           where: { actionType: "public_ai_turn", status: "COMPLETED" },
           orderBy: { id: "asc" },
@@ -253,44 +294,70 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
       select: { threadId: true },
       distinct: ["threadId"],
     }),
+    prisma.aiMessage.findMany({
+      where: {
+        role: "user",
+        thread: { accountId, createdAt: { gte: since } },
+        OR: SERVICE_KEYWORDS.map((k) => ({ content: { contains: k, mode: "insensitive" as const } })),
+      },
+      select: { threadId: true },
+      distinct: ["threadId"],
+    }),
+    prisma.aiMessage.findMany({
+      where: {
+        role: "user",
+        thread: { accountId, createdAt: { gte: since } },
+        OR: SPECIALIST_KEYWORDS.map((k) => ({ content: { contains: k, mode: "insensitive" as const } })),
+      },
+      select: { threadId: true },
+      distinct: ["threadId"],
+    }),
   ]);
 
-  const complaintThreadIds = new Set(complaintThreadsRows.map((x) => x.threadId));
+  const existingThreadIds = new Set(threadsMeta.map((t) => t.id));
+  const complaintThreadIds = new Set(complaintThreadsRows.map((x) => x.threadId).filter((id) => existingThreadIds.has(id)));
+  const serviceTopicThreadIdsByText = new Set(serviceTopicRowsByText.map((x) => x.threadId).filter((id) => existingThreadIds.has(id)));
+  const specialistTopicThreadIdsByText = new Set(specialistTopicRowsByText.map((x) => x.threadId).filter((id) => existingThreadIds.has(id)));
   const threadIntentMap = new Map<number, Set<string>>();
   const threadRouteMap = new Map<number, Set<string>>();
   const threadOpenBookingMap = new Map<number, boolean>();
+  const threadCompletedMap = new Map<number, boolean>();
 
   for (const action of actionsPeriod) {
+    if (typeof action.threadId !== "number") continue;
+    const threadId = action.threadId;
     const p = asPayload(action.payload);
-    const intents = threadIntentMap.get(action.threadId) ?? new Set<string>();
+    const intents = threadIntentMap.get(threadId) ?? new Set<string>();
     if (p.intent) intents.add(p.intent);
-    threadIntentMap.set(action.threadId, intents);
+    threadIntentMap.set(threadId, intents);
 
-    const routes = threadRouteMap.get(action.threadId) ?? new Set<string>();
+    const routes = threadRouteMap.get(threadId) ?? new Set<string>();
     if (p.route) routes.add(p.route);
-    threadRouteMap.set(action.threadId, routes);
+    threadRouteMap.set(threadId, routes);
 
-    if (p.actionType === "open_booking") threadOpenBookingMap.set(action.threadId, true);
+    if (p.actionType === "open_booking") threadOpenBookingMap.set(threadId, true);
+    if (p.nextStatus === "COMPLETED" || p.intent === "confirm") threadCompletedMap.set(threadId, true);
   }
 
   const filteredThreadIds = threadsMeta
     .filter((thread) => {
+      const intents = threadIntentMap.get(thread.id) ?? new Set<string>();
       const hasOpenBooking = threadOpenBookingMap.get(thread.id) === true;
+      const hasCompletedBooking =
+        thread.bookingDraft?.status === "COMPLETED" || threadCompletedMap.get(thread.id) === true;
       const hasBooking =
         hasOpenBooking ||
+        hasCompletedBooking ||
         (threadRouteMap.get(thread.id)?.has("booking-flow") ?? false) ||
-        thread.bookingDraft?.status === "COMPLETED" ||
         thread.bookingDraft?.status === "WAITING_CONFIRMATION" ||
         thread.bookingDraft?.status === "WAITING_CONSENT";
       const hasComplaint = complaintThreadIds.has(thread.id);
 
       if (mode === "with_booking" && !hasBooking) return false;
-      if (mode === "completed_booking" && thread.bookingDraft?.status !== "COMPLETED") return false;
+      if (mode === "completed_booking" && !hasCompletedBooking) return false;
       if (mode === "without_booking" && hasBooking) return false;
 
       if (topic === "complaints") return hasComplaint;
-
-      const intents = threadIntentMap.get(thread.id) ?? new Set<string>();
       if (topic === "booking") {
         return (
           hasBooking ||
@@ -300,10 +367,10 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
         );
       }
       if (topic === "services") {
-        return intents.has("ask_services") || intents.has("ask_price");
+        return intents.has("ask_services") || intents.has("ask_price") || serviceTopicThreadIdsByText.has(thread.id);
       }
       if (topic === "specialists") {
-        return intents.has("ask_specialists");
+        return intents.has("ask_specialists") || specialistTopicThreadIdsByText.has(thread.id);
       }
       if (topic === "smalltalk") {
         return (
@@ -329,15 +396,9 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
   const [filteredUserMessagesTotal, filteredAssistantMessagesTotal, filteredComplaintMessagesTotal] =
     filteredThreadIds.length > 0
       ? await Promise.all([
-          prisma.aiMessage.count({ where: { role: "user", threadId: { in: filteredThreadIds } } }),
-          prisma.aiMessage.count({ where: { role: "assistant", threadId: { in: filteredThreadIds } } }),
-          prisma.aiMessage.count({
-            where: {
-              role: "user",
-              threadId: { in: filteredThreadIds },
-              OR: COMPLAINT_KEYWORDS.map((k) => ({ content: { contains: k, mode: "insensitive" as const } })),
-            },
-          }),
+          countMessagesByThreadIds(filteredThreadIds, "user"),
+          countMessagesByThreadIds(filteredThreadIds, "assistant"),
+          countMessagesByThreadIds(filteredThreadIds, "user", COMPLAINT_KEYWORDS),
         ])
       : [0, 0, 0];
 
@@ -349,7 +410,9 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
   let fallbackTurns = 0;
 
   for (const action of actionsPeriod) {
-    if (!filteredThreadIdsSet.has(action.threadId)) continue;
+    if (typeof action.threadId !== "number") continue;
+    const threadId = action.threadId;
+    if (!filteredThreadIdsSet.has(threadId)) continue;
     const p = asPayload(action.payload);
     turnsTotal += 1;
     if (p.route === "booking-flow") bookingFlowTurns += 1;
@@ -363,9 +426,127 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
   const consentWaitThreads = filteredThreadsMeta.filter(
     (t) => t.bookingDraft?.status === "WAITING_CONSENT" || t.bookingDraft?.status === "WAITING_CONFIRMATION",
   ).length;
+  const completedThreadIds = new Set(
+    filteredThreadsMeta
+      .filter((t) => t.bookingDraft?.status === "COMPLETED" || threadCompletedMap.get(t.id) === true)
+      .map((t) => t.id),
+  );
   const avgDialogLen = filteredThreadsMeta.length
     ? ((filteredUserMessagesTotal + filteredAssistantMessagesTotal) / filteredThreadsMeta.length).toFixed(1)
     : "0.0";
+
+  const filteredClientIds = [
+    ...new Set(filteredThreadsMeta.map((t) => t.clientId).filter((id): id is number => typeof id === "number")),
+  ];
+  const factualAiAppointments =
+    filteredClientIds.length > 0
+      ? await prisma.appointment.count({
+          where: {
+            accountId,
+            source: "ai_assistant",
+            createdAt: { gte: since },
+            clientId: { in: filteredClientIds },
+          },
+        })
+      : 0;
+
+  const funnel = {
+    started: totalFiltered,
+    serviceChosen: filteredThreadsMeta.filter((t) => Boolean(t.bookingDraft?.serviceId)).length,
+    dateChosen: filteredThreadsMeta.filter((t) => Boolean(t.bookingDraft?.date)).length,
+    timeChosen: filteredThreadsMeta.filter((t) => Boolean(t.bookingDraft?.time)).length,
+    specialistChosen: filteredThreadsMeta.filter((t) => Boolean(t.bookingDraft?.specialistId)).length,
+    waitingConsent: consentWaitThreads,
+    completed: completedThreadIds.size,
+  };
+
+  const locationIds = [
+    ...new Set(filteredThreadsMeta.map((t) => t.bookingDraft?.locationId).filter((id): id is number => typeof id === "number")),
+  ];
+  const serviceIds = [
+    ...new Set(filteredThreadsMeta.map((t) => t.bookingDraft?.serviceId).filter((id): id is number => typeof id === "number")),
+  ];
+  const specialistIds = [
+    ...new Set(filteredThreadsMeta.map((t) => t.bookingDraft?.specialistId).filter((id): id is number => typeof id === "number")),
+  ];
+
+  const [locationsRef, servicesRef, specialistsRef] = await Promise.all([
+    locationIds.length
+      ? prisma.location.findMany({ where: { accountId, id: { in: locationIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    serviceIds.length
+      ? prisma.service.findMany({ where: { accountId, id: { in: serviceIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    specialistIds.length
+      ? prisma.specialistProfile.findMany({
+          where: { accountId, id: { in: specialistIds } },
+          select: {
+            id: true,
+            user: {
+              select: {
+                email: true,
+                profile: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const locationNameById = new Map(locationsRef.map((x) => [x.id, x.name] as const));
+  const serviceNameById = new Map(servicesRef.map((x) => [x.id, x.name] as const));
+  const specialistNameById = new Map(
+    specialistsRef.map((x) => {
+      const firstName = x.user?.profile?.firstName?.trim() ?? "";
+      const lastName = x.user?.profile?.lastName?.trim() ?? "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+      return [x.id, fullName || x.user?.email || `#${x.id}`] as const;
+    }),
+  );
+
+  const locationCounter = new Map<number, number>();
+  const serviceCounter = new Map<number, number>();
+  const specialistCounter = new Map<number, number>();
+  for (const thread of filteredThreadsMeta) {
+    const locationId = thread.bookingDraft?.locationId;
+    const serviceId = thread.bookingDraft?.serviceId;
+    const specialistId = thread.bookingDraft?.specialistId;
+    if (typeof locationId === "number") locationCounter.set(locationId, (locationCounter.get(locationId) ?? 0) + 1);
+    if (typeof serviceId === "number") serviceCounter.set(serviceId, (serviceCounter.get(serviceId) ?? 0) + 1);
+    if (typeof specialistId === "number") specialistCounter.set(specialistId, (specialistCounter.get(specialistId) ?? 0) + 1);
+  }
+
+  const topLocations = [...locationCounter.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => ({ id, name: locationNameById.get(id) ?? `#${id}`, count }));
+  const topServicesByUsage = [...serviceCounter.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => ({ id, name: serviceNameById.get(id) ?? `#${id}`, count }));
+  const topSpecialistsByUsage = [...specialistCounter.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => ({ id, name: specialistNameById.get(id) ?? `#${id}`, count }));
+
+  const trendByDay = new Map<string, { total: number; complaints: number; completed: number }>();
+  for (const thread of filteredThreadsMeta) {
+    const day = thread.createdAt.toISOString().slice(0, 10);
+    const cur = trendByDay.get(day) ?? { total: 0, complaints: 0, completed: 0 };
+    cur.total += 1;
+    if (filteredComplaintThreadIds.has(thread.id)) cur.complaints += 1;
+    if (completedThreadIds.has(thread.id)) cur.completed += 1;
+    trendByDay.set(day, cur);
+  }
+  const trendRows = [...trendByDay.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .slice(0, 14)
+    .map(([day, stats]) => ({ day, ...stats }));
 
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const reqPage = parsePositiveInt(pickParam(rawParams, "page"), 1);
@@ -512,8 +693,8 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
             </Link>
           </div>
           <div className="xl:col-span-6 text-xs text-[color:var(--bp-muted)]">
-            `С шагами записи` = диалог дошёл до сценария записи или перехода к форме. `Завершён записью` = черновик
-            записи завершён.
+            `С шагами записи` = диалог дошёл до сценария записи или перехода к форме. `Завершён записью` = завершён
+            черновик записи или зафиксировано подтверждение записи в действиях ассистента.
           </div>
         </form>
       </section>
@@ -540,9 +721,9 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
         </article>
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
           <div className="text-sm text-[color:var(--bp-muted)]">Записи из Аиши</div>
-          <div className="mt-2 text-2xl font-semibold">{fInt(completedDraftThreads)}</div>
+          <div className="mt-2 text-2xl font-semibold">{fInt(completedThreadIds.size)}</div>
           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-            Переходов к записи: {fInt(openBookingTurns)}, шагов в сценарии записи: {fInt(bookingFlowTurns)}
+            Завершено диалогов: {fInt(completedThreadIds.size)}, фактических записей (source=ai_assistant): {fInt(factualAiAppointments)}, переходов к записи: {fInt(openBookingTurns)}, шагов в сценарии записи: {fInt(bookingFlowTurns)}
           </div>
         </article>
       </section>
@@ -596,6 +777,110 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
         </article>
       </section>
 
+      <section className="grid gap-4 xl:grid-cols-3">
+        <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)] xl:col-span-2">
+          <h2 className="text-lg font-semibold">Воронка записи</h2>
+          <div className="mt-3 grid gap-2 text-sm">
+            {[
+              ["Старт диалога", funnel.started],
+              ["Выбрана услуга", funnel.serviceChosen],
+              ["Выбрана дата", funnel.dateChosen],
+              ["Выбрано время", funnel.timeChosen],
+              ["Выбран специалист", funnel.specialistChosen],
+              ["Ожидают согласия/подтверждения", funnel.waitingConsent],
+              ["Завершено записью", funnel.completed],
+            ].map(([label, value]) => {
+              const v = Number(value);
+              const pct = funnel.started > 0 ? Math.round((v / funnel.started) * 100) : 0;
+              return (
+                <div key={String(label)} className="grid gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[color:var(--bp-muted)]">{label}</span>
+                    <span className="font-medium">{fInt(v)} ({pct}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[color:var(--bp-soft)]">
+                    <div className="h-2 rounded-full bg-[color:var(--bp-accent)]" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+          <h2 className="text-lg font-semibold">Срезы</h2>
+          <div className="mt-3 space-y-4 text-sm">
+            <div>
+              <div className="mb-1 font-medium">Топ локаций</div>
+              <div className="flex flex-wrap gap-2">
+                {topLocations.length ? topLocations.map((x) => (
+                  <span key={`loc-${x.id}`} className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-1 text-xs">
+                    {x.name}: {fInt(x.count)}
+                  </span>
+                )) : <span className="text-[color:var(--bp-muted)]">Нет данных</span>}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 font-medium">Топ услуг</div>
+              <div className="flex flex-wrap gap-2">
+                {topServicesByUsage.length ? topServicesByUsage.map((x) => (
+                  <span key={`srv-${x.id}`} className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-1 text-xs">
+                    {x.name}: {fInt(x.count)}
+                  </span>
+                )) : <span className="text-[color:var(--bp-muted)]">Нет данных</span>}
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 font-medium">Топ специалистов</div>
+              <div className="flex flex-wrap gap-2">
+                {topSpecialistsByUsage.length ? topSpecialistsByUsage.map((x) => (
+                  <span key={`sp-${x.id}`} className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-1 text-xs">
+                    {x.name}: {fInt(x.count)}
+                  </span>
+                )) : <span className="text-[color:var(--bp-muted)]">Нет данных</span>}
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section
+        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]"
+        suppressHydrationWarning
+      >
+        <h2 className="text-lg font-semibold">Тренд по дням (последние 14 дней)</h2>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[540px] text-sm">
+            <thead>
+              <tr className="text-left text-[color:var(--bp-muted)]">
+                <th className="py-2 pr-3">День</th>
+                <th className="py-2 pr-3">Диалоги</th>
+                <th className="py-2 pr-3">Жалобы</th>
+                <th className="py-2 pr-3">Завершены записью</th>
+                <th className="py-2 pr-3">Конверсия в завершение</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trendRows.length ? (
+                trendRows.map((row) => (
+                  <tr key={row.day} className="border-t border-[color:var(--bp-stroke)]">
+                    <td className="py-2 pr-3">{row.day}</td>
+                    <td className="py-2 pr-3">{fInt(row.total)}</td>
+                    <td className="py-2 pr-3">{fInt(row.complaints)}</td>
+                    <td className="py-2 pr-3">{fInt(row.completed)}</td>
+                    <td className="py-2 pr-3">{toPct(row.completed, row.total)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-3 text-[color:var(--bp-muted)]">Нет данных по текущим фильтрам.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -646,7 +931,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
           ) : null}
         </div>
 
-        <div className="mt-4 flex flex-col gap-3">
+        <div className="mt-4 flex flex-col gap-3" suppressHydrationWarning>
           {pageThreads.length ? (
             pageThreads.map((thread) => {
               const threadComplaint = thread.messages.some(
@@ -654,6 +939,9 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
               );
               const turnPayloads = thread.actions.map((a) => asPayload(a.payload));
               const threadHasBookingOpen = turnPayloads.some((p) => p.actionType === "open_booking");
+              const threadHasCompleted =
+                thread.bookingDraft?.status === "COMPLETED" ||
+                turnPayloads.some((p) => p.nextStatus === "COMPLETED" || p.intent === "confirm");
               const threadIntents = [
                 ...new Set(turnPayloads.map((p) => p.intent).filter((x): x is string => Boolean(x))),
               ].slice(0, 8);
@@ -671,67 +959,70 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
               );
 
               return (
-                <details
+                <div
                   key={thread.id}
                   className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-base)] p-4"
                 >
-                  <summary className="cursor-pointer list-none">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">Диалог #{thread.id}</span>
-                      <span className="text-xs text-[color:var(--bp-muted)]">{fDateTime(thread.createdAt)}</span>
-                      {threadComplaint ? (
-                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">
-                          Есть жалоба
-                        </span>
-                      ) : null}
-                      {threadHasBookingOpen ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                          Доведен до шага записи
-                        </span>
-                      ) : null}
-                      {hasServiceTopic ? (
-                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-700">
-                          Тема: услуги
-                        </span>
-                      ) : null}
-                      {hasSpecialistTopic ? (
-                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
-                          Тема: специалисты
-                        </span>
-                      ) : null}
-                      {thread.bookingDraft?.status ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                          Статус: {draftStatusLabel(thread.bookingDraft.status)}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
-                      {threadRoutes.map((r) => (
-                        <span
-                          key={`${thread.id}-r-${r}`}
-                          className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5"
-                        >
-                          Сценарий: {routeLabel(r)}
-                        </span>
-                      ))}
-                      {threadIntents.map((i) => (
-                        <span
-                          key={`${thread.id}-i-${i}`}
-                          className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5"
-                        >
-                          Запрос: {intentLabel(i)}
-                        </span>
-                      ))}
-                      {threadNluSources.map((s) => (
-                        <span
-                          key={`${thread.id}-s-${s}`}
-                          className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5"
-                        >
-                          Разбор: {nluSourceLabel(s)}
-                        </span>
-                      ))}
-                    </span>
-                  </summary>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold">Диалог #{thread.id}</span>
+                    <span className="text-xs text-[color:var(--bp-muted)]">{fDateTime(thread.createdAt)}</span>
+                    {threadComplaint ? (
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">
+                        Есть жалоба
+                      </span>
+                    ) : null}
+                    {threadHasBookingOpen ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                        Доведен до шага записи
+                      </span>
+                    ) : null}
+                    {threadHasCompleted ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                        Завершен записью
+                      </span>
+                    ) : null}
+                    {hasServiceTopic ? (
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs text-sky-700">
+                        Тема: услуги
+                      </span>
+                    ) : null}
+                    {hasSpecialistTopic ? (
+                      <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+                        Тема: специалисты
+                      </span>
+                    ) : null}
+                    {thread.bookingDraft?.status ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                        Статус: {draftStatusLabel(thread.bookingDraft.status)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
+                    {threadRoutes.map((r) => (
+                      <span
+                        key={`${thread.id}-r-${r}`}
+                        className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5"
+                      >
+                        Сценарий: {routeLabel(r)}
+                      </span>
+                    ))}
+                    {threadIntents.map((i) => (
+                      <span
+                        key={`${thread.id}-i-${i}`}
+                        className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5"
+                      >
+                        Запрос: {intentLabel(i)}
+                      </span>
+                    ))}
+                    {threadNluSources.map((s) => (
+                      <span
+                        key={`${thread.id}-s-${s}`}
+                        className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5"
+                      >
+                        Разбор: {nluSourceLabel(s)}
+                      </span>
+                    ))}
+                  </div>
 
                   <div className="mt-3 max-h-[420px] space-y-2 overflow-auto pr-1">
                     {thread.messages.map((m, idx) => (
@@ -751,7 +1042,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
                       </div>
                     ))}
                   </div>
-                </details>
+                </div>
               );
             })
           ) : (
@@ -764,6 +1055,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
     </div>
   );
 }
+
 
 
 
