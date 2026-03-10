@@ -2776,7 +2776,7 @@ export default function BookingClient({
                       <div className="space-y-3">
                         <div
                           className={cn(
-                            "grid gap-3",
+                            "grid gap-3 [grid-auto-rows:1fr]",
                             (context?.locations?.length ?? 0) === 1
                               ? "grid-cols-1"
                               : "grid-cols-1 sm:grid-cols-2"
@@ -2851,26 +2851,24 @@ export default function BookingClient({
                                     </a>
                                   </div>
 
-                                  <div className="flex items-end justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className="text-base font-semibold leading-snug">{location.name}</div>
-                                      <div className="mt-1 line-clamp-2 text-sm text-[color:var(--bp-muted)]">
+                                  <div className="mt-auto relative pb-9">
+                                    <div>
+                                      <div className="text-base font-semibold leading-snug break-words">
+                                        {location.name}
+                                      </div>
+                                      <div className="mt-1 text-sm text-[color:var(--bp-muted)] break-words">
                                         {location.address || "Адрес не указан"}
                                       </div>
-                                      <div
-                                        className={cn(
-                                          "mt-1 text-xs text-[color:var(--bp-muted)]"
-                                        )}
-                                      >
+                                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
                                         {openStatus.label}
                                       </div>
                                     </div>
                                     <div
                                       className={cn(
-                                        "shrink-0 rounded-2xl border px-2 py-1 text-xs",
+                                        "absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
                                         active
                                           ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
                                       )}
                                     >
                                       {active ? "Выбрано" : "Выбрать"}
@@ -3002,7 +3000,7 @@ export default function BookingClient({
                     {servicesError && <div className="text-sm text-red-600">{servicesError}</div>}
 
                     {!loadingServices && !servicesError && (
-                      <div className="grid grid-cols-1 gap-3 sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
+                      <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                         {servicesForServiceStep.map((service) => {
                           const price = showFromServiceMetrics
                             ? service.minPrice ?? service.basePrice ?? 0
@@ -3016,19 +3014,19 @@ export default function BookingClient({
                             : "#";
 
                           return (
-                            <button
-                              key={service.id}
-                              type="button"
-                              onClick={() => setServiceId(service.id)}
-                              className={cn(
-                                "rounded-3xl border p-4 text-left transition",
+                              <button
+                                key={service.id}
+                                type="button"
+                                onClick={() => setServiceId(service.id)}
+                                className={cn(
+                                "h-full rounded-3xl border p-4 text-left transition",
                                 "hover:-translate-y-[1px] hover:shadow-sm",
                                 active
                                   ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
                                   : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
-                              )}
+                                )}
                             >
-                              <div className="space-y-3">
+                              <div className="flex h-full flex-col gap-3">
                                 <div className="relative">
                                   {service.coverUrl ? (
                                     <div className="aspect-video overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
@@ -3067,9 +3065,11 @@ export default function BookingClient({
                                   </a>
                                 </div>
 
-                                <div className="flex items-end justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="truncate text-base font-semibold">{service.name}</div>
+                                <div className="mt-auto relative pb-9">
+                                  <div>
+                                    <div className="text-base font-semibold leading-snug break-words">
+                                      {service.name}
+                                    </div>
                                     <div className="mt-1 text-sm font-semibold">
                                       {showFromServiceMetrics
                                         ? `от ${formatMoneyRub(price)}`
@@ -3079,17 +3079,15 @@ export default function BookingClient({
                                       {showFromServiceMetrics ? `от ${duration} мин` : `${duration} мин`}
                                     </div>
                                   </div>
-                                  <div className="shrink-0 text-right">
-                                    <div
-                                      className={cn(
-                                        "rounded-2xl border px-2 py-1 text-xs",
-                                        active
-                                          ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
-                                      )}
-                                    >
-                                      {active ? "Выбрано" : "Выбрать"}
-                                    </div>
+                                  <div
+                                    className={cn(
+                                      "absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
+                                      active
+                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                    )}
+                                  >
+                                    {active ? "Выбрано" : "Выбрать"}
                                   </div>
                                 </div>
                               </div>
@@ -3174,7 +3172,7 @@ export default function BookingClient({
                       !specialistsError &&
                       (isSpecialistFirst || (!isSpecialistFirst && !!serviceId && !!timeChoice)) &&
                       (!isDateFirst || (!loadingDateFirstServiceSlots && !!serviceId && !!timeChoice)) && (
-                        <div className="grid grid-cols-1 gap-3 sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
+                        <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                           {specialistsForSpecialistStepFiltered.map((sp) => {
                             const active = sp.id === specialistId;
                             const specialistProfileHref = accountPublicSlug
@@ -3196,14 +3194,14 @@ export default function BookingClient({
                                 type="button"
                                 onClick={() => setSpecialistId(sp.id)}
                                 className={cn(
-                                  "rounded-3xl border p-4 text-left transition",
+                                  "h-full rounded-3xl border p-4 text-left transition",
                                   "hover:-translate-y-[1px] hover:shadow-sm",
                                   active
                                     ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
                                     : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                                 )}
                               >
-                                <div className="flex flex-col gap-3">
+                                <div className="flex h-full flex-col gap-3">
                                   <div className="relative">
                                     {sp.coverUrl || sp.avatarUrl ? (
                                       <div className="aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
@@ -3242,10 +3240,12 @@ export default function BookingClient({
                                     </a>
                                   </div>
 
-                                  <div className="flex items-end justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className="truncate text-base font-semibold">{sp.name}</div>
-                                      <div className="mt-1 line-clamp-1 text-sm text-[color:var(--bp-muted)]">
+                                  <div className="mt-auto relative pb-9">
+                                    <div>
+                                      <div className="text-base font-semibold leading-snug break-words">
+                                        {sp.name}
+                                      </div>
+                                      <div className="mt-1 text-sm text-[color:var(--bp-muted)] break-words">
                                         {sp.role || "Специалист"}
                                       </div>
                                       {selectedService && (
@@ -3262,7 +3262,7 @@ export default function BookingClient({
                                     </div>
                                     <div
                                       className={cn(
-                                        "shrink-0 rounded-2xl border px-2 py-1 text-xs",
+                                        "absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
                                         active
                                           ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
                                           : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
