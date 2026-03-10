@@ -182,8 +182,15 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
   return fuzzy ?? null;
 }
 export function asksCurrentDate(text: string) {
-  return has(text, /(какое число|какое сегодня число|какое число сегодня|какая сегодня дата|какой сегодня день|what date is it|today date)/i);
+  return has(
+    text,
+    /(?:\u043a\u0430\u043a\u043e\u0435 \u0447\u0438\u0441\u043b\u043e|\u043a\u0430\u043a\u043e\u0435 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0447\u0438\u0441\u043b\u043e|\u043a\u0430\u043a\u043e\u0435 \u0447\u0438\u0441\u043b\u043e \u0441\u0435\u0433\u043e\u0434\u043d\u044f|\u043a\u0430\u043a\u0430\u044f \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0434\u0430\u0442\u0430|\u043a\u0430\u043a\u043e\u0439 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0434\u0435\u043d\u044c|what date is it|today date|\u043a\u0430\u043a\u043e\u0439\s+\u0441\u0435\u0439\u0447\u0430\u0441\s+\u0434\u0435\u043d\u044c\s+\u043d\u0435\u0434\u0435\u043b\u0438|\u043a\u0430\u043a\u043e\u0439\s+\u0434\u0435\u043d\u044c\s+\u043d\u0435\u0434\u0435\u043b\u0438|\u0434\u0435\u043d\u044c\s+\u043d\u0435\u0434\u0435\u043b\u0438\s+\u043a\u0430\u043a\u043e\u0439|\u043a\u0430\u043a\u043e\u0439\s+\u0441\u0435\u0433\u043e\u0434\u043d\u044f\s+\u0434\u0435\u043d\u044c\s+\u043d\u0435\u0434\u0435\u043b\u0438)/i,
+  );
 }
+
+
+
+
 
 export function asksCurrentTime(text: string) {
   return has(text, /(который час|сколько времени|какое сейчас время|current time|what time is it)/i);
@@ -836,11 +843,7 @@ export function buildBookingBridgeFallback(
   if (hints?.timePreference === "day") {
     return "Если хотите, подберу удобные дневные слоты для записи.";
   }
-  return smalltalkVariant(messageNorm, [
-    "Если хотите, могу сразу подобрать удобную запись: услугу, дату и время.",
-    "Если удобно, перейдем к записи и найдем подходящее время.",
-    "Могу помочь сразу оформить запись на удобный день и время.",
-  ]);
+  return "";
 }
 
 export function buildBookingReengageUi(args: { locations: LocationLite[]; services: ServiceLite[]; focusDate?: string | null }): ChatUi {
@@ -1037,6 +1040,11 @@ export function extractRequestedServicePhrase(messageNorm: string) {
     "центр",
     "риверсайд",
     "riverside",
+    "меня",
+    "тебя",
+    "вас",
+    "нас",
+    "себя",
   ]);
   const matches = Array.from(
     messageNorm.matchAll(/(?:на|хочу|нужн[ао]?|запиши(?: меня)?(?: на)?|записаться на)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),

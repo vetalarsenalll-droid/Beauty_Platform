@@ -114,7 +114,7 @@ export function applyDraftMutations(args: {
   }
 
   if (shouldEnrichDraftForBooking) {
-    const parsedDate = parseDate(message, nowYmd);
+    const parsedDate = parseDate(messageForRouting, nowYmd);
     const parsedMonthDateFromRaw = (() => {
       const raw = messageForRouting.toLowerCase();
       const monthMatch = raw.match(/(?:^|\s)(?:в|на)?\s*(январе|феврале|марте|апреле|мае|июне|июле|августе|сентябре|октябре|ноябре|декабре)(?:\s|$)/u);
@@ -145,7 +145,7 @@ export function applyDraftMutations(args: {
     })();
 
     const parsedTime = parseTime(message);
-    d.date = parsedMonthDateFromRaw || parsedDate || pickSafeNluDate(nlu?.date, nowYmd) || d.date;
+    d.date = parsedMonthDateFromRaw || parsedDate || d.date || pickSafeNluDate(nlu?.date, nowYmd);
     d.time = parsedTime || d.time;
 
     const selectedSpecialistByText = specialistByText(t, specialists);

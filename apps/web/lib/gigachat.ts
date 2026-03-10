@@ -105,22 +105,34 @@ async function fetchAccessToken(): Promise<string> {
   }
 
   const authKey = requireEnv("GIGACHAT_AUTH_KEY");
-  const response = await withGigaChatNetworkEnv(() =>
-    fetch(resolveAuthUrl(), {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${authKey}`,
-        RqUID: randomUUID(),
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: "scope=GIGACHAT_API_PERS",
-      cache: "no-store",
-    })
-  );
+  let response: Response;
+  try {
+    response = await withGigaChatNetworkEnv(() =>
+      fetch(resolveAuthUrl(), {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${authKey}`,
+          RqUID: randomUUID(),
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: "scope=GIGACHAT_API_PERS",
+        cache: "no-store",
+      })
+    );
+  } catch (error) {
+    console.error("[gigachat] auth request failed", error);
+    throw error;
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
+    console.error("[gigachat] auth failed", {
+      status: response.status,
+      statusText: response.statusText,
+      url: resolveAuthUrl(),
+      body: errorText.slice(0, 600),
+    });
     throw new Error(`GigaChat auth failed (${response.status}): ${errorText || "unknown error"}`);
   }
 
@@ -147,28 +159,40 @@ export async function createGigaChatCompletion(
   const accessToken = await fetchAccessToken();
   const model = resolveModel();
 
-  const response = await withGigaChatNetworkEnv(() =>
-    fetch(resolveChatUrl(), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.2,
-        top_p: 0.95,
-        max_tokens: 500,
-        stream: false,
-      }),
-      cache: "no-store",
-    })
-  );
+  let response: Response;
+  try {
+    response = await withGigaChatNetworkEnv(() =>
+      fetch(resolveChatUrl(), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+          top_p: 0.95,
+          max_tokens: 500,
+          stream: false,
+        }),
+        cache: "no-store",
+      })
+    );
+  } catch (error) {
+    console.error("[gigachat] completion request failed", error);
+    throw error;
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
+    console.error("[gigachat] completion failed", {
+      status: response.status,
+      statusText: response.statusText,
+      url: resolveChatUrl(),
+      body: errorText.slice(0, 600),
+    });
     throw new Error(`GigaChat completion failed (${response.status}): ${errorText || "unknown error"}`);
   }
 

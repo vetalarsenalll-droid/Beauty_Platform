@@ -406,9 +406,11 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
   }
 
   const weekdayMatch = messageNorm.match(
-    /(?:^|\s)(?:в\s+)?(понедельник|вторник|среду|среда|четверг|пятницу|пятница|субботу|суббота|воскресенье)(?:\s|$)/iu,
+    /(?:^|\s)(?:(?:в|на)\s+)?(понедельник|вторник|среду|среда|четверг|пятницу|пятница|субботу|суббота|воскресенье)(?:\s|$)/iu,
   );
   if (weekdayMatch) {
+    const wantsNextWeek = /следующ/i.test(messageNorm);
+    const wantsThisWeek = /(эт(от|у)|ближайш)/iu.test(messageNorm);
     const toIsoWeekday = (w: string) => {
       const x = w.toLowerCase();
       if (x.startsWith("понедель")) return 1;
@@ -423,7 +425,9 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
     const [y, m, d] = todayYmd.split("-").map(Number);
     const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 12, 0, 0));
     const current = dt.getUTCDay();
-    const delta = (target - current + 7) % 7;
+    let delta = (target - current + 7) % 7;
+    if (wantsNextWeek) delta = delta === 0 ? 7 : delta + 7;
+    if (!wantsNextWeek && !wantsThisWeek && delta === 0) delta = 0;
     return addDaysYmd(todayYmd, delta);
   }
 
@@ -989,7 +993,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
 
   // Parse date intent as early as possible so phrases like
   // "запиши меня сегодня" affect the entire booking path.
-  const parsedDate = parseDateFromBookingMessage(messageNorm, todayYmd);
+  const requestedDateFromMessage = parseDateFromBookingMessage(messageNorm, todayYmd);
+  const parsedDate = requestedDateFromMessage;
   if (parsedDate) {
     const shouldResetDependent = parsedDate !== d.date || hasConcreteDate || Boolean(monthOnlyDate);
     d.date = parsedDate;
@@ -1342,9 +1347,14 @@ if (!d.serviceId) {
           d.locationId = rows[0]!.locationId;
           const onlyLocation = rows[0]!;
           const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
+          const requestedDateRu = requestedDateFromMessage ? formatYmdRu(requestedDateFromMessage) : null;
+          const datePrefix =
+            requestedDateRu && requestedDateFromMessage !== targetDate
+              ? `На ${requestedDateRu} свободных окон не нашла. Ближайшее время `
+              : "По вашему запросу доступно свободное время ";
           return {
             handled: true,
-            reply: `По вашему запросу доступно свободное время на ${targetDateRu}${prefText} в филиале ${onlyLocation.name}. Выберите время ниже.`,
+            reply: `${datePrefix}на ${targetDateRu}${prefText} в филиале ${onlyLocation.name}. Выберите время ниже.`,
             nextStatus: "COLLECTING",
             ui: {
               kind: "quick_replies",
@@ -1353,15 +1363,44 @@ if (!d.serviceId) {
           };
         }
         const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
+        const requestedDateRu = requestedDateFromMessage ? formatYmdRu(requestedDateFromMessage) : null;
+        const datePrefix =
+          requestedDateRu && requestedDateFromMessage !== targetDate
+            ? `На ${requestedDateRu} свободных окон не нашла. Ближайшее время `
+            : "Нашла свободное время ";
         return {
           handled: true,
-          reply: `Нашла свободное время на ${targetDateRu}${prefText} в филиалах. Выберите филиал кнопкой ниже или напишите время и филиал сообщением.`,
+          reply: `${datePrefix}на ${targetDateRu}${prefText} в филиалах. Выберите филиал кнопкой ниже или напишите время и филиал сообщением.`,
           nextStatus: "COLLECTING",
           ui: {
             kind: "quick_replies",
             options: rows.map((x) => optionFromLabel(x.name)),
           },
         };
+      }
+      if (requestedDateFromMessage && requestedDateFromMessage === targetDate) {
+        const requestedDateRu = formatYmdRu(requestedDateFromMessage);
+        const nearestDates = await findNearestDateWindows({
+          origin,
+          accountSlug: account.slug,
+          locations,
+          fromDate: targetDate,
+          serviceId: d.serviceId ?? null,
+          preference: pref,
+          daysAhead: wantsMonthRange ? 45 : wantsAfterRange ? 60 : 21,
+          limit: timeLimit,
+          maxDates: 6,
+        });
+        if (nearestDates.length) {
+          const minDate = nearestDates[0]!.date;
+          const maxDate = nearestDates[nearestDates.length - 1]!.date;
+          return {
+            handled: true,
+            reply: `На ${requestedDateRu} свободных окон не нашла. Выберите другую дату в календаре, и я покажу доступное время.`,
+            nextStatus: "COLLECTING",
+            ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates: nearestDates.map((x) => x.date) },
+          };
+        }
       }
       const nearestDates = await findNearestDateWindows({
         origin,

@@ -141,31 +141,30 @@ export async function postProcessReply(args: {
   }
 
   if (
-    shouldSoftReturnToBooking &&
     route === "chat-only" &&
-    !hasDraftContext &&
-    !isBookingOrAccountCue(t) &&
-    !shouldHardReturnToDomain &&
+    !shouldRunBookingFlow &&
+    !explicitServiceComplaint &&
     !isServiceListUi(nextUi)
   ) {
     const bridgeCandidate = (contextualBookingBridge ?? "").trim();
-    const allowModelBridge = !explicitOutOfScopeCue && !isGeneralQuestionOutsideBooking(t) && !isOutOfDomainPrompt(t);
     const bridge =
-      allowModelBridge &&
       bridgeCandidate &&
       !looksLikeHardBookingPushReply(bridgeCandidate) &&
       !/выберите\s+(филиал|услугу|дату|время)/i.test(bridgeCandidate)
         ? bridgeCandidate
-        : buildBookingBridgeFallback(t, {
-            serviceName: bridgeFocusServiceName,
-            date: bridgeFocusDate,
-            timePreference: bridgeFocusTimePreference,
-          });
+        : "";
 
-    if (reply && !/подбер[уё].*запис|услуг.*дат|дата.*время|перейд(ем|у)\s+к\s+записи/i.test(norm(reply))) {
-      reply = reply.replace(/[.!?]+$/u, "") + ". " + bridge;
-    } else if (!reply) {
-      reply = bridge;
+    const hasBookingBridgeAlready = /(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply));
+    if (bridge && !hasBookingBridgeAlready) {
+      reply = reply ? reply.replace(/[.!?]+$/u, "") + ". " + bridge : bridge;
+    } else if (!bridge && process.env.GIGACHAT_DEBUG_BRIDGE === "true") {
+      const reason = contextualBookingBridge ? "filtered_bridge" : "missing_bridge";
+      console.debug("[aisha] bridge skipped", {
+        reason,
+        explicitDateTimeQuery,
+        route,
+        intent,
+      });
     }
 
     if (!nextUi && consecutiveNonBookingTurns >= 1) {
@@ -180,32 +179,7 @@ export async function postProcessReply(args: {
   }
 
 
-  const shouldAttachSalesBridge =
-    route === "chat-only" &&
-    !shouldHardReturnToDomain &&
-    !hasDraftContext &&
-    !explicitDateTimeQuery &&
-    !explicitServiceComplaint &&
-    !isBookingOrAccountCue(t) &&
-    (intent === "smalltalk" || intent === "out_of_scope" || intent === "unknown" || intent === "identity" || intent === "capabilities") &&
-    !isPauseConversationMessage(t) &&
-    !asksWhyNoAnswer(t) &&
-    !isServiceListUi(nextUi);
-
-  if (shouldAttachSalesBridge) {
-    const hasBookingBridgeAlready = /(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply));
-    if (!hasBookingBridgeAlready) {
-      const bridge = buildBookingBridgeFallback(t, {
-        serviceName: bridgeFocusServiceName,
-        date: bridgeFocusDate,
-        timePreference: bridgeFocusTimePreference,
-      });
-      reply = reply ? reply.replace(/[.!?]+$/u, "") + ". " + bridge : bridge;
-    }
-    if (!nextUi && consecutiveNonBookingTurns >= 2) {
-      nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
-    }
-  }
+  // Sales bridge handled above for all chat-only replies.
   reply = reply.replace(/(Если захотите, помогу с записью:[^.!?]*[.!?])\s*Если захотите, помогу с записью:[^.!?]*[.!?]/iu, "$1");
 
   const guardResult = applyDraftConsistencyGuard({
@@ -326,18 +300,9 @@ export async function postProcessReply(args: {
   if (
     route === "chat-only" &&
     !shouldRunBookingFlow &&
-    !explicitDateTimeQuery &&
     !explicitServiceComplaint &&
     !hasSpecializedUi
   ) {
-    if (!/(запис|запись|подбер[уё]|услуг|врем|слот|дата|филиал|локац)/i.test(norm(reply))) {
-      const bridge = buildBookingBridgeFallback(t, {
-        serviceName: bridgeFocusServiceName,
-        date: bridgeFocusDate,
-        timePreference: bridgeFocusTimePreference,
-      });
-      reply = reply ? `${reply.replace(/[.!?]+$/u, "")}. ${bridge}` : bridge;
-    }
     if (!nextUi) {
       nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
     }

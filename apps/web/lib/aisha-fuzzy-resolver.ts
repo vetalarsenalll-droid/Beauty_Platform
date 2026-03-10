@@ -11,7 +11,7 @@ import {
   looksLikeUnknownServiceRequest,
   isNluServiceGroundedByText,
 } from "@/lib/aisha-routing-helpers";
-import { parseDate } from "@/lib/aisha-chat-parsers";
+import { addDaysYmd, parseDate } from "@/lib/aisha-chat-parsers";
 
 const prismaAny = prisma as any;
 
@@ -31,6 +31,33 @@ function norm(v: string) {
     .replace(/[^\p{L}\p{N}\s:.+\-/]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function parseWeekdayFromMessageNorm(messageNorm: string, todayYmd: string) {
+  const weekdayMatch = messageNorm.match(
+    /(?:^|\s)(?:(?:в|на)\s+)?(понедельник|вторник|среду|среда|четверг|пятницу|пятница|субботу|суббота|воскресенье)(?:\s|$)/iu,
+  );
+  if (!weekdayMatch) return null;
+  const wantsNextWeek = /следующ/i.test(messageNorm);
+  const wantsThisWeek = /(эт(от|у)|ближайш)/iu.test(messageNorm);
+  const toIsoWeekday = (w: string) => {
+    const x = w.toLowerCase();
+    if (x.startsWith("понедель")) return 1;
+    if (x.startsWith("втор")) return 2;
+    if (x.startsWith("сред")) return 3;
+    if (x.startsWith("четвер")) return 4;
+    if (x.startsWith("пят")) return 5;
+    if (x.startsWith("суб")) return 6;
+    return 0;
+  };
+  const target = toIsoWeekday(weekdayMatch[1] ?? "");
+  const [y, m, d] = todayYmd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 12, 0, 0));
+  const current = dt.getUTCDay();
+  let delta = (target - current + 7) % 7;
+  if (wantsNextWeek) delta = delta === 0 ? 7 : delta + 7;
+  if (!wantsNextWeek && !wantsThisWeek && delta === 0) delta = 0;
+  return addDaysYmd(todayYmd, delta);
 }
 
 function isExactMention(messageNorm: string, entityName: string) {
@@ -530,7 +557,12 @@ export async function handleEntityClarificationResolution(args: {
 
   const messageNorm = norm(messageForRouting);
   const parsedDate = parseDate(messageForRouting, nowYmd);
-  if (parsedDate && !d.date) d.date = parsedDate;
+  if (parsedDate) {
+    d.date = parsedDate;
+  } else if (!d.date) {
+    const weekdayDate = parseWeekdayFromMessageNorm(messageNorm, nowYmd);
+    if (weekdayDate) d.date = weekdayDate;
+  }
   if (!d.date && (d.specialistId || d.locationId || d.serviceId)) {
     const dateHint = findRecentDateHint(nowYmd, recentMessages);
     if (dateHint) d.date = dateHint;

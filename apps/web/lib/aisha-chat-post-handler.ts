@@ -357,7 +357,10 @@ export async function handlePublicAiChatPost(request: Request) {
     const shouldRunBookingFlow = decisions.shouldRunBookingFlow;
     const bookingMessageNorm = decisions.bookingMessageNorm;
 
-    if (!d.date) {
+    const explicitDateInMessage = parseDate(messageForRouting, nowYmd);
+    if (explicitDateInMessage) {
+      d.date = explicitDateInMessage;
+    } else if (!d.date) {
       const bookingDateHint = [
         messageForRouting,
         ...recentMessages.filter((m) => m.role === "user").map((m) => m.content ?? ""),
@@ -505,23 +508,7 @@ export async function handlePublicAiChatPost(request: Request) {
       locations.length > 1 &&
       has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) &&
       !has(messageForRouting, /(мои записи|мою запись|у меня записи|какие у меня.*запис\p{L}*|статист|профил|кабинет|отмени|перенеси)/iu);
-    const contextualBookingBridge = shouldSoftReturnToBooking
-      ? await runAishaBookingBridge({
-          accountId: resolved.account.id,
-          assistantName: ASSISTANT_NAME,
-          message: messageForRouting,
-          baseReply: reply,
-          accountProfile,
-          locations,
-          services,
-          todayYmd: nowYmd,
-          nowHm,
-          accountTimeZone: resolved.account.timeZone,
-          clientTimeZone: clientTimeZone ?? null,
-          draftDate: d.date,
-          draftTime: d.time,
-        })
-      : null;
+    let contextualBookingBridge: string | null = null;
 
     const bookingDomainResult = await handleBookingDomain({
       directBookingKickoffFallback,
@@ -860,6 +847,24 @@ export async function handlePublicAiChatPost(request: Request) {
           ],
         };
       }
+    }
+
+    if (route === "chat-only" && !shouldRunBookingFlow && !explicitServiceComplaint) {
+      contextualBookingBridge = await runAishaBookingBridge({
+        accountId: resolved.account.id,
+        assistantName: ASSISTANT_NAME,
+        message: messageForRouting,
+        baseReply: reply,
+        accountProfile,
+        locations,
+        services,
+        todayYmd: nowYmd,
+        nowHm,
+        accountTimeZone: resolved.account.timeZone,
+        clientTimeZone: clientTimeZone ?? null,
+        draftDate: d.date,
+        draftTime: d.time,
+      });
     }
 
     const postProcessed = await postProcessReply({
