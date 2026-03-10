@@ -419,11 +419,18 @@ export async function handlePublicAiChatPost(request: Request) {
     });
     const locationChosenThisTurn = draftMutation.locationChosenThisTurn;
 
+    const isAssistantConfirmationStage = d.status === "WAITING_CONFIRMATION" || d.status === "WAITING_CONSENT";
     const specialistFollowUpByHistory =
       (lastUserTextForAction && /кто\s+.*работает|какие\s+мастера|специалист/i.test(lastUserTextForAction)) ||
       (lastAssistantTextForAction && /специалист|мастер/i.test(lastAssistantTextForAction));
     const specialistPromptedByAssistant = /выберите специалиста|кнопкой ниже/i.test(lastAssistantTextForAction);
-    if (specialistFollowUpByHistory && d.locationId && !explicitBookingText && !specialistPromptedByAssistant) {
+    if (
+      !isAssistantConfirmationStage &&
+      specialistFollowUpByHistory &&
+      d.locationId &&
+      !explicitBookingText &&
+      !specialistPromptedByAssistant
+    ) {
       intent = "ask_specialists";
       route = "chat-only";
     }
@@ -432,6 +439,10 @@ export async function handlePublicAiChatPost(request: Request) {
     const explicitSelfModeChoice = /(самостоятельно|сам\b)/i.test(messageForRouting);
     if (d.locationId && d.serviceId && d.date && d.time && (explicitAssistantModeChoice || explicitSelfModeChoice)) {
       d.mode = explicitAssistantModeChoice ? "ASSISTANT" : "SELF";
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
+    if (isAssistantConfirmationStage) {
       shouldRunBookingFlowResolved = true;
       route = "booking-flow";
     }
@@ -694,12 +705,24 @@ export async function handlePublicAiChatPost(request: Request) {
         const servicesScopedByLocation = selectedLocationIdForServices
           ? services.filter((x) => x.locationIds.includes(selectedLocationIdForServices))
           : services;
-        const servicesByCategory = filterServicesByCategory(servicesScopedByLocation, selectedServiceCategoryFilter);
+        const specialistForServices =
+          (d.specialistId ? specialists.find((s) => s.id === d.specialistId) ?? null : null) ||
+          selectedSpecialistByMessage ||
+          specialistByText(t, specialists);
+        if (specialistForServices && d.specialistId !== specialistForServices.id) {
+          d.specialistId = specialistForServices.id;
+        }
+        const servicesScopedBySpecialist =
+          specialistForServices && specialistForServices.serviceIds?.length
+            ? servicesScopedByLocation.filter((x) => specialistForServices.serviceIds.includes(x.id))
+            : servicesScopedByLocation;
+        const servicesByCategory = filterServicesByCategory(servicesScopedBySpecialist, selectedServiceCategoryFilter);
         const categoryPrefix =
           selectedServiceCategoryFilter && selectedServiceCategoryFilter !== "__all__"
             ? `Категория «${selectedServiceCategoryFilter}». `
             : "";
         const locationPrefix = selectedLocationForServices ? `В филиале «${selectedLocationForServices.name}». ` : "";
+        const specialistPrefix = specialistForServices ? `Для специалиста «${specialistForServices.name}». ` : "";
 
         const specialistQuestionInsideServices = asksWhoPerformsServices(t) || /(мастер|специалист)/i.test(t);
         const serviceForSpecialistQuestion =
@@ -709,6 +732,15 @@ export async function handlePublicAiChatPost(request: Request) {
         if (selectedLocationIdForServices && !servicesScopedByLocation.length) {
           reply = `В филиале «${selectedLocationForServices?.name ?? "выбранной локации"}» пока нет активных услуг. Выберите другой филиал.`;
           nextUi = { kind: "quick_replies", options: locations.map((x) => ({ label: x.name, value: x.name })) };
+        } else if (specialistForServices && !servicesScopedBySpecialist.length) {
+          reply = `У специалиста «${specialistForServices.name}» в этом филиале нет доступных услуг. Выберите другого специалиста или филиал.`;
+          nextUi = {
+            kind: "quick_replies",
+            options: [
+              { label: "Показать специалистов", value: "какие специалисты у вас есть" },
+              ...locations.map((x) => ({ label: x.name, value: x.name })),
+            ],
+          };
         } else if (specialistQuestionInsideServices && serviceForSpecialistQuestion) {
           d.serviceId = serviceForSpecialistQuestion.id;
           const locationFromMessage = locationByText(t, locations);
@@ -756,8 +788,8 @@ export async function handlePublicAiChatPost(request: Request) {
           reply =
             "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение администратору. Также могу подобрать запись к другому мастеру.";
         } else if (explicitServicesFollowUp || selectedServiceCategoryFilter) {
-          reply = `${locationPrefix}${categoryPrefix}Доступные услуги ниже. Выберите нужную кнопкой.`;
-          nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesByCategory) };
+          reply = `${locationPrefix}${specialistPrefix}${categoryPrefix}Доступные услуги ниже. Выберите нужную кнопкой.`;
+          nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedBySpecialist, servicesByCategory) };
         } else {
           const selectedByText = serviceByText(t, servicesByCategory);
           const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);

@@ -165,6 +165,14 @@ export function applyDraftMutations(args: {
     }
   }
 
+  const selectedSpecialistByText = specialistByText(t, specialists);
+  if (
+    selectedSpecialistByText &&
+    (shouldEnrichDraftForBooking || shouldRunBookingFlow || d.locationId || d.serviceId || d.date || d.time)
+  ) {
+    d.specialistId = selectedSpecialistByText.id;
+  }
+
   const parsedNluPhone = typeof nlu?.clientPhone === "string" ? parsePhone(nlu.clientPhone) : null;
   const parsedDraftPhone = d.clientPhone ? parsePhone(d.clientPhone) : null;
   const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
