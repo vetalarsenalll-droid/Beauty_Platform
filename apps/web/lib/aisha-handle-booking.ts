@@ -38,11 +38,17 @@ export async function handleBookingDomain(args: {
 
   if (args.shouldRunBookingFlow) {
     const bookingBranch = await runBookingFlowBranch(args.runFlowArgs);
-    if (bookingBranch.handled) {
+    const hasOutput =
+      bookingBranch.handled ||
+      Boolean(bookingBranch.reply) ||
+      Boolean(bookingBranch.ui) ||
+      Boolean(bookingBranch.nextAction) ||
+      Boolean(bookingBranch.nextStatus);
+    if (hasOutput) {
       reply = bookingBranch.reply ?? reply;
       nextStatus = bookingBranch.nextStatus ?? nextStatus;
       nextAction = bookingBranch.nextAction ?? nextAction;
-      nextUi = bookingBranch.ui ?? null;
+      nextUi = bookingBranch.ui ?? nextUi ?? null;
       return { handled: true, reply, nextStatus, nextAction, nextUi };
     }
   }

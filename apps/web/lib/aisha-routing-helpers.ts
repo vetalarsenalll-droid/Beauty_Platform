@@ -110,11 +110,44 @@ export function hasBookingVerbTypo(messageNorm: string) {
   });
 }
 export function locationByText(messageNorm: string, locations: LocationLite[]) {
+  const normalizeLocationText = (v: string) =>
+    norm(v)
+      .replace(/[-–—−]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const canonical = (v: string) =>
+    (v ?? "")
+      .toString()
+      .toLowerCase()
+      .replace(/ё/g, "е")
+      .replace(/[^\p{L}\p{N}]+/gu, "")
+      .trim();
+  const rawMsg = (messageNorm ?? "").toString().trim().toLowerCase();
+  const msg = normalizeLocationText(messageNorm);
+  const msgCanonical = canonical(messageNorm);
   const matches = locations.filter((x) => {
-    const ln = norm(x.name);
-    const ad = norm(x.address ?? "");
-    return messageNorm.includes(ln) || (ad && messageNorm.includes(ad));
+    const rawName = (x.name ?? "").toString().trim().toLowerCase();
+    if (rawName && rawName === rawMsg) return true;
+    const ln = normalizeLocationText(x.name);
+    const ad = normalizeLocationText(x.address ?? "");
+    if (msg.includes(ln) || (ad && msg.includes(ad))) return true;
+    const nameCanonical = canonical(x.name);
+    const addrCanonical = canonical(x.address ?? "");
+    if (msgCanonical && (nameCanonical === msgCanonical || addrCanonical === msgCanonical)) return true;
+    if (msgCanonical && nameCanonical && (nameCanonical.includes(msgCanonical) || msgCanonical.includes(nameCanonical)))
+      return true;
+    if (msgCanonical && addrCanonical && (addrCanonical.includes(msgCanonical) || msgCanonical.includes(addrCanonical)))
+      return true;
+    return false;
   });
+  const exactNameMatches = locations.filter((x) => {
+    const rawName = (x.name ?? "").toString().trim().toLowerCase();
+    if (rawName && rawName === rawMsg) return true;
+    if (normalizeLocationText(x.name) === msg) return true;
+    const nameCanonical = canonical(x.name);
+    return msgCanonical && nameCanonical === msgCanonical;
+  });
+  if (exactNameMatches.length >= 1) return exactNameMatches[0]!;
   if (matches.length === 1) return matches[0]!;
   const fuzzy = bestFuzzyEntity(messageNorm, locations, (x) => [x.name, x.address ?? ""]);
   return fuzzy ?? null;

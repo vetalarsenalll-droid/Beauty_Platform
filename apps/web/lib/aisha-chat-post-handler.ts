@@ -435,7 +435,14 @@ export async function handlePublicAiChatPost(request: Request) {
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
     let guardedUnknownServiceInBooking = false;
-    if (route === "booking-flow" && d.locationId && !d.serviceId && looksLikeStandaloneServiceLabel(t)) {
+    if (
+      route === "booking-flow" &&
+      d.locationId &&
+      !d.serviceId &&
+      looksLikeStandaloneServiceLabel(t) &&
+      !locationByText(t, locations) &&
+      !hasLocationCue(t)
+    ) {
       const servicesScopedByLocation = services.filter((x) => x.locationIds.includes(d.locationId as number));
       const selectedByText = serviceByText(t, servicesScopedByLocation);
       if (!selectedByText) {
@@ -549,6 +556,7 @@ export async function handlePublicAiChatPost(request: Request) {
       currentAction: nextAction,
       currentUi: nextUi,
     });
+
 
     if (route === "client-actions") {
       const clientActionsResult = await handleClientActionsDomain({
@@ -902,6 +910,7 @@ export async function handlePublicAiChatPost(request: Request) {
     reply = postProcessed.reply;
     nextUi = postProcessed.nextUi;
     const guardReason = postProcessed.guardReason;
+
 
     if (explicitBookingDecline && route !== "client-actions" && !explicitDateTimeQuery) {
       const replyNormAfterPost = norm(reply);

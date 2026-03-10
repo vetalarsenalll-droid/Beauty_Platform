@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+п»їimport { prisma } from "@/lib/prisma";
 import { normalizeRuPhone } from "@/lib/phone";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") {
     return jsonError(
       "INVALID_BODY",
-      "Некорректное тело запроса.",
+      "РќРµРєРѕСЂСЂРµРєС‚РЅРѕРµ С‚РµР»Рѕ Р·Р°РїСЂРѕСЃР°.",
       null,
       400
     );
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
   if (!LOCATION_STATUSES.has(statusRaw)) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Некорректный статус локации. Допустимые: ACTIVE, INACTIVE.",
+      "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ СЃС‚Р°С‚СѓСЃ Р»РѕРєР°С†РёРё. Р”РѕРїСѓСЃС‚РёРјС‹Рµ: ACTIVE, INACTIVE.",
       { fields: [{ path: "status", issue: "invalid" }] },
       400
     );
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
   if (!name || !address) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Заполните название и адрес локации.",
+      "Р—Р°РїРѕР»РЅРёС‚Рµ РЅР°Р·РІР°РЅРёРµ Рё Р°РґСЂРµСЃ Р»РѕРєР°С†РёРё.",
       {
         fields: [
           { path: "name", issue: name ? null : "required" },
@@ -214,7 +214,7 @@ export async function POST(request: Request) {
   await logAccountAudit({
     accountId: auth.session.accountId,
     userId: auth.session.userId,
-    action: "Создал локацию",
+    action: "РЎРѕР·РґР°Р» Р»РѕРєР°С†РёСЋ",
     targetType: "location",
     targetId: created.id,
     diffJson: {
