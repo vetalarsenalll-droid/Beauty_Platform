@@ -1064,10 +1064,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
 
   if ((asksDateList || asksAnotherDate) && d.locationId && d.serviceId) {
+    const previousDate = d.date;
     const rangeStart = monthOnlyDate ? monthOnlyDate : d.date ? addDaysYmd(d.date, 1) : todayYmd;
     const rangeEnd = monthOnlyDate ? endOfMonthYmd(monthOnlyDate) : addDaysYmd(rangeStart, 45);
     const daysAhead = Math.max(1, dateDistanceDays(rangeStart, rangeEnd) + 1);
-    const availableDates = d.specialistId
+    let availableDates = d.specialistId
       ? await findNextServiceDatesForSpecialist({
           origin,
           accountSlug: account.slug,
@@ -1086,6 +1087,10 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
           fromDate: rangeStart,
           daysAhead,
         });
+    const minDate = previousDate && previousDate >= todayYmd ? previousDate : rangeStart;
+    if (previousDate && previousDate >= minDate && previousDate <= rangeEnd && !availableDates.includes(previousDate)) {
+      availableDates = [previousDate, ...availableDates];
+    }
     d.date = null;
     d.time = null;
     if (
@@ -1105,11 +1110,12 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       handled: true,
       reply: "Выберите дату в календаре, и я сразу покажу свободное время в выбранном филиале.",
       nextStatus: "COLLECTING",
-      ui: { kind: "date_picker", minDate: rangeStart, maxDate: rangeEnd, initialDate: rangeStart, availableDates },
+      ui: { kind: "date_picker", minDate, maxDate: rangeEnd, initialDate: previousDate ?? minDate, availableDates },
     };
   }
 
   if ((asksDateList || asksAnotherDate) && d.locationId && !d.serviceId) {
+    const previousDate = d.date;
     const rangeStart = monthOnlyDate ? monthOnlyDate : d.date ? addDaysYmd(d.date, 1) : todayYmd;
     const rangeEnd = monthOnlyDate ? endOfMonthYmd(monthOnlyDate) : addDaysYmd(rangeStart, 60);
     const daysAhead = Math.max(1, dateDistanceDays(rangeStart, rangeEnd) + 1);
@@ -1124,7 +1130,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       maxDates: daysAhead,
       limit: 24,
     });
-    const availableDates = nearestDates.map((x) => x.date);
+    let availableDates = nearestDates.map((x) => x.date);
+    const minDate = previousDate && previousDate >= todayYmd ? previousDate : rangeStart;
+    if (previousDate && previousDate >= minDate && previousDate <= rangeEnd && !availableDates.includes(previousDate)) {
+      availableDates = [previousDate, ...availableDates];
+    }
     d.date = null;
     d.time = null;
     if (
@@ -1146,9 +1156,9 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       nextStatus: "COLLECTING",
       ui: {
         kind: "date_picker",
-        minDate: rangeStart,
+        minDate,
         maxDate: rangeEnd,
-        initialDate: rangeStart,
+        initialDate: previousDate ?? minDate,
         availableDates: availableDates.length ? availableDates : null,
       },
     };
