@@ -1,0 +1,46 @@
+{
+  "suite": "core",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-10T21:51:50.541Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Greeting basic",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Abuse de-escalation",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "привет сучка",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Identity intent",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "кто ты",
+          "passed": false,
+          "error": "Identity intent / step 1 (кто ты): expected one of /аиша|ассистент|чем помочь|здравств/i\nreply:\nПривет! Как могу помочь? Позвольте мне стать Вашим проводником в мире красоты и подобрать идеальную процедуру?",
+          "reply": "Привет! Как могу помочь? Позвольте мне стать Вашим проводником в мире красоты и подобрать идеальную процедуру?"
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-10T21:51:54.940Z",
+  "durationMs": 4399
+}

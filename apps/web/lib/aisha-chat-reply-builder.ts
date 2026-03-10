@@ -329,26 +329,30 @@ export function buildBasicChatInfoReply(args: {
       const salonName = accountName || "нашем салоне";
       reply = `Я ${assistantName}, виртуальный ассистент записи в «${salonName}». Помогаю с выбором услуг, специалистов и оформлением записи.`;
     } else {
-      reply = conversationalReply ?? `Я ${assistantName}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
+      const fallback = `Я ${assistantName}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
+      const hasIdentityCue = conversationalReply ? /(аиша|ассистент)/i.test(norm(conversationalReply)) : false;
+      reply = conversationalReply && hasIdentityCue ? conversationalReply : fallback;
     }
     return { handled: true, reply, ui };
   }
 
   if (intent === "capabilities") {
-    reply = conversationalReply ?? "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
+    reply = "Помогаю с записью, подбором свободных окон, контактами, а также могу показать ваши записи и статистику.";
     if (!/(запис|услуг|время|специалист)/i.test(norm(reply))) reply = reply.replace(/[.!?]+$/u, "") + ". Помогу с услугами и записью.";
     return { handled: true, reply, ui };
   }
 
   if (intent === "out_of_scope") {
-    reply = conversationalReply && !/ассистент\s+записи.*чем\s+помочь|чем\s+помочь.*ассистент\s+записи/i.test(norm(conversationalReply))
-      ? conversationalReply
+    const conv = conversationalReply ?? "";
+    const hasBookingCue = /(запис|услуг|помочь|салон|домен)/i.test(norm(conv));
+    reply = conv && hasBookingCue && !/ассистент\s+записи.*чем\s+помочь|чем\s+помочь.*ассистент\s+записи/i.test(norm(conv))
+      ? conv
       : buildOutOfScopeConversationalReply(norm(messageForRouting));
     return { handled: true, reply, ui };
   }
 
   if (intent === "abuse_or_toxic") {
-    reply = conversationalReply && !looksLikeHardBookingPushReply(conversationalReply) ? conversationalReply : buildToxicReply(consecutiveToxicTurns, t);
+    reply = buildToxicReply(consecutiveToxicTurns, t);
     if (consecutiveToxicTurns >= 2) ui = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
     return { handled: true, reply, ui };
   }

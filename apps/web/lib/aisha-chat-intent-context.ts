@@ -153,12 +153,22 @@ export function buildIntentContext(args: {
   const recentMessagesDesc = [...recentMessages].reverse();
   const lastAssistantText = recentMessagesDesc.find((m) => m.role === "assistant")?.content ?? "";
   const previousUserText = recentMessagesDesc.filter((m) => m.role === "user")[1]?.content ?? "";
+  const lastUserText = recentMessagesDesc.filter((m) => m.role === "user")[0]?.content ?? "";
 
   const specialistFollowUpLocation = routing.locationByText(t, locations);
   const specialistFollowUpByLocation =
     Boolean(specialistFollowUpLocation) &&
-    /(специалисты по филиалам|работают специалисты|специалисты в студии)/i.test(lastAssistantText);
+    (/(специалисты по филиалам|работают специалисты|специалисты в студии)/i.test(lastAssistantText) ||
+      /специалист|мастер/i.test(lastAssistantText));
+  const specialistFollowUpByPrevUser =
+    Boolean(specialistFollowUpLocation) &&
+    (routing.asksWhoPerformsServices(norm(lastUserText)) ||
+      routing.asksSpecialistsByShortText(norm(lastUserText)) ||
+      /кто\s+.*работает/i.test(lastUserText));
   if (specialistFollowUpByLocation && specialistFollowUpLocation) {
+    d.locationId = specialistFollowUpLocation.id;
+  }
+  if (!specialistFollowUpByLocation && specialistFollowUpByPrevUser && specialistFollowUpLocation) {
     d.locationId = specialistFollowUpLocation.id;
   }
 
@@ -237,6 +247,8 @@ export function buildIntentContext(args: {
 
   if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
   if (specialistFollowUpByLocation) intent = "ask_specialists";
+  if (!specialistFollowUpByLocation && specialistFollowUpByPrevUser) intent = "ask_specialists";
+  if (explicitIdentityCue) intent = "identity";
   if (explicitBookingTypoCue && !explicitBookingDecline) intent = "booking_start";
   if (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext) intent = "cancel_my_booking";
   if (explicitClientCancelConfirm) intent = "cancel_my_booking";
@@ -315,6 +327,7 @@ export function buildIntentContext(args: {
   const shouldStayInAssistantStages = isConsentStage && d.mode === "ASSISTANT";
   const isConsentStageMessage = has(messageForRouting, /(согласен|согласна|персональн|подтверждаю|подтвердить|да|верно|записаться|оформи через ассистента)/i);
   const forceChatOnlyInfoIntent = intent === "contact_address" || intent === "contact_phone" || intent === "working_hours";
+  const forceChatOnlySpecialistFollowUp = specialistFollowUpByLocation || specialistFollowUpByPrevUser;
 
   const forceBookingByContext =
     hasDraftContext &&
@@ -410,11 +423,13 @@ export function buildIntentContext(args: {
 
   if (explicitServiceComplaint) intent = "smalltalk";
 
+  const forceChatOnlySpecialists = explicitServiceSpecialistQuestion && !explicitBookingText;
+
   const { route, routeReason } = decidePublicAiRoute({
     intent,
     explicitDateTimeQuery,
     forceChatOnlyConversational,
-    forceChatOnlyInfoIntent,
+    forceChatOnlyInfoIntent: forceChatOnlyInfoIntent || forceChatOnlySpecialistFollowUp || forceChatOnlySpecialists,
     forceClientActions: Boolean(forceClientActions),
     forceBookingByContext,
     forceBookingOnPromptedLocationChoice,

@@ -38,6 +38,7 @@ const {
   asksWhyNoAnswer,
   buildOutOfScopeConversationalReply,
   buildChatOnlyActionUi,
+  hasLocationCue,
   isGenericBookingTemplateReply,
   isBookingOrAccountCue,
   countConsecutiveNonBookingUserTurns,
@@ -45,6 +46,7 @@ const {
   asksSpecialistsByShortText,
   asksWhoPerformsServices,
   extractRequestedServicePhrase,
+  specialistByText,
 } = aishaRoutingHelpers;
 
 
@@ -239,6 +241,16 @@ export async function handlePublicAiChatPost(request: Request) {
         : null;
 
     const lastAssistantTextForAction = recentMessages.find((m) => m.role === "assistant")?.content ?? "";
+    const lastUserTextForAction = recentMessages.find((m) => m.role === "user")?.content ?? "";
+
+    const specialistFollowUpLocation =
+      locationByText(t, locations) &&
+      (/специалист|мастер/i.test(lastAssistantTextForAction) ||
+        /кто\s+.*работает|какие\s+мастера|специалист/i.test(lastUserTextForAction));
+    if (specialistFollowUpLocation) {
+      intent = "ask_specialists";
+      route = "chat-only";
+    }
 
     const llmActionReply =
       chatActionResult?.source === "llm" && chatActionResult.reply && !isGenericBookingTemplateReply(chatActionResult.reply)
@@ -407,6 +419,60 @@ export async function handlePublicAiChatPost(request: Request) {
     });
     const locationChosenThisTurn = draftMutation.locationChosenThisTurn;
 
+    const specialistFollowUpByHistory =
+      (lastUserTextForAction && /кто\s+.*работает|какие\s+мастера|специалист/i.test(lastUserTextForAction)) ||
+      (lastAssistantTextForAction && /специалист|мастер/i.test(lastAssistantTextForAction));
+    const specialistPromptedByAssistant = /выберите специалиста|кнопкой ниже/i.test(lastAssistantTextForAction);
+    if (specialistFollowUpByHistory && d.locationId && !explicitBookingText && !specialistPromptedByAssistant) {
+      intent = "ask_specialists";
+      route = "chat-only";
+    }
+    let shouldRunBookingFlowResolved = specialistFollowUpByHistory ? false : shouldRunBookingFlow;
+    const explicitAssistantModeChoice = /(через\s+ассистента|оформи)/i.test(messageForRouting);
+    const explicitSelfModeChoice = /(самостоятельно|сам\b)/i.test(messageForRouting);
+    if (d.locationId && d.serviceId && d.date && d.time && (explicitAssistantModeChoice || explicitSelfModeChoice)) {
+      d.mode = explicitAssistantModeChoice ? "ASSISTANT" : "SELF";
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
+    if (
+      !shouldRunBookingFlowResolved &&
+      d.locationId &&
+      serviceByText(t, services) &&
+      !explicitBookingDecline &&
+      !explicitServiceComplaint
+    ) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
+    if (
+      !shouldRunBookingFlowResolved &&
+      d.locationId &&
+      d.serviceId &&
+      /\b([01]?\d|2[0-3])[:.][0-5]\d\b/.test(messageForRouting) &&
+      !explicitBookingDecline &&
+      !explicitServiceComplaint
+    ) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
+    if (
+      !shouldRunBookingFlowResolved &&
+      d.locationId &&
+      d.serviceId &&
+      d.time &&
+      specialistByText(t, specialists) &&
+      !explicitBookingDecline &&
+      !explicitServiceComplaint
+    ) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
+    if (intent === "abuse_or_toxic") {
+      shouldRunBookingFlowResolved = false;
+      route = "chat-only";
+    }
+
     if (!d.date && (d.locationId || d.serviceId || d.specialistId || shouldRunBookingFlow)) {
       const bookingDateHintAfterMutations = findRecentBookingDateHint(nowYmd, messageForRouting, recentMessages);
       if (bookingDateHintAfterMutations) d.date = bookingDateHintAfterMutations;
@@ -550,7 +616,7 @@ export async function handlePublicAiChatPost(request: Request) {
         preferredClientId: client?.clientId ?? thread.clientId ?? null,
         holdOwnerMarker: -thread.id,
       },
-      shouldRunBookingFlow: guardedUnknownServiceInBooking ? false : shouldRunBookingFlow,
+      shouldRunBookingFlow: guardedUnknownServiceInBooking ? false : shouldRunBookingFlowResolved,
       currentReply: reply,
       currentStatus: nextStatus,
       currentAction: nextAction,
