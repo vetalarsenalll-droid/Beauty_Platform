@@ -153,36 +153,50 @@ async function fetchAccessToken(): Promise<string> {
   return payload.access_token;
 }
 
-export async function createGigaChatCompletion(
-  messages: ChatMessage[]
-): Promise<GigaChatCompletionResult> {
-  const accessToken = await fetchAccessToken();
+async function requestCompletion(messages: ChatMessage[], accessToken: string) {
   const model = resolveModel();
+  return withGigaChatNetworkEnv(() =>
+    fetch(resolveChatUrl(), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.2,
+        top_p: 0.95,
+        max_tokens: 500,
+        stream: false,
+      }),
+      cache: "no-store",
+    })
+  );
+}
 
+export async function createGigaChatCompletion(messages: ChatMessage[]): Promise<GigaChatCompletionResult> {
+  let accessToken = await fetchAccessToken();
   let response: Response;
+
   try {
-    response = await withGigaChatNetworkEnv(() =>
-      fetch(resolveChatUrl(), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          top_p: 0.95,
-          max_tokens: 500,
-          stream: false,
-        }),
-        cache: "no-store",
-      })
-    );
+    response = await requestCompletion(messages, accessToken);
   } catch (error) {
     console.error("[gigachat] completion request failed", error);
     throw error;
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    // Token might have been invalidated during idle; refresh once and retry.
+    cachedAccessToken = null;
+    accessToken = await fetchAccessToken();
+    try {
+      response = await requestCompletion(messages, accessToken);
+    } catch (error) {
+      console.error("[gigachat] completion retry failed", error);
+      throw error;
+    }
   }
 
   if (!response.ok) {
@@ -206,7 +220,7 @@ export async function createGigaChatCompletion(
 
   return {
     content,
-    model: payload.model || model,
+    model: payload.model || resolveModel(),
     finishReason: choice?.finish_reason ?? null,
     usage: {
       promptTokens: payload.usage?.prompt_tokens ?? null,

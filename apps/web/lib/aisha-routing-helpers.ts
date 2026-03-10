@@ -636,7 +636,7 @@ export function looksLikeUnknownServiceRequest(messageNorm: string) {
   if (/(какие услуги|что по услугам|прайс|каталог|список услуг)/i.test(messageNorm)) return false;
   if (/[?]/.test(messageNorm)) return false;
   if (/^(это|а это|что это|как это|почему|зачем|кто|где|когда|я спросил|я спросила|расскажи|объясни|обьясни|можешь)\b/i.test(messageNorm)) return false;
-  if (/(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) return true;
+  if (/(?:^|\s)(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) return true;
   // Plain phrase like "удаление зуба" during booking step should still be treated as a service request.
   if (/^[\p{L}\s\-]{4,}$/iu.test(messageNorm) && messageNorm.split(/\s+/).length <= 4) {
     if (!mentionsServiceTopic(messageNorm)) return false;
@@ -1047,7 +1047,7 @@ export function extractRequestedServicePhrase(messageNorm: string) {
     "себя",
   ]);
   const matches = Array.from(
-    messageNorm.matchAll(/(?:на|хочу|нужн[ао]?|запиши(?: меня)?(?: на)?|записаться на)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),
+    messageNorm.matchAll(/(?:^|\s)(?:на|хочу|нужн[ао]?|запиши(?: меня)?(?: на)?|записаться на)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),
   );
   for (let i = matches.length - 1; i >= 0; i -= 1) {
     let candidate = (matches[i]?.[1] ?? "").trim();
