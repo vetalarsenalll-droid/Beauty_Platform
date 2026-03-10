@@ -131,7 +131,13 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           </section>
         </div>
       </main>
-      {accountSlug ? <PublicAiChatWidget accountSlug={accountSlug} /> : null}
+      {accountSlug && themeFrame?.aishaConfig?.enabled !== false ? (
+        <PublicAiChatWidget
+          accountSlug={accountSlug}
+          widgetConfig={themeFrame?.aishaConfig ?? null}
+          themeMode={themeFrame?.initialMode}
+        />
+      ) : null}
     </PublicSiteOverlayLoader>
   );
 }

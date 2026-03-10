@@ -74,7 +74,13 @@ export default async function ClientRegisterPageWrapper({ searchParams }: PagePr
       >
         {menuNode}
         <ClientRegisterPage initialAccountSlug={accountSlug ?? ""} />
-        {accountSlug ? <PublicAiChatWidget accountSlug={accountSlug} /> : null}
+        {accountSlug && themeFrame?.aishaConfig?.enabled !== false ? (
+          <PublicAiChatWidget
+            accountSlug={accountSlug}
+            widgetConfig={themeFrame?.aishaConfig ?? null}
+            themeMode={themeFrame?.initialMode}
+          />
+        ) : null}
       </div>
     </main>
   );

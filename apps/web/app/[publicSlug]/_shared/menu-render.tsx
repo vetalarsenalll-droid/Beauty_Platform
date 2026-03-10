@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
 import {
+  resolveAishaWidgetConfig,
   resolveSiteLoaderConfig,
+  type SiteAishaWidgetConfig,
   type SiteBlock,
   type SiteLoaderConfig,
 } from "@/lib/site-builder";
@@ -15,6 +17,7 @@ export type PublicMenuFrame = {
   menuNode: ReactNode;
   clientPageBlock: SiteBlock | null;
   loaderConfig: SiteLoaderConfig | null;
+  aishaConfig: SiteAishaWidgetConfig | null;
 };
 
 export async function renderPublicMenuFrame(
@@ -38,6 +41,7 @@ export async function renderPublicMenuFrame(
     storedMode === "dark" || storedMode === "light"
       ? storedMode
       : data.draft.theme.mode;
+  const aishaConfig = resolveAishaWidgetConfig(data.draft, initialMode);
   const palette =
     initialMode === "dark"
       ? data.draft.theme.darkPalette
@@ -171,6 +175,7 @@ export async function renderPublicMenuFrame(
     themeStyle,
     clientPageBlock,
     loaderConfig,
+    aishaConfig,
     menuNode: (
       <section className={wrapper.className} style={wrapper.style as CSSProperties}>
         {renderBlock(
