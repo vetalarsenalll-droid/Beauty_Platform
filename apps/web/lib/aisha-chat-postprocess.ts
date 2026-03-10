@@ -255,7 +255,13 @@ export async function postProcessReply(args: {
       reply = knownClientName ? `Здравствуйте, ${knownClientName}! Чем помочь?` : "Здравствуйте! Чем помочь?";
     }
   }
-  if (route === "chat-only" && hasDraftContext && !shouldRunBookingFlow && (intent === "out_of_scope" || intent === "smalltalk")) {
+  if (
+    route === "chat-only" &&
+    !explicitServiceComplaint &&
+    hasDraftContext &&
+    !shouldRunBookingFlow &&
+    (intent === "out_of_scope" || intent === "smalltalk")
+  ) {
     reply = "Продолжим запись: выберите услугу, дату или время.";
     if (!nextUi) nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
   }
@@ -285,6 +291,7 @@ export async function postProcessReply(args: {
 
   if (
     route === "chat-only" &&
+    !explicitServiceComplaint &&
     !isBookingOrAccountCue(t) &&
     intent !== "contact_address" &&
     intent !== "contact_phone" &&

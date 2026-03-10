@@ -262,6 +262,12 @@ export function buildBasicChatInfoReply(args: {
   let reply = "";
   let ui: ChatUi | null = null;
 
+  if (explicitServiceComplaint) {
+    reply =
+      "Сожалею, что так вышло. Опишите, пожалуйста, что именно не устроило: услуга, мастер, дата/время. Я передам информацию администратору.";
+    return { handled: true, reply, ui };
+  }
+
   if (explicitDateTimeQuery) {
     const nowInClientTz = getNowInTimeZone(clientTimeZone ?? accountTimeZone);
     const hh = String(Math.floor(nowInClientTz.minutes / 60)).padStart(2, "0");

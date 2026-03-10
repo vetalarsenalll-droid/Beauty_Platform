@@ -756,6 +756,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   const value = normalizeQuick(option.value);
                   const label = normalizeQuick(option.label);
                   const merged = `${value} ${label}`;
+                  if (/^(выбрать другую дату|другая дата|другое число хочу выбрать|другое число)$/iu.test(value)) return "show_all";
                   if (/^(покажи все( свободное)? время|показать все( свободное)? время)$/iu.test(value) || /^(покажи всё( свободное)? время|показать всё( свободное)? время)$/iu.test(value)) return "show_all";
                   if (/^(утро|утром|день|днем|днём|вечер|вечером)$/iu.test(value)) return "part_of_day";
                   return null;

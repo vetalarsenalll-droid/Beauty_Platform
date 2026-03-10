@@ -197,7 +197,7 @@ export function buildIntentContext(args: {
   const specialistNameFollowUpFromContext =
     /(?:мастер|специалист|топ[-\s]?мастер)/iu.test(lastAssistantText) &&
     /^(?:а\s+)?[\p{L}-]{2,}\s+[\p{L}-]{2,}\??$/iu.test(messageForRouting.trim());
-  const explicitServiceComplaint = routing.isServiceComplaintMessage(norm(messageForRouting));
+  let explicitServiceComplaint = routing.isServiceComplaintMessage(norm(messageForRouting));
   const explicitIdentityCue = has(messageForRouting, /(кто ты|как тебя зовут|твое имя|твоё имя)/i);
   const explicitAssistantQualification = routing.asksAssistantQualification(norm(messageForRouting));
   const explicitAssistantRoleCue = has(messageForRouting, /(кем ты работаешь|кем работаешь|какая у тебя роль|какая должность|ты администратор|ты менеджер|ты ассистент)/i);
@@ -250,6 +250,17 @@ export function buildIntentContext(args: {
   if (serviceSelectionFromCatalog && !explicitServiceComplaint) intent = "booking_start";
   if (hasDraftContextEarly && Boolean(routing.serviceByText(norm(messageForRouting), services)) && !explicitServiceComplaint) intent = "booking_set_service";
 
+  const complaintContextActive =
+    routing.isServiceComplaintMessage(norm(previousUserText)) ||
+    /уточните.*не понравилось|опишите.*не устроило|передам.*администратору/i.test(lastAssistantText);
+  const isTrivialAck = /^(спасибо|ок|окей|понятно|хорошо|ладно|ясно)$/i.test(messageForRouting.trim());
+  const complaintFollowUp =
+    !explicitServiceComplaint &&
+    complaintContextActive &&
+    !explicitBookingDecline &&
+    !isTrivialAck;
+  if (complaintFollowUp) explicitServiceComplaint = true;
+
   const selectedSpecialistByText = routing.specialistByText(t, specialists);
   const explicitAnySpecialistChoice = routing.isAnySpecialistChoiceText(t);
   const choiceNum = parseChoiceFromText(t);
@@ -279,6 +290,7 @@ export function buildIntentContext(args: {
     !explicitDateTimeQuery &&
     !hasClientActionCue &&
     !specialistFollowUpByLocation &&
+    !explicitServiceComplaint &&
     has(
       message,
       /(запиш\p{L}*|записа\p{L}*|запис\p{L}*|запиг\p{L}*|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи\p{L}*|бронь|заброни\p{L}*|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/iu,
@@ -307,6 +319,7 @@ export function buildIntentContext(args: {
   const forceBookingByContext =
     hasDraftContext &&
     !explicitBookingDecline &&
+    !explicitServiceComplaint &&
     (!isConsentStage || isConsentStageMessage || shouldStayInAssistantStages) &&
     !forceClientActions &&
     !forceChatOnlyInfoIntent &&
@@ -314,6 +327,7 @@ export function buildIntentContext(args: {
 
   const forceBookingOnPromptedLocationChoice =
     !explicitBookingDecline &&
+    !explicitServiceComplaint &&
     !forceClientActions &&
     !explicitDateTimeQuery &&
     !hasClientActionCue &&
@@ -326,6 +340,7 @@ export function buildIntentContext(args: {
     hasDraftContext &&
     Boolean(d.serviceId) &&
     !explicitBookingDecline &&
+    !explicitServiceComplaint &&
     !forceClientActions &&
     !explicitDateTimeQuery &&
     !hasClientActionCue &&
@@ -350,6 +365,7 @@ export function buildIntentContext(args: {
     intent !== "ask_specialists" &&
     !specialistFollowUpByLocation &&
     !explicitBookingDecline &&
+    !explicitServiceComplaint &&
     !forceClientActions &&
     !explicitDateTimeQuery &&
     !hasClientActionCue &&
@@ -368,6 +384,7 @@ export function buildIntentContext(args: {
     hasDraftContext &&
     explicitDateOnlyInput &&
     !explicitBookingDecline &&
+    !explicitServiceComplaint &&
     !forceClientActions &&
     !explicitDateTimeQuery;
 
@@ -382,6 +399,7 @@ export function buildIntentContext(args: {
     !continuePendingCancelChoice &&
     (routing.asksClientOwnName(messageForRouting) ||
       routing.asksClientRecognition(messageForRouting) ||
+      explicitServiceComplaint ||
       intent === "smalltalk" ||
       intent === "greeting" ||
       intent === "identity" ||
@@ -389,6 +407,8 @@ export function buildIntentContext(args: {
       intent === "out_of_scope" ||
       intent === "abuse_or_toxic" ||
       intent === "post_completion_smalltalk");
+
+  if (explicitServiceComplaint) intent = "smalltalk";
 
   const { route, routeReason } = decidePublicAiRoute({
     intent,

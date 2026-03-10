@@ -173,6 +173,12 @@ export function applyDraftMutations(args: {
 
   const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
   const parsedMessageName = parseName(message);
+  const looksLikeStandaloneName =
+    /^[\p{L}'-]{2,}(?:\s+[\p{L}'-]{2,}){0,2}$/u.test(message.trim()) &&
+    !/[0-9]/.test(message) &&
+    !/[?!.]/.test(message) &&
+    !/^(?:как|кто|что|где|почему|зачем|привет|здравствуйте|спасибо|ок|окей|ладно|хорошо|знаешь)$/i.test(message.trim());
+  const parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName ? parsedMessageName : null;
   const shouldCaptureClientName =
     d.mode === "ASSISTANT" ||
     d.status === "WAITING_CONSENT" ||
@@ -182,7 +188,7 @@ export function applyDraftMutations(args: {
 
   if (shouldCaptureClientName) {
     d.clientName =
-      parsedMessageName ||
+      parsedMessageNameSafe ||
       (explicitNameCue ? nlu?.clientName ?? null : null) ||
       d.clientName ||
       [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() ||

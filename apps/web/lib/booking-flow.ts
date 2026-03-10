@@ -1,4 +1,4 @@
-import {
+﻿import {
   bookingSummary,
   createAssistantBooking,
   reserveAssistantSlotHold,
@@ -330,6 +330,7 @@ function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): 
 function buildTimeOptionsWithControls(times: string[], limit: number | null = null): ChatUiOption[] {
   const shown = times;
   const controls: ChatUiOption[] = [];
+  controls.push(optionFromLabel("Выбрать другую дату", "другое число хочу выбрать"));
   controls.push(optionFromLabel("Утро", "утром"));
   controls.push(optionFromLabel("День", "днем"));
   controls.push(optionFromLabel("Вечер", "вечером"));
@@ -579,7 +580,7 @@ function asksDateChoices(messageNorm: string) {
 }
 
 function wantsOtherDates(messageNorm: string) {
-  return /(?:другие\s+числа|другие\s+дни|другие\s+даты|другая\s+дата|на\s+другую\s+дату|на\s+другие\s+числа|на\s+другие\s+дни|на\s+другие\s+даты|другой\s+период|на\s+другой\s+период|на\s+какую\s+дату\s+есть|на\s+какие\s+даты\s+есть|а\s+на\s+какую\s+дату\s+есть|когда\s+есть|когда\s+есть\s+окна)/iu.test(
+  return /(?:другое число хочу выбрать|другие\s+числа|другие\s+дни|другие\s+даты|другая\s+дата|на\s+другую\s+дату|на\s+другие\s+числа|на\s+другие\s+дни|на\s+другие\s+даты|другой\s+период|на\s+другой\s+период|на\s+какую\s+дату\s+есть|на\s+какие\s+даты\s+есть|а\s+на\s+какую\s+дату\s+есть|когда\s+есть|когда\s+есть\s+окна)/iu.test(
     messageNorm,
   );
 }
@@ -2246,6 +2247,10 @@ if (!d.serviceId) {
     reply: `Запись оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${created.appointmentId}.`,
   };
 }
+
+
+
+
 
 
 

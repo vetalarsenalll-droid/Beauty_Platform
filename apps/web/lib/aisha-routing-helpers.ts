@@ -712,13 +712,10 @@ export function mentionsServiceTopic(messageNorm: string) {
 
 export function isServiceComplaintMessage(messageNorm: string) {
   const hasComplaint =
-    /(не понрав|не устро|плох|плах|ужас|недовол|испорти|сделал[аи]?\s+плох|сделал[аи]?\s+плах|жалоб|претензи|обслуживание.*не понрав|криво|больно)/i.test(
+    /(не понрав|не устро|плох|плах|ужас|кошмар|отврат|недовол|испорти|сделал[аи]?\s+плох|сделал[аи]?\s+плах|жалоб|претензи|обслуживание.*не понрав|криво|больно|груб|хам|некачествен|разочар|опоздал|опоздали|долго\s+ждал|ждал\s+долго|верните|возврат|испорчен)/i.test(
       messageNorm,
     );
-  const hasServiceOrSpecialist =
-    mentionsServiceTopic(messageNorm) ||
-    /(мастер|специалист|сотрудник|ольг|ирин|анн|мария|павел|дмитрий|сергей|елена)/i.test(messageNorm);
-  return hasComplaint && hasServiceOrSpecialist;
+  return hasComplaint;
 }
 
 export function asksAssistantQualification(messageNorm: string) {

@@ -264,6 +264,39 @@ export async function handlePublicAiChatPost(request: Request) {
       route = "chat-only";
     }
 
+    if (explicitServiceComplaint) {
+      const reply =
+        "Сожалею, что так вышло. Опишите, пожалуйста, что именно не устроило: услуга, мастер, дата/время. Я передам информацию администратору.";
+      const nextUi: ChatUi | null = null;
+      const nextStatus = d.status;
+      const nextAction: Action = null;
+
+      await saveTurn({
+        threadId: thread.id,
+        turnActionId: turnAction.id,
+        message,
+        reply,
+        intent: "smalltalk",
+        route: "chat-only",
+        nluConfidence,
+        mappedNluIntent,
+        nluSource: nluResult.source,
+        nluIntent: nlu?.intent ?? null,
+        nextStatus,
+        nextAction,
+        nextUi,
+        confirmPendingClientAction: Boolean(confirmPendingClientAction),
+        pendingClientActionType: pendingClientAction?.type ?? null,
+        routeReason,
+        guardReason: "explicit_service_complaint",
+        useNluIntent,
+        messageForRouting,
+        d,
+      });
+
+      return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d });
+    }
+
     if (
       chatActionResult?.source === "llm" &&
       chatActionResult.confidence >= 0.45 &&
@@ -461,9 +494,7 @@ export async function handlePublicAiChatPost(request: Request) {
       !isBookingOrAccountCue(t) &&
       consecutiveNonBookingTurns >= 12;
 
-    const bridgeFocusServiceName =
-      serviceByText(t, services)?.name ??
-      (d.serviceId ? services.find((s) => s.id === d.serviceId)?.name ?? null : null);
+    const bridgeFocusServiceName = serviceByText(t, services)?.name ?? null;
     const bridgeFocusDate = parseDate(messageForRouting, nowYmd) || d.date || null;
     const bridgeFocusTimePreference: "morning" | "day" | "evening" | null =
       /(утр|утром)/i.test(t) ? "morning" : /(вечер|вечером)/i.test(t) ? "evening" : /(днем|днём|после обеда)/i.test(t) ? "day" : null;
