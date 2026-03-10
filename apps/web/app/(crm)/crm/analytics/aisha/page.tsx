@@ -336,7 +336,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
     threadRouteMap.set(threadId, routes);
 
     if (p.actionType === "open_booking") threadOpenBookingMap.set(threadId, true);
-    if (p.nextStatus === "COMPLETED" || p.intent === "confirm") threadCompletedMap.set(threadId, true);
+    if (p.nextStatus === "COMPLETED") threadCompletedMap.set(threadId, true);
   }
 
   const filteredThreadIds = threadsMeta
@@ -941,7 +941,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
               const threadHasBookingOpen = turnPayloads.some((p) => p.actionType === "open_booking");
               const threadHasCompleted =
                 thread.bookingDraft?.status === "COMPLETED" ||
-                turnPayloads.some((p) => p.nextStatus === "COMPLETED" || p.intent === "confirm");
+                turnPayloads.some((p) => p.nextStatus === "COMPLETED");
               const threadIntents = [
                 ...new Set(turnPayloads.map((p) => p.intent).filter((x): x is string => Boolean(x))),
               ].slice(0, 8);
