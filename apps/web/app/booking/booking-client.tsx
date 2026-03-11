@@ -2679,7 +2679,7 @@ export default function BookingClient({
         });
       }
 
-      await fetchJson<{ appointmentId: number }>(
+      const { appointmentId } = await fetchJson<{ appointmentId: number }>(
         buildUrl("/api/v1/public/booking/appointments", { account: accountSlug ?? "" }),
         {
           method: "POST",
@@ -2709,6 +2709,7 @@ export default function BookingClient({
         stepKey: "completed",
         stepIndex: stepsWithScenario.length,
         stepTitle: "Завершено записью",
+        payload: { appointmentId },
       });
       setSubmitSuccess(true);
       idempotencyKeyRef.current = null;

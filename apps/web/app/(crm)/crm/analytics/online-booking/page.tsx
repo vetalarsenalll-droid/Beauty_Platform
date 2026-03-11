@@ -58,6 +58,30 @@ function formatYmdReadable(ymd: string) {
   return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short", year: "numeric" }).format(dt);
 }
 
+function splitStepsByCompletion<T extends { stepKey?: string | null }>(steps: T[]) {
+  if (!steps.length) return [];
+  const segments: Array<{ steps: T[]; completed: boolean; appointmentId: number | null }> = [];
+  let current: T[] = [];
+  for (const step of steps) {
+    current.push(step);
+    if (step.stepKey === "completed") {
+      const appointmentId = extractAppointmentIdFromStep(step);
+      segments.push({ steps: current, completed: true, appointmentId });
+      current = [];
+    }
+  }
+  if (current.length) {
+    segments.push({ steps: current, completed: false, appointmentId: null });
+  }
+  return segments;
+}
+
+function extractAppointmentIdFromStep(step: any) {
+  const raw = step?.payload?.appointmentId ?? step?.payload?.appointment_id ?? null;
+  const num = Number(raw);
+  return Number.isInteger(num) && num > 0 ? num : null;
+}
+
 function pickParam(raw: SearchParamsShape, key: string) {
   const value = raw[key];
   if (Array.isArray(value)) return value[0] ?? "";
@@ -325,15 +349,19 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
   const locationIds = new Set<number>();
   const serviceIds = new Set<number>();
   const specialistIds = new Set<number>();
+  const appointmentIdsFromSteps = new Set<number>();
   for (const sessionItem of sessions) {
     for (const step of sessionItem.steps) {
       if (step.locationId) locationIds.add(step.locationId);
       if (step.serviceId) serviceIds.add(step.serviceId);
       if (step.specialistId) specialistIds.add(step.specialistId);
+      const apptId = extractAppointmentIdFromStep(step);
+      if (apptId) appointmentIdsFromSteps.add(apptId);
     }
+    if (sessionItem.appointmentId) appointmentIdsFromSteps.add(sessionItem.appointmentId);
   }
 
-  const [locations, services, specialists] = await Promise.all([
+  const [locations, services, specialists, appointmentDetails] = await Promise.all([
     locationIds.size
       ? prisma.location.findMany({
           where: { accountId, id: { in: Array.from(locationIds) } },
@@ -352,6 +380,20 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
           select: { id: true, user: { select: { profile: { select: { firstName: true, lastName: true } } } } },
         })
       : Promise.resolve([]),
+    appointmentIdsFromSteps.size
+      ? prisma.appointment.findMany({
+          where: { accountId, id: { in: Array.from(appointmentIdsFromSteps) } },
+          select: {
+            id: true,
+            startAt: true,
+            status: true,
+            client: { select: { firstName: true, lastName: true, phone: true } },
+            location: { select: { name: true } },
+            specialist: { select: { user: { select: { profile: { select: { firstName: true, lastName: true } } } } } },
+            services: { select: { service: { select: { name: true } } } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const locationMap = new Map(locations.map((item) => [item.id, item.name]));
@@ -362,6 +404,30 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
       [item.user.profile?.firstName, item.user.profile?.lastName].filter(Boolean).join(" "),
     ])
   );
+  const appointmentMap = new Map(appointmentDetails.map((item) => [item.id, item]));
+
+  const bookingCards = sessions.flatMap((sessionItem: any) => {
+    const segments = splitStepsByCompletion(sessionItem.steps);
+    const lastCompletedIndex = segments.reduce((acc, seg, i) => (seg.completed ? i : acc), -1);
+    return segments
+      .filter((seg) => {
+        if (status === "completed") return seg.completed;
+        if (status === "incomplete") return !seg.completed;
+        return true;
+      })
+      .map((seg, idx) => {
+        const appointmentId =
+          seg.appointmentId ?? (seg.completed && idx === lastCompletedIndex ? sessionItem.appointmentId : null);
+        const appointment = appointmentId ? appointmentMap.get(appointmentId) : null;
+        return {
+          appointmentId,
+          appointment,
+          steps: seg.steps,
+          completed: seg.completed,
+          session: sessionItem,
+        };
+      });
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -488,16 +554,23 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <div className="mt-4 space-y-4">
-          {sessions.map((item: any) => {
-            const clientName = item.appointment?.client
-              ? [item.appointment.client.firstName, item.appointment.client.lastName]
-                  .filter(Boolean)
-                  .join(" ")
+          {[...bookingCards].sort((a: any, b: any) => {
+            const aLast = a.steps[a.steps.length - 1]?.createdAt ?? a.session?.lastSeenAt ?? a.session?.startedAt;
+            const bLast = b.steps[b.steps.length - 1]?.createdAt ?? b.session?.lastSeenAt ?? b.session?.startedAt;
+            const aTime = aLast ? new Date(aLast).getTime() : 0;
+            const bTime = bLast ? new Date(bLast).getTime() : 0;
+            return bTime - aTime;
+          }).map((item: any, index: number) => {
+            const appointment = item.appointment ?? null;
+            const clientName = appointment?.client
+              ? [appointment.client.firstName, appointment.client.lastName].filter(Boolean).join(" ")
               : null;
-            const appointmentService = item.appointment?.services?.[0]?.service?.name ?? null;
+            const appointmentService = appointment?.services?.[0]?.service?.name ?? null;
+            const firstStepAt = item.steps[0]?.createdAt ?? null;
+            const lastStepAt = item.steps[item.steps.length - 1]?.createdAt ?? null;
             return (
               <details
-                key={item.id}
+                key={`${item.session?.id ?? "session"}-${item.appointmentId ?? "no"}-${index}`}
                 className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4"
               >
                 <summary className="cursor-pointer list-none">
@@ -507,20 +580,18 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
                         {item.appointmentId ? `Запись #${item.appointmentId}` : "Попытка записи"}
                       </div>
                       <div className="text-xs text-[color:var(--bp-muted)]">
-                        Старт: {fDateTime(item.startedAt)} · Последняя активность:{" "}
-                        {fDateTime(item.lastSeenAt)}
+                        Старт: {firstStepAt ? fDateTime(firstStepAt) : fDateTime(item.session.startedAt)} · Последняя активность:{" "}
+                        {lastStepAt ? fDateTime(lastStepAt) : fDateTime(item.session.lastSeenAt)}
                       </div>
-                      {clientName || item.appointment?.client?.phone ? (
+                      {clientName || appointment?.client?.phone ? (
                         <div className="text-xs text-[color:var(--bp-muted)]">
                           Клиент: {clientName || "Без имени"}
-                          {item.appointment?.client?.phone ? ` · ${item.appointment.client.phone}` : ""}
+                          {appointment?.client?.phone ? ` · ${appointment.client.phone}` : ""}
                         </div>
                       ) : null}
                     </div>
                     <div className="text-xs text-[color:var(--bp-muted)]">
-                      {item.appointment?.startAt
-                        ? `Дата записи: ${fDateTime(item.appointment.startAt)}`
-                        : "Запись не завершена"}
+                      {appointment?.startAt ? `Дата записи: ${fDateTime(appointment.startAt)}` : "Запись не завершена"}
                     </div>
                   </div>
                 </summary>
@@ -531,24 +602,24 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
                       Услуга в записи: {appointmentService}
                     </div>
                   ) : null}
-                  {item.appointment?.location?.name ||
-                  item.appointment?.specialist?.user?.profile?.firstName ||
-                  item.appointment?.specialist?.user?.profile?.lastName ? (
+                  {appointment?.location?.name ||
+                  appointment?.specialist?.user?.profile?.firstName ||
+                  appointment?.specialist?.user?.profile?.lastName ? (
                     <div className="text-xs text-[color:var(--bp-muted)]">
-                      {item.appointment?.location?.name
-                        ? `Локация: ${item.appointment.location.name}`
+                      {appointment?.location?.name
+                        ? `Локация: ${appointment.location.name}`
                         : ""}
-                      {item.appointment?.location?.name &&
-                      (item.appointment?.specialist?.user?.profile?.firstName ||
-                        item.appointment?.specialist?.user?.profile?.lastName)
+                      {appointment?.location?.name &&
+                      (appointment?.specialist?.user?.profile?.firstName ||
+                        appointment?.specialist?.user?.profile?.lastName)
                         ? " · "
                         : ""}
-                      {item.appointment?.specialist?.user?.profile ? (
+                      {appointment?.specialist?.user?.profile ? (
                         <>
                           Специалист:{" "}
                           {[
-                            item.appointment.specialist.user.profile.firstName,
-                            item.appointment.specialist.user.profile.lastName,
+                            appointment.specialist.user.profile.firstName,
+                            appointment.specialist.user.profile.lastName,
                           ]
                             .filter(Boolean)
                             .join(" ")}
@@ -561,7 +632,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
                     <div className="text-xs font-semibold text-[color:var(--bp-muted)]">
                       Шаги онлайн-записи
                     </div>
-                    <div className="mt-2 space-y-2">
+                    <div className="mt-2 space-y-3">
                       {item.steps.length === 0 ? (
                         <div className="text-xs text-[color:var(--bp-muted)]">Шаги не зафиксированы.</div>
                       ) : (
@@ -588,9 +659,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
                             <div key={step.id} className="text-xs">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-semibold">{step.stepTitle || step.stepKey}</span>
-                                <span className="text-[color:var(--bp-muted)]">
-                                  {fDateTime(step.createdAt)}
-                                </span>
+                                <span className="text-[color:var(--bp-muted)]">{fDateTime(step.createdAt)}</span>
                               </div>
                               {parts.length ? (
                                 <div className="text-[color:var(--bp-muted)]">{parts.join(" · ")}</div>
