@@ -9,7 +9,8 @@ type QuickReply = { label: string; value: string; href?: string };
 type ChatUi =
   | { kind: "quick_replies"; options: QuickReply[] }
   | { kind: "consent"; options: QuickReply[]; legalLinks: string[]; consentValue: string }
-  | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null };
+  | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null }
+  | { kind: "complaint_form"; placeholder?: string; submitLabel?: string; minLength?: number; maxLength?: number };
 type ChatMessage = Message & { ui?: ChatUi | null };
 
 type StoredThreadState = { threadId: number; threadKey: string | null };
@@ -241,6 +242,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [dateByMessage, setDateByMessage] = useState<Record<string, string>>({});
   const [dateMonthByMessage, setDateMonthByMessage] = useState<Record<string, string>>({});
   const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
+  const [complaintTextByMessage, setComplaintTextByMessage] = useState<Record<string, string>>({});
   const [currentMode, setCurrentMode] = useState<"light" | "dark">(themeMode ?? "light");
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -556,7 +558,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       const isStructuredReply =
         Boolean(
           assistantUi &&
-            ((assistantUi.kind === "quick_replies" && assistantUi.options.length > 0) || assistantUi.kind === "consent" || assistantUi.kind === "date_picker"),
+            ((assistantUi.kind === "quick_replies" && assistantUi.options.length > 0) ||
+              assistantUi.kind === "consent" ||
+              assistantUi.kind === "date_picker" ||
+              assistantUi.kind === "complaint_form"),
         ) ||
         extractQuickReplies(assistantReply).length > 0;
       if (isStructuredReply) {
@@ -625,6 +630,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     }
     setMessages([]);
     setConsentCheckedByMessage({});
+    setComplaintTextByMessage({});
   };
 
   const rootClass = mode === "floating" ? "public-ai-widget fixed z-[140]" : `public-ai-widget absolute z-[1] ${className ?? ""}`;
@@ -713,6 +719,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   msg.role === "assistant" &&
                   (ui?.kind === "consent" || /согласие на обработку персональных данных/i.test(msg.content));
                 const consentChecked = consentCheckedByMessage[messageKey] ?? false;
+                const complaintPlaceholder = ui?.kind === "complaint_form" ? ui.placeholder ?? "Опишите вашу жалобу" : "Опишите вашу жалобу";
+                const complaintSubmitLabel = ui?.kind === "complaint_form" ? ui.submitLabel ?? "Отправить" : "Отправить";
+                const complaintMinLength = ui?.kind === "complaint_form" && typeof ui.minLength === "number" ? ui.minLength : 6;
+                const complaintMaxLength = ui?.kind === "complaint_form" && typeof ui.maxLength === "number" ? ui.maxLength : 800;
+                const complaintValue = complaintTextByMessage[messageKey] ?? "";
+                const canSubmitComplaint = complaintValue.trim().length >= complaintMinLength && !loading && isLastAssistant;
                 const datePickerValue =
                   ui?.kind === "date_picker"
                     ? dateByMessage[messageKey] ?? ui.initialDate ?? ""
@@ -1018,6 +1030,53 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                         </button>
                       </div>
                     ) : null}
+                    {ui?.kind === "complaint_form" && !isTypingThis ? (
+                      <div className={consentShellClass}>
+                        <textarea
+                          value={complaintValue}
+                          rows={3}
+                          maxLength={complaintMaxLength}
+                          onChange={(event) =>
+                            setComplaintTextByMessage((prev) => ({
+                              ...prev,
+                              [messageKey]: event.target.value,
+                            }))
+                          }
+                          placeholder={complaintPlaceholder}
+                          className={`w-full resize-none rounded-lg border px-3 py-2 text-xs outline-none ${
+                            currentMode === "dark"
+                              ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)] placeholder:text-[color:var(--ai-muted,#94a3b8)]"
+                              : "border-[color:var(--ai-border,#d1d5db)] bg-white text-[color:var(--ai-text,#111827)] placeholder:text-[color:var(--ai-muted,#6b7280)]"
+                          }`}
+                        />
+                        <div className="mt-1 flex items-center justify-between text-[10px] text-[color:var(--ai-muted,#6b7280)]">
+                          <span>
+                            Минимум {complaintMinLength} символов
+                          </span>
+                          <span>
+                            {complaintValue.length}/{complaintMaxLength}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={!canSubmitComplaint}
+                          onClick={() => {
+                            const trimmed = complaintValue.trim();
+                            if (trimmed.length < complaintMinLength) return;
+                            setComplaintTextByMessage((prev) => ({ ...prev, [messageKey]: "" }));
+                            void sendRawMessage(trimmed);
+                          }}
+                          style={buttonRadiusStyle}
+                          className={`mt-2 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                            currentMode === "dark"
+                              ? "bg-[color:var(--ai-button,#1f2937)] text-[color:var(--ai-button-text,#f9fafb)] ring-1 ring-[color:var(--ai-border,#334155)]"
+                              : "bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]"
+                          }`}
+                        >
+                          {complaintSubmitLabel}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })()
@@ -1091,7 +1150,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           <span className="whitespace-nowrap">{fabLabel}</span>
         </button>
       )}
-      <style jsx>{`
+      <style jsx global>{`
         .aisha-chat-scroll {
           scrollbar-width: thin;
           scrollbar-color: var(--ai-quick-reply-button, var(--ai-button, #111827)) transparent;

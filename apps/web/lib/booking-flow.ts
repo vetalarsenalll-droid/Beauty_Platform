@@ -37,7 +37,8 @@ const norm = (v: string) =>
 export type ChatUi =
   | { kind: "quick_replies"; options: ChatUiOption[] }
   | { kind: "consent"; options: ChatUiOption[]; legalLinks: string[]; consentValue: string }
-  | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null };
+  | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null }
+  | { kind: "complaint_form"; placeholder?: string; submitLabel?: string; minLength?: number; maxLength?: number };
 
 type FlowCtx = {
   messageNorm: string;

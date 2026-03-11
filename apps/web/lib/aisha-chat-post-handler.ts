@@ -163,6 +163,7 @@ export async function handlePublicAiChatPost(request: Request) {
 
 
       explicitServiceComplaint,
+      complaintFollowUp,
 
 
 
@@ -277,9 +278,23 @@ export async function handlePublicAiChatPost(request: Request) {
     }
 
     if (explicitServiceComplaint) {
-      const reply =
-        "Сожалею, что так вышло. Опишите, пожалуйста, что именно не устроило: услуга, мастер, дата/время. Я передам информацию администратору.";
-      const nextUi: ChatUi | null = null;
+      const shouldConfirmComplaint =
+        complaintFollowUp &&
+        !explicitBookingText &&
+        !hasClientActionCue &&
+        !explicitDateTimeQuery;
+      const reply = shouldConfirmComplaint
+        ? "Спасибо! Жалоба будет рассмотрена."
+        : "Сожалею, что так вышло. Опишите, пожалуйста, что именно не устроило: услуга, мастер, дата/время. Я передам информацию руководителю.";
+      const nextUi: ChatUi | null = shouldConfirmComplaint
+        ? null
+        : {
+            kind: "complaint_form",
+            placeholder: "Опишите вашу жалобу",
+            submitLabel: "Отправить",
+            minLength: 6,
+            maxLength: 800,
+          };
       const nextStatus = d.status;
       const nextAction: Action = null;
 
@@ -300,7 +315,7 @@ export async function handlePublicAiChatPost(request: Request) {
         confirmPendingClientAction: Boolean(confirmPendingClientAction),
         pendingClientActionType: pendingClientAction?.type ?? null,
         routeReason,
-        guardReason: "explicit_service_complaint",
+        guardReason: shouldConfirmComplaint ? "complaint_follow_up" : "explicit_service_complaint",
         useNluIntent,
         messageForRouting,
         d,
@@ -786,7 +801,7 @@ export async function handlePublicAiChatPost(request: Request) {
           }
         } else if (isServiceComplaintMessage(t)) {
           reply =
-            "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение администратору. Также могу подобрать запись к другому мастеру.";
+            "Сожалею, что так вышло. Пожалуйста, опишите, что именно не устроило, и я передам обращение руководителю. Также могу подобрать запись к другому мастеру.";
         } else if (explicitServicesFollowUp || selectedServiceCategoryFilter) {
           reply = `${locationPrefix}${specialistPrefix}${categoryPrefix}Доступные услуги ниже. Выберите нужную кнопкой.`;
           nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedBySpecialist, servicesByCategory) };

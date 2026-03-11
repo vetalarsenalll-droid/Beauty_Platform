@@ -17,6 +17,7 @@ type TurnPayload = {
   actionType?: string | null;
   nluSource?: string | null;
   nextStatus?: string | null;
+  guardReason?: string | null;
 };
 
 type TopicFilter = "all" | "booking" | "services" | "specialists" | "complaints" | "smalltalk";
@@ -25,18 +26,28 @@ type BookingFilter = "all" | "with_booking" | "completed_booking" | "without_boo
 type SearchParamsShape = Record<string, string | string[] | undefined>;
 
 const COMPLAINT_KEYWORDS = [
-  "не понрав",
-  "жалоб",
-  "претензи",
-  "плохо",
-  "ужас",
-  "испорти",
-  "криво",
-  "грубо",
-  "хам",
-  "некачествен",
-  "недоволь",
+  "?? ??????",
+  "?????",
+  "???????",
+  "?????",
+  "????",
+  "???????",
+  "?????",
+  "????",
+  "??????",
+  "???",
+  "??????",
+  "??????",
+  "???????????",
+  "???????",
+  "???????",
+  "???????",
+  "????? ????",
+  "???????",
+  "???????",
 ];
+
+const COMPLAINT_GUARD_REASONS = new Set(["explicit_service_complaint", "complaint_follow_up"]);
 
 const SERVICE_KEYWORDS = ["услуг", "цена", "стоим", "прайс", "маник", "педик", "ресниц", "бров"];
 const SPECIALIST_KEYWORDS = ["специал", "мастер", "кто делает", "кто выполняет"];
@@ -52,6 +63,7 @@ function asPayload(value: unknown): TurnPayload {
     actionType: typeof v.actionType === "string" ? v.actionType : null,
     nluSource: typeof v.nluSource === "string" ? v.nluSource : null,
     nextStatus: typeof v.nextStatus === "string" ? v.nextStatus : null,
+    guardReason: typeof v.guardReason === "string" ? v.guardReason : null,
   };
 }
 
@@ -322,6 +334,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
   const threadRouteMap = new Map<number, Set<string>>();
   const threadOpenBookingMap = new Map<number, boolean>();
   const threadCompletedMap = new Map<number, boolean>();
+  const complaintThreadIdsFromActions = new Set<number>();
 
   for (const action of actionsPeriod) {
     if (typeof action.threadId !== "number") continue;
@@ -337,6 +350,10 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
 
     if (p.actionType === "open_booking") threadOpenBookingMap.set(threadId, true);
     if (p.nextStatus === "COMPLETED") threadCompletedMap.set(threadId, true);
+    if (p.guardReason && COMPLAINT_GUARD_REASONS.has(p.guardReason)) complaintThreadIdsFromActions.add(threadId);
+  }
+  for (const id of complaintThreadIdsFromActions) {
+    if (existingThreadIds.has(id)) complaintThreadIds.add(id);
   }
 
   const filteredThreadIds = threadsMeta
@@ -934,9 +951,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
         <div className="mt-4 flex flex-col gap-3" suppressHydrationWarning>
           {pageThreads.length ? (
             pageThreads.map((thread) => {
-              const threadComplaint = thread.messages.some(
-                (m) => m.role === "user" && isComplaintText(m.content),
-              );
+              const threadComplaint = complaintThreadIds.has(thread.id);
               const turnPayloads = thread.actions.map((a) => asPayload(a.payload));
               const threadHasBookingOpen = turnPayloads.some((p) => p.actionType === "open_booking");
               const threadHasCompleted =

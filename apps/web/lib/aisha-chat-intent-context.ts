@@ -67,6 +67,7 @@ export function buildIntentContext(args: {
   explicitSpecialistsListCue: boolean;
   explicitSpecialistsShortCue: boolean;
   explicitServiceComplaint: boolean;
+  complaintFollowUp: boolean;
   explicitIdentityCue: boolean;
   explicitAssistantQualification: boolean;
   explicitAssistantRoleCue: boolean;
@@ -264,7 +265,7 @@ export function buildIntentContext(args: {
 
   const complaintContextActive =
     routing.isServiceComplaintMessage(norm(previousUserText)) ||
-    /уточните.*не понравилось|опишите.*не устроило|передам.*администратору/i.test(lastAssistantText);
+    /уточните.*не понравилось|опишите.*не устроило|передам.*(администратору|руководителю)/i.test(lastAssistantText);
   const isTrivialAck = /^(спасибо|ок|окей|понятно|хорошо|ладно|ясно)$/i.test(messageForRouting.trim());
   const complaintFollowUp =
     !explicitServiceComplaint &&
@@ -480,6 +481,7 @@ export function buildIntentContext(args: {
     explicitSpecialistsListCue,
     explicitSpecialistsShortCue,
     explicitServiceComplaint,
+    complaintFollowUp,
     explicitIdentityCue,
     explicitAssistantQualification,
     explicitAssistantRoleCue,
