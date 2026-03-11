@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type StaffMember = {
   id: number;
@@ -263,6 +263,9 @@ export default function ScheduleView({
   const [activeStaffMenu, setActiveStaffMenu] = useState<number | null>(null);
   const [nonWorkingTypes] = useState<NonWorkingType[]>(initialTypes);
   const [conflictModal, setConflictModal] = useState<ScheduleConflict[] | null>(null);
+  const scheduleScrollRef = useRef<HTMLDivElement | null>(null);
+  const topScrollRef = useRef<HTMLDivElement | null>(null);
+  const syncingScrollRef = useRef(false);
 
   const [mobileSection, setMobileSection] = useState<"schedule" | "staff">("schedule");
   const [mobileStaffId, setMobileStaffId] = useState<number | null>(staff[0]?.id ?? null);
@@ -333,6 +336,12 @@ export default function ScheduleView({
     });
     return totals;
   }, [entries]);
+
+  const calendarMinWidth = useMemo(() => `${days.length * 90}px`, [days.length]);
+  const calendarGridTemplate = useMemo(
+    () => (days.length <= 7 ? `repeat(${days.length}, minmax(90px, 1fr))` : `repeat(${days.length}, 90px)`),
+    [days.length]
+  );
 
   const dayCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -675,16 +684,16 @@ const handleCopy = async () => {
 
   const entryStyles = (entry: ScheduleEntry | undefined) => {
     // ✅ пустая ячейка = не работает
-    if (!entry) return "bg-slate-50 border-slate-200 text-slate-500";
+    if (!entry) return "bg-slate-50 text-slate-500";
 
-    if (entry.type === "WORKING") return "bg-emerald-50 border-emerald-200";
-    if (entry.type === "SICK") return "bg-indigo-50 border-indigo-200";
-    if (entry.type === "VACATION") return "bg-amber-50 border-amber-200";
-    if (entry.type === "UNPAID_OFF") return "bg-slate-50 border-slate-200";
-    if (entry.type === "NO_SHOW") return "bg-rose-50 border-rose-200";
-    if (entry.type === "PAID_OFF") return "bg-yellow-50 border-yellow-200";
-    if (entry.type === "CUSTOM" && entry.customType?.color) return "border-transparent";
-    return "bg-gray-50 border-gray-200";
+    if (entry.type === "WORKING") return "bg-emerald-50 text-emerald-800";
+    if (entry.type === "SICK") return "bg-indigo-50 text-indigo-800";
+    if (entry.type === "VACATION") return "bg-amber-50 text-amber-800";
+    if (entry.type === "UNPAID_OFF") return "bg-slate-100 text-slate-700";
+    if (entry.type === "NO_SHOW") return "bg-rose-50 text-rose-800";
+    if (entry.type === "PAID_OFF") return "bg-yellow-50 text-yellow-800";
+    if (entry.type === "CUSTOM" && entry.customType?.color) return "text-white";
+    return "bg-gray-50 text-slate-700";
   };
 
   return (
@@ -876,7 +885,7 @@ const handleCopy = async () => {
                 return (
                   <div
                     key={person.id}
-                    className="relative flex h-[88px] items-center overflow-hidden px-4 py-3 text-sm leading-tight"
+                    className="relative flex h-[88px] items-center px-4 py-3 text-sm leading-tight"
                   >
                     <div className="flex flex-1 items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--bp-chip)] text-xs font-semibold">
@@ -915,7 +924,10 @@ const handleCopy = async () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setActiveStaffMenu(null)}
+                              onClick={() => {
+                                window.location.href = `/crm/specialists/${person.id}`;
+                                setActiveStaffMenu(null);
+                              }}
                               className="w-full rounded-xl px-3 py-2 text-left hover:bg-[color:var(--sidebar-item)]"
                             >
                               Редактировать сотрудника
@@ -930,12 +942,40 @@ const handleCopy = async () => {
             </div>
           </div>
 
-          <div className={`flex-1 overflow-auto ${mobileSection === "schedule" ? "block" : "hidden"} lg:block`}>
-            <div className="min-w-[640px] sm:min-w-[980px]">
+          <div className={`flex-1 min-w-0 ${mobileSection === "schedule" ? "block" : "hidden"} lg:block`}>
+            <div
+              ref={topScrollRef}
+              onScroll={() => {
+                if (syncingScrollRef.current) return;
+                syncingScrollRef.current = true;
+                if (scheduleScrollRef.current && topScrollRef.current) {
+                  scheduleScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+                }
+                syncingScrollRef.current = false;
+              }}
+              className="mb-2 h-3 overflow-x-auto overflow-y-hidden"
+              aria-hidden
+            >
+              <div className="h-px min-w-[640px] sm:min-w-[980px]" style={{ minWidth: calendarMinWidth }} />
+            </div>
+
+            <div
+              ref={scheduleScrollRef}
+              onScroll={() => {
+                if (syncingScrollRef.current) return;
+                syncingScrollRef.current = true;
+                if (scheduleScrollRef.current && topScrollRef.current) {
+                  topScrollRef.current.scrollLeft = scheduleScrollRef.current.scrollLeft;
+                }
+                syncingScrollRef.current = false;
+              }}
+              className="max-w-full overflow-x-auto overflow-y-hidden"
+            >
+              <div className="min-w-[640px] sm:min-w-[980px]" style={{ minWidth: calendarMinWidth }}>
               <div
                 className="grid h-[64px] border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-xs font-medium text-[color:var(--bp-muted)]"
                 style={{
-                  gridTemplateColumns: `repeat(${days.length}, minmax(90px, 1fr))`,
+                  gridTemplateColumns: calendarGridTemplate,
                 }}
               >
                 {days.map((day) => {
@@ -974,7 +1014,7 @@ const handleCopy = async () => {
                     key={person.id}
                     className={`${isMobileVisible ? "grid" : "hidden"} h-[88px] border-b border-[color:var(--bp-stroke)] lg:grid`}
                     style={{
-                      gridTemplateColumns: `repeat(${days.length}, minmax(90px, 1fr))`,
+                      gridTemplateColumns: calendarGridTemplate,
                     }}
                   >
                     {days.map((day) => {
@@ -996,20 +1036,36 @@ const handleCopy = async () => {
                               event.shiftKey || event.ctrlKey || event.metaKey
                             )
                           }
-                          className={`flex h-full items-center justify-center border-r border-[color:var(--bp-stroke)] px-2 py-3 last:border-r-0 ${
+                          className={`relative flex h-full items-center justify-center border-r border-[color:var(--bp-stroke)] p-0 last:border-r-0 ${
                             isDateSelected ? "bg-[color:var(--bp-accent-soft)]/40" : "bg-transparent"
-                          } ${isSelected ? "outline outline-2 outline-[color:var(--bp-accent)]/60" : ""}`}
+                          } ${
+                            isSelected
+                              ? "outline outline-1 outline-[color:var(--bp-accent)] z-10"
+                              : ""
+                          }`}
                         >
                           {label ? (
                             <div
-                              className={`w-full rounded-xl border px-2 py-2 text-xs ${entryStyles(entry)}`}
+                              className={`relative z-[1] flex h-full w-full flex-col items-center justify-center px-2 py-2 text-center border-0 rounded-none text-xs leading-tight ${entryStyles(entry)} ${
+                                isSelected ? "bg-transparent" : ""
+                              }`}
                               style={
                                 entry?.type === "CUSTOM" && entry.customType?.color
                                   ? { backgroundColor: entry.customType.color, color: "#fff" }
                                   : undefined
                               }
                             >
-                              <div className="truncate">{label}</div>
+                              <div
+                                className="break-words whitespace-normal"
+                                style={{
+                                  display: "-webkit-box",
+                                  WebkitBoxOrient: "vertical",
+                                  WebkitLineClamp: 2,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {label}
+                              </div>
                               {entry?.type === "WORKING" && entry.breaks.length > 0 ? (
                                 <div className="mt-1 text-[10px] text-[color:var(--bp-muted)]">
                                   Перерывы: {entry.breaks.length}
@@ -1024,6 +1080,7 @@ const handleCopy = async () => {
                 );
               })}
             </div>
+          </div>
           </div>
 
           {(activeCell || selectedCells.length > 0) && locationId ? (
