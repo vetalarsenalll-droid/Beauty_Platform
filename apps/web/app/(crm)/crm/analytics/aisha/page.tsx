@@ -82,8 +82,20 @@ function fInt(value: number) {
 function toPct(value: number, total: number) {
   if (!total) return "0%";
   const pct = (value / total) * 100;
-  if (pct > 0 && pct < 1) return "<1%";
-  return `${Math.round(pct)}%`;
+  if (pct > 0 && pct < 1) {
+    return `${new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(pct)}%`;
+  }
+  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(pct))}%`;
+}
+
+function formatDayLabel(ymd: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return ymd;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
+  return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short", year: "numeric" }).format(dt);
 }
 
 function routeLabel(route: string) {
@@ -562,8 +574,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
   }
   const trendRows = [...trendByDay.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-    .slice(0, 14)
-    .map(([day, stats]) => ({ day, ...stats }));
+    .map(([day, stats]) => ({ day, dayLabel: formatDayLabel(day), ...stats }));
 
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const reqPage = parsePositiveInt(pickParam(rawParams, "page"), 1);
@@ -740,7 +751,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
           <div className="text-sm text-[color:var(--bp-muted)]">Записи из Аиши</div>
           <div className="mt-2 text-2xl font-semibold">{fInt(completedThreadIds.size)}</div>
           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-            Завершено диалогов: {fInt(completedThreadIds.size)}, фактических записей (source=ai_assistant): {fInt(factualAiAppointments)}, переходов к записи: {fInt(openBookingTurns)}, шагов в сценарии записи: {fInt(bookingFlowTurns)}
+            Завершено диалогов: {fInt(completedThreadIds.size)}. Фактические записи: {fInt(factualAiAppointments)}. Переходы к записи: {fInt(openBookingTurns)}. Сообщения в сценарии записи: {fInt(bookingFlowTurns)}
           </div>
         </article>
       </section>
@@ -806,17 +817,19 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
               ["Выбран специалист", funnel.specialistChosen],
               ["Ожидают согласия/подтверждения", funnel.waitingConsent],
               ["Завершено записью", funnel.completed],
-            ].map(([label, value]) => {
+            ]
+            .map(([label, value]) => {
               const v = Number(value);
-              const pct = funnel.started > 0 ? Math.round((v / funnel.started) * 100) : 0;
+              const pctValue = funnel.started > 0 ? (v / funnel.started) * 100 : 0;
+              const pctLabel = toPct(v, funnel.started);
               return (
                 <div key={String(label)} className="grid gap-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[color:var(--bp-muted)]">{label}</span>
-                    <span className="font-medium">{fInt(v)} ({pct}%)</span>
+                    <span className="font-medium">{fInt(v)} ({pctLabel})</span>
                   </div>
                   <div className="h-2 rounded-full bg-[color:var(--bp-soft)]">
-                    <div className="h-2 rounded-full bg-[color:var(--bp-accent)]" style={{ width: `${pct}%` }} />
+                    <div className="h-2 rounded-full bg-[color:var(--bp-accent)]" style={{ width: `${pctValue}%` }} />
                   </div>
                 </div>
               );
@@ -865,8 +878,8 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
         className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]"
         suppressHydrationWarning
       >
-        <h2 className="text-lg font-semibold">Тренд по дням (последние 14 дней)</h2>
-        <div className="mt-3 overflow-x-auto">
+        <h2 className="text-lg font-semibold">Тренд по дням</h2>
+        <div className="mt-3 w-full overflow-x-auto">
           <table className="w-full min-w-[540px] text-sm">
             <thead>
               <tr className="text-left text-[color:var(--bp-muted)]">
@@ -881,7 +894,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
               {trendRows.length ? (
                 trendRows.map((row) => (
                   <tr key={row.day} className="border-t border-[color:var(--bp-stroke)]">
-                    <td className="py-2 pr-3">{row.day}</td>
+                    <td className="py-2 pr-3">{row.dayLabel}</td>
                     <td className="py-2 pr-3">{fInt(row.total)}</td>
                     <td className="py-2 pr-3">{fInt(row.complaints)}</td>
                     <td className="py-2 pr-3">{fInt(row.completed)}</td>
