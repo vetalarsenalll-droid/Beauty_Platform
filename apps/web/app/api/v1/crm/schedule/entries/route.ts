@@ -17,6 +17,11 @@ type EntryPayload = {
   breaks?: BreakPayload[];
 };
 
+type ScheduleRequest = {
+  entries: EntryPayload[];
+  forceReplaceLocation?: boolean;
+};
+
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
@@ -165,6 +170,11 @@ export async function POST(request: Request) {
     return jsonError("INVALID_BODY", "Invalid request body.", null, 400);
   }
 
+  const forceReplaceLocation =
+    isRecord(body) && typeof body.forceReplaceLocation === "boolean"
+      ? body.forceReplaceLocation
+      : false;
+
   const rawEntries =
     isRecord(body) && Array.isArray(body.entries) ? body.entries : [body];
 
@@ -197,6 +207,91 @@ export async function POST(request: Request) {
   // ✅ НОВАЯ ЛОГИКА: запрет “перетирания” рабочего дня в другой локации
   const accountId = auth.session.accountId;
 
+  if (!forceReplaceLocation) {
+    const pairs = entries.map((entry) => {
+      const date = parseDate(entry.date);
+      if (!date) throw new Error("INVALID_DATE");
+      return {
+        specialistId: entry.specialistId,
+        date,
+        requestedLocationId: entry.locationId ?? null,
+      };
+    });
+
+    const existingEntries = await prisma.scheduleEntry.findMany({
+      where: {
+        accountId,
+        OR: pairs.map((pair) => ({
+          specialistId: pair.specialistId,
+          date: pair.date,
+        })),
+      },
+      select: { specialistId: true, date: true, locationId: true },
+    });
+
+    const existingMap = new Map<string, { locationId: number | null }>();
+    existingEntries.forEach((item) => {
+      const key = `${item.specialistId}-${item.date.toISOString().slice(0, 10)}`;
+      existingMap.set(key, { locationId: item.locationId ?? null });
+    });
+
+    const conflicts = pairs
+      .map((pair) => {
+        const key = `${pair.specialistId}-${pair.date.toISOString().slice(0, 10)}`;
+        const existing = existingMap.get(key);
+        if (!existing) return null;
+        if ((existing.locationId ?? null) === pair.requestedLocationId) return null;
+        return {
+          specialistId: pair.specialistId,
+          date: pair.date.toISOString().slice(0, 10),
+          existingLocationId: existing.locationId ?? null,
+          existingLocationName: "Другая локация",
+          requestedLocationId: pair.requestedLocationId,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    if (conflicts.length > 0) {
+      const locationIds = Array.from(
+        new Set(conflicts.map((c) => c.existingLocationId).filter((id) => id !== null))
+      ) as number[];
+      const locations =
+        locationIds.length > 0
+          ? await prisma.location.findMany({
+              where: { accountId, id: { in: locationIds } },
+              select: { id: true, name: true },
+            })
+          : [];
+      const locationMap = new Map(locations.map((l) => [l.id, l.name]));
+      conflicts.forEach((conflict) => {
+        if (conflict.existingLocationId == null) {
+          conflict.existingLocationName = "Без локации";
+          return;
+        }
+        conflict.existingLocationName =
+          locationMap.get(conflict.existingLocationId) ?? "Другая локация";
+      });
+
+      const first = conflicts[0];
+      return applyCrmAccessCookie(
+        jsonError(
+          "LOCATION_CONFLICT",
+          `Нельзя сохранить: у специалиста уже есть график на ${first.date} в локации "${first.existingLocationName}".`,
+          {
+            conflicts,
+            specialistId: first.specialistId,
+            date: first.date,
+            existingLocationId: first.existingLocationId,
+            existingLocationName: first.existingLocationName,
+            requestedLocationId: first.requestedLocationId,
+          },
+          409
+        ),
+        auth
+      );
+    }
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       for (const entry of entries) {
@@ -220,6 +315,54 @@ export async function POST(request: Request) {
           if (!existing) continue;
 
           if ((existing.locationId ?? null) !== requestedLocationId) {
+            if (!forceReplaceLocation) {
+              const existingLoc =
+                existing.locationId == null
+                  ? null
+                  : await tx.location.findFirst({
+                      where: { accountId, id: existing.locationId },
+                      select: { id: true, name: true },
+                    });
+
+              throw {
+                kind: "LOCATION_CONFLICT",
+                specialistId: entry.specialistId,
+                date: entry.date,
+                existingLocationId: existing.locationId,
+                existingLocationName:
+                  existing.locationId == null
+                    ? "Без локации"
+                    : existingLoc?.name ?? "Другая локация",
+                requestedLocationId,
+              };
+            }
+
+            await tx.scheduleEntry.deleteMany({
+              where: {
+                accountId,
+                specialistId: entry.specialistId,
+                date,
+              },
+            });
+
+            continue;
+          }
+
+          await tx.scheduleEntry.deleteMany({
+            where: {
+              accountId,
+              specialistId: entry.specialistId,
+              date,
+              locationId: requestedLocationId,
+            },
+          });
+
+          continue;
+        }
+
+        // ✅ Любой НЕ-DELETE: если уже есть запись на дату и локация отличается — конфликт
+        if (existing && (existing.locationId ?? null) !== requestedLocationId) {
+          if (!forceReplaceLocation) {
             const existingLoc =
               existing.locationId == null
                 ? null
@@ -241,39 +384,14 @@ export async function POST(request: Request) {
             };
           }
 
+          // forceReplaceLocation: удаляем запись в другой локации перед upsert
           await tx.scheduleEntry.deleteMany({
             where: {
               accountId,
               specialistId: entry.specialistId,
               date,
-              locationId: requestedLocationId,
             },
           });
-
-          continue;
-        }
-
-        // ✅ Любой НЕ-DELETE: если уже есть запись на дату и локация отличается — конфликт
-        if (existing && (existing.locationId ?? null) !== requestedLocationId) {
-          const existingLoc =
-            existing.locationId == null
-              ? null
-              : await tx.location.findFirst({
-                  where: { accountId, id: existing.locationId },
-                  select: { id: true, name: true },
-                });
-
-          throw {
-            kind: "LOCATION_CONFLICT",
-            specialistId: entry.specialistId,
-            date: entry.date,
-            existingLocationId: existing.locationId,
-            existingLocationName:
-              existing.locationId == null
-                ? "Без локации"
-                : existingLoc?.name ?? "Другая локация",
-            requestedLocationId,
-          };
         }
 
         // дальше обычный upsert (но только если нет конфликта)

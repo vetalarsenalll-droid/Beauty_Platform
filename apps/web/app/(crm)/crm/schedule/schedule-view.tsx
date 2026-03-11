@@ -38,6 +38,14 @@ type ScheduleEntry = {
   customType: NonWorkingType | null;
 };
 
+type ScheduleConflict = {
+  specialistId: number;
+  date: string;
+  existingLocationId: number | null;
+  existingLocationName: string;
+  requestedLocationId: number | null;
+};
+
 type ScheduleViewProps = {
   staff: StaffMember[];
   initialTypes: NonWorkingType[];
@@ -145,6 +153,17 @@ function formatMinutes(value: number) {
   return `${hours} ч ${minutes} мин`;
 }
 
+function formatDateRuShort(isoDate: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+  const [y, m, d] = isoDate.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+function isPastDateYmd(isoDate: string) {
+  const today = toIsoDate(new Date());
+  return isoDate < today;
+}
+
 function IconChevron({ direction }: { direction: "left" | "right" }) {
   return (
     <svg
@@ -243,6 +262,7 @@ export default function ScheduleView({
 
   const [activeStaffMenu, setActiveStaffMenu] = useState<number | null>(null);
   const [nonWorkingTypes] = useState<NonWorkingType[]>(initialTypes);
+  const [conflictModal, setConflictModal] = useState<ScheduleConflict[] | null>(null);
 
   const [mobileSection, setMobileSection] = useState<"schedule" | "staff">("schedule");
   const [mobileStaffId, setMobileStaffId] = useState<number | null>(staff[0]?.id ?? null);
@@ -270,6 +290,12 @@ export default function ScheduleView({
 
   const roles = useMemo(() => {
     return Array.from(new Set(staff.map((item) => item.role))).sort();
+  }, [staff]);
+
+  const staffNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    staff.forEach((person) => map.set(person.id, person.name));
+    return map;
   }, [staff]);
 
   const filteredStaff = useMemo(() => {
@@ -417,6 +443,11 @@ export default function ScheduleView({
     return new Set(baseCells.map((cell) => cell.date));
   }, [activeCell, selectedCells]);
 
+  const hasPastTarget = useMemo(() => {
+    const baseCells = selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
+    return baseCells.some((cell) => isPastDateYmd(cell.date));
+  }, [activeCell, selectedCells]);
+
   const targetCells = useMemo(() => {
     const baseCells = selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
     if (baseCells.length === 0) return [];
@@ -472,58 +503,124 @@ export default function ScheduleView({
     !!locationId &&
     targetCells.length > 0 &&
     !pending &&
+    !hasPastTarget &&
     (scheduleType !== "CUSTOM" || customTypeId !== null);
 
   const saveSchedule = async () => {
-  if (!canSave || !locationId) return;
-  setPending(true);
+    if (!canSave || !locationId) return;
+    if (hasPastTarget) {
+      window.alert("Нельзя менять расписание за прошедшие даты.");
+      return;
+    }
+    setPending(true);
 
-  try {
-    const payload = {
-      entries: targetCells.map((cell) => ({
-        specialistId: cell.staffId,
-        locationId, // ✅ текущая выбранная локация
-        date: cell.date,
-        type: scheduleType,
-        customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
-        startTime: scheduleType === "WORKING" ? workStart : null,
-        endTime: scheduleType === "WORKING" ? workEnd : null,
-        breaks: scheduleType === "WORKING" ? selectedBreaks : [],
-      })),
-    };
+    try {
+      const makePayload = (forceReplaceLocation: boolean) => ({
+        entries: targetCells.map((cell) => ({
+          specialistId: cell.staffId,
+          locationId, // ✅ текущая выбранная локация
+          date: cell.date,
+          type: scheduleType,
+          customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
+          startTime: scheduleType === "WORKING" ? workStart : null,
+          endTime: scheduleType === "WORKING" ? workEnd : null,
+          breaks: scheduleType === "WORKING" ? selectedBreaks : [],
+        })),
+        forceReplaceLocation,
+      });
 
-    const response = await fetch("/api/v1/crm/schedule/entries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+      const send = (forceReplaceLocation: boolean) =>
+        fetch("/api/v1/crm/schedule/entries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(makePayload(forceReplaceLocation)),
+        });
 
-    // ✅ покажем понятное предупреждение, если API вернул конфликт локации
-    if (!response.ok) {
-      const err = await response.json().catch(() => null);
+      const response = await send(false);
 
-      if (response.status === 409 && err?.error?.code === "LOCATION_CONFLICT") {
-        const date = err?.error?.details?.date ?? "";
-        const locName = err?.error?.details?.existingLocationName ?? "";
-        window.alert(
-          `Нельзя сохранить.\nУ специалиста уже есть график на ${date} в локации "${locName}".`
-        );
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        if (response.status === 409 && err?.error?.code === "LOCATION_CONFLICT") {
+          const conflicts = Array.isArray(err?.error?.details?.conflicts)
+            ? (err.error.details.conflicts as ScheduleConflict[])
+            : [];
+          const legacyConflict: ScheduleConflict | null =
+            conflicts.length === 0 && err?.error?.details?.date
+              ? {
+                  specialistId: err?.error?.details?.specialistId ?? 0,
+                  date: err?.error?.details?.date ?? "",
+                  existingLocationId: err?.error?.details?.existingLocationId ?? null,
+                  existingLocationName: err?.error?.details?.existingLocationName ?? "Другая локация",
+                  requestedLocationId: err?.error?.details?.requestedLocationId ?? null,
+                }
+              : null;
+          const list = conflicts.length > 0 ? conflicts : legacyConflict ? [legacyConflict] : [];
+          if (list.length > 0) {
+            setConflictModal(list);
+            return;
+          }
+          window.alert(err?.error?.message ?? "Не удалось сохранить график.");
+          return;
+        }
+        window.alert(err?.error?.message ?? "Не удалось сохранить график.");
         return;
       }
 
-      window.alert(err?.error?.message ?? "Не удалось сохранить график.");
+      const refreshed = await fetch(
+        `/api/v1/crm/schedule/entries?start=${range.start}&end=${range.end}&locationId=${locationId}`
+      ).then((res) => res.json());
+
+      setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const confirmReplaceConflicts = async () => {
+    if (!canSave || !locationId) return;
+    if (hasPastTarget) {
+      window.alert("Нельзя менять расписание за прошедшие даты.");
       return;
     }
+    setPending(true);
 
-    const refreshed = await fetch(
-      `/api/v1/crm/schedule/entries?start=${range.start}&end=${range.end}&locationId=${locationId}`
-    ).then((res) => res.json());
+    try {
+      const payload = {
+        entries: targetCells.map((cell) => ({
+          specialistId: cell.staffId,
+          locationId, // ✅ текущая выбранная локация
+          date: cell.date,
+          type: scheduleType,
+          customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
+          startTime: scheduleType === "WORKING" ? workStart : null,
+          endTime: scheduleType === "WORKING" ? workEnd : null,
+          breaks: scheduleType === "WORKING" ? selectedBreaks : [],
+        })),
+        forceReplaceLocation: true,
+      };
 
-    setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
-  } finally {
-    setPending(false);
-  }
-};
+      const response = await fetch("/api/v1/crm/schedule/entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        window.alert(err?.error?.message ?? "Не удалось перезаписать график.");
+        return;
+      }
+
+      const refreshed = await fetch(
+        `/api/v1/crm/schedule/entries?start=${range.start}&end=${range.end}&locationId=${locationId}`
+      ).then((res) => res.json());
+
+      setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
+      setConflictModal(null);
+    } finally {
+      setPending(false);
+    }
+  };
 
 const handleCopy = async () => {
   if (!copyModal || selectedTargets.length === 0 || !locationId) return;
@@ -1159,6 +1256,11 @@ const handleCopy = async () => {
                     ? `Удалится дней: ${targetCells.length}`
                     : `Добавится дней: ${targetCells.length}`}
                 </div>
+                {hasPastTarget ? (
+                  <div className="text-xs text-red-600">
+                    Нельзя менять расписание за прошедшие даты.
+                  </div>
+                ) : null}
 
                 <div className="flex gap-2">
                   <button
@@ -1194,6 +1296,61 @@ const handleCopy = async () => {
           ) : null}
         </div>
       </section>
+
+      {conflictModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-[color:var(--bp-paper)] p-6 shadow-[var(--bp-shadow)]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Конфликт локации</h3>
+              <button
+                type="button"
+                onClick={() => setConflictModal(null)}
+                className="text-[color:var(--bp-muted)]"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
+              У выбранных дней есть график в другой локации. При подтверждении он будет удалён.
+            </p>
+
+            <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-[color:var(--bp-stroke)]">
+              <div className="grid grid-cols-1 divide-y divide-[color:var(--bp-stroke)] text-sm">
+                {conflictModal.map((conflict) => (
+                  <div key={`${conflict.specialistId}-${conflict.date}`} className="p-3">
+                    <div className="font-medium">
+                      {formatDateRuShort(conflict.date)}
+                    </div>
+                    <div className="text-[color:var(--bp-muted)]">
+                      {staffNameById.get(conflict.specialistId) ?? `ID ${conflict.specialistId}`} —{" "}
+                      {conflict.existingLocationName}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConflictModal(null)}
+                className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm"
+              >
+                Отменить
+              </button>
+              <button
+                type="button"
+                onClick={confirmReplaceConflicts}
+                disabled={pending}
+                className="w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+              >
+                Перезаписать
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {copyModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
