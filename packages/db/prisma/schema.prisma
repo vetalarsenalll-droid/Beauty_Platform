@@ -500,6 +500,8 @@ model Account {
   idempotencyKeys   IdempotencyKey[]
   legalDocuments    LegalDocument[]
   legalAcceptances  LegalAcceptance[]
+  onlineBookingSessions OnlineBookingSession[]
+  onlineBookingSteps OnlineBookingStep[]
   webhookEndpoints  WebhookEndpoint[]
   audits            AccountAuditLog[]
 
@@ -1250,6 +1252,7 @@ model Client {
   tags     ClientTagAssignment[]
   consents ClientConsent[]
   appointments Appointment[]
+  onlineBookingSessions OnlineBookingSession[]
   favorites Favorite[]
   reviews   Review[]
   loyaltyWallet LoyaltyWallet?
@@ -1338,6 +1341,7 @@ model Appointment {
   statusHistory AppointmentStatusHistory[]
   paymentIntents PaymentIntent[]
   legalAcceptances LegalAcceptance[]
+  onlineBookingSessions OnlineBookingSession[]
 
   @@index([accountId, startAt])
   @@index([specialistId, startAt])
@@ -1982,6 +1986,50 @@ model AiBookingDraft {
   updatedAt DateTime @updatedAt
 
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model OnlineBookingSession {
+  id Int @id @default(autoincrement())
+  accountId Int
+  sessionKey String
+  startedAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  clientId Int?
+  appointmentId Int?
+
+  account Account @relation(fields: [accountId], references: [id])
+  client Client? @relation(fields: [clientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  steps OnlineBookingStep[]
+
+  @@unique([accountId, sessionKey])
+  @@index([accountId, startedAt])
+  @@index([accountId, lastSeenAt])
+  @@index([appointmentId])
+}
+
+model OnlineBookingStep {
+  id Int @id @default(autoincrement())
+  sessionId Int
+  accountId Int
+  stepKey String
+  stepIndex Int
+  stepTitle String?
+  scenario String?
+  locationId Int?
+  serviceId Int?
+  specialistId Int?
+  date String?
+  time String?
+  payload Json?
+  createdAt DateTime @default(now())
+
+  session OnlineBookingSession @relation(fields: [sessionId], references: [id])
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([accountId, stepKey])
 }
 
 

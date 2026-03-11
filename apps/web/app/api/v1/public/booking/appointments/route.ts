@@ -51,6 +51,7 @@ export async function POST(request: Request) {
     comment?: string;
     legalVersionIds?: number[];
     holdId?: number;
+    sessionKey?: string;
   } | null;
 
   if (!body) {
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
   const clientEmail = String(body.clientEmail ?? "").trim();
   const comment = String(body.comment ?? "").trim();
   const holdId = Number.isInteger(Number(body.holdId)) ? Number(body.holdId) : null;
+  const sessionKeyRaw = String(body.sessionKey ?? "").trim();
+  const sessionKey = sessionKeyRaw && sessionKeyRaw.length <= 128 ? sessionKeyRaw : "";
 
   const legalVersionIds = Array.isArray(body.legalVersionIds)
     ? body.legalVersionIds
@@ -518,6 +521,32 @@ export async function POST(request: Request) {
         select: { id: true },
       });
 
+      if (sessionKey) {
+        const sessionTimestamp = new Date();
+        const txAny = tx as any;
+        await txAny.onlineBookingSession.upsert({
+          where: {
+            accountId_sessionKey: {
+              accountId: resolved.account.id,
+              sessionKey,
+            },
+          },
+          create: {
+            accountId: resolved.account.id,
+            sessionKey,
+            startedAt: sessionTimestamp,
+            lastSeenAt: sessionTimestamp,
+            appointmentId: appointment.id,
+            clientId: client.id,
+          },
+          update: {
+            lastSeenAt: sessionTimestamp,
+            appointmentId: appointment.id,
+            clientId: client.id,
+          },
+        });
+      }
+
       await tx.appointmentStatusHistory.create({
         data: {
           appointmentId: appointment.id,
@@ -584,7 +613,4 @@ export async function POST(request: Request) {
     throw error;
   }
 }
-
-
-
 

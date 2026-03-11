@@ -10,24 +10,24 @@ export default async function CrmAnalyticsPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Раздел аналитики</p>
         <h1 className="text-2xl font-semibold tracking-tight">Аналитика</h1>
         <p className="text-[color:var(--bp-muted)]">
-          Выберите нужную вкладку. В этом разделе собирается аналитика по бизнесу и по AI-ассистенту.
+          Выберите нужную вкладку. Здесь собрана аналитика по бизнесу, AI-ассистенту и онлайн-записи.
         </p>
         <AnalyticsTabs active="overview" />
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
           <h2 className="text-lg font-semibold">Общая аналитика</h2>
           <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-            Здесь будет агрегированная аналитика по бизнесу: загрузка, выручка, повторные визиты, средний чек и
-            каналы привлечения.
+            Сводные показатели по бизнесу: загрузка, выручка, повторные визиты, средний чек и каналы
+            привлечения.
           </p>
         </article>
 
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
           <h2 className="text-lg font-semibold">Аналитика Аиши</h2>
           <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-            Отдельная вкладка с диалогами, жалобами, качеством распознавания и конверсией ассистента в запись.
+            Диалоги, жалобы, качество распознавания и конверсия AI-ассистента в запись.
           </p>
           <a
             href="/crm/analytics/aisha"
@@ -36,8 +36,20 @@ export default async function CrmAnalyticsPage() {
             Открыть аналитику Аиши
           </a>
         </article>
+
+        <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+          <h2 className="text-lg font-semibold">Онлайн-запись</h2>
+          <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
+            Воронка шагов, конверсия и детали прохождения записи клиентами на сайте.
+          </p>
+          <a
+            href="/crm/analytics/online-booking"
+            className="mt-4 inline-flex rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm text-[color:var(--bp-ink)] transition hover:border-[color:var(--bp-accent)]"
+          >
+            Открыть аналитику онлайн-записи
+          </a>
+        </article>
       </section>
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { SiteLoaderConfig } from "@/lib/site-builder";
 import SiteLoader from "@/components/site-loader";
@@ -231,9 +231,13 @@ const buildUrl = (
 };
 
 const BOOKING_STATE_VERSION = 1;
+const BOOKING_SESSION_VERSION = 1;
 
 const bookingStateStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
   `booking-state:v${BOOKING_STATE_VERSION}:${accountSlug || accountPublicSlug || "public"}`;
+
+const bookingSessionStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
+  `booking-session:v${BOOKING_SESSION_VERSION}:${accountSlug || accountPublicSlug || "public"}`;
 
 const loadPersistedBookingState = (
   accountSlug?: string,
@@ -861,6 +865,7 @@ export default function BookingClient({
   const restoredFromStorageRef = useRef(false);
   const [scenario, setScenario] = useState<Scenario>("dateFirst");
   const [startScenario, setStartScenario] = useState(false);
+  const [bookingSessionKey, setBookingSessionKey] = useState<string | null>(null);
   const [initialParams, setInitialParams] = useState<{
     locationId: number | null;
     serviceId: number | null;
@@ -879,6 +884,21 @@ export default function BookingClient({
   const isDateFirst = scenario === "dateFirst";
   const isServiceFirst = scenario === "serviceFirst";
   const isSpecialistFirst = scenario === "specialistFirst";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const key = bookingSessionStorageKey(accountSlug, accountPublicSlug);
+      let value = window.sessionStorage.getItem(key);
+      if (!value) {
+        value = makeIdempotencyKey();
+        window.sessionStorage.setItem(key, value);
+      }
+      setBookingSessionKey(value);
+    } catch {
+      setBookingSessionKey(null);
+    }
+  }, [accountSlug, accountPublicSlug]);
 
   const [context, setContext] = useState<ContextData | null>(null);
   const [loadingContext, setLoadingContext] = useState(true);
@@ -1343,8 +1363,35 @@ export default function BookingClient({
     ? [{ key: "scenario", title: "\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439" }, ...steps]
     : steps;
 
+  const lastTrackedStepRef = useRef<{ key: string; index: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const currentStepKey = stepsWithScenario[stepIndex]?.key;
+
+  const logBookingStep = useCallback(
+    (data: { stepKey: string; stepIndex: number; stepTitle?: string | null; payload?: unknown }) => {
+      if (!bookingSessionKey) return;
+      const body = {
+        sessionKey: bookingSessionKey,
+        stepKey: data.stepKey,
+        stepIndex: data.stepIndex,
+        stepTitle: data.stepTitle ?? null,
+        scenario,
+        locationId,
+        serviceId,
+        specialistId,
+        date: dateYmd,
+        time: timeChoice,
+        payload: data.payload ?? null,
+      };
+      void fetch(buildUrl("/api/v1/public/booking/steps", { account: accountSlug ?? "" }), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(() => {});
+    },
+    [bookingSessionKey, scenario, locationId, serviceId, specialistId, dateYmd, timeChoice, accountSlug]
+  );
   const shouldLoadServices =
     (isDateFirst &&
       (currentStepKey === "datetime" ||
@@ -1379,6 +1426,29 @@ export default function BookingClient({
     const idx = stepsWithScenario.findIndex((s) => s.key === key);
     if (idx >= 0) setStepIndex(idx);
   };
+
+  useEffect(() => {
+    if (!bookingSessionKey || !currentStepKey) return;
+    const prev = lastTrackedStepRef.current;
+    if (prev && prev.key === currentStepKey && prev.index === stepIndex) return;
+    lastTrackedStepRef.current = { key: currentStepKey, index: stepIndex };
+    logBookingStep({
+      stepKey: currentStepKey,
+      stepIndex,
+      stepTitle: stepsWithScenario[stepIndex]?.title ?? null,
+      payload: { startScenario, isDateFirst, isServiceFirst, isSpecialistFirst },
+    });
+  }, [
+    bookingSessionKey,
+    currentStepKey,
+    stepIndex,
+    stepsWithScenario,
+    startScenario,
+    isDateFirst,
+    isServiceFirst,
+    isSpecialistFirst,
+    logBookingStep,
+  ]);
 
   useEffect(() => {
     if (!pendingStepKey) return;
@@ -2628,12 +2698,18 @@ export default function BookingClient({
             clientEmail: clientEmail.trim() || undefined,
             comment: comment.trim() || undefined,
             holdId: hold.holdId,
+            sessionKey: bookingSessionKey || undefined,
             legalVersionIds: Object.entries(legalConsents)
               .filter(([, checked]) => checked)
               .map(([id]) => Number(id)),
           }),
         }
       );
+      logBookingStep({
+        stepKey: "completed",
+        stepIndex: stepsWithScenario.length,
+        stepTitle: "Завершено записью",
+      });
       setSubmitSuccess(true);
       idempotencyKeyRef.current = null;
     } catch (error) {

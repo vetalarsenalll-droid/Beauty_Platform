@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 type AnalyticsTabsProps = {
-  active: "overview" | "aisha";
+  active: "overview" | "aisha" | "online-booking";
 };
 
 export function AnalyticsTabs({ active }: AnalyticsTabsProps) {
@@ -19,7 +19,12 @@ export function AnalyticsTabs({ active }: AnalyticsTabsProps) {
       <Link href="/crm/analytics/aisha" className={`${base} ${active === "aisha" ? activeCls : idleCls}`}>
         Аналитика Аиши
       </Link>
+      <Link
+        href="/crm/analytics/online-booking"
+        className={`${base} ${active === "online-booking" ? activeCls : idleCls}`}
+      >
+        Онлайн-запись
+      </Link>
     </div>
   );
 }
-
