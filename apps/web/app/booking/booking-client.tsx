@@ -388,6 +388,29 @@ function getLocationOpenStatus(
   return parseRangeStatus(todayHours.startTime, todayHours.endTime);
 }
 
+function getTodayWorkRange(
+  location: Location,
+  todayYmd: string,
+  timeZone: string
+): { startMinutes: number | null; endMinutes: number | null; isClosed: boolean } | null {
+  const exception = location.exceptions?.find((item) => item.date === todayYmd);
+  if (exception) {
+    if (exception.isClosed) return { startMinutes: null, endMinutes: null, isClosed: true };
+    const startMinutes = exception.startTime ? timeToMinutes(exception.startTime) : null;
+    const endMinutes = exception.endTime ? timeToMinutes(exception.endTime) : null;
+    if (startMinutes === null || endMinutes === null) return null;
+    return { startMinutes, endMinutes, isClosed: false };
+  }
+
+  const mon0 = weekdayIndexMon0InTz(todayYmd, timeZone);
+  const hours = location.hours?.find((item) => item.dayOfWeek === mon0);
+  if (!hours) return { startMinutes: null, endMinutes: null, isClosed: true };
+  const startMinutes = timeToMinutes(hours.startTime);
+  const endMinutes = timeToMinutes(hours.endTime);
+  if (startMinutes === null || endMinutes === null) return null;
+  return { startMinutes, endMinutes, isClosed: false };
+}
+
 const weekdayIndexSun0InTz = (ymd: string, timeZone: string) => {
   const d = ymdToUtcDate(ymd);
   const wd = new Intl.DateTimeFormat("en-US", {
@@ -1942,6 +1965,24 @@ export default function BookingClient({
       setOffersByTime({});
       return;
     }
+    const activeLocation = context?.locations?.find((loc) => loc.id === safeLocationId);
+    if (activeLocation && dateYmd === todayYmdTz) {
+      const todayRange = getTodayWorkRange(activeLocation, todayYmdTz, accountTz);
+      if (todayRange?.isClosed) {
+        setOffersByTime({});
+        setOffersError(null);
+        setLoadingOffers(false);
+        setDateYmd(ymdAddDays(todayYmdTz, 1));
+        return;
+      }
+      if (todayRange && todayRange.endMinutes !== null && nowTz.minutes >= todayRange.endMinutes) {
+        setOffersByTime({});
+        setOffersError(null);
+        setLoadingOffers(false);
+        setDateYmd(ymdAddDays(todayYmdTz, 1));
+        return;
+      }
+    }
 
     let mounted = true;
     setLoadingOffers(true);
@@ -2005,6 +2046,8 @@ export default function BookingClient({
     holdOwnerMarker,
     todayYmdTz,
     nowTz,
+    context?.locations,
+    accountTz,
   ]);
 
   // ---------- dateFirst: available dates (any service) for next 31 days
@@ -2274,7 +2317,7 @@ export default function BookingClient({
 
   const isCalendarWindowTransitioning = !isDateFirst && loadingCalendar;
   const isTimesPanelLoading = isDateFirst
-    ? loadingOffers || (loadingDateFirstAvailability && dateFirstAvailableDates.size === 0)
+    ? loadingOffers
     : isCalendarWindowTransitioning && availableTimesForCurrentStep.length === 0;
   const isStepLoadingOverlay =
     (currentStepKey === "location" && loadingContext) ||
