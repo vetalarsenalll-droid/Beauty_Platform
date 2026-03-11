@@ -200,6 +200,32 @@ function isOverlap(startA: number, endA: number, startB: number, endB: number) {
   return startA < endB && endA > startB;
 }
 
+function scheduleHeaderTone(entry: ScheduleEntry | undefined) {
+  if (!entry) return "";
+  switch (entry.type) {
+    case "WORKING":
+      return "bg-emerald-50";
+    case "SICK":
+      return "bg-indigo-50";
+    case "VACATION":
+      return "bg-amber-50";
+    case "NO_SHOW":
+      return "bg-rose-50";
+    case "PAID_OFF":
+      return "bg-yellow-50";
+    case "UNPAID_OFF":
+      return "";
+    default:
+      return "";
+  }
+}
+
+function scheduleHoursLabel(entry: ScheduleEntry | undefined) {
+  if (!entry || entry.type !== "WORKING") return "";
+  if (!entry.startTime || !entry.endTime) return "";
+  return `${entry.startTime} – ${entry.endTime}`;
+}
+
 function getWeekStart(date: Date) {
   const day = date.getDay() === 0 ? 7 : date.getDay();
   return addDays(startOfDay(date), 1 - day);
@@ -1132,10 +1158,21 @@ export default function JournalView({
                   style={{ gridTemplateColumns }}
                 >
                   <div className="px-3 py-2" />
-                  {gridColumns.map((column) => (
+                  {gridColumns.map((column, index) => (
                     <div
                       key={column.key}
-                      className="border-l border-[color:var(--bp-stroke)] px-3 py-2"
+                      className={`border-l border-[color:var(--bp-stroke)] px-3 py-2 ${
+                        viewMode === "day"
+                          ? scheduleHeaderTone(
+                              getScheduleEntry(staff[index]?.id ?? 0, currentDate)
+                            )
+                          : scheduleHeaderTone(
+                              getScheduleEntry(
+                                selectedStaffId,
+                                weekDays[Math.min(index, weekDays.length - 1)]
+                              )
+                            )
+                      }`}
                     >
                       <div className="text-sm font-semibold text-[color:var(--bp-ink)]">
                         {column.title}
@@ -1143,6 +1180,22 @@ export default function JournalView({
                       <div className="text-xs uppercase tracking-[0.2em]">
                         {column.subtitle}
                       </div>
+                      {viewMode === "day" ? (
+                        <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                          {scheduleHoursLabel(
+                            getScheduleEntry(staff[index]?.id ?? 0, currentDate)
+                          ) || "—"}
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                          {scheduleHoursLabel(
+                            getScheduleEntry(
+                              selectedStaffId,
+                              weekDays[Math.min(index, weekDays.length - 1)]
+                            )
+                          ) || "—"}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
