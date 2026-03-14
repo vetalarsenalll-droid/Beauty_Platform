@@ -2,7 +2,7 @@
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicAccount } from "@/lib/public-booking";
-import { asText, asThreadId, asThreadKey, getThread, resolveClientForAccount } from "@/lib/aisha-chat-thread";
+import { asText, asThreadId, asThreadKey, getThread, isThreadSecretConfigured, resolveClientForAccount } from "@/lib/aisha-chat-thread";
 import { draftView } from "@/lib/aisha-chat-parsers";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { ANTI_HALLUCINATION_RULES } from "@/lib/dialog-policy";
@@ -15,11 +15,14 @@ const prismaAny = prisma as any;
 export async function preparePostTurn(request: Request): Promise<{ response: Response } | { prepared: PreparedPostTurn }> {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return { response: resolved.response };
+  if (!isThreadSecretConfigured()) {
+    return { response: jsonError("AI_DISABLED", "AI_THREAD_SECRET is not configured.", null, 503) };
+  }
 
   const limited = enforceRateLimit({
     request,
     scope: `public:ai:chat:post:${resolved.account.id}`,
-    limit: 240,
+    limit: 60,
     windowMs: 60 * 1000,
   });
   if (limited) return { response: limited };

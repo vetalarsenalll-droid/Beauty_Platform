@@ -96,11 +96,14 @@ export function canAccessThread(args: {
   if (clientId && thread.clientId === clientId) return true;
   if (userId && thread.userId === userId) return true;
   if (thread.clientId == null && thread.userId == null) {
-    // Backward-compatible mode: if secret is not configured, keep previous thread behavior.
-    if (!THREAD_KEY_SECRET) return true;
+    if (!THREAD_KEY_SECRET) return false;
     if (isValidThreadKey(accountId, thread.id, threadKey)) return true;
   }
   return false;
+}
+
+export function isThreadSecretConfigured() {
+  return Boolean(THREAD_KEY_SECRET);
 }
 
 export async function getThread(args: {

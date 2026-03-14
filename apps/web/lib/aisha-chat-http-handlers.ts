@@ -1,7 +1,7 @@
 ﻿import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { draftView } from "@/lib/aisha-chat-parsers";
-import { asThreadId, asThreadKey, buildThreadKey, canAccessThread, getThread, resolveClientForAccount } from "@/lib/aisha-chat-thread";
+import { asThreadId, asThreadKey, buildThreadKey, canAccessThread, getThread, isThreadSecretConfigured, resolveClientForAccount } from "@/lib/aisha-chat-thread";
 import { prisma } from "@/lib/prisma";
 import { resolvePublicAccount } from "@/lib/public-booking";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -11,11 +11,14 @@ const prismaAny = prisma as any;
 export async function handlePublicAiChatGet(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+  if (!isThreadSecretConfigured()) {
+    return jsonError("AI_DISABLED", "AI_THREAD_SECRET is not configured.", null, 503);
+  }
 
   const limited = enforceRateLimit({
     request,
     scope: `public:ai:chat:get:${resolved.account.id}`,
-    limit: 300,
+    limit: 120,
     windowMs: 60 * 1000,
   });
   if (limited) return limited;
@@ -48,11 +51,14 @@ export async function handlePublicAiChatGet(request: Request) {
 export async function handlePublicAiChatDelete(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+  if (!isThreadSecretConfigured()) {
+    return jsonError("AI_DISABLED", "AI_THREAD_SECRET is not configured.", null, 503);
+  }
 
   const limited = enforceRateLimit({
     request,
     scope: `public:ai:chat:delete:${resolved.account.id}`,
-    limit: 90,
+    limit: 30,
     windowMs: 60 * 1000,
   });
   if (limited) return limited;
