@@ -30,12 +30,30 @@ export type HeroConfig = {
   main: HeroSlide[];
   sideTop: HeroSlide[];
   sideBottom: HeroSlide[];
+  settings?: HeroSettings;
+};
+
+export type HeroSettings = {
+  autoplayMainSec?: number;
+  autoplaySideSec?: number;
+  autoplayMainMs?: number;
+  autoplaySideMs?: number;
+  showDotsMain?: boolean;
+  showDotsSide?: boolean;
+  pauseOnHover?: boolean;
 };
 
 const emptyConfig: HeroConfig = {
   main: [],
   sideTop: [],
   sideBottom: [],
+  settings: {
+    autoplayMainSec: 6,
+    autoplaySideSec: 6,
+    showDotsMain: true,
+    showDotsSide: true,
+    pauseOnHover: true,
+  },
 };
 
 export function normalizeHeroConfig(raw: unknown): HeroConfig {
@@ -47,6 +65,24 @@ export function normalizeHeroConfig(raw: unknown): HeroConfig {
     sideBottom: Array.isArray(value.sideBottom)
       ? (value.sideBottom as HeroSlide[])
       : [],
+    settings: {
+      autoplayMainSec:
+        value.settings?.autoplayMainSec ??
+        (value.settings?.autoplayMainMs
+          ? Math.max(2, Math.round(value.settings.autoplayMainMs / 1000))
+          : emptyConfig.settings?.autoplayMainSec),
+      autoplaySideSec:
+        value.settings?.autoplaySideSec ??
+        (value.settings?.autoplaySideMs
+          ? Math.max(2, Math.round(value.settings.autoplaySideMs / 1000))
+          : emptyConfig.settings?.autoplaySideSec),
+      showDotsMain:
+        value.settings?.showDotsMain ?? emptyConfig.settings?.showDotsMain,
+      showDotsSide:
+        value.settings?.showDotsSide ?? emptyConfig.settings?.showDotsSide,
+      pauseOnHover:
+        value.settings?.pauseOnHover ?? emptyConfig.settings?.pauseOnHover,
+    },
   };
 }
 

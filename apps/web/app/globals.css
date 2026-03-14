@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -322,6 +323,15 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
   45% {
     transform: scale(1.1);
     opacity: 1;
+  }
+}
+
+@keyframes bp-slide-progress {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
   }
 }
 

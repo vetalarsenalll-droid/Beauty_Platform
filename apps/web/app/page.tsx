@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import HomeHeroSlider from "./home-hero-slider";
+import HomeHeroGroup from "./home-hero-group";
 import {
   HERO_SETTING_KEY,
   HeroSlide,
@@ -124,10 +124,9 @@ function resolveSlides(
   return slides
     .filter((slide) => isSlideReady(slide))
     .map((slide) => {
-      const url = buildSlideHref(slide, deps);
-      return url ? { ...slide, url } : null;
-    })
-    .filter((slide): slide is HeroSlideView => Boolean(slide));
+      const url = buildSlideHref(slide, deps) ?? "#";
+      return { ...slide, url };
+    });
 }
 
 export default async function Home() {
@@ -136,6 +135,9 @@ export default async function Home() {
   });
 
   const heroConfig = normalizeHeroConfig(heroSetting?.valueJson);
+  const heroSettings = heroConfig.settings ?? {};
+  const mainIntervalMs =
+    Math.max(2, heroSettings.autoplayMainSec ?? 6) * 1000;
 
   const locationIds = new Set<number>();
   const serviceIds = new Set<number>();
@@ -237,7 +239,7 @@ export default async function Home() {
   };
 
   const pageStyle: CSSProperties = {
-    fontFamily: "var(--font-sans)",
+    fontFamily: "\"Montserrat\", var(--font-sans)",
     color: "#111827",
     backgroundColor: "#f6f7fb",
     "--bp-ink": "#111827",
@@ -303,22 +305,15 @@ export default async function Home() {
           </div>
         </header>
 
-        <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-          <HomeHeroSlider
-            slides={heroMainSlides.length ? heroMainSlides : [fallbackSlide]}
-            variant="large"
-          />
-          <div className="grid gap-4">
-            <HomeHeroSlider
-              slides={heroSideTopSlides.length ? heroSideTopSlides : [fallbackSlide]}
-              variant="compact"
-            />
-            <HomeHeroSlider
-              slides={heroSideBottomSlides.length ? heroSideBottomSlides : [fallbackSlide]}
-              variant="compact"
-            />
-          </div>
-        </section>
+        <HomeHeroGroup
+          mainSlides={heroMainSlides.length ? heroMainSlides : [fallbackSlide]}
+          sideTopSlides={heroSideTopSlides.length ? heroSideTopSlides : [fallbackSlide]}
+          sideBottomSlides={heroSideBottomSlides.length ? heroSideBottomSlides : [fallbackSlide]}
+          intervalMs={mainIntervalMs}
+          showDotsMain={heroSettings.showDotsMain ?? true}
+          showDotsSide={heroSettings.showDotsSide ?? true}
+          pauseOnHover={heroSettings.pauseOnHover ?? true}
+        />
 
         <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
           {quickCategories.map((item) => (
