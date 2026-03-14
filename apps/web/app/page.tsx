@@ -1,79 +1,364 @@
-﻿import type { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
+import HomeHeroSlider from "./home-hero-slider";
+import {
+  HERO_SETTING_KEY,
+  HeroSlide,
+  normalizeHeroConfig,
+  isSlideReady,
+} from "@/lib/marketplace-hero";
+
+const topChips = [
+  "Волосы",
+  "Маникюр",
+  "Косметология",
+  "Массаж",
+  "Брови и ресницы",
+  "Эпиляция",
+  "Макияж",
+  "Укладки",
+  "Трихология",
+  "Релакс‑уход",
+];
+
+const quickCategories = [
+  "Косметология",
+  "Волосы",
+  "Маникюр",
+  "Брови",
+  "Ресницы",
+  "Массаж",
+  "Уход лица",
+  "Уход тела",
+  "Макияж",
+  "СПА",
+];
+
+const routes = [
+  {
+    title: "Записаться к мастеру",
+    description:
+      "Проверенные специалисты, рейтинг, реальная доступность времени.",
+    cta: "Выбрать услугу",
+  },
+  {
+    title: "Подобрать специалиста",
+    description:
+      "AI‑подбор по задаче, бюджету и локации — без лишних шагов.",
+    cta: "Запустить AI‑подбор",
+  },
+  {
+    title: "Найти студию",
+    description: "Салоны с точными слотами и прозрачным прайсом.",
+    cta: "Открыть каталог",
+  },
+];
+
+type HeroSlideView = HeroSlide & { url: string };
+
+function buildSlideHref(
+  slide: HeroSlide,
+  deps: {
+    accounts: Map<number, { id: number; slug: string }>;
+    locations: Map<number, { id: number; accountId: number }>;
+    services: Map<number, { id: number; accountId: number }>;
+    specialists: Map<number, { id: number; accountId: number }>;
+  }
+) {
+  if (!slide.isActive) return null;
+  switch (slide.linkType) {
+    case "url":
+      return slide.url?.trim() || null;
+    case "collection":
+      return slide.collectionKey
+        ? `/?collection=${encodeURIComponent(slide.collectionKey)}`
+        : null;
+    case "ai_assistant": {
+      if (slide.accountId) {
+        const account = deps.accounts.get(slide.accountId);
+        if (!account) return null;
+        return `/${buildPublicSlugId(account.slug, account.id)}/booking?assistant=1`;
+      }
+      return "/booking?assistant=1";
+    }
+    case "account": {
+      if (!slide.accountId) return null;
+      const account = deps.accounts.get(slide.accountId);
+      if (!account) return null;
+      return `/${buildPublicSlugId(account.slug, account.id)}/booking`;
+    }
+    case "location": {
+      if (!slide.entityId) return null;
+      const location = deps.locations.get(slide.entityId);
+      if (!location) return null;
+      const account = deps.accounts.get(location.accountId);
+      if (!account) return null;
+      return `/${buildPublicSlugId(account.slug, account.id)}/locations/${location.id}`;
+    }
+    case "service": {
+      if (!slide.entityId) return null;
+      const service = deps.services.get(slide.entityId);
+      if (!service) return null;
+      const account = deps.accounts.get(service.accountId);
+      if (!account) return null;
+      return `/${buildPublicSlugId(account.slug, account.id)}/services/${service.id}`;
+    }
+    case "specialist": {
+      if (!slide.entityId) return null;
+      const specialist = deps.specialists.get(slide.entityId);
+      if (!specialist) return null;
+      const account = deps.accounts.get(specialist.accountId);
+      if (!account) return null;
+      return `/${buildPublicSlugId(account.slug, account.id)}/specialists/${specialist.id}`;
+    }
+    default:
+      return null;
+  }
+}
+
+function resolveSlides(
+  slides: HeroSlide[],
+  deps: Parameters<typeof buildSlideHref>[1]
+): HeroSlideView[] {
+  return slides
+    .filter((slide) => isSlideReady(slide))
+    .map((slide) => {
+      const url = buildSlideHref(slide, deps);
+      return url ? { ...slide, url } : null;
+    })
+    .filter((slide): slide is HeroSlideView => Boolean(slide));
+}
 
 export default async function Home() {
-  const accounts = await prisma.account.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { id: "asc" },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      profile: { select: { description: true, address: true } },
-      _count: { select: { locations: true, services: true } },
-    },
-    take: 12,
+  const heroSetting = await prisma.platformSetting.findUnique({
+    where: { key: HERO_SETTING_KEY },
   });
+
+  const heroConfig = normalizeHeroConfig(heroSetting?.valueJson);
+
+  const locationIds = new Set<number>();
+  const serviceIds = new Set<number>();
+  const specialistIds = new Set<number>();
+  const heroAccountIds = new Set<number>();
+
+  const collectIds = (slides: HeroSlide[]) => {
+    slides.forEach((slide) => {
+      if (!slide.isActive) return;
+      if (slide.linkType === "account" || slide.linkType === "ai_assistant") {
+        if (slide.accountId) heroAccountIds.add(slide.accountId);
+      }
+      if (slide.linkType === "location" && slide.entityId) {
+        locationIds.add(slide.entityId);
+      }
+      if (slide.linkType === "service" && slide.entityId) {
+        serviceIds.add(slide.entityId);
+      }
+      if (slide.linkType === "specialist" && slide.entityId) {
+        specialistIds.add(slide.entityId);
+      }
+    });
+  };
+
+  collectIds(heroConfig.main);
+  collectIds(heroConfig.sideTop);
+  collectIds(heroConfig.sideBottom);
+
+  const [heroLocations, heroServices, heroSpecialists] = await Promise.all([
+    locationIds.size
+      ? prisma.location.findMany({
+          where: { id: { in: Array.from(locationIds) } },
+          select: { id: true, accountId: true },
+        })
+      : Promise.resolve([]),
+    serviceIds.size
+      ? prisma.service.findMany({
+          where: { id: { in: Array.from(serviceIds) } },
+          select: { id: true, accountId: true },
+        })
+      : Promise.resolve([]),
+    specialistIds.size
+      ? prisma.specialistProfile.findMany({
+          where: { id: { in: Array.from(specialistIds) } },
+          select: { id: true, accountId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  heroLocations.forEach((item) => heroAccountIds.add(item.accountId));
+  heroServices.forEach((item) => heroAccountIds.add(item.accountId));
+  heroSpecialists.forEach((item) => heroAccountIds.add(item.accountId));
+
+  const [heroAccounts, accounts] = await Promise.all([
+    heroAccountIds.size
+      ? prisma.account.findMany({
+          where: { id: { in: Array.from(heroAccountIds) } },
+          select: { id: true, slug: true },
+        })
+      : Promise.resolve([]),
+    prisma.account.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { id: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        profile: { select: { description: true, address: true } },
+        _count: { select: { locations: true, services: true } },
+      },
+      take: 12,
+    }),
+  ]);
+
+  const deps = {
+    accounts: new Map(heroAccounts.map((item) => [item.id, item])),
+    locations: new Map(heroLocations.map((item) => [item.id, item])),
+    services: new Map(heroServices.map((item) => [item.id, item])),
+    specialists: new Map(heroSpecialists.map((item) => [item.id, item])),
+  };
+
+  const heroMainSlides = resolveSlides(heroConfig.main, deps);
+  const heroSideTopSlides = resolveSlides(heroConfig.sideTop, deps);
+  const heroSideBottomSlides = resolveSlides(heroConfig.sideBottom, deps);
+
+  const fallbackSlide: HeroSlideView = {
+    id: "fallback",
+    isActive: true,
+    tag: "Marketplace",
+    title: "Настройте витрину в админке",
+    subtitle: "Загрузите фото и укажите переходы",
+    description: "Блок будет скрыт, когда карточки заполнены.",
+    badge: "",
+    ctaLabel: "",
+    imageUrl:
+      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1400&q=80",
+    linkType: "url",
+    url: "/platform/marketplace",
+  };
 
   const pageStyle: CSSProperties = {
     fontFamily: "var(--font-sans)",
-    backgroundImage:
-      "radial-gradient(960px 520px at 10% -10%, rgba(255, 237, 213, 0.6) 0%, rgba(255,255,255,0) 65%), radial-gradient(820px 480px at 88% -15%, rgba(30, 41, 59, 0.08) 0%, rgba(255,255,255,0) 55%), linear-gradient(180deg, #f8fafc 0%, #f3f4f6 60%, #eef2f7 100%)",
-    color: "#0f172a",
-    "--bp-ink": "#0f172a",
-    "--bp-muted": "#64748b",
-    "--bp-paper": "rgba(255, 255, 255, 0.92)",
-    "--bp-surface": "#f3f4f6",
-    "--bp-stroke": "rgba(15, 23, 42, 0.08)",
-    "--bp-accent": "#ef5a3c",
-    "--bp-accent-strong": "#d94b2f",
-    "--bp-shadow": "0 24px 55px rgba(15, 23, 42, 0.12)",
+    color: "#111827",
+    backgroundColor: "#f6f7fb",
+    "--bp-ink": "#111827",
+    "--bp-muted": "#6b7280",
+    "--bp-paper": "#ffffff",
+    "--bp-stroke": "rgba(17, 24, 39, 0.08)",
+    "--bp-accent": "#ff6a3d",
+    "--bp-accent-strong": "#e3562d",
+    "--bp-blue": "#3b82f6",
+    "--bp-blue-strong": "#2563eb",
+    "--bp-shadow": "0 24px 50px rgba(17, 24, 39, 0.12)",
   } as CSSProperties;
 
   return (
     <main className="min-h-screen" style={pageStyle}>
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-14 px-6 pb-20 pt-14">
-        <header className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">
-              Marketplace
-            </p>
-            <h1 className="text-4xl font-semibold leading-tight text-[color:var(--bp-ink)] md:text-5xl">
-              Платформа сервисных услуг нового поколения
-            </h1>
-            <p className="text-lg text-[color:var(--bp-muted)]">
-              Бронируйте лучшие студии, управляйте записями и бонусами в одном кабинете.
-            </p>
-            <div className="flex flex-wrap gap-3">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-6 pb-24 pt-6">
+        <header className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-sm font-semibold text-white">
+                BP
+              </div>
+              <div>
+                <div className="text-lg font-semibold">Beauty Platform</div>
+                <div className="text-xs uppercase tracking-[0.3em] text-[color:var(--bp-muted)]">
+                  marketplace
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button className="inline-flex items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-5 py-2 text-xs font-semibold text-white shadow-[var(--bp-shadow)]">
+                Каталог услуг
+              </button>
               <a
                 href="/c"
-                className="inline-flex items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-sm font-semibold text-white shadow-[var(--bp-shadow)] transition hover:opacity-90"
+                className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-xs font-semibold"
               >
                 Личный кабинет
               </a>
-              <a
-                href="/c/login"
-                className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white/80 px-5 py-3 text-sm font-semibold text-[color:var(--bp-ink)] transition hover:border-[color:var(--bp-accent)]"
-              >
-                Войти
-              </a>
             </div>
           </div>
-          <div className="rounded-[32px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
-            <div className="text-sm font-semibold">Что внутри</div>
-            <ul className="mt-4 space-y-3 text-sm text-[color:var(--bp-muted)]">
-              <li>Единый кабинет для всех организаций</li>
-              <li>Умные подсказки по повторным визитам</li>
-              <li>История оплат, бонусов и документов</li>
-              <li>Быстрая запись в любимые студии</li>
-            </ul>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm">
+              <span className="text-[color:var(--bp-muted)]">
+                Искать услуги, мастеров или студии
+              </span>
+            </div>
+            <button className="rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-xs font-semibold text-white shadow-[var(--bp-shadow)]">
+              Найти
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {topChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-xs font-semibold text-[color:var(--bp-ink)]"
+              >
+                {chip}
+              </span>
+            ))}
           </div>
         </header>
 
+        <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+          <HomeHeroSlider
+            slides={heroMainSlides.length ? heroMainSlides : [fallbackSlide]}
+            variant="large"
+          />
+          <div className="grid gap-4">
+            <HomeHeroSlider
+              slides={heroSideTopSlides.length ? heroSideTopSlides : [fallbackSlide]}
+              variant="compact"
+            />
+            <HomeHeroSlider
+              slides={heroSideBottomSlides.length ? heroSideBottomSlides : [fallbackSlide]}
+              variant="compact"
+            />
+          </div>
+        </section>
+
+        <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
+          {quickCategories.map((item) => (
+            <div
+              key={item}
+              className="flex flex-col items-center gap-2 rounded-[22px] border border-[color:var(--bp-stroke)] bg-white p-4 text-center text-xs font-semibold"
+            >
+              <div className="h-14 w-14 rounded-full bg-[color:var(--bp-blue)]/15" />
+              {item}
+            </div>
+          ))}
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          {routes.map((route) => (
+            <div
+              key={route.title}
+              className="flex h-full flex-col gap-3 rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]"
+            >
+              <div className="text-lg font-semibold">{route.title}</div>
+              <p className="text-sm text-[color:var(--bp-muted)]">
+                {route.description}
+              </p>
+              <button className="mt-auto w-fit rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-ink)] transition hover:border-[color:var(--bp-accent)]">
+                {route.cta}
+              </button>
+            </div>
+          ))}
+        </section>
+
         <section className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-2xl font-semibold">Организации</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.3em] text-[color:var(--bp-muted)]">
+                Студии и мастера
+              </div>
+              <h2 className="text-2xl font-semibold">
+                Доступные организации
+              </h2>
+            </div>
             <span className="text-sm text-[color:var(--bp-muted)]">
               {accounts.length} организаций доступно сейчас
             </span>
@@ -84,13 +369,17 @@ export default async function Home() {
               return (
                 <div
                   key={account.id}
-                  className="flex h-full flex-col gap-4 rounded-[24px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6 shadow-[var(--bp-shadow)]"
+                  className="group flex h-full flex-col gap-4 rounded-[26px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)] transition hover:-translate-y-1"
                 >
-                  <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="text-lg font-semibold">{account.name}</div>
-                    <div className="text-sm text-[color:var(--bp-muted)]">
-                      {account.profile?.description || "Премиальные услуги и забота о клиентах."}
-                    </div>
+                    <span className="rounded-full bg-[color:var(--bp-blue)]/10 px-3 py-1 text-xs font-semibold text-[color:var(--bp-blue)]">
+                      Verified
+                    </span>
+                  </div>
+                  <div className="text-sm text-[color:var(--bp-muted)]">
+                    {account.profile?.description ||
+                      "Премиальные услуги и забота о клиентах."}
                   </div>
                   <div className="text-xs text-[color:var(--bp-muted)]">
                     {account.profile?.address || "Город"}
