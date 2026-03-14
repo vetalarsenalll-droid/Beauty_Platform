@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import HomeHeroGroup from "./home-hero-group";
+import HomeCategoryStrip from "./home-category-strip";
 import {
   HERO_SETTING_KEY,
   HeroSlide,
@@ -9,30 +10,27 @@ import {
   isSlideReady,
 } from "@/lib/marketplace-hero";
 
-const topChips = [
-  "Волосы",
-  "Маникюр",
-  "Косметология",
-  "Массаж",
-  "Брови и ресницы",
-  "Эпиляция",
-  "Макияж",
-  "Укладки",
-  "Трихология",
-  "Релакс‑уход",
-];
-
 const quickCategories = [
-  "Косметология",
-  "Волосы",
-  "Маникюр",
+  "Парикмахерские услуги",
+  "Ногтевой сервис",
   "Брови",
   "Ресницы",
+  "Косметология, уход",
   "Массаж",
-  "Уход лица",
-  "Уход тела",
-  "Макияж",
+  "Макияж, визаж",
+  "Депиляция, эпиляция",
   "СПА",
+  "Барбершоп",
+  "Усы, борода",
+  "Татуаж, тату",
+  "Пирсинг",
+  "Солярий",
+  "Стоматология",
+  "Медицина",
+  "Бани, сауны",
+  "Фитнес",
+  "Йога",
+  "Танцы",
 ];
 
 const routes = [
@@ -269,17 +267,6 @@ export default async function Home() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button className="inline-flex items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-5 py-2 text-xs font-semibold text-white shadow-[var(--bp-shadow)]">
-                Каталог услуг
-              </button>
-              <a
-                href="/c"
-                className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-xs font-semibold"
-              >
-                Личный кабинет
-              </a>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -293,16 +280,6 @@ export default async function Home() {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {topChips.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-xs font-semibold text-[color:var(--bp-ink)]"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
         </header>
 
         <HomeHeroGroup
@@ -315,16 +292,8 @@ export default async function Home() {
           pauseOnHover={heroSettings.pauseOnHover ?? true}
         />
 
-        <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          {quickCategories.map((item) => (
-            <div
-              key={item}
-              className="flex flex-col items-center gap-2 rounded-[22px] border border-[color:var(--bp-stroke)] bg-white p-4 text-center text-xs font-semibold"
-            >
-              <div className="h-14 w-14 rounded-full bg-[color:var(--bp-blue)]/15" />
-              {item}
-            </div>
-          ))}
+        <section>
+          <HomeCategoryStrip categories={quickCategories} />
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">

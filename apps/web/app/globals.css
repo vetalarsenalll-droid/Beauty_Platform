@@ -335,6 +335,15 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
   }
 }
 
+.bp-scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.bp-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 .dark {
   --bg: #0f1012;
   --surface: #14161a;
