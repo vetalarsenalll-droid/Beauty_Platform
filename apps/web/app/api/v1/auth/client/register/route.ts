@@ -1,4 +1,4 @@
-import crypto from "crypto";
+﻿import crypto from "crypto";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createSession, getClientAuthCookies } from "@/lib/auth";
@@ -149,9 +149,3 @@ export async function POST(request: Request) {
     refreshExpiresAt: refreshExpiresAt.toISOString(),
   });
 }
-
-
-
-
-
-

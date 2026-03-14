@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+﻿import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import {
   createSession,
@@ -58,12 +58,7 @@ export async function POST(request: Request) {
     include: { user: true },
   });
 
-  if (
-    !identity ||
-    !identity.passwordHash ||
-    !identity.passwordSalt ||
-    !identity.user
-  ) {
+  if (!identity || !identity.passwordHash || !identity.passwordSalt || !identity.user) {
     return jsonError("INVALID_CREDENTIALS", "Неверный email или пароль", {}, 401);
   }
 

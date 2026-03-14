@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -25,17 +25,23 @@ export default function ClientLoginPage({ initialAccountSlug = "" }: ClientLogin
     setError(null);
     setLoading(true);
 
+    const payload: { email: string; password: string; accountSlug?: string } = {
+      email,
+      password,
+    };
+    if (accountSlug) payload.accountSlug = accountSlug;
+
     const response = await fetch("/api/v1/auth/client/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, accountSlug }),
+      body: JSON.stringify(payload),
     });
 
     setLoading(false);
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setError(payload?.error?.message ?? "Ошибка входа.");
+      const data = await response.json().catch(() => null);
+      setError(data?.error?.message ?? "Ошибка входа.");
       return;
     }
 

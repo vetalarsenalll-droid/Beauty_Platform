@@ -9,15 +9,59 @@ import {
 import PublicSiteOverlayLoader from "@/components/public-site-overlay-loader";
 import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import LogoutButton from "./logout-button";
+import ClientDashboard from "./client-dashboard";
+
+const statusLabelMap: Record<string, { label: string; tone: string }> = {
+  NEW: { label: "Новая", tone: "success" },
+  CONFIRMED: { label: "Подтверждена", tone: "success" },
+  IN_PROGRESS: { label: "В процессе", tone: "warning" },
+  DONE: { label: "Завершена", tone: "neutral" },
+  CANCELLED: { label: "Отменено", tone: "neutral" },
+  NO_SHOW: { label: "Не пришёл", tone: "danger" },
+};
 
 type ClientHomeProps = {
   searchParams?: Promise<{ account?: string }> | { account?: string };
 };
 
+const formatPrice = (value: number | null) => {
+  if (value == null || Number.isNaN(value)) return null;
+  return new Intl.NumberFormat("ru-RU", {
+    style: "currency",
+    currency: "RUB",
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+const formatDuration = (minutes: number | null) => {
+  if (!minutes || Number.isNaN(minutes)) return null;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours <= 0) return `${mins} мин`;
+  if (mins === 0) return `${hours} ч`;
+  return `${hours} ч ${mins} мин`;
+};
+
+const formatDateLabel = (value: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone,
+  }).format(value);
+
+const formatTimeLabel = (value: Date, timeZone: string) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  }).format(value);
+
 export default async function ClientHome({ searchParams }: ClientHomeProps) {
   const session = await requireClientSession();
   const resolvedParams = await Promise.resolve(searchParams ?? {});
-  const accountSlugParam = resolvedParams?.account?.trim();
+  const accountSlugParam = resolvedParams?.account?.trim() || null;
 
   const primaryClient = session.clients[0] ?? null;
   const fullName = `${primaryClient?.firstName ?? ""} ${primaryClient?.lastName ?? ""}`.trim();
@@ -28,17 +72,144 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     session.email ||
     "Клиент";
 
-  const accountSlug = accountSlugParam || primaryClient?.accountSlug || null;
+  const accountIds = Array.from(new Set(session.clients.map((client) => client.accountId)));
+
+  const accountRecords = accountIds.length
+    ? await prisma.account.findMany({
+        where: { id: { in: accountIds } },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          timeZone: true,
+          settings: { select: { cancellationWindowHours: true } },
+          profile: { select: { address: true, phone: true, email: true } },
+        },
+      })
+    : [];
+
+  const accountById = new Map(accountRecords.map((acc) => [acc.id, acc]));
+  const accountBySlug = new Map(accountRecords.map((acc) => [acc.slug, acc]));
+
+  const organizations = accountRecords.map((acc) => ({
+    slug: acc.slug,
+    name: acc.name,
+    bookingLink: `/${buildPublicSlugId(acc.slug, acc.id)}/booking`,
+  }));
+
+  const matchedClient = accountSlugParam
+    ? session.clients.find((item) => item.accountSlug === accountSlugParam)
+    : null;
+  const selectedClient = matchedClient ?? null;
+  const selectedAccountSlug = selectedClient?.accountSlug ?? null;
+
   let menuNode: ReactNode = null;
   let themeFrame: PublicMenuFrame | null = null;
   let clientPageData: Record<string, unknown> | null = null;
 
-  if (accountSlug) {
-    const account = await prisma.account.findUnique({
-      where: { slug: accountSlug },
-      select: { id: true, slug: true },
-    });
-    if (account) {
+  let accountData:
+    | {
+        id: number;
+        name: string;
+        slug: string;
+        timeZone: string;
+        cancellationWindowHours: number | null;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+      }
+    | null = null;
+  let appointments: Array<{
+    id: number;
+    startAt: Date;
+    endAt: Date;
+    status: string;
+    priceTotal: number | null;
+    durationTotalMin: number | null;
+    locationName: string;
+    locationAddress: string | null;
+    specialistName: string | null;
+    servicesLabel: string | null;
+    accountName: string | null;
+    accountSlug: string | null;
+    accountTimeZone: string;
+    cancellationWindowHours: number | null;
+  }> = [];
+  let profile: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null } = {
+    firstName: null,
+    lastName: null,
+    phone: null,
+    email: null,
+  };
+  let loyalty: {
+    balance: number | null;
+    transactions: Array<{
+      id: number;
+      createdAt: Date;
+      amount: number;
+      type: string;
+      accountName: string | null;
+      accountTimeZone: string;
+    }>;
+  } = {
+    balance: null,
+    transactions: [],
+  };
+  let payments: {
+    intents: Array<{
+      id: number;
+      status: string;
+      amount: number;
+      createdAt: Date;
+      provider: string | null;
+      appointmentId: number | null;
+      accountName: string | null;
+      accountTimeZone: string;
+    }>;
+    transactions: Array<{
+      id: number;
+      type: string;
+      amount: number;
+      createdAt: Date;
+      providerRef: string | null;
+      accountName: string | null;
+      accountTimeZone: string;
+    }>;
+  } = { intents: [], transactions: [] };
+  let documents: Array<{
+    id: number;
+    title: string;
+    version: number;
+    acceptedAt: Date;
+    accountName: string | null;
+    accountTimeZone: string;
+  }> = [];
+  let reviews: Array<{
+    id: number;
+    rating: number;
+    comment: string | null;
+    createdAt: Date;
+    accountName: string | null;
+    accountTimeZone: string;
+  }> = [];
+
+  if (selectedAccountSlug) {
+    let account = accountBySlug.get(selectedAccountSlug) ?? null;
+    if (!account) {
+      account = await prisma.account.findUnique({
+        where: { slug: selectedAccountSlug },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          timeZone: true,
+          settings: { select: { cancellationWindowHours: true } },
+          profile: { select: { address: true, phone: true, email: true } },
+        },
+      });
+    }
+
+    if (account && selectedClient) {
       const publicSlug = buildPublicSlugId(account.slug, account.id);
       themeFrame = await renderPublicMenuFrame(publicSlug, `/c?account=${account.slug}`);
       menuNode = themeFrame?.menuNode ?? null;
@@ -48,13 +219,354 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
         themeFrame.clientPageBlock.data
           ? (themeFrame.clientPageBlock.data as Record<string, unknown>)
           : null;
+
+      accountData = {
+        id: account.id,
+        name: account.name,
+        slug: account.slug,
+        timeZone: account.timeZone,
+        cancellationWindowHours: account.settings?.cancellationWindowHours ?? null,
+        address: account.profile?.address ?? null,
+        phone: account.profile?.phone ?? null,
+        email: account.profile?.email ?? null,
+      };
+
+      const [client, appointmentRows, wallet, paymentIntents, paymentTransactions, acceptances, reviewRows] =
+        await Promise.all([
+          prisma.client.findFirst({
+            where: { id: selectedClient.clientId, accountId: account.id },
+            select: { firstName: true, lastName: true, phone: true, email: true },
+          }),
+          prisma.appointment.findMany({
+            where: { accountId: account.id, clientId: selectedClient.clientId },
+            orderBy: { startAt: "desc" },
+            take: 50,
+            select: {
+              id: true,
+              startAt: true,
+              endAt: true,
+              status: true,
+              priceTotal: true,
+              durationTotalMin: true,
+              location: { select: { name: true, address: true } },
+              specialist: {
+                select: {
+                  user: {
+                    select: {
+                      profile: { select: { firstName: true, lastName: true } },
+                    },
+                  },
+                },
+              },
+              services: { select: { service: { select: { name: true } } } },
+            },
+          }),
+          prisma.loyaltyWallet.findUnique({
+            where: { clientId: selectedClient.clientId },
+            select: {
+              balance: true,
+              transactions: {
+                orderBy: { createdAt: "desc" },
+                take: 10,
+                select: { id: true, createdAt: true, amount: true, type: true },
+              },
+            },
+          }),
+          prisma.paymentIntent.findMany({
+            where: { accountId: account.id, clientId: selectedClient.clientId },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            select: { id: true, status: true, amount: true, createdAt: true, provider: true, appointmentId: true },
+          }),
+          prisma.transaction.findMany({
+            where: { accountId: account.id, intent: { clientId: selectedClient.clientId } },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            select: { id: true, type: true, amount: true, createdAt: true, providerRef: true },
+          }),
+          prisma.legalAcceptance.findMany({
+            where: { accountId: account.id, clientId: selectedClient.clientId },
+            orderBy: { acceptedAt: "desc" },
+            take: 10,
+            select: {
+              id: true,
+              acceptedAt: true,
+              documentVersion: { select: { version: true, document: { select: { title: true } } } },
+            },
+          }),
+          prisma.review.findMany({
+            where: { accountId: account.id, clientId: selectedClient.clientId },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            select: { id: true, rating: true, comment: true, createdAt: true },
+          }),
+        ]);
+
+      if (client) {
+        profile = client;
+      }
+
+      appointments = appointmentRows.map((item) => {
+        const specialistName = `${item.specialist?.user?.profile?.firstName ?? ""} ${
+          item.specialist?.user?.profile?.lastName ?? ""
+        }`.trim();
+        const servicesLabel = item.services
+          .map((entry) => entry.service.name)
+          .filter(Boolean)
+          .join(", ");
+        return {
+          id: item.id,
+          startAt: item.startAt,
+          endAt: item.endAt,
+          status: item.status,
+          priceTotal: item.priceTotal ? Number(item.priceTotal) : null,
+          durationTotalMin: item.durationTotalMin ?? null,
+          locationName: item.location?.name ?? "Локация",
+          locationAddress: item.location?.address ?? null,
+          specialistName: specialistName || null,
+          servicesLabel: servicesLabel || null,
+          accountName: account.name,
+          accountSlug: account.slug,
+          accountTimeZone: account.timeZone,
+          cancellationWindowHours: account.settings?.cancellationWindowHours ?? null,
+        };
+      });
+
+      if (wallet) {
+        loyalty = {
+          balance: wallet.balance ? Number(wallet.balance) : 0,
+          transactions: wallet.transactions.map((item) => ({
+            id: item.id,
+            createdAt: item.createdAt,
+            amount: Number(item.amount),
+            type: item.type,
+            accountName: account.name,
+            accountTimeZone: account.timeZone,
+          })),
+        };
+      }
+
+      payments = {
+        intents: paymentIntents.map((item) => ({
+          id: item.id,
+          status: item.status,
+          amount: Number(item.amount),
+          createdAt: item.createdAt,
+          provider: item.provider ?? null,
+          appointmentId: item.appointmentId ?? null,
+          accountName: account.name,
+          accountTimeZone: account.timeZone,
+        })),
+        transactions: paymentTransactions.map((item) => ({
+          id: item.id,
+          type: item.type,
+          amount: Number(item.amount),
+          createdAt: item.createdAt,
+          providerRef: item.providerRef ?? null,
+          accountName: account.name,
+          accountTimeZone: account.timeZone,
+        })),
+      };
+
+      documents = acceptances.map((item) => ({
+        id: item.id,
+        title: item.documentVersion.document.title,
+        version: item.documentVersion.version,
+        acceptedAt: item.acceptedAt,
+        accountName: account.name,
+        accountTimeZone: account.timeZone,
+      }));
+
+      reviews = reviewRows.map((item) => ({
+        id: item.id,
+        rating: item.rating,
+        comment: item.comment ?? null,
+        createdAt: item.createdAt,
+        accountName: account.name,
+        accountTimeZone: account.timeZone,
+      }));
     }
+  } else if (accountRecords.length > 0) {
+    const accountByIdLocal = new Map(accountRecords.map((acc) => [acc.id, acc]));
+    const clientPairs = session.clients.map((client) => ({
+      accountId: client.accountId,
+      clientId: client.clientId,
+    }));
+
+    const [appointmentRows, wallets, paymentIntents, paymentTransactions, acceptances, reviewRows] =
+      await Promise.all([
+        prisma.appointment.findMany({
+          where: { OR: clientPairs },
+          orderBy: { startAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            startAt: true,
+            endAt: true,
+            status: true,
+            priceTotal: true,
+            durationTotalMin: true,
+            accountId: true,
+            location: { select: { name: true, address: true } },
+            specialist: {
+              select: {
+                user: {
+                  select: {
+                    profile: { select: { firstName: true, lastName: true } },
+                  },
+                },
+              },
+            },
+            services: { select: { service: { select: { name: true } } } },
+          },
+        }),
+        prisma.loyaltyWallet.findMany({
+          where: { clientId: { in: session.clients.map((client) => client.clientId) } },
+          select: {
+            clientId: true,
+            balance: true,
+            transactions: {
+              orderBy: { createdAt: "desc" },
+              take: 10,
+              select: { id: true, createdAt: true, amount: true, type: true },
+            },
+          },
+        }),
+        prisma.paymentIntent.findMany({
+          where: { clientId: { in: session.clients.map((client) => client.clientId) } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, status: true, amount: true, createdAt: true, provider: true, appointmentId: true, accountId: true },
+        }),
+        prisma.transaction.findMany({
+          where: { intent: { clientId: { in: session.clients.map((client) => client.clientId) } } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, type: true, amount: true, createdAt: true, providerRef: true, accountId: true },
+        }),
+        prisma.legalAcceptance.findMany({
+          where: { clientId: { in: session.clients.map((client) => client.clientId) } },
+          orderBy: { acceptedAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            acceptedAt: true,
+            accountId: true,
+            documentVersion: { select: { version: true, document: { select: { title: true } } } },
+          },
+        }),
+        prisma.review.findMany({
+          where: { clientId: { in: session.clients.map((client) => client.clientId) } },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: { id: true, rating: true, comment: true, createdAt: true, accountId: true },
+        }),
+      ]);
+
+    appointments = appointmentRows.map((item) => {
+      const account = accountByIdLocal.get(item.accountId);
+      const specialistName = `${item.specialist?.user?.profile?.firstName ?? ""} ${
+        item.specialist?.user?.profile?.lastName ?? ""
+      }`.trim();
+      const servicesLabel = item.services
+        .map((entry) => entry.service.name)
+        .filter(Boolean)
+        .join(", ");
+      return {
+        id: item.id,
+        startAt: item.startAt,
+        endAt: item.endAt,
+        status: item.status,
+        priceTotal: item.priceTotal ? Number(item.priceTotal) : null,
+        durationTotalMin: item.durationTotalMin ?? null,
+        locationName: item.location?.name ?? "Локация",
+        locationAddress: item.location?.address ?? null,
+        specialistName: specialistName || null,
+        servicesLabel: servicesLabel || null,
+        accountName: account?.name ?? null,
+        accountSlug: account?.slug ?? null,
+        accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+        cancellationWindowHours: account?.settings?.cancellationWindowHours ?? null,
+      };
+    });
+
+    const clientIdToAccount = new Map(
+      session.clients.map((client) => [client.clientId, client.accountId])
+    );
+
+    const loyaltyTransactions = wallets.flatMap((wallet) => {
+      const account = accountByIdLocal.get(clientIdToAccount.get(wallet.clientId) ?? 0);
+      return wallet.transactions.map((item) => ({
+        id: item.id,
+        createdAt: item.createdAt,
+        amount: Number(item.amount),
+        type: item.type,
+        accountName: account?.name ?? null,
+        accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+      }));
+    });
+
+    loyalty = {
+      balance: wallets.reduce((sum, item) => sum + Number(item.balance ?? 0), 0),
+      transactions: loyaltyTransactions.sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      ),
+    };
+
+    payments = {
+      intents: paymentIntents.map((item) => {
+        const account = accountByIdLocal.get(item.accountId);
+        return {
+          id: item.id,
+          status: item.status,
+          amount: Number(item.amount),
+          createdAt: item.createdAt,
+          provider: item.provider ?? null,
+          appointmentId: item.appointmentId ?? null,
+          accountName: account?.name ?? null,
+          accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+        };
+      }),
+      transactions: paymentTransactions.map((item) => {
+        const account = accountByIdLocal.get(item.accountId ?? 0);
+        return {
+          id: item.id,
+          type: item.type,
+          amount: Number(item.amount),
+          createdAt: item.createdAt,
+          providerRef: item.providerRef ?? null,
+          accountName: account?.name ?? null,
+          accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+        };
+      }),
+    };
+
+    documents = acceptances.map((item) => {
+      const account = accountByIdLocal.get(item.accountId);
+      return {
+        id: item.id,
+        title: item.documentVersion.document.title,
+        version: item.documentVersion.version,
+        acceptedAt: item.acceptedAt,
+        accountName: account?.name ?? null,
+        accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+      };
+    });
+
+    reviews = reviewRows.map((item) => {
+      const account = accountByIdLocal.get(item.accountId);
+      return {
+        id: item.id,
+        rating: item.rating,
+        comment: item.comment ?? null,
+        createdAt: item.createdAt,
+        accountName: account?.name ?? null,
+        accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+      };
+    });
   }
 
   const clientTitle = (clientPageData?.title as string) || "Личный кабинет";
-  const clientSalonsTitle = (clientPageData?.salonsTitle as string) || "Ваши салоны";
-  const clientEmptyText =
-    (clientPageData?.emptyText as string) || "Пока нет салонов, где вы записывались.";
 
   const pageStyle = themeFrame
     ? ({
@@ -77,16 +589,83 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       } as CSSProperties)
     : undefined;
 
+  const now = new Date();
+  const upcoming = appointments
+    .filter((item) => item.startAt > now)
+    .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
+    .map((item) => {
+      const statusMeta = statusLabelMap[item.status] ?? { label: "Статус", tone: "neutral" };
+      const canCancel =
+        item.status !== "CANCELLED" &&
+        item.status !== "DONE" &&
+        item.status !== "NO_SHOW" &&
+        item.startAt > now &&
+        (item.cancellationWindowHours == null ||
+          new Date(item.startAt.getTime() - item.cancellationWindowHours * 60 * 60 * 1000) > now);
+
+      return {
+        id: item.id,
+        status: item.status,
+        statusLabel: statusMeta.label,
+        statusTone: statusMeta.tone,
+        dateLabel: formatDateLabel(item.startAt, item.accountTimeZone),
+        timeLabel: `${formatTimeLabel(item.startAt, item.accountTimeZone)} — ${formatTimeLabel(
+          item.endAt,
+          item.accountTimeZone
+        )}`,
+        durationLabel: formatDuration(item.durationTotalMin),
+        priceLabel: formatPrice(item.priceTotal),
+        locationName: item.locationName,
+        locationAddress: item.locationAddress,
+        specialistName: item.specialistName,
+        servicesLabel: item.servicesLabel,
+        canCancel,
+        accountName: item.accountName,
+        accountSlug: item.accountSlug,
+        startAtIso: item.startAt.toISOString(),
+      };
+    });
+
+  const history = appointments
+    .filter((item) => item.startAt <= now)
+    .map((item) => {
+      const statusMeta = statusLabelMap[item.status] ?? { label: "Статус", tone: "neutral" };
+      return {
+        id: item.id,
+        status: item.status,
+        statusLabel: statusMeta.label,
+        statusTone: statusMeta.tone,
+        dateLabel: formatDateLabel(item.startAt, item.accountTimeZone),
+        timeLabel: `${formatTimeLabel(item.startAt, item.accountTimeZone)} — ${formatTimeLabel(
+          item.endAt,
+          item.accountTimeZone
+        )}`,
+        durationLabel: formatDuration(item.durationTotalMin),
+        priceLabel: formatPrice(item.priceTotal),
+        locationName: item.locationName,
+        locationAddress: item.locationAddress,
+        specialistName: item.specialistName,
+        servicesLabel: item.servicesLabel,
+        canCancel: false,
+        accountName: item.accountName,
+        accountSlug: item.accountSlug,
+        startAtIso: item.startAt.toISOString(),
+      };
+    });
+
+  const bookLink = accountData ? `/${buildPublicSlugId(accountData.slug, accountData.id)}/booking` : "/";
+  const accountTimeZone = accountData?.timeZone ?? appointments[0]?.accountTimeZone ?? "Europe/Moscow";
+
   return (
     <PublicSiteOverlayLoader loaderConfig={themeFrame?.loaderConfig ?? null}>
       <main
         id={themeFrame ? "public-site-root" : undefined}
         data-site-theme={themeFrame?.initialMode}
-        className="min-h-screen pb-0"
+        className="min-h-screen pb-10"
         style={pageStyle}
       >
         <div
-          className="flex w-full flex-col pt-0 pb-0"
+          className="flex w-full flex-col pt-0"
           style={themeFrame ? { gap: themeFrame.blockGap } : undefined}
         >
           {menuNode}
@@ -100,40 +679,78 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h1 className="text-3xl font-semibold tracking-tight">{clientTitle}</h1>
-              <LogoutButton accountSlug={accountSlug} />
+              <LogoutButton accountSlug={selectedAccountSlug ?? undefined} />
             </div>
             <div className="text-[color:var(--bp-muted)]">{displayName}</div>
 
-            {session.clients.length > 0 ? (
-              <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6">
-                <div className="text-sm font-semibold">{clientSalonsTitle}</div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {session.clients.map((client) => {
-                    const name = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
-                    const label =
-                      name || client.phone || client.email || `Клиент #${client.clientId}`;
-                    return (
-                      <a
-                        key={client.clientId}
-                        href={`/c?account=${client.accountSlug}`}
-                        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-card-bg)] px-4 py-3 text-sm transition hover:-translate-y-[1px] hover:shadow-sm"
-                      >
-                        <div className="font-semibold">{client.accountName}</div>
-                        <div className="text-xs text-[color:var(--bp-muted)]">{label}</div>
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-[color:var(--bp-muted)]">{clientEmptyText}</div>
-            )}
+            <ClientDashboard
+              accountSlug={selectedAccountSlug}
+              accountName={accountData?.name ?? null}
+              accountAddress={accountData?.address ?? null}
+              accountPhone={accountData?.phone ?? null}
+              accountTimeZone={accountTimeZone}
+              displayName={displayName}
+              bookLink={bookLink}
+              upcoming={upcoming}
+              history={history}
+              cancellationWindowHours={accountData?.cancellationWindowHours ?? null}
+              profile={profile}
+              loyalty={{
+                balance: loyalty.balance,
+                transactions: loyalty.transactions.map((item) => ({
+                  id: item.id,
+                  createdAt: item.createdAt.toISOString(),
+                  amount: item.amount,
+                  type: item.type,
+                  accountName: item.accountName,
+                  accountTimeZone: item.accountTimeZone,
+                })),
+              }}
+              payments={{
+                intents: payments.intents.map((item) => ({
+                  id: item.id,
+                  status: item.status,
+                  amount: item.amount,
+                  createdAt: item.createdAt.toISOString(),
+                  provider: item.provider,
+                  appointmentId: item.appointmentId,
+                  accountName: item.accountName,
+                  accountTimeZone: item.accountTimeZone,
+                })),
+                transactions: payments.transactions.map((item) => ({
+                  id: item.id,
+                  type: item.type,
+                  amount: item.amount,
+                  createdAt: item.createdAt.toISOString(),
+                  providerRef: item.providerRef,
+                  accountName: item.accountName,
+                  accountTimeZone: item.accountTimeZone,
+                })),
+              }}
+              documents={documents.map((doc) => ({
+                id: doc.id,
+                title: doc.title,
+                version: doc.version,
+                acceptedAt: doc.acceptedAt.toISOString(),
+                accountName: doc.accountName,
+                accountTimeZone: doc.accountTimeZone,
+              }))}
+              reviews={reviews.map((review) => ({
+                id: review.id,
+                rating: review.rating,
+                comment: review.comment,
+                createdAt: review.createdAt.toISOString(),
+                accountName: review.accountName,
+                accountTimeZone: review.accountTimeZone,
+              }))}
+              organizations={organizations}
+            />
           </section>
         </div>
       </main>
-      {accountSlug && themeFrame?.aishaConfig?.enabled !== false ? (
+      {selectedAccountSlug && themeFrame?.aishaConfig?.enabled !== false ? (
         <PublicAiChatWidget
-          accountSlug={accountSlug}
+          accountSlug={selectedAccountSlug}
           widgetConfig={themeFrame?.aishaConfig ?? null}
           themeMode={themeFrame?.initialMode}
         />
@@ -141,5 +758,3 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     </PublicSiteOverlayLoader>
   );
 }
-
-

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -28,24 +28,33 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
     setError(null);
     setLoading(true);
 
+    const payload: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      accountSlug?: string;
+    } = {
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+    };
+    if (accountSlug) payload.accountSlug = accountSlug;
+
     const response = await fetch("/api/v1/auth/client/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        firstName,
-        lastName,
-        phone,
-        accountSlug,
-      }),
+      body: JSON.stringify(payload),
     });
 
     setLoading(false);
 
     if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      setError(payload?.error?.message ?? "Ошибка регистрации.");
+      const data = await response.json().catch(() => null);
+      setError(data?.error?.message ?? "Ошибка регистрации.");
       return;
     }
 
