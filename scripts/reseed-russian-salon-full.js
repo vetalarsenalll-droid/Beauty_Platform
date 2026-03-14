@@ -19,6 +19,12 @@ function main() {
   console.log("=== RU reseed: account legal docs ===");
   runNodeScript("reseed-legal-docs.js", ["severnaya-orhideya"]);
 
+  console.log("=== RU reseed: second account + data ===");
+  runNodeScript("reseed-russian-salon-2.js");
+
+  console.log("=== RU reseed: second account legal docs ===");
+  runNodeScript("reseed-legal-docs.js", ["zolotaya-liliya"]);
+
   console.log("=== RU reseed: platform legal docs ===");
   runNodeScript("seed-platform-legal-docs.js");
 

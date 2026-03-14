@@ -1,13 +1,7 @@
-﻿import type { CSSProperties, ReactNode } from "react";
+﻿import type { CSSProperties } from "react";
 import { requireClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import {
-  renderPublicMenuFrame,
-  type PublicMenuFrame,
-} from "@/app/[publicSlug]/_shared/menu-render";
-import PublicSiteOverlayLoader from "@/components/public-site-overlay-loader";
-import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import LogoutButton from "./logout-button";
 import ClientDashboard from "./client-dashboard";
 
@@ -88,7 +82,6 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       })
     : [];
 
-  const accountById = new Map(accountRecords.map((acc) => [acc.id, acc]));
   const accountBySlug = new Map(accountRecords.map((acc) => [acc.slug, acc]));
 
   const organizations = accountRecords.map((acc) => ({
@@ -102,10 +95,6 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     : null;
   const selectedClient = matchedClient ?? null;
   const selectedAccountSlug = selectedClient?.accountSlug ?? null;
-
-  let menuNode: ReactNode = null;
-  let themeFrame: PublicMenuFrame | null = null;
-  let clientPageData: Record<string, unknown> | null = null;
 
   let accountData:
     | {
@@ -210,16 +199,6 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     }
 
     if (account && selectedClient) {
-      const publicSlug = buildPublicSlugId(account.slug, account.id);
-      themeFrame = await renderPublicMenuFrame(publicSlug, `/c?account=${account.slug}`);
-      menuNode = themeFrame?.menuNode ?? null;
-      clientPageData =
-        themeFrame?.clientPageBlock &&
-        typeof themeFrame.clientPageBlock.data === "object" &&
-        themeFrame.clientPageBlock.data
-          ? (themeFrame.clientPageBlock.data as Record<string, unknown>)
-          : null;
-
       accountData = {
         id: account.id,
         name: account.name,
@@ -566,28 +545,26 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     });
   }
 
-  const clientTitle = (clientPageData?.title as string) || "Личный кабинет";
+  const clientTitle = "Личный кабинет";
 
-  const pageStyle = themeFrame
-    ? ({
-        ...themeFrame.themeStyle,
-        backgroundColor: "var(--site-surface)",
-        backgroundImage: "var(--site-gradient)",
-        color: "var(--site-text)",
-        fontFamily: "var(--site-font-body)",
-        "--bp-paper": "var(--site-client-card-bg)",
-        "--bp-panel": "var(--site-client-card-bg)",
-        "--bp-surface": "var(--site-surface)",
-        "--bp-stroke": "var(--site-border)",
-        "--bp-ink": "var(--site-text)",
-        "--bp-muted": "var(--site-muted)",
-        "--bp-accent": "var(--site-client-button)",
-        "--bp-accent-strong": "var(--site-client-button)",
-        "--site-button-text": "var(--site-client-button-text)",
-        "--bp-shadow":
-          "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
-      } as CSSProperties)
-    : undefined;
+  const pageStyle: CSSProperties = {
+    fontFamily: "var(--font-sans)",
+    backgroundImage:
+      "radial-gradient(960px 520px at 10% -10%, rgba(255, 237, 213, 0.6) 0%, rgba(255,255,255,0) 65%), radial-gradient(820px 480px at 88% -15%, rgba(30, 41, 59, 0.08) 0%, rgba(255,255,255,0) 55%), linear-gradient(180deg, #f8fafc 0%, #f3f4f6 60%, #eef2f7 100%)",
+    color: "#0f172a",
+    "--bp-ink": "#0f172a",
+    "--bp-muted": "#64748b",
+    "--bp-paper": "rgba(255, 255, 255, 0.92)",
+    "--bp-surface": "#f3f4f6",
+    "--bp-stroke": "rgba(15, 23, 42, 0.08)",
+    "--bp-accent": "#ef5a3c",
+    "--bp-accent-strong": "#d94b2f",
+    "--bp-shadow": "0 24px 55px rgba(15, 23, 42, 0.12)",
+    "--site-client-button": "#ef5a3c",
+    "--site-client-button-text": "#ffffff",
+    "--site-button-radius": "16px",
+    "--site-radius": "24px",
+  } as CSSProperties;
 
   const now = new Date();
   const upcoming = appointments
@@ -657,104 +634,102 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
   const accountTimeZone = accountData?.timeZone ?? appointments[0]?.accountTimeZone ?? "Europe/Moscow";
 
   return (
-    <PublicSiteOverlayLoader loaderConfig={themeFrame?.loaderConfig ?? null}>
-      <main
-        id={themeFrame ? "public-site-root" : undefined}
-        data-site-theme={themeFrame?.initialMode}
-        className="min-h-screen pb-10"
-        style={pageStyle}
-      >
-        <div
-          className="flex w-full flex-col pt-0"
-          style={themeFrame ? { gap: themeFrame.blockGap } : undefined}
-        >
-          {menuNode}
-          <section
-            className="mx-auto flex w-full flex-col gap-6 rounded-[var(--site-radius)] border border-[color:var(--site-border)] bg-[color:var(--site-client-card-bg)] px-6 py-10 md:px-8"
-            style={{
-              maxWidth: "var(--site-client-content-width)",
-              boxShadow:
-                "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
-            }}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="text-3xl font-semibold tracking-tight">{clientTitle}</h1>
+    <main className="min-h-screen" style={pageStyle}>
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-6 pb-16 pt-10">
+        <header className="flex flex-col gap-6 rounded-[28px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-3">
+              <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">
+                Marketplace ID
+              </div>
+              <h1 className="text-3xl font-semibold text-[color:var(--bp-ink)] md:text-4xl">
+                {clientTitle}
+              </h1>
+              <p className="text-sm text-[color:var(--bp-muted)]">{displayName}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={bookLink}
+                className="inline-flex items-center justify-center rounded-[var(--site-button-radius)] bg-[color:var(--site-client-button)] px-4 py-2 text-sm font-semibold text-[color:var(--site-client-button-text)] shadow-[var(--bp-shadow)] transition hover:opacity-90"
+              >
+                Записаться
+              </a>
               <LogoutButton accountSlug={selectedAccountSlug ?? undefined} />
             </div>
-            <div className="text-[color:var(--bp-muted)]">{displayName}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[color:var(--bp-muted)]">
+            <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1">
+              Маркетплейс услуг
+            </span>
+            <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1">
+              {organizations.length} организаций
+            </span>
+          </div>
+        </header>
 
-            <ClientDashboard
-              accountSlug={selectedAccountSlug}
-              accountName={accountData?.name ?? null}
-              accountAddress={accountData?.address ?? null}
-              accountPhone={accountData?.phone ?? null}
-              accountTimeZone={accountTimeZone}
-              displayName={displayName}
-              bookLink={bookLink}
-              upcoming={upcoming}
-              history={history}
-              cancellationWindowHours={accountData?.cancellationWindowHours ?? null}
-              profile={profile}
-              loyalty={{
-                balance: loyalty.balance,
-                transactions: loyalty.transactions.map((item) => ({
-                  id: item.id,
-                  createdAt: item.createdAt.toISOString(),
-                  amount: item.amount,
-                  type: item.type,
-                  accountName: item.accountName,
-                  accountTimeZone: item.accountTimeZone,
-                })),
-              }}
-              payments={{
-                intents: payments.intents.map((item) => ({
-                  id: item.id,
-                  status: item.status,
-                  amount: item.amount,
-                  createdAt: item.createdAt.toISOString(),
-                  provider: item.provider,
-                  appointmentId: item.appointmentId,
-                  accountName: item.accountName,
-                  accountTimeZone: item.accountTimeZone,
-                })),
-                transactions: payments.transactions.map((item) => ({
-                  id: item.id,
-                  type: item.type,
-                  amount: item.amount,
-                  createdAt: item.createdAt.toISOString(),
-                  providerRef: item.providerRef,
-                  accountName: item.accountName,
-                  accountTimeZone: item.accountTimeZone,
-                })),
-              }}
-              documents={documents.map((doc) => ({
-                id: doc.id,
-                title: doc.title,
-                version: doc.version,
-                acceptedAt: doc.acceptedAt.toISOString(),
-                accountName: doc.accountName,
-                accountTimeZone: doc.accountTimeZone,
-              }))}
-              reviews={reviews.map((review) => ({
-                id: review.id,
-                rating: review.rating,
-                comment: review.comment,
-                createdAt: review.createdAt.toISOString(),
-                accountName: review.accountName,
-                accountTimeZone: review.accountTimeZone,
-              }))}
-              organizations={organizations}
-            />
-          </section>
-        </div>
-      </main>
-      {selectedAccountSlug && themeFrame?.aishaConfig?.enabled !== false ? (
-        <PublicAiChatWidget
+        <ClientDashboard
           accountSlug={selectedAccountSlug}
-          widgetConfig={themeFrame?.aishaConfig ?? null}
-          themeMode={themeFrame?.initialMode}
+          accountName={accountData?.name ?? null}
+          accountAddress={accountData?.address ?? null}
+          accountPhone={accountData?.phone ?? null}
+          accountTimeZone={accountTimeZone}
+          displayName={displayName}
+          bookLink={bookLink}
+          upcoming={upcoming}
+          history={history}
+          cancellationWindowHours={accountData?.cancellationWindowHours ?? null}
+          profile={profile}
+          loyalty={{
+            balance: loyalty.balance,
+            transactions: loyalty.transactions.map((item) => ({
+              id: item.id,
+              createdAt: item.createdAt.toISOString(),
+              amount: item.amount,
+              type: item.type,
+              accountName: item.accountName,
+              accountTimeZone: item.accountTimeZone,
+            })),
+          }}
+          payments={{
+            intents: payments.intents.map((item) => ({
+              id: item.id,
+              status: item.status,
+              amount: item.amount,
+              createdAt: item.createdAt.toISOString(),
+              provider: item.provider,
+              appointmentId: item.appointmentId,
+              accountName: item.accountName,
+              accountTimeZone: item.accountTimeZone,
+            })),
+            transactions: payments.transactions.map((item) => ({
+              id: item.id,
+              type: item.type,
+              amount: item.amount,
+              createdAt: item.createdAt.toISOString(),
+              providerRef: item.providerRef,
+              accountName: item.accountName,
+              accountTimeZone: item.accountTimeZone,
+            })),
+          }}
+          documents={documents.map((doc) => ({
+            id: doc.id,
+            title: doc.title,
+            version: doc.version,
+            acceptedAt: doc.acceptedAt.toISOString(),
+            accountName: doc.accountName,
+            accountTimeZone: doc.accountTimeZone,
+          }))}
+          reviews={reviews.map((review) => ({
+            id: review.id,
+            rating: review.rating,
+            comment: review.comment,
+            createdAt: review.createdAt.toISOString(),
+            accountName: review.accountName,
+            accountTimeZone: review.accountTimeZone,
+          }))}
+          organizations={organizations}
         />
-      ) : null}
-    </PublicSiteOverlayLoader>
+      </div>
+    </main>
   );
 }
