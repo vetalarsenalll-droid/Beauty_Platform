@@ -157,6 +157,32 @@ export async function resolveClientForAccount(
     include: { account: true },
   });
   if (existing) {
+    const needsUpdate =
+      (!existing.firstName && session.userId) ||
+      (!existing.lastName && session.userId) ||
+      (!existing.phone && session.userId) ||
+      (!existing.email && session.userId);
+    if (needsUpdate) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.userId },
+        include: { profile: true },
+      });
+      if (user) {
+        await prisma.client.update({
+          where: { id: existing.id },
+          data: {
+            firstName: existing.firstName ?? user.profile?.firstName ?? null,
+            lastName: existing.lastName ?? user.profile?.lastName ?? null,
+            phone: existing.phone ?? user.phone ?? null,
+            email: existing.email ?? user.email ?? session.email ?? null,
+          },
+        });
+        existing.firstName = existing.firstName ?? user.profile?.firstName ?? null;
+        existing.lastName = existing.lastName ?? user.profile?.lastName ?? null;
+        existing.phone = existing.phone ?? user.phone ?? null;
+        existing.email = existing.email ?? user.email ?? session.email ?? null;
+      }
+    }
     return {
       clientId: existing.id,
       accountId: existing.accountId,

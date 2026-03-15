@@ -1632,7 +1632,7 @@ export default function BookingClient({
       ? `/api/v1/auth/client/me?account=${encodeURIComponent(accountSlug)}`
       : "/api/v1/auth/client/me";
 
-    fetch(url)
+    fetch(url, { credentials: "include" })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload) => {
         if (!mounted) return;

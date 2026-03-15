@@ -32,36 +32,53 @@ export async function GET(request: Request) {
       where: { slug: accountSlug },
     });
 
-    if (account) {
-      const existing = await prisma.client.findFirst({
-        where: {
-          accountId: account.id,
-          userId: session.userId,
-        },
-        include: { account: true },
-      });
+      if (account) {
+        const existing = await prisma.client.findFirst({
+          where: {
+            accountId: account.id,
+            userId: session.userId,
+          },
+          include: { account: true },
+        });
 
-      if (!existing) {
         const user = await prisma.user.findUnique({
           where: { id: session.userId },
           include: { profile: true },
         });
 
-        await prisma.client.create({
-          data: {
-            accountId: account.id,
-            userId: session.userId,
+        if (!existing) {
+          await prisma.client.create({
+            data: {
+              accountId: account.id,
+              userId: session.userId,
             firstName: user?.profile?.firstName ?? null,
             lastName: user?.profile?.lastName ?? null,
             phone: user?.phone ?? null,
             email: user?.email ?? null,
-          },
-        });
-      }
+            },
+          });
+        } else {
+          const needsUpdate =
+            (!existing.firstName && user?.profile?.firstName) ||
+            (!existing.lastName && user?.profile?.lastName) ||
+            (!existing.phone && user?.phone) ||
+            (!existing.email && (user?.email ?? session.email));
+          if (needsUpdate) {
+            await prisma.client.update({
+              where: { id: existing.id },
+              data: {
+                firstName: existing.firstName ?? user?.profile?.firstName ?? null,
+                lastName: existing.lastName ?? user?.profile?.lastName ?? null,
+                phone: existing.phone ?? user?.phone ?? null,
+                email: existing.email ?? user?.email ?? session.email ?? null,
+              },
+            });
+          }
+        }
 
-      const rows = await prisma.client.findMany({
-        where: { userId: session.userId },
-        include: { account: true },
+        const rows = await prisma.client.findMany({
+          where: { userId: session.userId },
+          include: { account: true },
       });
 
       clients = rows.map((client) => ({
