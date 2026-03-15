@@ -8,6 +8,7 @@ import HomeHeroGroup from "./home-hero-group";
 import HomeHeroSlider from "./home-hero-slider";
 import HomeCategoryStrip from "./home-category-strip";
 import HomeCityPicker from "./home-city-picker";
+import HomeSearchBar from "./home-search-bar";
 import {
   CATEGORY_SETTING_KEY,
   DEFAULT_CATEGORIES,
@@ -288,11 +289,7 @@ export default async function Home() {
               </svg>
               Каталог
             </button>
-            <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm">
-              <span className="text-[color:var(--bp-muted)]">
-                Искать услуги, мастеров или студии
-              </span>
-            </div>
+            <HomeSearchBar />
             <button
               type="button"
               className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]"

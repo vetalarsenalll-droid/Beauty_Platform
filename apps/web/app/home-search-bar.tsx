@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,132 +19,194 @@ type SearchResponse = {
 };
 
 type HomeSearchBarProps = {
-  placeholder?: string;
+  className?: string;
 };
 
-export default function HomeSearchBar({
-  placeholder = "Искать услуги, специалистов или студии",
-}: HomeSearchBarProps) {
+const readStoredCity = () => {
+  try {
+    return localStorage.getItem("bp-city");
+  } catch {
+    return null;
+  }
+};
+
+export default function HomeSearchBar({ className }: HomeSearchBarProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [city, setCity] = useState<string | null>(null);
+  const [results, setResults] = useState<{
+    services: SearchItem[];
+    specialists: SearchItem[];
+    accounts: SearchItem[];
+  } | null>(null);
 
-  const grouped = useMemo(() => {
-    const byType = { service: [], specialist: [], account: [] } as Record<
-      SearchItem["type"],
-      SearchItem[]
-    >;
-    for (const item of items) byType[item.type].push(item);
-    return byType;
-  }, [items]);
+  useEffect(() => {
+    setCity(readStoredCity());
+  }, []);
 
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
-      setItems([]);
+      setResults(null);
       setOpen(false);
       return;
     }
 
-    const city = (() => {
-      try {
-        return localStorage.getItem("bp-city") ?? "";
-      } catch {
-        return "";
-      }
-    })();
-
+    let alive = true;
+    setLoading(true);
     const handle = setTimeout(async () => {
-      setLoading(true);
       try {
-        const res = await fetch(
-          `/api/v1/public/search?query=${encodeURIComponent(trimmed)}&city=${encodeURIComponent(city)}`
-        );
+        const storedCity = readStoredCity();
+        if (storedCity && storedCity !== city) {
+          setCity(storedCity);
+        }
+        const params = new URLSearchParams({ query: trimmed });
+        if (storedCity) params.set("city", storedCity);
+        const res = await fetch(`/api/v1/public/search?${params.toString()}`);
         const payload = (await res.json().catch(() => null)) as SearchResponse | null;
-        const next: SearchItem[] = [
-          ...(payload?.data?.services ?? []),
-          ...(payload?.data?.specialists ?? []),
-          ...(payload?.data?.accounts ?? []),
-        ];
-        setItems(next);
+        const data = payload?.data ?? {};
+        if (!alive) return;
+        setResults({
+          services: data.services ?? [],
+          specialists: data.specialists ?? [],
+          accounts: data.accounts ?? [],
+        });
         setOpen(true);
       } catch {
-        setItems([]);
-        setOpen(false);
+        if (!alive) return;
+        setResults({ services: [], specialists: [], accounts: [] });
+        setOpen(true);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
-    }, 300);
+    }, 250);
 
-    return () => clearTimeout(handle);
-  }, [query]);
+    return () => {
+      alive = false;
+      clearTimeout(handle);
+    };
+  }, [query, city]);
+
+  const hasResults = useMemo(() => {
+    if (!results) return false;
+    return (
+      results.services.length > 0 ||
+      results.specialists.length > 0 ||
+      results.accounts.length > 0
+    );
+  }, [results]);
 
   return (
-    <div className="relative flex min-w-[260px] flex-1 items-center">
+    <div
+      className={`relative flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-transparent bg-white px-4 py-3 text-sm ${className ?? ""}`}
+    >
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => {
-          if (items.length) setOpen(true);
+          if (results) setOpen(true);
         }}
-        placeholder={placeholder}
-        className="h-11 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 text-sm text-[color:var(--bp-ink)] outline-none"
+        placeholder="Искать услуги, специалистов или студии"
+        className="w-full appearance-none rounded-none border-0 !border-0 bg-transparent !bg-transparent text-sm text-[color:var(--bp-ink)] outline-none ring-0 !ring-0 focus:ring-0 focus:outline-none shadow-none !shadow-none placeholder:text-[color:var(--bp-muted)]"
+        style={{
+          backgroundColor: "transparent",
+          boxShadow: "none",
+          border: "none",
+          borderRadius: "0",
+          WebkitAppearance: "none",
+        }}
       />
       {open ? (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-full overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]">
-          <div className="max-h-[360px] overflow-y-auto p-2">
-            {loading ? (
-              <div className="px-3 py-2 text-xs text-[color:var(--bp-muted)]">
-                Ищем…
-              </div>
-            ) : null}
-            {!loading && items.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-[color:var(--bp-muted)]">
-                Ничего не найдено
-              </div>
-            ) : null}
-            {grouped.service.length ? (
-              <Section title="Услуги" items={grouped.service} />
-            ) : null}
-            {grouped.specialist.length ? (
-              <Section title="Специалисты" items={grouped.specialist} />
-            ) : null}
-            {grouped.account.length ? (
-              <Section title="Студии" items={grouped.account} />
-            ) : null}
+        <div className="absolute left-0 top-full z-40 mt-3 w-full min-w-[280px] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]">
+          <div className="max-h-96 overflow-y-auto px-4 py-3 text-xs text-[color:var(--bp-muted)]">
+            {loading ? "Ищем результаты…" : null}
+            {!loading && results && !hasResults ? "Ничего не найдено" : null}
           </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Section({ title, items }: { title: string; items: SearchItem[] }) {
-  return (
-    <div className="px-1 py-2">
-      <div className="px-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-        {title}
-      </div>
-      <div className="mt-1">
-        {items.map((item) => (
-          <a
-            key={`${item.type}-${item.id}`}
-            href={item.url}
-            className="flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-[color:var(--bp-panel)]"
-          >
-            <div className="flex flex-col">
-              <span className="font-semibold text-[color:var(--bp-ink)]">{item.title}</span>
-              {item.subtitle ? (
-                <span className="text-xs text-[color:var(--bp-muted)]">{item.subtitle}</span>
+          {!loading && results && hasResults ? (
+            <div className="max-h-96 overflow-y-auto pb-3">
+              {results.services.length ? (
+                <div className="px-4 pb-3">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+                    Услуги
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {results.services.map((item) => (
+                      <a
+                        key={`${item.type}-${item.id}`}
+                        href={item.url}
+                        className="flex flex-col rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm transition hover:border-[color:var(--bp-accent)]"
+                        onClick={() => setOpen(false)}
+                      >
+                        <span className="font-medium text-[color:var(--bp-ink)]">
+                          {item.title}
+                        </span>
+                        {item.subtitle ? (
+                          <span className="text-xs text-[color:var(--bp-muted)]">
+                            {item.subtitle}
+                          </span>
+                        ) : null}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {results.specialists.length ? (
+                <div className="px-4 pb-3">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+                    Специалисты
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {results.specialists.map((item) => (
+                      <a
+                        key={`${item.type}-${item.id}`}
+                        href={item.url}
+                        className="flex flex-col rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm transition hover:border-[color:var(--bp-accent)]"
+                        onClick={() => setOpen(false)}
+                      >
+                        <span className="font-medium text-[color:var(--bp-ink)]">
+                          {item.title}
+                        </span>
+                        {item.subtitle ? (
+                          <span className="text-xs text-[color:var(--bp-muted)]">
+                            {item.subtitle}
+                          </span>
+                        ) : null}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {results.accounts.length ? (
+                <div className="px-4 pb-3">
+                  <div className="text-[10px] uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+                    Организации
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {results.accounts.map((item) => (
+                      <a
+                        key={`${item.type}-${item.id}`}
+                        href={item.url}
+                        className="flex flex-col rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm transition hover:border-[color:var(--bp-accent)]"
+                        onClick={() => setOpen(false)}
+                      >
+                        <span className="font-medium text-[color:var(--bp-ink)]">
+                          {item.title}
+                        </span>
+                        {item.subtitle ? (
+                          <span className="text-xs text-[color:var(--bp-muted)]">
+                            {item.subtitle}
+                          </span>
+                        ) : null}
+                      </a>
+                    ))}
+                  </div>
+                </div>
               ) : null}
             </div>
-            <span className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-1 text-[10px] text-[color:var(--bp-muted)]">
-              {title}
-            </span>
-          </a>
-        ))}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

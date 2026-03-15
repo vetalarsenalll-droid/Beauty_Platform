@@ -31,10 +31,10 @@ export async function GET(request: Request) {
   const query = queryRaw.slice(0, 80);
   const city = cityRaw ? cityRaw.toLowerCase() : "";
 
-  let allowedAccountIds: number[] | null = null;
+  let allowedLocationIds: number[] | null = null;
   if (city) {
     const locations = await prisma.location.findMany({
-      select: { accountId: true, address: true },
+      select: { id: true, address: true },
       where: { address: { contains: cityRaw, mode: "insensitive" } },
       take: 300,
     });
@@ -42,32 +42,59 @@ export async function GET(request: Request) {
     for (const loc of locations) {
       const locCity = extractCity(loc.address);
       if (locCity && locCity.toLowerCase().includes(city)) {
-        ids.add(loc.accountId);
+        ids.add(loc.id);
       }
     }
-    allowedAccountIds = Array.from(ids);
+    allowedLocationIds = Array.from(ids);
   }
+
+  const parts = query
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 
   const accountWhere = {
     status: "ACTIVE" as const,
     name: { contains: query, mode: "insensitive" as const },
-    ...(allowedAccountIds ? { id: { in: allowedAccountIds } } : {}),
+    ...(allowedLocationIds
+      ? { locations: { some: { id: { in: allowedLocationIds } } } }
+      : {}),
   };
 
   const serviceWhere = {
     isActive: true,
-    name: { contains: query, mode: "insensitive" as const },
-    ...(allowedAccountIds ? { accountId: { in: allowedAccountIds } } : {}),
+    OR: [
+      { name: { contains: query, mode: "insensitive" as const } },
+      { category: { name: { contains: query, mode: "insensitive" as const } } },
+    ],
+    ...(allowedLocationIds
+      ? { locations: { some: { locationId: { in: allowedLocationIds } } } }
+      : {}),
   };
 
   const specialistWhere = {
-    ...(allowedAccountIds ? { accountId: { in: allowedAccountIds } } : {}),
+    ...(allowedLocationIds
+      ? { locations: { some: { locationId: { in: allowedLocationIds } } } }
+      : {}),
     user: {
+      status: "ACTIVE",
       profile: {
-        OR: [
-          { firstName: { contains: query, mode: "insensitive" as const } },
-          { lastName: { contains: query, mode: "insensitive" as const } },
-        ],
+        ...(parts.length > 1
+          ? {
+              AND: parts.map((part) => ({
+                OR: [
+                  { firstName: { contains: part, mode: "insensitive" as const } },
+                  { lastName: { contains: part, mode: "insensitive" as const } },
+                ],
+              })),
+            }
+          : {
+              OR: [
+                { firstName: { contains: query, mode: "insensitive" as const } },
+                { lastName: { contains: query, mode: "insensitive" as const } },
+              ],
+            }),
       },
     },
   };
@@ -99,7 +126,7 @@ export async function GET(request: Request) {
     id: String(acc.id),
     type: "account",
     title: acc.name,
-    subtitle: "Студия",
+    subtitle: "Организация",
     url: `/${buildPublicSlugId(acc.slug, acc.id)}/booking`,
   }));
 
