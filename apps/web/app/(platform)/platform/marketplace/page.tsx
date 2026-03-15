@@ -1,19 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
 import MarketplaceHeroEditor from "./marketplace-hero-editor";
+import MarketplaceCategoryEditor from "./marketplace-category-editor";
 import { HERO_SETTING_KEY, normalizeHeroConfig } from "@/lib/marketplace-hero";
+import {
+  CATEGORY_SETTING_KEY,
+  normalizeCategoryConfig,
+} from "@/lib/marketplace-categories";
 
 export default async function PlatformMarketplacePage() {
   await requirePlatformPermission("platform.settings");
 
   const [
-    setting,
+    heroSetting,
+    categorySetting,
     accounts,
     locations,
     services,
     specialists,
   ] = await Promise.all([
     prisma.platformSetting.findUnique({ where: { key: HERO_SETTING_KEY } }),
+    prisma.platformSetting.findUnique({ where: { key: CATEGORY_SETTING_KEY } }),
     prisma.account.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, slug: true },
@@ -36,7 +43,8 @@ export default async function PlatformMarketplacePage() {
     }),
   ]);
 
-  const heroConfig = normalizeHeroConfig(setting?.valueJson);
+  const heroConfig = normalizeHeroConfig(heroSetting?.valueJson);
+  const categoryConfig = normalizeCategoryConfig(categorySetting?.valueJson);
 
   const specialistOptions = specialists.map((item) => {
     const firstName = item.user.profile?.firstName ?? "";
@@ -71,6 +79,8 @@ export default async function PlatformMarketplacePage() {
         services={services}
         specialists={specialistOptions}
       />
+
+      <MarketplaceCategoryEditor initialConfig={categoryConfig} />
     </div>
   );
 }

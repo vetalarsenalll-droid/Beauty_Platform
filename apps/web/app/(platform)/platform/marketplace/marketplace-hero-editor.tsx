@@ -22,6 +22,8 @@ type MarketplaceHeroEditorProps = {
   specialists: SpecialistOption[];
 };
 
+type HeroSectionKey = "main" | "sideTop" | "sideBottom";
+
 const MAIN_COUNT = 6;
 const SIDE_COUNT = 3;
 
@@ -54,7 +56,6 @@ function createEmptySlide(index: number): HeroSlide {
     title: "",
     subtitle: "",
     description: "",
-    badge: "",
     ctaLabel: "",
     imageUrl: "",
     linkType: "ai_assistant",
@@ -176,13 +177,13 @@ export default function MarketplaceHeroEditor({
   }, [hero]);
 
   const updateSlide = (
-    section: keyof HeroConfig,
+    section: HeroSectionKey,
     index: number,
     patch: Partial<HeroSlide>
   ) => {
     setHero((prev) => {
       const next = { ...prev };
-      const slides = [...next[section]];
+      const slides = [...(next[section] ?? [])] as HeroSlide[];
       slides[index] = { ...slides[index], ...patch };
       next[section] = slides;
       return next;
@@ -451,55 +452,50 @@ function SlideEditor({
         </label>
       </summary>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
-          Тег
-          <input
-            value={slide.tag ?? ""}
-            onChange={(event) => onChange({ tag: event.target.value })}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
-          Заголовок
-          <input
-            value={slide.title}
-            onChange={(event) => onChange({ title: event.target.value })}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
-          Подзаголовок
-          <input
-            value={slide.subtitle ?? ""}
-            onChange={(event) => onChange({ subtitle: event.target.value })}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
-          Бейдж
-          <input
-            value={slide.badge ?? ""}
-            onChange={(event) => onChange({ badge: event.target.value })}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)] md:col-span-2">
-          Описание
-          <textarea
-            value={slide.description ?? ""}
-            onChange={(event) => onChange({ description: event.target.value })}
-            className="min-h-[70px] rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
-          Текст кнопки
-          <input
-            value={slide.ctaLabel ?? ""}
-            onChange={(event) => onChange({ ctaLabel: event.target.value })}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          />
-        </label>
+      <div className="mt-3 grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Тег
+            <input
+              value={slide.tag ?? ""}
+              onChange={(event) => onChange({ tag: event.target.value })}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Заголовок
+            <input
+              value={slide.title}
+              onChange={(event) => onChange({ title: event.target.value })}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Подзаголовок
+            <input
+              value={slide.subtitle ?? ""}
+              onChange={(event) => onChange({ subtitle: event.target.value })}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Описание
+            <textarea
+              value={slide.description ?? ""}
+              onChange={(event) => onChange({ description: event.target.value })}
+              className="min-h-[90px] rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Текст кнопки
+            <input
+              value={slide.ctaLabel ?? ""}
+              onChange={(event) => onChange({ ctaLabel: event.target.value })}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            />
+          </label>
+        </div>
+
         <div className="flex flex-col gap-2 text-xs text-[color:var(--bp-muted)]">
           Фото для карточки
           <div className="flex flex-wrap items-center gap-2">
@@ -530,7 +526,7 @@ function SlideEditor({
               <img
                 src={slide.imageUrl}
                 alt="Превью"
-                className="h-36 w-full object-cover"
+                className="h-48 w-full object-cover"
               />
             </div>
           ) : (

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type HomeCategoryStripProps = {
-  categories: string[];
+  categories: Array<{ key: string; label: string; imageUrl?: string | null }>;
 };
 
 type ChevronProps = {
@@ -69,23 +69,38 @@ export default function HomeCategoryStrip({ categories }: HomeCategoryStripProps
       <div className="relative rounded-[24px]">
         <div
           ref={scrollerRef}
-          className="bp-scrollbar-hidden grid grid-rows-2 grid-flow-col auto-cols-[160px] gap-4 overflow-x-auto"
+        className="bp-scrollbar-hidden grid grid-rows-2 grid-flow-col auto-cols-[46vw] gap-4 overflow-x-auto sm:auto-cols-[190px]"
           style={{ scrollSnapType: "x proximity" }}
           onScroll={updateScrollState}
         >
-          {categories.map((item) => (
-            <div
-              key={item}
-              className="flex min-h-[96px] flex-col items-center justify-center gap-2 rounded-[22px] border border-[color:var(--bp-stroke)] bg-white p-4 text-center text-xs font-semibold"
-              style={{ scrollSnapAlign: "start" }}
-            >
-              <div className="h-12 w-12 rounded-full bg-[color:var(--bp-blue)]/15" />
-              {item}
-            </div>
-          ))}
-        </div>
+        {categories.map((item) => (
+          <div
+            key={item.key}
+            className="flex min-h-[120px] flex-col items-center justify-center overflow-hidden rounded-[24px] border border-[color:var(--bp-stroke)] bg-white text-center text-xs font-semibold"
+            style={{ scrollSnapAlign: "start" }}
+          >
+            {item.imageUrl ? (
+              <div className="relative h-full w-full text-white">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 100%), url(${item.imageUrl})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+                <span className="relative z-10 flex h-full w-full items-center justify-center px-4 text-center text-sm font-semibold leading-snug">
+                  {item.label}
+                </span>
+              </div>
+            ) : (
+              <span className="px-3">{item.label}</span>
+            )}
+          </div>
+        ))}
+      </div>
         {canScrollLeft ? (
-          <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center">
+        <div className="pointer-events-none absolute inset-y-0 left-2 hidden items-center sm:flex">
           <button
             type="button"
             onClick={handleScrollLeft}
@@ -97,7 +112,7 @@ export default function HomeCategoryStrip({ categories }: HomeCategoryStripProps
           </div>
         ) : null}
         {canScrollRight ? (
-          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+        <div className="pointer-events-none absolute inset-y-0 right-2 hidden items-center sm:flex">
           <button
             type="button"
             onClick={handleScrollRight}

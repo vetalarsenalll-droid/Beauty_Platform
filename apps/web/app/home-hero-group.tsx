@@ -107,7 +107,7 @@ export default function HomeHeroGroup({
     <section
       className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]"
       style={{
-        "--hero-compact-h": "190px",
+        "--hero-compact-h": "clamp(140px, 32vw, 190px)",
         "--hero-compact-gap": "16px",
       } as CSSProperties}
       onMouseEnter={() => pauseOnHover && setPaused(true)}

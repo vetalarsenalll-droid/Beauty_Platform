@@ -1,37 +1,22 @@
 import type { CSSProperties } from "react";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import HomeHeroGroup from "./home-hero-group";
 import HomeCategoryStrip from "./home-category-strip";
+import {
+  CATEGORY_SETTING_KEY,
+  DEFAULT_CATEGORIES,
+  normalizeCategoryConfig,
+} from "@/lib/marketplace-categories";
 import {
   HERO_SETTING_KEY,
   HeroSlide,
   normalizeHeroConfig,
   isSlideReady,
 } from "@/lib/marketplace-hero";
-
-const quickCategories = [
-  "Парикмахерские услуги",
-  "Ногтевой сервис",
-  "Брови",
-  "Ресницы",
-  "Косметология, уход",
-  "Массаж",
-  "Макияж, визаж",
-  "Депиляция, эпиляция",
-  "СПА",
-  "Барбершоп",
-  "Усы, борода",
-  "Татуаж, тату",
-  "Пирсинг",
-  "Солярий",
-  "Стоматология",
-  "Медицина",
-  "Бани, сауны",
-  "Фитнес",
-  "Йога",
-  "Танцы",
-];
 
 const routes = [
   {
@@ -128,14 +113,28 @@ function resolveSlides(
 }
 
 export default async function Home() {
-  const heroSetting = await prisma.platformSetting.findUnique({
-    where: { key: HERO_SETTING_KEY },
-  });
+  const [heroSetting, categorySetting] = await Promise.all([
+    prisma.platformSetting.findUnique({
+      where: { key: HERO_SETTING_KEY },
+    }),
+    prisma.platformSetting.findUnique({
+      where: { key: CATEGORY_SETTING_KEY },
+    }),
+  ]);
 
   const heroConfig = normalizeHeroConfig(heroSetting?.valueJson);
+  const categoryConfig = normalizeCategoryConfig(categorySetting?.valueJson);
   const heroSettings = heroConfig.settings ?? {};
   const mainIntervalMs =
     Math.max(2, heroSettings.autoplayMainSec ?? 6) * 1000;
+
+  const categoryByKey = new Map(
+    categoryConfig.items.map((item) => [item.key, item])
+  );
+  const categories = DEFAULT_CATEGORIES.map((item) => ({
+    ...item,
+    imageUrl: categoryByKey.get(item.key)?.imageUrl ?? null,
+  }));
 
   const locationIds = new Set<number>();
   const serviceIds = new Set<number>();
@@ -228,7 +227,6 @@ export default async function Home() {
     title: "Настройте витрину в админке",
     subtitle: "Загрузите фото и укажите переходы",
     description: "Блок будет скрыт, когда карточки заполнены.",
-    badge: "",
     ctaLabel: "",
     imageUrl:
       "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1400&q=80",
@@ -293,7 +291,7 @@ export default async function Home() {
         />
 
         <section>
-          <HomeCategoryStrip categories={quickCategories} />
+          <HomeCategoryStrip categories={categories} />
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
