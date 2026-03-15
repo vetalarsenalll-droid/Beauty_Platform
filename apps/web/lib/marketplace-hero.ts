@@ -92,7 +92,6 @@ export function isSlideActive(slide: HeroSlide) {
 
 export function isSlideReady(slide: HeroSlide) {
   if (!slide.isActive) return false;
-  if (!slide.title?.trim()) return false;
   if (!slide.imageUrl?.trim()) return false;
   if (!slide.linkType) return false;
   if (slide.linkType === "url") return Boolean(slide.url?.trim());

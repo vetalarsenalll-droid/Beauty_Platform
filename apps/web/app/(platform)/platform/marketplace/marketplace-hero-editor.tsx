@@ -146,35 +146,7 @@ export default function MarketplaceHeroEditor({
     [specialists, accountById]
   );
 
-  const validation = useMemo(() => {
-    const sections = [
-      { key: "main", label: "Большая карточка", count: MAIN_COUNT },
-      { key: "sideTop", label: "Маленькая карточка 1", count: SIDE_COUNT },
-      { key: "sideBottom", label: "Маленькая карточка 2", count: SIDE_COUNT },
-    ] as const;
-
-    const errors: string[] = [];
-    let assistantCount = 0;
-
-    sections.forEach((section) => {
-      const slides = hero[section.key];
-      const ready = slides.filter((slide) => isSlideReady(slide));
-      assistantCount += slides.filter(
-        (slide) => slide.isActive && slide.linkType === "ai_assistant"
-      ).length;
-      if (ready.length < section.count) {
-        errors.push(
-          `${section.label}: заполнено ${ready.length} из ${section.count}`
-        );
-      }
-    });
-
-    if (assistantCount === 0) {
-      errors.push("Добавьте хотя бы один слайд с рекламой AI‑ассистента.");
-    }
-
-    return errors;
-  }, [hero]);
+  const validation = useMemo(() => [], []);
 
   const updateSlide = (
     section: HeroSectionKey,
@@ -232,8 +204,7 @@ export default function MarketplaceHeroEditor({
         <div>
           <h2 className="text-lg font-semibold">Карточки витрины</h2>
           <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-            Большая карточка содержит 6 слайдов, две маленькие — по 3. Карточки
-            должны быть кликабельными и вести на нужные страницы.
+            Настройте карточки витрины и ссылки на нужные страницы.
           </p>
         </div>
         <button
@@ -246,16 +217,7 @@ export default function MarketplaceHeroEditor({
         </button>
       </div>
 
-      {validation.length > 0 ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <div className="font-semibold">Что нужно заполнить:</div>
-          <ul className="mt-2 space-y-1">
-            {validation.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {validation.length > 0 ? null : null}
 
       {message ? (
         <div className="mt-4 text-sm text-[color:var(--bp-muted)]">{message}</div>

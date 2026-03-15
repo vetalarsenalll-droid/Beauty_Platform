@@ -5,7 +5,9 @@ export const revalidate = 0;
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import HomeHeroGroup from "./home-hero-group";
+import HomeHeroSlider from "./home-hero-slider";
 import HomeCategoryStrip from "./home-category-strip";
+import HomeCityPicker from "./home-city-picker";
 import {
   CATEGORY_SETTING_KEY,
   DEFAULT_CATEGORIES,
@@ -223,15 +225,14 @@ export default async function Home() {
   const fallbackSlide: HeroSlideView = {
     id: "fallback",
     isActive: true,
-    tag: "Marketplace",
-    title: "Настройте витрину в админке",
-    subtitle: "Загрузите фото и укажите переходы",
-    description: "Блок будет скрыт, когда карточки заполнены.",
+    tag: "",
+    title: "",
+    subtitle: "",
+    description: "",
     ctaLabel: "",
-    imageUrl:
-      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1400&q=80",
+    imageUrl: "",
     linkType: "url",
-    url: "/platform/marketplace",
+    url: "#",
   };
 
   const pageStyle: CSSProperties = {
@@ -265,30 +266,103 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+            <HomeCityPicker />
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button className="inline-flex items-center gap-2 rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-xs font-semibold text-white shadow-[var(--bp-shadow)]">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M8.557 2.75H4.682A1.932 1.932 0 0 0 2.75 4.682v3.875a1.942 1.942 0 0 0 1.932 1.942h3.875a1.942 1.942 0 0 0 1.942-1.942V4.682A1.942 1.942 0 0 0 8.557 2.75m10.761 0h-3.875a1.942 1.942 0 0 0-1.942 1.932v3.875a1.943 1.943 0 0 0 1.942 1.942h3.875a1.942 1.942 0 0 0 1.932-1.942V4.682a1.932 1.932 0 0 0-1.932-1.932m0 10.75h-3.875a1.942 1.942 0 0 0-1.942 1.933v3.875a1.942 1.942 0 0 0 1.942 1.942h3.875a1.942 1.942 0 0 0 1.932-1.942v-3.875a1.932 1.932 0 0 0-1.932-1.932M8.557 13.5H4.682a1.943 1.943 0 0 0-1.932 1.943v3.875a1.932 1.932 0 0 0 1.932 1.932h3.875a1.942 1.942 0 0 0 1.942-1.932v-3.875a1.942 1.942 0 0 0-1.942-1.942"
+                />
+              </svg>
+              Каталог
+            </button>
             <div className="flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm">
               <span className="text-[color:var(--bp-muted)]">
                 Искать услуги, мастеров или студии
               </span>
             </div>
-            <button className="rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-xs font-semibold text-white shadow-[var(--bp-shadow)]">
-              Найти
+            <button
+              type="button"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]"
+              aria-label="Избранное"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                <path
+                  fill="none"
+                  stroke="#000000"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M12 7.23c-1.733-3.924-5.764-4.273-7.641-2.562c-1.529 1.373-2.263 4.665-.867 7.695C5.9 17.573 12 20.309 12 20.309s6.101-2.736 8.508-7.946c1.396-3.03.662-6.322-.867-7.695C17.764 2.957 13.733 3.306 12 7.229"
+                />
+              </svg>
             </button>
+            <a
+              href="/c"
+              className="rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-xs font-semibold text-white shadow-[var(--bp-shadow)]"
+            >
+              Личный кабинет
+            </a>
           </div>
-
         </header>
 
-        <HomeHeroGroup
-          mainSlides={heroMainSlides.length ? heroMainSlides : [fallbackSlide]}
-          sideTopSlides={heroSideTopSlides.length ? heroSideTopSlides : [fallbackSlide]}
-          sideBottomSlides={heroSideBottomSlides.length ? heroSideBottomSlides : [fallbackSlide]}
-          intervalMs={mainIntervalMs}
-          showDotsMain={heroSettings.showDotsMain ?? true}
-          showDotsSide={heroSettings.showDotsSide ?? true}
-          pauseOnHover={heroSettings.pauseOnHover ?? true}
-        />
+        {heroMainSlides.length &&
+        heroSideTopSlides.length &&
+        heroSideBottomSlides.length ? (
+          <HomeHeroGroup
+            mainSlides={heroMainSlides}
+            sideTopSlides={heroSideTopSlides}
+            sideBottomSlides={heroSideBottomSlides}
+            intervalMs={mainIntervalMs}
+            showDotsMain={heroSettings.showDotsMain ?? true}
+            showDotsSide={heroSettings.showDotsSide ?? true}
+            pauseOnHover={heroSettings.pauseOnHover ?? true}
+          />
+        ) : heroMainSlides.length ? (
+          <HomeHeroSlider
+            slides={heroMainSlides}
+            variant="large"
+            intervalMs={mainIntervalMs}
+            showDots={heroSettings.showDotsMain ?? true}
+            pauseOnHover={heroSettings.pauseOnHover ?? true}
+          />
+        ) : heroSideTopSlides.length || heroSideBottomSlides.length ? (
+          <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+            <div />
+            <div className="grid gap-4">
+              {heroSideTopSlides.length ? (
+                <HomeHeroSlider
+                  slides={heroSideTopSlides}
+                  variant="compact"
+                  intervalMs={mainIntervalMs}
+                  showDots={heroSettings.showDotsSide ?? true}
+                  pauseOnHover={heroSettings.pauseOnHover ?? true}
+                />
+              ) : null}
+              {heroSideBottomSlides.length ? (
+                <HomeHeroSlider
+                  slides={heroSideBottomSlides}
+                  variant="compact"
+                  intervalMs={mainIntervalMs}
+                  showDots={heroSettings.showDotsSide ?? true}
+                  pauseOnHover={heroSettings.pauseOnHover ?? true}
+                />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <HomeCategoryStrip categories={categories} />
