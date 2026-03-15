@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
 import MarketplaceHeroEditor from "./marketplace-hero-editor";
 import MarketplaceCategoryEditor from "./marketplace-category-editor";
+import MarketplaceTabs from "./marketplace-tabs";
 import { HERO_SETTING_KEY, normalizeHeroConfig } from "@/lib/marketplace-hero";
 import {
   CATEGORY_SETTING_KEY,
@@ -72,15 +73,18 @@ export default async function PlatformMarketplacePage() {
         </p>
       </header>
 
-      <MarketplaceHeroEditor
-        initialConfig={heroConfig}
-        accounts={accounts}
-        locations={locations}
-        services={services}
-        specialists={specialistOptions}
+      <MarketplaceTabs
+        hero={
+          <MarketplaceHeroEditor
+            initialConfig={heroConfig}
+            accounts={accounts}
+            locations={locations}
+            services={services}
+            specialists={specialistOptions}
+          />
+        }
+        categories={<MarketplaceCategoryEditor initialConfig={categoryConfig} />}
       />
-
-      <MarketplaceCategoryEditor initialConfig={categoryConfig} />
     </div>
   );
 }
