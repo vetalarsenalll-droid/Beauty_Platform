@@ -20,7 +20,33 @@ type SearchResponse = {
 
 type HomeSearchBarProps = {
   className?: string;
+  placeholder?: string;
+  resultsMode?: "dropdown" | "panel";
+  bordered?: boolean;
+  grow?: boolean;
 };
+
+type SearchProps = {
+  size: string;
+};
+
+const Search = ({ size }: SearchProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="#000000"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M10.783 18.828a8.046 8.046 0 0 0 7.439-4.955a8.034 8.034 0 0 0-1.737-8.765a8.045 8.045 0 0 0-13.735 5.68c0 2.131.846 4.174 2.352 5.681a8.046 8.046 0 0 0 5.68 2.359m5.706-2.337l4.762 4.759"
+    />
+  </svg>
+);
 
 const readStoredCity = () => {
   try {
@@ -30,7 +56,13 @@ const readStoredCity = () => {
   }
 };
 
-export default function HomeSearchBar({ className }: HomeSearchBarProps) {
+export default function HomeSearchBar({
+  className,
+  placeholder = "Поиск",
+  resultsMode = "dropdown",
+  bordered = false,
+  grow = true,
+}: HomeSearchBarProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -97,17 +129,27 @@ export default function HomeSearchBar({ className }: HomeSearchBarProps) {
     );
   }, [results]);
 
+  const borderClass = bordered
+    ? "border border-[color:var(--bp-stroke)]"
+    : "border border-transparent";
+  const containerBase =
+    resultsMode === "panel"
+      ? `relative flex min-w-[240px] items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm ${borderClass}`
+      : `relative flex min-w-[260px] items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm ${borderClass} ${
+          grow ? "flex-1" : ""
+        }`;
+
   return (
-    <div
-      className={`relative flex min-w-[260px] flex-1 items-center gap-3 rounded-2xl border border-transparent bg-white px-4 py-3 text-sm ${className ?? ""}`}
-    >
+    <div className={`${containerBase} ${className ?? ""}`}>
+      <Search size="18" />
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => {
           if (results) setOpen(true);
         }}
-        placeholder="Искать услуги, специалистов или студии"
+        aria-label="Поиск"
+        placeholder={placeholder}
         className="w-full appearance-none rounded-none border-0 !border-0 bg-transparent !bg-transparent text-sm text-[color:var(--bp-ink)] outline-none ring-0 !ring-0 focus:ring-0 focus:outline-none shadow-none !shadow-none placeholder:text-[color:var(--bp-muted)]"
         style={{
           backgroundColor: "transparent",
@@ -118,7 +160,13 @@ export default function HomeSearchBar({ className }: HomeSearchBarProps) {
         }}
       />
       {open ? (
-        <div className="absolute left-0 top-full z-40 mt-3 w-full min-w-[280px] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]">
+        <div
+          className={
+            resultsMode === "panel"
+              ? "mt-6 w-full overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]"
+              : "absolute left-0 top-full z-40 mt-3 w-full min-w-[280px] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]"
+          }
+        >
           <div className="max-h-96 overflow-y-auto px-4 py-3 text-xs text-[color:var(--bp-muted)]">
             {loading ? "Ищем результаты…" : null}
             {!loading && results && !hasResults ? "Ничего не найдено" : null}

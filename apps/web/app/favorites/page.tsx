@@ -1,6 +1,5 @@
 ﻿import type { CSSProperties } from "react";
-import HomeCatalogTabs from "../home-catalog-tabs";
-import HomeMarketplaceHeader from "../home-marketplace-header";
+import HomeLeftSidebar from "../home-left-sidebar";
 import HomeHeroSection from "../home-hero-section";
 
 export const dynamic = "force-dynamic";
@@ -22,17 +21,18 @@ export default function Page() {
 
   return (
     <main className="min-h-screen" style={pageStyle}>
-      <div className="mx-auto w-full max-w-[1280px] px-6 pb-20 pt-6">
+      <HomeLeftSidebar active="favorites" />
+      <div className="mx-auto w-full max-w-[1560px] px-6 pb-20 pt-6 md:pl-[280px]">
         <div className="flex flex-col gap-6">
-          <HomeMarketplaceHeader />
           <HomeHeroSection />
-          <HomeCatalogTabs active="favorites" />
-        </div>
 
-        <section className="mt-6 rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]">
-          <div className="text-lg font-semibold">Избранное</div>
-          <p className="mt-2 text-sm text-[color:var(--bp-muted)]">Сохранённые студии и специалисты будут здесь.</p>
-        </section>
+          <section className="rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]">
+            <div className="text-lg font-semibold">Избранное</div>
+            <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
+              Сохранённые студии и специалисты будут здесь.
+            </p>
+          </section>
+        </div>
       </div>
     </main>
   );
