@@ -38,11 +38,141 @@ const Search = ({ size }: SearchProps) => (
   >
     <path
       fill="none"
-      stroke="#000000"
+      stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="1.5"
       d="M10.783 18.828a8.046 8.046 0 0 0 7.439-4.955a8.034 8.034 0 0 0-1.737-8.765a8.045 8.045 0 0 0-13.735 5.68c0 2.131.846 4.174 2.352 5.681a8.046 8.046 0 0 0 5.68 2.359m5.706-2.337l4.762 4.759"
+    />
+  </svg>
+);
+
+type IconProps = { size?: number };
+
+const IconHome = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M4 10.5L12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"
+    />
+  </svg>
+);
+
+const IconGrid = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"
+    />
+  </svg>
+);
+
+const IconTag = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M3 12l9-9h6a2 2 0 0 1 2 2v6l-9 9-8-8z"
+    />
+    <circle cx="17" cy="7" r="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
+
+const IconMap = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M12 21s6-5.25 6-10a6 6 0 1 0-12 0c0 4.75 6 10 6 10z"
+    />
+    <circle cx="12" cy="11" r="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
+
+const IconHeart = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M12 7.23c-1.733-3.924-5.764-4.273-7.641-2.562c-1.529 1.373-2.263 4.665-.867 7.695C5.9 17.573 12 20.309 12 20.309s6.101-2.736 8.508-7.946c1.396-3.03.662-6.322-.867-7.695C17.764 2.957 13.733 3.306 12 7.229"
+    />
+  </svg>
+);
+
+const IconCalendar = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M7 3v3m10-3v3M4 9h16M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2"
+    />
+  </svg>
+);
+
+const IconUser = ({ size = 20 }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+  >
+    <path
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M12 12a4 4 0 1 0-4-4a4 4 0 0 0 4 4zm7 9a7 7 0 0 0-14 0"
     />
   </svg>
 );
@@ -91,8 +221,13 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
                     : "text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-accent)]/10"
                 } ${isCollapsed ? "justify-center" : ""}`}
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white">
-                  <span className="h-2 w-2 rounded-full bg-[color:var(--bp-ink)]/50" />
+                <span className="flex h-8 w-8 items-center justify-center text-[color:var(--bp-ink)]">
+                  {item.key === "collection" ? <IconHome /> : null}
+                  {item.key === "catalog" ? <IconGrid /> : null}
+                  {item.key === "promos" ? <IconTag /> : null}
+                  {item.key === "map" ? <IconMap /> : null}
+                  {item.key === "favorites" ? <IconHeart /> : null}
+                  {item.key === "records" ? <IconCalendar /> : null}
                 </span>
                 <span className={`${isCollapsed ? "hidden" : ""}`}>{item.label}</span>
               </Link>
@@ -110,10 +245,13 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
           </div>
           <Link
             href="/c"
-            className={`rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-center text-xs font-semibold text-white ${
+            className={`flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-center text-xs font-semibold text-white ${
               isCollapsed ? "px-0" : ""
             }`}
           >
+            <span className={`${isCollapsed ? "hidden" : ""}`}>
+              <IconUser />
+            </span>
             {isCollapsed ? "BP" : "Личный кабинет"}
           </Link>
         </div>
@@ -133,7 +271,7 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
               </button>
             </div>
             <HomeSearchBar
-              className="h-11 w-full rounded-full bg-[color:var(--bp-paper)]"
+              className="h-11 w-full flex-none self-start rounded-full bg-[color:var(--bp-paper)]"
               placeholder="Поиск"
               resultsMode="dropdown"
               bordered

@@ -1,5 +1,6 @@
 ﻿import type { CSSProperties } from "react";
 import ClientLoginPage from "./login-client";
+import HomeLeftSidebar from "../home-left-sidebar";
 
 type PageProps = {
   searchParams?: Promise<{ account?: string }> | { account?: string };
@@ -30,7 +31,10 @@ export default async function ClientLoginPageWrapper({ searchParams }: PageProps
 
   return (
     <main className="min-h-screen" style={pageStyle}>
-      <ClientLoginPage initialAccountSlug={accountSlug} />
+      <HomeLeftSidebar active="collection" />
+      <div className="mx-auto w-full max-w-[1560px] px-6 pb-16 pt-10 md:pl-[280px]">
+        <ClientLoginPage initialAccountSlug={accountSlug} />
+      </div>
     </main>
   );
 }

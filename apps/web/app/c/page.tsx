@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import LogoutButton from "./logout-button";
 import ClientDashboard from "./client-dashboard";
+import HomeLeftSidebar from "../home-left-sidebar";
 
 const statusLabelMap: Record<string, { label: string; tone: string }> = {
   NEW: { label: "Новая", tone: "success" },
@@ -635,7 +636,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
 
   return (
     <main className="min-h-screen" style={pageStyle}>
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-6 pb-16 pt-10">
+      <HomeLeftSidebar active="records" />
+      <div className="mx-auto flex w-full max-w-[1560px] flex-col gap-8 px-6 pb-16 pt-10 md:pl-[280px]">
         <header className="flex flex-col gap-6 rounded-[28px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
