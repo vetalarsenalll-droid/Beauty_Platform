@@ -183,12 +183,12 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
 
   return (
     <aside
-      className={`fixed left-6 top-6 z-30 hidden md:block ${
+      className={`fixed left-4 top-6 z-30 hidden md:block ${
         isCollapsed ? "w-[80px]" : "w-[220px]"
       }`}
     >
       <div className="flex max-h-[calc(100vh-48px)] flex-col gap-6 overflow-auto rounded-[28px] bg-transparent px-2 py-2">
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${isCollapsed ? "w-full justify-center" : "gap-3"}`}>
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-[11px] font-semibold text-white">
             BP
           </div>
@@ -201,7 +201,7 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
           type="button"
           onClick={() => setSearchOpen(true)}
           className={`flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[color:var(--bp-muted)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:bg-[color:var(--bp-accent)]/10 ${
-            isCollapsed ? "justify-center px-2" : ""
+            isCollapsed ? "w-full justify-center px-0" : ""
           }`}
         >
           <Search size="18" />
@@ -219,7 +219,7 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
                   isActive
                     ? "bg-[color:var(--bp-accent)]/10 text-[color:var(--bp-accent)]"
                     : "text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-accent)]/10"
-                } ${isCollapsed ? "justify-center" : ""}`}
+                } ${isCollapsed ? "w-full justify-center px-0" : ""}`}
               >
                 <span className="flex h-8 w-8 items-center justify-center text-[color:var(--bp-ink)]">
                   {item.key === "collection" ? <IconHome /> : null}
@@ -236,29 +236,20 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
         </nav>
 
         <div className="mt-auto flex flex-col gap-3">
-          <div
-            className={`text-xs text-[color:var(--bp-muted)] ${
-              isCollapsed ? "hidden" : ""
-            }`}
-          >
-            Войдите, чтобы видеть записи и избранное.
-          </div>
           <Link
             href="/c"
             className={`flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-center text-xs font-semibold text-white ${
-              isCollapsed ? "px-0" : ""
+              isCollapsed ? "w-full px-0" : ""
             }`}
           >
-            <span className={`${isCollapsed ? "hidden" : ""}`}>
-              <IconUser />
-            </span>
-            {isCollapsed ? "BP" : "Личный кабинет"}
+            <IconUser />
+            <span className={`${isCollapsed ? "hidden" : ""}`}>Личный кабинет</span>
           </Link>
         </div>
       </div>
 
       {searchOpen ? (
-        <div className="fixed left-[120px] top-0 z-40 hidden h-screen w-[360px] md:block">
+        <div className="fixed left-[112px] top-0 z-40 hidden h-screen w-[360px] md:block">
           <div className="flex h-full flex-col gap-6 overflow-visible rounded-[0px] border-r border-[color:var(--bp-stroke)] bg-white px-6 pb-8 pt-6">
             <div className="flex h-9 items-center justify-between">
               <div className="text-sm font-semibold">Поиск</div>
