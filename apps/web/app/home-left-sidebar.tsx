@@ -259,8 +259,8 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
 
       {searchOpen ? (
         <div className="fixed left-[120px] top-0 z-40 hidden h-screen w-[360px] md:block">
-          <div className="flex h-full flex-col gap-4 overflow-visible rounded-[0px] border-r border-[color:var(--bp-stroke)] bg-white px-6 pb-8 pt-6">
-            <div className="flex items-center justify-between">
+          <div className="flex h-full flex-col gap-6 overflow-visible rounded-[0px] border-r border-[color:var(--bp-stroke)] bg-white px-6 pb-8 pt-6">
+            <div className="flex h-9 items-center justify-between">
               <div className="text-sm font-semibold">Поиск</div>
               <button
                 type="button"
@@ -271,7 +271,7 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
               </button>
             </div>
             <HomeSearchBar
-              className="h-11 w-full flex-none self-start rounded-full bg-[color:var(--bp-paper)]"
+              className="h-10 w-full flex-none self-start rounded-full bg-[color:var(--bp-paper)]"
               placeholder="Поиск"
               resultsMode="dropdown"
               bordered
