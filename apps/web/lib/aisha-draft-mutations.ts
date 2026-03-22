@@ -1,4 +1,4 @@
-﻿import { parseDate, parseName, parsePhone, parseTime, pickSafeNluDate } from "@/lib/aisha-chat-parsers";
+﻿import { parseDate, parseEmail, parseName, parsePhone, parseTime, pickSafeNluDate } from "@/lib/aisha-chat-parsers";
 import {
   hasLocationCue,
   locationByText,
@@ -178,6 +178,12 @@ export function applyDraftMutations(args: {
   const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
   const parsedMessagePhone = parsePhone(message);
   d.clientPhone = parsedMessagePhone || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
+
+  const parsedNluEmail = typeof nlu?.clientEmail === "string" ? parseEmail(nlu.clientEmail) : null;
+  const parsedDraftEmail = d.clientEmail ? parseEmail(d.clientEmail) : null;
+  const parsedClientEmail = client?.email ? parseEmail(client.email) : null;
+  const parsedMessageEmail = parseEmail(message);
+  d.clientEmail = parsedMessageEmail || parsedNluEmail || parsedDraftEmail || parsedClientEmail || null;
 
   const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
   const parsedMessageName = parseName(message);

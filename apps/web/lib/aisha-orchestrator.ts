@@ -47,6 +47,7 @@ export type AishaNlu = {
   timePreference?: TimePreference;
   clientName?: string | null;
   clientPhone?: string | null;
+  clientEmail?: string | null;
 };
 
 type RunAishaNluArgs = {
@@ -61,6 +62,7 @@ type RunAishaNluArgs = {
     time: string | null;
     clientName: string | null;
     clientPhone: string | null;
+    clientEmail: string | null;
     mode: "SELF" | "ASSISTANT" | null;
     status: string;
     consentConfirmedAt: string | null;
@@ -286,6 +288,7 @@ function normalizeNlu(parsed: Record<string, unknown>): AishaNlu {
     timePreference,
     clientName: typeof parsed.clientName === "string" ? parsed.clientName.trim().slice(0, 80) : null,
     clientPhone: typeof parsed.clientPhone === "string" ? parsed.clientPhone.trim().slice(0, 40) : null,
+    clientEmail: typeof parsed.clientEmail === "string" ? parsed.clientEmail.trim().slice(0, 120).toLowerCase() : null,
   };
 }
 
@@ -319,7 +322,7 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
     "Для confidence верни число от 0 до 1.",
     "Для smalltalk/gratitude можно добавить короткий вежливый reply на русском.",
     "JSON schema:",
-    '{"intent":"unknown","reply":null,"confidence":0.0,"locationId":null,"serviceId":null,"specialistId":null,"date":null,"time":null,"timePreference":null,"clientName":null,"clientPhone":null}',
+    '{"intent":"unknown","reply":null,"confidence":0.0,"locationId":null,"serviceId":null,"specialistId":null,"date":null,"time":null,"timePreference":null,"clientName":null,"clientPhone":null,"clientEmail":null}',
     args.systemPrompt ? `CUSTOM_SYSTEM_PROMPT: ${args.systemPrompt}` : "",
     `CONTEXT: ${JSON.stringify(context)}`,
     `USER_MESSAGE: ${args.message}`,

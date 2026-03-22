@@ -437,6 +437,7 @@ async function persistClarificationAndBuildPayload(args: {
         time: d.time,
         clientName: d.clientName,
         clientPhone: d.clientPhone,
+        clientEmail: d.clientEmail,
         mode: d.mode,
         status: "COLLECTING",
         consentConfirmedAt: d.consentConfirmedAt ? new Date(d.consentConfirmedAt) : null,

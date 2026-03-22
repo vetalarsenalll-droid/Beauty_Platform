@@ -2286,6 +2286,13 @@ if (!d.serviceId) {
         ui: times.length ? { kind: "quick_replies", options: [optionFromLabel("Выбрать другую дату", "другое число хочу выбрать"), ...times.map((tm) => optionFromLabel(tm))] } : { kind: "quick_replies", options: [optionFromLabel("Выбрать другую дату", "другое число хочу выбрать")] },
       };
     }
+    if (created.code === "client_conflict") {
+      return {
+        handled: true,
+        reply: "Телефон и email относятся к разным клиентам. Проверьте контактные данные.",
+        nextStatus: "COLLECTING",
+      };
+    }
     if (created.code === "combo_unavailable") return { handled: true, reply: "Эта комбинация локации/услуги/специалиста недоступна.", nextStatus: "COLLECTING" };
     return { handled: true, reply: "Некорректная дата/время для записи.", nextStatus: "COLLECTING" };
   }

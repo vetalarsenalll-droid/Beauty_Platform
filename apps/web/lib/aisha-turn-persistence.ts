@@ -119,6 +119,7 @@ export async function saveTurn(args: {
         time: args.d.time,
         clientName: args.d.clientName,
         clientPhone: args.d.clientPhone,
+        clientEmail: args.d.clientEmail,
         mode: args.d.mode,
         status: args.nextStatus,
         consentConfirmedAt: args.d.consentConfirmedAt ? new Date(args.d.consentConfirmedAt) : null,

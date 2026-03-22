@@ -18,6 +18,7 @@ export const draftView = (d: {
   time: string | null;
   clientName: string | null;
   clientPhone: string | null;
+  clientEmail?: string | null;
   mode: string | null;
   status: string;
   consentConfirmedAt: Date | null;
@@ -29,6 +30,7 @@ export const draftView = (d: {
   time: d.time,
   clientName: d.clientName,
   clientPhone: d.clientPhone,
+  clientEmail: d.clientEmail ?? null,
   mode: d.mode === "SELF" || d.mode === "ASSISTANT" ? (d.mode as Mode) : null,
   status: d.status,
   consentConfirmedAt: d.consentConfirmedAt ? d.consentConfirmedAt.toISOString() : null,
@@ -223,6 +225,11 @@ export const parsePhone = (m: string) => {
     if (d.startsWith("7")) return `+${d}`;
   }
   return null;
+};
+
+export const parseEmail = (m: string) => {
+  const match = m.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : null;
 };
 
 export const parseName = (m: string) => {

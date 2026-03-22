@@ -18,6 +18,7 @@ export type DraftLike = {
   time: string | null;
   clientName: string | null;
   clientPhone: string | null;
+  clientEmail: string | null;
   mode: Mode | null;
   status: string;
   consentConfirmedAt: string | null;
@@ -382,7 +383,7 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
   const ua = request.headers.get("user-agent") ?? null;
 
   try {
-    const appointmentId = await prisma.$transaction(
+    const appointmentResult = await prisma.$transaction(
       async (tx) => {
         const conflict = await tx.appointment.findFirst({
           where: {
@@ -410,18 +411,57 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
         });
         if (holdConflict) return null;
 
-        const clientProfile = await tx.client.findFirst({
-          where: { accountId, phone: d.clientPhone! },
-          select: { id: true, firstName: true },
-        });
-        const clientId = clientProfile
+        const normalizedEmail = d.clientEmail ? d.clientEmail.trim().toLowerCase() : null;
+
+        const clientByPreferred = preferredClientId
+          ? await tx.client.findFirst({
+              where: { id: preferredClientId, accountId },
+              select: { id: true, firstName: true, phone: true, email: true },
+            })
+          : null;
+
+        const clientByPhone =
+          !clientByPreferred && d.clientPhone
+            ? await tx.client.findFirst({
+                where: { accountId, phone: d.clientPhone },
+                select: { id: true, firstName: true, phone: true, email: true },
+              })
+            : null;
+
+        const clientByEmail =
+          !clientByPreferred && normalizedEmail
+            ? await tx.client.findFirst({
+                where: { accountId, email: normalizedEmail },
+                select: { id: true, firstName: true, phone: true, email: true },
+              })
+            : null;
+
+        if (clientByPhone && clientByEmail && clientByPhone.id !== clientByEmail.id) {
+          return "client_conflict";
+        }
+
+        const existingClient = clientByPreferred ?? clientByPhone ?? clientByEmail;
+        const clientId = existingClient
           ? (
               await tx.client.update({
-                where: { id: clientProfile.id },
-                data: { firstName: clientProfile.firstName || d.clientName! },
+                where: { id: existingClient.id },
+                data: {
+                  firstName: existingClient.firstName || d.clientName || null,
+                  phone: existingClient.phone || d.clientPhone || null,
+                  email: existingClient.email || normalizedEmail || null,
+                },
               })
             ).id
-          : (await tx.client.create({ data: { accountId, firstName: d.clientName!, phone: d.clientPhone! } })).id;
+          : (
+              await tx.client.create({
+                data: {
+                  accountId,
+                  firstName: d.clientName || null,
+                  phone: d.clientPhone || null,
+                  email: normalizedEmail || null,
+                },
+              })
+            ).id;
 
         const appt = await tx.appointment.create({
           data: {
@@ -465,8 +505,11 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
-    if (!appointmentId) return { ok: false as const, code: "slot_busy" as const };
-    return { ok: true as const, appointmentId };
+    if (appointmentResult === "client_conflict") {
+      return { ok: false as const, code: "client_conflict" as const };
+    }
+    if (!appointmentResult) return { ok: false as const, code: "slot_busy" as const };
+    return { ok: true as const, appointmentId: appointmentResult };
   } catch (error) {
     const code = (error as { code?: string } | null)?.code ?? "";
     if (code === "P2034") {

@@ -1979,6 +1979,7 @@ model AiBookingDraft {
   time String?
   clientName String?
   clientPhone String?
+  clientEmail String?
   mode String?
   status String @default("COLLECTING")
   consentConfirmedAt DateTime?
