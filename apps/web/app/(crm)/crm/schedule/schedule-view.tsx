@@ -973,9 +973,10 @@ const handleCopy = async () => {
               mobileSection === "staff" ? "block" : "hidden"
             } lg:block`}
           >
-            <div className="flex h-[64px] items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3 text-sm font-semibold">
-              Сотрудники
-              <span className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5 text-xs text-[color:var(--bp-muted)]">
+            <div className="mb-2 h-3" aria-hidden />
+            <div className="flex h-[64px] items-center justify-between border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-3 py-2 text-xs font-medium text-[color:var(--bp-muted)]">
+              <span className="text-sm font-semibold text-[color:var(--bp-ink)]">Сотрудники</span>
+              <span className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5 text-[10px] text-[color:var(--bp-muted)]">
                 {filteredStaff.length}
               </span>
             </div>
