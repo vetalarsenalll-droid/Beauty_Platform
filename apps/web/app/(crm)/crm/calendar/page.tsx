@@ -141,6 +141,8 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
       status: appointment.status,
       source: appointment.source,
       clientName: clientName || appointment.client.phone || "Без клиента",
+      clientPhone: appointment.client.phone ?? "",
+      clientEmail: appointment.client.email ?? "",
       serviceNames: appointment.services.map((item) => item.service.name),
       serviceIds: appointment.services.map((item) => item.service.id),
       priceTotal: appointment.priceTotal.toString(),
@@ -161,6 +163,8 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
           return {
             id: client.id,
             name: fullName || client.phone || "Без имени",
+            phone: client.phone ?? null,
+            email: client.email ?? null,
           };
         })}
         locations={locations.map((location) => ({

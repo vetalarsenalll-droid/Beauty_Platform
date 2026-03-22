@@ -27,7 +27,9 @@ export async function handlePublicAiChatGet(request: Request) {
   const threadId = asThreadId(url.searchParams.get("threadId"));
   const threadKey = asThreadKey(url.searchParams.get("threadKey"));
   const session = await getClientSession();
-  const client = await resolveClientForAccount(session, resolved.account);
+  const client = await resolveClientForAccount(session, resolved.account, {
+    createIfMissing: false,
+  });
 
   const { thread, draft, threadKey: nextThreadKey } = await getThread({
     accountId: resolved.account.id,
@@ -69,7 +71,9 @@ export async function handlePublicAiChatDelete(request: Request) {
   if (!threadId) return jsonError("VALIDATION_FAILED", "threadId is required", null, 400);
 
   const session = await getClientSession();
-  const client = await resolveClientForAccount(session, resolved.account);
+  const client = await resolveClientForAccount(session, resolved.account, {
+    createIfMissing: false,
+  });
   const thread = await prisma.aiThread.findFirst({ where: { id: threadId, accountId: resolved.account.id } });
 
   if (

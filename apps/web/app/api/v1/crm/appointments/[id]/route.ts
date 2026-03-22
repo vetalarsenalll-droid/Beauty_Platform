@@ -66,7 +66,7 @@ function serializeAppointment(appointment: {
   source: string;
   priceTotal: Prisma.Decimal;
   durationTotalMin: number;
-  client: { firstName: string | null; lastName: string | null; phone: string | null };
+  client: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null };
   services: { service: { id: number; name: string } }[];
 }) {
   const clientName = `${appointment.client.firstName ?? ""} ${appointment.client.lastName ?? ""}`
@@ -82,6 +82,8 @@ function serializeAppointment(appointment: {
     status: appointment.status,
     source: appointment.source,
     clientName: clientName || appointment.client.phone || "Без клиента",
+    clientPhone: appointment.client.phone ?? "",
+    clientEmail: appointment.client.email ?? "",
     serviceNames: appointment.services.map((item) => item.service.name),
     serviceIds: appointment.services.map((item) => item.service.id),
     priceTotal: appointment.priceTotal.toString(),

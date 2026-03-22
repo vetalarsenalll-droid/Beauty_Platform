@@ -15,6 +15,8 @@ type StaffItem = {
 type JournalClient = {
   id: number;
   name: string;
+  phone?: string | null;
+  email?: string | null;
 };
 
 type JournalLocation = {
@@ -47,6 +49,8 @@ type JournalAppointment = {
   serviceIds: number[];
   priceTotal: string;
   durationMin: number;
+  clientPhone: string;
+  clientEmail: string;
 };
 
 type ScheduleEntry = {
@@ -469,8 +473,8 @@ export default function JournalView({
         priceTotal: appointment.priceTotal,
         durationMin: appointment.durationMin,
         clientName: appointment.clientName,
-        clientPhone: "",
-        clientEmail: "",
+        clientPhone: appointment.clientPhone ?? "",
+        clientEmail: appointment.clientEmail ?? "",
       });
     }
   }, [editorState, locations, selectedLocationId]);
@@ -1733,6 +1737,14 @@ export default function JournalView({
                             ...prev,
                             clientId: value ? Number(value) : null,
                             clientName: selected?.name ?? prev.clientName,
+                            clientPhone:
+                              selected?.phone != null
+                                ? selected.phone
+                                : prev.clientPhone,
+                            clientEmail:
+                              selected?.email != null
+                                ? selected.email
+                                : prev.clientEmail,
                           }
                         : prev
                     );

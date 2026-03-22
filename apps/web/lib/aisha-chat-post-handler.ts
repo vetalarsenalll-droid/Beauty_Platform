@@ -669,6 +669,8 @@ export async function handlePublicAiChatPost(request: Request) {
       nextUi = bookingDomainResult.nextUi;
     } else {
       const knownClientName = d.clientName?.trim() || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim();
+      const knownClientEmail = client?.email ?? null;
+      const knownClientPhone = client?.phone ?? null;
       const chatOnlyDomain = handleChatOnlyDomain({
         message,
         intent,
@@ -681,6 +683,8 @@ export async function handlePublicAiChatPost(request: Request) {
           accountTimeZone: resolved.account.timeZone,
           clientTimeZone: clientTimeZone ?? null,
           knownClientName,
+          knownClientEmail,
+          knownClientPhone,
           accountName: resolved.account.name?.trim() ?? null,
           assistantName: ASSISTANT_NAME,
           accountDescription: accountProfile?.description ?? null,

@@ -35,7 +35,9 @@ export async function preparePostTurn(request: Request): Promise<{ response: Res
 
   const bodyThreadKey = asThreadKey(body.threadKey);
   const session = await getClientSession();
-  const client = await resolveClientForAccount(session, resolved.account);
+  const client = await resolveClientForAccount(session, resolved.account, {
+    createIfMissing: false,
+  });
   const { thread, draft, threadKey: nextThreadKey } = await getThread({
     accountId: resolved.account.id,
     threadId: asThreadId(body.threadId),

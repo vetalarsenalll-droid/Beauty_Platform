@@ -220,6 +220,8 @@ export function buildBasicChatInfoReply(args: {
   accountTimeZone: string;
   clientTimeZone: string | null;
   knownClientName: string;
+  knownClientEmail: string | null;
+  knownClientPhone: string | null;
   accountName: string | null;
   assistantName: string;
   accountDescription: string | null;
@@ -243,6 +245,8 @@ export function buildBasicChatInfoReply(args: {
     accountTimeZone,
     clientTimeZone,
     knownClientName,
+    knownClientEmail,
+    knownClientPhone,
     accountName,
     assistantName,
     accountDescription,
@@ -277,14 +281,24 @@ export function buildBasicChatInfoReply(args: {
   }
 
   if (asksClientOwnName(message)) {
-    reply = knownClientName ? `Да, вас зовут ${knownClientName}.` : "Пока не вижу вашего имени в профиле. Могу обращаться по имени, если напишете его.";
+    if (knownClientName) {
+      reply = `Да, вас зовут ${knownClientName}.`;
+    } else if (knownClientEmail || knownClientPhone) {
+      reply = "Имя не указано. Напишите, пожалуйста, как к вам обращаться.";
+    } else {
+      reply = "Пока не вижу вашего имени в профиле. Могу обращаться по имени, если напишете его.";
+    }
     return { handled: true, reply, ui };
   }
 
   if (asksClientRecognition(message)) {
-    reply = knownClientName
-      ? `Да, вижу вас в профиле: ${knownClientName}.`
-      : "Пока не вижу вас в авторизованном профиле. Могу продолжить запись как гостя или после входа в личный кабинет.";
+    if (knownClientName) {
+      reply = `Да, вижу вас в профиле: ${knownClientName}.`;
+    } else if (knownClientEmail || knownClientPhone) {
+      reply = "Вижу ваш профиль, но имени нет. Напишите, пожалуйста, как к вам обращаться.";
+    } else {
+      reply = "Пока не вижу вас в авторизованном профиле. Могу продолжить запись как гостя или после входа в личный кабинет.";
+    }
     return { handled: true, reply, ui };
   }
 

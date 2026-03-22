@@ -1,6 +1,6 @@
 ﻿import type { CSSProperties } from "react";
 import ClientLoginPage from "./login-client";
-import HomeLeftSidebar from "../home-left-sidebar";
+import HomeLeftSidebar from "../../home-left-sidebar";
 
 type PageProps = {
   searchParams?: Promise<{ account?: string }> | { account?: string };

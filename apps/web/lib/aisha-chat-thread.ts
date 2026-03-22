@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 const prismaAny = prisma as any;
 
 export type ClientMembership = {
-  clientId: number;
+  clientId: number | null;
   accountId: number;
   accountSlug: string;
   accountName: string;
@@ -145,8 +145,10 @@ export async function getThread(args: {
 export async function resolveClientForAccount(
   session: ClientSessionValue,
   account: { id: number; slug: string; name: string },
+  options: { createIfMissing?: boolean } = {},
 ) {
   if (!session) return null;
+  const createIfMissing = options.createIfMissing ?? false;
   const fromSession =
     (session.clients.find((c) => c.accountId === account.id) as ClientMembership | undefined) ??
     (session.clients.find((c) => c.accountSlug === account.slug) as ClientMembership | undefined);
@@ -199,6 +201,19 @@ export async function resolveClientForAccount(
     where: { id: session.userId },
     include: { profile: true },
   });
+  if (!createIfMissing) {
+    if (!user) return null;
+    return {
+      clientId: null,
+      accountId: account.id,
+      accountSlug: account.slug,
+      accountName: account.name,
+      firstName: user.profile?.firstName ?? null,
+      lastName: user.profile?.lastName ?? null,
+      phone: user.phone ?? null,
+      email: user.email ?? session.email ?? null,
+    } satisfies ClientMembership;
+  }
   const created = await prisma.client.create({
     data: {
       accountId: account.id,
