@@ -175,6 +175,16 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseYmdLocal(value: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  return new Date(year, month - 1, day);
+}
+
 function parseTimeToMinutes(value: string) {
   if (!value) return null;
   const [hours, minutes] = value.split(":").map(Number);
@@ -200,30 +210,31 @@ function isOverlap(startA: number, endA: number, startB: number, endB: number) {
   return startA < endB && endA > startB;
 }
 
-function scheduleHeaderTone(entry: ScheduleEntry | undefined) {
-  if (!entry) return "";
-  switch (entry.type) {
-    case "WORKING":
-      return "bg-emerald-50";
-    case "SICK":
-      return "bg-indigo-50";
-    case "VACATION":
-      return "bg-amber-50";
-    case "NO_SHOW":
-      return "bg-rose-50";
-    case "PAID_OFF":
-      return "bg-yellow-50";
-    case "UNPAID_OFF":
-      return "";
-    default:
-      return "";
+function scheduleTypeMeta(entry: ScheduleEntry | undefined) {
+  if (!entry) {
+    return { tone: "bg-slate-50", label: "Выходной" };
   }
-}
 
-function scheduleHoursLabel(entry: ScheduleEntry | undefined) {
-  if (!entry || entry.type !== "WORKING") return "";
-  if (!entry.startTime || !entry.endTime) return "";
-  return `${entry.startTime} – ${entry.endTime}`;
+  switch (entry.type) {
+    case "WORKING": {
+      if (!entry.startTime || !entry.endTime) {
+        return { tone: "bg-emerald-50", label: "Рабочий день" };
+      }
+      return { tone: "bg-emerald-50", label: `${entry.startTime} - ${entry.endTime}` };
+    }
+    case "SICK":
+      return { tone: "bg-indigo-50", label: "Больничный" };
+    case "VACATION":
+      return { tone: "bg-amber-50", label: "Отпуск" };
+    case "UNPAID_OFF":
+      return { tone: "bg-slate-100", label: "Выходной" };
+    case "NO_SHOW":
+      return { tone: "bg-rose-50", label: "Прогул" };
+    case "PAID_OFF":
+      return { tone: "bg-yellow-50", label: "Оплачиваемый выходной" };
+    default:
+      return { tone: "bg-slate-50", label: "Выходной" };
+  }
 }
 
 function getWeekStart(date: Date) {
@@ -285,7 +296,7 @@ export default function JournalView({
   const [appointmentItems, setAppointmentItems] = useState(appointments);
 
   const [currentDate, setCurrentDate] = useState(() =>
-    startOfDay(new Date(initialDate))
+    startOfDay(parseYmdLocal(initialDate) ?? new Date())
   );
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -307,6 +318,7 @@ export default function JournalView({
   const [statusMenuId, setStatusMenuId] = useState<number | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
+  const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
 
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const sellRef = useRef<HTMLDivElement | null>(null);
@@ -464,18 +476,16 @@ export default function JournalView({
     });
   }, [slotCount]);
 
-  // ✅ фильтруем график по локации (универсальные + выбранная)
+  // ✅ фильтруем график строго по выбранной локации
   const scheduleEntriesForLocation = useMemo(() => {
-    if (!selectedLocationId) return scheduleEntries;
-    return scheduleEntries.filter(
-      (e) => e.locationId === null || e.locationId === selectedLocationId
-    );
+    if (!selectedLocationId) return [];
+    return scheduleEntries.filter((e) => e.locationId === selectedLocationId);
   }, [scheduleEntries, selectedLocationId]);
 
   const scheduleByKey = useMemo(() => {
     const map = new Map<string, ScheduleEntry>();
     scheduleEntriesForLocation.forEach((entry) => {
-      const key = `${entry.specialistId}:${formatDateKey(new Date(entry.date))}`;
+      const key = `${entry.specialistId}:${entry.date.slice(0, 10)}`;
       map.set(key, entry);
     });
     return map;
@@ -737,11 +747,11 @@ export default function JournalView({
     if (!editorForm.staffId || !editorForm.locationId) return;
 
     if (!editorForm.serviceId) {
-      window.alert("Выберите услугу.");
+      setNoticeModal({ title: "Проверьте данные", message: "Выберите услугу." });
       return;
     }
     if (!editorForm.endTime || editorForm.durationMin <= 0) {
-      window.alert("Укажите длительность услуги.");
+      setNoticeModal({ title: "Проверьте данные", message: "Укажите длительность услуги." });
       return;
     }
     if (
@@ -784,7 +794,10 @@ export default function JournalView({
         setEditorState(null);
       } else {
         const error = await response.json().catch(() => null);
-        window.alert(error?.message ?? "Не удалось создать запись.");
+        setNoticeModal({
+          title: "Не удалось создать запись",
+          message: error?.message ?? "Проверьте данные и попробуйте снова.",
+        });
       }
       return;
     }
@@ -806,7 +819,10 @@ export default function JournalView({
       setEditorState(null);
     } else {
       const error = await response.json().catch(() => null);
-      window.alert(error?.message ?? "Не удалось сохранить запись.");
+      setNoticeModal({
+        title: "Не удалось сохранить запись",
+        message: error?.message ?? "Проверьте данные и попробуйте снова.",
+      });
     }
   };
 
@@ -1163,15 +1179,15 @@ export default function JournalView({
                       key={column.key}
                       className={`border-l border-[color:var(--bp-stroke)] px-3 py-2 ${
                         viewMode === "day"
-                          ? scheduleHeaderTone(
+                          ? scheduleTypeMeta(
                               getScheduleEntry(staff[index]?.id ?? 0, currentDate)
-                            )
-                          : scheduleHeaderTone(
+                            ).tone
+                          : scheduleTypeMeta(
                               getScheduleEntry(
                                 selectedStaffId,
                                 weekDays[Math.min(index, weekDays.length - 1)]
                               )
-                            )
+                            ).tone
                       }`}
                     >
                       <div className="text-sm font-semibold text-[color:var(--bp-ink)]">
@@ -1182,18 +1198,18 @@ export default function JournalView({
                       </div>
                       {viewMode === "day" ? (
                         <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                          {scheduleHoursLabel(
+                          {scheduleTypeMeta(
                             getScheduleEntry(staff[index]?.id ?? 0, currentDate)
-                          ) || "—"}
+                          ).label}
                         </div>
                       ) : (
                         <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                          {scheduleHoursLabel(
+                          {scheduleTypeMeta(
                             getScheduleEntry(
                               selectedStaffId,
                               weekDays[Math.min(index, weekDays.length - 1)]
                             )
-                          ) || "—"}
+                          ).label}
                         </div>
                       )}
                     </div>
@@ -1705,6 +1721,31 @@ export default function JournalView({
                 Сохранить запись
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {noticeModal ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-5 shadow-[var(--bp-shadow)]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">{noticeModal.title}</h3>
+              <button
+                type="button"
+                onClick={() => setNoticeModal(null)}
+                className="text-[color:var(--bp-muted)]"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{noticeModal.message}</p>
+            <button
+              type="button"
+              onClick={() => setNoticeModal(null)}
+              className="mt-4 w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white"
+            >
+              Понятно
+            </button>
           </div>
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 ﻿import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
+  getLocationWorkWindowForDate,
   getAccountSlotStepMinutes,
   minutesToTime,
   resolvePublicAccount,
@@ -76,11 +77,20 @@ export async function GET(request: Request) {
 
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
-    select: { id: true },
+    select: {
+      id: true,
+      hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+      exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+    },
   });
 
   if (!location) {
     return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
+  }
+
+  const locationWindow = getLocationWorkWindowForDate(location, dateValue);
+  if (locationWindow.isClosed) {
+    return jsonOk({ slots: [] });
   }
 
   const specialists = await prisma.specialistProfile.findMany({
@@ -227,6 +237,9 @@ export async function GET(request: Request) {
     const entryStart = toMinutes(entry.startTime ?? "");
     const entryEnd = toMinutes(entry.endTime ?? "");
     if (entryStart == null || entryEnd == null) continue;
+    const effectiveStart = Math.max(entryStart, locationWindow.startMinutes);
+    const effectiveEnd = Math.min(entryEnd, locationWindow.endMinutes);
+    if (effectiveStart >= effectiveEnd) continue;
 
     const durationMin = service
       ? service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ??
@@ -245,7 +258,7 @@ export async function GET(request: Request) {
     const blkWindows = blockedBySpecialist.get(sp.id) ?? [];
     const holdWindows = holdsBySpecialist.get(sp.id) ?? [];
 
-    for (let start = entryStart; start + durationMin <= entryEnd; start += slotStepMinutes) {
+    for (let start = effectiveStart; start + durationMin <= effectiveEnd; start += slotStepMinutes) {
       const candidate: Window = { start, end: start + durationMin };
 
       // запрет прошедшего времени на сегодня в TZ аккаунта

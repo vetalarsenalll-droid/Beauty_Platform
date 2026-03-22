@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { ScheduleEntryType } from "@prisma/client";
+import { getLocationWorkWindowForDate, toMinutes } from "@/lib/public-booking";
 
 type BreakPayload = { startTime: string; endTime: string };
 type EntryTypeInput = ScheduleEntryType | "DELETE";
@@ -41,9 +42,41 @@ const isEntryTypeInput = (v: unknown): v is EntryTypeInput =>
   v === "DELETE" || isScheduleEntryType(v);
 
 function parseDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) return null;
+  if (date.toISOString().slice(0, 10) !== value) return null;
   return date;
+}
+
+const HH_MM_RE = /^\d{2}:\d{2}$/;
+
+function validateWorkingTimes(entry: EntryPayload) {
+  if (entry.type !== "WORKING") return null;
+  if (!entry.locationId) return "WORKING_LOCATION_REQUIRED";
+
+  const start = entry.startTime ?? "";
+  const end = entry.endTime ?? "";
+  if (!HH_MM_RE.test(start) || !HH_MM_RE.test(end)) return "INVALID_WORKING_HOURS";
+
+  const startM = toMinutes(start);
+  const endM = toMinutes(end);
+  if (startM == null || endM == null || startM >= endM) return "INVALID_WORKING_HOURS";
+
+  const breaks = (entry.breaks ?? [])
+    .map((item) => ({ start: toMinutes(item.startTime), end: toMinutes(item.endTime) }))
+    .filter((item): item is { start: number; end: number } => item.start != null && item.end != null)
+    .sort((a, b) => a.start - b.start);
+
+  for (const br of breaks) {
+    if (br.start >= br.end) return "INVALID_BREAKS";
+    if (br.start < startM || br.end > endM) return "INVALID_BREAKS";
+  }
+  for (let i = 1; i < breaks.length; i += 1) {
+    if (breaks[i - 1]!.end > breaks[i]!.start) return "INVALID_BREAKS";
+  }
+
+  return null;
 }
 
 function parseEntry(raw: unknown): EntryPayload | null {
@@ -184,6 +217,73 @@ export async function POST(request: Request) {
 
   if (entries.length === 0) {
     return jsonError("INVALID_BODY", "Entries are required.", null, 400);
+  }
+
+  for (const entry of entries) {
+    if (!parseDate(entry.date)) {
+      return jsonError("INVALID_DATE", "Некорректная дата. Используйте формат ГГГГ-ММ-ДД.", null, 400);
+    }
+    const timeError = validateWorkingTimes(entry);
+    if (timeError === "WORKING_LOCATION_REQUIRED") {
+      return jsonError("WORKING_LOCATION_REQUIRED", "Для рабочего дня обязательно выберите локацию.", null, 400);
+    }
+    if (timeError === "INVALID_WORKING_HOURS") {
+      return jsonError("INVALID_WORKING_HOURS", "Некорректный интервал рабочего времени.", null, 400);
+    }
+    if (timeError === "INVALID_BREAKS") {
+      return jsonError("INVALID_BREAKS", "Проверьте перерывы: они должны быть внутри рабочего времени и не пересекаться.", null, 400);
+    }
+  }
+
+  const workingEntries = entries.filter((entry) => entry.type === "WORKING");
+  if (workingEntries.length > 0) {
+    const locationIds = Array.from(
+      new Set(workingEntries.map((entry) => entry.locationId).filter((id): id is number => Number.isInteger(id)))
+    );
+
+    const locations = await prisma.location.findMany({
+      where: { accountId: auth.session.accountId, id: { in: locationIds } },
+      select: {
+        id: true,
+        hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+        exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+      },
+    });
+    const locationMap = new Map(locations.map((location) => [location.id, location]));
+
+    for (const entry of workingEntries) {
+      const locationId = entry.locationId as number;
+      const location = locationMap.get(locationId);
+      if (!location) {
+        return jsonError("INVALID_LOCATION", "Локация не найдена.", null, 404);
+      }
+
+      const window = getLocationWorkWindowForDate(location, entry.date);
+      if (window.isClosed) {
+        return jsonError(
+          "OUTSIDE_LOCATION_HOURS",
+          "Нельзя поставить рабочий день: в локации выходной или закрыто по исключению на эту дату.",
+          null,
+          400
+        );
+      }
+
+      const startM = toMinutes(entry.startTime ?? "");
+      const endM = toMinutes(entry.endTime ?? "");
+      if (
+        startM == null ||
+        endM == null ||
+        startM < window.startMinutes ||
+        endM > window.endMinutes
+      ) {
+        return jsonError(
+          "OUTSIDE_LOCATION_HOURS",
+          "Рабочее время сотрудника выходит за пределы режима работы локации с учетом исключений и праздников.",
+          null,
+          400
+        );
+      }
+    }
   }
 
   const specialistIds = Array.from(new Set(entries.map((e) => e.specialistId)));

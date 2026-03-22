@@ -9,6 +9,7 @@ import {
 } from "@/lib/public-booking-hold-proof";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
+  getLocationWorkWindowForDate,
   getNowInTimeZone,
   isPastDateOrTimeInTz,
   resolvePublicAccount,
@@ -108,7 +109,11 @@ export async function POST(request: Request) {
   const [location, specialist, service, scheduleEntry, setting] = await Promise.all([
     prisma.location.findFirst({
       where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
-      select: { id: true },
+      select: {
+        id: true,
+        hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+        exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+      },
     }),
     prisma.specialistProfile.findFirst({
       where: {
@@ -163,6 +168,16 @@ export async function POST(request: Request) {
   if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
   if (!service) return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
 
+  const locationWindow = getLocationWorkWindowForDate(location, dateValue);
+  if (locationWindow.isClosed) {
+    return jsonError(
+      "LOCATION_CLOSED",
+      "На выбранную дату локация закрыта (учтены исключения и праздники).",
+      null,
+      400
+    );
+  }
+
   const override = service.specialists.find((item) => item.specialistId === specialist.id);
   const levelConfig = specialist.levelId
     ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
@@ -181,9 +196,16 @@ export async function POST(request: Request) {
     entryEnd == null ||
     startMinutes == null ||
     startMinutes < entryStart ||
-    startMinutes + durationMin > entryEnd
+    startMinutes + durationMin > entryEnd ||
+    startMinutes < locationWindow.startMinutes ||
+    startMinutes + durationMin > locationWindow.endMinutes
   ) {
-    return jsonError("OUT_OF_WORKING_HOURS", "Выбранное время вне рабочего графика.", null, 400);
+    return jsonError(
+      "OUT_OF_WORKING_HOURS",
+      "Выбранное время выходит за пределы режима работы локации или графика специалиста.",
+      null,
+      400
+    );
   }
 
   const candidateLocal: Window = { start: startMinutes, end: startMinutes + durationMin };

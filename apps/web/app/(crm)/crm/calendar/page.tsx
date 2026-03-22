@@ -140,7 +140,7 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
   return (
     <div className="w-full max-w-none">
       <JournalView
-        initialDate={initialDate.toISOString()}
+        initialDate={initialDate.toISOString().slice(0, 10)}
         initialLocationId={initialLocationId}
         staff={staff}
         clients={clients.map((client) => {
@@ -178,7 +178,7 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
           id: entry.id,
           specialistId: entry.specialistId,
           locationId: entry.locationId,
-          date: entry.date.toISOString(),
+          date: entry.date.toISOString().slice(0, 10),
           type: entry.type,
           startTime: entry.startTime,
           endTime: entry.endTime,

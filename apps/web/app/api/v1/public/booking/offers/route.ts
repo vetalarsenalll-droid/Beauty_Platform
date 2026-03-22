@@ -1,6 +1,7 @@
 ﻿import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
+  getLocationWorkWindowForDate,
   getAccountSlotStepMinutes,
   resolvePublicAccount,
   toMinutes,
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
 
-  // past date => РїСѓСЃС‚Рѕ
+  // past date => empty
   if (dateValue < nowTz.ymd) return jsonOk({ date: dateValue, times: [] });
 
   const range = zonedDayRangeUtc(dateValue, tz);
@@ -81,11 +82,17 @@ export async function GET(request: Request) {
 
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
-    select: { id: true },
+    select: {
+      id: true,
+      hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+      exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+    },
   });
   if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
+  const locationWindow = getLocationWorkWindowForDate(location, dateValue);
+  if (locationWindow.isClosed) return jsonOk({ date: dateValue, times: [] });
 
-  // СЃРїРµС†РёР°Р»РёСЃС‚С‹ Р»РѕРєР°С†РёРё + РёС… СѓСЃР»СѓРіРё
+  // specialists in location + their services
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: resolved.account.id,
@@ -108,7 +115,7 @@ export async function GET(request: Request) {
 
   if (!allServiceIds.length) return jsonOk({ date: dateValue, times: [] });
 
-  // СѓСЃР»СѓРіРё (РґР»СЏ СЂР°СЃС‡С‘С‚Р° РґР»РёС‚РµР»СЊРЅРѕСЃС‚РµР№)
+  // services (for duration calculation)
   const services = await prisma.service.findMany({
     where: {
       accountId: resolved.account.id,
@@ -127,7 +134,7 @@ export async function GET(request: Request) {
   const serviceById = new Map<number, (typeof services)[number]>();
   for (const s of services) serviceById.set(s.id, s);
 
-  // РіСЂР°С„РёРє + Р·Р°РїРёСЃРё + Р±Р»РѕРєРёСЂРѕРІРєРё
+  // schedule + appointments + blocks
   const [scheduleEntries, appointments, blockedSlots, holds] = await Promise.all([
     prisma.scheduleEntry.findMany({
       where: {
@@ -173,7 +180,7 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  // РіСЂР°С„РёРє locationId > null
+  // schedule filtered by selected location
   const scheduleBySpecialist = new Map<number, (typeof scheduleEntries)[number]>();
   for (const e of scheduleEntries) scheduleBySpecialist.set(e.specialistId, e);
 
@@ -198,7 +205,7 @@ export async function GET(request: Request) {
       list.push(w);
       blkBySp.set(b.specialistId, list);
     } else {
-      // location-wide -> РІСЃРµРј
+      // location-wide block -> all specialists
       for (const sp of specialists) {
         const list = blkBySp.get(sp.id) ?? [];
         list.push(w);
@@ -228,8 +235,11 @@ export async function GET(request: Request) {
     const entryStart = toMinutes(entry.startTime ?? "");
     const entryEnd = toMinutes(entry.endTime ?? "");
     if (entryStart == null || entryEnd == null) continue;
+    const effectiveStart = Math.max(entryStart, locationWindow.startMinutes);
+    const effectiveEnd = Math.min(entryEnd, locationWindow.endMinutes);
+    if (effectiveStart >= effectiveEnd) continue;
 
-    // РєР°РєРёРµ СѓСЃР»СѓРіРё Сѓ СЌС‚РѕРіРѕ СЃРїРµС†Р°
+    // services provided by this specialist
     const spServiceIds = sp.services.map((x) => x.serviceId).filter((id) => serviceById.has(id));
     if (!spServiceIds.length) continue;
 
@@ -260,31 +270,31 @@ export async function GET(request: Request) {
     const blocked = mergeWindows(
       [...breaks, ...appts, ...blks, ...holdsWindows]
         .map((w) => ({
-          start: Math.max(entryStart, w.start),
-          end: Math.min(entryEnd, w.end),
+          start: Math.max(effectiveStart, w.start),
+          end: Math.min(effectiveEnd, w.end),
         }))
         .filter((w) => w.start < w.end)
     );
 
     // free segments
-    let cursor = entryStart;
+    let cursor = effectiveStart;
     const free: Window[] = [];
     for (const w of blocked) {
       if (w.start > cursor) free.push({ start: cursor, end: w.start });
       cursor = Math.max(cursor, w.end);
     }
-    if (cursor < entryEnd) free.push({ start: cursor, end: entryEnd });
+    if (cursor < effectiveEnd) free.push({ start: cursor, end: effectiveEnd });
 
-    // РґР»СЏ РєР°Р¶РґРѕРіРѕ free segment РіРµРЅРµСЂРёРј СЃС‚Р°СЂС‚С‹ РїРѕ 15 РјРёРЅСѓС‚
+    // generate starts by slot step inside each free segment
     for (const seg of free) {
       let t = ceilToStep(seg.start, slotStepMinutes);
       for (; t + slotStepMinutes <= seg.end; t += slotStepMinutes) {
-        // РїСЂРѕС€Р»РѕРµ СЃРµРіРѕРґРЅСЏ вЂ” СЃРєСЂС‹РІР°РµРј
+        // hide past time on current day
         if (dateValue === nowTz.ymd && t <= nowTz.minutes) continue;
 
         const remaining = seg.end - t;
 
-        // РєР°РєРёРµ СѓСЃР»СѓРіРё РїРѕРјРµС‰Р°СЋС‚СЃСЏ
+        // services that fit into remaining interval
         for (const [srvId, dur] of durationByService.entries()) {
           if (dur <= remaining) {
             const timeMap = offers.get(t) ?? new Map<number, Set<number>>();
@@ -298,7 +308,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // СЃРµСЂРёР°Р»РёР·Р°С†РёСЏ
+  // serialization
   const times = Array.from(offers.entries())
     .sort(([a], [b]) => a - b)
     .map(([t, byService]) => ({

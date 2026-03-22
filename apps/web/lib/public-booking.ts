@@ -279,6 +279,73 @@ export function parsePositiveInt(value: string | null) {
   return n;
 }
 
+type LocationHourLike = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+};
+
+type LocationExceptionLike = {
+  date: Date;
+  isClosed: boolean;
+  startTime: string | null;
+  endTime: string | null;
+};
+
+type LocationWorkCalendarLike = {
+  hours: LocationHourLike[];
+  exceptions: LocationExceptionLike[];
+};
+
+export type LocationWorkWindow =
+  | { isClosed: true; source: "exception_closed" | "no_hours" | "invalid_hours" | "invalid_exception" }
+  | { isClosed: false; source: "exception_custom" | "weekly"; startMinutes: number; endMinutes: number };
+
+function dayOfWeekMon0(ymd: string) {
+  const parts = parseYmd(ymd);
+  if (!parts) return null;
+  const dowSun0 = new Date(Date.UTC(parts.y, parts.mo - 1, parts.d)).getUTCDay();
+  return (dowSun0 + 6) % 7;
+}
+
+function normalizeYmd(value: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+export function getLocationWorkWindowForDate(
+  location: LocationWorkCalendarLike,
+  ymd: string,
+): LocationWorkWindow {
+  const dateKey = normalizeYmd(ymd);
+  if (!dateKey) return { isClosed: true, source: "invalid_hours" };
+
+  const exception = location.exceptions.find((item) => item.date.toISOString().slice(0, 10) === dateKey);
+  if (exception) {
+    if (exception.isClosed) return { isClosed: true, source: "exception_closed" };
+    const start = toMinutes(exception.startTime ?? "");
+    const end = toMinutes(exception.endTime ?? "");
+    if (start == null || end == null || start >= end) {
+      return { isClosed: true, source: "invalid_exception" };
+    }
+    return { isClosed: false, source: "exception_custom", startMinutes: start, endMinutes: end };
+  }
+
+  const mon0 = dayOfWeekMon0(dateKey);
+  if (mon0 == null) return { isClosed: true, source: "invalid_hours" };
+
+  const regular = location.hours.find((item) => item.dayOfWeek === mon0);
+  if (!regular) return { isClosed: true, source: "no_hours" };
+
+  const start = toMinutes(regular.startTime);
+  const end = toMinutes(regular.endTime);
+  if (start == null || end == null || start >= end) {
+    return { isClosed: true, source: "invalid_hours" };
+  }
+  return { isClosed: false, source: "weekly", startMinutes: start, endMinutes: end };
+}
+
 const SLOT_STEP_ALLOWED = new Set([5, 10, 15, 20, 30]);
 
 export async function getAccountSlotStepMinutes(accountId: number) {

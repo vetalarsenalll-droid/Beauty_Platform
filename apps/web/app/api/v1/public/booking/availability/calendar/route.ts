@@ -1,6 +1,7 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
+  getLocationWorkWindowForDate,
   getAccountSlotStepMinutes,
   resolvePublicAccount,
   toMinutes,
@@ -128,7 +129,11 @@ export async function GET(request: Request) {
 
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
-    select: { id: true },
+    select: {
+      id: true,
+      hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+      exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+    },
   });
   if (!location) {
     return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
@@ -316,6 +321,8 @@ export async function GET(request: Request) {
     const ymd = addDaysYmd(safeStart, di);
     if (!ymd) continue;
     if (ymd < nowTz.ymd) continue;
+    const locationWindow = getLocationWorkWindowForDate(location, ymd);
+    if (locationWindow.isClosed) continue;
 
     for (const sp of specialists) {
       const durationMin = durationBySpecialist.get(sp.id);
@@ -330,6 +337,9 @@ export async function GET(request: Request) {
       const entryStart = toMinutes(entry.startTime ?? "");
       const entryEnd = toMinutes(entry.endTime ?? "");
       if (entryStart == null || entryEnd == null) continue;
+      const effectiveStart = Math.max(entryStart, locationWindow.startMinutes);
+      const effectiveEnd = Math.min(entryEnd, locationWindow.endMinutes);
+      if (effectiveStart >= effectiveEnd) continue;
 
       const breaks = entry.breaks
         .map((b) => ({
@@ -344,20 +354,20 @@ export async function GET(request: Request) {
       const blocked = mergeWindows(
         [...breaks, ...appts, ...blks]
           .map((w) => ({
-            start: Math.max(entryStart, w.start),
-            end: Math.min(entryEnd, w.end),
+            start: Math.max(effectiveStart, w.start),
+            end: Math.min(effectiveEnd, w.end),
           }))
           .filter((w) => w.start < w.end)
       );
 
       // free segments
-      let cursor = entryStart;
+      let cursor = effectiveStart;
       const free: Window[] = [];
       for (const w of blocked) {
         if (w.start > cursor) free.push({ start: cursor, end: w.start });
         cursor = Math.max(cursor, w.end);
       }
-      if (cursor < entryEnd) free.push({ start: cursor, end: entryEnd });
+      if (cursor < effectiveEnd) free.push({ start: cursor, end: effectiveEnd });
 
       // generate starts where service fits
       for (const seg of free) {

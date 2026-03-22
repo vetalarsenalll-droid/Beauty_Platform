@@ -65,7 +65,6 @@ const SCHEDULE_TYPES = [
   { value: "UNPAID_OFF", label: "Выходной за свой счет" },
   { value: "NO_SHOW", label: "Прогул" },
   { value: "PAID_OFF", label: "Оплачиваемый выходной" },
-  { value: "CUSTOM", label: "Свой тип" },
   { value: "DELETE", label: "Очистить день" },
 ];
 
@@ -222,7 +221,7 @@ function IconDots() {
 
 export default function ScheduleView({
   staff,
-  initialTypes,
+  initialTypes: _initialTypes,
   locations,
   initialLocationId,
 }: ScheduleViewProps) {
@@ -235,7 +234,6 @@ export default function ScheduleView({
   const [activeCell, setActiveCell] = useState<CellRef | null>(null);
 
   const [scheduleType, setScheduleType] = useState<string>("WORKING");
-  const [customTypeId, setCustomTypeId] = useState<number | null>(null);
   const [workStart, setWorkStart] = useState("10:00");
   const [workEnd, setWorkEnd] = useState("21:00");
   const [selectedBreaks, setSelectedBreaks] = useState<BreakItem[]>([]);
@@ -261,8 +259,8 @@ export default function ScheduleView({
   const [filterQuery, setFilterQuery] = useState("");
 
   const [activeStaffMenu, setActiveStaffMenu] = useState<number | null>(null);
-  const [nonWorkingTypes] = useState<NonWorkingType[]>(initialTypes);
   const [conflictModal, setConflictModal] = useState<ScheduleConflict[] | null>(null);
+  const [noticeModal, setNoticeModal] = useState<string | null>(null);
   const scheduleScrollRef = useRef<HTMLDivElement | null>(null);
   const topScrollRef = useRef<HTMLDivElement | null>(null);
   const syncingScrollRef = useRef(false);
@@ -385,14 +383,12 @@ export default function ScheduleView({
       setWorkStart("10:00");
       setWorkEnd("21:00");
       setSelectedBreaks([]);
-      setCustomTypeId(null);
       return;
     }
-    setScheduleType(entry.type);
+    setScheduleType(entry.type === "CUSTOM" ? "UNPAID_OFF" : entry.type);
     setWorkStart(entry.startTime ?? "10:00");
     setWorkEnd(entry.endTime ?? "21:00");
     setSelectedBreaks(entry.breaks ?? []);
-    setCustomTypeId(entry.customTypeId ?? null);
   }, [activeCell, entryMap]);
 
   useEffect(() => {
@@ -512,13 +508,12 @@ export default function ScheduleView({
     !!locationId &&
     targetCells.length > 0 &&
     !pending &&
-    !hasPastTarget &&
-    (scheduleType !== "CUSTOM" || customTypeId !== null);
+    !hasPastTarget;
 
   const saveSchedule = async () => {
     if (!canSave || !locationId) return;
     if (hasPastTarget) {
-      window.alert("Нельзя менять расписание за прошедшие даты.");
+      setNoticeModal("Нельзя менять расписание за прошедшие даты.");
       return;
     }
     setPending(true);
@@ -530,7 +525,7 @@ export default function ScheduleView({
           locationId, // ✅ текущая выбранная локация
           date: cell.date,
           type: scheduleType,
-          customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
+          customTypeId: null,
           startTime: scheduleType === "WORKING" ? workStart : null,
           endTime: scheduleType === "WORKING" ? workEnd : null,
           breaks: scheduleType === "WORKING" ? selectedBreaks : [],
@@ -568,10 +563,10 @@ export default function ScheduleView({
             setConflictModal(list);
             return;
           }
-          window.alert(err?.error?.message ?? "Не удалось сохранить график.");
+          setNoticeModal(err?.error?.message ?? "Не удалось сохранить график.");
           return;
         }
-        window.alert(err?.error?.message ?? "Не удалось сохранить график.");
+        setNoticeModal(err?.error?.message ?? "Не удалось сохранить график.");
         return;
       }
 
@@ -580,6 +575,8 @@ export default function ScheduleView({
       ).then((res) => res.json());
 
       setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
+      setSelectedCells([]);
+      setActiveCell(null);
     } finally {
       setPending(false);
     }
@@ -588,7 +585,7 @@ export default function ScheduleView({
   const confirmReplaceConflicts = async () => {
     if (!canSave || !locationId) return;
     if (hasPastTarget) {
-      window.alert("Нельзя менять расписание за прошедшие даты.");
+      setNoticeModal("Нельзя менять расписание за прошедшие даты.");
       return;
     }
     setPending(true);
@@ -600,7 +597,7 @@ export default function ScheduleView({
           locationId, // ✅ текущая выбранная локация
           date: cell.date,
           type: scheduleType,
-          customTypeId: scheduleType === "CUSTOM" ? customTypeId : null,
+          customTypeId: null,
           startTime: scheduleType === "WORKING" ? workStart : null,
           endTime: scheduleType === "WORKING" ? workEnd : null,
           breaks: scheduleType === "WORKING" ? selectedBreaks : [],
@@ -616,7 +613,7 @@ export default function ScheduleView({
 
       if (!response.ok) {
         const err = await response.json().catch(() => null);
-        window.alert(err?.error?.message ?? "Не удалось перезаписать график.");
+        setNoticeModal(err?.error?.message ?? "Не удалось перезаписать график.");
         return;
       }
 
@@ -626,6 +623,8 @@ export default function ScheduleView({
 
       setEntries(Array.isArray(refreshed?.data) ? refreshed.data : []);
       setConflictModal(null);
+      setSelectedCells([]);
+      setActiveCell(null);
     } finally {
       setPending(false);
     }
@@ -653,13 +652,11 @@ const handleCopy = async () => {
     if (response.status === 409 && err?.error?.code === "LOCATION_CONFLICT") {
       const date = err?.error?.details?.date ?? "";
       const locName = err?.error?.details?.existingLocationName ?? "";
-      window.alert(
-        `Нельзя скопировать.\nУ специалиста уже есть график на ${date} в локации "${locName}".`
-      );
+      setNoticeModal(`Нельзя скопировать: у специалиста уже есть график на ${date} в локации "${locName}".`);
       return;
     }
 
-    window.alert(err?.error?.message ?? "Не удалось скопировать график.");
+    setNoticeModal(err?.error?.message ?? "Не удалось скопировать график.");
     return;
   }
 
@@ -1214,24 +1211,6 @@ const handleCopy = async () => {
                   </select>
                 </label>
 
-                {scheduleType === "CUSTOM" ? (
-                  <label className="flex flex-col gap-1">
-                    <span className="text-xs text-[color:var(--bp-muted)]">Свой тип</span>
-                    <select
-                      value={customTypeId ?? ""}
-                      onChange={(event) => setCustomTypeId(Number(event.target.value) || null)}
-                      className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2"
-                    >
-                      <option value="">Выберите тип</option>
-                      {nonWorkingTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
                 {scheduleType === "WORKING" ? (
                   <>
                     <div>
@@ -1403,6 +1382,33 @@ const handleCopy = async () => {
                 className="w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
                 Перезаписать
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {noticeModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-[color:var(--bp-paper)] p-6 shadow-[var(--bp-shadow)]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Предупреждение</h3>
+              <button
+                type="button"
+                onClick={() => setNoticeModal(null)}
+                className="text-[color:var(--bp-muted)]"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-[color:var(--bp-muted)]">{noticeModal}</p>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setNoticeModal(null)}
+                className="w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white"
+              >
+                Понятно
               </button>
             </div>
           </div>

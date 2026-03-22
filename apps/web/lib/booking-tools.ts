@@ -1,6 +1,12 @@
 ﻿import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isPastDateOrTimeInTz, toMinutes, zonedDayRangeUtc, zonedTimeToUtc } from "@/lib/public-booking";
+import {
+  getLocationWorkWindowForDate,
+  isPastDateOrTimeInTz,
+  toMinutes,
+  zonedDayRangeUtc,
+  zonedTimeToUtc,
+} from "@/lib/public-booking";
 
 export type Mode = "SELF" | "ASSISTANT";
 
@@ -188,6 +194,48 @@ export async function reserveAssistantSlotHold(args: {
   const day = zonedDayRangeUtc(String(date), accountTz);
   if (!startAt || !day || isPastDateOrTimeInTz(String(date), String(time), accountTz)) return false;
 
+  const [location, schedule] = await Promise.all([
+    prisma.location.findFirst({
+      where: { id: locationId, accountId, status: "ACTIVE" },
+      select: {
+        id: true,
+        hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+        exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+      },
+    }),
+    prisma.scheduleEntry.findFirst({
+      where: {
+        accountId,
+        specialistId,
+        locationId,
+        date: { gte: day.dayStartUtc, lt: day.dayEndUtc },
+        type: "WORKING",
+      },
+      select: { startTime: true, endTime: true },
+    }),
+  ]);
+  if (!location || !schedule) return false;
+
+  const locationWindow = getLocationWorkWindowForDate(location, String(date));
+  if (locationWindow.isClosed) return false;
+
+  const holdStart = toMinutes(String(time));
+  const holdEnd = holdStart == null ? null : holdStart + Number(durationMin || 0);
+  const scheduleStart = toMinutes(schedule.startTime ?? "");
+  const scheduleEnd = toMinutes(schedule.endTime ?? "");
+  if (
+    holdStart == null ||
+    holdEnd == null ||
+    scheduleStart == null ||
+    scheduleEnd == null ||
+    holdStart < scheduleStart ||
+    holdEnd > scheduleEnd ||
+    holdStart < locationWindow.startMinutes ||
+    holdEnd > locationWindow.endMinutes
+  ) {
+    return false;
+  }
+
   const endAt = new Date(startAt);
   endAt.setUTCMinutes(endAt.getUTCMinutes() + Number(durationMin || 0));
   const now = new Date();
@@ -274,7 +322,15 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
   const service = services.find((x) => x.id === d.serviceId);
   if (!service) return { ok: false as const, code: "bad_service" as const };
 
-  const [specialist, schedule] = await Promise.all([
+  const [location, specialist, schedule] = await Promise.all([
+    prisma.location.findFirst({
+      where: { id: d.locationId!, accountId, status: "ACTIVE" },
+      select: {
+        id: true,
+        hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+        exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+      },
+    }),
     prisma.specialistProfile.findFirst({
       where: { id: d.specialistId!, accountId },
       select: { id: true, levelId: true },
@@ -289,7 +345,7 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
       },
     }),
   ]);
-  if (!specialist || !schedule) return { ok: false as const, code: "combo_unavailable" as const };
+  if (!location || !specialist || !schedule) return { ok: false as const, code: "combo_unavailable" as const };
 
   const specialistLite: SpecialistLite = {
     id: specialist.id,
@@ -300,10 +356,23 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
   };
   const effective = getEffectiveServiceForSpecialist(service, specialistLite);
 
+  const locationWindow = getLocationWorkWindowForDate(location, String(d.date));
+  if (locationWindow.isClosed) {
+    return { ok: false as const, code: "outside_working_hours" as const };
+  }
+
   const startM = toMinutes(String(d.time));
   const sStart = toMinutes(schedule.startTime || "");
   const sEnd = toMinutes(schedule.endTime || "");
-  if (startM == null || sStart == null || sEnd == null || startM < sStart || startM + effective.durationMin > sEnd) {
+  if (
+    startM == null ||
+    sStart == null ||
+    sEnd == null ||
+    startM < sStart ||
+    startM + effective.durationMin > sEnd ||
+    startM < locationWindow.startMinutes ||
+    startM + effective.durationMin > locationWindow.endMinutes
+  ) {
     return { ok: false as const, code: "outside_working_hours" as const };
   }
 
