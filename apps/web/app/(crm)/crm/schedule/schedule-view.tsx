@@ -7,11 +7,23 @@ type StaffMember = {
   name: string;
   role: string;
   initials: string;
+  locationIds: number[];
 };
 
 type LocationOption = {
   id: number;
   name: string;
+  hours: {
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }[];
+  exceptions: {
+    date: string;
+    isClosed: boolean;
+    startTime: string | null;
+    endTime: string | null;
+  }[];
 };
 
 type BreakItem = {
@@ -158,6 +170,87 @@ function formatDateRuShort(isoDate: string) {
   return `${d}.${m}.${y}`;
 }
 
+function minutesToHm(value: number) {
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function dayOfWeekMon0(isoDate: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  const dowSun0 = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return (dowSun0 + 6) % 7;
+}
+
+function getLocationWorkRange(location: LocationOption | null | undefined, isoDate: string) {
+  if (!location) return null;
+
+  const exception = location.exceptions.find((item) => item.date === isoDate);
+  if (exception) {
+    if (exception.isClosed) return null;
+    const start = parseMinutes(exception.startTime);
+    const end = parseMinutes(exception.endTime);
+    if (start === null || end === null || start >= end) return null;
+    return { start, end };
+  }
+
+  const mon0 = dayOfWeekMon0(isoDate);
+  if (mon0 === null) return null;
+
+  const regular = location.hours.find((item) => item.dayOfWeek === mon0);
+  if (!regular) return null;
+
+  const start = parseMinutes(regular.startTime);
+  const end = parseMinutes(regular.endTime);
+  if (start === null || end === null || start >= end) return null;
+  return { start, end };
+}
+
+function getLocationFallbackRange(location: LocationOption | null | undefined) {
+  if (!location) return { start: "10:00", end: "21:00" };
+  const regular = [...location.hours]
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+    .find((item) => {
+      const start = parseMinutes(item.startTime);
+      const end = parseMinutes(item.endTime);
+      return start !== null && end !== null && start < end;
+    });
+  if (!regular) return { start: "10:00", end: "21:00" };
+  return { start: regular.startTime, end: regular.endTime };
+}
+
+function getDefaultRangeForDate(location: LocationOption | null | undefined, isoDate: string) {
+  const exact = getLocationWorkRange(location, isoDate);
+  if (exact) return { start: minutesToHm(exact.start), end: minutesToHm(exact.end) };
+  return getLocationFallbackRange(location);
+}
+
+function getWorkingRangeForCell(
+  entry: ScheduleEntry | undefined,
+  location: LocationOption | null | undefined,
+  isoDate: string
+) {
+  const base = getDefaultRangeForDate(location, isoDate);
+  const baseStart = parseMinutes(base.start);
+  const baseEnd = parseMinutes(base.end);
+  if (baseStart === null || baseEnd === null) return base;
+  if (!entry || entry.type !== "WORKING") return base;
+
+  const rawStart = parseMinutes(entry.startTime);
+  const rawEnd = parseMinutes(entry.endTime);
+  if (rawStart === null || rawEnd === null || rawStart >= rawEnd) return base;
+
+  const start = Math.max(rawStart, baseStart);
+  const end = Math.min(rawEnd, baseEnd);
+  if (start >= end) return base;
+  return { start: minutesToHm(start), end: minutesToHm(end) };
+}
+
 function isPastDateYmd(isoDate: string) {
   const today = toIsoDate(new Date());
   return isoDate < today;
@@ -270,6 +363,14 @@ export default function ScheduleView({
 
   const showTotals = true;
   const showDayCounts = true;
+  const selectedLocation = useMemo(
+    () => locations.find((item) => item.id === locationId) ?? null,
+    [locations, locationId]
+  );
+  const staffForLocation = useMemo(() => {
+    if (!locationId) return staff;
+    return staff.filter((person) => person.locationIds.includes(locationId));
+  }, [locationId, staff]);
 
   const days = useMemo(() => {
     return viewMode === "month" ? getMonthDays(currentDate) : getWeekDays(currentDate);
@@ -290,8 +391,8 @@ export default function ScheduleView({
   }, [entries]);
 
   const roles = useMemo(() => {
-    return Array.from(new Set(staff.map((item) => item.role))).sort();
-  }, [staff]);
+    return Array.from(new Set(staffForLocation.map((item) => item.role))).sort();
+  }, [staffForLocation]);
 
   const staffNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -300,7 +401,7 @@ export default function ScheduleView({
   }, [staff]);
 
   const filteredStaff = useMemo(() => {
-    return staff.filter((person) => {
+    return staffForLocation.filter((person) => {
       const roleOk = filterRole === "all" || person.role === filterRole;
       const query = filterQuery.trim().toLowerCase();
       const queryOk =
@@ -309,7 +410,7 @@ export default function ScheduleView({
         person.role.toLowerCase().includes(query);
       return roleOk && queryOk;
     });
-  }, [filterQuery, filterRole, staff]);
+  }, [filterQuery, filterRole, staffForLocation]);
 
   useEffect(() => {
     if (filteredStaff.length === 0) {
@@ -378,18 +479,19 @@ export default function ScheduleView({
   useEffect(() => {
     if (!activeCell) return;
     const entry = entryMap.get(cellKey(activeCell));
+    const workingRange = getWorkingRangeForCell(entry, selectedLocation, activeCell.date);
     if (!entry) {
       setScheduleType("WORKING");
-      setWorkStart("10:00");
-      setWorkEnd("21:00");
+      setWorkStart(workingRange.start);
+      setWorkEnd(workingRange.end);
       setSelectedBreaks([]);
       return;
     }
     setScheduleType(entry.type === "CUSTOM" ? "UNPAID_OFF" : entry.type);
-    setWorkStart(entry.startTime ?? "10:00");
-    setWorkEnd(entry.endTime ?? "21:00");
+    setWorkStart(workingRange.start);
+    setWorkEnd(workingRange.end);
     setSelectedBreaks(entry.breaks ?? []);
-  }, [activeCell, entryMap]);
+  }, [activeCell, entryMap, selectedLocation]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -665,12 +767,13 @@ const handleCopy = async () => {
 };
 
 
-  const typeLabel = (entry: ScheduleEntry | undefined) => {
+  const typeLabel = (entry: ScheduleEntry | undefined, isoDate: string) => {
     // ✅ если запись не проставлена — значит не работает
     if (!entry) return "Не работает";
 
     if (entry.type === "WORKING") {
-      return `${entry.startTime ?? ""} - ${entry.endTime ?? ""}`;
+      const range = getWorkingRangeForCell(entry, selectedLocation, isoDate);
+      return `${range.start} - ${range.end}`;
     }
     if (entry.type === "CUSTOM" && entry.customType) {
       return entry.customType.name;
@@ -1017,7 +1120,7 @@ const handleCopy = async () => {
                     {days.map((day) => {
                       const iso = toIsoDate(day);
                       const entry = entryMap.get(`${person.id}-${iso}`);
-                      const label = typeLabel(entry);
+                      const label = typeLabel(entry, iso);
                       const isSelected = selectedCells.some(
                         (cell) => cell.staffId === person.id && cell.date === iso
                       );

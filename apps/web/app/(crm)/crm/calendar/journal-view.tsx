@@ -9,6 +9,7 @@ type StaffItem = {
   role: string;
   initials: string;
   levelId: number | null;
+  locationIds: number[];
 };
 
 type JournalClient = {
@@ -19,6 +20,17 @@ type JournalClient = {
 type JournalLocation = {
   id: number;
   name: string;
+  hours: {
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }[];
+  exceptions: {
+    date: string;
+    isClosed: boolean;
+    startTime: string | null;
+    endTime: string | null;
+  }[];
 };
 
 type JournalAppointment = {
@@ -79,8 +91,6 @@ type JournalViewProps = {
 };
 
 const SLOT_MINUTES = 15;
-const DAY_START = 9;
-const DAY_END = 21;
 const ZOOM_STEPS = [0.8, 1, 1.2, 1.4];
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -237,6 +247,43 @@ function scheduleTypeMeta(entry: ScheduleEntry | undefined) {
   }
 }
 
+function dayOfWeekMon0(date: Date) {
+  return (date.getDay() + 6) % 7;
+}
+
+function getLocationWindowForDate(location: JournalLocation | null | undefined, date: Date) {
+  if (!location) return { startMinutes: 9 * 60, endMinutes: 21 * 60 };
+
+  const ymd = formatDateKey(date);
+  const exception = location.exceptions.find((item) => item.date === ymd);
+  if (exception) {
+    if (!exception.isClosed) {
+      const start = parseTimeToMinutes(exception.startTime ?? "");
+      const end = parseTimeToMinutes(exception.endTime ?? "");
+      if (start !== null && end !== null && start < end) {
+        return { startMinutes: start, endMinutes: end };
+      }
+    }
+    const fallback = location.hours.find((item) => item.dayOfWeek === dayOfWeekMon0(date));
+    const fallbackStart = parseTimeToMinutes(fallback?.startTime ?? "");
+    const fallbackEnd = parseTimeToMinutes(fallback?.endTime ?? "");
+    if (fallbackStart !== null && fallbackEnd !== null && fallbackStart < fallbackEnd) {
+      return { startMinutes: fallbackStart, endMinutes: fallbackEnd };
+    }
+    return { startMinutes: 9 * 60, endMinutes: 21 * 60 };
+  }
+
+  const mon0 = dayOfWeekMon0(date);
+  const regular = location.hours.find((item) => item.dayOfWeek === mon0);
+  if (!regular) return { startMinutes: 9 * 60, endMinutes: 21 * 60 };
+
+  const start = parseTimeToMinutes(regular.startTime);
+  const end = parseTimeToMinutes(regular.endTime);
+  if (start === null || end === null || start >= end) return { startMinutes: 9 * 60, endMinutes: 21 * 60 };
+
+  return { startMinutes: start, endMinutes: end };
+}
+
 function getWeekStart(date: Date) {
   const day = date.getDay() === 0 ? 7 : date.getDay();
   return addDays(startOfDay(date), 1 - day);
@@ -308,6 +355,10 @@ export default function JournalView({
     const fallback = locations[0]?.id ?? 0;
     return initialLocationId ?? fallback;
   });
+  const staffForLocation = useMemo(() => {
+    if (!selectedLocationId) return staff;
+    return staff.filter((item) => item.locationIds.includes(selectedLocationId));
+  }, [selectedLocationId, staff]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -354,10 +405,10 @@ export default function JournalView({
   }, []);
 
   useEffect(() => {
-    if (!staff.find((item) => item.id === selectedStaffId)) {
-      setSelectedStaffId(staff[0]?.id ?? 0);
+    if (!staffForLocation.find((item) => item.id === selectedStaffId)) {
+      setSelectedStaffId(staffForLocation[0]?.id ?? 0);
     }
-  }, [staff, selectedStaffId]);
+  }, [selectedStaffId, staffForLocation]);
 
   useEffect(() => {
     setAppointmentItems(appointments);
@@ -452,7 +503,7 @@ export default function JournalView({
 
   const gridColumns = useMemo(() => {
     if (viewMode === "day") {
-      return staff.map((item) => ({
+      return staffForLocation.map((item) => ({
         key: String(item.id),
         title: item.name,
         subtitle: item.role,
@@ -463,18 +514,48 @@ export default function JournalView({
       title: day.getDate().toString(),
       subtitle: WEEKDAY_LABELS[(day.getDay() + 6) % 7],
     }));
-  }, [staff, viewMode, weekDays]);
+  }, [staffForLocation, viewMode, weekDays]);
 
-  const slotCount = (DAY_END - DAY_START) * (60 / SLOT_MINUTES);
+  const selectedLocation = useMemo(
+    () =>
+      locations.find((item) => item.id === selectedLocationId) ??
+      locations[0] ??
+      null,
+    [locations, selectedLocationId]
+  );
+
+  const activeWindow = useMemo(
+    () => getLocationWindowForDate(selectedLocation, currentDate),
+    [selectedLocation, currentDate]
+  );
+
+  const weekWindow = useMemo(() => {
+    const windows = weekDays.map((day) => getLocationWindowForDate(selectedLocation, day));
+    const minStart = Math.min(...windows.map((item) => item.startMinutes));
+    const maxEnd = Math.max(...windows.map((item) => item.endMinutes));
+    return {
+      startMinutes: Number.isFinite(minStart) ? minStart : activeWindow.startMinutes,
+      endMinutes: Number.isFinite(maxEnd) ? maxEnd : activeWindow.endMinutes,
+    };
+  }, [activeWindow.endMinutes, activeWindow.startMinutes, selectedLocation, weekDays]);
+
+  const visibleWindow = viewMode === "week" ? weekWindow : activeWindow;
+  const dayStartMinutes = visibleWindow.startMinutes;
+  const dayEndMinutes = Math.max(dayStartMinutes + SLOT_MINUTES, visibleWindow.endMinutes);
+  const slotCount = Math.max(
+    1,
+    Math.ceil((dayEndMinutes - dayStartMinutes) / SLOT_MINUTES)
+  );
   const slotHeight = Math.round(24 * zoom);
 
   const timeSlots = useMemo(() => {
     return Array.from({ length: slotCount }, (_, index) => {
-      const hours = DAY_START + Math.floor((index * SLOT_MINUTES) / 60);
-      const minutes = (index * SLOT_MINUTES) % 60;
+      const absoluteMinutes = dayStartMinutes + index * SLOT_MINUTES;
+      const hours = Math.floor(absoluteMinutes / 60);
+      const minutes = absoluteMinutes % 60;
       return { hours, minutes };
     });
-  }, [slotCount]);
+  }, [dayStartMinutes, slotCount]);
 
   // ✅ фильтруем график строго по выбранной локации
   const scheduleEntriesForLocation = useMemo(() => {
@@ -611,14 +692,13 @@ export default function JournalView({
       const dayIndex = weekDays.findIndex((day) => isSameDay(day, start));
       const columnIndex =
         viewMode === "day"
-          ? staff.findIndex((item) => item.id === appointment.specialistId)
+          ? staffForLocation.findIndex((item) => item.id === appointment.specialistId)
           : dayIndex;
 
       if (columnIndex === -1) return null;
 
       const rawSlotIndex =
-        ((start.getHours() - DAY_START) * 60 + start.getMinutes()) /
-        SLOT_MINUTES;
+        (start.getHours() * 60 + start.getMinutes() - dayStartMinutes) / SLOT_MINUTES;
       const slotIndex = Math.max(0, Math.floor(rawSlotIndex));
 
       const durationMinutes = (end.getTime() - start.getTime()) / (60 * 1000);
@@ -638,7 +718,7 @@ export default function JournalView({
         sourceTone,
       };
     });
-  }, [filteredAppointments, staff, viewMode, weekDays]);
+  }, [dayStartMinutes, filteredAppointments, staffForLocation, viewMode, weekDays]);
 
   const availableServices = useMemo(() => {
     if (!editorForm) return [];
@@ -675,9 +755,9 @@ export default function JournalView({
   }, [editorForm, services, staff]);
 
   const handleSlotClick = (rowIndex: number, colIndex: number) => {
-    const slotMinutes = rowIndex * SLOT_MINUTES;
-    const hours = DAY_START + Math.floor(slotMinutes / 60);
-    const minutes = slotMinutes % 60;
+    const absoluteMinutes = dayStartMinutes + rowIndex * SLOT_MINUTES;
+    const hours = Math.floor(absoluteMinutes / 60);
+    const minutes = absoluteMinutes % 60;
 
     const slotDate =
       viewMode === "day"
@@ -686,12 +766,12 @@ export default function JournalView({
 
     const staffItem =
       viewMode === "day"
-        ? staff[colIndex]
+        ? staffForLocation[colIndex]
         : staff.find((s) => s.id === selectedStaffId);
 
     if (!slotDate || !staffItem) return;
 
-    const slotStartMinutes = DAY_START * 60 + slotMinutes;
+    const slotStartMinutes = dayStartMinutes + rowIndex * SLOT_MINUTES;
     const slotEndMinutes = slotStartMinutes + SLOT_MINUTES;
 
     const scheduleEntry = getScheduleEntry(staffItem.id, slotDate);
@@ -995,7 +1075,7 @@ export default function JournalView({
                 }
                 className="h-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm"
               >
-                {staff.map((item) => (
+                {staffForLocation.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
                   </option>
@@ -1180,7 +1260,7 @@ export default function JournalView({
                       className={`border-l border-[color:var(--bp-stroke)] px-3 py-2 ${
                         viewMode === "day"
                           ? scheduleTypeMeta(
-                              getScheduleEntry(staff[index]?.id ?? 0, currentDate)
+                              getScheduleEntry(staffForLocation[index]?.id ?? 0, currentDate)
                             ).tone
                           : scheduleTypeMeta(
                               getScheduleEntry(
@@ -1199,7 +1279,7 @@ export default function JournalView({
                       {viewMode === "day" ? (
                         <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
                           {scheduleTypeMeta(
-                            getScheduleEntry(staff[index]?.id ?? 0, currentDate)
+                            getScheduleEntry(staffForLocation[index]?.id ?? 0, currentDate)
                           ).label}
                         </div>
                       ) : (
@@ -1233,14 +1313,14 @@ export default function JournalView({
                   {timeSlots.map((_, rowIndex) =>
                     gridColumns.map((column, colIndex) => {
                       const staffId =
-                        viewMode === "day" ? staff[colIndex]?.id : selectedStaffId;
+                        viewMode === "day" ? staffForLocation[colIndex]?.id : selectedStaffId;
 
                       const slotDate =
                         viewMode === "day"
                           ? currentDate
                           : weekDays[Math.min(colIndex, weekDays.length - 1)];
 
-                      const slotStart = DAY_START * 60 + rowIndex * SLOT_MINUTES;
+                      const slotStart = dayStartMinutes + rowIndex * SLOT_MINUTES;
                       const slotEnd = slotStart + SLOT_MINUTES;
 
                       const scheduleEntry =
@@ -1393,7 +1473,7 @@ export default function JournalView({
                     }
                     className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                   >
-                    {staff.map((item) => (
+                    {staffForLocation.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.name}
                       </option>

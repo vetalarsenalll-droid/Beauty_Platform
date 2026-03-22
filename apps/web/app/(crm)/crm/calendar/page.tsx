@@ -48,11 +48,21 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
         accountId: session.accountId,
         user: { status: { not: "DISABLED" } },
       },
-      include: { user: { include: { profile: true } }, level: true },
+      include: {
+        user: { include: { profile: true } },
+        level: true,
+        locations: { select: { locationId: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
     prisma.location.findMany({
       where: { accountId: session.accountId, status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+        exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.client.findMany({
@@ -113,6 +123,7 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
       role: specialist.level?.name ?? "Специалист",
       initials: initials || fullName.slice(0, 2).toUpperCase(),
       levelId: specialist.levelId ?? null,
+      locationIds: specialist.locations.map((item) => item.locationId),
     };
   });
 
@@ -155,6 +166,13 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
         locations={locations.map((location) => ({
           id: location.id,
           name: location.name,
+          hours: location.hours,
+          exceptions: location.exceptions.map((item) => ({
+            date: item.date.toISOString().slice(0, 10),
+            isClosed: item.isClosed,
+            startTime: item.startTime,
+            endTime: item.endTime,
+          })),
         }))}
         services={services.map((service) => ({
           id: service.id,
