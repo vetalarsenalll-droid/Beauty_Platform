@@ -2,6 +2,15 @@ import { createHmac, timingSafeEqual } from "crypto";
 
 export const BOOKING_HOLD_COOKIE = "bp_booking_hold";
 
+export class HoldProofSecretMissingError extends Error {
+  constructor() {
+    super(
+      "PUBLIC_BOOKING_HOLD_SECRET, SESSION_SECRET, or NEXTAUTH_SECRET must be configured for booking hold proof tokens."
+    );
+    this.name = "HoldProofSecretMissingError";
+  }
+}
+
 type HoldProofPayload = {
   holdId: number;
   accountId: number;
@@ -20,12 +29,21 @@ type VerifyInput = {
 };
 
 function getSecret() {
-  return (
+  const secret = (
     process.env.PUBLIC_BOOKING_HOLD_SECRET ??
     process.env.SESSION_SECRET ??
-    process.env.NEXTAUTH_SECRET ??
-    "dev-public-booking-hold-secret"
-  );
+    process.env.NEXTAUTH_SECRET
+  )?.trim();
+
+  if (!secret) {
+    throw new HoldProofSecretMissingError();
+  }
+
+  return secret;
+}
+
+export function ensureHoldProofSecretConfigured() {
+  return getSecret();
 }
 
 function sign(data: string) {
@@ -45,7 +63,13 @@ function parsePayload(token: string): HoldProofPayload | null {
   const [encoded, signature] = token.split(".", 2);
   if (!encoded || !signature) return null;
 
-  const expectedSignature = sign(encoded);
+  let expectedSignature: string;
+  try {
+    expectedSignature = sign(encoded);
+  } catch (error) {
+    if (error instanceof HoldProofSecretMissingError) return null;
+    throw error;
+  }
   if (!safeEqual(signature, expectedSignature)) return null;
 
   try {

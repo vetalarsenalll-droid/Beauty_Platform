@@ -5,7 +5,12 @@ import { Prisma } from "@prisma/client";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { normalizeRuPhone } from "@/lib/phone";
-import { verifyHoldProofToken, BOOKING_HOLD_COOKIE } from "@/lib/public-booking-hold-proof";
+import {
+  verifyHoldProofToken,
+  BOOKING_HOLD_COOKIE,
+  ensureHoldProofSecretConfigured,
+  HoldProofSecretMissingError,
+} from "@/lib/public-booking-hold-proof";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
   getLocationWorkWindowForDate,
@@ -28,6 +33,20 @@ const toNumber = (value: unknown) => {
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+
+  try {
+    ensureHoldProofSecretConfigured();
+  } catch (error) {
+    if (error instanceof HoldProofSecretMissingError) {
+      return jsonError(
+        "SERVER_MISCONFIGURED",
+        "Подтверждение резерва временно недоступно.",
+        null,
+        500
+      );
+    }
+    throw error;
+  }
 
   const limited = enforceRateLimit({
     request,

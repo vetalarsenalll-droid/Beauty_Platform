@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import {
   BOOKING_HOLD_COOKIE,
   createHoldProofToken,
+  ensureHoldProofSecretConfigured,
+  HoldProofSecretMissingError,
   verifyHoldProofToken,
 } from "@/lib/public-booking-hold-proof";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -42,6 +44,20 @@ const readCookieValue = (request: Request, name: string) => {
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+
+  try {
+    ensureHoldProofSecretConfigured();
+  } catch (error) {
+    if (error instanceof HoldProofSecretMissingError) {
+      return jsonError(
+        "SERVER_MISCONFIGURED",
+        "Подтверждение резерва временно недоступно.",
+        null,
+        500
+      );
+    }
+    throw error;
+  }
 
   const limited = enforceRateLimit({
     request,
@@ -362,6 +378,20 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
+
+  try {
+    ensureHoldProofSecretConfigured();
+  } catch (error) {
+    if (error instanceof HoldProofSecretMissingError) {
+      return jsonError(
+        "SERVER_MISCONFIGURED",
+        "Подтверждение резерва временно недоступно.",
+        null,
+        500
+      );
+    }
+    throw error;
+  }
 
   const body = (await request.json().catch(() => null)) as { holdId?: number } | null;
   const holdId = Number.isInteger(Number(body?.holdId)) ? Number(body?.holdId) : null;

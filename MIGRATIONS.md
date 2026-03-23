@@ -1,5 +1,16 @@
 ﻿MIGRATIONS
 
+## 2026-03-23 - baseline_reconstruction
+- Date: 2026-03-23
+- Slug: baseline_reconstruction
+- Prisma migration: packages/db/prisma/migrations/20260323132000_baseline
+- Purpose: Restore reproducible bootstrap of a new database after consolidating legacy migrations into an archive.
+- Schema changes: No functional schema change; baseline SQL now contains the full DDL reconstructed from archived migrations.
+- Data migration: None.
+- Rollback: Restore previous migration layout or regenerate a fresh baseline from schema.prisma.
+- Notes: Archived history remains in packages/db/prisma/migrations_archive_20260323_021619 for audit/reference; new environments should apply the active baseline migration.
+
+
 ## Template
 - Date:
 - Slug:
