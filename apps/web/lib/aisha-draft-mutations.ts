@@ -7,6 +7,7 @@ import {
   specialistSupportsSelection,
   isServiceInquiryMessage,
   hasExplicitConsentGrant,
+  isToxicDisplayName,
 } from "@/lib/aisha-routing-helpers";
 import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 
@@ -192,7 +193,10 @@ export function applyDraftMutations(args: {
     !/[0-9]/.test(message) &&
     !/[?!.]/.test(message) &&
     !/^(?:как|кто|что|где|почему|зачем|привет|здравствуйте|спасибо|ок|окей|ладно|хорошо|знаешь)$/i.test(message.trim());
-  const parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName ? parsedMessageName : null;
+  let parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName ? parsedMessageName : null;
+  if (parsedMessageNameSafe && isToxicDisplayName(parsedMessageNameSafe)) {
+    parsedMessageNameSafe = null;
+  }
   const shouldCaptureClientName =
     d.mode === "ASSISTANT" ||
     d.status === "WAITING_CONSENT" ||

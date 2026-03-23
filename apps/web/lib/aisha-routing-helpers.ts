@@ -418,6 +418,19 @@ export function specialistQuickOption(specialist: SpecialistLite) {
   };
 }
 
+const TOXIC_NAME_REGEX =
+  /(сучк|сука|шлюх|мраз|твар|рабын|раб|проститут|пизд|ху[йеё]|ебан|ёбан|ебл|бля|гандон|идиот|дебил|урод|скотин|чмо|кончен)/iu;
+
+export function isToxicDisplayName(name: string) {
+  return TOXIC_NAME_REGEX.test(norm(name));
+}
+
+export function isToxicNameRequest(message: string) {
+  const m = norm(message);
+  if (!/(называй|зови|обращайся|называть меня|звать меня)/iu.test(m)) return false;
+  return TOXIC_NAME_REGEX.test(m);
+}
+
 function resolveFacetValueFromMessage(message: string, values: string[]) {
   if (!values.length) return null;
   const normalizedMessage = norm(message);

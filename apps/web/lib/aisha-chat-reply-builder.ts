@@ -22,6 +22,7 @@ import {
   serviceByText,
   specialistLevelTabOptions,
   specialistOptionsWithTabs,
+  isToxicNameRequest,
 } from "@/lib/aisha-routing-helpers";
 import type { AishaIntent } from "@/lib/dialog-policy";
 import { parseDate } from "@/lib/aisha-chat-parsers";
@@ -277,6 +278,11 @@ export function buildBasicChatInfoReply(args: {
     const hh = String(Math.floor(nowInClientTz.minutes / 60)).padStart(2, "0");
     const mm = String(nowInClientTz.minutes % 60).padStart(2, "0");
     reply = `Сейчас ${formatYmdRu(nowInClientTz.ymd)}, ${hh}:${mm}.`;
+    return { handled: true, reply, ui };
+  }
+
+  if (isToxicNameRequest(messageForRouting)) {
+    reply = "Я не могу так обращаться. Могу помочь с записью или подсказать по услугам.";
     return { handled: true, reply, ui };
   }
 
