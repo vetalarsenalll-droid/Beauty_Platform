@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type StaffItem = {
   id: number;
@@ -47,10 +47,22 @@ type JournalAppointment = {
   clientName: string;
   serviceNames: string[];
   serviceIds: number[];
+  serviceItems?: {
+    serviceId: number;
+    serviceName: string;
+    price: string;
+    durationMin: number;
+  }[];
   priceTotal: string;
   durationMin: number;
   clientPhone: string;
   clientEmail: string;
+};
+
+type EditorServiceItem = {
+  serviceId: number | null;
+  price: string;
+  durationMin: number;
 };
 
 type ScheduleEntry = {
@@ -133,6 +145,34 @@ const STATUS_META: Record<string, { label: string; tone: string; badge: string }
       badge: "border border-orange-200 text-orange-900",
     },
   };
+
+const STATUS_PICK_ORDER = ["NEW", "CONFIRMED", "DONE", "CANCELLED", "NO_SHOW"] as const;
+
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  NEW: ["NEW", "CONFIRMED", "DONE", "CANCELLED", "NO_SHOW"],
+  CONFIRMED: ["CONFIRMED", "DONE", "CANCELLED", "NO_SHOW"],
+  IN_PROGRESS: ["DONE", "CANCELLED", "NO_SHOW"],
+  DONE: ["DONE"],
+  CANCELLED: ["CANCELLED"],
+  NO_SHOW: ["NO_SHOW"],
+};
+
+const TERMINAL_APPOINTMENT_STATUSES = new Set(["DONE", "CANCELLED", "NO_SHOW"]);
+
+function getAllowedStatusOptions(currentStatus: string) {
+  const allowed = STATUS_TRANSITIONS[currentStatus] ?? [currentStatus];
+  const baseOrder = [...STATUS_PICK_ORDER];
+  if (!baseOrder.includes(currentStatus as (typeof STATUS_PICK_ORDER)[number])) {
+    baseOrder.unshift(currentStatus as (typeof STATUS_PICK_ORDER)[number]);
+  }
+  return baseOrder
+    .filter((status) => allowed.includes(status) && Boolean(STATUS_META[status]))
+    .map((status) => ({ key: status, meta: STATUS_META[status]! }));
+}
+
+function isTerminalAppointmentStatus(status: string) {
+  return TERMINAL_APPOINTMENT_STATUSES.has(status);
+}
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -325,6 +365,10 @@ type EditorForm = {
   status: string;
   serviceId: number | null;
   serviceName: string;
+  serviceItems: EditorServiceItem[];
+  serviceIds: number[];
+  serviceNames: string[];
+  serviceChanged: boolean;
   priceTotal: string;
   durationMin: number;
   clientName: string;
@@ -374,6 +418,9 @@ export default function JournalView({
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
   const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
+  const [availableStartSlots, setAvailableStartSlots] = useState<string[]>([]);
+  const [loadingStartSlots, setLoadingStartSlots] = useState(false);
+  const [startSlotsError, setStartSlotsError] = useState<string | null>(null);
 
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const sellRef = useRef<HTMLDivElement | null>(null);
@@ -449,6 +496,10 @@ export default function JournalView({
         status: "NEW",
         serviceId: null,
         serviceName: "",
+        serviceItems: [{ serviceId: null, price: "0", durationMin: 0 }],
+        serviceIds: [],
+        serviceNames: [],
+        serviceChanged: false,
         priceTotal: "0",
         durationMin: 0,
         clientName: "",
@@ -459,6 +510,19 @@ export default function JournalView({
       const appointment = editorState.appointment;
       const startAt = new Date(appointment.startAt);
       const endAt = new Date(appointment.endAt);
+      const serviceItems =
+        Array.isArray(appointment.serviceItems) && appointment.serviceItems.length > 0
+          ? appointment.serviceItems.map((item) => ({
+              serviceId: item.serviceId,
+              price: item.price,
+              durationMin: item.durationMin,
+            }))
+          : appointment.serviceIds.map((id, index) => ({
+              serviceId: id,
+              price: index === 0 ? appointment.priceTotal : "0",
+              durationMin:
+                index === 0 ? Math.max(0, appointment.durationMin) : 0,
+            }));
 
       setEditorForm({
         staffId: appointment.specialistId,
@@ -470,6 +534,10 @@ export default function JournalView({
         status: appointment.status,
         serviceId: appointment.serviceIds[0] ?? null,
         serviceName: appointment.serviceNames[0] ?? "",
+        serviceItems,
+        serviceIds: appointment.serviceIds,
+        serviceNames: appointment.serviceNames,
+        serviceChanged: false,
         priceTotal: appointment.priceTotal,
         durationMin: appointment.durationMin,
         clientName: appointment.clientName,
@@ -498,6 +566,87 @@ export default function JournalView({
       setEditorForm((prev) => (prev ? { ...prev, endTime: computedEnd } : prev));
     }
   }, [editorForm?.startTime, editorForm?.durationMin]);
+
+  useEffect(() => {
+    if (!editorForm) {
+      setAvailableStartSlots([]);
+      setLoadingStartSlots(false);
+      setStartSlotsError(null);
+      return;
+    }
+    if (!editorForm.staffId || !editorForm.locationId || !editorForm.date || editorForm.durationMin <= 0) {
+      setAvailableStartSlots([]);
+      setLoadingStartSlots(false);
+      setStartSlotsError(null);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      specialistId: String(editorForm.staffId),
+      locationId: String(editorForm.locationId),
+      date: editorForm.date,
+      durationMin: String(editorForm.durationMin),
+    });
+    if (editorState?.mode === "edit") {
+      params.set("appointmentId", String(editorState.appointment.id));
+    }
+    if (editorForm.serviceIds.length > 0) {
+      params.set("serviceIds", editorForm.serviceIds.join(","));
+    }
+
+    let cancelled = false;
+    setLoadingStartSlots(true);
+    setStartSlotsError(null);
+
+    fetch(`/api/v1/crm/appointments/slots?${params.toString()}`)
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | { slots?: string[]; message?: string }
+          | null;
+        if (!response.ok) {
+          throw new Error(payload?.message ?? "SLOTS_REQUEST_FAILED");
+        }
+        const slots = Array.isArray(payload?.slots)
+          ? payload!.slots.filter((item): item is string => typeof item === "string" && item.length >= 4)
+          : [];
+        if (cancelled) return;
+        setAvailableStartSlots(slots);
+        setStartSlotsError(
+          payload?.message && payload.message !== "OK" ? payload.message : null
+        );
+        if (slots.length > 0 && !slots.includes(editorForm.startTime)) {
+          const nextStart = slots[0];
+          setEditorForm((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  startTime: nextStart,
+                  endTime: prev.durationMin > 0 ? addMinutesToTime(nextStart, prev.durationMin) : "",
+                }
+              : prev
+          );
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setAvailableStartSlots([]);
+        setStartSlotsError((error as Error).message || "SLOTS_REQUEST_FAILED");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingStartSlots(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    editorForm?.staffId,
+    editorForm?.locationId,
+    editorForm?.date,
+    editorForm?.durationMin,
+    editorForm?.serviceIds,
+    editorState,
+  ]);
 
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
   const weekDays = useMemo(
@@ -758,6 +907,70 @@ export default function JournalView({
       });
   }, [editorForm, services, staff]);
 
+  const availableServiceById = useMemo(
+    () => new Map(availableServices.map((service) => [service.id, service])),
+    [availableServices]
+  );
+
+  const applyServicesToForm = useCallback((prev: EditorForm, nextItemsRaw: EditorServiceItem[]) => {
+    const nextItems = nextItemsRaw.map((item) => {
+      if (!item.serviceId) {
+        return { serviceId: null, price: item.price || "0", durationMin: Math.max(0, Number(item.durationMin) || 0) };
+      }
+      const service = availableServiceById.get(item.serviceId);
+      if (!service) return { serviceId: null, price: "0", durationMin: 0 };
+      const parsedDuration = Number(item.durationMin);
+      const safeDuration = Number.isFinite(parsedDuration) ? Math.max(0, parsedDuration) : 0;
+      const parsedPrice = Number(item.price);
+      const defaultPrice = Number(service.computedPrice ?? "0");
+      const safePrice = Number.isFinite(parsedPrice)
+        ? parsedPrice
+        : (Number.isFinite(defaultPrice) ? defaultPrice : 0);
+      return {
+        serviceId: item.serviceId,
+        price: String(safePrice),
+        durationMin: safeDuration,
+      };
+    });
+
+    const activeItems = nextItems.filter((item) => item.serviceId) as Array<{
+      serviceId: number;
+      price: string;
+      durationMin: number;
+    }>;
+    const serviceIds = activeItems.map((item) => item.serviceId);
+    const serviceNames = serviceIds
+      .map((serviceId) => availableServiceById.get(serviceId)?.name ?? "")
+      .filter(Boolean);
+    const durationMin = activeItems.reduce((sum, item) => sum + Math.max(0, item.durationMin), 0);
+    const priceTotal = activeItems.reduce((sum, item) => {
+      const value = Number(item.price);
+      return sum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+
+    return {
+      ...prev,
+      serviceId: serviceIds[0] ?? null,
+      serviceName: serviceNames[0] ?? "",
+      serviceItems: nextItems,
+      serviceIds,
+      serviceNames,
+      serviceChanged: true,
+      priceTotal: serviceIds.length > 0 ? String(priceTotal) : "0",
+      durationMin: serviceIds.length > 0 ? durationMin : 0,
+      endTime: serviceIds.length > 0 ? addMinutesToTime(prev.startTime, durationMin) : "",
+    };
+  }, [availableServiceById]);
+
+  useEffect(() => {
+    if (!editorForm) return;
+    const filtered = editorForm.serviceItems.filter(
+      (item) => !item.serviceId || availableServiceById.has(item.serviceId)
+    );
+    if (filtered.length === editorForm.serviceItems.length) return;
+    setEditorForm((prev) => (prev ? applyServicesToForm(prev, filtered) : prev));
+  }, [availableServiceById, editorForm, applyServicesToForm]);
+
   const handleSlotClick = (rowIndex: number, colIndex: number) => {
     const absoluteMinutes = dayStartMinutes + rowIndex * SLOT_MINUTES;
     const hours = Math.floor(absoluteMinutes / 60);
@@ -829,8 +1042,19 @@ export default function JournalView({
   const handleEditorSave = async () => {
     if (!editorForm || !editorState) return;
     if (!editorForm.staffId || !editorForm.locationId) return;
+    if (
+      editorState.mode === "edit" &&
+      isTerminalAppointmentStatus(editorState.appointment.status)
+    ) {
+      setNoticeModal({
+        title: "Редактирование недоступно",
+        message:
+          "Запись с финальным статусом (Завершен / Отменен / Не пришел) нельзя изменять.",
+      });
+      return;
+    }
 
-    if (!editorForm.serviceId) {
+    if (editorForm.serviceIds.length === 0) {
       setNoticeModal({ title: "Проверьте данные", message: "Выберите услугу." });
       return;
     }
@@ -849,7 +1073,7 @@ export default function JournalView({
     const startAt = new Date(`${editorForm.date}T${editorForm.startTime}:00`);
     const endAt = new Date(`${editorForm.date}T${editorForm.endTime}:00`);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       staffId: editorForm.staffId,
       // ✅ фиксируем локацию на выбранной
       locationId: selectedLocationId || editorForm.locationId,
@@ -861,9 +1085,30 @@ export default function JournalView({
       endAt: endAt.toISOString(),
       status: editorForm.status,
       priceTotal: editorForm.priceTotal,
-      serviceId: editorForm.serviceId,
       durationMin: editorForm.durationMin,
     };
+
+    if (editorState.mode === "new") {
+      payload.serviceId = editorForm.serviceIds[0] ?? null;
+      payload.serviceIds = editorForm.serviceIds;
+      payload.serviceItems = editorForm.serviceItems
+        .filter((item) => item.serviceId)
+        .map((item) => ({
+          serviceId: item.serviceId,
+          price: item.price,
+          durationMin: item.durationMin,
+        }));
+    } else if (editorForm.serviceChanged) {
+      payload.serviceId = editorForm.serviceIds[0] ?? null;
+      payload.serviceIds = editorForm.serviceIds;
+      payload.serviceItems = editorForm.serviceItems
+        .filter((item) => item.serviceId)
+        .map((item) => ({
+          serviceId: item.serviceId,
+          price: item.price,
+          durationMin: item.durationMin,
+        }));
+    }
 
     if (editorState.mode === "new") {
       const response = await fetch("/api/v1/crm/appointments", {
@@ -925,6 +1170,10 @@ export default function JournalView({
       setStatusMenuId(null);
     }
   };
+
+  const isEditorLocked =
+    editorState?.mode === "edit" &&
+    isTerminalAppointmentStatus(editorForm?.status ?? "");
 
   return (
     <div className="flex min-h-[calc(100vh-96px)] flex-col gap-4">
@@ -1048,25 +1297,29 @@ export default function JournalView({
                   <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
                     Статусы визита
                   </div>
-                  {Object.entries(STATUS_META).map(([key, meta]) => (
-                    <label
-                      key={key}
-                      className="mt-2 flex cursor-pointer items-center gap-2"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={statusFilter.includes(key)}
-                        onChange={() =>
-                          setStatusFilter((prev) =>
-                            prev.includes(key)
-                              ? prev.filter((item) => item !== key)
-                              : [...prev, key]
-                          )
-                        }
-                      />
-                      <span>{meta.label}</span>
-                    </label>
-                  ))}
+                  {STATUS_PICK_ORDER.map((key) => {
+                    const meta = STATUS_META[key];
+                    if (!meta) return null;
+                    return (
+                      <label
+                        key={key}
+                        className="mt-2 flex cursor-pointer items-center gap-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={statusFilter.includes(key)}
+                          onChange={() =>
+                            setStatusFilter((prev) =>
+                              prev.includes(key)
+                                ? prev.filter((item) => item !== key)
+                                : [...prev, key]
+                            )
+                          }
+                        />
+                        <span>{meta.label}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               ) : null}
             </div>
@@ -1362,6 +1615,8 @@ export default function JournalView({
                   {appointmentCards.map((card) => {
                     if (!card) return null;
                     const statusMeta = card.statusMeta;
+                    const allowedStatusOptions = getAllowedStatusOptions(card.appointment.status);
+                    const canChangeStatus = allowedStatusOptions.length > 1;
 
                     return (
                       <div
@@ -1384,14 +1639,17 @@ export default function JournalView({
                             </span>
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (!canChangeStatus) return;
                                 setStatusMenuId((prev) =>
                                   prev === card.appointment.id
                                     ? null
                                     : card.appointment.id
-                                )
-                              }
+                                );
+                              }}
                               onMouseDown={(event) => event.stopPropagation()}
+                              onPointerDown={(event) => event.stopPropagation()}
                               className={`rounded-full px-2 py-1 text-[10px] ${statusMeta.badge}`}
                             >
                               {statusMeta.label}
@@ -1414,22 +1672,23 @@ export default function JournalView({
                           </div>
                         </div>
 
-                        {statusMenuId === card.appointment.id ? (
+                        {statusMenuId === card.appointment.id && canChangeStatus ? (
                           <div
                             ref={statusMenuRef}
+                            onClick={(event) => event.stopPropagation()}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
                             className="absolute right-2 top-8 z-20 w-36 rounded-xl border border-[color:var(--bp-stroke)] bg-white p-1 text-xs shadow-[var(--bp-shadow)]"
                           >
-                            {Object.entries(STATUS_META).map(([key, meta]) => (
+                            {allowedStatusOptions.map(({ key, meta }) => (
                               <button
                                 key={key}
                                 type="button"
                                 className="flex w-full items-center justify-between rounded-lg px-2 py-1 hover:bg-[color:var(--bp-panel)]"
-                                onClick={() =>
-                                  handleQuickStatusChange(
-                                    card.appointment.id,
-                                    key
-                                  )
-                                }
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleQuickStatusChange(card.appointment.id, key);
+                                }}
                               >
                                 <span>{meta.label}</span>
                               </button>
@@ -1462,8 +1721,12 @@ export default function JournalView({
               </button>
             </div>
 
-            <div className="grid flex-1 grid-cols-1 gap-4 overflow-auto p-6 lg:grid-cols-[280px_1fr_320px]">
-              <aside className="flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
+            <div
+              className={`grid flex-1 grid-cols-1 gap-4 overflow-y-auto overflow-x-hidden p-6 lg:grid-cols-[minmax(240px,280px)_minmax(0,1fr)_minmax(260px,320px)] ${
+                isEditorLocked ? "pointer-events-none opacity-80" : ""
+              }`}
+            >
+              <aside className="min-w-0 flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
                 <div className="space-y-3">
                   <label className="text-xs text-[color:var(--bp-muted)]">
                     Специалист
@@ -1506,10 +1769,9 @@ export default function JournalView({
                     <label className="text-xs text-[color:var(--bp-muted)]">
                       Начало
                     </label>
-                    <input
-                      type="time"
+                    <select
                       value={editorForm.startTime}
-                      step={900}
+                      disabled={loadingStartSlots}
                       onChange={(event) =>
                         setEditorForm((prev) =>
                           prev
@@ -1528,7 +1790,53 @@ export default function JournalView({
                         )
                       }
                       className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                    />
+                    >
+                      {loadingStartSlots ? (
+                        <option value={editorForm.startTime || ""}>
+                          Загрузка слотов...
+                        </option>
+                      ) : (
+                        <>
+                          {editorForm.startTime &&
+                          !availableStartSlots.includes(editorForm.startTime) ? (
+                            <option value={editorForm.startTime}>
+                              {editorForm.startTime} (текущее)
+                            </option>
+                          ) : null}
+                          {availableStartSlots.map((slot) => (
+                            <option key={slot} value={slot}>
+                              {slot}
+                            </option>
+                          ))}
+                          {availableStartSlots.length === 0 ? (
+                            <option value={editorForm.startTime || ""}>
+                              Нет свободного времени
+                            </option>
+                          ) : null}
+                        </>
+                      )}
+                    </select>
+                    {startSlotsError ? (
+                      <p className="mt-1 text-xs text-[color:var(--bp-danger)]">
+                        {startSlotsError === "MISSING_PARAMS"
+                          ? "Не хватает параметров для расчета слотов."
+                          : startSlotsError === "INVALID_DATE"
+                          ? "Некорректная дата."
+                          : startSlotsError === "INVALID_DURATION"
+                          ? "Некорректная длительность."
+                          : startSlotsError === "NO_WORKING_SCHEDULE"
+                          ? "У специалиста нет рабочей смены на эту дату."
+                          : startSlotsError === "SCHEDULE_LOCATION_MISMATCH"
+                          ? "Смена специалиста привязана к другой локации."
+                          : startSlotsError === "SPECIALIST_SERVICES_MISMATCH"
+                          ? "Выбранный специалист не выполняет одну из услуг."
+                          : startSlotsError === "NO_FREE_SLOTS"
+                          ? "На эту длительность нет свободных окон."
+                          : startSlotsError === "INVALID_SCHEDULE_WINDOW"
+                          ? "Некорректное рабочее окно в расписании."
+                          : "Не удалось загрузить свободное время."}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div>
@@ -1564,7 +1872,7 @@ export default function JournalView({
                     }
                     className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                   >
-                    {Object.entries(STATUS_META).map(([key, meta]) => (
+                    {getAllowedStatusOptions(editorForm.status).map(({ key, meta }) => (
                       <option key={key} value={key}>
                         {meta.label}
                       </option>
@@ -1592,9 +1900,9 @@ export default function JournalView({
                 </div>
               </aside>
 
-              <div className="flex flex-col gap-4">
+              <div className="min-w-0 flex flex-col gap-4">
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(STATUS_META).map(([key, meta]) => (
+                  {getAllowedStatusOptions(editorForm.status).map(({ key, meta }) => (
                     <button
                       key={key}
                       type="button"
@@ -1616,91 +1924,111 @@ export default function JournalView({
 
                 <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4">
                   <div className="text-sm font-semibold">Услуги</div>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-xs text-[color:var(--bp-muted)]">
-                        Услуга
-                      </label>
-                      <select
-                        value={editorForm.serviceId ?? ""}
-                        onChange={(event) => {
-                          const value = Number(event.target.value) || null;
-                          const selected = availableServices.find(
-                            (item) => item.id === value
-                          );
-                          const durationMin =
-                            selected?.computedDurationMin ?? 0;
-
-                          setEditorForm((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  serviceId: value,
-                                  serviceName: selected?.name ?? "",
-                                  priceTotal:
-                                    selected?.computedPrice?.toString() ?? "0",
-                                  durationMin,
-                                  endTime: value
-                                    ? addMinutesToTime(prev.startTime, durationMin)
-                                    : "",
-                                }
-                              : prev
-                          );
-                        }}
-                        className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] px-3 py-2 text-sm"
+                  <div className="mt-3 space-y-3">
+                    {editorForm.serviceItems.map((item, index) => (
+                      <div
+                        key={`service-item-${index}`}
+                        className="grid gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-3 md:grid-cols-[minmax(0,1fr)_120px_100px_84px]"
                       >
-                        <option value="">Выберите услугу</option>
-                        {availableServices.map((service) => (
-                          <option key={service.id} value={service.id}>
-                            {service.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                        <select
+                          value={item.serviceId ?? ""}
+                          onChange={(event) => {
+                            const nextId = Number(event.target.value) || null;
+                            setEditorForm((prev) => {
+                              if (!prev) return prev;
+                              const nextItems = [...prev.serviceItems];
+                              const selected = nextId ? availableServiceById.get(nextId) : null;
+                              nextItems[index] = {
+                                serviceId: nextId,
+                                price: selected?.computedPrice?.toString() ?? "0",
+                                durationMin: selected?.computedDurationMin ?? 0,
+                              };
+                              return applyServicesToForm(prev, nextItems);
+                            });
+                          }}
+                          className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="">Выберите услугу</option>
+                          {availableServices.map((service) => (
+                            <option key={service.id} value={service.id}>
+                              {service.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={item.price}
+                          onChange={(event) =>
+                            setEditorForm((prev) => {
+                              if (!prev) return prev;
+                              const nextItems = [...prev.serviceItems];
+                              nextItems[index] = { ...nextItems[index], price: event.target.value };
+                              return applyServicesToForm(prev, nextItems);
+                            })
+                          }
+                          placeholder="Цена"
+                          className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={item.durationMin}
+                          onChange={(event) =>
+                            setEditorForm((prev) => {
+                              if (!prev) return prev;
+                              const nextItems = [...prev.serviceItems];
+                              nextItems[index] = {
+                                ...nextItems[index],
+                                durationMin: Number(event.target.value) || 0,
+                              };
+                              return applyServicesToForm(prev, nextItems);
+                            })
+                          }
+                          placeholder="Мин"
+                          className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditorForm((prev) => {
+                              if (!prev) return prev;
+                              const nextItems = prev.serviceItems.filter((_, i) => i !== index);
+                              return applyServicesToForm(prev, nextItems);
+                            })
+                          }
+                          className="h-10 rounded-xl border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ))}
 
-                    <div className="space-y-2">
-                      <label className="text-xs text-[color:var(--bp-muted)]">
-                        Цена
-                      </label>
-                      <input
-                        type="text"
-                        value={editorForm.priceTotal}
-                        onChange={(event) =>
-                          setEditorForm((prev) =>
-                            prev ? { ...prev, priceTotal: event.target.value } : prev
-                          )
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditorForm((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              serviceItems: [
+                                ...prev.serviceItems,
+                                { serviceId: null, price: "0", durationMin: 0 },
+                              ],
+                              serviceChanged: true,
+                            };
+                          })
                         }
-                        placeholder="Цена"
-                        className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] px-3 py-2 text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs text-[color:var(--bp-muted)]">
-                        Длительность, мин
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        step={15}
-                        value={editorForm.durationMin}
-                        onChange={(event) => {
-                          const durationMin = Number(event.target.value);
-                          setEditorForm((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  durationMin,
-                                  endTime: addMinutesToTime(
-                                    prev.startTime,
-                                    durationMin
-                                  ),
-                                }
-                              : prev
-                          );
-                        }}
-                        className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] px-3 py-2 text-sm"
-                      />
+                        className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-xs"
+                      >
+                        + Добавить услугу
+                      </button>
+                      <div className="text-xs text-[color:var(--bp-muted)]">
+                        Итого: {editorForm.durationMin} мин / {editorForm.priceTotal} ₽
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1721,7 +2049,7 @@ export default function JournalView({
                 </div>
               </div>
 
-              <aside className="flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
+              <aside className="min-w-0 flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
                 <div className="text-sm font-semibold">Клиент</div>
 
                 <select
@@ -1808,7 +2136,8 @@ export default function JournalView({
               <button
                 type="button"
                 onClick={handleEditorSave}
-                className="rounded-2xl bg-[color:var(--bp-accent)] px-6 py-2 text-sm font-semibold text-white"
+                disabled={isEditorLocked}
+                className="rounded-2xl bg-[color:var(--bp-accent)] px-6 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Сохранить запись
               </button>
@@ -1844,3 +2173,4 @@ export default function JournalView({
     </div>
   );
 }
+

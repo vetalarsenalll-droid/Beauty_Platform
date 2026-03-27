@@ -551,7 +551,7 @@ function ScenarioTabs({
 }
 
 // ============================================================================
-// DatePickerLike (как на твоём примере) — БЕЗ ТЕНЕЙ, выбор — ?????? ОБВОДКА
+// DatePickerLike (как на твоем примере) - БЕЗ ТЕНЕЙ, выбор - только обводка
 // - expanded: сетка месяца (42)
 // - collapsed: только неделя выбранной даты
 // - month pill слева + стрелки справа
@@ -1460,7 +1460,7 @@ export default function BookingClient({
   const steps = useMemo(() => {
     const common = [{ key: "location", title: "Локация" }];
     const dt = { key: "datetime", title: "Дата и время" };
-    const chain = { key: "chain", title: "Chain" };
+    const chain = { key: "chain", title: "Цепочка" };
     const details = { key: "details", title: "Контакты" };
 
     if (isDateFirst) {
@@ -1468,7 +1468,7 @@ export default function BookingClient({
         ...common,
         dt,
         { key: "service", title: "Услуга" },
-        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Specialist" }]),
+        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Специалист" }]),
         details,
       ];
     }
@@ -1477,7 +1477,7 @@ export default function BookingClient({
         ...common,
         { key: "service", title: "Услуга" },
         dt,
-        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Specialist" }]),
+        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Специалист" }]),
         details,
       ];
     }
@@ -1488,7 +1488,7 @@ export default function BookingClient({
       dt,
       details,
     ];
-  }, [isDateFirst, isServiceFirst]);
+  }, [isDateFirst, isServiceFirst, isChainMode]);
 
   const stepsWithScenario = startScenario
     ? [{ key: "scenario", title: "\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439" }, ...steps]
@@ -2472,19 +2472,14 @@ export default function BookingClient({
           const fixed = fixedItems[i];
 
           if (fixed && fixed.time) {
-            let chosenSpecialistId = fixed.specialistId;
-            const slots = await loadSlotsForService(serviceId, chosenSpecialistId ?? null);
-
-            if (!chosenSpecialistId) {
-              const slotAtTime = slots.find((s) => s.time === fixed.time);
-              chosenSpecialistId = slotAtTime?.specialistId ?? null;
-            }
+            const chosenSpecialistId = fixed.specialistId ?? null;
+            const slots = await loadSlotsForService(serviceId, chosenSpecialistId);
 
             const hasSlot = chosenSpecialistId
               ? slots.some((s) => s.time === fixed.time && s.specialistId === chosenSpecialistId)
-              : false;
+              : slots.some((s) => s.time === fixed.time);
 
-            if (!hasSlot || !chosenSpecialistId) {
+            if (!hasSlot) {
               throw new Error("No available specialist for selected time.");
             }
 
@@ -2511,12 +2506,12 @@ export default function BookingClient({
 
           nextItems.push({
             serviceId,
-            specialistId: candidate.specialistId,
+            specialistId: null,
             date: dateYmd,
             time: candidate.time,
           });
 
-          const dur = await getServiceDurationMin(serviceId, candidate.specialistId);
+          const dur = await getServiceDurationMin(serviceId, null);
           cursorMinutes = (timeToMinutes(candidate.time) ?? 0) + dur;
         }
 
@@ -2651,7 +2646,7 @@ export default function BookingClient({
   useEffect(() => {
     if (!isSpecialistFirst) return;
     if (loadingServices) return;
-    // ?? ?????????? ?????????, ???? ?????? ??? ?? ???????/?? ??????????.
+    // Если выбранные услуги больше недоступны у текущего специалиста, очищаем выбор.
     if (!selectedServiceIds.length) return;
 
     const allowed = new Set(servicesForSpecialistFirst.map((s) => s.id));
@@ -2902,7 +2897,7 @@ export default function BookingClient({
     serviceDuration != null ? `${showFromServiceMetrics ? "от " : ""}${serviceDuration} мин` : "—";
   const summaryDateLabel = formatDateRu(dateYmd);
   const selectedServiceNames = selectedServices.map((s) => s.name).join(", ");
-  const summaryServiceLabel = selectedServiceNames || "?";
+  const summaryServiceLabel = selectedServiceNames || "—";
   const chainSummaryLabel = isChainMode
     ? chainItems
         .map((item) => {
@@ -3964,7 +3959,7 @@ export default function BookingClient({
                       </div>
                     )}
                     {chainLoading && (
-                      <div className="text-sm text-[color:var(--bp-muted)]">?????? ????????</div>
+                      <div className="text-sm text-[color:var(--bp-muted)]">Загрузка цепочки</div>
                     )}
 
                     <div className="space-y-3">
@@ -3991,10 +3986,10 @@ export default function BookingClient({
                               <div>
                                 <div className="text-sm text-[color:var(--bp-muted)]">{serviceName}</div>
                                 <div className="mt-1 text-sm">
-                                  {selectedSp?.name ?? "?????????? ?? ??????"}
+                                  {selectedSp?.name ?? "Специалист не выбран"}
                                 </div>
                                 <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
-                                  {currentTime ?? "?"}
+                                  {currentTime ?? "—"}
                                 </div>
                               </div>
                               <button
@@ -4006,14 +4001,14 @@ export default function BookingClient({
                                   setChainEditSpecialistId(currentSpId ?? fallbackSpId);
                                 }}
                               >
-                                ????????
+                                Изменить
                               </button>
                             </div>
 
                             {isEditing && (
                               <div className="mt-4 space-y-3">
                                 <div className="grid grid-cols-1 gap-2">
-                                  <label className="text-xs text-[color:var(--bp-muted)]">??????????</label>
+                                  <label className="text-xs text-[color:var(--bp-muted)]">Специалист</label>
                                   <select
                                     className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
                                     value={currentSpId ?? ""}
@@ -4023,7 +4018,7 @@ export default function BookingClient({
                                       setChainEditTimes([]);
                                     }}
                                   >
-                                    <option value="">???????? ???????????</option>
+                                    <option value="">Выберите специалиста</option>
                                     {availableSpecialists.map((sp) => (
                                       <option key={sp.id} value={sp.id}>
                                         {sp.name}
@@ -4033,7 +4028,7 @@ export default function BookingClient({
                                 </div>
 
                                 {chainEditLoading && (
-                                  <div className="text-xs text-[color:var(--bp-muted)]">???????? ???????</div>
+                                  <div className="text-xs text-[color:var(--bp-muted)]">Загрузка слотов</div>
                                 )}
 
                                 {!chainEditLoading && chainEditTimes.length > 0 && (
@@ -4255,14 +4250,20 @@ export default function BookingClient({
 
               <button
                 type="button"
-                onClick={submitAppointment}
-                disabled={!canSubmit || submitting}
+                onClick={() => {
+                  if (submitSuccess) {
+                    resetAll();
+                    return;
+                  }
+                  void submitAppointment();
+                }}
+                disabled={submitSuccess ? false : (!canSubmit || submitting)}
                 className="w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
               >
-                {submitting ? "Отправляем..." : "Записаться"}
+                {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
               </button>
 
-              {!canSubmit && (
+              {!submitSuccess && !canSubmit && (
                 <div className="text-xs text-[color:var(--bp-muted)]">
                   Заполните контакты и выберите время.
                 </div>

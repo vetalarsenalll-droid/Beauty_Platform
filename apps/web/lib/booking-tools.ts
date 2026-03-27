@@ -475,12 +475,16 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
             priceTotal: Number(effective.price),
             durationTotalMin: effective.durationMin,
             source: "ai_assistant",
-            services: {
-              create: [{ serviceId: service.id, price: Number(effective.price), durationMin: effective.durationMin }],
-            },
           },
           select: { id: true },
         });
+
+        await tx.$executeRaw`
+          INSERT INTO "public"."AppointmentService"
+            ("appointmentId", "serviceId", "price", "durationMin", "orderIndex", "specialistId")
+          VALUES
+            (${appt.id}, ${service.id}, ${Number(effective.price)}, ${effective.durationMin}, ${0}, ${d.specialistId!})
+        `;
 
         await tx.appointmentStatusHistory.create({
           data: { appointmentId: appt.id, actorType: "assistant", toStatus: "NEW" },

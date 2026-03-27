@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { normalizeRuPhone } from "@/lib/phone";
 import { requireCrmPermission } from "@/lib/auth";
 
+type ServiceItemPayload = {
+  serviceId: number;
+  price?: string;
+  durationMin?: number;
+};
+
 type AppointmentPayload = {
   staffId: number;
   locationId: number;
@@ -16,6 +22,8 @@ type AppointmentPayload = {
   status?: AppointmentStatus;
   priceTotal?: string;
   serviceId?: number | null;
+  serviceIds?: number[];
+  serviceItems?: ServiceItemPayload[];
 };
 
 const NON_BLOCKING_STATUSES: AppointmentStatus[] = [
@@ -37,12 +45,6 @@ const toNum = (v: unknown): number | null => {
 const isAppointmentStatus = (v: unknown): v is AppointmentStatus =>
   typeof v === "string" &&
   (Object.values(AppointmentStatus) as string[]).includes(v);
-
-function toDateOnly(value: Date) {
-  return new Date(
-    Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate())
-  );
-}
 
 function parseTimeToMinutes(value: string | null) {
   if (!value) return null;
@@ -67,7 +69,7 @@ function serializeAppointment(appointment: {
   priceTotal: Prisma.Decimal;
   durationTotalMin: number;
   client: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null };
-  services: { service: { id: number; name: string } }[];
+  services: { serviceId: number; price: Prisma.Decimal; durationMin: number; service: { id: number; name: string } }[];
 }) {
   const clientName = `${appointment.client.firstName ?? ""} ${appointment.client.lastName ?? ""}`
     .trim()
@@ -84,6 +86,12 @@ function serializeAppointment(appointment: {
     clientName: clientName || appointment.client.phone || "Без клиента",
     clientPhone: appointment.client.phone ?? "",
     clientEmail: appointment.client.email ?? "",
+    serviceItems: appointment.services.map((item) => ({
+      serviceId: item.serviceId,
+      serviceName: item.service.name,
+      price: item.price.toString(),
+      durationMin: item.durationMin,
+    })),
     serviceNames: appointment.services.map((item) => item.service.name),
     serviceIds: appointment.services.map((item) => item.service.id),
     priceTotal: appointment.priceTotal.toString(),
@@ -108,6 +116,34 @@ function parsePayload(raw: unknown): AppointmentPayload | null {
   const status = isAppointmentStatus(raw.status) ? raw.status : undefined;
   const priceTotal = toStr(raw.priceTotal) ?? undefined;
   const serviceId = raw.serviceId === null ? null : (toNum(raw.serviceId) ?? undefined);
+  const serviceIds = Array.isArray(raw.serviceIds)
+    ? Array.from(
+        new Set(
+          raw.serviceIds
+            .map((value) => toNum(value))
+            .filter((value): value is number => Number.isInteger(value) && value > 0)
+        )
+      )
+    : undefined;
+  const serviceItems = Array.isArray(raw.serviceItems)
+    ? raw.serviceItems
+        .map((entry) => {
+          if (!isRecord(entry)) return null;
+          const serviceId = toNum(entry.serviceId);
+          if (!Number.isInteger(serviceId) || serviceId <= 0) return null;
+          const priceRaw = toStr(entry.price);
+          const durationRaw = toNum(entry.durationMin);
+          return {
+            serviceId,
+            price: priceRaw ?? undefined,
+            durationMin:
+              Number.isFinite(durationRaw) && durationRaw !== null
+                ? Math.max(0, Math.round(durationRaw))
+                : undefined,
+          } satisfies ServiceItemPayload;
+        })
+        .filter((item): item is ServiceItemPayload => Boolean(item))
+    : undefined;
 
   return {
     staffId,
@@ -121,6 +157,8 @@ function parsePayload(raw: unknown): AppointmentPayload | null {
     status,
     priceTotal,
     serviceId,
+    serviceIds,
+    serviceItems,
   };
 }
 
@@ -133,6 +171,13 @@ export async function POST(request: Request) {
   if (!body) {
     return NextResponse.json(
       { message: "Не заполнены обязательные поля." },
+      { status: 400 }
+    );
+  }
+
+  if (body.status === AppointmentStatus.IN_PROGRESS) {
+    return NextResponse.json(
+      { message: "Статус 'Пришел' больше не используется." },
       { status: 400 }
     );
   }
@@ -155,10 +200,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Специалист не найден." }, { status: 404 });
   }
 
-  const scheduleDate = toDateOnly(startAt);
-  const scheduleEntry = await prisma.scheduleEntry.findUnique({
-    where: { specialistId_date: { specialistId: specialist.id, date: scheduleDate } },
+  const scheduleDayStartUtc = new Date(
+    Date.UTC(startAt.getUTCFullYear(), startAt.getUTCMonth(), startAt.getUTCDate())
+  );
+  const scheduleDayEndUtc = new Date(scheduleDayStartUtc);
+  scheduleDayEndUtc.setUTCDate(scheduleDayEndUtc.getUTCDate() + 1);
+  const scheduleEntry = await prisma.scheduleEntry.findFirst({
+    where: {
+      specialistId: specialist.id,
+      date: { gte: scheduleDayStartUtc, lt: scheduleDayEndUtc },
+    },
     include: { breaks: true },
+    orderBy: { date: "asc" },
   });
 
   // ✅ если день не проставлен — он НЕ рабочий
@@ -246,33 +299,45 @@ export async function POST(request: Request) {
     );
   }
 
-  let selectedService: {
+  const requestedServiceIds = Array.from(
+    new Set([
+      ...((body.serviceItems ?? []).map((item) => item.serviceId)),
+      ...(Array.isArray(body.serviceIds) ? body.serviceIds : []),
+      ...(body.serviceId ? [body.serviceId] : []),
+    ])
+  );
+
+  if (requestedServiceIds.length === 0) {
+    return NextResponse.json({ message: "Выберите хотя бы одну услугу." }, { status: 400 });
+  }
+
+  const selectedServices: Array<{
     id: number;
     basePrice: Prisma.Decimal;
     baseDurationMin: number;
     levelConfigs: { levelId: number; price: Prisma.Decimal | null; durationMin: number | null }[];
     specialists: { specialistId: number; priceOverride: Prisma.Decimal | null; durationOverrideMin: number | null }[];
     locations: { locationId: number }[];
-  } | null = null;
+  }> = await prisma.service.findMany({
+    where: { id: { in: requestedServiceIds }, accountId: session.accountId, isActive: true },
+    include: { locations: true, specialists: true, levelConfigs: true },
+  });
 
-  if (body.serviceId) {
-    selectedService = await prisma.service.findFirst({
-      where: { id: body.serviceId, accountId: session.accountId, isActive: true },
-      include: { locations: true, specialists: true, levelConfigs: true },
-    });
-    if (!selectedService) {
-      return NextResponse.json({ message: "Услуга не найдена." }, { status: 404 });
-    }
+  if (selectedServices.length !== requestedServiceIds.length) {
+    return NextResponse.json({ message: "Одна или несколько услуг не найдены." }, { status: 404 });
+  }
+  const selectedServiceById = new Map(selectedServices.map((service) => [service.id, service]));
+  const serviceItemsOrdered: ServiceItemPayload[] =
+    Array.isArray(body.serviceItems) && body.serviceItems.length > 0
+      ? body.serviceItems.filter((item) => selectedServiceById.has(item.serviceId))
+      : requestedServiceIds.map((serviceId) => ({ serviceId }));
 
-    const hasLocation = selectedService.locations.some(
-      (item) => item.locationId === body.locationId
-    );
-    const hasSpecialist = selectedService.specialists.some(
-      (item) => item.specialistId === specialist.id
-    );
+  for (const service of selectedServices) {
+    const hasLocation = service.locations.some((item) => item.locationId === body.locationId);
+    const hasSpecialist = service.specialists.some((item) => item.specialistId === specialist.id);
     if (!hasLocation || !hasSpecialist) {
       return NextResponse.json(
-        { message: "Услуга не привязана к выбранной локации или специалисту." },
+        { message: "Одна или несколько услуг не привязаны к выбранной локации или специалисту." },
         { status: 400 }
       );
     }
@@ -305,19 +370,19 @@ export async function POST(request: Request) {
     ? new Prisma.Decimal(body.priceTotal)
     : new Prisma.Decimal(0);
 
-  if (selectedService) {
-    const override = selectedService.specialists.find(
-      (item) => item.specialistId === specialist.id
-    );
-    const levelConfig =
-      specialist.levelId != null
-        ? selectedService.levelConfigs.find((item) => item.levelId === specialist.levelId)
-        : null;
-
-    const computedPrice =
-      override?.priceOverride ?? levelConfig?.price ?? selectedService.basePrice;
-
-    priceTotal = body.priceTotal ? new Prisma.Decimal(body.priceTotal) : computedPrice;
+  if (!body.priceTotal) {
+    priceTotal = serviceItemsOrdered.reduce((sum, item) => {
+      const service = selectedServiceById.get(item.serviceId);
+      if (!service) return sum;
+      if (item.price) return sum.plus(new Prisma.Decimal(item.price));
+      const override = service.specialists.find((entry) => entry.specialistId === specialist.id);
+      const levelConfig =
+        specialist.levelId != null
+          ? service.levelConfigs.find((entry) => entry.levelId === specialist.levelId)
+          : null;
+      const computedPrice = override?.priceOverride ?? levelConfig?.price ?? service.basePrice;
+      return sum.plus(computedPrice);
+    }, new Prisma.Decimal(0));
   }
 
   const appointment = await prisma.appointment.create({
@@ -336,15 +401,27 @@ export async function POST(request: Request) {
     include: { client: true, services: { include: { service: true } } },
   });
 
-  if (selectedService) {
-    await prisma.appointmentService.create({
-      data: {
-        appointmentId: appointment.id,
-        serviceId: selectedService.id,
-        price: priceTotal,
-        durationMin: durationTotalMin,
-      },
-    });
+  for (let index = 0; index < serviceItemsOrdered.length; index += 1) {
+    const item = serviceItemsOrdered[index];
+    const service = selectedServiceById.get(item.serviceId);
+    if (!service) continue;
+    const override = service.specialists.find((entry) => entry.specialistId === specialist.id);
+    const levelConfig =
+      specialist.levelId != null
+        ? service.levelConfigs.find((entry) => entry.levelId === specialist.levelId)
+        : null;
+    const servicePrice = item.price
+      ? new Prisma.Decimal(item.price)
+      : (override?.priceOverride ?? levelConfig?.price ?? service.basePrice);
+    const serviceDuration =
+      item.durationMin ?? override?.durationOverrideMin ?? levelConfig?.durationMin ?? service.baseDurationMin;
+
+    await prisma.$executeRaw`
+      INSERT INTO "public"."AppointmentService"
+        ("appointmentId", "serviceId", "price", "durationMin", "orderIndex", "specialistId")
+      VALUES
+        (${appointment.id}, ${service.id}, ${servicePrice}, ${serviceDuration}, ${index}, ${body.staffId})
+    `;
   }
 
   const updated = await prisma.appointment.findUnique({
