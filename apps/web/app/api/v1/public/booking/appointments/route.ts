@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     locationId?: number;
     specialistId?: number;
     serviceId?: number;
+    serviceIds?: number[];
     date?: string;
     time?: string;
     clientName?: string;
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
     legalVersionIds?: number[];
     holdId?: number;
     sessionKey?: string;
+    groupBookingId?: string;
   } | null;
 
   if (!body) {
@@ -79,8 +81,16 @@ export async function POST(request: Request) {
   }
 
   const locationId = Number(body.locationId);
-  const specialistId = Number(body.specialistId);
+  let specialistId = Number(body.specialistId);
   const serviceId = Number(body.serviceId);
+  const serviceIds = Array.isArray(body.serviceIds)
+    ? body.serviceIds
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const selectedServiceIds = Array.from(
+    new Set([...(Number.isInteger(serviceId) && serviceId > 0 ? [serviceId] : []), ...serviceIds])
+  );
   const dateValue = String(body.date ?? "").trim();
   const timeValue = String(body.time ?? "").trim();
 
@@ -92,6 +102,9 @@ export async function POST(request: Request) {
   const holdId = Number.isInteger(Number(body.holdId)) ? Number(body.holdId) : null;
   const sessionKeyRaw = String(body.sessionKey ?? "").trim();
   const sessionKey = sessionKeyRaw && sessionKeyRaw.length <= 128 ? sessionKeyRaw : "";
+  const groupBookingIdRaw = String(body.groupBookingId ?? "").trim();
+  const groupBookingId =
+    groupBookingIdRaw && groupBookingIdRaw.length <= 64 ? groupBookingIdRaw : null;
 
   const legalVersionIds = Array.isArray(body.legalVersionIds)
     ? body.legalVersionIds
@@ -104,13 +117,40 @@ export async function POST(request: Request) {
     request.headers.get("idempotency-key") ?? request.headers.get("Idempotency-Key");
   const idempotencyKey = rawIdempotencyKey?.trim() || "";
 
+  console.log("[booking/appointments] request", {
+    locationId,
+    specialistId: Number.isFinite(specialistId) ? specialistId : null,
+    serviceId,
+    serviceIds: selectedServiceIds,
+    dateValue,
+    timeValue,
+    holdId,
+    sessionKey: sessionKey || null,
+    groupBookingId,
+    accountId: resolved.account.id,
+  });
+
+  if (!Number.isInteger(specialistId) || specialistId <= 0) {
+    specialistId = NaN;
+  }
+
+  if (!Number.isInteger(specialistId) && holdId) {
+    const holdSpecialist = await prisma.appointmentHold.findFirst({
+      where: { id: holdId, accountId: resolved.account.id },
+      select: { specialistId: true, startAt: true, endAt: true, expiresAt: true },
+    });
+    console.log("[booking/appointments] hold lookup", holdSpecialist);
+    if (holdSpecialist?.specialistId) {
+      specialistId = holdSpecialist.specialistId;
+    }
+  }
+
   if (
     !Number.isInteger(locationId) ||
     locationId <= 0 ||
     !Number.isInteger(specialistId) ||
     specialistId <= 0 ||
-    !Number.isInteger(serviceId) ||
-    serviceId <= 0 ||
+    selectedServiceIds.length === 0 ||
     !dateValue ||
     !timeValue
   ) {
@@ -142,7 +182,7 @@ export async function POST(request: Request) {
     return jsonError("INVALID_TIME", "Некорректное время.", null, 400);
   }
 
-  const [location, specialist, service, scheduleEntry] = await Promise.all([
+  const [location, specialist, services, scheduleEntry] = await Promise.all([
     prisma.location.findFirst({
       where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
       select: {
@@ -156,13 +196,13 @@ export async function POST(request: Request) {
         id: specialistId,
         accountId: resolved.account.id,
         locations: { some: { locationId } },
-        services: { some: { serviceId } },
+        AND: selectedServiceIds.map((id) => ({ services: { some: { serviceId: id } } })),
       },
       select: { id: true, levelId: true },
     }),
-    prisma.service.findFirst({
+    prisma.service.findMany({
       where: {
-        id: serviceId,
+        id: { in: selectedServiceIds },
         accountId: resolved.account.id,
         isActive: true,
         locations: { some: { locationId } },
@@ -171,6 +211,7 @@ export async function POST(request: Request) {
         id: true,
         baseDurationMin: true,
         basePrice: true,
+        allowMultiServiceBooking: true,
         specialists: {
           select: {
             specialistId: true,
@@ -200,7 +241,18 @@ export async function POST(request: Request) {
 
   if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
   if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
-  if (!service) return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
+  if (!services || services.length !== selectedServiceIds.length) {
+    return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
+  }
+
+  if (selectedServiceIds.length > 1 && services.some((s) => !s.allowMultiServiceBooking)) {
+    return jsonError(
+      "MULTI_SERVICE_NOT_ALLOWED",
+      "Выбранные услуги нельзя записывать вместе.",
+      null,
+      400
+    );
+  }
 
   const locationWindow = getLocationWorkWindowForDate(location, dateValue);
   if (locationWindow.isClosed) {
@@ -212,18 +264,36 @@ export async function POST(request: Request) {
     );
   }
 
-  const override = service.specialists.find((item) => item.specialistId === specialist.id);
-  const levelConfig = specialist.levelId
-    ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
-    : null;
+  const computedServices = services.map((service) => {
+    const override = service.specialists.find((item) => item.specialistId === specialist.id);
+    const levelConfig = specialist.levelId
+      ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
+      : null;
 
-  const durationMin =
-    override?.durationOverrideMin ?? levelConfig?.durationMin ?? service.baseDurationMin;
+    const durationMin =
+      override?.durationOverrideMin ?? levelConfig?.durationMin ?? service.baseDurationMin;
+    const price =
+      toNumber(override?.priceOverride) ||
+      toNumber(levelConfig?.price) ||
+      toNumber(service.basePrice);
 
-  const priceTotal =
-    toNumber(override?.priceOverride) ||
-    toNumber(levelConfig?.price) ||
-    toNumber(service.basePrice);
+    return { service, durationMin, price };
+  });
+
+  const durationMin = computedServices.reduce(
+    (sum, item) => sum + (Number.isFinite(item.durationMin) ? Number(item.durationMin) : 0),
+    0
+  );
+  const priceTotal = computedServices.reduce((sum, item) => sum + toNumber(item.price), 0);
+
+  if (!Number.isFinite(durationMin) || durationMin <= 0) {
+    return jsonError(
+      "INVALID_DURATION",
+      "Некорректная длительность услуги.",
+      null,
+      400
+    );
+  }
 
   if (!scheduleEntry || scheduleEntry.type !== "WORKING") {
     return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня на выбранную дату.", null, 400);
@@ -350,6 +420,8 @@ export async function POST(request: Request) {
           locationId,
           specialistId,
           serviceId,
+          serviceIds: selectedServiceIds,
+          groupBookingId,
           date: dateValue,
           time: timeValue,
           clientName,
@@ -482,7 +554,7 @@ export async function POST(request: Request) {
             endAt: endAtUtc,
             expiresAt: { gt: new Date() },
           },
-          select: { id: true },
+          select: { id: true, specialistId: true },
         });
 
         if (!ownHold) {
@@ -491,6 +563,8 @@ export async function POST(request: Request) {
             error: jsonError("HOLD_EXPIRED", "Резерв времени истек или не найден.", null, 409),
           };
         }
+
+        specialistId = ownHold.specialistId;
       }
 
       const clientByPhone = clientPhone
@@ -537,11 +611,27 @@ export async function POST(request: Request) {
         });
       }
 
+      console.log("[booking/appointments] create", {
+        specialistId,
+        locationId,
+        holdId,
+        startAtUtc,
+        endAtUtc,
+      });
+
+      const finalSpecialistId = Number(specialistId);
+      if (!Number.isInteger(finalSpecialistId) || finalSpecialistId <= 0) {
+        return {
+          ok: false as const,
+          error: jsonError("SPECIALIST_REQUIRED", "Специалист не выбран.", null, 400),
+        };
+      }
+
       const appointment = await tx.appointment.create({
         data: {
           accountId: resolved.account.id,
           locationId,
-          specialistId,
+          specialistId: finalSpecialistId,
           clientId: client.id,
           startAt: startAtUtc,
           endAt: endAtUtc,
@@ -549,18 +639,22 @@ export async function POST(request: Request) {
           priceTotal,
           durationTotalMin: durationMin,
           source: "online",
-          services: {
-            create: [
-              {
-                serviceId: service.id,
-                price: priceTotal,
-                durationMin,
-              },
-            ],
-          },
+          groupBookingId,
         },
         select: { id: true },
       });
+
+      for (let index = 0; index < computedServices.length; index += 1) {
+        const item = computedServices[index];
+        await tx.$executeRaw`
+          INSERT INTO "public"."AppointmentService"
+            ("appointmentId", "serviceId", "price", "durationMin", "orderIndex", "specialistId")
+          VALUES
+            (${appointment.id}, ${item.service.id}, ${toNumber(item.price)}, ${
+          Number.isFinite(item.durationMin) ? Number(item.durationMin) : 0
+        }, ${index}, ${finalSpecialistId})
+        `;
+      }
 
       if (sessionKey) {
         const sessionTimestamp = new Date();
@@ -654,4 +748,5 @@ export async function POST(request: Request) {
     throw error;
   }
 }
+
 

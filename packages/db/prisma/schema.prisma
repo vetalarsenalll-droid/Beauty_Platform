@@ -1145,6 +1145,7 @@ model Service {
   baseDurationMin Int
   basePrice       Decimal  @db.Decimal(12, 2)
   isActive        Boolean  @default(true)
+  allowMultiServiceBooking Boolean @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1324,6 +1325,7 @@ model Appointment {
   locationId Int
   specialistId Int
   clientId Int
+  groupBookingId String? @db.Uuid
   startAt          DateTime
   endAt            DateTime
   status           AppointmentStatus @default(NEW)
@@ -1344,6 +1346,7 @@ model Appointment {
   onlineBookingSessions OnlineBookingSession[]
 
   @@index([accountId, startAt])
+  @@index([groupBookingId])
   @@index([specialistId, startAt])
   @@index([locationId, startAt])
   @@index([status])
@@ -1974,6 +1977,7 @@ model AiBookingDraft {
   threadId Int @unique
   locationId Int?
   serviceId Int?
+  serviceIds Int[] @default([])
   specialistId Int?
   date String?
   time String?

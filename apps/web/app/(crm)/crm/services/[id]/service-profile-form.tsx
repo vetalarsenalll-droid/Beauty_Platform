@@ -15,6 +15,7 @@ type ServiceSummary = {
   baseDurationMin: number;
   basePrice: string;
   isActive: boolean;
+  allowMultiServiceBooking: boolean;
   categoryId: number | null;
 };
 
@@ -38,6 +39,9 @@ export default function ServiceProfileForm({
     service.categoryId !== null ? String(service.categoryId) : ""
   );
   const [isActive, setIsActive] = useState(service.isActive);
+  const [allowMultiServiceBooking, setAllowMultiServiceBooking] = useState(
+    service.allowMultiServiceBooking ?? false
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +61,7 @@ export default function ServiceProfileForm({
           basePrice,
           categoryId: categoryId ? Number(categoryId) : null,
           isActive,
+          allowMultiServiceBooking,
         }),
       });
       if (!response.ok) {
@@ -139,6 +144,15 @@ export default function ServiceProfileForm({
           </select>
         </label>
       </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={allowMultiServiceBooking}
+          onChange={(event) => setAllowMultiServiceBooking(event.target.checked)}
+        />
+        Allow multi-service booking
+      </label>
 
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button

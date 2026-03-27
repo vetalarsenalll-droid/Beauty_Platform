@@ -50,6 +50,16 @@ export async function GET(request: Request) {
 
   // если параметр отсутствует -> null, а не 0
   const serviceId = parsePositiveInt(searchParams.get("serviceId"));
+  const serviceIdsParam = searchParams.get("serviceIds");
+  const serviceIds = serviceIdsParam
+    ? serviceIdsParam
+        .split(",")
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const selectedServiceIds = Array.from(
+    new Set([...(serviceId ? [serviceId] : []), ...serviceIds])
+  );
   const specialistId = parsePositiveInt(searchParams.get("specialistId"));
   const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
   const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
@@ -97,7 +107,13 @@ export async function GET(request: Request) {
     where: {
       accountId: resolved.account.id,
       locations: { some: { locationId } },
-      ...(serviceId ? { services: { some: { serviceId } } } : {}),
+      ...(selectedServiceIds.length > 0
+        ? {
+            AND: selectedServiceIds.map((id) => ({
+              services: { some: { serviceId: id } },
+            })),
+          }
+        : {}),
       ...(specialistId ? { id: specialistId } : {}),
     },
     select: {
@@ -110,7 +126,7 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
-  const [scheduleEntries, appointments, blockedSlots, holds, service] = await Promise.all([
+  const [scheduleEntries, appointments, blockedSlots, holds, services] = await Promise.all([
     // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
     prisma.scheduleEntry.findMany({
       where: {
@@ -159,10 +175,10 @@ export async function GET(request: Request) {
       select: { specialistId: true, startAt: true, endAt: true },
     }),
 
-    serviceId
-      ? prisma.service.findFirst({
+    selectedServiceIds.length > 0
+      ? prisma.service.findMany({
           where: {
-            id: serviceId,
+            id: { in: selectedServiceIds },
             accountId: resolved.account.id,
             isActive: true,
             locations: { some: { locationId } },
@@ -178,10 +194,10 @@ export async function GET(request: Request) {
             },
           },
         })
-      : Promise.resolve(null),
+      : Promise.resolve([]),
   ]);
 
-  if (serviceId && !service) {
+  if (selectedServiceIds.length > 0 && services.length !== selectedServiceIds.length) {
     return jsonOk({ slots: [] });
   }
 
@@ -241,10 +257,13 @@ export async function GET(request: Request) {
     const effectiveEnd = Math.min(entryEnd, locationWindow.endMinutes);
     if (effectiveStart >= effectiveEnd) continue;
 
-    const durationMin = service
-      ? service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ??
-        service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ??
-        service.baseDurationMin
+    const durationMin = services.length > 0
+      ? services.reduce((sum, srv) => {
+          const override = srv.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin;
+          const levelCfg = srv.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin;
+          const dur = override ?? levelCfg ?? srv.baseDurationMin;
+          return sum + (Number.isFinite(dur) ? dur : 0);
+        }, 0)
       : slotStepMinutes;
 
     const breaks = entry.breaks

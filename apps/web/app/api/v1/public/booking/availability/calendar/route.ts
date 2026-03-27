@@ -93,6 +93,16 @@ export async function GET(request: Request) {
 
   const locationId = parsePositiveInt(searchParams.get("locationId"));
   const serviceId = parsePositiveInt(searchParams.get("serviceId"));
+  const serviceIdsParam = searchParams.get("serviceIds");
+  const serviceIds = serviceIdsParam
+    ? serviceIdsParam
+        .split(",")
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const selectedServiceIds = Array.from(
+    new Set([...(serviceId ? [serviceId] : []), ...serviceIds])
+  );
   const specialistId = parsePositiveInt(searchParams.get("specialistId")); // optional
   const holdOwnerMarkerRaw = Number(searchParams.get("holdOwnerMarker"));
   const holdOwnerMarker = Number.isInteger(holdOwnerMarkerRaw) ? holdOwnerMarkerRaw : null;
@@ -108,7 +118,7 @@ export async function GET(request: Request) {
   const daysParam = parsePositiveInt(searchParams.get("days"));
   const days = Math.min(Math.max(daysParam ?? DEFAULT_DAYS, 1), MAX_DAYS);
 
-  if (!locationId || !serviceId) {
+  if (!locationId || selectedServiceIds.length === 0) {
     return jsonError("INVALID_REQUEST", "Нужны locationId и serviceId.", null, 400);
   }
 
@@ -139,9 +149,9 @@ export async function GET(request: Request) {
     return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
   }
 
-  const service = await prisma.service.findFirst({
+  const services = await prisma.service.findMany({
     where: {
-      id: serviceId,
+      id: { in: selectedServiceIds },
       accountId: resolved.account.id,
       isActive: true,
       locations: { some: { locationId } },
@@ -154,7 +164,7 @@ export async function GET(request: Request) {
     },
   });
 
-  if (!service) {
+  if (services.length !== selectedServiceIds.length) {
     return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
   }
 
@@ -162,7 +172,7 @@ export async function GET(request: Request) {
     where: {
       accountId: resolved.account.id,
       locations: { some: { locationId } },
-      services: { some: { serviceId } },
+      AND: selectedServiceIds.map((id) => ({ services: { some: { serviceId: id } } })),
       ...(specialistId ? { id: specialistId } : {}),
     },
     select: {
@@ -306,12 +316,16 @@ export async function GET(request: Request) {
   // duration per specialist for this service
   const durationBySpecialist = new Map<number, number>();
   for (const sp of specialists) {
-    const override =
-      service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ?? null;
-    const levelCfg =
-      service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ?? null;
-    const dur = override ?? levelCfg ?? service.baseDurationMin;
-    if (Number.isFinite(dur) && dur > 0) durationBySpecialist.set(sp.id, dur);
+    let totalDuration = 0;
+    for (const service of services) {
+      const override =
+        service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ?? null;
+      const levelCfg =
+        service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ?? null;
+      const dur = override ?? levelCfg ?? service.baseDurationMin;
+      totalDuration += Number.isFinite(dur) ? dur : 0;
+    }
+    if (totalDuration > 0) durationBySpecialist.set(sp.id, totalDuration);
   }
 
   // day -> minuteStart -> specialistIds

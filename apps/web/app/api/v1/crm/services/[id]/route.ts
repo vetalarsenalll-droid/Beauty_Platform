@@ -55,6 +55,7 @@ export async function PATCH(request: Request, { params }: Params) {
     basePrice?: Prisma.Decimal;
     categoryId?: number | null;
     isActive?: boolean;
+    allowMultiServiceBooking?: boolean;
   } = {};
 
   if (body.name !== undefined) data.name = String(body.name).trim();
@@ -114,6 +115,9 @@ export async function PATCH(request: Request, { params }: Params) {
     }
   }
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
+  if (body.allowMultiServiceBooking !== undefined) {
+    data.allowMultiServiceBooking = Boolean(body.allowMultiServiceBooking);
+  }
 
   const updated = await prisma.service.update({
     where: { id: service.id },
@@ -139,6 +143,7 @@ export async function PATCH(request: Request, { params }: Params) {
     description: updated.description,
     baseDurationMin: updated.baseDurationMin,
     basePrice: updated.basePrice.toString(),
+    allowMultiServiceBooking: updated.allowMultiServiceBooking,
     isActive: updated.isActive,
     category: updated.category
       ? { id: updated.category.id, name: updated.category.name }
@@ -172,6 +177,7 @@ export async function GET(_request: Request, { params }: Params) {
     description: service.description,
     baseDurationMin: service.baseDurationMin,
     basePrice: service.basePrice.toString(),
+    allowMultiServiceBooking: service.allowMultiServiceBooking,
     isActive: service.isActive,
     category: service.category
       ? { id: service.category.id, name: service.category.name }

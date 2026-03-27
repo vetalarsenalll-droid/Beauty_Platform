@@ -13,6 +13,7 @@ type ServiceSummary = {
   baseDurationMin: number;
   basePrice: string;
   isActive: boolean;
+  allowMultiServiceBooking: boolean;
   categoryId: number | null;
 };
 

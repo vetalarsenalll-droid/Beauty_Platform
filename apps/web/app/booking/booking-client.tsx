@@ -50,6 +50,7 @@ type Service = {
   minDurationMin?: number | null;
   minPrice?: number | null;
   specialistIds?: number[];
+  allowMultiServiceBooking?: boolean;
   coverUrl?: string | null;
 };
 
@@ -73,12 +74,21 @@ type Slot = {
   specialistId: number;
 };
 
+type ChainItem = {
+  serviceId: number;
+  specialistId: number | null;
+  date: string; // YYYY-MM-DD
+  time: string | null;
+  holdId?: number;
+};
+
 type ActiveHold = {
   holdId: number;
   expiresAt: string;
   locationId: number;
   specialistId: number;
   serviceId: number;
+  serviceIds: number[];
   date: string;
   time: string;
 };
@@ -139,12 +149,13 @@ type LegalDocument = {
 
 type TimeBucket = "all" | "morning" | "day" | "evening";
 type Scenario = "dateFirst" | "serviceFirst" | "specialistFirst";
-type BookingUiStepKey = "scenario" | "location" | "service" | "specialist" | "datetime" | "details";
+type BookingUiStepKey = "scenario" | "location" | "service" | "specialist" | "datetime" | "chain" | "details";
 type BookingPersistedState = {
   scenario: Scenario;
   startScenario: boolean;
   locationId: number | null;
   serviceId: number | null;
+  serviceIds: number[];
   specialistId: number | null;
   dateYmd: string;
   timeChoice: string | null;
@@ -904,10 +915,6 @@ export default function BookingClient({
   const [pendingSpecialistId, setPendingSpecialistId] = useState<number | null>(null);
   const [initialNavApplied, setInitialNavApplied] = useState(false);
   const [pendingStepKey, setPendingStepKey] = useState<BookingUiStepKey | null>(null);
-  const isDateFirst = scenario === "dateFirst";
-  const isServiceFirst = scenario === "serviceFirst";
-  const isSpecialistFirst = scenario === "specialistFirst";
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -961,8 +968,48 @@ export default function BookingClient({
   const [dateFirstServiceSlotsError, setDateFirstServiceSlotsError] = useState<string | null>(null);
 
   const [serviceId, setServiceId] = useState<number | null>(null);
+  const [serviceIds, setServiceIds] = useState<number[]>([]);
   const [specialistId, setSpecialistId] = useState<number | null>(null);
   const prevServiceIdRef = useRef<number | null>(null);
+  const prevServiceIdsKeyRef = useRef<string>("");
+
+  const selectedServiceIds = useMemo(() => {
+    const ids = new Set<number>();
+    if (Number.isInteger(serviceId || 0) && serviceId) ids.add(serviceId);
+    for (const id of serviceIds) {
+      if (Number.isInteger(id) && id > 0) ids.add(id);
+    }
+    const list = Array.from(ids);
+    if (serviceId && list.includes(serviceId)) {
+      return [serviceId, ...list.filter((id) => id !== serviceId)];
+    }
+    return list;
+  }, [serviceId, serviceIds]);
+
+  const commonSpecialistIds = useMemo(() => {
+    const selected = services.filter((s) => selectedServiceIds.includes(s.id));
+    if (selected.length === 0) return new Set<number>();
+    const lists = selected
+      .map((s) => (Array.isArray(s.specialistIds) ? s.specialistIds : []))
+      .filter((list) => list.length > 0);
+    if (lists.length === 0) return new Set<number>();
+    const first = new Set<number>(lists[0]);
+    for (const list of lists.slice(1)) {
+      for (const id of Array.from(first)) {
+        if (!list.includes(id)) first.delete(id);
+      }
+    }
+    return first;
+  }, [services, selectedServiceIds]);
+
+  const isChainMode = selectedServiceIds.length > 1 && commonSpecialistIds.size === 0;
+  const chainServiceIds = selectedServiceIds;
+  const chainPrimaryServiceId = chainServiceIds[0] ?? null;
+
+  const effectiveScenario: Scenario = isChainMode ? "serviceFirst" : scenario;
+  const isDateFirst = effectiveScenario === "dateFirst";
+  const isServiceFirst = effectiveScenario === "serviceFirst";
+  const isSpecialistFirst = effectiveScenario === "specialistFirst";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1009,6 +1056,35 @@ export default function BookingClient({
   );
 
   const [timeChoice, setTimeChoice] = useState<string | null>(null);
+  const [chainItems, setChainItems] = useState<ChainItem[]>([]);
+  const [chainError, setChainError] = useState<string | null>(null);
+  const [chainLoading, setChainLoading] = useState(false);
+  const [chainEditIndex, setChainEditIndex] = useState<number | null>(null);
+  const [chainEditSpecialistId, setChainEditSpecialistId] = useState<number | null>(null);
+  const [chainEditTimes, setChainEditTimes] = useState<string[]>([]);
+  const [chainEditLoading, setChainEditLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isChainMode) {
+      setChainItems([]);
+      setChainError(null);
+      setChainEditIndex(null);
+      setChainEditSpecialistId(null);
+      setChainEditTimes([]);
+      return;
+    }
+    setChainItems((prev) =>
+      chainServiceIds.map((id) => {
+        const existing = prev.find((item) => item.serviceId === id);
+        return {
+          serviceId: id,
+          specialistId: existing?.specialistId ?? null,
+          date: dateYmd,
+          time: existing?.time ?? null,
+        } as ChainItem;
+      })
+    );
+  }, [isChainMode, chainServiceIds, dateYmd]);
 
   const [timeBucket, setTimeBucket] = useState<TimeBucket>("all");
   const [query, setQuery] = useState("");
@@ -1052,7 +1128,7 @@ export default function BookingClient({
     idempotencyKeyRef.current = null;
   }, [
     locationId,
-    serviceId,
+    selectedServiceIds,
     specialistId,
     dateYmd,
     timeChoice,
@@ -1072,27 +1148,32 @@ export default function BookingClient({
 
   const holdSelection = useMemo(
     () =>
-      locationId && specialistId && serviceId && timeChoice
+      !isChainMode && locationId && specialistId && selectedServiceIds.length > 0 && timeChoice
         ? {
             locationId,
             specialistId,
-            serviceId,
+            serviceId: selectedServiceIds[0],
+            serviceIds: selectedServiceIds,
             date: dateYmd,
             time: timeChoice,
           }
         : null,
-    [locationId, specialistId, serviceId, dateYmd, timeChoice]
+    [locationId, specialistId, selectedServiceIds, dateYmd, timeChoice, isChainMode]
   );
 
   const isHoldStillFresh = (value: string, skewMs = 7000) =>
     Number.isFinite(new Date(value).getTime()) &&
     new Date(value).getTime() > Date.now() + skewMs;
 
+  const sameServiceIds = (a: number[], b: number[]) =>
+    a.length === b.length && a.every((id, idx) => id === b[idx]);
+
   const holdMatchesSelection = (hold: ActiveHold | null, selection: NonNullable<typeof holdSelection>) =>
     !!hold &&
     hold.locationId === selection.locationId &&
     hold.specialistId === selection.specialistId &&
     hold.serviceId === selection.serviceId &&
+    sameServiceIds(hold.serviceIds, selection.serviceIds) &&
     hold.date === selection.date &&
     hold.time === selection.time;
 
@@ -1108,6 +1189,7 @@ export default function BookingClient({
           locationId: selection.locationId,
           specialistId: selection.specialistId,
           serviceId: selection.serviceId,
+          serviceIds: selection.serviceIds,
           date: selection.date,
           time: selection.time,
           ...(replaceHoldId ? { replaceHoldId } : {}),
@@ -1302,6 +1384,13 @@ export default function BookingClient({
     setStartScenario(false);
     setLocationId(persisted.locationId ?? null);
     setPendingServiceId(persisted.serviceId ?? null);
+    setServiceIds(
+      Array.isArray(persisted.serviceIds)
+        ? persisted.serviceIds
+        : persisted.serviceId
+          ? [persisted.serviceId]
+          : []
+    );
     setSpecialistId(persisted.specialistId ?? null);
     setPendingSpecialistId(persisted.specialistId ?? null);
     setDateYmd(persisted.dateYmd);
@@ -1330,6 +1419,10 @@ export default function BookingClient({
     if (!pendingServiceId) return;
     if (services.some((service) => service.id === pendingServiceId)) {
       setServiceId(pendingServiceId);
+      setServiceIds((prev) => {
+        if (prev.includes(pendingServiceId)) return prev;
+        return [pendingServiceId, ...prev];
+      });
       setPendingServiceId(null);
       return;
     }
@@ -1350,9 +1443,24 @@ export default function BookingClient({
     }
   }, [pendingSpecialistId, specialists]);
 
+  useEffect(() => {
+    if (!specialistId) return;
+    if (loadingSpecialists) return;
+    if (!specialists.some((sp) => sp.id === specialistId)) {
+      setSpecialistId(null);
+    }
+  }, [specialistId, specialists, loadingSpecialists]);
+
+  useEffect(() => {
+    if (isChainMode && specialistId) {
+      setSpecialistId(null);
+    }
+  }, [isChainMode, specialistId]);
+
   const steps = useMemo(() => {
     const common = [{ key: "location", title: "Локация" }];
     const dt = { key: "datetime", title: "Дата и время" };
+    const chain = { key: "chain", title: "Chain" };
     const details = { key: "details", title: "Контакты" };
 
     if (isDateFirst) {
@@ -1360,7 +1468,7 @@ export default function BookingClient({
         ...common,
         dt,
         { key: "service", title: "Услуга" },
-        { key: "specialist", title: "Специалист" },
+        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Specialist" }]),
         details,
       ];
     }
@@ -1369,7 +1477,7 @@ export default function BookingClient({
         ...common,
         { key: "service", title: "Услуга" },
         dt,
-        { key: "specialist", title: "Специалист" },
+        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Specialist" }]),
         details,
       ];
     }
@@ -1389,6 +1497,20 @@ export default function BookingClient({
   const lastTrackedStepRef = useRef<{ key: string; index: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const currentStepKey = stepsWithScenario[stepIndex]?.key;
+  const lastStepKeyRef = useRef<BookingUiStepKey | null>(null);
+
+  useEffect(() => {
+    lastStepKeyRef.current = (currentStepKey as BookingUiStepKey | undefined) ?? null;
+  }, [currentStepKey]);
+
+  useEffect(() => {
+    const key = lastStepKeyRef.current;
+    if (!key) return;
+    const idx = stepsWithScenario.findIndex((s) => s.key === key);
+    if (idx >= 0 && idx !== stepIndex) {
+      setStepIndex(idx);
+    }
+  }, [stepsWithScenario, stepIndex]);
 
   const logBookingStep = useCallback(
     (data: { stepKey: string; stepIndex: number; stepTitle?: string | null; payload?: unknown }) => {
@@ -1401,6 +1523,7 @@ export default function BookingClient({
         scenario,
         locationId,
         serviceId,
+        serviceIds: selectedServiceIds,
         specialistId,
         date: dateYmd,
         time: timeChoice,
@@ -1413,18 +1536,20 @@ export default function BookingClient({
         keepalive: true,
       }).catch(() => {});
     },
-    [bookingSessionKey, scenario, locationId, serviceId, specialistId, dateYmd, timeChoice, accountSlug]
+    [bookingSessionKey, scenario, locationId, serviceId, selectedServiceIds, specialistId, dateYmd, timeChoice, accountSlug]
   );
   const shouldLoadServices =
     (isDateFirst &&
       (currentStepKey === "datetime" ||
         currentStepKey === "service" ||
         currentStepKey === "specialist" ||
+        currentStepKey === "chain" ||
         currentStepKey === "details")) ||
     (isServiceFirst &&
       (currentStepKey === "service" ||
         currentStepKey === "datetime" ||
         currentStepKey === "specialist" ||
+        currentStepKey === "chain" ||
         currentStepKey === "details")) ||
     (isSpecialistFirst &&
       (currentStepKey === "service" ||
@@ -1432,6 +1557,7 @@ export default function BookingClient({
         currentStepKey === "details"));
   const shouldLoadSpecialists =
     currentStepKey === "specialist" ||
+    currentStepKey === "chain" ||
     currentStepKey === "details" ||
     (isSpecialistFirst && currentStepKey === "service");
   const shouldLoadCalendar =
@@ -1526,6 +1652,7 @@ export default function BookingClient({
     }
     if (restoringFromStorageRef.current) return;
     setServiceId(null);
+    setServiceIds([]);
     setSpecialistId(null);
     setTimeChoice(null);
     setOffersByTime({});
@@ -1546,6 +1673,7 @@ export default function BookingClient({
     }
     if (restoringFromStorageRef.current) return;
     setServiceId(null);
+    setServiceIds([]);
     setSpecialistId(null);
     setTimeChoice(null);
     setOffersByTime({});
@@ -1571,17 +1699,18 @@ export default function BookingClient({
   }, [dateYmd, isDateFirst]);
 
   useEffect(() => {
-    const prevServiceId = prevServiceIdRef.current;
-    const serviceChanged = prevServiceId !== serviceId;
+    const key = selectedServiceIds.join(",");
+    const prevKey = prevServiceIdsKeyRef.current;
+    if (prevKey == key) return;
+    prevServiceIdsKeyRef.current = key;
     prevServiceIdRef.current = serviceId;
-    if (!serviceChanged) return;
 
     if (skipServiceResetOnceRef.current) {
       skipServiceResetOnceRef.current = false;
       return;
     }
-    if (!serviceId) return;
-    // ✅ Р’ dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
+    if (!selectedServiceIds.length) return;
+    // ✅ В dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
     if (isDateFirst) return;
 
     // ✅ Для serviceFirst/specialistFirst смена услуги меняет доступность времени
@@ -1591,8 +1720,7 @@ export default function BookingClient({
     setSubmitSuccess(false);
 
     // serviceFirst: специалист выбирается после времени, поэтому при смене услуги лучше сбросить специалиста
-    if (isServiceFirst) setSpecialistId(null);
-  }, [serviceId, isDateFirst, isServiceFirst]);
+  }, [selectedServiceIds, serviceId, isDateFirst]);
 
   // ---------- context
   useEffect(() => {
@@ -1701,11 +1829,16 @@ export default function BookingClient({
     setLoadingSpecialists(true);
     setSpecialistsError(null);
 
+    const specialistParams = isChainMode
+      ? { account: accountSlug ?? "" }
+      : {
+          serviceId: serviceId ?? "",
+          serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds.join(",") : "",
+          account: accountSlug ?? "",
+        };
+
     fetchJson<SpecialistsData>(
-      buildUrl(`/api/v1/public/booking/locations/${safeLocationId}/specialists`, {
-        serviceId: serviceId ?? "",
-        account: accountSlug ?? "",
-      })
+      buildUrl(`/api/v1/public/booking/locations/${safeLocationId}/specialists`, specialistParams)
     )
       .then((data) => {
         if (!mounted) return;
@@ -1723,7 +1856,7 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [locationId, accountSlug, serviceId, shouldLoadSpecialists]);
+  }, [locationId, accountSlug, serviceId, selectedServiceIds, shouldLoadSpecialists, isChainMode]);
 
   // ---------- specialistFirst: load “has workdays” specialist ids
   useEffect(() => {
@@ -1828,12 +1961,19 @@ export default function BookingClient({
       setCalendarError(null);
       return;
     }
+    const calendarServiceId = isChainMode ? chainPrimaryServiceId ?? "" : serviceId ?? "";
+    const calendarServiceIds = isChainMode
+      ? ""
+      : selectedServiceIds.length > 0
+        ? selectedServiceIds.join(",")
+        : "";
     const calendarKey = [
       isDateFirst ? "date" : "other",
       isServiceFirst ? "service" : "",
       isSpecialistFirst ? "specialist" : "",
       safeLocationId,
-      serviceId ?? "",
+      calendarServiceId,
+      calendarServiceIds,
       isSpecialistFirst ? specialistId ?? "" : "",
       accountSlug ?? "",
       accountTz,
@@ -1862,11 +2002,11 @@ export default function BookingClient({
       return;
     }
 
-    if (isServiceFirst && !serviceId) {
+    if (isServiceFirst && selectedServiceIds.length === 0) {
       setCalendar(null);
       return;
     }
-    if (isSpecialistFirst && (!serviceId || !specialistId)) {
+    if (isSpecialistFirst && (selectedServiceIds.length === 0 || !specialistId)) {
       setCalendar(null);
       return;
     }
@@ -1880,7 +2020,8 @@ export default function BookingClient({
     fetchJson<AvailabilityCalendar>(
       buildUrl("/api/v1/public/booking/availability/calendar", {
         locationId: safeLocationId,
-        serviceId: serviceId ?? "",
+        serviceId: calendarServiceId,
+        serviceIds: calendarServiceIds,
         specialistId: isSpecialistFirst ? specialistId ?? "" : "",
         start: debouncedCalendarQueryStartYmd,
         days: calendarQueryDays,
@@ -1930,8 +2071,11 @@ export default function BookingClient({
     isDateFirst,
     isServiceFirst,
     isSpecialistFirst,
+    isChainMode,
     locationId,
     serviceId,
+    selectedServiceIds,
+    chainPrimaryServiceId,
     specialistId,
     accountSlug,
     holdOwnerMarker,
@@ -2146,7 +2290,7 @@ export default function BookingClient({
       setDateFirstServiceSlots([]);
       return;
     }
-    if (!serviceId || !dateYmd || !timeChoice) {
+    if (!selectedServiceIds.length || !dateYmd || !timeChoice) {
       setDateFirstServiceSlots([]);
       return;
     }
@@ -2162,12 +2306,19 @@ export default function BookingClient({
     let mounted = true;
     setLoadingDateFirstServiceSlots(true);
     setDateFirstServiceSlotsError(null);
+    const slotServiceId = isChainMode ? chainPrimaryServiceId : serviceId;
+    const slotServiceIds = isChainMode
+      ? ""
+      : selectedServiceIds.length > 0
+        ? selectedServiceIds.join(",")
+        : "";
 
     fetchJson<SlotsData>(
       buildUrl("/api/v1/public/booking/slots", {
         locationId: safeLocationId,
         date: dateYmd,
-        serviceId,
+        serviceId: slotServiceId ?? "",
+        serviceIds: slotServiceIds,
         holdOwnerMarker,
         account: accountSlug ?? "",
       })
@@ -2198,6 +2349,9 @@ export default function BookingClient({
     dateYmd,
     timeChoice,
     serviceId,
+    selectedServiceIds,
+    isChainMode,
+    chainPrimaryServiceId,
     accountSlug,
     holdOwnerMarker,
     todayYmdTz,
@@ -2210,10 +2364,276 @@ export default function BookingClient({
     [context, locationId]
   );
 
-  const selectedService = useMemo(
-    () => services.find((item) => item.id === serviceId) ?? null,
-    [services, serviceId]
+  const selectedServices = useMemo(
+    () => services.filter((item) => selectedServiceIds.includes(item.id)),
+    [services, selectedServiceIds]
   );
+
+  const specialistById = useMemo(
+    () => new Map(specialists.map((sp) => [sp.id, sp])),
+    [specialists]
+  );
+
+  const serviceById = useMemo(
+    () => new Map(services.map((srv) => [srv.id, srv])),
+    [services]
+  );
+
+  const specialistMetricsCacheRef = useRef(
+    new Map<number, Map<number, { durationMin: number; price: number }>>()
+  );
+
+  useEffect(() => {
+    specialistMetricsCacheRef.current.clear();
+  }, [locationId]);
+
+  const loadSpecialistMetrics = useCallback(
+    async (spId: number) => {
+      if (!Number.isInteger(spId) || spId <= 0) return new Map();
+      const cached = specialistMetricsCacheRef.current.get(spId);
+      if (cached) return cached;
+      if (!locationId) return new Map();
+
+      const data = await fetchJson<ServicesData>(
+        buildUrl(`/api/v1/public/booking/locations/${locationId}/services`, {
+          specialistId: spId,
+          account: accountSlug ?? "",
+        })
+      );
+
+      const map = new Map<number, { durationMin: number; price: number }>();
+      for (const service of data.services ?? []) {
+        map.set(service.id, {
+          durationMin: Number.isFinite(service.computedDurationMin ?? service.baseDurationMin)
+            ? Number(service.computedDurationMin ?? service.baseDurationMin)
+            : 0,
+          price: Number.isFinite(service.computedPrice ?? service.basePrice)
+            ? Number(service.computedPrice ?? service.basePrice)
+            : 0,
+        });
+      }
+      specialistMetricsCacheRef.current.set(spId, map);
+      return map;
+    },
+    [locationId, accountSlug]
+  );
+
+  const getServiceDurationMin = useCallback(
+    async (serviceId: number, spId: number | null) => {
+      if (spId && Number.isInteger(spId)) {
+        const map = await loadSpecialistMetrics(spId);
+        const cached = map.get(serviceId);
+        if (cached && Number.isFinite(cached.durationMin)) return cached.durationMin;
+      }
+      const base = serviceById.get(serviceId)?.baseDurationMin ?? 0;
+      return Number.isFinite(base) ? Number(base) : 0;
+    },
+    [loadSpecialistMetrics, serviceById]
+  );
+
+  const loadSlotsForService = useCallback(
+    async (serviceId: number, spId?: number | null) => {
+      if (!locationId || !dateYmd) return [] as Slot[];
+      const data = await fetchJson<SlotsData>(
+        buildUrl("/api/v1/public/booking/slots", {
+          locationId,
+          date: dateYmd,
+          serviceId,
+          specialistId: spId ?? "",
+          holdOwnerMarker,
+          account: accountSlug ?? "",
+        })
+      );
+      const list = Array.isArray(data.slots) ? data.slots : [];
+      return list.sort((a, b) => {
+        const aMin = timeToMinutes(a.time) ?? 0;
+        const bMin = timeToMinutes(b.time) ?? 0;
+        return aMin - bMin;
+      });
+    },
+    [locationId, dateYmd, holdOwnerMarker, accountSlug]
+  );
+
+  const buildChainFromFixed = useCallback(
+    async (fixedItems: ChainItem[]) => {
+      if (!isChainMode) return null;
+      if (!chainServiceIds.length) return null;
+      if (!dateYmd) return null;
+
+      setChainLoading(true);
+      setChainError(null);
+
+      try {
+        const nextItems: ChainItem[] = [];
+        let cursorMinutes = 0;
+
+        for (let i = 0; i < chainServiceIds.length; i += 1) {
+          const serviceId = chainServiceIds[i];
+          const fixed = fixedItems[i];
+
+          if (fixed && fixed.time) {
+            let chosenSpecialistId = fixed.specialistId;
+            const slots = await loadSlotsForService(serviceId, chosenSpecialistId ?? null);
+
+            if (!chosenSpecialistId) {
+              const slotAtTime = slots.find((s) => s.time === fixed.time);
+              chosenSpecialistId = slotAtTime?.specialistId ?? null;
+            }
+
+            const hasSlot = chosenSpecialistId
+              ? slots.some((s) => s.time === fixed.time && s.specialistId === chosenSpecialistId)
+              : false;
+
+            if (!hasSlot || !chosenSpecialistId) {
+              throw new Error("No available specialist for selected time.");
+            }
+
+            nextItems.push({
+              serviceId,
+              specialistId: chosenSpecialistId,
+              date: dateYmd,
+              time: fixed.time,
+            });
+
+            const dur = await getServiceDurationMin(serviceId, chosenSpecialistId);
+            cursorMinutes = (timeToMinutes(fixed.time) ?? 0) + dur;
+            continue;
+          }
+
+          const slots = await loadSlotsForService(serviceId);
+          const candidate = slots.find((s) => {
+            const tMin = timeToMinutes(s.time);
+            return tMin != null && tMin >= cursorMinutes;
+          });
+          if (!candidate) {
+            throw new Error("No sequential slots for selected services.");
+          }
+
+          nextItems.push({
+            serviceId,
+            specialistId: candidate.specialistId,
+            date: dateYmd,
+            time: candidate.time,
+          });
+
+          const dur = await getServiceDurationMin(serviceId, candidate.specialistId);
+          cursorMinutes = (timeToMinutes(candidate.time) ?? 0) + dur;
+        }
+
+        setChainItems(nextItems);
+        setTimeChoice(nextItems[0]?.time ?? null);
+        return nextItems;
+      } catch (error) {
+        setChainError((error as Error).message);
+        return null;
+      } finally {
+        setChainLoading(false);
+      }
+    },
+    [isChainMode, chainServiceIds, dateYmd, loadSlotsForService, getServiceDurationMin]
+  );
+
+  const handleServiceToggle = useCallback(
+    (service: Service) => {
+      const id = service.id;
+      const allowMulti = !!service.allowMultiServiceBooking;
+      const currentMultiAllowed = selectedServices.every((s) => s.allowMultiServiceBooking);
+
+      if (isDateFirst && timeChoice) {
+        const allowed = new Set<number>(offersByTime[timeChoice] ?? []);
+        if (!allowed.has(id)) {
+          setSubmitError("Choose a valid service for selected time.");
+          return;
+        }
+      }
+
+      setSubmitError(null);
+      setSubmitSuccess(false);
+
+      if (!allowMulti || !currentMultiAllowed) {
+        setServiceId(id);
+        setServiceIds([]);
+        return;
+      }
+
+      const alreadySelected = selectedServiceIds.includes(id);
+      if (!alreadySelected) {
+        if (!serviceId) {
+          setServiceId(id);
+          setServiceIds([]);
+        } else {
+          const next = Array.from(new Set([...selectedServiceIds, id]));
+          setServiceId(serviceId);
+          setServiceIds(next.filter((x) => x !== serviceId));
+        }
+        return;
+      }
+
+      const next = selectedServiceIds.filter((x) => x !== id);
+      if (!next.length) {
+        setServiceId(null);
+        setServiceIds([]);
+        return;
+      }
+
+      const primary = serviceId === id ? next[0] : serviceId;
+      setServiceId(primary ?? next[0] ?? null);
+      setServiceIds(next.filter((x) => x !== (primary ?? next[0])));
+    },
+    [
+      isDateFirst,
+      timeChoice,
+      offersByTime,
+      selectedServiceIds,
+      selectedServices,
+      serviceId,
+    ]
+  );
+
+
+  const chainComplete = isChainMode &&
+    chainItems.length > 0 &&
+    chainItems.every((item) => !!item.time && !!item.specialistId);
+
+  useEffect(() => {
+    if (chainEditIndex == null) {
+      setChainEditTimes([]);
+      setChainEditLoading(false);
+      return;
+    }
+    const item = chainItems[chainEditIndex];
+    if (!item) {
+      setChainEditTimes([]);
+      return;
+    }
+    const spId = chainEditSpecialistId ?? item.specialistId;
+    if (!spId) {
+      setChainEditTimes([]);
+      return;
+    }
+
+    let mounted = true;
+    setChainEditLoading(true);
+
+    loadSlotsForService(item.serviceId, spId)
+      .then((slots) => {
+        if (!mounted) return;
+        const times = slots.map((s) => s.time);
+        setChainEditTimes(uniqSortedTimes(times));
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setChainEditTimes([]);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setChainEditLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [chainEditIndex, chainEditSpecialistId, chainItems, loadSlotsForService]);
 
   const selectedSpecialist = useMemo(
     () => specialists.find((item) => item.id === specialistId) ?? null,
@@ -2231,16 +2651,21 @@ export default function BookingClient({
   useEffect(() => {
     if (!isSpecialistFirst) return;
     if (loadingServices) return;
-    // Не сбрасываем состояние, пока услуга еще не выбрана/не подгружена.
-    // Иначе при гидрации из URL может потеряться timeChoice.
-    if (!serviceId) return;
-    if (serviceId && servicesForSpecialistFirst.some((s) => s.id === serviceId)) return;
-    setServiceId(null);
+    // ?? ?????????? ?????????, ???? ?????? ??? ?? ???????/?? ??????????.
+    if (!selectedServiceIds.length) return;
+
+    const allowed = new Set(servicesForSpecialistFirst.map((s) => s.id));
+    const nextIds = selectedServiceIds.filter((id) => allowed.has(id));
+    if (nextIds.length === selectedServiceIds.length) return;
+
+    const primary = nextIds[0] ?? null;
+    setServiceId(primary);
+    setServiceIds(primary ? nextIds.filter((id) => id !== primary) : []);
     setTimeChoice(null);
     setCalendar(null);
     setSubmitError(null);
     setSubmitSuccess(false);
-  }, [isSpecialistFirst, specialistId, serviceId, servicesForSpecialistFirst, loadingServices]);
+  }, [isSpecialistFirst, selectedServiceIds, servicesForSpecialistFirst, loadingServices]);
 
   const servicesThatFitPickedTime = useMemo(() => {
     if (!isDateFirst) return services;
@@ -2386,7 +2811,7 @@ export default function BookingClient({
       return specialists.filter((s) => set.has(s.id));
     }
 
-    if (!serviceId || !dateYmd || !timeChoice) return [];
+    if (!selectedServiceIds.length || !dateYmd || !timeChoice) return [];
 
     if (isDateFirst) {
       const ids = dateFirstServiceSlots
@@ -2404,7 +2829,7 @@ export default function BookingClient({
     isDateFirst,
     specialists,
     workdaySpecialistIds,
-    serviceId,
+    selectedServiceIds,
     dateYmd,
     timeChoice,
     dateFirstServiceSlots,
@@ -2451,18 +2876,24 @@ export default function BookingClient({
   const showFromServiceMetrics = !specialistId && (isServiceFirst || isDateFirst);
 
   const serviceDuration =
-    selectedService == null
+    selectedServices.length === 0
       ? null
-      : showFromServiceMetrics
-        ? selectedService.minDurationMin ?? selectedService.baseDurationMin ?? null
-        : selectedService.computedDurationMin ?? selectedService.baseDurationMin ?? null;
+      : selectedServices.reduce((sum, s) => {
+          const duration = showFromServiceMetrics
+            ? s.minDurationMin ?? s.baseDurationMin ?? 0
+            : s.computedDurationMin ?? s.baseDurationMin ?? 0;
+          return sum + (Number.isFinite(duration) ? duration : 0);
+        }, 0);
 
   const servicePrice =
-    selectedService == null
+    selectedServices.length === 0
       ? null
-      : showFromServiceMetrics
-        ? selectedService.minPrice ?? selectedService.basePrice ?? null
-        : selectedService.computedPrice ?? selectedService.basePrice ?? null;
+      : selectedServices.reduce((sum, s) => {
+          const price = showFromServiceMetrics
+            ? s.minPrice ?? s.basePrice ?? 0
+            : s.computedPrice ?? s.basePrice ?? 0;
+          return sum + (Number.isFinite(price) ? price : 0);
+        }, 0);
   const servicePriceLabel =
     servicePrice != null
       ? `${showFromServiceMetrics ? "от " : ""}${formatMoneyRub(servicePrice)}`
@@ -2470,6 +2901,20 @@ export default function BookingClient({
   const serviceDurationLabel =
     serviceDuration != null ? `${showFromServiceMetrics ? "от " : ""}${serviceDuration} мин` : "—";
   const summaryDateLabel = formatDateRu(dateYmd);
+  const selectedServiceNames = selectedServices.map((s) => s.name).join(", ");
+  const summaryServiceLabel = selectedServiceNames || "?";
+  const chainSummaryLabel = isChainMode
+    ? chainItems
+        .map((item) => {
+          const serviceName = serviceById.get(item.serviceId)?.name ?? `#${item.serviceId}`;
+          const spName = item.specialistId
+            ? specialistById.get(item.specialistId)?.name ?? `#${item.specialistId}`
+            : "—";
+          const time = item.time ?? "—";
+          return `${serviceName}: ${spName} ${time}`;
+        })
+        .join(" / ")
+    : "";
 
   const slotEnd = useMemo(() => {
     if (!timeChoice || !serviceDuration) return "";
@@ -2488,9 +2933,8 @@ export default function BookingClient({
       clientName.trim().length >= 2 &&
       clientPhone.trim().length >= 8 &&
       !!locationId &&
-      !!serviceId &&
-      !!specialistId &&
-      !!timeChoice &&
+      selectedServiceIds.length > 0 &&
+      (isChainMode ? chainComplete : !!specialistId && !!timeChoice) &&
       legalOk
     );
   }, [
@@ -2499,9 +2943,11 @@ export default function BookingClient({
     clientName,
     clientPhone,
     locationId,
-    serviceId,
+    selectedServiceIds,
     specialistId,
     timeChoice,
+    isChainMode,
+    chainComplete,
   ]);
 
   const canNext = useMemo(() => {
@@ -2513,9 +2959,11 @@ export default function BookingClient({
       case "datetime":
         return !!timeChoice;
       case "service":
-        return !!serviceId;
+        return selectedServiceIds.length > 0;
       case "specialist":
         return !!specialistId;
+      case "chain":
+        return chainComplete;
       case "details":
         return canSubmit;
       default:
@@ -2525,9 +2973,10 @@ export default function BookingClient({
     currentStepKey,
     canSubmit,
     locationId,
-    serviceId,
+    selectedServiceIds,
     specialistId,
     timeChoice,
+    chainComplete,
   ]);
 
   const goNext = () => {
@@ -2551,6 +3000,7 @@ export default function BookingClient({
       startScenario: false,
       locationId,
       serviceId,
+      serviceIds,
       specialistId,
       dateYmd,
       timeChoice,
@@ -2576,6 +3026,7 @@ export default function BookingClient({
     startScenario,
     locationId,
     serviceId,
+    serviceIds,
     specialistId,
     dateYmd,
     timeChoice,
@@ -2646,6 +3097,7 @@ export default function BookingClient({
     const holdToRelease = activeHold?.holdId ?? null;
     const defaults = getContactDefaults();
     setServiceId(null);
+    setServiceIds([]);
     setSpecialistId(null);
     setTimeChoice(null);
     setClientName(defaults.name);
@@ -2674,15 +3126,103 @@ export default function BookingClient({
       setSubmitError("Fill required fields and accept required agreements.");
       return;
     }
-    if (isPastYmd(dateYmd, todayYmdTz) || isPastTimeOnDate(dateYmd, timeChoice!, nowTz)) {
+    if (!isChainMode && (isPastYmd(dateYmd, todayYmdTz) || isPastTimeOnDate(dateYmd, timeChoice!, nowTz))) {
       setSubmitError("Choose a valid date and time.");
       return;
     }
 
+    if (isChainMode) {
+      if (!chainComplete) {
+        setSubmitError("Complete all chain items.");
+        return;
+      }
+
+      const groupBookingId = makeIdempotencyKey();
+      const createdHoldIds: number[] = [];
+      const appointmentIds: number[] = [];
+
+      setSubmitting(true);
+      setSubmitError(null);
+
+      try {
+        for (const item of chainItems) {
+          if (!item.time || !item.specialistId) {
+            throw new Error("Complete all chain items.");
+          }
+          if (isPastTimeOnDate(item.date, item.time, nowTz)) {
+            throw new Error("Choose a valid date and time.");
+          }
+
+          const selection = {
+            locationId: locationId!,
+            specialistId: item.specialistId,
+            serviceId: item.serviceId,
+            serviceIds: [item.serviceId],
+            date: item.date,
+            time: item.time,
+          };
+
+          const hold = await reserveHold(selection, null);
+          createdHoldIds.push(hold.holdId);
+
+          const { appointmentId } = await fetchJson<{ appointmentId: number }>(
+            buildUrl("/api/v1/public/booking/appointments", { account: accountSlug ?? "" }),
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Idempotency-Key": makeIdempotencyKey(),
+              },
+              body: JSON.stringify({
+                locationId,
+                specialistId: item.specialistId,
+                serviceId: item.serviceId,
+                date: item.date,
+                time: item.time,
+                clientName: clientName.trim(),
+                clientPhone: clientPhone.trim(),
+                clientEmail: clientEmail.trim() || undefined,
+                comment: comment.trim() || undefined,
+                holdId: hold.holdId,
+                sessionKey: bookingSessionKey || undefined,
+                groupBookingId,
+                legalVersionIds: Object.entries(legalConsents)
+                  .filter(([, checked]) => checked)
+                  .map(([id]) => Number(id)),
+              }),
+            }
+          );
+          appointmentIds.push(appointmentId);
+        }
+
+        logBookingStep({
+          stepKey: "completed",
+          stepIndex: stepsWithScenario.length,
+          stepTitle: "Ð—Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¾ Ð·Ð°Ð¿Ð¸ÑÑŒÑŽ",
+          payload: { appointmentIds, groupBookingId },
+        });
+
+        setSubmitSuccess(true);
+        idempotencyKeyRef.current = null;
+        return;
+      } catch (error) {
+        for (const holdId of createdHoldIds) {
+          void releaseHold(holdId).catch(() => {});
+        }
+        setSubmitError((error as Error).message);
+        return;
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
     if (isDateFirst) {
       const allowedServiceIds = new Set<number>(offersByTime[timeChoice!] ?? []);
-      if (!serviceId || !allowedServiceIds.has(serviceId)) {
-        setSubmitError("Choose a valid service for selected time.");
+      if (
+        !selectedServiceIds.length ||
+        selectedServiceIds.some((id) => !allowedServiceIds.has(id))
+      ) {
+        setSubmitError("Choose valid services for selected time.");
         return;
       }
 
@@ -2734,6 +3274,7 @@ export default function BookingClient({
             locationId,
             specialistId,
             serviceId,
+            serviceIds: selectedServiceIds,
             date: dateYmd,
             time: timeChoice,
             clientName: clientName.trim(),
@@ -3039,8 +3580,8 @@ export default function BookingClient({
                     )}
 
                     {((isDateFirst) ||
-                      (isServiceFirst && !!serviceId) ||
-                      (isSpecialistFirst && !!specialistId && !!serviceId)) && (
+                      (isServiceFirst && selectedServiceIds.length > 0) ||
+                      (isSpecialistFirst && !!specialistId && selectedServiceIds.length > 0)) && (
                       <div className="space-y-3">
                         {showNoSlotsNotice && (
                           <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
@@ -3063,14 +3604,28 @@ export default function BookingClient({
                               setSubmitError(null);
                               setSubmitSuccess(false);
 
-                              if (isServiceFirst || isDateFirst) {
-                                setSpecialistId(null);
+                              if (isChainMode && chainPrimaryServiceId) {
+                                void buildChainFromFixed([
+                                  {
+                                    serviceId: chainPrimaryServiceId,
+                                    specialistId: null,
+                                    date: dateYmd,
+                                    time: t,
+                                  },
+                                ]);
+                                return;
                               }
 
-                              if (isDateFirst && serviceId) {
+                              if (isDateFirst && selectedServiceIds.length) {
                                 const allowedServiceIds = new Set<number>(offersByTime[t] ?? []);
-                                if (!allowedServiceIds.has(serviceId)) {
+                                const nextIds = selectedServiceIds.filter((id) => allowedServiceIds.has(id));
+                                if (!nextIds.length) {
                                   setServiceId(null);
+                                  setServiceIds([]);
+                                } else {
+                                  const primary = nextIds[0];
+                                  setServiceId(primary);
+                                  setServiceIds(nextIds.filter((id) => id !== primary));
                                 }
                               }
                             }}
@@ -3128,7 +3683,7 @@ export default function BookingClient({
                           const duration = showFromServiceMetrics
                             ? service.minDurationMin ?? service.baseDurationMin ?? 0
                             : service.computedDurationMin ?? service.baseDurationMin ?? 0;
-                          const active = service.id === serviceId;
+                          const active = selectedServiceIds.includes(service.id);
                           const serviceProfileHref = accountPublicSlug
                             ? `/${accountPublicSlug}/services/${service.id}`
                             : "#";
@@ -3137,7 +3692,7 @@ export default function BookingClient({
                               <button
                                 key={service.id}
                                 type="button"
-                                onClick={() => setServiceId(service.id)}
+                                onClick={() => handleServiceToggle(service)}
                                 className={cn(
                                 "h-full rounded-3xl border p-4 text-left transition",
                                 "hover:-translate-y-[1px] hover:shadow-sm",
@@ -3274,7 +3829,7 @@ export default function BookingClient({
 
                     {isDateFirst && (
                       <>
-                        {!serviceId || !timeChoice ? (
+                        {selectedServiceIds.length === 0 || !timeChoice ? (
                           <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
                             Чтобы выбрать Специалиста, сначала выберите дату+время и услугу.
                           </div>
@@ -3290,8 +3845,8 @@ export default function BookingClient({
 
                     {!loadingSpecialists &&
                       !specialistsError &&
-                      (isSpecialistFirst || (!isSpecialistFirst && !!serviceId && !!timeChoice)) &&
-                      (!isDateFirst || (!loadingDateFirstServiceSlots && !!serviceId && !!timeChoice)) && (
+                      (isSpecialistFirst || (!isSpecialistFirst && selectedServiceIds.length > 0 && !!timeChoice)) &&
+                      (!isDateFirst || (!loadingDateFirstServiceSlots && selectedServiceIds.length > 0 && !!timeChoice)) && (
                         <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                           {specialistsForSpecialistStepFiltered.map((sp) => {
                             const active = sp.id === specialistId;
@@ -3299,15 +3854,9 @@ export default function BookingClient({
                               ? `/${accountPublicSlug}/specialists/${sp.id}`
                               : "#";
                             const specialistServiceDuration =
-                              sp.serviceDurationMin ??
-                              selectedService?.computedDurationMin ??
-                              selectedService?.baseDurationMin ??
-                              null;
+                              sp.serviceDurationMin ?? serviceDuration ?? null;
                             const specialistServicePrice =
-                              sp.servicePrice ??
-                              selectedService?.computedPrice ??
-                              selectedService?.basePrice ??
-                              null;
+                              sp.servicePrice ?? servicePrice ?? null;
                             return (
                               <button
                                 key={sp.id}
@@ -3368,7 +3917,7 @@ export default function BookingClient({
                                       <div className="mt-1 text-sm text-[color:var(--bp-muted)] break-words">
                                         {sp.role || "Специалист"}
                                       </div>
-                                      {selectedService && (
+                                      {selectedServices.length > 0 && (
                                         <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
                                           {specialistServiceDuration != null
                                             ? `${specialistServiceDuration} мин`
@@ -3403,6 +3952,119 @@ export default function BookingClient({
                           )}
                         </div>
                       )}
+                  </div>
+                )}
+
+                
+                {currentStepKey === "chain" && (
+                  <div className="space-y-4">
+                    {chainError && (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+                        {chainError}
+                      </div>
+                    )}
+                    {chainLoading && (
+                      <div className="text-sm text-[color:var(--bp-muted)]">?????? ????????</div>
+                    )}
+
+                    <div className="space-y-3">
+                      {chainItems.map((item, idx) => {
+                        const service = serviceById.get(item.serviceId);
+                        const serviceName = service?.name ?? `Service #${item.serviceId}`;
+                        const availableSpecialists = (service?.specialistIds ?? [])
+                          .map((id) => specialistById.get(id))
+                          .filter(Boolean) as Specialist[];
+                        const selectedSp = item.specialistId
+                          ? specialistById.get(item.specialistId)
+                          : null;
+
+                        const isEditing = chainEditIndex === idx;
+                        const currentSpId = chainEditSpecialistId ?? item.specialistId ?? null;
+                        const currentTime = item.time ?? null;
+
+                        return (
+                          <div
+                            key={item.serviceId}
+                            className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="text-sm text-[color:var(--bp-muted)]">{serviceName}</div>
+                                <div className="mt-1 text-sm">
+                                  {selectedSp?.name ?? "?????????? ?? ??????"}
+                                </div>
+                                <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
+                                  {currentTime ?? "?"}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-xs"
+                                onClick={() => {
+                                  setChainEditIndex(idx);
+                                  const fallbackSpId = availableSpecialists[0]?.id ?? null;
+                                  setChainEditSpecialistId(currentSpId ?? fallbackSpId);
+                                }}
+                              >
+                                ????????
+                              </button>
+                            </div>
+
+                            {isEditing && (
+                              <div className="mt-4 space-y-3">
+                                <div className="grid grid-cols-1 gap-2">
+                                  <label className="text-xs text-[color:var(--bp-muted)]">??????????</label>
+                                  <select
+                                    className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
+                                    value={currentSpId ?? ""}
+                                    onChange={(event) => {
+                                      const nextId = Number(event.target.value) || null;
+                                      setChainEditSpecialistId(nextId);
+                                      setChainEditTimes([]);
+                                    }}
+                                  >
+                                    <option value="">???????? ???????????</option>
+                                    {availableSpecialists.map((sp) => (
+                                      <option key={sp.id} value={sp.id}>
+                                        {sp.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {chainEditLoading && (
+                                  <div className="text-xs text-[color:var(--bp-muted)]">???????? ???????</div>
+                                )}
+
+                                {!chainEditLoading && chainEditTimes.length > 0 && (
+                                  <TimeGrid
+                                    times={chainEditTimes}
+                                    selected={currentTime}
+                                    timeBucket={timeBucket}
+                                    onBucket={setTimeBucket}
+                                    onSelect={(t) => {
+                                      if (!currentSpId) return;
+                                      const fixed = chainItems
+                                        .slice(0, idx)
+                                        .concat([
+                                          {
+                                            serviceId: item.serviceId,
+                                            specialistId: currentSpId,
+                                            date: dateYmd,
+                                            time: t,
+                                          },
+                                        ]);
+                                      void buildChainFromFixed(fixed);
+                                      setChainEditIndex(null);
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -3553,89 +4215,58 @@ export default function BookingClient({
                           )}
                         </div>
                       </SoftPanel>
-
-                      {false && (
-                      <SoftPanel className="p-4">
-                        <div className="text-sm font-semibold">Подтверждение</div>
-                        <div className="mt-3 space-y-3">
-                          <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
-                          <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
-                          <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
-                          <SummaryRow label="Дата" value={summaryDateLabel} />
-                          <SummaryRow
-                            label="Время"
-                            value={timeChoice ? `${timeChoice}${slotEnd ? ` – ${slotEnd}` : ""}` : "—"}
-                          />
-                          <SummaryRow
-                            label="Стоимость"
-                            value={servicePriceLabel}
-                          />
-                          <SummaryRow label="Длительность" value={serviceDurationLabel} />
-
-                          {submitError && (
-                            <div className="rounded-3xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                              {submitError}
-                            </div>
-                          )}
-                          {submitSuccess && (
-                            <div className="rounded-3xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-                              Запись создана. Мы скоро свяжемся с вами.
-                            </div>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={submitAppointment}
-                            disabled={!canSubmit || submitting}
-                            className="h-11 w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-                          >
-                            {submitting ? "Сохранение..." : "Записаться"}
-                          </button>
-                        </div>
-                      </SoftPanel>
-                      )}
                     </div>
                   </div>
                 )}
+
               </div>
             </div>
           </SoftPanel>
 
-          <SoftPanel className="min-w-0 p-4 sm:p-5 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:flex lg:h-full lg:flex-col">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold">Сводка</div>
-            </div>
-
-            <div className="mt-4 space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto [scrollbar-gutter:stable_both-edges] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
-              <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
-              <SummaryRow label="Услуга" value={selectedService?.name || "—"} />
-              <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
-              <SummaryRow label="Дата" value={summaryDateLabel} />
-              <SummaryRow label="Время" value={timeChoice || "—"} />
-              <SummaryRow label="Стоимость" value={servicePriceLabel} />
-              <SummaryRow label="Длительность" value={serviceDurationLabel} />
-
-              {submitError && (
-                <div className="rounded-3xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                  {submitError}
-                </div>
-              )}
-              {submitSuccess && (
-                <div className="px-1 text-sm font-medium text-[color:var(--bp-ink)]">
-                  Запись оформлена
-                </div>
-              )}
-
-              <div className="mt-4 flex justify-start">
-                <button
-                  type="button"
-                  onClick={submitSuccess ? resetAll : submitAppointment}
-                  disabled={submitSuccess ? submitting : !canSubmit || submitting}
-                  className="w-full max-w-[260px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40 sm:max-w-[280px] lg:max-w-[320px]"
-                >
-                  {submitting ? "Сохранение..." : submitSuccess ? "Новая запись" : "Записаться"}
-                </button>
+          <SoftPanel className="min-w-0 p-4 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:h-full lg:self-stretch">
+            <div className="space-y-4">
+              <div className="text-base font-semibold">Сводка</div>
+              <div className="space-y-2">
+                <SummaryRow label="Дата" value={summaryDateLabel || "—"} />
+                <SummaryRow label="Услуга" value={summaryServiceLabel || "—"} />
+                {isChainMode ? (
+                  <SummaryRow label="Цепочка" value={chainSummaryLabel || "—"} />
+                ) : (
+                  <>
+                    <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
+                    <SummaryRow
+                      label="Время"
+                      value={
+                        timeChoice
+                          ? `${timeChoice}${slotEnd ? `–${slotEnd}` : ""}`
+                          : "—"
+                      }
+                    />
+                  </>
+                )}
+                <SummaryRow label="Длительность" value={serviceDurationLabel} />
+                <SummaryRow label="Стоимость" value={servicePriceLabel} />
               </div>
+
+              {submitError && <div className="text-sm text-red-600">{submitError}</div>}
+              {submitSuccess && (
+                <div className="text-sm text-green-700">Запись оформлена</div>
+              )}
+
+              <button
+                type="button"
+                onClick={submitAppointment}
+                disabled={!canSubmit || submitting}
+                className="w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+              >
+                {submitting ? "Отправляем..." : "Записаться"}
+              </button>
+
+              {!canSubmit && (
+                <div className="text-xs text-[color:var(--bp-muted)]">
+                  Заполните контакты и выберите время.
+                </div>
+              )}
             </div>
           </SoftPanel>
 
@@ -3657,6 +4288,7 @@ export default function BookingClient({
     </div>
   );
 }
+
 
 
 

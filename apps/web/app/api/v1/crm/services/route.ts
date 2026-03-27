@@ -10,6 +10,7 @@ type DbService = {
   description: string | null;
   baseDurationMin: number;
   basePrice: Prisma.Decimal;
+  allowMultiServiceBooking: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -23,6 +24,7 @@ function mapService(service: DbService) {
     description: service.description,
     baseDurationMin: service.baseDurationMin,
     basePrice: service.basePrice.toString(),
+    allowMultiServiceBooking: service.allowMultiServiceBooking,
     isActive: service.isActive,
     category: service.category
       ? { id: service.category.id, name: service.category.name }
@@ -70,6 +72,10 @@ export async function POST(request: Request) {
       ? Number(body.categoryId)
       : null;
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
+  const allowMultiServiceBooking =
+    body.allowMultiServiceBooking !== undefined
+      ? Boolean(body.allowMultiServiceBooking)
+      : false;
 
   if (!name || !Number.isInteger(baseDurationMin)) {
     return jsonError(
@@ -124,6 +130,7 @@ export async function POST(request: Request) {
       baseDurationMin,
       basePrice,
       isActive,
+      allowMultiServiceBooking,
     },
     include: { category: true },
   });
@@ -141,6 +148,7 @@ export async function POST(request: Request) {
       basePrice: basePrice.toString(),
       categoryId,
       isActive,
+      allowMultiServiceBooking,
     },
   });
 

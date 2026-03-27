@@ -9,14 +9,19 @@ const toNumber = (value: unknown) => {
 };
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
-  const paramsValue = await params;
-  const locationId = Number(paramsValue.id);
+  const pathname = new URL(request.url).pathname;
+  const pathParts = pathname.split("/").filter(Boolean);
+  const locationsIndex = pathParts.indexOf("locations");
+  const pathId =
+    locationsIndex >= 0 && locationsIndex + 1 < pathParts.length
+      ? pathParts[locationsIndex + 1]
+      : "";
+  const locationId = Number(pathId);
   if (!Number.isInteger(locationId) || locationId <= 0) {
     return jsonError("INVALID_LOCATION", "\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u0430\u044f \u043b\u043e\u043a\u0430\u0446\u0438\u044f.", null, 400);
   }
@@ -56,6 +61,7 @@ export async function GET(
       id: true,
       name: true,
       description: true,
+      allowMultiServiceBooking: true,
       category: { select: { name: true, slug: true } },
       baseDurationMin: true,
       basePrice: true,
@@ -117,6 +123,7 @@ export async function GET(
       id: service.id,
       name: service.name,
       description: service.description,
+      allowMultiServiceBooking: service.allowMultiServiceBooking,
       baseDurationMin: baseDuration,
       basePrice,
       computedDurationMin,

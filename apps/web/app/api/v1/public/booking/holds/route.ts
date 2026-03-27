@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     locationId?: number;
     specialistId?: number;
     serviceId?: number;
+    serviceIds?: number[];
     date?: string;
     time?: string;
     replaceHoldId?: number;
@@ -86,6 +87,14 @@ export async function POST(request: Request) {
   const locationId = Number(body.locationId);
   const specialistId = Number(body.specialistId);
   const serviceId = Number(body.serviceId);
+  const serviceIds = Array.isArray(body.serviceIds)
+    ? body.serviceIds
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const selectedServiceIds = Array.from(
+    new Set([...(Number.isInteger(serviceId) && serviceId > 0 ? [serviceId] : []), ...serviceIds])
+  );
   const dateValue = String(body.date ?? "").trim();
   const timeValue = String(body.time ?? "").trim();
   const replaceHoldId = Number.isInteger(Number(body.replaceHoldId)) ? Number(body.replaceHoldId) : null;
@@ -101,8 +110,7 @@ export async function POST(request: Request) {
     locationId <= 0 ||
     !Number.isInteger(specialistId) ||
     specialistId <= 0 ||
-    !Number.isInteger(serviceId) ||
-    serviceId <= 0 ||
+    selectedServiceIds.length === 0 ||
     !dateValue ||
     !timeValue
   ) {
@@ -122,7 +130,7 @@ export async function POST(request: Request) {
     return jsonError("INVALID_TIME", "Некорректное время.", null, 400);
   }
 
-  const [location, specialist, service, scheduleEntry, setting] = await Promise.all([
+  const [location, specialist, services, scheduleEntry, setting] = await Promise.all([
     prisma.location.findFirst({
       where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
       select: {
@@ -136,13 +144,13 @@ export async function POST(request: Request) {
         id: specialistId,
         accountId: resolved.account.id,
         locations: { some: { locationId } },
-        services: { some: { serviceId } },
+        AND: selectedServiceIds.map((id) => ({ services: { some: { serviceId: id } } })),
       },
       select: { id: true, levelId: true },
     }),
-    prisma.service.findFirst({
+    prisma.service.findMany({
       where: {
-        id: serviceId,
+        id: { in: selectedServiceIds },
         accountId: resolved.account.id,
         isActive: true,
         locations: { some: { locationId } },
@@ -151,16 +159,19 @@ export async function POST(request: Request) {
         id: true,
         baseDurationMin: true,
         basePrice: true,
+        allowMultiServiceBooking: true,
         specialists: {
           select: {
             specialistId: true,
             durationOverrideMin: true,
+            priceOverride: true,
           },
         },
         levelConfigs: {
           select: {
             levelId: true,
             durationMin: true,
+            price: true,
           },
         },
       },
@@ -182,7 +193,18 @@ export async function POST(request: Request) {
 
   if (!location) return jsonError("LOCATION_NOT_FOUND", "Локация не найдена.", null, 404);
   if (!specialist) return jsonError("SPECIALIST_NOT_FOUND", "Специалист не найден.", null, 404);
-  if (!service) return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
+  if (!services || services.length !== selectedServiceIds.length) {
+    return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
+  }
+
+  if (selectedServiceIds.length > 1 && services.some((s) => !s.allowMultiServiceBooking)) {
+    return jsonError(
+      "MULTI_SERVICE_NOT_ALLOWED",
+      "Выбранные услуги нельзя записывать вместе.",
+      null,
+      400
+    );
+  }
 
   const locationWindow = getLocationWorkWindowForDate(location, dateValue);
   if (locationWindow.isClosed) {
@@ -194,11 +216,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const override = service.specialists.find((item) => item.specialistId === specialist.id);
-  const levelConfig = specialist.levelId
-    ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
-    : null;
-  const durationMin = override?.durationOverrideMin ?? levelConfig?.durationMin ?? service.baseDurationMin;
+  let durationMin = 0;
+  let priceTotal = 0;
+
+  for (const service of services) {
+    const override = service.specialists.find((item) => item.specialistId === specialist.id);
+    const levelConfig = specialist.levelId
+      ? service.levelConfigs.find((item) => item.levelId === specialist.levelId)
+      : null;
+    const duration = override?.durationOverrideMin ?? levelConfig?.durationMin ?? service.baseDurationMin;
+    const price =
+      toNumber(override?.priceOverride) ||
+      toNumber(levelConfig?.price) ||
+      toNumber(service.basePrice);
+
+    durationMin += Number.isFinite(duration) ? Number(duration) : 0;
+    priceTotal += toNumber(price);
+  }
+
+  if (!Number.isFinite(durationMin) || durationMin <= 0) {
+    return jsonError(
+      "INVALID_DURATION",
+      "Некорректная длительность услуги.",
+      null,
+      400
+    );
+  }
 
   if (!scheduleEntry || scheduleEntry.type !== "WORKING" || scheduleEntry.locationId !== locationId) {
     return jsonError("NO_WORKDAY", "У специалиста нет рабочего дня в выбранной локации.", null, 400);
@@ -337,7 +380,7 @@ export async function POST(request: Request) {
         holdId: result.hold.id,
         expiresAt: result.hold.expiresAt.toISOString(),
         durationMin,
-        priceTotal: toNumber(service.basePrice),
+        priceTotal,
       });
 
       response.cookies.set(

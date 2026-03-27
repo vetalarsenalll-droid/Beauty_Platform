@@ -22,14 +22,19 @@ const toNumber = (value: unknown) => {
 };
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
 
-  const paramsValue = await params;
-  const locationId = Number(paramsValue.id);
+  const pathname = new URL(request.url).pathname;
+  const pathParts = pathname.split("/").filter(Boolean);
+  const locationsIndex = pathParts.indexOf("locations");
+  const pathId =
+    locationsIndex >= 0 && locationsIndex + 1 < pathParts.length
+      ? pathParts[locationsIndex + 1]
+      : "";
+  const locationId = Number(pathId);
   if (!Number.isInteger(locationId) || locationId <= 0) {
     return jsonError("INVALID_LOCATION", "Некорректная локация.", null, 400);
   }
@@ -37,6 +42,19 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const serviceIdParam = searchParams.get("serviceId");
   const serviceId = serviceIdParam ? Number(serviceIdParam) : null;
+  const serviceIdsParam = searchParams.get("serviceIds");
+  const serviceIds = serviceIdsParam
+    ? serviceIdsParam
+        .split(",")
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    : [];
+  const selectedServiceIds = Array.from(
+    new Set([
+      ...(Number.isInteger(serviceId) && serviceId && serviceId > 0 ? [serviceId] : []),
+      ...serviceIds,
+    ])
+  );
 
   const location = await prisma.location.findFirst({
     where: { id: locationId, accountId: resolved.account.id, status: "ACTIVE" },
@@ -51,8 +69,12 @@ export async function GET(
     where: {
       accountId: resolved.account.id,
       locations: { some: { locationId } },
-      ...(serviceId && Number.isInteger(serviceId) && serviceId > 0
-        ? { services: { some: { serviceId } } }
+      ...(selectedServiceIds.length > 0
+        ? {
+            AND: selectedServiceIds.map((id) => ({
+              services: { some: { serviceId: id } },
+            })),
+          }
         : {}),
     },
     orderBy: { createdAt: "asc" },
@@ -72,11 +94,11 @@ export async function GET(
     },
   });
 
-  const selectedService =
-    serviceId && Number.isInteger(serviceId) && serviceId > 0
-      ? await prisma.service.findFirst({
+  const selectedServices =
+    selectedServiceIds.length > 0
+      ? await prisma.service.findMany({
           where: {
-            id: serviceId,
+            id: { in: selectedServiceIds },
             accountId: resolved.account.id,
             isActive: true,
             locations: { some: { locationId } },
@@ -101,14 +123,11 @@ export async function GET(
             },
           },
         })
-      : null;
+      : [];
 
-  const selectedServiceOverridesBySpecialistId = new Map(
-    (selectedService?.specialists ?? []).map((item) => [item.specialistId, item])
-  );
-  const selectedServiceLevelConfigByLevelId = new Map(
-    (selectedService?.levelConfigs ?? []).map((item) => [item.levelId, item])
-  );
+  if (selectedServiceIds.length > 0 && selectedServices.length !== selectedServiceIds.length) {
+    return jsonOk({ specialists: [] });
+  }
 
   const specialistIds = specialists.map((item) => String(item.id));
   const specialistPhotos = specialistIds.length
@@ -127,21 +146,35 @@ export async function GET(
   });
 
   const output = specialists.map((item) => {
-    const override = selectedServiceOverridesBySpecialistId.get(item.id);
-    const levelConfig = item.levelId
-      ? selectedServiceLevelConfigByLevelId.get(item.levelId)
-      : null;
+    let servicePrice: number | null = null;
+    let serviceDurationMin: number | null = null;
 
-    const servicePrice = selectedService
-      ? toNumber(override?.priceOverride) ||
-        toNumber(levelConfig?.price) ||
-        toNumber(selectedService.basePrice)
-      : null;
-    const serviceDurationMin = selectedService
-      ? override?.durationOverrideMin ||
-        levelConfig?.durationMin ||
-        selectedService.baseDurationMin
-      : null;
+    if (selectedServices.length > 0) {
+      let totalPrice = 0;
+      let totalDuration = 0;
+
+      for (const service of selectedServices) {
+        const override = service.specialists.find((s) => s.specialistId === item.id);
+        const levelConfig = item.levelId
+          ? service.levelConfigs.find((cfg) => cfg.levelId === item.levelId)
+          : null;
+
+        const price =
+          toNumber(override?.priceOverride) ||
+          toNumber(levelConfig?.price) ||
+          toNumber(service.basePrice);
+        const duration =
+          override?.durationOverrideMin ||
+          levelConfig?.durationMin ||
+          service.baseDurationMin;
+
+        totalPrice += toNumber(price);
+        totalDuration += Number.isFinite(duration) ? Number(duration) : 0;
+      }
+
+      servicePrice = totalPrice;
+      serviceDurationMin = totalDuration;
+    }
 
     return {
       id: item.id,

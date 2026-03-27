@@ -18,6 +18,7 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
   const [basePrice, setBasePrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [allowMultiServiceBooking, setAllowMultiServiceBooking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +38,7 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
           basePrice,
           categoryId: categoryId ? Number(categoryId) : null,
           isActive,
+          allowMultiServiceBooking,
         }),
       });
       if (!response.ok) {
@@ -118,6 +120,15 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
           Активна
         </label>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={allowMultiServiceBooking}
+          onChange={(event) => setAllowMultiServiceBooking(event.target.checked)}
+        />
+        Allow multi-service booking
+      </label>
+
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"
