@@ -966,6 +966,8 @@ export default function BookingClient({
   const [dateFirstServiceSlots, setDateFirstServiceSlots] = useState<Slot[]>([]);
   const [loadingDateFirstServiceSlots, setLoadingDateFirstServiceSlots] = useState(false);
   const [dateFirstServiceSlotsError, setDateFirstServiceSlotsError] = useState<string | null>(null);
+  const [singlePlanEligibleSpecialistIds, setSinglePlanEligibleSpecialistIds] = useState<Set<number> | null>(null);
+  const [loadingSinglePlanSpecialists, setLoadingSinglePlanSpecialists] = useState(false);
 
   const [serviceId, setServiceId] = useState<number | null>(null);
   const [serviceIds, setServiceIds] = useState<number[]>([]);
@@ -1002,11 +1004,13 @@ export default function BookingClient({
     return first;
   }, [services, selectedServiceIds]);
 
-  const isChainMode = selectedServiceIds.length > 1 && commonSpecialistIds.size === 0;
+  const isVisitPlanMode = selectedServiceIds.length > 1;
+  const isChainMode = isVisitPlanMode && commonSpecialistIds.size === 0;
+  const isSingleSpecialistPlanMode = isVisitPlanMode && commonSpecialistIds.size > 0;
   const chainServiceIds = selectedServiceIds;
   const chainPrimaryServiceId = chainServiceIds[0] ?? null;
 
-  const effectiveScenario: Scenario = isChainMode ? "serviceFirst" : scenario;
+  const effectiveScenario: Scenario = isVisitPlanMode ? "serviceFirst" : scenario;
   const isDateFirst = effectiveScenario === "dateFirst";
   const isServiceFirst = effectiveScenario === "serviceFirst";
   const isSpecialistFirst = effectiveScenario === "specialistFirst";
@@ -1070,7 +1074,7 @@ export default function BookingClient({
   const [chainItemPrices, setChainItemPrices] = useState<Record<number, number>>({});
 
   useEffect(() => {
-    if (!isChainMode) {
+    if (!isVisitPlanMode) {
       setChainItems([]);
       setChainError(null);
       setChainEditIndex(null);
@@ -1082,15 +1086,18 @@ export default function BookingClient({
     setChainItems((prev) =>
       chainServiceIds.map((id) => {
         const existing = prev.find((item) => item.serviceId === id);
+        const effectiveSpecialistId = isSingleSpecialistPlanMode
+          ? specialistId ?? null
+          : existing?.specialistId ?? null;
         return {
           serviceId: id,
-          specialistId: existing?.specialistId ?? null,
+          specialistId: effectiveSpecialistId,
           date: dateYmd,
           time: existing?.time ?? null,
         } as ChainItem;
       })
     );
-  }, [isChainMode, chainServiceIds, dateYmd]);
+  }, [isVisitPlanMode, chainServiceIds, dateYmd, isSingleSpecialistPlanMode, specialistId]);
 
   const [timeBucket, setTimeBucket] = useState<TimeBucket>("all");
   const [query, setQuery] = useState("");
@@ -1474,7 +1481,11 @@ export default function BookingClient({
         ...common,
         dt,
         { key: "service", title: "Услуга" },
-        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Специалист" }]),
+        ...(isVisitPlanMode
+          ? (isSingleSpecialistPlanMode
+              ? [{ key: "specialist", title: "Специалист" }, chain]
+              : [chain])
+          : [{ key: "specialist", title: "Специалист" }]),
         details,
       ];
     }
@@ -1483,7 +1494,11 @@ export default function BookingClient({
         ...common,
         { key: "service", title: "Услуга" },
         dt,
-        ...(isChainMode ? [chain] : [{ key: "specialist", title: "Специалист" }]),
+        ...(isVisitPlanMode
+          ? (isSingleSpecialistPlanMode
+              ? [{ key: "specialist", title: "Специалист" }, chain]
+              : [chain])
+          : [{ key: "specialist", title: "Специалист" }]),
         details,
       ];
     }
@@ -1494,7 +1509,7 @@ export default function BookingClient({
       dt,
       details,
     ];
-  }, [isDateFirst, isServiceFirst, isChainMode]);
+  }, [isDateFirst, isServiceFirst, isVisitPlanMode, isSingleSpecialistPlanMode]);
 
   const stepsWithScenario = startScenario
     ? [{ key: "scenario", title: "\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439" }, ...steps]
@@ -2494,7 +2509,7 @@ export default function BookingClient({
 
   const buildChainFromFixed = useCallback(
     async (fixedItems: ChainItem[]) => {
-      if (!isChainMode) return null;
+      if (!isVisitPlanMode) return null;
       if (!chainServiceIds.length) return null;
       if (!dateYmd) return null;
 
@@ -2510,7 +2525,12 @@ export default function BookingClient({
           const fixed = fixedItems[i];
 
           if (fixed && fixed.time) {
-            const chosenSpecialistId = fixed.specialistId ?? null;
+            const chosenSpecialistId = isSingleSpecialistPlanMode
+              ? specialistId ?? null
+              : fixed.specialistId ?? null;
+            if (isSingleSpecialistPlanMode && !chosenSpecialistId) {
+              throw new Error("Сначала выберите специалиста.");
+            }
             const slots = await loadSlotsForService(serviceId, chosenSpecialistId);
             const fixedMinutes = timeToMinutes(fixed.time);
             if (fixedMinutes == null || fixedMinutes < cursorMinutes) {
@@ -2537,7 +2557,21 @@ export default function BookingClient({
             continue;
           }
 
-          const slots = await loadSlotsForService(serviceId);
+          const chosenSpecialistId = isSingleSpecialistPlanMode ? specialistId ?? null : null;
+          if (isSingleSpecialistPlanMode && !chosenSpecialistId) {
+            throw new Error("Сначала выберите специалиста.");
+          }
+          if (!isSingleSpecialistPlanMode) {
+            nextItems.push({
+              serviceId,
+              specialistId: null,
+              date: dateYmd,
+              time: null,
+            });
+            continue;
+          }
+
+          const slots = await loadSlotsForService(serviceId, chosenSpecialistId);
           const candidate = slots.find((s) => {
             const tMin = timeToMinutes(s.time);
             return tMin != null && tMin >= cursorMinutes;
@@ -2548,12 +2582,15 @@ export default function BookingClient({
 
           nextItems.push({
             serviceId,
-            specialistId: null,
+            specialistId: chosenSpecialistId ?? candidate.specialistId,
             date: dateYmd,
             time: candidate.time,
           });
 
-          const dur = await getServiceDurationMin(serviceId, null);
+          const dur = await getServiceDurationMin(
+            serviceId,
+            chosenSpecialistId ?? candidate.specialistId
+          );
           cursorMinutes = (timeToMinutes(candidate.time) ?? 0) + dur;
         }
 
@@ -2567,7 +2604,15 @@ export default function BookingClient({
         setChainLoading(false);
       }
     },
-    [isChainMode, chainServiceIds, dateYmd, loadSlotsForService, getServiceDurationMin]
+    [
+      isVisitPlanMode,
+      chainServiceIds,
+      dateYmd,
+      loadSlotsForService,
+      getServiceDurationMin,
+      isSingleSpecialistPlanMode,
+      specialistId,
+    ]
   );
 
   const handleServiceToggle = useCallback(
@@ -2628,12 +2673,12 @@ export default function BookingClient({
   );
 
 
-  const chainComplete = isChainMode &&
+  const chainComplete = isVisitPlanMode &&
     chainItems.length > 0 &&
     chainItems.every((item) => !!item.time && !!item.specialistId);
 
   useEffect(() => {
-    if (!isChainMode) {
+    if (!isVisitPlanMode) {
       setChainItemDurations({});
       setChainItemPrices({});
       setChainTotals(null);
@@ -2688,7 +2733,7 @@ export default function BookingClient({
       cancelled = true;
     };
   }, [
-    isChainMode,
+    isVisitPlanMode,
     chainComplete,
     chainItems,
     getServiceDurationMin,
@@ -2726,7 +2771,9 @@ export default function BookingClient({
         return;
       }
 
-      const allSpecialistIds = serviceById.get(item.serviceId)?.specialistIds ?? [];
+      const allSpecialistIds = isSingleSpecialistPlanMode
+        ? (specialistId ? [specialistId] : [])
+        : serviceById.get(item.serviceId)?.specialistIds ?? [];
       const eligiblePairs = await runBatches(
         allSpecialistIds.map((candidateSpId) => async () => {
           const slots = await loadSlotsForService(item.serviceId, candidateSpId);
@@ -2745,7 +2792,9 @@ export default function BookingClient({
       );
       setChainEditEligibleSpecialistIds(eligibleSet);
 
-      const spId = chainEditSpecialistId ?? item.specialistId;
+      const spId = isSingleSpecialistPlanMode
+        ? specialistId ?? item.specialistId
+        : chainEditSpecialistId ?? item.specialistId;
       if (!spId || !eligibleSet.has(spId)) {
         setChainEditTimes([]);
         setChainEditConstraintMessage(
@@ -2802,6 +2851,34 @@ export default function BookingClient({
     loadSlotsForService,
     getChainMinStartMinutes,
     serviceById,
+    dateYmd,
+    buildChainFromFixed,
+    isSingleSpecialistPlanMode,
+    specialistId,
+  ]);
+
+  useEffect(() => {
+    if (!isVisitPlanMode || !chainPrimaryServiceId || !timeChoice) return;
+    if (isSingleSpecialistPlanMode && !specialistId) return;
+    const firstItem = chainItems[0];
+    if (!firstItem) return;
+    const expectedSpecialist = isSingleSpecialistPlanMode ? specialistId ?? null : firstItem.specialistId ?? null;
+    if (firstItem.time === timeChoice && firstItem.specialistId === expectedSpecialist) return;
+    void buildChainFromFixed([
+      {
+        serviceId: chainPrimaryServiceId,
+        specialistId: expectedSpecialist,
+        date: dateYmd,
+        time: timeChoice,
+      },
+    ]);
+  }, [
+    isVisitPlanMode,
+    chainPrimaryServiceId,
+    timeChoice,
+    isSingleSpecialistPlanMode,
+    specialistId,
+    chainItems,
     dateYmd,
     buildChainFromFixed,
   ]);
@@ -2919,7 +2996,7 @@ export default function BookingClient({
     (currentStepKey === "location" && loadingContext) ||
     (currentStepKey === "service" && loadingServices) ||
     (currentStepKey === "specialist" &&
-      (loadingSpecialists || loadingWorkdaySpecs || loadingDateFirstServiceSlots)) ||
+      (loadingSpecialists || loadingWorkdaySpecs || loadingDateFirstServiceSlots || loadingSinglePlanSpecialists)) ||
     (currentStepKey === "datetime" && isTimesPanelLoading);
   const shouldShowFullscreenLoaderOverlay =
     Boolean(effectiveInlineLoader?.showBookingInline) &&
@@ -2975,7 +3052,7 @@ export default function BookingClient({
     return () => clearTimeout(timer);
   }, [shouldShowNoSlotsNotice, dateYmd]);
 
-  const specialistsForSpecialistStep = useMemo(() => {
+  const specialistsByChosenDateTime = useMemo(() => {
     if (isSpecialistFirst) {
       const set = workdaySpecialistIds;
       if (!set) return specialists;
@@ -3005,6 +3082,100 @@ export default function BookingClient({
     timeChoice,
     dateFirstServiceSlots,
     calendarByDate,
+  ]);
+
+  useEffect(() => {
+    if (!isSingleSpecialistPlanMode || !dateYmd || !timeChoice || chainServiceIds.length === 0) {
+      setSinglePlanEligibleSpecialistIds(null);
+      setLoadingSinglePlanSpecialists(false);
+      return;
+    }
+
+    const candidateIds = specialistsByChosenDateTime.map((s) => s.id);
+    if (candidateIds.length === 0) {
+      setSinglePlanEligibleSpecialistIds(new Set());
+      setLoadingSinglePlanSpecialists(false);
+      return;
+    }
+
+    const selectedTimeMin = timeToMinutes(timeChoice);
+    if (selectedTimeMin == null) {
+      setSinglePlanEligibleSpecialistIds(new Set());
+      setLoadingSinglePlanSpecialists(false);
+      return;
+    }
+
+    let mounted = true;
+    setLoadingSinglePlanSpecialists(true);
+
+    runBatches(
+      candidateIds.map((spId) => async () => {
+        let cursor = selectedTimeMin;
+        for (let i = 0; i < chainServiceIds.length; i += 1) {
+          const chainServiceId = chainServiceIds[i];
+          const slots = await loadSlotsForService(chainServiceId, spId);
+          const matchedSlot =
+            i === 0
+              ? slots.find((slot) => slot.time === timeChoice)
+              : slots.find((slot) => {
+                  const tMin = timeToMinutes(slot.time);
+                  return tMin != null && tMin >= cursor;
+                });
+          if (!matchedSlot) return { spId, ok: false };
+
+          const startMin = timeToMinutes(matchedSlot.time);
+          if (startMin == null) return { spId, ok: false };
+
+          const durationMin = await getServiceDurationMin(chainServiceId, spId);
+          cursor = startMin + Math.max(0, durationMin);
+        }
+        return { spId, ok: true };
+      }),
+      4
+    )
+      .then((result) => {
+        if (!mounted) return;
+        const eligible = new Set(result.filter((item) => item.ok).map((item) => item.spId));
+        setSinglePlanEligibleSpecialistIds(eligible);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSinglePlanEligibleSpecialistIds(new Set());
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoadingSinglePlanSpecialists(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    isSingleSpecialistPlanMode,
+    dateYmd,
+    timeChoice,
+    chainServiceIds,
+    specialistsByChosenDateTime,
+    loadSlotsForService,
+    getServiceDurationMin,
+  ]);
+
+  useEffect(() => {
+    if (!isSingleSpecialistPlanMode || !specialistId) return;
+    if (!singlePlanEligibleSpecialistIds) return;
+    if (singlePlanEligibleSpecialistIds.has(specialistId)) return;
+    setSpecialistId(null);
+  }, [isSingleSpecialistPlanMode, specialistId, singlePlanEligibleSpecialistIds]);
+
+  const specialistsForSpecialistStep = useMemo(() => {
+    if (!isSingleSpecialistPlanMode || !singlePlanEligibleSpecialistIds) {
+      return specialistsByChosenDateTime;
+    }
+    return specialistsByChosenDateTime.filter((s) => singlePlanEligibleSpecialistIds.has(s.id));
+  }, [
+    specialistsByChosenDateTime,
+    isSingleSpecialistPlanMode,
+    singlePlanEligibleSpecialistIds,
   ]);
 
   const specialistCategoryTabs = useMemo(() => {
@@ -3067,12 +3238,16 @@ export default function BookingClient({
           return sum + (Number.isFinite(price) ? price : 0);
         }, 0);
   const effectiveServiceDuration =
-    isChainMode && chainComplete && chainTotals ? chainTotals.durationMin : serviceDuration;
+    isVisitPlanMode && chainComplete && chainTotals ? chainTotals.durationMin : serviceDuration;
   const effectiveServicePrice =
-    isChainMode && chainComplete && chainTotals ? chainTotals.price : servicePrice;
+    isVisitPlanMode && chainComplete && chainTotals ? chainTotals.price : servicePrice;
+  const chainSpecialistsReady =
+    isVisitPlanMode &&
+    chainItems.length > 0 &&
+    chainItems.every((item) => !!item.specialistId);
   const showApproxTotals =
-    (!isChainMode && showFromServiceMetrics) ||
-    (isChainMode && !chainComplete);
+    (!isVisitPlanMode && showFromServiceMetrics) ||
+    (isVisitPlanMode && !chainSpecialistsReady);
   const servicePriceLabel =
     effectiveServicePrice != null
       ? `${showApproxTotals ? "от " : ""}${formatMoneyRub(effectiveServicePrice)}`
@@ -3084,13 +3259,13 @@ export default function BookingClient({
   const summaryDateLabel = formatDateRu(dateYmd);
   const selectedServiceNames = selectedServices.map((s) => s.name).join(", ");
   const summaryServiceLabel = selectedServiceNames || "—";
-  const chainSummaryItems = isChainMode
+  const chainSummaryItems = isVisitPlanMode
     ? chainServiceIds.map((serviceId, index) => {
         const item = chainItems[index] ?? null;
         const serviceName = serviceById.get(serviceId)?.name ?? `#${serviceId}`;
         const specialistName =
           item?.specialistId != null
-            ? specialistById.get(item.specialistId)?.name ?? `#${item.specialistId}`
+            ? specialistById.get(item.specialistId)?.name ?? "—"
             : "—";
         const time = item?.specialistId != null ? item?.time ?? "—" : "—";
         const durationMin = chainItemDurations[index] ?? 0;
@@ -3103,7 +3278,14 @@ export default function BookingClient({
           price > 0
             ? `${item?.specialistId != null ? "" : "от "}${formatMoneyRub(price)}`
             : "—";
-        return { serviceName, specialistName, time, durationLabel, priceLabel };
+        return {
+          serviceName,
+          specialistName,
+          time,
+          durationLabel,
+          priceLabel,
+          showSpecialist: isChainMode,
+        };
       })
     : [];
 
@@ -3113,7 +3295,7 @@ export default function BookingClient({
   }, [timeChoice, serviceDuration]);
 
   const contactsReady = clientName.trim().length >= 2 && clientPhone.trim().length >= 8;
-  const timeSelectionReady = isChainMode ? chainComplete : !!specialistId && !!timeChoice;
+  const timeSelectionReady = isVisitPlanMode ? chainComplete : !!specialistId && !!timeChoice;
 
   const canSubmit = useMemo(() => {
     const requiredLegalIds = legalDocs
@@ -3147,7 +3329,9 @@ export default function BookingClient({
     if (!timeSelectionReady) {
       return isChainMode
         ? "Выберите специалистов и время для всех услуг."
-        : "Выберите специалиста и время.";
+        : isVisitPlanMode
+          ? "Выберите специалиста и время для всех услуг."
+          : "Выберите специалиста и время.";
     }
     if (currentStepKey !== "details") {
       return "Перейдите к шагу «Контакты».";
@@ -3163,6 +3347,7 @@ export default function BookingClient({
     selectedServiceIds,
     timeSelectionReady,
     isChainMode,
+    isVisitPlanMode,
     currentStepKey,
     contactsReady,
   ]);
@@ -3178,7 +3363,11 @@ export default function BookingClient({
       case "service":
         return selectedServiceIds.length > 0;
       case "specialist":
-        return !!specialistId;
+        if (!specialistId) return false;
+        if (isSingleSpecialistPlanMode && singlePlanEligibleSpecialistIds) {
+          return singlePlanEligibleSpecialistIds.has(specialistId);
+        }
+        return true;
       case "chain":
         return chainComplete;
       case "details":
@@ -3194,6 +3383,8 @@ export default function BookingClient({
     specialistId,
     timeChoice,
     chainComplete,
+    isSingleSpecialistPlanMode,
+    singlePlanEligibleSpecialistIds,
   ]);
 
   const goNext = () => {
@@ -3821,11 +4012,14 @@ export default function BookingClient({
                               setSubmitError(null);
                               setSubmitSuccess(false);
 
-                              if (isChainMode && chainPrimaryServiceId) {
+                              if (isVisitPlanMode && chainPrimaryServiceId) {
+                                if (isSingleSpecialistPlanMode && !specialistId) {
+                                  return;
+                                }
                                 void buildChainFromFixed([
                                   {
                                     serviceId: chainPrimaryServiceId,
-                                    specialistId: null,
+                                    specialistId: isSingleSpecialistPlanMode ? specialistId ?? null : null,
                                     date: dateYmd,
                                     time: t,
                                   },
@@ -4176,7 +4370,9 @@ export default function BookingClient({
                 {currentStepKey === "chain" && (
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-sm text-[color:var(--bp-muted)]">
-                      Для каждой услуги выберите специалиста и время. После подтверждения всех услуг кнопка
+                      {isSingleSpecialistPlanMode
+                        ? "Для каждой услуги выберите время. Специалист выбирается один раз на шаге «Специалист»."
+                        : "Для каждой услуги выберите специалиста и время."} После подтверждения всех услуг кнопка
                       «Далее» станет активной.
                     </div>
                     {chainError && (
@@ -4195,12 +4391,17 @@ export default function BookingClient({
                         const availableSpecialists = (service?.specialistIds ?? [])
                           .map((id) => specialistById.get(id))
                           .filter(Boolean) as Specialist[];
-                        const selectedSp = item.specialistId
-                          ? specialistById.get(item.specialistId)
+                        const selectedSpId = isSingleSpecialistPlanMode
+                          ? specialistId ?? item.specialistId ?? null
+                          : item.specialistId ?? null;
+                        const selectedSp = selectedSpId
+                          ? specialistById.get(selectedSpId)
                           : null;
 
                         const isEditing = chainEditIndex === idx;
-                        const currentSpId = chainEditSpecialistId ?? item.specialistId ?? null;
+                        const currentSpId = isSingleSpecialistPlanMode
+                          ? specialistId ?? item.specialistId ?? null
+                          : chainEditSpecialistId ?? item.specialistId ?? null;
                         const currentTime = item.time ?? null;
                         const eligibleSpecialists =
                           isEditing && chainEditEligibleSpecialistIds
@@ -4242,7 +4443,11 @@ export default function BookingClient({
                                 )}
                                 onClick={() => {
                                   setChainEditIndex(idx);
-                                  setChainEditSpecialistId(item.specialistId ?? null);
+                                  setChainEditSpecialistId(
+                                    isSingleSpecialistPlanMode
+                                      ? specialistId ?? item.specialistId ?? null
+                                      : item.specialistId ?? null
+                                  );
                                 }}
                               >
                                 {selectedSp && currentTime ? "Изменить" : "Выбрать"}
@@ -4251,12 +4456,13 @@ export default function BookingClient({
 
                             {isEditing && (
                               <div className="mt-4 space-y-3">
-                                <div className="grid grid-cols-1 gap-2">
-                                  <label className="text-xs text-[color:var(--bp-muted)]">Специалист</label>
-                                  <select
-                                    className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
-                                    value={selectSpecialistValue}
-                                    onChange={async (event) => {
+                                {!isSingleSpecialistPlanMode ? (
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <label className="text-xs text-[color:var(--bp-muted)]">Специалист</label>
+                                    <select
+                                      className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
+                                      value={selectSpecialistValue}
+                                      onChange={async (event) => {
                                       const nextId = Number(event.target.value) || null;
                                       setChainEditSpecialistId(nextId);
                                       setChainEditTimes([]);
@@ -4347,20 +4553,25 @@ export default function BookingClient({
                                           return { ...entry, specialistId: null, time: null };
                                         })
                                       );
-                                    }}
-                                  >
-                                    <option value="">
-                                      {eligibleSpecialists.length > 0
-                                        ? "Выберите специалиста"
-                                        : "Нет доступных специалистов"}
-                                    </option>
-                                    {eligibleSpecialists.map((sp) => (
-                                      <option key={sp.id} value={sp.id}>
-                                        {sp.name}
+                                      }}
+                                    >
+                                      <option value="">
+                                        {eligibleSpecialists.length > 0
+                                          ? "Выберите специалиста"
+                                          : "Нет доступных специалистов"}
                                       </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                      {eligibleSpecialists.map((sp) => (
+                                        <option key={sp.id} value={sp.id}>
+                                          {sp.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm">
+                                    Специалист: {selectedSpecialist?.name ?? "—"}
+                                  </div>
+                                )}
 
                                 {chainEditLoading && (
                                   <div className="text-xs text-[color:var(--bp-muted)]">Загрузка слотов</div>
@@ -4564,11 +4775,16 @@ export default function BookingClient({
               <div className="text-base font-semibold">Сводка</div>
               <div className="space-y-2">
                 <SummaryRow label="Дата" value={summaryDateLabel || "—"} />
-                <SummaryRow label="Услуга" value={summaryServiceLabel || "—"} />
-                {isChainMode ? (
+                {!isVisitPlanMode ? (
+                  <SummaryRow label="Услуга" value={summaryServiceLabel || "—"} />
+                ) : null}
+                {isVisitPlanMode ? (
                   <div className="space-y-3">
                     {chainSummaryItems.length === 0 ? (
                       <SummaryRow label="План визита" value="—" />
+                    ) : null}
+                    {isSingleSpecialistPlanMode ? (
+                      <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
                     ) : null}
                     {chainSummaryItems.map((item, index) => (
                       <div
@@ -4582,7 +4798,9 @@ export default function BookingClient({
                           {item.serviceName}
                         </div>
                         <div className="mt-2 space-y-1">
-                          <SummaryRow label="Специалист" value={item.specialistName || "—"} />
+                          {item.showSpecialist ? (
+                            <SummaryRow label="Специалист" value={item.specialistName || "—"} />
+                          ) : null}
                           <SummaryRow label="Время" value={item.time || "—"} />
                           <SummaryRow label="Длительность" value={item.durationLabel} />
                           <SummaryRow label="Стоимость" value={item.priceLabel} />
@@ -4604,11 +4822,11 @@ export default function BookingClient({
                   </>
                 )}
                 <SummaryRow
-                  label={isChainMode ? "Общая длительность" : "Длительность"}
+                  label={isVisitPlanMode ? "Общая длительность" : "Длительность"}
                   value={serviceDurationLabel}
                 />
                 <SummaryRow
-                  label={isChainMode ? "Общая стоимость" : "Стоимость"}
+                  label={isVisitPlanMode ? "Общая стоимость" : "Стоимость"}
                   value={servicePriceLabel}
                 />
               </div>
