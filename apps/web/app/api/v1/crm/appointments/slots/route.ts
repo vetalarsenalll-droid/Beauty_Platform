@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { AppointmentStatus, ScheduleEntryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
-import { getAccountSlotStepMinutes } from "@/lib/public-booking";
+import { getAccountSlotStepMinutes, getNowInTimeZone } from "@/lib/public-booking";
 
 const NON_BLOCKING_STATUSES: AppointmentStatus[] = [
   AppointmentStatus.CANCELLED,
@@ -169,9 +169,16 @@ export async function GET(request: Request) {
 
   const maxStart = dayEnd - durationMin;
   const slotStepMin = await getAccountSlotStepMinutes(session.accountId);
+  const account = await prisma.account.findUnique({
+    where: { id: session.accountId },
+    select: { timeZone: true },
+  });
+  const nowInAccountTz = getNowInTimeZone(account?.timeZone ?? "Europe/Moscow");
+  const minStartForToday = nowInAccountTz.ymd === dateRaw ? nowInAccountTz.minutes : null;
   const slots: string[] = [];
 
   for (let start = dayStart; start <= maxStart; start += slotStepMin) {
+    if (minStartForToday != null && start < minStartForToday) continue;
     const end = start + durationMin;
     const intersectsBreak = breakRanges.some((item) => isOverlap(start, end, item.start, item.end));
     if (intersectsBreak) continue;

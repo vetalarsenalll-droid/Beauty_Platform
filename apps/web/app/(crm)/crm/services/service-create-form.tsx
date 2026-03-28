@@ -126,7 +126,7 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
           checked={allowMultiServiceBooking}
           onChange={(event) => setAllowMultiServiceBooking(event.target.checked)}
         />
-        Allow multi-service booking
+        Разрешить запись на несколько услуг
       </label>
 
       {error ? <div className="text-sm text-red-600">{error}</div> : null}

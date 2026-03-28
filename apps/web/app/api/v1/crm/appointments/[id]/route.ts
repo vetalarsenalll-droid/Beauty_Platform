@@ -251,6 +251,7 @@ export async function PATCH(
   const nextLocationId = body.locationId ?? existing.locationId;
   const nextStartAt = body.startAt ? new Date(body.startAt) : existing.startAt;
   const nextEndAt = body.endAt ? new Date(body.endAt) : existing.endAt;
+  const now = new Date();
 
   const shouldValidate =
     body.staffId != null ||
@@ -264,6 +265,13 @@ export async function PATCH(
   if (!(nextStartAt.getTime() < nextEndAt.getTime())) {
     return NextResponse.json(
       { message: "Некорректный интервал записи." },
+      { status: 400 }
+    );
+  }
+
+  if ((body.startAt != null || body.endAt != null) && nextStartAt.getTime() < now.getTime()) {
+    return NextResponse.json(
+      { message: "Нельзя перенести запись на прошедшее время." },
       { status: 400 }
     );
   }
@@ -289,6 +297,7 @@ export async function PATCH(
 
   let selectedServices: Array<{
     id: number;
+    allowMultiServiceBooking: boolean;
     basePrice: Prisma.Decimal;
     baseDurationMin: number;
     levelConfigs: { levelId: number; price: Prisma.Decimal | null; durationMin: number | null }[];
@@ -307,6 +316,15 @@ export async function PATCH(
     });
     if (selectedServices.length !== requestedServiceIds.length) {
       return NextResponse.json({ message: "Одна или несколько услуг не найдены." }, { status: 404 });
+    }
+    if (
+      requestedServiceIds.length > 1 &&
+      selectedServices.some((service) => !service.allowMultiServiceBooking)
+    ) {
+      return NextResponse.json(
+        { message: "Нельзя комбинировать услуги: одна из выбранных услуг не поддерживает мультизапись." },
+        { status: 400 }
+      );
     }
 
     for (const service of selectedServices) {

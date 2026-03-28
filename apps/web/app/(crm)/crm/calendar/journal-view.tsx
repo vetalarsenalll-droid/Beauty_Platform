@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -79,6 +79,7 @@ type ScheduleEntry = {
 type ServiceOption = {
   id: number;
   name: string;
+  allowMultiServiceBooking: boolean;
   basePrice: string;
   baseDurationMin: number;
   locationIds: number[];
@@ -158,6 +159,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 const TERMINAL_APPOINTMENT_STATUSES = new Set(["DONE", "CANCELLED", "NO_SHOW"]);
+const NEW_APPOINTMENT_STATUS_OPTIONS = ["NEW", "CONFIRMED"] as const;
 
 function getAllowedStatusOptions(currentStatus: string) {
   const allowed = STATUS_TRANSITIONS[currentStatus] ?? [currentStatus];
@@ -172,6 +174,16 @@ function getAllowedStatusOptions(currentStatus: string) {
 
 function isTerminalAppointmentStatus(status: string) {
   return TERMINAL_APPOINTMENT_STATUSES.has(status);
+}
+
+function getNewAppointmentStatusOptions(currentStatus: string) {
+  const base = [...NEW_APPOINTMENT_STATUS_OPTIONS];
+  if (!base.includes(currentStatus as (typeof NEW_APPOINTMENT_STATUS_OPTIONS)[number])) {
+    base.unshift(currentStatus as (typeof NEW_APPOINTMENT_STATUS_OPTIONS)[number]);
+  }
+  return base
+    .filter((status) => Boolean(STATUS_META[status]))
+    .map((status) => ({ key: status, meta: STATUS_META[status]! }));
 }
 
 function startOfDay(date: Date) {
@@ -262,6 +274,16 @@ function clampZoomIndex(value: number) {
 
 function isOverlap(startA: number, endA: number, startB: number, endB: number) {
   return startA < endB && endA > startB;
+}
+
+function isPastSlotStart(slotDate: Date, slotStartMinutes: number) {
+  const now = new Date();
+  const today = startOfDay(now);
+  const day = startOfDay(slotDate);
+  if (day.getTime() < today.getTime()) return true;
+  if (day.getTime() > today.getTime()) return false;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return slotStartMinutes < nowMinutes;
 }
 
 function scheduleTypeMeta(entry: ScheduleEntry | undefined) {
@@ -614,7 +636,7 @@ export default function JournalView({
         setStartSlotsError(
           payload?.message && payload.message !== "OK" ? payload.message : null
         );
-        if (slots.length > 0 && !slots.includes(editorForm.startTime)) {
+        if (slots.length > 0 && !editorForm.startTime) {
           const nextStart = slots[0];
           setEditorForm((prev) =>
             prev
@@ -911,6 +933,20 @@ export default function JournalView({
     () => new Map(availableServices.map((service) => [service.id, service])),
     [availableServices]
   );
+  const firstServiceInForm = useMemo(() => {
+    if (!editorForm) return null;
+    const firstServiceId = editorForm.serviceItems[0]?.serviceId ?? null;
+    return firstServiceId ? availableServiceById.get(firstServiceId) ?? null : null;
+  }, [availableServiceById, editorForm]);
+  const canAddExtraService =
+    Boolean(firstServiceInForm) && Boolean(firstServiceInForm?.allowMultiServiceBooking);
+  const serviceOptionsByRow = useCallback(
+    (rowIndex: number) => {
+      if (rowIndex === 0) return availableServices;
+      return availableServices.filter((service) => service.allowMultiServiceBooking);
+    },
+    [availableServices]
+  );
 
   const applyServicesToForm = useCallback((prev: EditorForm, nextItemsRaw: EditorServiceItem[]) => {
     const nextItems = nextItemsRaw.map((item) => {
@@ -971,6 +1007,34 @@ export default function JournalView({
     setEditorForm((prev) => (prev ? applyServicesToForm(prev, filtered) : prev));
   }, [availableServiceById, editorForm, applyServicesToForm]);
 
+  useEffect(() => {
+    if (!editorForm) return;
+    const firstServiceId = editorForm.serviceItems[0]?.serviceId ?? null;
+    if (!firstServiceId) return;
+    const firstService = availableServiceById.get(firstServiceId);
+    if (!firstService) return;
+
+    if (!firstService.allowMultiServiceBooking && editorForm.serviceItems.length > 1) {
+      const nextItems = [editorForm.serviceItems[0]];
+      setEditorForm((prev) => (prev ? applyServicesToForm(prev, nextItems) : prev));
+      return;
+    }
+
+    if (firstService.allowMultiServiceBooking && editorForm.serviceItems.length > 1) {
+      let changed = false;
+      const nextItems = editorForm.serviceItems.map((item, index) => {
+        if (index === 0 || !item.serviceId) return item;
+        const service = availableServiceById.get(item.serviceId);
+        if (service?.allowMultiServiceBooking) return item;
+        changed = true;
+        return { serviceId: null, price: "0", durationMin: 0 };
+      });
+      if (changed) {
+        setEditorForm((prev) => (prev ? applyServicesToForm(prev, nextItems) : prev));
+      }
+    }
+  }, [availableServiceById, applyServicesToForm, editorForm]);
+
   const handleSlotClick = (rowIndex: number, colIndex: number) => {
     const absoluteMinutes = dayStartMinutes + rowIndex * SLOT_MINUTES;
     const hours = Math.floor(absoluteMinutes / 60);
@@ -997,7 +1061,7 @@ export default function JournalView({
       slotStartMinutes,
       slotEndMinutes
     );
-    if (!canBook) return;
+    if (!canBook || isPastSlotStart(slotDate, slotStartMinutes)) return;
 
     const startAt = new Date(slotDate);
     startAt.setHours(hours, minutes, 0, 0);
@@ -1062,6 +1126,47 @@ export default function JournalView({
       setNoticeModal({ title: "Проверьте данные", message: "Укажите длительность услуги." });
       return;
     }
+    const computedEndTime =
+      editorForm.durationMin > 0
+        ? addMinutesToTime(editorForm.startTime, editorForm.durationMin)
+        : editorForm.endTime;
+    if (!computedEndTime) {
+      setNoticeModal({
+        title: "Проверьте данные",
+        message: "Не удалось рассчитать время окончания.",
+      });
+      return;
+    }
+
+    const originalStartDate =
+      editorState.mode === "edit" ? new Date(editorState.appointment.startAt) : null;
+    const originalStartDateKey =
+      originalStartDate != null ? formatDateKey(originalStartDate) : null;
+    const originalStartTime =
+      originalStartDate != null ? formatTimeInput(originalStartDate) : null;
+    const shouldValidateSelectedStart =
+      editorState.mode === "new" ||
+      (editorState.mode === "edit" &&
+        (editorForm.date !== originalStartDateKey ||
+          editorForm.startTime !== originalStartTime ||
+          editorForm.staffId !== editorState.appointment.specialistId ||
+          editorForm.locationId !== editorState.appointment.locationId ||
+          editorForm.durationMin !== editorState.appointment.durationMin ||
+          editorForm.serviceChanged));
+
+    if (
+      shouldValidateSelectedStart &&
+      editorForm.durationMin > 0 &&
+      availableStartSlots.length > 0 &&
+      !availableStartSlots.includes(editorForm.startTime)
+    ) {
+      setNoticeModal({
+        title: "Проверьте время",
+        message:
+          "Выбранное время начала не подходит для текущей длительности. Выберите свободный слот из списка.",
+      });
+      return;
+    }
     if (
       !editorForm.clientId &&
       !editorForm.clientName.trim() &&
@@ -1071,7 +1176,7 @@ export default function JournalView({
     }
 
     const startAt = new Date(`${editorForm.date}T${editorForm.startTime}:00`);
-    const endAt = new Date(`${editorForm.date}T${editorForm.endTime}:00`);
+    const endAt = new Date(`${editorForm.date}T${computedEndTime}:00`);
 
     const payload: Record<string, unknown> = {
       staffId: editorForm.staffId,
@@ -1173,7 +1278,11 @@ export default function JournalView({
 
   const isEditorLocked =
     editorState?.mode === "edit" &&
-    isTerminalAppointmentStatus(editorForm?.status ?? "");
+    isTerminalAppointmentStatus(editorState.appointment.status);
+  const editorStatusOptions =
+    editorState?.mode === "new"
+      ? getNewAppointmentStatusOptions(editorForm?.status ?? "NEW")
+      : getAllowedStatusOptions(editorForm?.status ?? "NEW");
 
   return (
     <div className="flex min-h-[calc(100vh-96px)] flex-col gap-4">
@@ -1589,14 +1698,17 @@ export default function JournalView({
                         staffId && slotDate
                           ? isSlotWorking(scheduleEntry, slotStart, slotEnd)
                           : false;
+                      const isPast =
+                        Boolean(slotDate) && isPastSlotStart(slotDate, slotStart);
+                      const isSelectable = isWorking && !isPast;
 
                       return (
                         <button
                           key={`cell-${rowIndex}-${column.key}`}
                           type="button"
-                          disabled={!isWorking}
+                          disabled={!isSelectable}
                           className={`border-b border-l border-[color:var(--bp-stroke)] ${
-                            isWorking
+                            isSelectable
                               ? "hover:bg-[color:var(--bp-panel)]"
                               : "cursor-not-allowed bg-[color:var(--bp-panel)]/60"
                           }`}
@@ -1605,7 +1717,7 @@ export default function JournalView({
                             gridRow: rowIndex + 1,
                           }}
                           onClick={() => {
-                            if (isWorking) handleSlotClick(rowIndex, colIndex);
+                            if (isSelectable) handleSlotClick(rowIndex, colIndex);
                           }}
                         />
                       );
@@ -1800,7 +1912,7 @@ export default function JournalView({
                           {editorForm.startTime &&
                           !availableStartSlots.includes(editorForm.startTime) ? (
                             <option value={editorForm.startTime}>
-                              {editorForm.startTime} (текущее)
+                              {editorForm.startTime}
                             </option>
                           ) : null}
                           {availableStartSlots.map((slot) => (
@@ -1872,7 +1984,7 @@ export default function JournalView({
                     }
                     className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                   >
-                    {getAllowedStatusOptions(editorForm.status).map(({ key, meta }) => (
+                    {editorStatusOptions.map(({ key, meta }) => (
                       <option key={key} value={key}>
                         {meta.label}
                       </option>
@@ -1902,7 +2014,7 @@ export default function JournalView({
 
               <div className="min-w-0 flex flex-col gap-4">
                 <div className="flex flex-wrap gap-2">
-                  {getAllowedStatusOptions(editorForm.status).map(({ key, meta }) => (
+                  {editorStatusOptions.map(({ key, meta }) => (
                     <button
                       key={key}
                       type="button"
@@ -1925,11 +2037,13 @@ export default function JournalView({
                 <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4">
                   <div className="text-sm font-semibold">Услуги</div>
                   <div className="mt-3 space-y-3">
-                    {editorForm.serviceItems.map((item, index) => (
-                      <div
-                        key={`service-item-${index}`}
-                        className="grid gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-3 md:grid-cols-[minmax(0,1fr)_120px_100px_84px]"
-                      >
+                    {editorForm.serviceItems.map((item, index) => {
+                      const options = serviceOptionsByRow(index);
+                      return (
+                        <div
+                          key={`service-item-${index}`}
+                          className="grid gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-3 md:grid-cols-[minmax(0,1fr)_120px_100px_84px]"
+                        >
                         <select
                           value={item.serviceId ?? ""}
                           onChange={(event) => {
@@ -1949,7 +2063,7 @@ export default function JournalView({
                           className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                         >
                           <option value="">Выберите услугу</option>
-                          {availableServices.map((service) => (
+                          {options.map((service) => (
                             <option key={service.id} value={service.id}>
                               {service.name}
                             </option>
@@ -2004,11 +2118,13 @@ export default function JournalView({
                           Удалить
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
+                        disabled={!canAddExtraService}
                         onClick={() =>
                           setEditorForm((prev) => {
                             if (!prev) return prev;
@@ -2022,7 +2138,12 @@ export default function JournalView({
                             };
                           })
                         }
-                        className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-xs"
+                        className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                        title={
+                          canAddExtraService
+                            ? "Добавить услугу"
+                            : "Дополнительные услуги доступны только если первая услуга разрешает мультизапись."
+                        }
                       >
                         + Добавить услугу
                       </button>
@@ -2173,4 +2294,7 @@ export default function JournalView({
     </div>
   );
 }
+
+
+
 

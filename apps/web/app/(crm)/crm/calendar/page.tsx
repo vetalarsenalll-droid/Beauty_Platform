@@ -187,6 +187,7 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
         services={services.map((service) => ({
           id: service.id,
           name: service.name,
+          allowMultiServiceBooking: service.allowMultiServiceBooking,
           basePrice: service.basePrice.toString(),
           baseDurationMin: service.baseDurationMin,
           locationIds: service.locations.map((item) => item.locationId),

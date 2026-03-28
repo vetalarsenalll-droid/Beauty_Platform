@@ -182,12 +182,31 @@ export async function POST(request: Request) {
     );
   }
 
+  if (
+    body.status &&
+    body.status !== AppointmentStatus.NEW &&
+    body.status !== AppointmentStatus.CONFIRMED
+  ) {
+    return NextResponse.json(
+      { message: "Для новой записи доступны только статусы 'Ожидание' и 'Подтвердил'." },
+      { status: 400 }
+    );
+  }
+
   const startAt = new Date(body.startAt);
   const endAt = new Date(body.endAt);
+  const now = new Date();
 
   if (!(startAt.getTime() < endAt.getTime())) {
     return NextResponse.json(
       { message: "Некорректный интервал записи." },
+      { status: 400 }
+    );
+  }
+
+  if (startAt.getTime() < now.getTime()) {
+    return NextResponse.json(
+      { message: "Нельзя создавать запись на прошедшее время." },
       { status: 400 }
     );
   }
@@ -313,6 +332,7 @@ export async function POST(request: Request) {
 
   const selectedServices: Array<{
     id: number;
+    allowMultiServiceBooking: boolean;
     basePrice: Prisma.Decimal;
     baseDurationMin: number;
     levelConfigs: { levelId: number; price: Prisma.Decimal | null; durationMin: number | null }[];
@@ -325,6 +345,15 @@ export async function POST(request: Request) {
 
   if (selectedServices.length !== requestedServiceIds.length) {
     return NextResponse.json({ message: "Одна или несколько услуг не найдены." }, { status: 404 });
+  }
+  if (
+    requestedServiceIds.length > 1 &&
+    selectedServices.some((service) => !service.allowMultiServiceBooking)
+  ) {
+    return NextResponse.json(
+      { message: "Нельзя комбинировать услуги: одна из выбранных услуг не поддерживает мультизапись." },
+      { status: 400 }
+    );
   }
   const selectedServiceById = new Map(selectedServices.map((service) => [service.id, service]));
   const serviceItemsOrdered: ServiceItemPayload[] =
