@@ -1010,7 +1010,7 @@ export default function BookingClient({
   const chainServiceIds = selectedServiceIds;
   const chainPrimaryServiceId = chainServiceIds[0] ?? null;
 
-  const effectiveScenario: Scenario = isVisitPlanMode ? "serviceFirst" : scenario;
+  const effectiveScenario: Scenario = isChainMode ? "serviceFirst" : scenario;
   const isDateFirst = effectiveScenario === "dateFirst";
   const isServiceFirst = effectiveScenario === "serviceFirst";
   const isSpecialistFirst = effectiveScenario === "specialistFirst";
@@ -1507,6 +1507,7 @@ export default function BookingClient({
       { key: "specialist", title: "Специалист" },
       { key: "service", title: "Услуга" },
       dt,
+      ...(isVisitPlanMode ? [chain] : []),
       details,
     ];
   }, [isDateFirst, isServiceFirst, isVisitPlanMode, isSingleSpecialistPlanMode]);
@@ -1575,6 +1576,7 @@ export default function BookingClient({
     (isSpecialistFirst &&
       (currentStepKey === "service" ||
         currentStepKey === "datetime" ||
+        currentStepKey === "chain" ||
         currentStepKey === "details"));
   const shouldLoadSpecialists =
     currentStepKey === "specialist" ||
@@ -1590,7 +1592,8 @@ export default function BookingClient({
       currentStepKey === "specialist" ||
       currentStepKey === "details");
   const shouldLoadDateFirstServiceSlots =
-    isDateFirst && (currentStepKey === "specialist" || currentStepKey === "details");
+    isDateFirst &&
+    (currentStepKey === "specialist" || currentStepKey === "chain" || currentStepKey === "details");
 
   const gotoKey = (key: string) => {
     const idx = stepsWithScenario.findIndex((s) => s.key === key);
