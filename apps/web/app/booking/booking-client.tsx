@@ -861,11 +861,11 @@ function TimeGrid({
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="text-xs font-medium text-[color:var(--bp-muted)]">{label}</div>
-      <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{value}</div>
+      <div className="text-right text-sm font-semibold text-[color:var(--bp-ink)]">{value}</div>
     </div>
   );
 }
@@ -1061,8 +1061,13 @@ export default function BookingClient({
   const [chainLoading, setChainLoading] = useState(false);
   const [chainEditIndex, setChainEditIndex] = useState<number | null>(null);
   const [chainEditSpecialistId, setChainEditSpecialistId] = useState<number | null>(null);
+  const [chainEditEligibleSpecialistIds, setChainEditEligibleSpecialistIds] = useState<Set<number> | null>(null);
   const [chainEditTimes, setChainEditTimes] = useState<string[]>([]);
   const [chainEditLoading, setChainEditLoading] = useState(false);
+  const [chainEditConstraintMessage, setChainEditConstraintMessage] = useState<string | null>(null);
+  const [chainTotals, setChainTotals] = useState<{ durationMin: number; price: number } | null>(null);
+  const [chainItemDurations, setChainItemDurations] = useState<Record<number, number>>({});
+  const [chainItemPrices, setChainItemPrices] = useState<Record<number, number>>({});
 
   useEffect(() => {
     if (!isChainMode) {
@@ -1070,6 +1075,7 @@ export default function BookingClient({
       setChainError(null);
       setChainEditIndex(null);
       setChainEditSpecialistId(null);
+      setChainEditEligibleSpecialistIds(null);
       setChainEditTimes([]);
       return;
     }
@@ -1460,7 +1466,7 @@ export default function BookingClient({
   const steps = useMemo(() => {
     const common = [{ key: "location", title: "Локация" }];
     const dt = { key: "datetime", title: "Дата и время" };
-    const chain = { key: "chain", title: "Цепочка" };
+    const chain = { key: "chain", title: "План визита" };
     const details = { key: "details", title: "Контакты" };
 
     if (isDateFirst) {
@@ -2168,9 +2174,10 @@ export default function BookingClient({
         });
 
         setOffersByTime(plain);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
-        setOffersError(e?.message || "Ошибка загрузки времени");
+        const message = e instanceof Error ? e.message : "Ошибка загрузки времени";
+        setOffersError(message);
         setOffersByTime({});
       } finally {
         if (!mounted) return;
@@ -2243,10 +2250,11 @@ export default function BookingClient({
           }
         }
         setDateFirstAvailableDates(set);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
         setDateFirstAvailableDates(new Set());
-        setDateFirstAvailabilityError(e?.message || "Failed to load available dates.");
+        const message = e instanceof Error ? e.message : "Failed to load available dates.";
+        setDateFirstAvailabilityError(message);
       } finally {
         if (!mounted) return;
         setLoadingDateFirstAvailability(false);
@@ -2431,6 +2439,19 @@ export default function BookingClient({
     [loadSpecialistMetrics, serviceById]
   );
 
+  const getServicePrice = useCallback(
+    async (serviceId: number, spId: number | null) => {
+      if (spId && Number.isInteger(spId)) {
+        const map = await loadSpecialistMetrics(spId);
+        const cached = map.get(serviceId);
+        if (cached && Number.isFinite(cached.price)) return cached.price;
+      }
+      const base = serviceById.get(serviceId)?.basePrice ?? 0;
+      return Number.isFinite(base) ? Number(base) : 0;
+    },
+    [loadSpecialistMetrics, serviceById]
+  );
+
   const loadSlotsForService = useCallback(
     async (serviceId: number, spId?: number | null) => {
       if (!locationId || !dateYmd) return [] as Slot[];
@@ -2454,6 +2475,23 @@ export default function BookingClient({
     [locationId, dateYmd, holdOwnerMarker, accountSlug]
   );
 
+  const getChainMinStartMinutes = useCallback(
+    async (targetIndex: number) => {
+      if (targetIndex <= 0) return 0;
+      let cursorMinutes = 0;
+      for (let i = 0; i < targetIndex; i += 1) {
+        const prev = chainItems[i];
+        if (!prev?.time) return null;
+        const prevStart = timeToMinutes(prev.time);
+        if (prevStart == null) return null;
+        const prevDuration = await getServiceDurationMin(prev.serviceId, prev.specialistId ?? null);
+        cursorMinutes = prevStart + Math.max(0, prevDuration);
+      }
+      return cursorMinutes;
+    },
+    [chainItems, getServiceDurationMin]
+  );
+
   const buildChainFromFixed = useCallback(
     async (fixedItems: ChainItem[]) => {
       if (!isChainMode) return null;
@@ -2474,13 +2512,17 @@ export default function BookingClient({
           if (fixed && fixed.time) {
             const chosenSpecialistId = fixed.specialistId ?? null;
             const slots = await loadSlotsForService(serviceId, chosenSpecialistId);
+            const fixedMinutes = timeToMinutes(fixed.time);
+            if (fixedMinutes == null || fixedMinutes < cursorMinutes) {
+              throw new Error("Время услуги должно быть позже окончания предыдущей услуги.");
+            }
 
             const hasSlot = chosenSpecialistId
               ? slots.some((s) => s.time === fixed.time && s.specialistId === chosenSpecialistId)
               : slots.some((s) => s.time === fixed.time);
 
             if (!hasSlot) {
-              throw new Error("No available specialist for selected time.");
+              throw new Error("Для выбранного времени нет доступного специалиста.");
             }
 
             nextItems.push({
@@ -2501,7 +2543,7 @@ export default function BookingClient({
             return tMin != null && tMin >= cursorMinutes;
           });
           if (!candidate) {
-            throw new Error("No sequential slots for selected services.");
+            throw new Error("Нет последовательных слотов для выбранных услуг.");
           }
 
           nextItems.push({
@@ -2591,34 +2633,159 @@ export default function BookingClient({
     chainItems.every((item) => !!item.time && !!item.specialistId);
 
   useEffect(() => {
+    if (!isChainMode) {
+      setChainItemDurations({});
+      setChainItemPrices({});
+      setChainTotals(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const nextDurations: Record<number, number> = {};
+      const nextPrices: Record<number, number> = {};
+      let durationMin = 0;
+      let price = 0;
+      for (let index = 0; index < chainItems.length; index += 1) {
+        const item = chainItems[index];
+        const fallbackPrice = Number(
+          serviceById.get(item.serviceId)?.minPrice ??
+            serviceById.get(item.serviceId)?.basePrice ??
+            0
+        );
+        const fallbackDuration = Number(
+          serviceById.get(item.serviceId)?.minDurationMin ??
+            serviceById.get(item.serviceId)?.baseDurationMin ??
+            0
+        );
+        const durationForItem = item.specialistId
+          ? await getServiceDurationMin(item.serviceId, item.specialistId)
+          : fallbackDuration;
+        nextDurations[index] =
+          Number.isFinite(durationForItem) && durationForItem > 0
+            ? Number(durationForItem)
+            : 0;
+        const priceForItem = item.specialistId
+          ? await getServicePrice(item.serviceId, item.specialistId)
+          : fallbackPrice;
+        nextPrices[index] =
+          Number.isFinite(priceForItem) && priceForItem > 0 ? Number(priceForItem) : 0;
+
+        if (!item.specialistId || !item.time) continue;
+        durationMin += nextDurations[index];
+        price += nextPrices[index];
+      }
+      if (cancelled) return;
+      setChainItemDurations(nextDurations);
+      setChainItemPrices(nextPrices);
+      setChainTotals(chainComplete ? { durationMin, price } : null);
+    })().catch(() => {
+      if (cancelled) return;
+      setChainItemDurations({});
+      setChainItemPrices({});
+      setChainTotals(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isChainMode,
+    chainComplete,
+    chainItems,
+    getServiceDurationMin,
+    getServicePrice,
+    serviceById,
+  ]);
+
+  useEffect(() => {
     if (chainEditIndex == null) {
+      setChainEditEligibleSpecialistIds(null);
       setChainEditTimes([]);
       setChainEditLoading(false);
+      setChainEditConstraintMessage(null);
       return;
     }
     const item = chainItems[chainEditIndex];
     if (!item) {
+      setChainEditEligibleSpecialistIds(null);
       setChainEditTimes([]);
-      return;
-    }
-    const spId = chainEditSpecialistId ?? item.specialistId;
-    if (!spId) {
-      setChainEditTimes([]);
+      setChainEditConstraintMessage(null);
       return;
     }
 
     let mounted = true;
     setChainEditLoading(true);
+    setChainEditConstraintMessage(null);
 
-    loadSlotsForService(item.serviceId, spId)
-      .then((slots) => {
-        if (!mounted) return;
-        const times = slots.map((s) => s.time);
-        setChainEditTimes(uniqSortedTimes(times));
-      })
+    (async () => {
+      const minStartMinutes = await getChainMinStartMinutes(chainEditIndex);
+      if (!mounted) return;
+      if (chainEditIndex > 0 && minStartMinutes == null) {
+        setChainEditEligibleSpecialistIds(new Set());
+        setChainEditTimes([]);
+        setChainEditConstraintMessage("Сначала выберите время для предыдущей услуги.");
+        return;
+      }
+
+      const allSpecialistIds = serviceById.get(item.serviceId)?.specialistIds ?? [];
+      const eligiblePairs = await runBatches(
+        allSpecialistIds.map((candidateSpId) => async () => {
+          const slots = await loadSlotsForService(item.serviceId, candidateSpId);
+          const hasValid = slots.some((slot) => {
+            if (minStartMinutes == null) return true;
+            const minutes = timeToMinutes(slot.time);
+            return minutes != null && minutes >= minStartMinutes;
+          });
+          return { candidateSpId, hasValid };
+        }),
+        4
+      );
+      if (!mounted) return;
+      const eligibleSet = new Set(
+        eligiblePairs.filter((x) => x.hasValid).map((x) => x.candidateSpId)
+      );
+      setChainEditEligibleSpecialistIds(eligibleSet);
+
+      const spId = chainEditSpecialistId ?? item.specialistId;
+      if (!spId || !eligibleSet.has(spId)) {
+        setChainEditTimes([]);
+        setChainEditConstraintMessage(
+          eligibleSet.size > 0
+            ? "Сначала выберите специалиста."
+            : "Нет доступных специалистов для этой услуги после предыдущей."
+        );
+        return;
+      }
+
+      const slots = await loadSlotsForService(item.serviceId, spId);
+      if (!mounted) return;
+      const times = slots
+        .map((s) => s.time)
+        .filter((time) => {
+          if (minStartMinutes == null) return true;
+          const minutes = timeToMinutes(time);
+          return minutes != null && minutes >= minStartMinutes;
+        });
+      const normalizedTimes = uniqSortedTimes(times);
+      setChainEditTimes(normalizedTimes);
+      if (normalizedTimes.length === 0) {
+        setChainEditConstraintMessage("Нет доступного времени после предыдущей услуги.");
+      } else {
+        setChainEditConstraintMessage(null);
+      }
+
+      const currentTime = item.time ?? null;
+      if (currentTime && normalizedTimes.includes(currentTime) && item.specialistId !== spId) {
+        const fixed = chainItems
+          .slice(0, chainEditIndex)
+          .concat([{ serviceId: item.serviceId, specialistId: spId, date: dateYmd, time: currentTime }]);
+        void buildChainFromFixed(fixed);
+      }
+    })()
       .catch(() => {
         if (!mounted) return;
+        setChainEditEligibleSpecialistIds(new Set());
         setChainEditTimes([]);
+        setChainEditConstraintMessage("Не удалось загрузить доступное время.");
       })
       .finally(() => {
         if (!mounted) return;
@@ -2628,7 +2795,16 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [chainEditIndex, chainEditSpecialistId, chainItems, loadSlotsForService]);
+  }, [
+    chainEditIndex,
+    chainEditSpecialistId,
+    chainItems,
+    loadSlotsForService,
+    getChainMinStartMinutes,
+    serviceById,
+    dateYmd,
+    buildChainFromFixed,
+  ]);
 
   const selectedSpecialist = useMemo(
     () => specialists.find((item) => item.id === specialistId) ?? null,
@@ -2868,7 +3044,8 @@ export default function BookingClient({
     });
   }, [specialistsByCategory, specialistQuery]);
 
-  const showFromServiceMetrics = !specialistId && (isServiceFirst || isDateFirst);
+  const showFromServiceMetrics =
+    !isChainMode && !specialistId && (isServiceFirst || isDateFirst);
 
   const serviceDuration =
     selectedServices.length === 0
@@ -2889,32 +3066,54 @@ export default function BookingClient({
             : s.computedPrice ?? s.basePrice ?? 0;
           return sum + (Number.isFinite(price) ? price : 0);
         }, 0);
+  const effectiveServiceDuration =
+    isChainMode && chainComplete && chainTotals ? chainTotals.durationMin : serviceDuration;
+  const effectiveServicePrice =
+    isChainMode && chainComplete && chainTotals ? chainTotals.price : servicePrice;
+  const showApproxTotals =
+    (!isChainMode && showFromServiceMetrics) ||
+    (isChainMode && !chainComplete);
   const servicePriceLabel =
-    servicePrice != null
-      ? `${showFromServiceMetrics ? "от " : ""}${formatMoneyRub(servicePrice)}`
+    effectiveServicePrice != null
+      ? `${showApproxTotals ? "от " : ""}${formatMoneyRub(effectiveServicePrice)}`
       : "—";
   const serviceDurationLabel =
-    serviceDuration != null ? `${showFromServiceMetrics ? "от " : ""}${serviceDuration} мин` : "—";
+    effectiveServiceDuration != null
+      ? `${showApproxTotals ? "от " : ""}${effectiveServiceDuration} мин`
+      : "—";
   const summaryDateLabel = formatDateRu(dateYmd);
   const selectedServiceNames = selectedServices.map((s) => s.name).join(", ");
   const summaryServiceLabel = selectedServiceNames || "—";
-  const chainSummaryLabel = isChainMode
-    ? chainItems
-        .map((item) => {
-          const serviceName = serviceById.get(item.serviceId)?.name ?? `#${item.serviceId}`;
-          const spName = item.specialistId
+  const chainSummaryItems = isChainMode
+    ? chainServiceIds.map((serviceId, index) => {
+        const item = chainItems[index] ?? null;
+        const serviceName = serviceById.get(serviceId)?.name ?? `#${serviceId}`;
+        const specialistName =
+          item?.specialistId != null
             ? specialistById.get(item.specialistId)?.name ?? `#${item.specialistId}`
             : "—";
-          const time = item.time ?? "—";
-          return `${serviceName}: ${spName} ${time}`;
-        })
-        .join(" / ")
-    : "";
+        const time = item?.specialistId != null ? item?.time ?? "—" : "—";
+        const durationMin = chainItemDurations[index] ?? 0;
+        const durationLabel =
+          durationMin > 0
+            ? `${item?.specialistId != null ? "" : "от "}${durationMin} мин`
+            : "—";
+        const price = chainItemPrices[index] ?? 0;
+        const priceLabel =
+          price > 0
+            ? `${item?.specialistId != null ? "" : "от "}${formatMoneyRub(price)}`
+            : "—";
+        return { serviceName, specialistName, time, durationLabel, priceLabel };
+      })
+    : [];
 
   const slotEnd = useMemo(() => {
     if (!timeChoice || !serviceDuration) return "";
     return addMinutes(timeChoice, serviceDuration);
   }, [timeChoice, serviceDuration]);
+
+  const contactsReady = clientName.trim().length >= 2 && clientPhone.trim().length >= 8;
+  const timeSelectionReady = isChainMode ? chainComplete : !!specialistId && !!timeChoice;
 
   const canSubmit = useMemo(() => {
     const requiredLegalIds = legalDocs
@@ -2925,24 +3124,47 @@ export default function BookingClient({
       requiredLegalIds.every((id) => legalConsents[id]);
 
     return (
-      clientName.trim().length >= 2 &&
-      clientPhone.trim().length >= 8 &&
+      contactsReady &&
       !!locationId &&
       selectedServiceIds.length > 0 &&
-      (isChainMode ? chainComplete : !!specialistId && !!timeChoice) &&
+      timeSelectionReady &&
       legalOk
     );
   }, [
     legalDocs,
     legalConsents,
-    clientName,
-    clientPhone,
+    contactsReady,
     locationId,
     selectedServiceIds,
-    specialistId,
-    timeChoice,
+    timeSelectionReady,
+  ]);
+
+  const summaryHint = useMemo(() => {
+    if (submitSuccess || canSubmit) return "";
+    if (!locationId || selectedServiceIds.length === 0) {
+      return "Выберите локацию и услуги.";
+    }
+    if (!timeSelectionReady) {
+      return isChainMode
+        ? "Выберите специалистов и время для всех услуг."
+        : "Выберите специалиста и время.";
+    }
+    if (currentStepKey !== "details") {
+      return "Перейдите к шагу «Контакты».";
+    }
+    if (!contactsReady) {
+      return "Заполните имя и телефон.";
+    }
+    return "Проверьте обязательные согласия и данные.";
+  }, [
+    submitSuccess,
+    canSubmit,
+    locationId,
+    selectedServiceIds,
+    timeSelectionReady,
     isChainMode,
-    chainComplete,
+    currentStepKey,
+    contactsReady,
   ]);
 
   const canNext = useMemo(() => {
@@ -3128,7 +3350,7 @@ export default function BookingClient({
 
     if (isChainMode) {
       if (!chainComplete) {
-        setSubmitError("Complete all chain items.");
+        setSubmitError("Заполните специалиста и время для всех услуг.");
         return;
       }
 
@@ -3142,7 +3364,7 @@ export default function BookingClient({
       try {
         for (const item of chainItems) {
           if (!item.time || !item.specialistId) {
-            throw new Error("Complete all chain items.");
+            throw new Error("Заполните специалиста и время для всех услуг.");
           }
           if (isPastTimeOnDate(item.date, item.time, nowTz)) {
             throw new Error("Choose a valid date and time.");
@@ -3953,13 +4175,17 @@ export default function BookingClient({
                 
                 {currentStepKey === "chain" && (
                   <div className="space-y-4">
+                    <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-sm text-[color:var(--bp-muted)]">
+                      Для каждой услуги выберите специалиста и время. После подтверждения всех услуг кнопка
+                      «Далее» станет активной.
+                    </div>
                     {chainError && (
                       <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">
                         {chainError}
                       </div>
                     )}
                     {chainLoading && (
-                      <div className="text-sm text-[color:var(--bp-muted)]">Загрузка цепочки</div>
+                      <div className="text-sm text-[color:var(--bp-muted)]">Загрузка плана визита</div>
                     )}
 
                     <div className="space-y-3">
@@ -3976,6 +4202,17 @@ export default function BookingClient({
                         const isEditing = chainEditIndex === idx;
                         const currentSpId = chainEditSpecialistId ?? item.specialistId ?? null;
                         const currentTime = item.time ?? null;
+                        const eligibleSpecialists =
+                          isEditing && chainEditEligibleSpecialistIds
+                            ? availableSpecialists.filter((sp) =>
+                                chainEditEligibleSpecialistIds.has(sp.id)
+                              )
+                            : availableSpecialists;
+                        const selectSpecialistValue =
+                          currentSpId &&
+                          eligibleSpecialists.some((sp) => sp.id === currentSpId)
+                            ? currentSpId
+                            : "";
 
                         return (
                           <div
@@ -3984,24 +4221,31 @@ export default function BookingClient({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <div className="text-sm text-[color:var(--bp-muted)]">{serviceName}</div>
+                                <div className="text-sm text-[color:var(--bp-muted)]">
+                                  Услуга №{idx + 1}: {serviceName}
+                                </div>
                                 <div className="mt-1 text-sm">
-                                  {selectedSp?.name ?? "Специалист не выбран"}
+                                  Специалист: {selectedSp?.name ?? "Выберите специалиста"}
                                 </div>
                                 <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
-                                  {currentTime ?? "—"}
+                                  Время: {selectedSp ? currentTime ?? "Выберите время" : "Выберите специалиста"}
                                 </div>
                               </div>
                               <button
                                 type="button"
-                                className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-xs"
+                                className={cn(
+                                  "rounded-xl px-3 py-1.5 text-xs font-semibold transition",
+                                  "border border-[color:var(--bp-stroke)] hover:-translate-y-[1px] hover:shadow-sm",
+                                  selectedSp && currentTime
+                                    ? "bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                                    : "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                                )}
                                 onClick={() => {
                                   setChainEditIndex(idx);
-                                  const fallbackSpId = availableSpecialists[0]?.id ?? null;
-                                  setChainEditSpecialistId(currentSpId ?? fallbackSpId);
+                                  setChainEditSpecialistId(item.specialistId ?? null);
                                 }}
                               >
-                                Изменить
+                                {selectedSp && currentTime ? "Изменить" : "Выбрать"}
                               </button>
                             </div>
 
@@ -4011,15 +4255,106 @@ export default function BookingClient({
                                   <label className="text-xs text-[color:var(--bp-muted)]">Специалист</label>
                                   <select
                                     className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
-                                    value={currentSpId ?? ""}
-                                    onChange={(event) => {
+                                    value={selectSpecialistValue}
+                                    onChange={async (event) => {
                                       const nextId = Number(event.target.value) || null;
                                       setChainEditSpecialistId(nextId);
                                       setChainEditTimes([]);
+                                      if (!nextId) {
+                                        setChainItems((prev) =>
+                                          prev.map((entry, entryIndex) => {
+                                            if (entryIndex < idx) return entry;
+                                            if (entryIndex === idx) {
+                                              return { ...entry, specialistId: null, time: null };
+                                            }
+                                            return { ...entry, specialistId: null, time: null };
+                                          })
+                                        );
+                                        return;
+                                      }
+
+                                      const currentItemTime = item.time;
+                                      if (!currentItemTime) {
+                                        setChainItems((prev) =>
+                                          prev.map((entry, entryIndex) => {
+                                            if (entryIndex < idx) return entry;
+                                            if (entryIndex === idx) {
+                                              return { ...entry, specialistId: nextId, time: null };
+                                            }
+                                            return { ...entry, specialistId: null, time: null };
+                                          })
+                                        );
+                                        return;
+                                      }
+
+                                      try {
+                                        const minStartMinutes = await getChainMinStartMinutes(idx);
+                                        const slots = await loadSlotsForService(item.serviceId, nextId);
+                                        const times = uniqSortedTimes(
+                                          slots
+                                            .map((s) => s.time)
+                                            .filter((time) => {
+                                              if (minStartMinutes == null) return false;
+                                              const timeMinutes = timeToMinutes(time);
+                                              return (
+                                                timeMinutes != null &&
+                                                timeMinutes >= minStartMinutes
+                                              );
+                                            })
+                                        );
+
+                                        const canKeepCurrentTime = times.includes(currentItemTime);
+                                        if (times.length === 0) {
+                                          setChainEditConstraintMessage(
+                                            "У этого специалиста нет времени после предыдущей услуги. Выберите другого специалиста."
+                                          );
+                                          setChainItems((prev) =>
+                                            prev.map((entry, entryIndex) => {
+                                              if (entryIndex < idx) return entry;
+                                              if (entryIndex === idx) {
+                                                return { ...entry, specialistId: null, time: null };
+                                              }
+                                              return { ...entry, specialistId: null, time: null };
+                                            })
+                                          );
+                                          return;
+                                        }
+                                        if (canKeepCurrentTime) {
+                                          const fixed = chainItems
+                                            .slice(0, idx)
+                                            .concat([
+                                              {
+                                                serviceId: item.serviceId,
+                                                specialistId: nextId,
+                                                date: dateYmd,
+                                                time: currentItemTime,
+                                              },
+                                            ]);
+                                          void buildChainFromFixed(fixed);
+                                          setChainEditIndex(null);
+                                          return;
+                                        }
+                                      } catch {
+                                        // noop, fallback to clearing time below
+                                      }
+
+                                      setChainItems((prev) =>
+                                        prev.map((entry, entryIndex) => {
+                                          if (entryIndex < idx) return entry;
+                                          if (entryIndex === idx) {
+                                            return { ...entry, specialistId: nextId, time: null };
+                                          }
+                                          return { ...entry, specialistId: null, time: null };
+                                        })
+                                      );
                                     }}
                                   >
-                                    <option value="">Выберите специалиста</option>
-                                    {availableSpecialists.map((sp) => (
+                                    <option value="">
+                                      {eligibleSpecialists.length > 0
+                                        ? "Выберите специалиста"
+                                        : "Нет доступных специалистов"}
+                                    </option>
+                                    {eligibleSpecialists.map((sp) => (
                                       <option key={sp.id} value={sp.id}>
                                         {sp.name}
                                       </option>
@@ -4029,6 +4364,12 @@ export default function BookingClient({
 
                                 {chainEditLoading && (
                                   <div className="text-xs text-[color:var(--bp-muted)]">Загрузка слотов</div>
+                                )}
+
+                                {!chainEditLoading && chainEditConstraintMessage && (
+                                  <div className="text-xs text-[color:var(--bp-muted)]">
+                                    {chainEditConstraintMessage}
+                                  </div>
                                 )}
 
                                 {!chainEditLoading && chainEditTimes.length > 0 && (
@@ -4225,7 +4566,30 @@ export default function BookingClient({
                 <SummaryRow label="Дата" value={summaryDateLabel || "—"} />
                 <SummaryRow label="Услуга" value={summaryServiceLabel || "—"} />
                 {isChainMode ? (
-                  <SummaryRow label="Цепочка" value={chainSummaryLabel || "—"} />
+                  <div className="space-y-3">
+                    {chainSummaryItems.length === 0 ? (
+                      <SummaryRow label="План визита" value="—" />
+                    ) : null}
+                    {chainSummaryItems.map((item, index) => (
+                      <div
+                        key={`${item.serviceName}-${index}`}
+                        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3"
+                      >
+                        <div className="text-xs font-semibold text-[color:var(--bp-muted)]">
+                          Услуга №{index + 1}
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-[color:var(--bp-ink)]">
+                          {item.serviceName}
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          <SummaryRow label="Специалист" value={item.specialistName || "—"} />
+                          <SummaryRow label="Время" value={item.time || "—"} />
+                          <SummaryRow label="Длительность" value={item.durationLabel} />
+                          <SummaryRow label="Стоимость" value={item.priceLabel} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <>
                     <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
@@ -4239,8 +4603,14 @@ export default function BookingClient({
                     />
                   </>
                 )}
-                <SummaryRow label="Длительность" value={serviceDurationLabel} />
-                <SummaryRow label="Стоимость" value={servicePriceLabel} />
+                <SummaryRow
+                  label={isChainMode ? "Общая длительность" : "Длительность"}
+                  value={serviceDurationLabel}
+                />
+                <SummaryRow
+                  label={isChainMode ? "Общая стоимость" : "Стоимость"}
+                  value={servicePriceLabel}
+                />
               </div>
 
               {submitError && <div className="text-sm text-red-600">{submitError}</div>}
@@ -4263,9 +4633,9 @@ export default function BookingClient({
                 {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
               </button>
 
-              {!submitSuccess && !canSubmit && (
+              {!submitSuccess && !canSubmit && summaryHint && (
                 <div className="text-xs text-[color:var(--bp-muted)]">
-                  Заполните контакты и выберите время.
+                  {summaryHint}
                 </div>
               )}
             </div>
