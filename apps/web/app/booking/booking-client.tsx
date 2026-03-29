@@ -217,13 +217,51 @@ const addMinutes = (time: string, minutes: number) => {
   return minutesToTime(start + minutes);
 };
 
+type BookingApiError = Error & {
+  code?: string;
+  details?: { waitSeconds?: number; expiresAt?: string | null } | null;
+};
+
+const formatWaitTimeRu = (secondsRaw: number) => {
+  const totalSeconds = Math.max(1, Math.ceil(secondsRaw));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds} сек`;
+  if (seconds <= 0) return `${minutes} мин`;
+  return `${minutes} мин ${seconds} сек`;
+};
+
+const humanizeBookingError = (error: unknown) => {
+  const err = error as BookingApiError;
+  if (err?.code === "TIME_HELD") {
+    const waitSeconds = Number(err?.details?.waitSeconds);
+    if (Number.isFinite(waitSeconds) && waitSeconds > 0) {
+      return `Это время сейчас резервируется другим клиентом. Подождите ${formatWaitTimeRu(waitSeconds)} или выберите другой слот.`;
+    }
+    return "Это время сейчас резервируется другим клиентом. Подождите немного и выберите другой слот.";
+  }
+  if (err?.code === "HOLD_EXPIRED") {
+    return "Резерв времени истек. Выберите время снова.";
+  }
+  return err?.message || "Ошибка запроса";
+};
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
       payload?.error?.message || payload?.message || "Ошибка запроса";
-    throw new Error(message);
+    const error = new Error(message) as BookingApiError;
+    const code = payload?.error?.code;
+    if (typeof code === "string" && code.length > 0) {
+      error.code = code;
+      error.name = code;
+    }
+    if (payload?.error?.details && typeof payload.error.details === "object") {
+      error.details = payload.error.details as BookingApiError["details"];
+    }
+    throw error;
   }
   return payload?.data as T;
 }
@@ -1245,7 +1283,7 @@ export default function BookingClient({
         });
       } catch (error) {
         if (cancelled || requestId !== holdRequestIdRef.current) return;
-        setSubmitError((error as Error).message);
+        setSubmitError(humanizeBookingError(error));
       }
     })();
 
@@ -3094,7 +3132,9 @@ export default function BookingClient({
       return;
     }
 
-    const candidateIds = specialistsByChosenDateTime.map((s) => s.id);
+    const candidateIds = isSpecialistFirst && specialistId
+      ? [specialistId]
+      : specialistsByChosenDateTime.map((s) => s.id);
     if (candidateIds.length === 0) {
       setSinglePlanEligibleSpecialistIds(new Set());
       setLoadingSinglePlanSpecialists(false);
@@ -3155,6 +3195,8 @@ export default function BookingClient({
     };
   }, [
     isSingleSpecialistPlanMode,
+    isSpecialistFirst,
+    specialistId,
     dateYmd,
     timeChoice,
     chainServiceIds,
@@ -3165,10 +3207,11 @@ export default function BookingClient({
 
   useEffect(() => {
     if (!isSingleSpecialistPlanMode || !specialistId) return;
+    if (isSpecialistFirst) return;
     if (!singlePlanEligibleSpecialistIds) return;
     if (singlePlanEligibleSpecialistIds.has(specialistId)) return;
     setSpecialistId(null);
-  }, [isSingleSpecialistPlanMode, specialistId, singlePlanEligibleSpecialistIds]);
+  }, [isSingleSpecialistPlanMode, isSpecialistFirst, specialistId, singlePlanEligibleSpecialistIds]);
 
   const specialistsForSpecialistStep = useMemo(() => {
     if (!isSingleSpecialistPlanMode || !singlePlanEligibleSpecialistIds) {
@@ -3620,7 +3663,7 @@ export default function BookingClient({
         for (const holdId of createdHoldIds) {
           void releaseHold(holdId).catch(() => {});
         }
-        setSubmitError((error as Error).message);
+        setSubmitError(humanizeBookingError(error));
         return;
       } finally {
         setSubmitting(false);
@@ -3709,7 +3752,7 @@ export default function BookingClient({
       setSubmitSuccess(true);
       idempotencyKeyRef.current = null;
     } catch (error) {
-      setSubmitError((error as Error).message);
+      setSubmitError(humanizeBookingError(error));
     } finally {
       setSubmitting(false);
     }

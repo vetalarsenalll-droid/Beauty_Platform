@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+﻿import { Prisma } from "@prisma/client";
 import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -39,6 +39,15 @@ const readCookieValue = (request: Request, name: string) => {
     return decodeURIComponent(pair.slice(idx + 1).trim());
   }
   return "";
+};
+
+const formatWaitTimeRu = (secondsRaw: number) => {
+  const totalSeconds = Math.max(1, Math.ceil(secondsRaw));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds} сек`;
+  if (seconds <= 0) return `${minutes} мин`;
+  return `${minutes} мин ${seconds} сек`;
 };
 
 export async function POST(request: Request) {
@@ -347,12 +356,21 @@ export async function POST(request: Request) {
                 ...(replaceHoldId ? { id: { not: replaceHoldId } } : {}),
                 ...(holdClientId != null ? { NOT: { clientId: holdClientId } } : {}),
               },
-              select: { id: true },
+              select: { id: true, expiresAt: true },
             }),
           ]);
 
           if (conflictAppt || conflictBlock || conflictHold) {
-            return { ok: false as const };
+            const reason = conflictHold
+              ? "HELD"
+              : conflictAppt
+                ? "APPOINTMENT"
+                : "BLOCKED";
+            return {
+              ok: false as const,
+              reason,
+              heldUntil: conflictHold?.expiresAt ?? null,
+            };
           }
 
           const hold = await tx.appointmentHold.create({
@@ -373,6 +391,24 @@ export async function POST(request: Request) {
       );
 
       if (!result.ok) {
+        if (result.reason === "HELD") {
+          const waitSeconds = Math.max(
+            1,
+            Math.ceil(
+              ((result.heldUntil?.getTime() ?? now.getTime() + ttlMinutes * 60 * 1000) - Date.now()) /
+                1000
+            )
+          );
+          return jsonError(
+            "TIME_HELD",
+            `Это время сейчас резервируется другим клиентом. Подождите ${formatWaitTimeRu(waitSeconds)} или выберите другое.`,
+            {
+              waitSeconds,
+              expiresAt: result.heldUntil?.toISOString() ?? null,
+            },
+            409
+          );
+        }
         return jsonError("TIME_BUSY", "Выбранное время недоступно.", null, 409);
       }
 
@@ -489,3 +525,6 @@ export async function DELETE(request: Request) {
   });
   return response;
 }
+
+
+
