@@ -2309,7 +2309,7 @@ export default function BookingClient({
       } catch (e: unknown) {
         if (!mounted) return;
         setDateFirstAvailableDates(new Set());
-        const message = e instanceof Error ? e.message : "Failed to load available dates.";
+        const message = e instanceof Error ? e.message : "Не удалось загрузить доступные даты.";
         setDateFirstAvailabilityError(message);
       } finally {
         if (!mounted) return;
@@ -2665,7 +2665,7 @@ export default function BookingClient({
       if (isDateFirst && timeChoice) {
         const allowed = new Set<number>(offersByTime[timeChoice] ?? []);
         if (!allowed.has(id)) {
-          setSubmitError("Choose a valid service for selected time.");
+          setSubmitError("Выберите услугу, доступную на выбранное время.");
           return;
         }
       }
@@ -3340,62 +3340,81 @@ export default function BookingClient({
     return addMinutes(timeChoice, serviceDuration);
   }, [timeChoice, serviceDuration]);
 
-  const contactsReady = clientName.trim().length >= 2 && clientPhone.trim().length >= 8;
+  const nameReady = clientName.trim().length >= 2;
+  const phoneReady = clientPhone.trim().length >= 8;
   const timeSelectionReady = isVisitPlanMode ? chainComplete : !!specialistId && !!timeChoice;
 
-  const canSubmit = useMemo(() => {
-    const requiredLegalIds = legalDocs
-      .filter((doc) => doc.isRequired)
-      .map((doc) => doc.versionId);
-    const legalOk =
-      requiredLegalIds.length === 0 ||
-      requiredLegalIds.every((id) => legalConsents[id]);
+  const requiredLegalDocs = useMemo(
+    () => legalDocs.filter((doc) => doc.isRequired),
+    [legalDocs]
+  );
 
-    return (
-      contactsReady &&
-      !!locationId &&
-      selectedServiceIds.length > 0 &&
-      timeSelectionReady &&
-      legalOk
-    );
-  }, [
-    legalDocs,
-    legalConsents,
-    contactsReady,
-    locationId,
-    selectedServiceIds,
-    timeSelectionReady,
-  ]);
+  const missingRequiredLegalDocs = useMemo(
+    () => requiredLegalDocs.filter((doc) => !legalConsents[doc.versionId]),
+    [requiredLegalDocs, legalConsents]
+  );
 
-  const summaryHint = useMemo(() => {
-    if (submitSuccess || canSubmit) return "";
+  const submitBlockingReasons = useMemo(() => {
+    if (submitSuccess) return [] as string[];
+
     if (!locationId || selectedServiceIds.length === 0) {
-      return "Выберите локацию и услуги.";
+      return ["Выберите локацию и услуги."];
     }
+
     if (!timeSelectionReady) {
-      return isChainMode
-        ? "Выберите специалистов и время для всех услуг."
-        : isVisitPlanMode
-          ? "Выберите специалиста и время для всех услуг."
-          : "Выберите специалиста и время.";
+      return [
+        isChainMode
+          ? "Выберите специалистов и время для всех услуг."
+          : isVisitPlanMode
+            ? "Выберите специалиста и время для всех услуг."
+            : "Выберите специалиста и время.",
+      ];
     }
+
     if (currentStepKey !== "details") {
-      return "Перейдите к шагу «Контакты».";
+      return ["Перейдите к шагу «Контакты»."];
     }
-    if (!contactsReady) {
-      return "Заполните имя и телефон.";
+
+    const reasons: string[] = [];
+
+    if (!nameReady) reasons.push("Заполните имя (минимум 2 символа).");
+    if (!phoneReady) reasons.push("Заполните телефон (минимум 8 символов).");
+
+    if (missingRequiredLegalDocs.length > 0) {
+      if (missingRequiredLegalDocs.length === 1) {
+        reasons.push(
+          `Подтвердите обязательное согласие: «${missingRequiredLegalDocs[0].title}».`
+        );
+      } else {
+        reasons.push(
+          `Подтвердите обязательные согласия (${missingRequiredLegalDocs.length}).`
+        );
+      }
     }
-    return "Проверьте обязательные согласия и данные.";
+
+    return reasons;
   }, [
     submitSuccess,
-    canSubmit,
     locationId,
     selectedServiceIds,
     timeSelectionReady,
     isChainMode,
     isVisitPlanMode,
     currentStepKey,
-    contactsReady,
+    nameReady,
+    phoneReady,
+    missingRequiredLegalDocs,
+  ]);
+
+  const canSubmit = submitBlockingReasons.length === 0;
+
+  const summaryHint = useMemo(() => {
+    if (submitSuccess || canSubmit) return "";
+    return submitBlockingReasons[0] ?? "Проверьте обязательные поля.";
+  }, [
+    submitSuccess,
+    canSubmit,
+    submitBlockingReasons,
   ]);
 
   const canNext = useMemo(() => {
@@ -3577,11 +3596,11 @@ export default function BookingClient({
 
   const submitAppointment = async () => {
     if (!canSubmit) {
-      setSubmitError("Fill required fields and accept required agreements.");
+      setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
       return;
     }
     if (!isChainMode && (isPastYmd(dateYmd, todayYmdTz) || isPastTimeOnDate(dateYmd, timeChoice!, nowTz))) {
-      setSubmitError("Choose a valid date and time.");
+      setSubmitError("Выберите корректные дату и время.");
       return;
     }
 
@@ -3604,7 +3623,7 @@ export default function BookingClient({
             throw new Error("Заполните специалиста и время для всех услуг.");
           }
           if (isPastTimeOnDate(item.date, item.time, nowTz)) {
-            throw new Error("Choose a valid date and time.");
+            throw new Error("Выберите корректные дату и время.");
           }
 
           const selection = {
@@ -3676,7 +3695,7 @@ export default function BookingClient({
         !selectedServiceIds.length ||
         selectedServiceIds.some((id) => !allowedServiceIds.has(id))
       ) {
-        setSubmitError("Choose valid services for selected time.");
+        setSubmitError("Выберите услуги, доступные на выбранное время.");
         return;
       }
 
@@ -3684,13 +3703,13 @@ export default function BookingClient({
         (slot) => slot.time === timeChoice && slot.specialistId === specialistId
       );
       if (!specialistStillAvailable) {
-        setSubmitError("Choose a valid specialist for selected time.");
+        setSubmitError("Выберите специалиста, доступного на выбранное время.");
         return;
       }
     } else {
       const specialistIdsAtTime = calendarByDate.get(dateYmd)?.get(timeChoice!) ?? [];
       if (!specialistIdsAtTime.includes(specialistId!)) {
-        setSubmitError("Choose a valid specialist for selected time.");
+        setSubmitError("Выберите специалиста, доступного на выбранное время.");
         return;
       }
     }
@@ -3699,7 +3718,7 @@ export default function BookingClient({
     setSubmitError(null);
     try {
       if (!holdSelection) {
-        setSubmitError("Choose a valid date and time.");
+        setSubmitError("Выберите корректные дату и время.");
         return;
       }
 
@@ -4889,17 +4908,28 @@ export default function BookingClient({
                     resetAll();
                     return;
                   }
+                  if (!canSubmit) {
+                    setSubmitError(
+                      summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
+                    );
+                    return;
+                  }
                   void submitAppointment();
                 }}
-                disabled={submitSuccess ? false : (!canSubmit || submitting)}
-                className="w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                disabled={submitSuccess ? false : submitting}
+                aria-disabled={!submitSuccess && !canSubmit}
+                className={`w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
+                  !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
+                }`}
               >
                 {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
               </button>
 
               {!submitSuccess && !canSubmit && summaryHint && (
-                <div className="text-xs text-[color:var(--bp-muted)]">
-                  {summaryHint}
+                <div className="space-y-1 text-xs text-[color:var(--bp-muted)]">
+                  {submitBlockingReasons.map((reason, index) => (
+                    <div key={`${reason}-${index}`}>{reason}</div>
+                  ))}
                 </div>
               )}
             </div>
