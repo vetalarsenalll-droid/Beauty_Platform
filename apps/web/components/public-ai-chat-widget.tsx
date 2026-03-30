@@ -407,10 +407,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     currentMode === "dark"
       ? "mt-2 rounded-xl border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
       : "mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/60 p-2";
-  const loadingBubbleClass =
+  const loadingIndicatorRowClass = "ml-1 inline-flex items-center gap-1.5 py-1";
+  const loadingDotClass =
     currentMode === "dark"
-      ? "max-w-[90%] bg-white/10 px-3 py-2 text-sm text-[color:var(--ai-muted,#9ca3af)]"
-      : "max-w-[90%] bg-black/5 px-3 py-2 text-sm text-[color:var(--ai-muted,#6b7280)]";
+      ? "ai-typing-dot inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--ai-muted,#94a3b8)]"
+      : "ai-typing-dot inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--ai-muted,#6b7280)]";
   const effectiveBorderColor =
     (currentMode === "dark"
       ? (widgetConfig?.borderColorDark ?? widgetConfig?.borderColor ?? "")
@@ -775,10 +776,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const isWideQuickReply = (option: QuickReply) => {
                   if (isCategoryQuickReply(option)) return false;
                   const text = String(option.label || "").replace(/\s+/g, " ").trim();
+                  if (/^показать\s+/iu.test(text)) return false;
                   return (
                     text.length >= 34 ||
                     /[—-]/.test(text) ||
-                    /услуга\s*№|специалист|стоимость|длительность|итого|мастер|уровень/iu.test(text)
+                    /услуга\s*№|специалист\s*:|специалист\s*услуги\s*№|стоимость|длительность|итого|мастер|уровень/iu.test(text)
                   );
                 };
                 const quickReplyRadiusStyle = (variant: "chip" | "time" | "row") => {
@@ -1143,21 +1145,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               })()
             ))}
             {loading ? (
-              <div className={loadingBubbleClass} style={messageRadiusStyle}>
-                <div className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
-                    style={{ animationDelay: "0ms" }}
-                  />
-                  <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
-                    style={{ animationDelay: "120ms" }}
-                  />
-                  <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--ai-muted,#6b7280)]"
-                    style={{ animationDelay: "240ms" }}
-                  />
-                </div>
+              <div className={loadingIndicatorRowClass} aria-label="Ассистент печатает">
+                <span className={loadingDotClass} style={{ animationDelay: "0ms" }} />
+                <span className={loadingDotClass} style={{ animationDelay: "140ms" }} />
+                <span className={loadingDotClass} style={{ animationDelay: "280ms" }} />
               </div>
             ) : null}
             <div ref={bottomRef} />
@@ -1212,6 +1203,20 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         </button>
       )}
       <style jsx global>{`
+        @keyframes aiTypingWave {
+          0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.45;
+          }
+          30% {
+            transform: translateY(-4px);
+            opacity: 1;
+          }
+        }
+        .ai-typing-dot {
+          animation: aiTypingWave 1s ease-in-out infinite;
+          will-change: transform, opacity;
+        }
         .aisha-chat-scroll {
           scrollbar-width: thin;
           scrollbar-color: var(--ai-quick-reply-button, var(--ai-button, #111827)) transparent;
