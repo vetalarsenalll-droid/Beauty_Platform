@@ -468,7 +468,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">Сессии без записи</div>
         </article>
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-          <div className="text-sm text-[color:var(--bp-muted)]">Записи из Аиши</div>
+          <div className="text-sm text-[color:var(--bp-muted)]">Записи из AI-ассистента</div>
           <div className="mt-2 text-2xl font-semibold">{fInt(aiAssistantAppointments)}</div>
           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">Созданы через AI-ассистента</div>
         </article>

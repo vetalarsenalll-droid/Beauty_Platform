@@ -31,7 +31,15 @@ export async function buildTurnContext(args: {
     select: { role: true, content: true },
   });
 
-  const { locations, services, specialists, requiredVersionIds, accountProfile, customPrompt } = await loadPublicAiChatContext(account.id);
+  const {
+    locations,
+    services,
+    specialists,
+    requiredVersionIds,
+    accountProfile,
+    customPrompt,
+    assistantName,
+  } = await loadPublicAiChatContext(account.id);
 
   const serverNowYmd = getNowInTimeZone(account.timeZone).ymd;
   const clientTimeZone = asTimeZone(body.clientTimeZone);
@@ -58,6 +66,7 @@ export async function buildTurnContext(args: {
     services,
     specialists,
     recentMessages: [...recentMessages].reverse(),
+    assistantName,
     systemPrompt: customPrompt,
   });
 
@@ -81,6 +90,7 @@ export async function buildTurnContext(args: {
     requiredVersionIds,
     accountProfile,
     customPrompt,
+    assistantName,
     nowYmd,
     nowHm,
     clientTimeZone,

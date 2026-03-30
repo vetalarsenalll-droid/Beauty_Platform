@@ -15,8 +15,6 @@ import { handleBookingDomain } from "@/lib/aisha-handle-booking";
 import { handleChatOnlyDomain } from "@/lib/aisha-handle-chat-only";
 import type { Action } from "@/lib/aisha-chat-types";
 
-const ASSISTANT_NAME = "Аиша";
-
 const {
   locationByText,
   serviceByText,
@@ -115,6 +113,7 @@ export async function handlePublicAiChatPost(request: Request) {
       specialists,
       requiredVersionIds,
       accountProfile,
+      assistantName,
 
       nowYmd,
       nowHm,
@@ -232,7 +231,7 @@ export async function handlePublicAiChatPost(request: Request) {
         ? await runAishaChatAction({
             accountId: resolved.account.id,
             message: messageForRouting,
-            assistantName: ASSISTANT_NAME,
+            assistantName,
             recentMessages: [...recentMessages].reverse(),
             accountProfile,
             locations,
@@ -553,7 +552,7 @@ export async function handlePublicAiChatPost(request: Request) {
     const origin = new URL(request.url).origin;
     const publicSlug = buildPublicSlugId(resolved.account.slug, resolved.account.id);
 
-    let reply = `Я ${ASSISTANT_NAME}, помогу с записью. Что нужно?`;
+    let reply = `Я ${assistantName}, помогу с записью. Что нужно?`;
     let nextStatus = d.status;
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
@@ -581,7 +580,7 @@ export async function handlePublicAiChatPost(request: Request) {
       ? await runAishaSmallTalkReply({
           accountId: resolved.account.id,
           message: messageForRouting,
-          assistantName: ASSISTANT_NAME,
+          assistantName,
           recentMessages: [...recentMessages].reverse(),
           accountProfile,
           locations,
@@ -716,7 +715,7 @@ export async function handlePublicAiChatPost(request: Request) {
           knownClientEmail,
           knownClientPhone,
           accountName: resolved.account.name?.trim() ?? null,
-          assistantName: ASSISTANT_NAME,
+          assistantName,
           accountDescription: accountProfile?.description ?? null,
           explicitWorkplaceRoleCue,
           conversationalReply,
@@ -1011,7 +1010,7 @@ export async function handlePublicAiChatPost(request: Request) {
     if (route === "chat-only" && !shouldRunBookingFlow && !explicitServiceComplaint) {
       contextualBookingBridge = await runAishaBookingBridge({
         accountId: resolved.account.id,
-        assistantName: ASSISTANT_NAME,
+        assistantName,
         message: messageForRouting,
         baseReply: reply,
         accountProfile,
@@ -1051,7 +1050,7 @@ export async function handlePublicAiChatPost(request: Request) {
       services,
       specialists,
       accountId: resolved.account.id,
-      assistantName: ASSISTANT_NAME,
+      assistantName,
       accountProfile,
       knownClientName: d.clientName || [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() || null,
       conversationalReply,

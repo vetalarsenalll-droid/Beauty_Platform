@@ -39,6 +39,7 @@ const norm = (v: string) =>
     .trim();
 
 const has = (m: string, r: RegExp) => r.test(norm(m));
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export function buildDirectBookingKickoffReply(args: {
   date: string | null;
@@ -350,7 +351,12 @@ export function buildBasicChatInfoReply(args: {
       reply = `Я ${assistantName}, виртуальный ассистент записи в «${salonName}». Помогаю с выбором услуг, специалистов и оформлением записи.`;
     } else {
       const fallback = `Я ${assistantName}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
-      const hasIdentityCue = conversationalReply ? /(аиша|ассистент)/i.test(norm(conversationalReply)) : false;
+      const assistantNameNorm = norm(assistantName);
+      const assistantNamePattern = assistantNameNorm ? new RegExp(`\\b${escapeRegExp(assistantNameNorm)}\\b`, "i") : null;
+      const hasIdentityCue = conversationalReply
+        ? /ассистент/i.test(norm(conversationalReply)) ||
+          (assistantNamePattern ? assistantNamePattern.test(norm(conversationalReply)) : false)
+        : false;
       reply = conversationalReply && hasIdentityCue ? conversationalReply : fallback;
     }
     return { handled: true, reply, ui };

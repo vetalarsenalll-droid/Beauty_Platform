@@ -1,6 +1,7 @@
 ﻿import { resolveAishaSystemPrompt } from "@/lib/aisha-chat-thread";
 import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import { prisma } from "@/lib/prisma";
+import { normalizeDraft, resolveAishaWidgetConfig } from "@/lib/site-builder";
 
 const prismaAny = prisma as any;
 
@@ -17,8 +18,9 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
   requiredVersionIds: number[];
   accountProfile: AccountProfileLite;
   customPrompt: string | null;
+  assistantName: string;
 }> {
-  const [locationsRaw, servicesRaw, specialistsRaw, requiredDocs, accountProfile, customPrompt] = await Promise.all([
+  const [locationsRaw, servicesRaw, specialistsRaw, requiredDocs, accountProfile, customPrompt, publicPage] = await Promise.all([
     prismaAny.location.findMany({
       where: { accountId, status: "ACTIVE" },
       select: { id: true, name: true, address: true, description: true },
@@ -62,6 +64,11 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
     }),
     prisma.accountProfile.findUnique({ where: { accountId }, select: { description: true, address: true, phone: true } }),
     resolveAishaSystemPrompt(accountId),
+    prisma.publicPage.findFirst({
+      where: { accountId },
+      select: { draftJson: true },
+      orderBy: { updatedAt: "desc" },
+    }),
   ]);
 
   const locations: LocationLite[] = locationsRaw;
@@ -108,5 +115,8 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
     return requiredDocs.map((d) => d.versions[0]?.id).filter((x): x is number => Number.isInteger(x));
   })();
 
-  return { locations, services, specialists, requiredVersionIds, accountProfile, customPrompt };
+  const draft = normalizeDraft((publicPage?.draftJson ?? null) as object | null);
+  const assistantName = resolveAishaWidgetConfig(draft).assistantName || "Ассистент";
+
+  return { locations, services, specialists, requiredVersionIds, accountProfile, customPrompt, assistantName };
 }

@@ -158,6 +158,7 @@ export type SiteLoaderConfig = {
 
 export type SiteAishaWidgetConfig = {
   enabled: boolean;
+  assistantName: string;
   headerTitle: string;
   label: string;
   offsetBottomPx: number;
@@ -325,6 +326,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
   if (!aishaBlock) {
     return {
       enabled: false,
+      assistantName: "Ассистент",
       headerTitle: "AI-ассистент записи",
       label: "AI-чат",
       offsetBottomPx: 16,
@@ -548,6 +550,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
 
   return {
     enabled: data.enabled !== false,
+    assistantName:
+      typeof data.assistantName === "string" && data.assistantName.trim() ? data.assistantName.trim() : "Ассистент",
     headerTitle:
       typeof data.title === "string" && data.title.trim() ? data.title.trim() : "AI-ассистент записи",
     label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-чат",

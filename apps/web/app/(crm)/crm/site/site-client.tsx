@@ -672,6 +672,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
   },
   aisha: {
     title: "AI-ассистент записи",
+    assistantName: "Ассистент",
     enabled: true,
     label: "AI Ассистент",
     offsetBottomPx: 16,
@@ -3215,6 +3216,11 @@ function BlockEditor({
             label="Заголовок виджета"
             value={(block.data.title as string) ?? "AI-ассистент записи"}
             onChange={(value) => updateData({ title: value })}
+          />
+          <FieldText
+            label="Имя ассистента"
+            value={(block.data.assistantName as string) ?? "Ассистент"}
+            onChange={(value) => updateData({ assistantName: value })}
           />
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -7432,6 +7438,10 @@ function buildAishaWidgetConfig(
 
   return {
     enabled: data.enabled !== false,
+    assistantName:
+      typeof data.assistantName === "string" && data.assistantName.trim()
+        ? data.assistantName.trim()
+        : "Ассистент",
     headerTitle:
       typeof data.title === "string" && data.title.trim()
         ? data.title.trim()
@@ -7574,7 +7584,7 @@ function renderAisha(
     );
   }
 
-  const inlinePreviewMinHeight = `calc(${widgetConfig.panelHeightVh ?? 70}vh + 24px)`;
+  const inlinePreviewMinHeight = "calc(74vh + 24px)";
 
   return (
     <div className="relative w-full overflow-hidden" style={{ minHeight: inlinePreviewMinHeight }}>

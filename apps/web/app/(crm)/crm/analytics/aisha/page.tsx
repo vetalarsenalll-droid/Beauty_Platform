@@ -617,9 +617,9 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-3">
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Раздел аналитики</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Аналитика AI-ассистента Аиши</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Аналитика AI-ассистента</h1>
         <p className="text-[color:var(--bp-muted)]">
-          Полная аналитика по диалогам Аиши: жалобы, качество распознавания, путь к записи и детальные логи диалогов.
+          Полная аналитика по диалогам AI-ассистента: жалобы, качество распознавания, путь к записи и детальные логи диалогов.
         </p>
         <AnalyticsTabs active="aisha" />
       </header>
@@ -737,7 +737,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
           <div className="text-sm text-[color:var(--bp-muted)]">Сообщения</div>
           <div className="mt-2 text-2xl font-semibold">{fInt(filteredUserMessagesTotal + filteredAssistantMessagesTotal)}</div>
           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-            Клиент: {fInt(filteredUserMessagesTotal)}, Аиша: {fInt(filteredAssistantMessagesTotal)}, средняя длина диалога: {avgDialogLen}
+            Клиент: {fInt(filteredUserMessagesTotal)}, Ассистент: {fInt(filteredAssistantMessagesTotal)}, средняя длина диалога: {avgDialogLen}
           </div>
         </article>
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
@@ -748,7 +748,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
           </div>
         </article>
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-          <div className="text-sm text-[color:var(--bp-muted)]">Записи из Аиши</div>
+          <div className="text-sm text-[color:var(--bp-muted)]">Записи из AI-ассистента</div>
           <div className="mt-2 text-2xl font-semibold">{fInt(completedThreadIds.size)}</div>
           <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
             Завершено диалогов: {fInt(completedThreadIds.size)}. Фактические записи: {fInt(factualAiAppointments)}. Переходы к записи: {fInt(openBookingTurns)}. Сообщения в сценарии записи: {fInt(bookingFlowTurns)}
@@ -914,7 +914,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Диалоги Аиши</h2>
+          <h2 className="text-lg font-semibold">Диалоги AI-ассистента</h2>
             <p className="mt-1 text-sm text-[color:var(--bp-muted)]">
               Найдено {fInt(totalFiltered)} диалогов по фильтрам. Показано {fInt(pageThreads.length)}.
             </p>
@@ -1064,7 +1064,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
                         ].join(" ")}
                       >
                         <div className="mb-1 text-[11px] uppercase tracking-wide text-[color:var(--bp-muted)]">
-                          {m.role === "assistant" ? "Аиша" : "Клиент"} · {fDateTime(m.createdAt)}
+                          {m.role === "assistant" ? "Ассистент" : "Клиент"} · {fDateTime(m.createdAt)}
                         </div>
                         <div className="whitespace-pre-wrap break-words">{m.content}</div>
                       </div>

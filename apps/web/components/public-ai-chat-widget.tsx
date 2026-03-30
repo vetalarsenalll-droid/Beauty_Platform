@@ -359,13 +359,14 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   }, [widgetConfig, mode, currentMode]);
 
 
-  const panelWidth = Number(widgetConfig?.panelWidthPx ?? 400);
-  const panelHeightVh = Number(widgetConfig?.panelHeightVh ?? 74);
+  const panelWidth = 400;
+  const panelHeightVh = 74;
   const panelRadius = 18;
   const messageRadius = 16;
   const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 16));
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
   const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
+  const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
   const fabRadius = 16;
   const buttonRadiusStyle = { borderRadius: "12px" };
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
@@ -446,7 +447,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   useEffect(() => {
     if (!open) return
     if (messages.length > 0) return;
-    const greeting = "Здравствуйте! Я Аиша. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.";
+    const greeting = `Здравствуйте! Я ${assistantName}. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.`;
     const greetingUi: ChatUi = {
       kind: "quick_replies",
       options: [
@@ -461,7 +462,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       setTypingVisible("");
       return next;
     });
-  }, [open, messages.length]);
+  }, [open, messages.length, assistantName]);
 
   useEffect(() => {
     if (typingMessageIndex == null) return;
@@ -764,8 +765,16 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   : options;
                 const isTimeValue = (v: string) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v.trim());
                 const normalizeQuick = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
+                const isCategoryQuickReply = (option: QuickReply) => {
+                  const label = normalizeQuick(option.label);
+                  const value = normalizeQuick(option.value);
+                  const normalized = label || value;
+                  if (/^категория\s*:/iu.test(value) || /^категория\s*:/iu.test(label)) return true;
+                  return /^(все категории|парикмахерские услуги|ногтевой сервис|брови)$/iu.test(normalized);
+                };
                 const isWideQuickReply = (option: QuickReply) => {
-                  const text = `${option.label} ${option.value}`.replace(/\s+/g, " ").trim();
+                  if (isCategoryQuickReply(option)) return false;
+                  const text = String(option.label || "").replace(/\s+/g, " ").trim();
                   return (
                     text.length >= 34 ||
                     /[—-]/.test(text) ||
@@ -786,7 +795,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const timeControlOptions = effectiveOptions.filter((o) => timeControlKind(o) !== null);
                 const showAllTimeOptions = timeControlOptions.filter((o) => timeControlKind(o) === "show_all");
                 const partOfDayOptions = timeControlOptions.filter((o) => timeControlKind(o) === "part_of_day");
-                const regularOptions = effectiveOptions.filter((o) => timeControlKind(o) === null);
+                const categoryOptions = effectiveOptions.filter((o) => timeControlKind(o) === null && isCategoryQuickReply(o));
+                const regularOptions = effectiveOptions.filter((o) => timeControlKind(o) === null && !isCategoryQuickReply(o));
                 const hasAnyTimeOptions = regularOptions.some((o) => isTimeValue(o.value) || isTimeValue(o.label));
                 const onlyTimeOptions =
                   regularOptions.length > 0 &&
@@ -800,6 +810,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   ? (currentMode === "dark"
                       ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/10"
                       : "border-[color:var(--ai-border,#d1d5db)] bg-black/[0.03] text-[color:var(--ai-text,#111827)] hover:bg-black/[0.05]")
+                  : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]";
+                const quickReplyCategoryClass = isLastAssistant
+                  ? (currentMode === "dark"
+                      ? "border-[color:var(--ai-border,#334155)] bg-white/10 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/15"
+                      : "border-[color:var(--ai-border,#d1d5db)] bg-[color:var(--ai-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--ai-text,#111827)] hover:brightness-95")
                   : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]";
                 const consentSubmitValue =
                   ui?.kind === "consent"
@@ -868,6 +883,30 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                 ))}
                               </div>
                             ) : null}
+                          </div>
+                        ) : null}
+                        {categoryOptions.length ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {categoryOptions.map((option) => (
+                              <button
+                                key={`${option.label}:${option.value}`}
+                                type="button"
+                                disabled={loading || !isLastAssistant}
+                                onClick={() => {
+                                  if (option.href) {
+                                    if (typeof window !== "undefined") {
+                                      window.location.assign(option.href);
+                                    }
+                                    return;
+                                  }
+                                  void sendRawMessage(option.value);
+                                }}
+                                style={quickReplyRadiusStyle("chip")}
+                                className={`border px-3 py-1.5 text-xs font-semibold tracking-[0.01em] transition rounded-lg ${quickReplyCategoryClass} disabled:cursor-not-allowed disabled:opacity-60`}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
                           </div>
                         ) : null}
                         {regularOptions.length ? (

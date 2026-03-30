@@ -25,7 +25,7 @@ export default async function CrmAnalyticsPage() {
         </article>
 
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-          <h2 className="text-lg font-semibold">Аналитика Аиши</h2>
+          <h2 className="text-lg font-semibold">Аналитика AI-ассистента</h2>
           <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
             Диалоги, жалобы, качество распознавания и конверсия AI-ассистента в запись.
           </p>
@@ -33,7 +33,7 @@ export default async function CrmAnalyticsPage() {
             href="/crm/analytics/aisha"
             className="mt-4 inline-flex rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm text-[color:var(--bp-ink)] transition hover:border-[color:var(--bp-accent)]"
           >
-            Открыть аналитику Аиши
+            Открыть аналитику AI-ассистента
           </a>
         </article>
 

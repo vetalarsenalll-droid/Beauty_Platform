@@ -36,6 +36,7 @@ export type TurnContext = {
   requiredVersionIds: number[];
   accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
   customPrompt: string | null;
+  assistantName: string;
   nowYmd: string;
   nowHm: string;
   clientTimeZone: string | null;

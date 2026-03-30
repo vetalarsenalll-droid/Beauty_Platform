@@ -53,6 +53,7 @@ export type AishaNlu = {
 type RunAishaNluArgs = {
   message: string;
   nowYmd: string;
+  assistantName: string;
   clientTimeZone?: string | null;
   draft: {
     locationId: number | null;
@@ -313,7 +314,7 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
   };
 
   const prompt = [
-    "Ты модуль NLU для ассистента записи Аиша.",
+    `Ты модуль NLU для ассистента записи ${args.assistantName}.`,
     "Верни только JSON без markdown.",
     "Никогда не выдумывай ID сущностей, используй только IDs из CONTEXT.",
     "Если сущность не уверена — верни null.",

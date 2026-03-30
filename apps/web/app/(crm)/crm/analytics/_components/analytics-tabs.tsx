@@ -17,7 +17,7 @@ export function AnalyticsTabs({ active }: AnalyticsTabsProps) {
         Общая аналитика
       </Link>
       <Link href="/crm/analytics/aisha" className={`${base} ${active === "aisha" ? activeCls : idleCls}`}>
-        Аналитика Аиши
+        Аналитика AI-ассистента
       </Link>
       <Link
         href="/crm/analytics/online-booking"
