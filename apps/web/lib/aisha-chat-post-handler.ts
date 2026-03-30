@@ -512,6 +512,19 @@ export async function handlePublicAiChatPost(request: Request) {
       shouldRunBookingFlowResolved = true;
       route = "booking-flow";
     }
+    const hasChainPlanForEditing =
+      d.status === "CHECKING" &&
+      d.bookingMode === "chain_multi_specialist" &&
+      Array.isArray(d.planJson) &&
+      d.planJson.length > 1;
+    const chainPlanEditCue = /(измени(?:ть|ла|л)?\s+время|измени(?:ть|ла|л)?\s+специалист|изменить\s+специалистов|время\s+услуг[аи]?|специалист\s+услуг[аи]?|услуги?\s*(?:№|#)\s*\d+)/iu.test(
+      messageForRouting
+    );
+    const forceBookingFlowForChainEdit = hasChainPlanForEditing && chainPlanEditCue;
+    if (forceBookingFlowForChainEdit) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
     if (intent === "abuse_or_toxic") {
       shouldRunBookingFlowResolved = false;
       route = "chat-only";
@@ -625,12 +638,12 @@ export async function handlePublicAiChatPost(request: Request) {
     let contextualBookingBridge: string | null = null;
 
     const bookingDomainResult = guardedUnknownServiceInBooking
-      ? { handled: true, reply, nextStatus, nextAction, nextUi }
+        ? { handled: true, reply, nextStatus, nextAction, nextUi }
       : await handleBookingDomain({
           directBookingKickoffFallback,
           date: d.date,
           locations,
-          explicitDraftServiceQuestion,
+          explicitDraftServiceQuestion: forceBookingFlowForChainEdit ? false : explicitDraftServiceQuestion,
           draftServiceName: d.serviceId ? services.find((s) => s.id === d.serviceId)?.name ?? null : null,
           draftLocationName: d.locationId ? locations.find((x) => x.id === d.locationId)?.name ?? null : null,
           runFlowArgs: {
@@ -760,7 +773,12 @@ export async function handlePublicAiChatPost(request: Request) {
         const locationPrefix = selectedLocationForServices ? `В филиале «${selectedLocationForServices.name}». ` : "";
         const specialistPrefix = specialistForServices ? `Для специалиста «${specialistForServices.name}». ` : "";
 
-        const specialistQuestionInsideServices = asksWhoPerformsServices(t) || /(мастер|специалист)/i.test(t);
+        const hasChainPlanEditContext =
+          d.bookingMode === "chain_multi_specialist" &&
+          Array.isArray(d.planJson) &&
+          d.planJson.length > 1;
+        const specialistQuestionInsideServices =
+          !hasChainPlanEditContext && (asksWhoPerformsServices(t) || /(мастер|специалист)/i.test(t));
         const serviceForSpecialistQuestion =
           serviceByText(t, servicesByCategory) ??
           (d.serviceId ? servicesByCategory.find((s) => s.id === d.serviceId) ?? null : null);
@@ -789,13 +807,12 @@ export async function handlePublicAiChatPost(request: Request) {
               .filter((s) => (s.serviceIds?.length ? s.serviceIds.includes(serviceForSpecialistQuestion.id) : true));
             const scopedByLevel = filterSpecialistsByLevel(scoped, selectedSpecialistLevelFilter);
             if (scoped.length) {
-              const locationDetails = selectedLocation?.address ? ` Адрес: ${selectedLocation.address}.` : "";
               const levelPrefix =
                 selectedSpecialistLevelFilter && selectedSpecialistLevelFilter !== "__all__"
                   ? `Уровень: ${selectedSpecialistLevelFilter}. `
                   : "";
               if (scopedByLevel.length) {
-                reply = `В ${selectedLocation?.name ?? "выбранной локации"} услугу «${serviceForSpecialistQuestion.name}» выполняют специалисты.${locationDetails} ${levelPrefix}Выберите специалиста кнопкой ниже.`;
+                reply = `В ${selectedLocation?.name ?? "выбранной локации"} услугу «${serviceForSpecialistQuestion.name}» выполняют специалисты. ${levelPrefix}Выберите специалиста кнопкой ниже.`;
                 nextUi = { kind: "quick_replies", options: specialistOptionsWithTabs(scoped, scopedByLevel) };
               } else {
                 reply = `В ${selectedLocation?.name ?? "выбранной локации"} нет специалистов с уровнем «${selectedSpecialistLevelFilter}» для услуги «${serviceForSpecialistQuestion.name}». Выберите другой уровень кнопкой ниже.`;

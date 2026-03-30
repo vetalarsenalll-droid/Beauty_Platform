@@ -175,17 +175,13 @@ export function bookingSummary(
       ].filter((value) => Number.isInteger(value) && Number(value) > 0),
     ),
   );
-  if (selectedServiceIds.length <= 1) {
-    const s = services.find((x) => x.id === d.serviceId)?.name ?? "—";
-    const sp = specialists.find((x) => x.id === d.specialistId)?.name ?? "—";
-    return `Локация: ${l}\nУслуга: ${s}\nСпециалист: ${sp}\nДата: ${formatYmdRu(d.date)}\nВремя: ${d.time ?? "—"}`;
-  }
-
-  const lines = selectedServiceIds.map((serviceId, index) => {
+  const rows = selectedServiceIds.map((serviceId, index) => {
     const service = services.find((x) => x.id === serviceId) ?? null;
     const planItem = (d.planJson ?? []).find((item) => item?.serviceId === serviceId) ?? null;
     const specialistId = planItem?.specialistId ?? d.specialistId ?? null;
     const specialistName = specialistId ? specialists.find((x) => x.id === specialistId)?.name ?? `#${specialistId}` : "—";
+    const specialist = specialistId ? specialists.find((x) => x.id === specialistId) ?? null : null;
+    const effective = service ? getEffectiveServiceForSpecialist(service, specialist) : null;
     const whenDate = planItem?.date ?? d.date;
     let whenTime = planItem?.time ?? (index === 0 ? d.time : null);
     if (!planItem?.time && !(Array.isArray(d.planJson) && d.planJson.length > 0) && d.specialistId && d.time && index > 0) {
@@ -209,10 +205,35 @@ export function bookingSummary(
         whenTime = `${hh}:${mm}`;
       }
     }
-    return `Услуга №${index + 1}: ${service?.name ?? `#${serviceId}`}\nСпециалист: ${specialistName}\nДата: ${formatYmdRu(whenDate)}\nВремя: ${whenTime ?? "—"}`;
+    return {
+      serviceId,
+      serviceName: service?.name ?? `#${serviceId}`,
+      specialistName,
+      whenDate,
+      whenTime,
+      price: effective ? Math.round(Number(effective.price || 0)) : null,
+      durationMin: effective ? Math.round(Number(effective.durationMin || 0)) : null,
+    };
   });
 
-  return `Локация: ${l}\n${lines.join("\n\n")}`;
+  if (rows.length <= 1) {
+    const first = rows[0] ?? null;
+    const s = first?.serviceName ?? "—";
+    const sp = first?.specialistName ?? "—";
+    const date = first?.whenDate ?? d.date;
+    const time = first?.whenTime ?? d.time;
+    const priceText = first?.price != null ? `${first.price} ₽` : "—";
+    const durationText = first?.durationMin != null ? `${first.durationMin} мин` : "—";
+    return `Локация: ${l}.\nУслуга: ${s}.\nСпециалист: ${sp}.\nДата: ${formatYmdRu(date)}.\nВремя: ${time ?? "—"}.\nСтоимость: ${priceText}.\nДлительность: ${durationText}.`;
+  }
+
+  const lines = rows.map(
+    (row, index) =>
+      `Услуга №${index + 1}: ${row.serviceName}.\nСпециалист: ${row.specialistName}.\nДата: ${formatYmdRu(row.whenDate)}.\nВремя: ${row.whenTime ?? "—"}.\nСтоимость: ${row.price != null ? `${row.price} ₽` : "—"}.\nДлительность: ${row.durationMin != null ? `${row.durationMin} мин` : "—"}.`,
+  );
+  const totalPrice = rows.reduce((acc, row) => acc + Number(row.price ?? 0), 0);
+  const totalDuration = rows.reduce((acc, row) => acc + Number(row.durationMin ?? 0), 0);
+  return `Локация: ${l}.\n${lines.join("\n\n")}\n\nОбщая стоимость: ${Math.round(totalPrice)} ₽.\nОбщая длительность: ${Math.round(totalDuration)} мин.`;
 }
 
 export function serviceListText(services: ServiceLite[], limit = 12) {

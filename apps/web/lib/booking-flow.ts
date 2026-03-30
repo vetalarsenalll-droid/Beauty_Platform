@@ -2637,7 +2637,7 @@ if (!d.serviceId) {
     }
   }
 
-  if (d.locationId && d.serviceId && d.date && d.time && d.specialistId) {
+  if (d.locationId && d.serviceId && d.date && d.time && d.specialistId && d.bookingMode !== "chain_multi_specialist") {
     const selectedServiceIdsForBooking = selectedServiceIds.length
       ? selectedServiceIds
       : d.serviceId
@@ -2842,7 +2842,9 @@ if (!d.serviceId) {
         nextStatus: "CHECKING",
         ui: {
           kind: "quick_replies",
-          options: times.slice(0, 24).map((tm) => optionFromLabel(tm, `время услуги №${serviceIndexFromMessage + 1}: ${tm}`)),
+          options: times
+            .slice(0, 24)
+            .map((tm) => optionFromLabel(`время услуги №${serviceIndexFromMessage + 1}: ${tm}`)),
         },
       };
     }
@@ -2957,7 +2959,9 @@ if (!d.serviceId) {
         nextStatus: "CHECKING",
         ui: {
           kind: "quick_replies",
-          options: specs.map((sp) => optionFromLabel(sp.name, `специалист услуги №${serviceIndexFromMessage + 1}: ${sp.name}`)),
+          options: specs.map((sp) =>
+            optionFromLabel(`специалист услуги №${serviceIndexFromMessage + 1}: ${sp.name}`),
+          ),
         },
       };
     }
@@ -2987,7 +2991,9 @@ if (!d.serviceId) {
             nextStatus: "CHECKING",
             ui: {
               kind: "quick_replies",
-              options: allowedSpecs.map((sp) => optionFromLabel(sp.name, `специалист услуги №${targetIndex + 1}: ${sp.name}`)),
+              options: allowedSpecs.map((sp) =>
+                optionFromLabel(`специалист услуги №${targetIndex + 1}: ${sp.name}`),
+              ),
             },
           };
         }
@@ -3373,36 +3379,6 @@ if (!d.serviceId) {
       };
     }
 
-    const selectedServicesForBooking = selectedServiceIdsForBooking
-      .map((id) => services.find((x) => x.id === id) ?? null)
-      .filter((x): x is ServiceLite => Boolean(x));
-    const chainRows = chainPlanReady
-      ? selectedServiceIdsForBooking
-          .map((serviceId) => {
-            const planItem = d.planJson.find((item) => item.serviceId === serviceId) ?? null;
-            const service = selectedServicesForBooking.find((x) => x.id === serviceId) ?? null;
-            const specialist = specialists.find((x) => x.id === (planItem?.specialistId ?? -1)) ?? null;
-            if (!planItem || !service || !specialist) return null;
-            return { service, specialist, time: planItem.time, date: planItem.date, effective: getEffectiveServiceForSpecialist(service, specialist) };
-          })
-          .filter((x): x is { service: ServiceLite; specialist: SpecialistLite; time: string; date: string; effective: { durationMin: number; price: number } } => Boolean(x))
-      : [];
-    const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
-    const effectiveRows =
-      chainRows.length === selectedServicesForBooking.length && chainRows.length > 0
-        ? chainRows.map((row) => ({ service: row.service, effective: row.effective }))
-        : selectedServicesForBooking.map((service) => ({
-            service,
-            effective: getEffectiveServiceForSpecialist(service, selectedSpecialist),
-          }));
-    const effectiveDurationTotal = effectiveRows.reduce((acc, row) => acc + Number(row.effective.durationMin || 0), 0);
-    const effectivePriceTotal = effectiveRows.reduce((acc, row) => acc + Number(row.effective.price || 0), 0);
-    const hasEffective = effectiveRows.length > 0;
-    const effectiveText = hasEffective
-      ? selectedServicesForBooking.length > 1
-        ? `\nОбщая стоимость: ${Math.round(effectivePriceTotal)} ₽\nОбщая длительность: ${effectiveDurationTotal} мин`
-        : `\nСтоимость: ${Math.round(effectivePriceTotal)} ₽\nДлительность: ${effectiveDurationTotal} мин`
-      : "";
     const specialistAutoText = autoSelectedSpecialistName
       ? autoAssignedSpecialistText(autoSelectedSpecialistName, previouslySelectedSpecialistName)
       : "";
@@ -3418,7 +3394,7 @@ if (!d.serviceId) {
     }
     return {
       handled: true,
-      reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?`,
+      reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}\n\nКак завершим запись?`,
       nextStatus: "CHECKING",
       ui: {
         kind: "quick_replies",
