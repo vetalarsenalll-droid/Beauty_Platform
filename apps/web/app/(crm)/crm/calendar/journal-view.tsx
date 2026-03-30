@@ -57,6 +57,7 @@ type JournalAppointment = {
   durationMin: number;
   clientPhone: string;
   clientEmail: string;
+  comment?: string;
 };
 
 type EditorServiceItem = {
@@ -396,6 +397,7 @@ type EditorForm = {
   clientName: string;
   clientPhone: string;
   clientEmail: string;
+  comment: string;
 };
 
 export default function JournalView({
@@ -527,6 +529,7 @@ export default function JournalView({
         clientName: "",
         clientPhone: "",
         clientEmail: "",
+        comment: "",
       });
     } else {
       const appointment = editorState.appointment;
@@ -565,6 +568,7 @@ export default function JournalView({
         clientName: appointment.clientName,
         clientPhone: appointment.clientPhone ?? "",
         clientEmail: appointment.clientEmail ?? "",
+        comment: appointment.comment ?? "",
       });
     }
   }, [editorState, locations, selectedLocationId]);
@@ -2243,6 +2247,19 @@ export default function JournalView({
                   placeholder="Email"
                   className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                 />
+
+                <div>
+                  <label className="text-xs text-[color:var(--bp-muted)]">
+                    Комментарий клиента
+                  </label>
+                  <textarea
+                    value={editorForm.comment}
+                    readOnly
+                    rows={3}
+                    placeholder="Комментарий отсутствует"
+                    className="mt-1 w-full resize-none rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                  />
+                </div>
               </aside>
             </div>
 

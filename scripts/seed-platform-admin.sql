@@ -35,8 +35,8 @@ SELECT
   'EMAIL',
   'admin@beauty.local',
   'admin@beauty.local',
-  '0ec8f2c9985c78cc6bc179b028bc3f85a34233a33281aaed7df07b0efb724c96',
-  'ea1eeb9af1e9e987fd41842f2f3cd6a4',
+  '1d335ba7a07e4b97606dab40739b678f1c825dcd0be28c34b694be2b2496e903',
+  'bf5c8aa7665bd93783fa0613ca9dcb3e',
   'scrypt',
   NOW(),
   NOW()
@@ -83,8 +83,8 @@ SELECT
   'EMAIL',
   'moderator@beauty.local',
   'moderator@beauty.local',
-  'c83ba4cba8fe9686f7b9bd47b66b6e4565ed2cb85315000884a67f420681cc39',
-  '3c48237a640f50c427da8a72145fc29a',
+  '1d335ba7a07e4b97606dab40739b678f1c825dcd0be28c34b694be2b2496e903',
+  'bf5c8aa7665bd93783fa0613ca9dcb3e',
   'scrypt',
   NOW(),
   NOW()

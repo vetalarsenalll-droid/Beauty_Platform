@@ -100,6 +100,7 @@ function serializeAppointment(appointment: {
   durationTotalMin: number;
   client: { firstName: string | null; lastName: string | null; phone: string | null; email: string | null };
   services: { serviceId: number; price: Prisma.Decimal; durationMin: number; service: { id: number; name: string } }[];
+  comment: string | null;
 }) {
   const clientName = `${appointment.client.firstName ?? ""} ${appointment.client.lastName ?? ""}`
     .trim()
@@ -116,6 +117,7 @@ function serializeAppointment(appointment: {
     clientName: clientName || appointment.client.phone || "Без клиента",
     clientPhone: appointment.client.phone ?? "",
     clientEmail: appointment.client.email ?? "",
+    comment: appointment.comment ?? "",
     serviceItems: appointment.services.map((item) => ({
       serviceId: item.serviceId,
       serviceName: item.service.name,
@@ -485,7 +487,10 @@ export async function PATCH(
   const appointment = await prisma.appointment.update({
     where: { id: appointmentId },
     data,
-    include: { client: true, services: { include: { service: true } } },
+    include: {
+      client: true,
+      services: { include: { service: true } },
+    },
   });
 
   if (requestedServiceIds !== undefined) {
@@ -517,7 +522,10 @@ export async function PATCH(
 
   const refreshed = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: { client: true, services: { include: { service: true } } },
+    include: {
+      client: true,
+      services: { include: { service: true } },
+    },
   });
 
   return NextResponse.json(serializeAppointment(refreshed ?? appointment));

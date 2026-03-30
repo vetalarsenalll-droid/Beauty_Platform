@@ -640,6 +640,7 @@ export async function POST(request: Request) {
           durationTotalMin: durationMin,
           source: "online",
           groupBookingId,
+          comment: comment || null,
         },
         select: { id: true },
       });
@@ -689,7 +690,7 @@ export async function POST(request: Request) {
           actorId: null,
           fromStatus: null,
           toStatus: "NEW",
-          comment: comment || null,
+          comment: null,
         },
       });
 

@@ -106,9 +106,9 @@ function dateUtc(y, m, d) {
   return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 }
 
-function buildMarchDates() {
+function buildAprilDates() {
   const out = [];
-  for (let day = 1; day <= 31; day += 1) out.push(dateUtc(2026, 3, day));
+  for (let day = 1; day <= 30; day += 1) out.push(dateUtc(2026, 4, day));
   return out;
 }
 
@@ -203,8 +203,8 @@ async function resolveOwnerUser() {
           provider: "EMAIL",
           providerUserId: "owner@beauty.local",
           email: "owner@beauty.local",
-          passwordHash: "0ec8f2c9985c78cc6bc179b028bc3f85a34233a33281aaed7df07b0efb724c96",
-          passwordSalt: "ea1eeb9af1e9e987fd41842f2f3cd6a4",
+          passwordHash: "1d335ba7a07e4b97606dab40739b678f1c825dcd0be28c34b694be2b2496e903",
+          passwordSalt: "bf5c8aa7665bd93783fa0613ca9dcb3e",
           passwordAlgo: "scrypt",
           passwordUpdatedAt: new Date(),
         },
@@ -441,14 +441,14 @@ async function main() {
     specialists.push({ id: specialist.id, group, levelId: level.id, fullName, locationIds });
   }
 
-  console.log("8) Расписание на март 2026...");
-  const marchDates = buildMarchDates();
+  console.log("8) Расписание на апрель 2026...");
+  const aprilDates = buildAprilDates();
   for (let idx = 0; idx < specialists.length; idx += 1) {
     const sp = specialists[idx];
     const sickDays = new Set([5 + (idx % 3), 18 + (idx % 4)]);
     const offDays = new Set([12 + (idx % 2)]);
 
-    for (const date of marchDates) {
+    for (const date of aprilDates) {
       const dayNum = date.getUTCDate();
       const dow = date.getUTCDay();
 

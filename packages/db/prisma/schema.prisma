@@ -1332,6 +1332,7 @@ model Appointment {
   priceTotal       Decimal           @db.Decimal(12, 2)
   durationTotalMin Int
   source           String
+  comment          String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
