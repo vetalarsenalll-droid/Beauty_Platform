@@ -40,9 +40,21 @@ function isDateTimeInfoReply(content: string) {
   return false;
 }
 
+function isTransientAssistantPrompt(msg: ChatMessage) {
+  if (msg.role !== "assistant") return false;
+  if (msg.ui?.kind === "consent") return true;
+  const t = msg.content.toLowerCase();
+  return (
+    /нужны имя и номер телефона клиента/i.test(t) ||
+    /укажите, пожалуйста, номер телефона клиента/i.test(t) ||
+    /укажите, пожалуйста, имя клиента/i.test(t) ||
+    /напишите одним сообщением.*\+7/i.test(t)
+  );
+}
+
 function shouldExtractTimeQuickReplies(content: string) {
   if (isDateTimeInfoReply(content)) return false;
-  if (/\u0444\u0438\u043b\u0438\u0430\u043b/i.test(content) || /location/i.test(content)) return false;
+  if (/филиал/i.test(content) || /location/i.test(content)) return false;
   if (/проверьте данные:|как завершим запись|для оформления нужно согласие/i.test(content)) return false;
   // If assistant asks to choose location/branch, show only branch buttons.
   if (/(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content)) return false;
@@ -56,8 +68,8 @@ function shouldExtractTimeQuickReplies(content: string) {
 function extractQuickReplies(content: string): QuickReply[] {
   const replies: QuickReply[] = [];
   const isLocationSelectionReply =
-    /(\u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0444\u0438\u043b\u0438\u0430\u043b|\u043c\u043e\u0436\u043d\u043e \u0432\u044b\u0431\u0440\u0430\u0442\u044c \u0444\u0438\u043b\u0438\u0430\u043b|\u0444\u0438\u043b\u0438\u0430\u043b \u043a\u043d\u043e\u043f\u043a\u043e\u0439 \u043d\u0438\u0436\u0435)/i.test(content) ||
-    /\u0444\u0438\u043b\u0438\u0430\u043b/i.test(content) ||
+    /(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content) ||
+    /филиал/i.test(content) ||
     /location/i.test(content);
   const add = (label: string, value?: string, href?: string) => {
     const l = label.trim();
@@ -512,7 +524,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const sendRawMessage = async (rawText: string) => {
     const userText = rawText.trim();
     if (!userText || loading) return;
-    setMessages((prev) => [...prev, { role: "user", content: userText }]);
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      const base = last && isTransientAssistantPrompt(last) ? prev.slice(0, -1) : prev;
+      return [...base, { role: "user", content: userText }];
+    });
     setLoading(true);
 
     try {

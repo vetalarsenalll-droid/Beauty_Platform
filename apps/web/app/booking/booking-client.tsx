@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ReactNode } from "react";
 import type { SiteLoaderConfig } from "@/lib/site-builder";
 import SiteLoader from "@/components/site-loader";
+import { normalizeRuPhone } from "@/lib/phone";
 
 type BookingClientProps = {
   accountSlug?: string;
@@ -3467,7 +3468,8 @@ export default function BookingClient({
   }, [timeChoice, serviceDuration]);
 
   const nameReady = clientName.trim().length >= 2;
-  const phoneReady = clientPhone.trim().length >= 8;
+  const phoneNormalized = normalizeRuPhone(clientPhone.trim());
+  const phoneReady = Boolean(phoneNormalized);
   const timeSelectionReady = isVisitPlanMode ? chainComplete : !!specialistId && !!timeChoice;
 
   const requiredLegalDocs = useMemo(
@@ -3504,7 +3506,7 @@ export default function BookingClient({
     const reasons: string[] = [];
 
     if (!nameReady) reasons.push("Заполните имя (минимум 2 символа).");
-    if (!phoneReady) reasons.push("Заполните телефон (минимум 8 символов).");
+    if (!phoneReady) reasons.push("Введите корректный номер телефона (например: +7XXXXXXXXXX или 8XXXXXXXXXX).");
 
     if (missingRequiredLegalDocs.length > 0) {
       if (missingRequiredLegalDocs.length === 1) {
@@ -3542,6 +3544,12 @@ export default function BookingClient({
     canSubmit,
     submitBlockingReasons,
   ]);
+
+  useEffect(() => {
+    if (!submitError) return;
+    const stillRelevant = submitBlockingReasons.includes(submitError);
+    if (!stillRelevant) setSubmitError(null);
+  }, [submitError, submitBlockingReasons]);
 
   const canNext = useMemo(() => {
     switch (currentStepKey) {

@@ -12,6 +12,7 @@
   specialistsForSlot,
   SpecialistLite,
 } from "@/lib/booking-tools";
+import { parseTime } from "@/lib/aisha-chat-parsers";
 
 export type BookingState =
   | "IDLE"
@@ -2361,7 +2362,12 @@ if (!d.serviceId) {
           })
         : await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date, holdOwnerMarker ?? undefined);
     const times = filterByPreference(allTimes, pref);
-    if (!times.length) {
+    const parsedTime = parseTime(messageNorm);
+    if (parsedTime && times.includes(parsedTime)) {
+      d.time = parsedTime;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+    } else if (!times.length) {
       const nextDates = specialistSelected
         ? selectedServiceIdsForTime.length > 1
           ? await findNextDatesForSingleSpecialistServiceChain({
@@ -2416,21 +2422,23 @@ if (!d.serviceId) {
           : null,
       };
     }
-    const anyTimeRequested = /(?:любое\s+время|не\s+важно\s+время|неважно\s+время)/iu.test(messageNorm);
-    if (anyTimeRequested && times.length) {
-      d.time = times[0]!;
-      d.mode = null;
-      d.consentConfirmedAt = null;
-    } else {
-      const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
-      return {
-        handled: true,
-        reply: specialistSelected
-          ? `На ${formatYmdRu(d.date)}${prefText} у выбранного специалиста доступны времена. Выберите время.`
-          : `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
-        nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, null) },
-      };
+    if (!d.time) {
+      const anyTimeRequested = /(?:любое\s+время|не\s+важно\s+время|неважно\s+время)/iu.test(messageNorm);
+      if (anyTimeRequested && times.length) {
+        d.time = times[0]!;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+      } else {
+        const prefText = pref === "evening" ? " на вечер" : pref === "morning" ? " на утро" : pref === "day" ? " на день" : "";
+        return {
+          handled: true,
+          reply: specialistSelected
+            ? `На ${formatYmdRu(d.date)}${prefText} у выбранного специалиста доступны времена. Выберите время.`
+            : `На ${formatYmdRu(d.date)}${prefText} доступны времена. Выберите время.`,
+          nextStatus: "COLLECTING",
+          ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, null) },
+        };
+      }
     }
   }
   if (!d.specialistId) {
