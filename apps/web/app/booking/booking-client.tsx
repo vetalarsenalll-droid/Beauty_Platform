@@ -1091,12 +1091,17 @@ export default function BookingClient({
         const parsed = JSON.parse(rawPlan);
         if (Array.isArray(parsed)) {
           const normalized = parsed
-            .map((item: any) => ({
-              serviceId: Number(item?.serviceId),
-              specialistId: Number.isInteger(Number(item?.specialistId)) ? Number(item.specialistId) : null,
-              date: String(item?.date ?? ""),
-              time: typeof item?.time === "string" ? item.time : null,
-            }))
+            .map((item: unknown) => {
+              const obj = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+              const serviceId = Number(obj.serviceId);
+              const specialistIdRaw = Number(obj.specialistId);
+              return {
+                serviceId,
+                specialistId: Number.isInteger(specialistIdRaw) ? specialistIdRaw : null,
+                date: String(obj.date ?? ""),
+                time: typeof obj.time === "string" ? obj.time : null,
+              };
+            })
             .filter(
               (item: ChainItem) =>
                 Number.isInteger(item.serviceId) &&
@@ -3468,8 +3473,14 @@ export default function BookingClient({
   }, [timeChoice, serviceDuration]);
 
   const nameReady = clientName.trim().length >= 2;
+  const isRuPhoneValid = (raw: string) => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length === 11) return digits.startsWith("7") || digits.startsWith("8");
+    if (digits.length === 10) return digits.startsWith("9");
+    return false;
+  };
   const phoneNormalized = normalizeRuPhone(clientPhone.trim());
-  const phoneReady = Boolean(phoneNormalized);
+  const phoneReady = Boolean(phoneNormalized) && isRuPhoneValid(clientPhone);
   const timeSelectionReady = isVisitPlanMode ? chainComplete : !!specialistId && !!timeChoice;
 
   const requiredLegalDocs = useMemo(
@@ -3506,7 +3517,7 @@ export default function BookingClient({
     const reasons: string[] = [];
 
     if (!nameReady) reasons.push("Заполните имя (минимум 2 символа).");
-    if (!phoneReady) reasons.push("Введите корректный номер телефона (например: +7XXXXXXXXXX или 8XXXXXXXXXX).");
+    if (!phoneReady) reasons.push("Введите корректный номер телефона (например: +7 9XX XXX-XX-XX или 8 9XX XXX-XX-XX).");
 
     if (missingRequiredLegalDocs.length > 0) {
       if (missingRequiredLegalDocs.length === 1) {
