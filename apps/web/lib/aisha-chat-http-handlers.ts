@@ -100,7 +100,7 @@ export async function handlePublicAiChatDelete(request: Request) {
 
   await prismaAny.aiBookingDraft.upsert({
     where: { threadId: newThread.id },
-    create: { threadId: newThread.id, status: "COLLECTING" },
+    create: { threadId: newThread.id, status: "COLLECTING", serviceIds: [], planJson: [] },
     update: {},
   });
 

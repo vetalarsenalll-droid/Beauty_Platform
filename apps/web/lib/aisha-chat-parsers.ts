@@ -13,24 +13,30 @@ const norm = (v: string) =>
 export const draftView = (d: {
   locationId: number | null;
   serviceId: number | null;
+  serviceIds?: number[] | null;
   specialistId: number | null;
   date: string | null;
   time: string | null;
   clientName: string | null;
   clientPhone: string | null;
   clientEmail?: string | null;
+  planJson?: Array<{ serviceId: number; specialistId: number | null; date: string | null; time: string | null }> | null;
+  bookingMode?: "single_specialist_multi" | "chain_multi_specialist" | null;
   mode: string | null;
   status: string;
   consentConfirmedAt: Date | null;
 }): DraftLike => ({
   locationId: d.locationId,
   serviceId: d.serviceId,
+  serviceIds: Array.isArray(d.serviceIds) ? d.serviceIds : [],
   specialistId: d.specialistId,
   date: d.date,
   time: d.time,
   clientName: d.clientName,
   clientPhone: d.clientPhone,
   clientEmail: d.clientEmail ?? null,
+  planJson: Array.isArray(d.planJson) ? d.planJson : [],
+  bookingMode: d.bookingMode ?? null,
   mode: d.mode === "SELF" || d.mode === "ASSISTANT" ? (d.mode as Mode) : null,
   status: d.status,
   consentConfirmedAt: d.consentConfirmedAt ? d.consentConfirmedAt.toISOString() : null,

@@ -1,4 +1,5 @@
 ﻿import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import {
   getLocationWorkWindowForDate,
@@ -13,12 +14,20 @@ export type Mode = "SELF" | "ASSISTANT";
 export type DraftLike = {
   locationId: number | null;
   serviceId: number | null;
+  serviceIds?: number[] | null;
   specialistId: number | null;
   date: string | null;
   time: string | null;
   clientName: string | null;
   clientPhone: string | null;
   clientEmail: string | null;
+  planJson?: Array<{
+    serviceId: number;
+    specialistId: number | null;
+    date: string | null;
+    time: string | null;
+  }> | null;
+  bookingMode?: "single_specialist_multi" | "chain_multi_specialist" | null;
   mode: Mode | null;
   status: string;
   consentConfirmedAt: string | null;
@@ -32,6 +41,7 @@ export type ServiceLite = {
   description?: string | null;
   categoryName?: string | null;
   basePrice: number;
+  allowMultiServiceBooking?: boolean;
   locationIds: number[];
   levelConfigs?: Array<{ levelId: number; durationMin: number | null; price: number | null }>;
   specialistConfigs?: Array<{ specialistId: number; durationOverrideMin: number | null; priceOverride: number | null }>;
@@ -157,9 +167,31 @@ export function bookingSummary(
     return `${m[3]}.${m[2]}.${m[1]}`;
   };
   const l = locations.find((x) => x.id === d.locationId)?.name ?? "—";
-  const s = services.find((x) => x.id === d.serviceId)?.name ?? "—";
-  const sp = specialists.find((x) => x.id === d.specialistId)?.name ?? "—";
-  return `Локация: ${l}\nУслуга: ${s}\nСпециалист: ${sp}\nДата: ${formatYmdRu(d.date)}\nВремя: ${d.time ?? "—"}`;
+  const selectedServiceIds = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+        ...(Number.isInteger(d.serviceId) && Number(d.serviceId) > 0 ? [Number(d.serviceId)] : []),
+      ].filter((value) => Number.isInteger(value) && Number(value) > 0),
+    ),
+  );
+  if (selectedServiceIds.length <= 1) {
+    const s = services.find((x) => x.id === d.serviceId)?.name ?? "—";
+    const sp = specialists.find((x) => x.id === d.specialistId)?.name ?? "—";
+    return `Локация: ${l}\nУслуга: ${s}\nСпециалист: ${sp}\nДата: ${formatYmdRu(d.date)}\nВремя: ${d.time ?? "—"}`;
+  }
+
+  const lines = selectedServiceIds.map((serviceId, index) => {
+    const service = services.find((x) => x.id === serviceId) ?? null;
+    const planItem = (d.planJson ?? []).find((item) => item?.serviceId === serviceId) ?? null;
+    const specialistId = planItem?.specialistId ?? d.specialistId ?? null;
+    const specialistName = specialistId ? specialists.find((x) => x.id === specialistId)?.name ?? `#${specialistId}` : "—";
+    const whenDate = planItem?.date ?? d.date;
+    const whenTime = planItem?.time ?? (index === 0 ? d.time : null);
+    return `Услуга №${index + 1}: ${service?.name ?? `#${serviceId}`}\nСпециалист: ${specialistName}\nДата: ${formatYmdRu(whenDate)}\nВремя: ${whenTime ?? "—"}`;
+  });
+
+  return `Локация: ${l}\n${lines.join("\n\n")}`;
 }
 
 export function serviceListText(services: ServiceLite[], limit = 12) {
@@ -178,6 +210,12 @@ type CreateBookingArgs = {
   services: ServiceLite[];
   preferredClientId?: number | null;
   holdOwnerMarker?: number | null;
+};
+
+type LocationCalendarLite = {
+  id: number;
+  hours: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+  exceptions: Array<{ date: Date; isClosed: boolean; startTime: string | null; endTime: string | null }>;
 };
 
 export async function reserveAssistantSlotHold(args: {
@@ -314,105 +352,64 @@ export async function reserveAssistantSlotHold(args: {
 
 export async function createAssistantBooking(args: CreateBookingArgs) {
   const { d, accountId, accountTz, requiredVersionIds, request, services, preferredClientId = null, holdOwnerMarker = null } = args;
-  const startAt = zonedTimeToUtc(String(d.date), String(d.time), accountTz);
-  const day = zonedDayRangeUtc(String(d.date), accountTz);
-  if (!startAt || !day || isPastDateOrTimeInTz(String(d.date), String(d.time), accountTz)) {
-    return { ok: false as const, code: "bad_datetime" as const };
+  const selectedServiceIds = Array.from(
+    new Set<number>([
+      ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+      ...(d.serviceId ? [Number(d.serviceId)] : []),
+    ]),
+  ).filter((id) => Number.isInteger(id) && id > 0);
+  if (!selectedServiceIds.length) {
+    return { ok: false as const, code: "bad_service" as const };
   }
 
-  const service = services.find((x) => x.id === d.serviceId);
-  if (!service) return { ok: false as const, code: "bad_service" as const };
+  const selectedServices = selectedServiceIds
+    .map((id) => services.find((x) => x.id === id) ?? null)
+    .filter((x): x is ServiceLite => Boolean(x));
+  if (selectedServices.length !== selectedServiceIds.length) {
+    return { ok: false as const, code: "bad_service" as const };
+  }
+  if (selectedServiceIds.length > 1 && selectedServices.some((service) => service.allowMultiServiceBooking === false)) {
+    return { ok: false as const, code: "bad_service" as const };
+  }
 
-  const [location, specialist, schedule] = await Promise.all([
-    prisma.location.findFirst({
-      where: { id: d.locationId!, accountId, status: "ACTIVE" },
-      select: {
-        id: true,
-        hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
-        exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
-      },
-    }),
-    prisma.specialistProfile.findFirst({
-      where: { id: d.specialistId!, accountId },
-      select: { id: true, levelId: true },
-    }),
-    prisma.scheduleEntry.findFirst({
-      where: {
-        accountId,
-        specialistId: d.specialistId!,
-        locationId: d.locationId!,
-        date: { gte: day.dayStartUtc, lt: day.dayEndUtc },
-        type: "WORKING",
-      },
-    }),
-  ]);
-  if (!location || !specialist || !schedule) return { ok: false as const, code: "combo_unavailable" as const };
-
-  const specialistLite: SpecialistLite = {
-    id: specialist.id,
-    levelId: specialist.levelId ?? null,
-    name: "",
-    locationIds: [],
-    serviceIds: [],
+  type PlanItem = {
+    serviceId: number;
+    specialistId: number;
+    date: string;
+    time: string;
   };
-  const effective = getEffectiveServiceForSpecialist(service, specialistLite);
 
-  const locationWindow = getLocationWorkWindowForDate(location, String(d.date));
-  if (locationWindow.isClosed) {
-    return { ok: false as const, code: "outside_working_hours" as const };
-  }
+  const rawPlan = Array.isArray(d.planJson) ? d.planJson : [];
+  const normalizedPlan: PlanItem[] = rawPlan
+    .map((item) => {
+      const serviceId = Number((item as { serviceId?: unknown })?.serviceId);
+      const specialistId = Number((item as { specialistId?: unknown })?.specialistId);
+      const date = String((item as { date?: unknown })?.date ?? "").trim();
+      const time = String((item as { time?: unknown })?.time ?? "").trim();
+      if (!Number.isInteger(serviceId) || serviceId <= 0) return null;
+      if (!Number.isInteger(specialistId) || specialistId <= 0) return null;
+      if (!date || !time) return null;
+      return { serviceId, specialistId, date, time };
+    })
+    .filter((x): x is PlanItem => Boolean(x));
 
-  const startM = toMinutes(String(d.time));
-  const sStart = toMinutes(schedule.startTime || "");
-  const sEnd = toMinutes(schedule.endTime || "");
-  if (
-    startM == null ||
-    sStart == null ||
-    sEnd == null ||
-    startM < sStart ||
-    startM + effective.durationMin > sEnd ||
-    startM < locationWindow.startMinutes ||
-    startM + effective.durationMin > locationWindow.endMinutes
-  ) {
-    return { ok: false as const, code: "outside_working_hours" as const };
-  }
+  const hasChainPlan =
+    selectedServiceIds.length > 1 &&
+    normalizedPlan.length === selectedServiceIds.length &&
+    selectedServiceIds.every((id) => normalizedPlan.some((item) => item.serviceId === id));
 
-  const endAt = new Date(startAt);
-  endAt.setUTCMinutes(endAt.getUTCMinutes() + effective.durationMin);
   const ip = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? null;
   const ua = request.headers.get("user-agent") ?? null;
+
+  const normalizeEmail = (value: string | null | undefined) => {
+    const trimmed = (value ?? "").trim().toLowerCase();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+  const normalizedEmail = normalizeEmail(d.clientEmail);
 
   try {
     const appointmentResult = await prisma.$transaction(
       async (tx) => {
-        const conflict = await tx.appointment.findFirst({
-          where: {
-            accountId,
-            locationId: d.locationId!,
-            specialistId: d.specialistId!,
-            status: { notIn: ["CANCELLED", "NO_SHOW"] },
-            startAt: { lt: endAt },
-            endAt: { gt: startAt },
-          },
-          select: { id: true },
-        });
-        if (conflict) return null;
-
-        const holdConflict = await tx.appointmentHold.findFirst({
-          where: {
-            accountId,
-            specialistId: d.specialistId!,
-            expiresAt: { gt: new Date() },
-            startAt: { lt: endAt },
-            endAt: { gt: startAt },
-            ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
-          },
-          select: { id: true },
-        });
-        if (holdConflict) return null;
-
-        const normalizedEmail = d.clientEmail ? d.clientEmail.trim().toLowerCase() : null;
-
         const clientByPreferred = preferredClientId
           ? await tx.client.findFirst({
               where: { id: preferredClientId, accountId },
@@ -437,7 +434,7 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
             : null;
 
         if (clientByPhone && clientByEmail && clientByPhone.id !== clientByEmail.id) {
-          return "client_conflict";
+          return "client_conflict" as const;
         }
 
         const existingClient = clientByPreferred ?? clientByPhone ?? clientByEmail;
@@ -463,6 +460,321 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
               })
             ).id;
 
+        const createLegalAcceptances = async (appointmentIds: number[]) => {
+          if (!requiredVersionIds.length || !appointmentIds.length) return;
+          await tx.legalAcceptance.createMany({
+            data: requiredVersionIds.flatMap((v) =>
+              appointmentIds.map((appointmentId) => ({
+                accountId,
+                documentVersionId: v,
+                appointmentId,
+                clientId,
+                source: "public_booking",
+                ip,
+                userAgent: ua,
+              })),
+            ),
+          });
+        };
+
+        if (hasChainPlan) {
+          const locationsByDate = new Map<string, LocationCalendarLite | null>();
+          const schedulesByKey = new Map<string, Awaited<ReturnType<typeof tx.scheduleEntry.findFirst>>>();
+          const createdAppointmentIds: number[] = [];
+          const groupBookingId = randomUUID();
+
+          const plannedWindows: Array<{
+            service: ServiceLite;
+            specialistId: number;
+            startAt: Date;
+            endAt: Date;
+            date: string;
+            time: string;
+            durationMin: number;
+            price: number;
+          }> = [];
+
+          for (const serviceId of selectedServiceIds) {
+            const item = normalizedPlan.find((x) => x.serviceId === serviceId);
+            if (!item) return "bad_datetime" as const;
+            if (isPastDateOrTimeInTz(item.date, item.time, accountTz)) return "bad_datetime" as const;
+
+            const service = selectedServices.find((x) => x.id === serviceId);
+            if (!service) return "bad_service" as const;
+
+            const specialist = await tx.specialistProfile.findFirst({
+              where: { id: item.specialistId, accountId, locations: { some: { locationId: d.locationId! } } },
+              select: { id: true, levelId: true },
+            });
+            if (!specialist) return "combo_unavailable" as const;
+            const supported = await tx.specialistService.findFirst({
+              where: { specialistId: specialist.id, serviceId: service.id },
+              select: { specialistId: true },
+            });
+            if (!supported) return "combo_unavailable" as const;
+
+            const startAt = zonedTimeToUtc(item.date, item.time, accountTz);
+            const day = zonedDayRangeUtc(item.date, accountTz);
+            if (!startAt || !day) return "bad_datetime" as const;
+
+            const locationKey = item.date;
+            if (!locationsByDate.has(locationKey)) {
+              const location = await tx.location.findFirst({
+                where: { id: d.locationId!, accountId, status: "ACTIVE" },
+                select: {
+                  id: true,
+                  hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+                  exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+                },
+              });
+              locationsByDate.set(locationKey, location);
+            }
+            const location = locationsByDate.get(locationKey);
+            if (!location) return "combo_unavailable" as const;
+
+            const scheduleKey = `${item.specialistId}:${item.date}`;
+            if (!schedulesByKey.has(scheduleKey)) {
+              const schedule = await tx.scheduleEntry.findFirst({
+                where: {
+                  accountId,
+                  specialistId: item.specialistId,
+                  locationId: d.locationId!,
+                  date: { gte: day.dayStartUtc, lt: day.dayEndUtc },
+                  type: "WORKING",
+                },
+              });
+              schedulesByKey.set(scheduleKey, schedule);
+            }
+            const schedule = schedulesByKey.get(scheduleKey);
+            if (!schedule) return "combo_unavailable" as const;
+
+            const specialistLite: SpecialistLite = {
+              id: specialist.id,
+              levelId: specialist.levelId ?? null,
+              name: "",
+              locationIds: [],
+              serviceIds: [],
+            };
+            const effective = getEffectiveServiceForSpecialist(service, specialistLite);
+            const locationWindow = getLocationWorkWindowForDate(location, item.date);
+            if (locationWindow.isClosed) return "outside_working_hours" as const;
+
+            const startM = toMinutes(item.time);
+            const sStart = toMinutes(schedule.startTime || "");
+            const sEnd = toMinutes(schedule.endTime || "");
+            if (
+              startM == null ||
+              sStart == null ||
+              sEnd == null ||
+              startM < sStart ||
+              startM + effective.durationMin > sEnd ||
+              startM < locationWindow.startMinutes ||
+              startM + effective.durationMin > locationWindow.endMinutes
+            ) {
+              return "outside_working_hours" as const;
+            }
+
+            const endAt = new Date(startAt);
+            endAt.setUTCMinutes(endAt.getUTCMinutes() + effective.durationMin);
+            plannedWindows.push({
+              service,
+              specialistId: specialist.id,
+              startAt,
+              endAt,
+              date: item.date,
+              time: item.time,
+              durationMin: effective.durationMin,
+              price: Number(effective.price),
+            });
+          }
+
+          plannedWindows.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+
+          for (let i = 1; i < plannedWindows.length; i += 1) {
+            if (plannedWindows[i]!.startAt.getTime() < plannedWindows[i - 1]!.endAt.getTime()) {
+              return "bad_datetime" as const;
+            }
+          }
+
+          for (const window of plannedWindows) {
+            const [conflict, holdConflict, blockedConflict] = await Promise.all([
+              tx.appointment.findFirst({
+                where: {
+                  accountId,
+                  locationId: d.locationId!,
+                  specialistId: window.specialistId,
+                  status: { notIn: ["CANCELLED", "NO_SHOW"] },
+                  startAt: { lt: window.endAt },
+                  endAt: { gt: window.startAt },
+                },
+                select: { id: true },
+              }),
+              tx.appointmentHold.findFirst({
+                where: {
+                  accountId,
+                  specialistId: window.specialistId,
+                  expiresAt: { gt: new Date() },
+                  startAt: { lt: window.endAt },
+                  endAt: { gt: window.startAt },
+                  ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
+                },
+                select: { id: true },
+              }),
+              tx.blockedSlot.findFirst({
+                where: {
+                  accountId,
+                  startAt: { lt: window.endAt },
+                  endAt: { gt: window.startAt },
+                  OR: [{ locationId: d.locationId! }, { specialistId: window.specialistId }],
+                },
+                select: { id: true },
+              }),
+            ]);
+            if (conflict || holdConflict || blockedConflict) return "slot_busy" as const;
+          }
+
+          for (const [index, window] of plannedWindows.entries()) {
+            const appt = await tx.appointment.create({
+              data: {
+                accountId,
+                locationId: d.locationId!,
+                specialistId: window.specialistId,
+                clientId,
+                startAt: window.startAt,
+                endAt: window.endAt,
+                status: "NEW",
+                priceTotal: Number(window.price),
+                durationTotalMin: window.durationMin,
+                source: "ai_assistant",
+                groupBookingId,
+              },
+              select: { id: true },
+            });
+
+            await tx.$executeRaw`
+              INSERT INTO "public"."AppointmentService"
+                ("appointmentId", "serviceId", "price", "durationMin", "orderIndex", "specialistId")
+              VALUES
+                (${appt.id}, ${window.service.id}, ${Number(window.price)}, ${window.durationMin}, ${index}, ${window.specialistId})
+            `;
+            await tx.appointmentStatusHistory.create({
+              data: { appointmentId: appt.id, actorType: "assistant", toStatus: "NEW" },
+            });
+            createdAppointmentIds.push(appt.id);
+          }
+
+          await createLegalAcceptances(createdAppointmentIds);
+          return { type: "chain" as const, appointmentIds: createdAppointmentIds };
+        }
+
+        const startAt = zonedTimeToUtc(String(d.date), String(d.time), accountTz);
+        const day = zonedDayRangeUtc(String(d.date), accountTz);
+        if (!startAt || !day || isPastDateOrTimeInTz(String(d.date), String(d.time), accountTz)) {
+          return "bad_datetime" as const;
+        }
+        if (!d.specialistId) return "combo_unavailable" as const;
+
+        const [location, specialist, schedule] = await Promise.all([
+          tx.location.findFirst({
+            where: { id: d.locationId!, accountId, status: "ACTIVE" },
+            select: {
+              id: true,
+              hours: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+              exceptions: { select: { date: true, isClosed: true, startTime: true, endTime: true } },
+            },
+          }),
+          tx.specialistProfile.findFirst({
+            where: { id: d.specialistId!, accountId },
+            select: { id: true, levelId: true },
+          }),
+          tx.scheduleEntry.findFirst({
+            where: {
+              accountId,
+              specialistId: d.specialistId!,
+              locationId: d.locationId!,
+              date: { gte: day.dayStartUtc, lt: day.dayEndUtc },
+              type: "WORKING",
+            },
+          }),
+        ]);
+        if (!location || !specialist || !schedule) return "combo_unavailable" as const;
+
+        const serviceRows = selectedServices.map((service) => {
+          const specialistLite: SpecialistLite = {
+            id: specialist.id,
+            levelId: specialist.levelId ?? null,
+            name: "",
+            locationIds: [],
+            serviceIds: [],
+          };
+          const effective = getEffectiveServiceForSpecialist(service, specialistLite);
+          return {
+            service,
+            durationMin: effective.durationMin,
+            price: Number(effective.price),
+          };
+        });
+
+        const totalDuration = serviceRows.reduce((acc, row) => acc + row.durationMin, 0);
+        const totalPrice = serviceRows.reduce((acc, row) => acc + row.price, 0);
+        if (totalDuration <= 0) return "bad_datetime" as const;
+
+        const locationWindow = getLocationWorkWindowForDate(location, String(d.date));
+        if (locationWindow.isClosed) return "outside_working_hours" as const;
+
+        const startM = toMinutes(String(d.time));
+        const sStart = toMinutes(schedule.startTime || "");
+        const sEnd = toMinutes(schedule.endTime || "");
+        if (
+          startM == null ||
+          sStart == null ||
+          sEnd == null ||
+          startM < sStart ||
+          startM + totalDuration > sEnd ||
+          startM < locationWindow.startMinutes ||
+          startM + totalDuration > locationWindow.endMinutes
+        ) {
+          return "outside_working_hours" as const;
+        }
+
+        const endAt = new Date(startAt);
+        endAt.setUTCMinutes(endAt.getUTCMinutes() + totalDuration);
+
+        const [conflict, holdConflict, blockedConflict] = await Promise.all([
+          tx.appointment.findFirst({
+            where: {
+              accountId,
+              locationId: d.locationId!,
+              specialistId: d.specialistId!,
+              status: { notIn: ["CANCELLED", "NO_SHOW"] },
+              startAt: { lt: endAt },
+              endAt: { gt: startAt },
+            },
+            select: { id: true },
+          }),
+          tx.appointmentHold.findFirst({
+            where: {
+              accountId,
+              specialistId: d.specialistId!,
+              expiresAt: { gt: new Date() },
+              startAt: { lt: endAt },
+              endAt: { gt: startAt },
+              ...(holdOwnerMarker != null ? { clientId: { not: holdOwnerMarker } } : {}),
+            },
+            select: { id: true },
+          }),
+          tx.blockedSlot.findFirst({
+            where: {
+              accountId,
+              startAt: { lt: endAt },
+              endAt: { gt: startAt },
+              OR: [{ locationId: d.locationId! }, { specialistId: d.specialistId! }],
+            },
+            select: { id: true },
+          }),
+        ]);
+        if (conflict || holdConflict || blockedConflict) return "slot_busy" as const;
+
         const appt = await tx.appointment.create({
           data: {
             accountId,
@@ -472,39 +784,27 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
             startAt,
             endAt,
             status: "NEW",
-            priceTotal: Number(effective.price),
-            durationTotalMin: effective.durationMin,
+            priceTotal: totalPrice,
+            durationTotalMin: totalDuration,
             source: "ai_assistant",
           },
           select: { id: true },
         });
 
-        await tx.$executeRaw`
-          INSERT INTO "public"."AppointmentService"
-            ("appointmentId", "serviceId", "price", "durationMin", "orderIndex", "specialistId")
-          VALUES
-            (${appt.id}, ${service.id}, ${Number(effective.price)}, ${effective.durationMin}, ${0}, ${d.specialistId!})
-        `;
+        for (const [orderIndex, row] of serviceRows.entries()) {
+          await tx.$executeRaw`
+            INSERT INTO "public"."AppointmentService"
+              ("appointmentId", "serviceId", "price", "durationMin", "orderIndex", "specialistId")
+            VALUES
+              (${appt.id}, ${row.service.id}, ${Number(row.price)}, ${row.durationMin}, ${orderIndex}, ${d.specialistId!})
+          `;
+        }
 
         await tx.appointmentStatusHistory.create({
           data: { appointmentId: appt.id, actorType: "assistant", toStatus: "NEW" },
         });
-
-        if (requiredVersionIds.length) {
-          await tx.legalAcceptance.createMany({
-            data: requiredVersionIds.map((v) => ({
-              accountId,
-              documentVersionId: v,
-              appointmentId: appt.id,
-              clientId,
-              source: "public_booking",
-              ip,
-              userAgent: ua,
-            })),
-          });
-        }
-
-        return appt.id;
+        await createLegalAcceptances([appt.id]);
+        return { type: "single" as const, appointmentId: appt.id };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -512,8 +812,29 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     if (appointmentResult === "client_conflict") {
       return { ok: false as const, code: "client_conflict" as const };
     }
-    if (!appointmentResult) return { ok: false as const, code: "slot_busy" as const };
-    return { ok: true as const, appointmentId: appointmentResult };
+    if (appointmentResult === "bad_datetime") {
+      return { ok: false as const, code: "bad_datetime" as const };
+    }
+    if (appointmentResult === "bad_service") {
+      return { ok: false as const, code: "bad_service" as const };
+    }
+    if (appointmentResult === "outside_working_hours") {
+      return { ok: false as const, code: "outside_working_hours" as const };
+    }
+    if (appointmentResult === "combo_unavailable") {
+      return { ok: false as const, code: "combo_unavailable" as const };
+    }
+    if (appointmentResult === "slot_busy") {
+      return { ok: false as const, code: "slot_busy" as const };
+    }
+    if (!appointmentResult) {
+      return { ok: false as const, code: "slot_busy" as const };
+    }
+
+    if (appointmentResult.type === "chain") {
+      return { ok: true as const, appointmentId: appointmentResult.appointmentIds[0], appointmentIds: appointmentResult.appointmentIds };
+    }
+    return { ok: true as const, appointmentId: appointmentResult.appointmentId, appointmentIds: [appointmentResult.appointmentId] };
   } catch (error) {
     const code = (error as { code?: string } | null)?.code ?? "";
     if (code === "P2034") {
@@ -522,6 +843,7 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     throw error;
   }
 }
+
 
 
 

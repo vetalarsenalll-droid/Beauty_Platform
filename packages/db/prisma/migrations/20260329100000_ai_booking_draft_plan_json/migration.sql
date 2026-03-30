@@ -1,0 +1,3 @@
+ALTER TABLE "AiBookingDraft"
+  ADD COLUMN IF NOT EXISTS "bookingMode" TEXT,
+  ADD COLUMN IF NOT EXISTS "planJson" JSONB;

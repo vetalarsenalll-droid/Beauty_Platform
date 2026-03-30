@@ -1979,6 +1979,8 @@ model AiBookingDraft {
   serviceId Int?
   serviceIds Int[] @default([])
   specialistId Int?
+  bookingMode String?
+  planJson Json?
   date String?
   time String?
   clientName String?

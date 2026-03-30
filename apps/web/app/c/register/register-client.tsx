@@ -54,7 +54,29 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
 
     if (!response.ok) {
       const data = await response.json().catch(() => null);
-      setError(data?.error?.message ?? "Ошибка регистрации.");
+      const code = data?.error?.code as string | undefined;
+      const details = data?.error?.details as { fields?: string[] } | undefined;
+      const messages: Record<string, string> = {
+        EMAIL_ALREADY_REGISTERED: "Пользователь с таким email уже зарегистрирован.",
+        PHONE_ALREADY_REGISTERED: "Клиент с таким телефоном уже зарегистрирован.",
+        INVALID_EMAIL: "Укажите корректный email.",
+        INVALID_PHONE: "Укажите корректный номер телефона.",
+        WEAK_PASSWORD: "Пароль должен содержать минимум 6 символов.",
+        ACCOUNT_NOT_FOUND: "Организация не найдена.",
+      };
+      if (code === "VALIDATION_FAILED" && details?.fields?.length) {
+        if (details.fields.includes("email") && details.fields.includes("password")) {
+          setError("Email и пароль обязательны.");
+        } else if (details.fields.includes("email")) {
+          setError("Email обязателен.");
+        } else if (details.fields.includes("password")) {
+          setError("Пароль обязателен.");
+        } else {
+          setError("Заполните обязательные поля.");
+        }
+      } else {
+        setError(messages[code ?? ""] ?? data?.error?.message ?? "Ошибка регистрации.");
+      }
       return;
     }
 

@@ -9,6 +9,7 @@ import {
   serviceByText,
   isGreetingText,
   asksServiceExistence,
+  parseServiceCategoryFilter,
 } from "@/lib/aisha-routing-helpers";
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { DraftDecision } from "@/lib/aisha-chat-types";
@@ -89,11 +90,21 @@ export function computeBookingDecisions(args: {
     services,
   } = args;
 
+  const looksLikeBareServicePhrase =
+    /^[\p{L}\s\-]{4,}$/iu.test(t) &&
+    t.split(/\s+/).filter(Boolean).length <= 4 &&
+    !/^(привет|здравствуйте|спасибо|пока|да|нет|ок|окей|кто|что|почему|зачем|как|где|когда)\b/i.test(
+      t,
+    );
+
+  const explicitCategorySelection = parseServiceCategoryFilter(messageForRouting, services);
+
   const looksLikeBookingContinuation =
     isBookingCarryMessage(t) ||
     isLooseConfirmation(messageForRouting) ||
     isBookingChangeMessage(t) ||
     looksLikeUnknownServiceRequest(t) ||
+    explicitCategorySelection !== null ||
     Boolean(parseDate(messageForRouting, nowYmd)) ||
     Boolean(parseTime(messageForRouting)) ||
     Boolean(choiceNum) ||
@@ -101,6 +112,7 @@ export function computeBookingDecisions(args: {
     Boolean(serviceByText(t, services)) ||
     Boolean(selectedSpecialistByText) ||
     explicitAnySpecialistChoice ||
+    looksLikeBareServicePhrase ||
     has(
       messageForRouting,
       /(согласен|согласна|персональн|подтвержд|оформи|самостоятельно|через\s+ассистента|время|слот|окошк|сегодня|завтра|локац|филиал)/iu,
@@ -151,7 +163,10 @@ export function computeBookingDecisions(args: {
 
   const explicitServiceBookingIntent =
     Boolean(serviceByText(t, services)) &&
-    has(messageForRouting, /(хочу|нужн[ао]?|надо|запиш|заброни)/iu) &&
+    has(
+      messageForRouting,
+      /(хочу|нужн[ао]?|надо|запиш|заброни)/iu,
+    ) &&
     !asksServiceExistence(messageForRouting);
 
   const shouldEnrichDraftForBooking =
@@ -186,12 +201,17 @@ export function computeBookingDecisions(args: {
     (!isGreetingText(messageForRouting) || hasDraftContext) &&
     !hasPositiveFeedbackCue;
 
-  const hasTimePrefCue = /(утр|утром|днем|днём|после\s+обеда|вечер|вечером)/iu.test(t);
+  const hasTimePrefCue =
+    /(утр|утром|днем|дн[ёе]м|после\s+обеда|вечер|вечером)/iu.test(
+      t,
+    );
   const prevUserNorm = previousUserText.toLowerCase();
   const carryPrevTimePref =
     !hasTimePrefCue &&
     Boolean(locationByText(t, locations)) &&
-    /(утр|утром|днем|днём|после\s+обеда|вечер|вечером)/iu.test(prevUserNorm)
+    /(утр|утром|днем|дн[ёе]м|после\s+обеда|вечер|вечером)/iu.test(
+      prevUserNorm,
+    )
       ? prevUserNorm
       : "";
 

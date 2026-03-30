@@ -62,7 +62,7 @@ function looksLikeStandaloneServiceLabel(messageNorm: string) {
   return (
     /^[\p{L}\s\-]{4,}$/iu.test(messageNorm) &&
     messageNorm.split(/\s+/).length <= 4 &&
-    !/(филиал|локац|адрес|время|слот|окошк|дата|сегодня|завтра|послезавтра|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
+    !/(филиал|локац|адрес|время|слот|окошк|окн|дата|сегодня|завтра|послезавтра|утр|днем|дн[её]м|вечер|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|ближайш|свободн|когда|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
       messageNorm,
     )
   );
@@ -396,7 +396,7 @@ export async function handlePublicAiChatPost(request: Request) {
         .find((x): x is string => Boolean(x));
       if (bookingDateHint) d.date = bookingDateHint;
     }
-    let previouslySelectedSpecialistName: string | null = null;
+    const previouslySelectedSpecialistName: string | null = null;
 
     const entityClarification = await handleEntityClarificationResolution({
       shouldEnrichDraftForBooking,
@@ -450,6 +450,10 @@ export async function handlePublicAiChatPost(request: Request) {
       route = "chat-only";
     }
     let shouldRunBookingFlowResolved = specialistFollowUpByHistory ? false : shouldRunBookingFlow;
+    if (!shouldRunBookingFlowResolved && locationChosenThisTurn && (hasDraftContext || shouldEnrichDraftForBooking || explicitBookingText)) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
     const explicitAssistantModeChoice = /(через\s+ассистента|оформи)/i.test(messageForRouting);
     const explicitSelfModeChoice = /(самостоятельно|сам\b)/i.test(messageForRouting);
     if (d.locationId && d.serviceId && d.date && d.time && (explicitAssistantModeChoice || explicitSelfModeChoice)) {
@@ -494,6 +498,20 @@ export async function handlePublicAiChatPost(request: Request) {
       shouldRunBookingFlowResolved = true;
       route = "booking-flow";
     }
+    if (
+      !shouldRunBookingFlowResolved &&
+      hasDraftContext &&
+      d.locationId &&
+      !explicitBookingDecline &&
+      !explicitServiceComplaint &&
+      (looksLikeUnknownServiceRequest(t) ||
+        (/^[\p{L}\s\-]{4,}$/iu.test(t) &&
+          t.split(/\s+/).filter(Boolean).length <= 4 &&
+          !/[?]/.test(t)))
+    ) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
     if (intent === "abuse_or_toxic") {
       shouldRunBookingFlowResolved = false;
       route = "chat-only";
@@ -527,17 +545,14 @@ export async function handlePublicAiChatPost(request: Request) {
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
     let guardedUnknownServiceInBooking = false;
-    if (
-      route === "booking-flow" &&
-      d.locationId &&
-      !d.serviceId &&
-      looksLikeStandaloneServiceLabel(t) &&
-      !locationByText(t, locations) &&
-      !hasLocationCue(t)
-    ) {
-      const servicesScopedByLocation = services.filter((x) => x.locationIds.includes(d.locationId as number));
+    if (!d.serviceId && (hasDraftContext || d.locationId) && looksLikeStandaloneServiceLabel(t) && !locationByText(t, locations) && !hasLocationCue(t)) {
+      const servicesScopedByLocation = d.locationId
+        ? services.filter((x) => x.locationIds.includes(d.locationId as number))
+        : services;
       const selectedByText = serviceByText(t, servicesScopedByLocation);
       if (!selectedByText) {
+        route = "booking-flow";
+        shouldRunBookingFlowResolved = true;
         reply = "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже.";
         nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesScopedByLocation) };
         guardedUnknownServiceInBooking = true;
@@ -546,7 +561,7 @@ export async function handlePublicAiChatPost(request: Request) {
     const shouldGenerateSmalltalk =
       route === "chat-only" &&
       !explicitDateTimeQuery &&
-      !shouldRunBookingFlow &&
+      !shouldRunBookingFlowResolved &&
       !explicitServiceComplaint &&
       (intent === "smalltalk" || intent === "out_of_scope" || intent === "abuse_or_toxic" || intent === "identity" || intent === "capabilities" || (intent === "unknown" && !isBookingOrAccountCue(t)));
     const generatedSmalltalk = shouldGenerateSmalltalk
@@ -609,45 +624,47 @@ export async function handlePublicAiChatPost(request: Request) {
       !has(messageForRouting, /(мои записи|мою запись|у меня записи|какие у меня.*запис\p{L}*|статист|профил|кабинет|отмени|перенеси)/iu);
     let contextualBookingBridge: string | null = null;
 
-    const bookingDomainResult = await handleBookingDomain({
-      directBookingKickoffFallback,
-      date: d.date,
-      locations,
-      explicitDraftServiceQuestion,
-      draftServiceName: d.serviceId ? services.find((s) => s.id === d.serviceId)?.name ?? null : null,
-      draftLocationName: d.locationId ? locations.find((x) => x.id === d.locationId)?.name ?? null : null,
-      runFlowArgs: {
-        message,
-        messageForRouting,
-        bookingMessageNorm,
-        shouldRunBookingFlow,
-        explicitNearestAvailability,
-        explicitAvailabilityPeriod,
-        explicitCalendarCue,
-        explicitBookingText,
-        intent,
-        locationChosenThisTurn,
-        choiceNum,
-        d,
-        origin,
-        account: { id: resolved.account.id, slug: resolved.account.slug, timeZone: resolved.account.timeZone },
-        locations,
-        services,
-        specialists,
-        previouslySelectedSpecialistName,
-        requiredVersionIds,
-        request,
-        publicSlug,
-        todayYmd: nowYmd,
-        preferredClientId: client?.clientId ?? thread.clientId ?? null,
-        holdOwnerMarker: -thread.id,
-      },
-      shouldRunBookingFlow: guardedUnknownServiceInBooking ? false : shouldRunBookingFlowResolved,
-      currentReply: reply,
-      currentStatus: nextStatus,
-      currentAction: nextAction,
-      currentUi: nextUi,
-    });
+    const bookingDomainResult = guardedUnknownServiceInBooking
+      ? { handled: true, reply, nextStatus, nextAction, nextUi }
+      : await handleBookingDomain({
+          directBookingKickoffFallback,
+          date: d.date,
+          locations,
+          explicitDraftServiceQuestion,
+          draftServiceName: d.serviceId ? services.find((s) => s.id === d.serviceId)?.name ?? null : null,
+          draftLocationName: d.locationId ? locations.find((x) => x.id === d.locationId)?.name ?? null : null,
+          runFlowArgs: {
+            message,
+            messageForRouting,
+            bookingMessageNorm,
+            shouldRunBookingFlow: shouldRunBookingFlowResolved,
+            explicitNearestAvailability,
+            explicitAvailabilityPeriod,
+            explicitCalendarCue,
+            explicitBookingText,
+            intent,
+            locationChosenThisTurn,
+            choiceNum,
+            d,
+            origin,
+            account: { id: resolved.account.id, slug: resolved.account.slug, timeZone: resolved.account.timeZone },
+            locations,
+            services,
+            specialists,
+            previouslySelectedSpecialistName,
+            requiredVersionIds,
+            request,
+            publicSlug,
+            todayYmd: nowYmd,
+            preferredClientId: client?.clientId ?? thread.clientId ?? null,
+            holdOwnerMarker: -thread.id,
+          },
+          shouldRunBookingFlow: shouldRunBookingFlowResolved,
+          currentReply: reply,
+          currentStatus: nextStatus,
+          currentAction: nextAction,
+          currentUi: nextUi,
+        });
 
 
     if (route === "client-actions") {
@@ -1042,6 +1059,19 @@ export async function handlePublicAiChatPost(request: Request) {
         route = "chat-only";
         if (intent === "booking_start" || intent === "reject_or_change") intent = "smalltalk";
       }
+    }
+
+    if (!d.serviceId && looksLikeStandaloneServiceLabel(t) && /(стоматолог|стоматологическ)/iu.test(reply)) {
+      const servicesScopedByLocation = d.locationId
+        ? services.filter((x) => x.locationIds.includes(d.locationId as number))
+        : services;
+      reply = "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже.";
+      nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesScopedByLocation) };
+      route = "booking-flow";
+    }
+
+    if (/вы\s+выбрали\s+филиал\s*:/iu.test(reply) && !/выберите/iu.test(reply)) {
+      reply = `${reply} Выберите услугу или время.`;
     }
 
     await saveTurn({

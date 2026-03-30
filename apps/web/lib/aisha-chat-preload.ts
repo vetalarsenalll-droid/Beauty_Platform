@@ -33,6 +33,7 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
         category: { select: { name: true } },
         baseDurationMin: true,
         basePrice: true,
+        allowMultiServiceBooking: true,
         levelConfigs: { select: { levelId: true, durationMin: true, price: true } },
         specialists: { select: { specialistId: true, durationOverrideMin: true, priceOverride: true } },
         locations: { select: { locationId: true } },
@@ -71,6 +72,7 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
     description: s.description ?? null,
     categoryName: s.category?.name ?? null,
     basePrice: Number(s.basePrice),
+    allowMultiServiceBooking: Boolean(s.allowMultiServiceBooking),
     levelConfigs: s.levelConfigs.map((x) => ({
       levelId: x.levelId,
       durationMin: x.durationMin ?? null,

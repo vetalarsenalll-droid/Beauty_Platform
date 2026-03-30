@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /* eslint-disable no-console */
 
 import fs from "node:fs";
@@ -178,6 +178,28 @@ const scenarios = /** @type {Scenario[]} */ ([
   { name: "Client cancel flow handles auth/result", suites: ["client-actions"], steps: [{ send: "отмени мою ближайшую запись", expectAny: [/отмен|подтверж|авторизац|личн|не нашл/i] }] },
   { name: "Client reschedule flow handles auth/result", suites: ["client-actions"], steps: [{ send: "перенеси мою запись на завтра в 18:00", expectAny: [/перен|подтверж|авторизац|личн|не нашл|слот/i] }] },
   { name: "Client profile flow handles auth/result", suites: ["client-actions"], steps: [{ send: "покажи мои данные", expectAny: [/профил|данн|авторизац|личн/i] }] },
+  {
+    name: "Multi-service same specialist flow",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "запиши на архитектуру бровей и ламинирование бровей", expectAny: [/филиал|локац|beauty salon/i] },
+      { pick: "location", expectAny: [/дата|календар|время|слот|окн|услуг|специалист|выберите/i] },
+      { pick: "time", ifReply: /время|слот|окна/i, expectAny: [/услуг|специалист|план|проверьте|выберите/i] },
+      { pick: "service", ifReply: /услуг/iu, expectAny: [/специалист|план|как завершим|выберите/i] },
+      { pick: "specialist", ifReply: /специалист/iu, expectAny: [/проверьте|план|как завершим|выберите/i] },
+    ],
+  },
+  {
+    name: "Multi-service different specialists flow",
+    suites: ["booking-e2e"],
+    steps: [
+      { send: "запиши на архитектуру бровей и долговременную укладку бровей", expectAny: [/филиал|локац|beauty salon/i] },
+      { pick: "location", expectAny: [/дата|календар|время|слот|окн|услуг|специалист|выберите/i] },
+      { pick: "time", ifReply: /время|слот|окна/i, expectAny: [/услуг|специалист|план|проверьте|выберите/i] },
+      { pick: "service", ifReply: /услуг/iu, expectAny: [/специалист|план|как завершим|выберите/i] },
+      { pick: "specialist", ifReply: /специалист/iu, expectAny: [/план|выберите специалист|выберите время|выберите/i] },
+    ],
+  },
 ]);
 
 function activeScenarios() {
@@ -495,3 +517,4 @@ main().catch((err) => {
   console.error(err?.stack || err?.message || String(err));
   process.exit(1);
 });
+

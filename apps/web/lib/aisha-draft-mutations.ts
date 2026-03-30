@@ -3,6 +3,7 @@ import {
   hasLocationCue,
   locationByText,
   serviceByText,
+  findServiceMatchesInText,
   specialistByText,
   specialistSupportsSelection,
   isServiceInquiryMessage,
@@ -49,7 +50,10 @@ export function applyDraftMutations(args: {
   if (explicitBookingDecline) {
     d.locationId = null;
     d.serviceId = null;
+    d.serviceIds = [];
     d.specialistId = null;
+    d.bookingMode = null;
+    d.planJson = [];
     d.date = null;
     d.time = null;
     d.mode = null;
@@ -66,15 +70,30 @@ export function applyDraftMutations(args: {
   }
   const locationChosenThisTurn = !hadLocationBefore && Boolean(d.locationId);
 
+  const selectedServiceIdsBefore = Array.from(
+    new Set<number>([
+      ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+      ...(d.serviceId ? [Number(d.serviceId)] : []),
+    ]),
+  ).filter((id) => Number.isInteger(id) && id > 0);
+  const primaryServiceIdBefore = selectedServiceIdsBefore[0] ?? null;
+
   if (
     d.specialistId &&
-    !specialistSupportsSelection({ specialistId: d.specialistId, serviceId: d.serviceId, locationId: d.locationId, specialists })
+    !specialistSupportsSelection({
+      specialistId: d.specialistId,
+      serviceId: primaryServiceIdBefore,
+      locationId: d.locationId,
+      specialists,
+    })
   ) {
     d.specialistId = null;
   }
 
   const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
   const serviceTextMatch = serviceByText(t, scopedServices);
+  const multiServiceHint = /(\sи\s|\s&\s|,|;|\s\+\s|\sплюс\s)/iu.test(t);
+  const multiServiceMatches = multiServiceHint ? findServiceMatchesInText(t, scopedServices) : [];
   const nluServiceGrounded = Boolean(
     nlu?.serviceId &&
       scopedServices.some((x) => x.id === nlu.serviceId) &&
@@ -85,10 +104,120 @@ export function applyDraftMutations(args: {
     const serviceInquiry = isServiceInquiryMessage(message, t);
     const explicitServiceChangeRequest = has(message, /(смени|измени|другую услугу|не на|не эту услугу|выбери услугу|по услуге)/i);
     const canUseNumberForServiceSelection = !d.time || !d.serviceId || explicitServiceChangeRequest;
+    const addServiceRequest = has(
+      message,
+      /(добав(ь|ить)|еще|ещ[eё]|плюс|и еще|и ещё|втор(ую|ая)\s+услуг|треть(ю|я)\s+услуг)/i,
+    );
 
-    if (!serviceInquiry && serviceTextMatch && serviceTextMatch.id !== d.serviceId) {
-      d.serviceId = serviceTextMatch.id;
+    const currentSelectedServiceIds = Array.from(
+      new Set<number>([
+        ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+        ...(d.serviceId ? [Number(d.serviceId)] : []),
+      ]),
+    ).filter((id) => Number.isInteger(id) && id > 0);
+
+    const clearServicesRequest = has(message, /(очистить услуги|сбросить услуги|удалить все услуги|начать заново по услугам)/i);
+    if (clearServicesRequest) {
+      d.serviceIds = [];
+      d.serviceId = null;
+      d.specialistId = null;
+      d.bookingMode = null;
+      d.planJson = [];
+    }
+
+    const removeMatch = /удал(?:и|ить)\s+(?:услуг[ауи]\s*)?(.+)$/iu.exec(message);
+    const hasServiceControlCommand = clearServicesRequest || Boolean(removeMatch?.[1]);
+    if (removeMatch?.[1]) {
+      const targetText = removeMatch[1].trim();
+      const targetService = serviceByText(targetText.toLowerCase(), scopedServices);
+      if (targetService && currentSelectedServiceIds.includes(targetService.id)) {
+        const nextIds = currentSelectedServiceIds.filter((id) => id !== targetService.id);
+        d.serviceIds = nextIds;
+        d.serviceId = nextIds[0] ?? null;
+        d.bookingMode = null;
+        d.planJson = [];
+        if (
+          d.specialistId &&
+          d.serviceId &&
+          !specialistSupportsSelection({
+            specialistId: d.specialistId,
+            serviceId: d.serviceId,
+            locationId: d.locationId,
+            specialists,
+          })
+        ) {
+          d.specialistId = null;
+        }
+      }
+    }
+
+    const assignServiceSelection = (nextServiceId: number, append: boolean) => {
+      const nextService = scopedServices.find((x) => x.id === nextServiceId) ?? null;
+      if (!nextService) return;
+
+      if (!append) {
+        d.serviceIds = [nextServiceId];
+        d.serviceId = nextServiceId;
+        d.specialistId = null;
+        d.bookingMode = null;
+        d.planJson = [];
+        return;
+      }
+
+      const currentServices = currentSelectedServiceIds
+        .map((id) => scopedServices.find((x) => x.id === id) ?? null)
+        .filter((x): x is ServiceLite => Boolean(x));
+      const canAppend =
+        nextService.allowMultiServiceBooking !== false &&
+        currentServices.every((service) => service.allowMultiServiceBooking !== false);
+      if (!canAppend) {
+        d.serviceIds = [nextServiceId];
+        d.serviceId = nextServiceId;
+        d.specialistId = null;
+        d.bookingMode = null;
+        d.planJson = [];
+        return;
+      }
+      const merged = Array.from(new Set([...currentSelectedServiceIds, nextServiceId]));
+      d.serviceIds = merged;
+      d.serviceId = merged[0] ?? null;
+      d.specialistId = null;
+      d.bookingMode = null;
+      d.planJson = [];
+    };
+
+    let multiServiceApplied = false;
+    if (!hasServiceControlCommand && multiServiceMatches.length >= 2) {
+      const uniqueMatches = Array.from(new Set(multiServiceMatches.map((s) => s.id)))
+        .map((id) => scopedServices.find((s) => s.id === id) ?? null)
+        .filter((s): s is ServiceLite => Boolean(s));
+      if (uniqueMatches.length >= 2) {
+        const allAllowMulti = uniqueMatches.every((svc) => svc.allowMultiServiceBooking !== false);
+        if (allAllowMulti) {
+          const ids = uniqueMatches.map((svc) => svc.id);
+          d.serviceIds = ids;
+          d.serviceId = ids[0] ?? null;
+          d.specialistId = null;
+          d.bookingMode = null;
+          d.planJson = [];
+          multiServiceApplied = true;
+        } else {
+          const first = uniqueMatches[0]!;
+          d.serviceIds = [first.id];
+          d.serviceId = first.id;
+          d.specialistId = null;
+          d.bookingMode = null;
+          d.planJson = [];
+          multiServiceApplied = true;
+        }
+      }
+    }
+
+    if (!multiServiceApplied && !hasServiceControlCommand && !serviceInquiry && serviceTextMatch && serviceTextMatch.id !== d.serviceId) {
+      assignServiceSelection(serviceTextMatch.id, addServiceRequest);
     } else if (
+      !multiServiceApplied &&
+      !hasServiceControlCommand &&
       canUseNumberForServiceSelection &&
       !locationChosenThisTurn &&
       choiceNum &&
@@ -96,14 +225,16 @@ export function applyDraftMutations(args: {
       choiceNum <= scopedServices.length &&
       scopedServices[choiceNum - 1]!.id !== d.serviceId
     ) {
-      d.serviceId = scopedServices[choiceNum - 1]!.id;
+      assignServiceSelection(scopedServices[choiceNum - 1]!.id, addServiceRequest);
     } else if (
+      !multiServiceApplied &&
+      !hasServiceControlCommand &&
       nlu?.serviceId &&
       scopedServices.some((x) => x.id === nlu.serviceId) &&
       d.serviceId !== nlu.serviceId &&
       nluServiceGrounded
     ) {
-      d.serviceId = nlu.serviceId;
+      assignServiceSelection(nlu.serviceId, addServiceRequest);
     }
 
     if (
@@ -220,6 +351,15 @@ export function applyDraftMutations(args: {
   if (explicitConsentText) {
     d.consentConfirmedAt = new Date().toISOString();
   }
+
+  const normalizedServiceIds = Array.from(
+    new Set<number>([
+      ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+      ...(d.serviceId ? [Number(d.serviceId)] : []),
+    ]),
+  ).filter((id) => Number.isInteger(id) && id > 0);
+  d.serviceIds = normalizedServiceIds;
+  d.serviceId = normalizedServiceIds[0] ?? null;
 
   return { locationChosenThisTurn, scopedServices };
 }

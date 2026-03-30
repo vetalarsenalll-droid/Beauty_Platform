@@ -214,6 +214,38 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
   const fuzzy = bestFuzzyEntity(messageNorm, services, (x) => [x.name, x.categoryName ?? "", x.description ?? ""]);
   return fuzzy ?? null;
 }
+
+export function findServiceMatchesInText(messageNorm: string, services: ServiceLite[]) {
+  if (!messageNorm) return [];
+  const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const sorted = services
+    .filter((s) => norm(s.name))
+    .slice()
+    .sort((a, b) => norm(b.name).length - norm(a.name).length);
+  const matches: Array<{ service: ServiceLite; index: number }> = [];
+
+  const normalizedMessage = norm(messageNorm);
+  const segments = normalizedMessage.split(/\s(?:и|&|,|;|\+|плюс)\s/iu).map((s) => s.trim()).filter(Boolean);
+  for (const segment of segments) {
+    const segmentedMatch = serviceByText(segment, services);
+    if (segmentedMatch && !matches.some((x) => x.service.id === segmentedMatch.id)) {
+      matches.push({ service: segmentedMatch, index: normalizedMessage.indexOf(norm(segmentedMatch.name)) });
+    }
+  }
+
+  for (const svc of sorted) {
+    const name = norm(svc.name);
+    if (!name) continue;
+    const isShortSingle = name.length <= 4 && !name.includes(" ");
+    const re = new RegExp(`\\b${escapeRegExp(name)}\\b`, "i");
+    const m = isShortSingle ? re.exec(normalizedMessage) : normalizedMessage.includes(name) ? { index: normalizedMessage.indexOf(name) } : null;
+    if (!m) continue;
+    const idx = m.index ?? 0;
+    if (matches.some((x) => x.service.id === svc.id)) continue;
+    matches.push({ service: svc, index: idx });
+  }
+  return matches.sort((a, b) => a.index - b.index).map((x) => x.service);
+}
 export function asksCurrentDate(text: string) {
   return has(
     text,

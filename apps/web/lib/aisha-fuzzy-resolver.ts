@@ -7,6 +7,7 @@ import {
   tokenizeForFuzzy,
   levenshteinWithin,
   extractRequestedServicePhrase,
+  findServiceMatchesInText,
   mentionsServiceTopic,
   looksLikeUnknownServiceRequest,
   isNluServiceGroundedByText,
@@ -739,6 +740,9 @@ export async function handleEntityClarificationResolution(args: {
       if (!sp) return true;
       return sp.serviceIds?.length ? sp.serviceIds.includes(s.id) : true;
     });
+  const hasMultiServiceSelection = Array.isArray(d.serviceIds) && d.serviceIds.length >= 2;
+  const multiServicesInMessage = findServiceMatchesInText(messageNorm, scopedServices).length >= 2;
+  const skipServiceClarification = hasMultiServiceSelection || multiServicesInMessage;
   if (d.specialistId && d.locationId && !d.serviceId) {
     const serviceHint = findRecentServiceHint(messageNorm, recentMessages);
     if (serviceHint) {
@@ -759,7 +763,7 @@ export async function handleEntityClarificationResolution(args: {
     }
   }
 
-  if (d.serviceId && bookingLike && !modeOrFinalizationCue && !hasDeepDraftContext) {
+  if (!skipServiceClarification && d.serviceId && bookingLike && !modeOrFinalizationCue && !hasDeepDraftContext) {
     const selectedService = services.find((s) => s.id === d.serviceId) ?? null;
     if (selectedService && !isExactMention(messageNorm, selectedService.name)) {
       const exactAnyServiceMention = scopedServices.some((s) => isExactMention(messageNorm, s.name));
@@ -792,7 +796,7 @@ export async function handleEntityClarificationResolution(args: {
     }
   }
 
-  if (!d.serviceId && bookingLike) {
+  if (!skipServiceClarification && !d.serviceId && bookingLike) {
 
     const requested = extractRequestedServicePhrase(messageNorm);
     const isVagueRequestedService = isVagueRequestedServicePhrase(requested);

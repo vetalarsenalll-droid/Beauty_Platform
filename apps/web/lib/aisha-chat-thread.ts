@@ -136,7 +136,7 @@ export async function getThread(args: {
   const ensuredThread = thread;
   const draft = await prismaAny.aiBookingDraft.upsert({
     where: { threadId: ensuredThread.id },
-    create: { threadId: ensuredThread.id, status: "COLLECTING" },
+    create: { threadId: ensuredThread.id, status: "COLLECTING", serviceIds: [], planJson: [] },
     update: {},
   });
   return { thread: ensuredThread, draft, threadKey: buildThreadKey(accountId, ensuredThread.id) };

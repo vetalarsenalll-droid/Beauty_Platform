@@ -1,0 +1,100 @@
+{
+  "suite": "booking-e2e",
+  "baseUrl": "http://localhost:3000",
+  "account": "severnaya-orhideya",
+  "startedAt": "2026-03-29T15:10:37.003Z",
+  "passed": false,
+  "scenarios": [
+    {
+      "name": "Start booking asks for location, not unknown service",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на завтра запиши меня",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability today",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на сегодня есть свободные окна?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability evening",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "на вечер что есть?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Nearest availability should return windows immediately",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "а свободное окошко когда ближайшее?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Availability in March",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "в марте есть время?",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Booking service-first path",
+      "passed": true,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "хочу на маникюр завтра",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "Unknown service should be rejected with available options",
+      "passed": false,
+      "steps": [
+        {
+          "index": 1,
+          "sent": "запиши на удаление зуба",
+          "passed": true
+        },
+        {
+          "index": 2,
+          "sent": "Beauty Salon Center",
+          "passed": true
+        },
+        {
+          "index": 3,
+          "sent": "удаление зуба",
+          "passed": false,
+          "error": "Unknown service should be rejected with available options / step 3 (удаление зуба): expected one of /не нашл|такой услуги .*нет|данной услуги .*нет|выберите услугу|доступные услуги|выберите.*доступн/i\nreply:\nК сожалению, мы не оказываем стоматологических услуг. Обратитесь к специалисту-стоматологу.",
+          "reply": "К сожалению, мы не оказываем стоматологических услуг. Обратитесь к специалисту-стоматологу."
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-03-29T15:11:01.507Z",
+  "durationMs": 24504
+}

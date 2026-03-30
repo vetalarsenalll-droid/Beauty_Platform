@@ -941,11 +941,13 @@ export default function BookingClient({
   const [initialParams, setInitialParams] = useState<{
     locationId: number | null;
     serviceId: number | null;
+    serviceIds: number[];
     specialistId: number | null;
     dateYmd: string | null;
     timeChoice: string | null;
     scenario: Scenario | null;
     startScenario: boolean;
+    planJson: ChainItem[] | null;
   } | null>(null);
   const [hasAnyQueryParams, setHasAnyQueryParams] = useState(false);
   const [initialParamsApplied, setInitialParamsApplied] = useState(false);
@@ -1069,22 +1071,54 @@ export default function BookingClient({
 
     const locationParam = Number(params.get("locationId"));
     const serviceParam = Number(params.get("serviceId"));
+    const serviceIdsParam = (params.get("serviceIds") || "")
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value > 0);
     const specialistParam = Number(params.get("specialistId"));
     const rawDate = (params.get("date") || "").trim();
     const rawTime = (params.get("time") || "").trim();
+    const rawPlan = params.get("plan");
     const dateParam = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null;
     const timeParam = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime) ? rawTime : null;
     const startParam = params.get("start");
     const startScenarioValue = startParam === "scenario";
+    let planJson: ChainItem[] | null = null;
+    if (rawPlan) {
+      try {
+        const parsed = JSON.parse(rawPlan);
+        if (Array.isArray(parsed)) {
+          const normalized = parsed
+            .map((item: any) => ({
+              serviceId: Number(item?.serviceId),
+              specialistId: Number.isInteger(Number(item?.specialistId)) ? Number(item.specialistId) : null,
+              date: String(item?.date ?? ""),
+              time: typeof item?.time === "string" ? item.time : null,
+            }))
+            .filter(
+              (item: ChainItem) =>
+                Number.isInteger(item.serviceId) &&
+                item.serviceId > 0 &&
+                /^\d{4}-\d{2}-\d{2}$/.test(item.date) &&
+                (item.time == null || /^([01]\d|2[0-3]):[0-5]\d$/.test(item.time))
+            );
+          planJson = normalized.length ? normalized : null;
+        }
+      } catch {
+        planJson = null;
+      }
+    }
 
     setInitialParams({
       locationId: Number.isFinite(locationParam) ? locationParam : null,
       serviceId: Number.isFinite(serviceParam) ? serviceParam : null,
+      serviceIds: serviceIdsParam,
       specialistId: Number.isFinite(specialistParam) ? specialistParam : null,
       dateYmd: dateParam,
       timeChoice: timeParam,
       scenario: scenarioValue,
       startScenario: startScenarioValue,
+      planJson,
     });
   }, []);
 
@@ -1110,6 +1144,9 @@ export default function BookingClient({
   const [chainTotals, setChainTotals] = useState<{ durationMin: number; price: number } | null>(null);
   const [chainItemDurations, setChainItemDurations] = useState<Record<number, number>>({});
   const [chainItemPrices, setChainItemPrices] = useState<Record<number, number>>({});
+  const initialPlanRef = useRef<ChainItem[] | null>(null);
+  const planSeededFromUrlRef = useRef(false);
+  const planAppliedRef = useRef(false);
 
   useEffect(() => {
     if (!isVisitPlanMode) {
@@ -1124,18 +1161,69 @@ export default function BookingClient({
     setChainItems((prev) =>
       chainServiceIds.map((id) => {
         const existing = prev.find((item) => item.serviceId === id);
+        const seeded = initialPlanRef.current?.find((item) => item.serviceId === id) ?? null;
         const effectiveSpecialistId = isSingleSpecialistPlanMode
           ? specialistId ?? null
-          : existing?.specialistId ?? null;
+          : seeded?.specialistId ?? existing?.specialistId ?? null;
         return {
           serviceId: id,
           specialistId: effectiveSpecialistId,
-          date: dateYmd,
-          time: existing?.time ?? null,
+          date: seeded?.date ?? dateYmd,
+          time: seeded?.time ?? existing?.time ?? null,
         } as ChainItem;
       })
     );
+    if (initialPlanRef.current?.length) {
+      initialPlanRef.current = null;
+      planSeededFromUrlRef.current = true;
+    }
   }, [isVisitPlanMode, chainServiceIds, dateYmd, isSingleSpecialistPlanMode, specialistId]);
+
+  useEffect(() => {
+    if (!initialParamsApplied || !isVisitPlanMode) return;
+    const seeded = initialPlanRef.current;
+    if (!seeded || seeded.length === 0) return;
+    setChainItems((prev) => {
+      const hasAnyValue = prev.some((item) => item.time || item.specialistId);
+      if (hasAnyValue) return prev;
+      return chainServiceIds.map((id) => {
+        const planItem = seeded.find((item) => item.serviceId === id) ?? null;
+        return {
+          serviceId: id,
+          specialistId: planItem?.specialistId ?? null,
+          date: planItem?.date ?? dateYmd,
+          time: planItem?.time ?? null,
+        } as ChainItem;
+      });
+    });
+    initialPlanRef.current = null;
+  }, [initialParamsApplied, isVisitPlanMode, chainServiceIds, dateYmd]);
+
+  useEffect(() => {
+    if (!initialParamsApplied || !isVisitPlanMode) return;
+    if (planAppliedRef.current) return;
+    const seeded = initialParams?.planJson ?? null;
+    if (!seeded || seeded.length === 0) return;
+    setChainItems((prev) => {
+      const hasAnyValue = prev.some((item) => item.time || item.specialistId);
+      if (hasAnyValue) return prev;
+      return chainServiceIds.map((id) => {
+        const planItem = seeded.find((item) => item.serviceId === id) ?? null;
+        return {
+          serviceId: id,
+          specialistId: planItem?.specialistId ?? null,
+          date: planItem?.date ?? dateYmd,
+          time: planItem?.time ?? null,
+        } as ChainItem;
+      });
+    });
+    if (!timeChoice) {
+      const firstPlan = seeded.find((item) => item.time) ?? null;
+      if (firstPlan?.time) setTimeChoice(firstPlan.time);
+    }
+    planSeededFromUrlRef.current = true;
+    planAppliedRef.current = true;
+  }, [initialParamsApplied, isVisitPlanMode, chainServiceIds, initialParams?.planJson, dateYmd, timeChoice]);
 
   const [timeBucket, setTimeBucket] = useState<TimeBucket>("all");
   const [query, setQuery] = useState("");
@@ -1387,6 +1475,12 @@ export default function BookingClient({
     if (initialParams.locationId) {
       setLocationId(initialParams.locationId);
     }
+    if (initialParams.serviceIds?.length) {
+      setServiceIds(initialParams.serviceIds);
+      if (!initialParams.serviceId) {
+        setPendingServiceId(initialParams.serviceIds[0] ?? null);
+      }
+    }
     if (initialParams.serviceId) setPendingServiceId(initialParams.serviceId);
     if (initialParams.specialistId) {
       // Для перехода из карточки специалиста нужен выбранный specialistId уже на шаге услуг.
@@ -1403,6 +1497,9 @@ export default function BookingClient({
       skipServiceResetOnceRef.current = true;
       setTimeChoice(initialParams.timeChoice);
     }
+    if (initialParams.planJson?.length) {
+      initialPlanRef.current = initialParams.planJson;
+    }
     setInitialParamsApplied(true);
   }, [initialParams, initialParamsApplied, context?.locations]);
 
@@ -1418,10 +1515,12 @@ export default function BookingClient({
       initialParams?.scenario ||
         initialParams?.locationId ||
         initialParams?.serviceId ||
+        (initialParams?.serviceIds?.length ?? 0) > 0 ||
         initialParams?.specialistId ||
         initialParams?.dateYmd ||
         initialParams?.timeChoice ||
-        initialParams?.startScenario
+        initialParams?.startScenario ||
+        (initialParams?.planJson?.length ?? 0) > 0
     );
     if (hasUrlState) return;
 
@@ -1675,7 +1774,8 @@ export default function BookingClient({
         initialParams?.serviceId ||
         initialParams?.specialistId ||
         initialParams?.dateYmd ||
-        initialParams?.timeChoice
+        initialParams?.timeChoice ||
+        (initialParams?.planJson?.length ?? 0) > 0
     );
     if (!hasUrlState) {
       setInitialNavApplied(true);
@@ -1687,9 +1787,12 @@ export default function BookingClient({
     const hasSpecialist = Boolean(initialParams?.specialistId);
     const hasDate = Boolean(initialParams?.dateYmd);
     const hasTime = Boolean(initialParams?.timeChoice);
+    const hasPlan = (initialParams?.planJson?.length ?? 0) > 0;
     let nextStep: BookingUiStepKey = "location";
     if (knownLocation) {
-      if (hasService && hasSpecialist && hasDate && hasTime) {
+      if (hasPlan) {
+        nextStep = "chain";
+      } else if (hasService && hasSpecialist && hasDate && hasTime) {
         nextStep = "details";
       } else if (hasService) {
         nextStep = "datetime";
@@ -2901,7 +3004,12 @@ export default function BookingClient({
   useEffect(() => {
     if (!isVisitPlanMode || !chainPrimaryServiceId || !timeChoice) return;
     if (isSingleSpecialistPlanMode && !specialistId) return;
-    const firstItem = chainItems[0];
+    const firstItem = chainItems[0] ?? null;
+    const seededPlanReady =
+      planSeededFromUrlRef.current &&
+      chainComplete &&
+      firstItem?.time === timeChoice;
+    if (seededPlanReady) return;
     if (!firstItem) return;
     const expectedSpecialist = isSingleSpecialistPlanMode ? specialistId ?? null : firstItem.specialistId ?? null;
     if (firstItem.time === timeChoice && firstItem.specialistId === expectedSpecialist) return;
@@ -2917,6 +3025,7 @@ export default function BookingClient({
     isVisitPlanMode,
     chainPrimaryServiceId,
     timeChoice,
+    chainComplete,
     isSingleSpecialistPlanMode,
     specialistId,
     chainItems,

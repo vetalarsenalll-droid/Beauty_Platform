@@ -210,22 +210,47 @@ function optionFromLabel(label: string, value?: string): ChatUiOption {
 function serviceOption(
   service: ServiceLite,
   specialist: SpecialistLite | null = null,
+  action: "select" | "add" = "select",
 ): ChatUiOption {
   const effective = getEffectiveServiceForSpecialist(service, specialist);
   const hasSpecialist = Boolean(specialist);
   const bounds = serviceLowerBounds(service);
   const priceText = hasSpecialist ? `${Math.round(effective.price)} ₽` : `от ${Math.round(bounds.minPrice)} ₽`;
   const durationText = hasSpecialist ? `${Math.round(effective.durationMin)} мин` : `от ${Math.round(bounds.minDuration)} мин`;
-  return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, service.name);
+  if (action === "add") {
+    return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, `добавить ${service.name}`);
+  }
+  return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, `выбрать услугу ${service.name}`);
 }
 
 function specialistOption(
   specialist: SpecialistLite,
-  service: ServiceLite | null = null,
+  service: ServiceLite | ServiceLite[] | null = null,
 ): ChatUiOption {
   const level = (specialist.levelName ?? "").trim();
   const base = level ? `${specialist.name} — ${level}` : specialist.name;
   if (!service) return optionFromLabel(base, specialist.name);
+  if (Array.isArray(service)) {
+    if (!service.length) return optionFromLabel(base, specialist.name);
+    const rows = service.map((svc, index) => {
+      const effective = getEffectiveServiceForSpecialist(svc, specialist);
+      return `Услуга №${index + 1}: ${svc.name} — ${Math.round(effective.price)} ₽, ${Math.round(effective.durationMin)} мин`;
+    });
+    const totals = service.reduce(
+      (acc, svc) => {
+        const effective = getEffectiveServiceForSpecialist(svc, specialist);
+        return {
+          price: acc.price + Number(effective.price || 0),
+          duration: acc.duration + Number(effective.durationMin || 0),
+        };
+      },
+      { price: 0, duration: 0 },
+    );
+    return optionFromLabel(
+      `${base}\n${rows.join("\n")}\nИтого: ${Math.round(totals.price)} ₽, ${Math.round(totals.duration)} мин`,
+      specialist.name,
+    );
+  }
   const effective = getEffectiveServiceForSpecialist(service, specialist);
   return optionFromLabel(`${base} — ${Math.round(effective.price)} ₽, ${Math.round(effective.durationMin)} мин`, specialist.name);
 }
@@ -306,12 +331,39 @@ function serviceCategoryTabOptions(services: ServiceLite[]): ChatUiOption[] {
   ];
 }
 
-function serviceOptionsWithCategoryTabs(
-  servicesAll: ServiceLite[],
-  servicesShown: ServiceLite[],
-  specialist: SpecialistLite | null = null,
-): ChatUiOption[] {
-  return [...serviceCategoryTabOptions(servicesAll), ...servicesShown.map((s) => serviceOption(s, specialist))];
+function serviceSelectionActionOptions(args: {
+  servicesAll: ServiceLite[];
+  servicesShown: ServiceLite[];
+  selectedServiceIds: number[];
+  specialist?: SpecialistLite | null;
+}) {
+  const { servicesAll, servicesShown, selectedServiceIds, specialist = null } = args;
+  const selectedSet = new Set(selectedServiceIds);
+  const selectedServices = servicesAll.filter((s) => selectedSet.has(s.id));
+  const canAdd =
+    selectedServices.length > 0 &&
+    selectedServices.every((s) => s.allowMultiServiceBooking !== false);
+
+  const controls: ChatUiOption[] = [];
+  if (selectedServices.length) {
+    controls.push(optionFromLabel("Очистить услуги", "очистить услуги"));
+    for (const svc of selectedServices) {
+      controls.push(optionFromLabel(`Удалить: ${svc.name}`, `удалить услугу ${svc.name}`));
+    }
+    controls.push(optionFromLabel("Продолжить запись", "готово с услугами"));
+  }
+
+  const selectOptions = servicesShown.map((s) => serviceOption(s, specialist, "select"));
+  const addCandidates = canAdd
+    ? servicesShown.filter((s) => !selectedSet.has(s.id) && s.allowMultiServiceBooking !== false)
+    : [];
+  const addOptions = addCandidates.map((s) => serviceOption(s, specialist, "add"));
+  const categorySource = canAdd ? addCandidates : servicesAll;
+
+  if (canAdd) {
+    return [controls[controls.length - 1]!, ...serviceCategoryTabOptions(categorySource), ...controls.slice(0, -1), ...addOptions];
+  }
+  return [...serviceCategoryTabOptions(categorySource), ...controls, ...selectOptions];
 }
 
 function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): ChatUiOption[] {
@@ -488,12 +540,33 @@ function parseDateFromBookingMessage(messageNorm: string, todayYmd: string) {
 }
 function bookingUrl(publicSlug: string, d: DraftLike) {
   const u = new URL(`/${publicSlug}/booking`, "http://x");
+  const selectedServiceIds = Array.from(
+    new Set<number>([
+      ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+      ...(d.serviceId ? [Number(d.serviceId)] : []),
+    ]),
+  ).filter((id) => Number.isInteger(id) && id > 0);
   if (d.locationId) u.searchParams.set("locationId", String(d.locationId));
-  if (d.serviceId) u.searchParams.set("serviceId", String(d.serviceId));
+  if (selectedServiceIds.length > 0) {
+    u.searchParams.set("serviceId", String(selectedServiceIds[0]));
+    if (selectedServiceIds.length > 1) {
+      u.searchParams.set("serviceIds", selectedServiceIds.join(","));
+      u.searchParams.set("scenario", "serviceFirst");
+    }
+  }
   if (d.specialistId) u.searchParams.set("specialistId", String(d.specialistId));
   if (d.date) u.searchParams.set("date", d.date);
   if (d.time) u.searchParams.set("time", d.time);
-  u.searchParams.set("scenario", "specialistFirst");
+  if (Array.isArray(d.planJson) && d.planJson.length > 0) {
+    try {
+      u.searchParams.set("plan", JSON.stringify(d.planJson));
+    } catch {
+      // ignore malformed plan
+    }
+  }
+  if (!u.searchParams.has("scenario")) {
+    u.searchParams.set("scenario", "specialistFirst");
+  }
   return `${u.pathname}?${u.searchParams.toString()}`;
 }
 
@@ -901,6 +974,94 @@ async function findNextServiceDatesForSpecialist(args: {
   }
   return found;
 }
+
+type ChainPlanItem = {
+  serviceId: number;
+  specialistId: number;
+  date: string;
+  time: string;
+};
+
+function timeToMinutes(value: string | null | undefined) {
+  if (!value) return null;
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(value.trim());
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function isCompleteChainPlan(
+  d: DraftLike,
+  selectedServiceIds: number[],
+): d is DraftLike & { planJson: ChainPlanItem[]; bookingMode: "chain_multi_specialist" } {
+  if (d.bookingMode !== "chain_multi_specialist") return false;
+  if (!Array.isArray(d.planJson)) return false;
+  if (!selectedServiceIds.length || d.planJson.length !== selectedServiceIds.length) return false;
+  const itemByService = new Map<number, ChainPlanItem>();
+  for (const item of d.planJson) {
+    if (!item || !Number.isInteger(item.serviceId) || !Number.isInteger(item.specialistId) || !item.date || !item.time) return false;
+    itemByService.set(item.serviceId, item as ChainPlanItem);
+  }
+  return selectedServiceIds.every((id) => itemByService.has(id));
+}
+
+async function buildAutoChainPlan(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  date: string;
+  startTime: string;
+  serviceIds: number[];
+  services: ServiceLite[];
+  specialists: SpecialistLite[];
+  holdOwnerMarker?: number | null;
+}) {
+  const { origin, accountSlug, locationId, date, startTime, serviceIds, services, specialists, holdOwnerMarker = null } = args;
+  const offers = await getOffers(origin, accountSlug, locationId, date, undefined, holdOwnerMarker ?? undefined);
+  const offersByTime = new Map((offers?.times ?? []).map((slot) => [slot.time, slot]));
+  const slotsCache = new Map<number, string[]>();
+  const plan: ChainPlanItem[] = [];
+  const startMinutes = timeToMinutes(startTime);
+  if (startMinutes == null) return null;
+  let cursor: number = startMinutes;
+
+  for (const serviceId of serviceIds) {
+    const service = services.find((x) => x.id === serviceId) ?? null;
+    if (!service) return null;
+    if (!slotsCache.has(serviceId)) {
+      const slots = await getSlots(origin, accountSlug, locationId, serviceId, date, holdOwnerMarker ?? undefined);
+      slotsCache.set(serviceId, slots);
+    }
+    const slots = slotsCache.get(serviceId) ?? [];
+    const candidates = slots
+      .map((time) => ({ time, minute: timeToMinutes(time) }))
+      .filter((x): x is { time: string; minute: number } => x.minute != null && x.minute >= cursor);
+    let selected: ChainPlanItem | null = null;
+    let selectedEnd: number | null = null;
+
+    for (const candidate of candidates) {
+      const offerAtTime = offersByTime.get(candidate.time);
+      const offerService = offerAtTime?.services.find((s) => s.serviceId === serviceId) ?? null;
+      const specialistCandidates = (offerService?.specialistIds?.length ?? 0) > 0
+        ? specialists.filter((sp) => offerService!.specialistIds!.includes(sp.id))
+        : specialists.filter((sp) => sp.locationIds.includes(locationId) && (sp.serviceIds?.length ? sp.serviceIds.includes(serviceId) : true));
+      for (const specialist of specialistCandidates) {
+        const effective = getEffectiveServiceForSpecialist(service, specialist);
+        const endMinute = candidate.minute + Number(effective.durationMin || 0);
+        if (endMinute <= candidate.minute) continue;
+        selected = { serviceId, specialistId: specialist.id, date, time: candidate.time };
+        selectedEnd = endMinute;
+        break;
+      }
+      if (selected) break;
+    }
+
+    if (!selected || selectedEnd == null) return null;
+    plan.push(selected);
+    cursor = selectedEnd;
+  }
+
+  return plan;
+}
 function applyChangeRollback(messageNorm: string, d: DraftLike) {
   const changeLocation = /(локац|филиал|адрес)/i.test(messageNorm);
   const changeService = /(услуг|маник|педик|стриж|гель|окраш|facial|peeling|hair)/i.test(messageNorm);
@@ -915,6 +1076,9 @@ function applyChangeRollback(messageNorm: string, d: DraftLike) {
   }
   if (changeService) {
     d.serviceId = null;
+    d.serviceIds = [];
+    d.planJson = [];
+    d.bookingMode = null;
     d.time = null;
     d.specialistId = null;
   }
@@ -932,6 +1096,25 @@ function applyChangeRollback(messageNorm: string, d: DraftLike) {
 
   d.mode = null;
   d.consentConfirmedAt = null;
+}
+
+function normalizeDraftServiceIds(d: DraftLike) {
+  const serviceIds = Array.from(
+    new Set<number>([
+      ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+      ...(d.serviceId ? [Number(d.serviceId)] : []),
+    ]),
+  ).filter((id) => Number.isInteger(id) && id > 0);
+  d.serviceIds = serviceIds;
+  d.serviceId = serviceIds[0] ?? null;
+  return serviceIds;
+}
+
+function clearDraftServices(d: DraftLike) {
+  d.serviceId = null;
+  d.serviceIds = [];
+  d.planJson = [];
+  d.bookingMode = null;
 }
 
 function specialistMatchesCurrentDraft(args: {
@@ -969,8 +1152,47 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     preferredClientId = null,
     holdOwnerMarker = null,
   } = ctx;
-  const hasContext = Boolean(d.locationId || d.serviceId || d.specialistId || d.date || d.time || d.mode);
+  const selectedServiceIds = normalizeDraftServiceIds(d);
+  if (selectedServiceIds.length <= 1) {
+    d.bookingMode = null;
+    d.planJson = [];
+  } else if (Array.isArray(d.planJson) && d.planJson.length) {
+    d.planJson = d.planJson
+      .filter((item) => selectedServiceIds.includes(Number((item as { serviceId?: unknown })?.serviceId)))
+      .map((item) => ({
+        serviceId: Number((item as { serviceId?: unknown })?.serviceId),
+        specialistId: Number((item as { specialistId?: unknown })?.specialistId),
+        date: String((item as { date?: unknown })?.date ?? d.date ?? ""),
+        time: String((item as { time?: unknown })?.time ?? ""),
+      }));
+  }
+  const hasContext = Boolean(
+    d.locationId || selectedServiceIds.length > 0 || d.specialistId || d.date || d.time || d.mode
+  );
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
+
+  const wantsSelfCheckout = /(?:^|\s)самостоятельно(?:\s|$)/iu.test(messageNorm);
+  const wantsAssistantCheckout = /оформи\s+через\s+ассистента|через\s+ассистента/iu.test(messageNorm);
+  if (wantsSelfCheckout) {
+    d.mode = "SELF";
+  } else if (wantsAssistantCheckout) {
+    d.mode = "ASSISTANT";
+  }
+  if (d.mode === "SELF" && d.locationId && selectedServiceIds.length > 0) {
+    return {
+      handled: true,
+      nextStatus: "READY_SELF",
+      nextAction: { type: "open_booking", bookingUrl: bookingUrl(publicSlug, d) },
+      reply: "Открываю онлайн-запись с подставленными параметрами.",
+    };
+  }
+
+  let scopedServicesForFlow = services;
+  const scopedLocationId = d.locationId;
+  if (typeof scopedLocationId === "number") {
+    scopedServicesForFlow = services.filter((x) => x.locationIds.includes(scopedLocationId));
+  }
+  const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm, scopedServicesForFlow);
 
   const monthOnlyDate = extractMonthOnlyDate(messageNorm, todayYmd);
   const hasConcreteDate = hasConcreteDateMention(messageNorm);
@@ -1186,7 +1408,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     if (wantsNewBooking(messageNorm)) {
       nextStatus = "COLLECTING";
       d.locationId = null;
-      d.serviceId = null;
+      clearDraftServices(d);
       d.specialistId = null;
       d.date = null;
       d.time = null;
@@ -1199,7 +1421,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   if (d.status === "COMPLETED" && bookingIntent && wantsNewBooking(messageNorm)) {
     nextStatus = "COLLECTING";
     d.locationId = null;
-    d.serviceId = null;
+    clearDraftServices(d);
     d.specialistId = null;
     d.date = null;
     d.time = null;
@@ -1213,7 +1435,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   }
   if (wantsStopBooking(messageNorm) && hasContext && d.status !== "COMPLETED") {
     d.locationId = null;
-    d.serviceId = null;
+    clearDraftServices(d);
     d.specialistId = null;
     d.date = null;
     d.time = null;
@@ -1487,7 +1709,6 @@ if (!d.serviceId) {
   }
 
   const scopedServices = services.filter((x) => x.locationIds.includes(d.locationId!));
-  const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm, scopedServices);
 
   const selectedSpecialistForSelection = d.specialistId ? specialists.find((sp) => sp.id === d.specialistId) ?? null : null;
   let servicesForSelection = selectedSpecialistForSelection
@@ -1546,15 +1767,20 @@ if (!d.serviceId) {
           ui: availableTimes.length ? { kind: "quick_replies", options: availableTimes.map((tm) => optionFromLabel(tm)) } : null,
         };
       }
-      return {
-        handled: true,
-        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны услуги. Выберите услугу кнопкой ниже или напишите название.`,
-        nextStatus: "COLLECTING",
-        ui: {
-          kind: "quick_replies",
-          options: serviceOptionsWithCategoryTabs(scopedServices, filterServicesByCategory(scopedServices.filter((x) => serviceIds.includes(x.id)), selectedServiceCategoryFilter), specialists.find((sp) => sp.id === d.specialistId) ?? null),
-        },
-      };
+        return {
+          handled: true,
+          reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны услуги. Выберите услугу кнопкой ниже или напишите название.`,
+          nextStatus: "COLLECTING",
+          ui: {
+            kind: "quick_replies",
+            options: serviceSelectionActionOptions({
+              servicesAll: scopedServices,
+              servicesShown: filterServicesByCategory(scopedServices.filter((x) => serviceIds.includes(x.id)), selectedServiceCategoryFilter),
+              selectedServiceIds: normalizeDraftServiceIds(d),
+              specialist: specialists.find((sp) => sp.id === d.specialistId) ?? null,
+            }),
+          },
+        };
     }
     if (!bookingIntent && !d.time && asksAboutSpecialists(messageNorm) && d.date) {
       const availableByLocation = specialists.filter((s) => s.locationIds.includes(d.locationId!));
@@ -1652,7 +1878,15 @@ if (!d.serviceId) {
         handled: true,
         reply: "Уточните, пожалуйста, конкретную услугу. Выберите вариант кнопкой ниже или напишите полное название.",
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, optionsSource, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+        ui: {
+          kind: "quick_replies",
+          options: serviceSelectionActionOptions({
+            servicesAll: servicesForSelection,
+            servicesShown: optionsSource,
+            selectedServiceIds: normalizeDraftServiceIds(d),
+            specialist: specialists.find((sp) => sp.id === d.specialistId) ?? null,
+          }),
+        },
       };
     }
     const asksServicesList = /(какие|что)\s+.*(услуг|процедур)|список\s+услуг|услуги\s+доступны/i.test(messageNorm);
@@ -1661,7 +1895,15 @@ if (!d.serviceId) {
         handled: true,
         reply: `На ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"} доступны услуги в течение дня. Выберите услугу, и затем я покажу доступное время.`,
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, servicesForSelectionByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+        ui: {
+          kind: "quick_replies",
+          options: serviceSelectionActionOptions({
+            servicesAll: servicesForSelection,
+            servicesShown: servicesForSelectionByCategory,
+            selectedServiceIds: normalizeDraftServiceIds(d),
+            specialist: specialists.find((sp) => sp.id === d.specialistId) ?? null,
+          }),
+        },
       };
     }
     return {
@@ -1670,8 +1912,81 @@ if (!d.serviceId) {
         ? `Выберите услугу на ${formatYmdRu(d.date)} в ${locations.find((x) => x.id === d.locationId)?.name ?? "выбранной локации"}, и продолжу запись.`
         : "Выберите услугу, и продолжу запись.",
       nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: serviceOptionsWithCategoryTabs(servicesForSelection, servicesForSelectionByCategory, specialists.find((sp) => sp.id === d.specialistId) ?? null) },
+      ui: {
+        kind: "quick_replies",
+        options: serviceSelectionActionOptions({
+          servicesAll: servicesForSelection,
+          servicesShown: servicesForSelectionByCategory,
+          selectedServiceIds: normalizeDraftServiceIds(d),
+          specialist: specialists.find((sp) => sp.id === d.specialistId) ?? null,
+        }),
+      },
     };
+  }
+
+  const isServiceSelectionCommand = /^(?:\s*)(?:выбрать\s+услугу|добавить\s+)/iu.test(messageNorm);
+  const isDoneWithServices = /(?:^|\s)готово\s+с\s+услугами(?:\s|$)/iu.test(messageNorm);
+  if (d.serviceId && isServiceSelectionCommand && !isDoneWithServices) {
+    const selectedServices = selectedServiceIds
+      .map((id) => services.find((s) => s.id === id) ?? null)
+      .filter((s): s is ServiceLite => Boolean(s));
+    const canAdd =
+      selectedServices.length > 0 && selectedServices.every((service) => service.allowMultiServiceBooking !== false);
+    if (canAdd) {
+      const selectedSpecialistForSelection = d.specialistId
+        ? specialists.find((sp) => sp.id === d.specialistId) ?? null
+        : null;
+      let servicesForSelection = selectedSpecialistForSelection
+        ? scopedServicesForFlow.filter((svc) =>
+            selectedSpecialistForSelection.serviceIds?.length ? selectedSpecialistForSelection.serviceIds.includes(svc.id) : true,
+          )
+        : scopedServicesForFlow;
+      if (d.date && !d.time) {
+        const dayOffers = await getOffers(origin, account.slug, d.locationId!, d.date, undefined, holdOwnerMarker ?? undefined);
+        const availableServiceIds = new Set(
+          (dayOffers?.times ?? []).flatMap((slot) =>
+            (slot.services ?? [])
+              .filter(
+                (svc) =>
+                  !d.specialistId ||
+                  (svc.specialistIds?.length ?? 0) === 0 ||
+                  svc.specialistIds?.includes(d.specialistId) === true,
+              )
+              .map((svc) => svc.serviceId),
+          ),
+        );
+        servicesForSelection = scopedServicesForFlow.filter((svc) => availableServiceIds.has(svc.id));
+      }
+      if (d.date && d.time) {
+        const offers = await getOffers(origin, account.slug, d.locationId!, d.date, undefined, holdOwnerMarker ?? undefined);
+        const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
+        if (offerAtTime?.services?.length) {
+          const serviceIds = offerAtTime.services
+            .filter(
+              (svc) =>
+                !d.specialistId ||
+                (svc.specialistIds?.length ?? 0) === 0 ||
+                svc.specialistIds?.includes(d.specialistId) === true,
+            )
+            .map((x) => x.serviceId);
+          servicesForSelection = scopedServicesForFlow.filter((svc) => serviceIds.includes(svc.id));
+        }
+      }
+      return {
+        handled: true,
+        reply: "Услуга добавлена. Хотите добавить ещё? Выберите услугу для добавления или нажмите «Продолжить запись».",
+        nextStatus: "COLLECTING",
+        ui: {
+          kind: "quick_replies",
+          options: serviceSelectionActionOptions({
+            servicesAll: scopedServicesForFlow,
+            servicesShown: filterServicesByCategory(servicesForSelection, selectedServiceCategoryFilter),
+            selectedServiceIds,
+            specialist: selectedSpecialistForSelection,
+          }),
+        },
+      };
+    }
   }
 
   if (!d.date) {
@@ -1809,21 +2124,117 @@ if (!d.serviceId) {
     }
   }
   if (!d.specialistId) {
+    const selectedServiceIdsForBooking = selectedServiceIds.length
+      ? selectedServiceIds
+      : d.serviceId
+        ? [d.serviceId]
+        : [];
+    const hasCompletePlan =
+      Array.isArray(d.planJson) &&
+      selectedServiceIdsForBooking.length > 1 &&
+      d.planJson.length === selectedServiceIdsForBooking.length &&
+      d.planJson.every(
+        (item) =>
+          Number.isInteger(item?.serviceId) &&
+          selectedServiceIdsForBooking.includes(item.serviceId) &&
+          Number.isInteger(item?.specialistId) &&
+          item.specialistId! > 0 &&
+          typeof item?.date === "string" &&
+          item.date.length > 0 &&
+          typeof item?.time === "string" &&
+          item.time.length > 0,
+      );
+    if (hasCompletePlan) {
+      if (wantsSelfCheckout) {
+        d.mode = "SELF";
+      } else if (wantsAssistantCheckout) {
+        d.mode = "ASSISTANT";
+        d.consentConfirmedAt = null;
+      }
+    }
+    if (!hasCompletePlan) {
     const offers = await getOffers(origin, account.slug, d.locationId!, d.date!, undefined, holdOwnerMarker ?? undefined);
     const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
-    const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
-    let specs =
-      offerService?.specialistIds?.length
-        ? specialists.filter((s) => offerService.specialistIds!.includes(s.id))
-        : [];
-    if (!specs.length) {
-      specs = await specialistsForSlot(origin, account.slug, d, specialists);
+    const servicesAtTime = offerAtTime?.services ?? [];
+    let specs = specialists.filter((s) => s.locationIds.includes(d.locationId!));
+    for (const serviceId of selectedServiceIdsForBooking) {
+      const offerService = servicesAtTime.find((s) => s.serviceId === serviceId) ?? null;
+      if (!offerService) {
+        specs = [];
+        break;
+      }
+      specs = specs.filter((sp) => (sp.serviceIds?.length ? sp.serviceIds.includes(serviceId) : true));
+      if (offerService.specialistIds?.length) {
+        const allowed = new Set(offerService.specialistIds);
+        specs = specs.filter((sp) => allowed.has(sp.id));
+      }
     }
     if (!specs.length) {
+      if (selectedServiceIdsForBooking.length === 1) {
+        specs = await specialistsForSlot(origin, account.slug, d, specialists);
+      }
+    }
+    if (!specs.length) {
+      if (selectedServiceIdsForBooking.length > 1 && d.locationId && d.date && d.time) {
+        const chainPlan = await buildAutoChainPlan({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          date: d.date,
+          startTime: d.time,
+          serviceIds: selectedServiceIdsForBooking,
+          services,
+          specialists,
+          holdOwnerMarker,
+        });
+        if (chainPlan?.length) {
+          d.bookingMode = "chain_multi_specialist";
+          d.planJson = chainPlan;
+          d.specialistId = null;
+          d.mode = null;
+          d.consentConfirmedAt = null;
+          const planSummary = bookingSummary(d, locations, services, specialists);
+          if (!wantsSelfCheckout && !wantsAssistantCheckout) {
+            return {
+              handled: true,
+              reply:
+                "Одним специалистом это время закрыть нельзя. Составила план визита по услугам с разными специалистами.\n\n" +
+                `План визита:\n${planSummary}\n\n` +
+                "Проверьте и выберите формат оформления.",
+              nextStatus: "CHECKING",
+              ui: {
+                kind: "quick_replies",
+                options: [
+                  optionFromLabel("Изменить время", "изменить время"),
+                  optionFromLabel("Изменить специалистов", "изменить специалистов"),
+                  optionFromLabel("Самостоятельно", "самостоятельно"),
+                  optionFromLabel("Через ассистента", "оформи через ассистента"),
+                ],
+              },
+            };
+          }
+          if (wantsSelfCheckout) {
+            d.mode = "SELF";
+          } else if (wantsAssistantCheckout) {
+            d.mode = "ASSISTANT";
+          }
+        }
+      }
+      const skipComboFallback =
+        Array.isArray(d.planJson) &&
+        d.planJson.length > 0 &&
+        (wantsSelfCheckout || wantsAssistantCheckout);
+      if (skipComboFallback) {
+        // дальше обработаем выбранный режим без повторного запроса времени
+      } else {
       const offerTimesForService = Array.from(
         new Set(
           (offers?.times ?? [])
-            .filter((t) => t.services.some((s) => s.serviceId === d.serviceId && (s.specialistIds?.length ?? 0) > 0))
+            .filter((t) =>
+              selectedServiceIdsForBooking.every((serviceId) =>
+                t.services.some((s) => s.serviceId === serviceId && (s.specialistIds?.length ?? 0) > 0),
+              ),
+            )
             .map((t) => t.time),
         ),
       );
@@ -1837,8 +2248,8 @@ if (!d.serviceId) {
         return {
           handled: true,
           reply:
-            offerService == null
-              ? `На ${d.time} услуга «${serviceName}» недоступна. Выберите другое время или другой день.`
+            selectedServiceIdsForBooking.length > 1
+              ? `На ${d.time} комбинация выбранных услуг недоступна. Выберите другое время или другой день.`
               : `На ${d.time} свободных специалистов нет. Выберите другое время или другой день.`,
           nextStatus: "COLLECTING",
           ui: { kind: "quick_replies", options: shownTimes },
@@ -1856,8 +2267,8 @@ if (!d.serviceId) {
       return {
         handled: true,
         reply: nextDates.length
-          ? `На ${formatYmdRu(d.date)} в ${d.time} свободных специалистов по этой услуге не нашла. Выберите другую дату.`
-          : `На ${formatYmdRu(d.date)} в ${d.time} свободных специалистов по этой услуге не нашла. Укажите другую дату.`,
+          ? `На ${formatYmdRu(d.date)} в ${d.time} свободных специалистов по выбранным услугам не нашла. Выберите другую дату.`
+          : `На ${formatYmdRu(d.date)} в ${d.time} свободных специалистов по выбранным услугам не нашла. Укажите другую дату.`,
         nextStatus: "COLLECTING",
         ui: nextDates.length
           ? {
@@ -1869,6 +2280,7 @@ if (!d.serviceId) {
             }
           : null,
       };
+      }
     }
     const byText = specialistByText(messageNorm, specs);
     if (byText) {
@@ -1879,24 +2291,40 @@ if (!d.serviceId) {
       d.specialistId = specs[0]!.id;
       autoSelectedSpecialistName = specs[0]!.name;
     } else {
+      const labelServices =
+        selectedServiceIdsForBooking.length > 1
+          ? selectedServiceIdsForBooking
+              .map((id) => services.find((svc) => svc.id === id) ?? null)
+              .filter((svc): svc is ServiceLite => Boolean(svc))
+          : services.find((svc) => svc.id === d.serviceId) ?? null;
       return {
         handled: true,
-        reply: `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже.`,
+        reply:
+          selectedServiceIdsForBooking.length > 1
+            ? `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты по всем выбранным услугам. Выберите специалиста кнопкой ниже.`
+            : `На ${formatYmdRu(d.date)} в ${d.time} доступны специалисты. Выберите специалиста кнопкой ниже.`,
         nextStatus: "COLLECTING",
-        ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x, services.find((svc) => svc.id === d.serviceId) ?? null)) },
-      };
+        ui: { kind: "quick_replies", options: specs.map((x) => specialistOption(x, labelServices)) },
+        };
+      }
     }
   }
 
   if (d.locationId && d.serviceId && d.date && d.time && d.specialistId) {
+    const selectedServiceIdsForBooking = selectedServiceIds.length
+      ? selectedServiceIds
+      : d.serviceId
+        ? [d.serviceId]
+        : [];
     const selectedDate = d.date;
     const selectedTime = d.time;
     const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
     const offerAtTime = (offers?.times ?? []).find((x) => x.time === selectedTime) ?? null;
-    const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
-    const specialistAvailableAtSlot =
-      !!offerService &&
-      ((offerService.specialistIds?.length ?? 0) === 0 || offerService.specialistIds?.includes(d.specialistId) === true);
+    const specialistAvailableAtSlot = selectedServiceIdsForBooking.every((serviceId) => {
+      const offerService = offerAtTime?.services.find((s) => s.serviceId === serviceId) ?? null;
+      if (!offerService) return false;
+      return (offerService.specialistIds?.length ?? 0) === 0 || offerService.specialistIds?.includes(d.specialistId!) === true;
+    });
 
     if (!specialistAvailableAtSlot) {
       const selectedSpecialistName = specialists.find((x) => x.id === d.specialistId)?.name ?? "выбранный специалист";
@@ -1971,6 +2399,79 @@ if (!d.serviceId) {
     }
   }
 
+  const selectedServiceIdsForBooking = selectedServiceIds.length
+    ? selectedServiceIds
+    : d.serviceId
+      ? [d.serviceId]
+      : [];
+  const chainPlanReady = isCompleteChainPlan(d, selectedServiceIdsForBooking);
+  const wantsEditTime = /(измени|смен|помен|другое)\s*(время|врем)/iu.test(messageNorm);
+  const wantsEditSpecialist = /(измени|смен|помен|другой)\s*(специалист|мастер)/iu.test(messageNorm);
+  const hasPlanForEdit = (Array.isArray(d.planJson) && d.planJson.length > 0) || chainPlanReady;
+
+  if (hasPlanForEdit && wantsEditSpecialist) {
+    return {
+      handled: true,
+      reply: "Изменить специалистов удобнее в онлайн-записи. Открываю оформление с планом визита.",
+      nextStatus: "CHECKING",
+      nextAction: { type: "open_booking", bookingUrl: bookingUrl(publicSlug, d) },
+    };
+  }
+
+  if (wantsEditTime && d.locationId && d.date && selectedServiceIdsForBooking.length) {
+    const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
+    let times = (offers?.times ?? [])
+      .filter((slot) =>
+        selectedServiceIdsForBooking.every((serviceId) => {
+          const offerService = slot.services.find((s) => s.serviceId === serviceId) ?? null;
+          if (!offerService) return false;
+          if (d.specialistId) {
+            return (offerService.specialistIds?.length ?? 0) === 0 || offerService.specialistIds?.includes(d.specialistId);
+          }
+          return (offerService.specialistIds?.length ?? 0) > 0;
+        }),
+      )
+      .map((slot) => slot.time);
+    if (!times.length) {
+      times = await getSlots(origin, account.slug, d.locationId, selectedServiceIdsForBooking[0]!, d.date, holdOwnerMarker ?? undefined);
+    }
+    d.time = null;
+    d.planJson = [];
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    return {
+      handled: true,
+      reply: "Выберите новое время.",
+      nextStatus: "COLLECTING",
+      ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, 24) },
+    };
+  }
+
+  if (wantsEditSpecialist && d.locationId && selectedServiceIdsForBooking.length) {
+    let specs = specialists.filter((s) => s.locationIds.includes(d.locationId!));
+    for (const serviceId of selectedServiceIdsForBooking) {
+      specs = specs.filter((sp) => (sp.serviceIds?.length ? sp.serviceIds.includes(serviceId) : true));
+    }
+    const labelServices =
+      selectedServiceIdsForBooking.length > 1
+        ? selectedServiceIdsForBooking
+            .map((id) => services.find((svc) => svc.id === id) ?? null)
+            .filter((svc): svc is ServiceLite => Boolean(svc))
+        : services.find((svc) => svc.id === d.serviceId) ?? null;
+    d.specialistId = null;
+    d.time = null;
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    return {
+      handled: true,
+      reply: specs.length ? "Выберите специалиста." : "По выбранным услугам не нашла специалистов. Выберите другие услуги.",
+      nextStatus: "COLLECTING",
+      ui: specs.length
+        ? { kind: "quick_replies", options: specs.map((x) => specialistOption(x, labelServices)) }
+        : null,
+    };
+  }
+
   if (!d.mode) {
     const selectedDate = d.date;
     const selectedTime = d.time;
@@ -1980,14 +2481,22 @@ if (!d.serviceId) {
       return true;
     });
     const selectedSpecialistByMessage = specialistByText(messageNorm, specialistScope);
-    if (selectedSpecialistByMessage && selectedSpecialistByMessage.id !== d.specialistId && d.locationId && d.serviceId && d.date) {
+    if (
+      !chainPlanReady &&
+      selectedSpecialistByMessage &&
+      selectedSpecialistByMessage.id !== d.specialistId &&
+      d.locationId &&
+      d.serviceId &&
+      d.date
+    ) {
       const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
       const offerAtCurrentTime = selectedTime ? (offers?.times ?? []).find((x) => x.time === selectedTime) ?? null : null;
       const serviceAtCurrentTime = offerAtCurrentTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
       const selectedIsAvailableAtCurrentTime =
         !!selectedTime &&
-        !!serviceAtCurrentTime?.specialistIds?.length &&
-        serviceAtCurrentTime.specialistIds.includes(selectedSpecialistByMessage.id);
+        (!!serviceAtCurrentTime?.specialistIds?.length
+          ? serviceAtCurrentTime.specialistIds.includes(selectedSpecialistByMessage.id)
+          : selectedSpecialistByMessage.serviceIds.includes(d.serviceId));
 
       if (selectedIsAvailableAtCurrentTime) {
         d.specialistId = selectedSpecialistByMessage.id;
@@ -2051,7 +2560,7 @@ if (!d.serviceId) {
       }
     }
 
-    if (d.locationId && d.serviceId && d.date && d.time && d.specialistId && asksAlternativeSpecialists(messageNorm)) {
+    if (!chainPlanReady && d.locationId && d.serviceId && d.date && d.time && d.specialistId && asksAlternativeSpecialists(messageNorm)) {
       const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
       const offerAtTime = (offers?.times ?? []).find((x) => x.time === d.time) ?? null;
       const offerService = offerAtTime?.services.find((s) => s.serviceId === d.serviceId) ?? null;
@@ -2131,46 +2640,66 @@ if (!d.serviceId) {
       };
     }
 
-    const selectedService = services.find((x) => x.id === d.serviceId) ?? null;
+    const selectedServicesForBooking = selectedServiceIdsForBooking
+      .map((id) => services.find((x) => x.id === id) ?? null)
+      .filter((x): x is ServiceLite => Boolean(x));
+    const chainRows = chainPlanReady
+      ? selectedServiceIdsForBooking
+          .map((serviceId) => {
+            const planItem = d.planJson.find((item) => item.serviceId === serviceId) ?? null;
+            const service = selectedServicesForBooking.find((x) => x.id === serviceId) ?? null;
+            const specialist = specialists.find((x) => x.id === (planItem?.specialistId ?? -1)) ?? null;
+            if (!planItem || !service || !specialist) return null;
+            return { service, specialist, time: planItem.time, date: planItem.date, effective: getEffectiveServiceForSpecialist(service, specialist) };
+          })
+          .filter((x): x is { service: ServiceLite; specialist: SpecialistLite; time: string; date: string; effective: { durationMin: number; price: number } } => Boolean(x))
+      : [];
     const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
-    const effective = selectedService ? getEffectiveServiceForSpecialist(selectedService, selectedSpecialist) : null;
-
-    if (d.mode === "ASSISTANT" && holdOwnerMarker != null && d.locationId && d.specialistId && d.date && d.time && effective) {
-      const holdOk = await reserveAssistantSlotHold({
-        accountId: account.id,
-        locationId: d.locationId,
-        specialistId: d.specialistId,
-        date: d.date,
-        time: d.time,
-        durationMin: effective.durationMin,
-        accountTz: account.timeZone,
-        holdOwnerMarker,
-      });
-      if (!holdOk) {
-        const times = await getSlots(origin, account.slug, d.locationId, d.serviceId!, d.date, holdOwnerMarker ?? undefined);
-        d.time = null;
-        return {
-          handled: true,
-          reply: "Этот слот только что заняли. Выберите, пожалуйста, другое время.",
-          nextStatus: "COLLECTING",
-          ui: {
-            kind: "quick_replies",
-            options: buildTimeOptionsWithControls(times, 24),
-          },
-        };
-      }
-    }
-    const effectiveText = effective ? `\nСтоимость: ${Math.round(effective.price)} ₽\nДлительность: ${effective.durationMin} мин` : "";
+    const effectiveRows =
+      chainRows.length === selectedServicesForBooking.length && chainRows.length > 0
+        ? chainRows.map((row) => ({ service: row.service, effective: row.effective }))
+        : selectedServicesForBooking.map((service) => ({
+            service,
+            effective: getEffectiveServiceForSpecialist(service, selectedSpecialist),
+          }));
+    const effectiveDurationTotal = effectiveRows.reduce((acc, row) => acc + Number(row.effective.durationMin || 0), 0);
+    const effectivePriceTotal = effectiveRows.reduce((acc, row) => acc + Number(row.effective.price || 0), 0);
+    const hasEffective = effectiveRows.length > 0;
+    const perServiceText =
+      selectedServicesForBooking.length > 1
+        ? "\n" +
+          effectiveRows
+            .map(
+              (row, index) =>
+                `Услуга №${index + 1}: ${row.service.name}\nСтоимость: ${Math.round(row.effective.price)} ₽\nДлительность: ${Math.round(row.effective.durationMin)} мин`,
+            )
+            .join("\n\n")
+        : "";
+    const effectiveText = hasEffective
+      ? selectedServicesForBooking.length > 1
+        ? `${perServiceText}\n\nОбщая стоимость: ${Math.round(effectivePriceTotal)} ₽\nОбщая длительность: ${effectiveDurationTotal} мин`
+        : `\nСтоимость: ${Math.round(effectivePriceTotal)} ₽\nДлительность: ${effectiveDurationTotal} мин`
+      : "";
     const specialistAutoText = autoSelectedSpecialistName
       ? autoAssignedSpecialistText(autoSelectedSpecialistName, previouslySelectedSpecialistName)
       : "";
+    const summaryOptions = [
+      optionFromLabel("Самостоятельно", "самостоятельно"),
+      optionFromLabel("Через ассистента", "оформи через ассистента"),
+    ];
+    if (selectedServiceIdsForBooking.length > 0) {
+      summaryOptions.unshift(optionFromLabel("Изменить время", "изменить время"));
+    }
+    if (selectedServiceIdsForBooking.length > 0) {
+      summaryOptions.unshift(optionFromLabel("Изменить специалиста", "изменить специалиста"));
+    }
     return {
       handled: true,
       reply: `${specialistAutoText}Проверьте данные:\n${bookingSummary(d, locations, services, specialists)}${effectiveText}\n\nКак завершим запись?`,
       nextStatus: "CHECKING",
       ui: {
         kind: "quick_replies",
-        options: [optionFromLabel("Самостоятельно", "самостоятельно"), optionFromLabel("Через ассистента", "оформи через ассистента")],
+        options: summaryOptions,
       },
     };
   }
@@ -2184,6 +2713,77 @@ if (!d.serviceId) {
       nextAction,
       reply: "Открываю онлайн-запись с подставленными параметрами.",
     };
+  }
+
+  if (d.mode === "ASSISTANT" && holdOwnerMarker != null && d.locationId && d.date) {
+    if (chainPlanReady) {
+      for (const serviceId of selectedServiceIdsForBooking) {
+        const planItem = d.planJson.find((item) => item.serviceId === serviceId) ?? null;
+        const service = services.find((s) => s.id === serviceId) ?? null;
+        const specialist = specialists.find((s) => s.id === (planItem?.specialistId ?? -1)) ?? null;
+        if (!planItem || !service || !specialist) {
+          return {
+            handled: true,
+            reply: "План визита заполнен не полностью. Выберите специалистов и время для всех услуг.",
+            nextStatus: "COLLECTING",
+          };
+        }
+        const effective = getEffectiveServiceForSpecialist(service, specialist);
+        const holdOk = await reserveAssistantSlotHold({
+          accountId: account.id,
+          locationId: d.locationId,
+          specialistId: specialist.id,
+          date: String(planItem.date),
+          time: String(planItem.time),
+          durationMin: Number(effective.durationMin || 0),
+          accountTz: account.timeZone,
+          holdOwnerMarker,
+        });
+        if (!holdOk) {
+          d.mode = null;
+          d.consentConfirmedAt = null;
+          return {
+            handled: true,
+            reply: `Слот для услуги «${service.name}» в ${planItem.time} уже заняли. Выберите другое время.`,
+            nextStatus: "COLLECTING",
+          };
+        }
+      }
+    } else if (d.specialistId && d.time) {
+      const selectedServicesForBooking = selectedServiceIdsForBooking
+        .map((id) => services.find((x) => x.id === id) ?? null)
+        .filter((x): x is ServiceLite => Boolean(x));
+      const selectedSpecialist = specialists.find((x) => x.id === d.specialistId) ?? null;
+      const effectiveDurationTotal = selectedServicesForBooking.reduce((acc, service) => {
+        const effective = getEffectiveServiceForSpecialist(service, selectedSpecialist);
+        return acc + Number(effective.durationMin || 0);
+      }, 0);
+      const holdOk = await reserveAssistantSlotHold({
+        accountId: account.id,
+        locationId: d.locationId,
+        specialistId: d.specialistId,
+        date: d.date,
+        time: d.time,
+        durationMin: effectiveDurationTotal,
+        accountTz: account.timeZone,
+        holdOwnerMarker,
+      });
+      if (!holdOk) {
+        const times = await getSlots(origin, account.slug, d.locationId, d.serviceId!, d.date, holdOwnerMarker ?? undefined);
+        d.time = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: "Этот слот только что заняли. Выберите, пожалуйста, другое время.",
+          nextStatus: "COLLECTING",
+          ui: {
+            kind: "quick_replies",
+            options: buildTimeOptionsWithControls(times, 24),
+          },
+        };
+      }
+    }
   }
 
   if (!d.clientName || !d.clientPhone) {
@@ -2260,6 +2860,7 @@ if (!d.serviceId) {
     request,
     services,
     preferredClientId,
+    holdOwnerMarker,
   });
   if (!created.ok) {
     if (created.code === "slot_busy") {
