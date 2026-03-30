@@ -554,7 +554,20 @@ function bookingUrl(publicSlug: string, d: DraftLike) {
       u.searchParams.set("scenario", "serviceFirst");
     }
   }
-  if (d.specialistId) u.searchParams.set("specialistId", String(d.specialistId));
+  if (d.specialistId) {
+    u.searchParams.set("specialistId", String(d.specialistId));
+  } else if (selectedServiceIds.length > 1 && Array.isArray(d.planJson) && d.planJson.length > 0) {
+    const specialistIds = Array.from(
+      new Set(
+        d.planJson
+          .map((item) => Number(item?.specialistId))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    );
+    if (specialistIds.length === 1) {
+      u.searchParams.set("specialistId", String(specialistIds[0]));
+    }
+  }
   if (d.date) u.searchParams.set("date", d.date);
   if (d.time) u.searchParams.set("time", d.time);
   if (Array.isArray(d.planJson) && d.planJson.length > 0) {
@@ -695,6 +708,42 @@ function asksAlternativeSpecialists(messageNorm: string) {
     /(?:масетер|масетр|мастер|спец|кто\s+делает|кто\s+выполняет|кто\s+из\s+мастеров)/iu.test(messageNorm);
   const asksAlternativeCue = /(?:другие|другой|другого|еще|ещё|кроме|иной|а\s+кто\s+еще|а\s+кто\s+ещё|есть\s+кто)/iu.test(messageNorm);
   return asksSpecialistTopic && asksAlternativeCue;
+}
+
+function wantsEditTimeIntent(messageNorm: string) {
+  return /(?:измени|изменить|смени|сменить|поменяй|поменять|другое)\s*(?:время|врем)|(?:^|\s)время\s+услуг/iu.test(
+    messageNorm,
+  );
+}
+
+function wantsEditSpecialistIntent(messageNorm: string) {
+  return /(?:измени|изменить|смени|сменить|поменяй|поменять|друг(?:ой|ого|ому|их))\s*(?:специалист|специалистов|мастер|мастеров)|(?:^|\s)специалист\s+услуг/iu.test(
+    messageNorm,
+  );
+}
+
+function parseChainServiceIndexFromMessage(args: {
+  messageNorm: string;
+  selectedServiceIds: number[];
+  selectedServices: ServiceLite[];
+}): number | null {
+  const { messageNorm, selectedServiceIds, selectedServices } = args;
+  const idxMatch = messageNorm.match(/услуг[аи]?\s*(?:№|#)?\s*(\d{1,2})/iu);
+  if (idxMatch?.[1]) {
+    const idx = Number(idxMatch[1]) - 1;
+    if (idx >= 0 && idx < selectedServiceIds.length) return idx;
+  }
+
+  let foundIndex: number | null = null;
+  for (let i = 0; i < selectedServices.length; i += 1) {
+    const service = selectedServices[i];
+    const key = normalizeText(service.name);
+    if (!key) continue;
+    if (!messageNorm.includes(key)) continue;
+    if (foundIndex != null) return null;
+    foundIndex = i;
+  }
+  return foundIndex;
 }
 
 function normalizeText(v: string) {
@@ -989,6 +1038,12 @@ function timeToMinutes(value: string | null | undefined) {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
+function minutesToTime(value: number) {
+  const hh = Math.floor(value / 60);
+  const mm = value % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
 function isCompleteChainPlan(
   d: DraftLike,
   selectedServiceIds: number[],
@@ -1061,6 +1116,224 @@ async function buildAutoChainPlan(args: {
   }
 
   return plan;
+}
+
+async function findValidSingleSpecialistStartTimes(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  date: string;
+  serviceIds: number[];
+  specialistId: number;
+  services: ServiceLite[];
+  specialists: SpecialistLite[];
+}) {
+  const { origin, accountSlug, locationId, date, serviceIds, specialistId, services, specialists } = args;
+  if (!serviceIds.length) return [];
+  const specialist = specialists.find((sp) => sp.id === specialistId) ?? null;
+  if (!specialist) return [];
+
+  const timesByService = new Map<number, number[]>();
+  const durationsByService = new Map<number, number>();
+  for (const serviceId of serviceIds) {
+    const service = services.find((svc) => svc.id === serviceId) ?? null;
+    if (!service) return [];
+    const effective = getEffectiveServiceForSpecialist(service, specialist);
+    durationsByService.set(serviceId, Number(effective.durationMin || 0));
+    const times = await findTimesForServiceAndSpecialist({
+      origin,
+      accountSlug,
+      locationId,
+      serviceId,
+      specialistId,
+      date,
+    });
+    timesByService.set(
+      serviceId,
+      times.map((tm) => timeToMinutes(tm)).filter((tm): tm is number => tm != null).sort((a, b) => a - b),
+    );
+  }
+
+  const firstServiceId = serviceIds[0]!;
+  const firstTimes = timesByService.get(firstServiceId) ?? [];
+  const validStarts: string[] = [];
+  for (const startMinute of firstTimes) {
+    let cursor = startMinute;
+    let valid = true;
+    for (let i = 0; i < serviceIds.length; i += 1) {
+      const serviceId = serviceIds[i]!;
+      const duration = durationsByService.get(serviceId) ?? 0;
+      const times = timesByService.get(serviceId) ?? [];
+      if (i === 0) {
+        if (!times.includes(startMinute)) {
+          valid = false;
+          break;
+        }
+        cursor = startMinute + duration;
+        continue;
+      }
+      const nextStart = times.find((tm) => tm >= cursor);
+      if (nextStart == null) {
+        valid = false;
+        break;
+      }
+      cursor = nextStart + duration;
+    }
+    if (valid) validStarts.push(minutesToTime(startMinute));
+  }
+  return validStarts;
+}
+
+async function findNextDatesForSingleSpecialistServiceChain(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  specialistId: number;
+  serviceIds: number[];
+  services: ServiceLite[];
+  specialists: SpecialistLite[];
+  fromDate: string;
+  daysAhead: number;
+  maxDates: number;
+  includeFromDate?: boolean;
+}) {
+  const {
+    origin,
+    accountSlug,
+    locationId,
+    specialistId,
+    serviceIds,
+    services,
+    specialists,
+    fromDate,
+    daysAhead,
+    maxDates,
+    includeFromDate = false,
+  } = args;
+  const found: string[] = [];
+  const startOffset = includeFromDate ? 0 : 1;
+  for (let i = startOffset; i <= daysAhead && found.length < maxDates; i += 1) {
+    const date = addDaysYmd(fromDate, i);
+    const starts = await findValidSingleSpecialistStartTimes({
+      origin,
+      accountSlug,
+      locationId,
+      date,
+      serviceIds,
+      specialistId,
+      services,
+      specialists,
+    });
+    if (starts.length) found.push(date);
+  }
+  return found;
+}
+
+async function findValidChainStartTimesAnySpecialists(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  date: string;
+  serviceIds: number[];
+  services: ServiceLite[];
+  specialists: SpecialistLite[];
+  holdOwnerMarker?: number | null;
+}) {
+  const { origin, accountSlug, locationId, date, serviceIds, services, specialists, holdOwnerMarker = null } = args;
+  if (!serviceIds.length) return [];
+  const firstServiceId = serviceIds[0]!;
+  const firstSlots = await getSlots(origin, accountSlug, locationId, firstServiceId, date, holdOwnerMarker ?? undefined);
+  const validStarts: string[] = [];
+  for (const startTime of firstSlots) {
+    const plan = await buildAutoChainPlan({
+      origin,
+      accountSlug,
+      locationId,
+      date,
+      startTime,
+      serviceIds,
+      services,
+      specialists,
+      holdOwnerMarker,
+    });
+    if (plan?.length === serviceIds.length) validStarts.push(startTime);
+  }
+  return Array.from(new Set(validStarts));
+}
+
+function orderedChainPlan(args: {
+  serviceIds: number[];
+  planJson: DraftLike["planJson"];
+  fallbackDate: string | null;
+}): ChainPlanItem[] {
+  const { serviceIds, planJson, fallbackDate } = args;
+  return serviceIds
+    .map((serviceId) => {
+      const src = Array.isArray(planJson) ? planJson.find((item) => Number(item?.serviceId) === serviceId) ?? null : null;
+      return {
+        serviceId,
+        specialistId: Number(src?.specialistId ?? 0),
+        date: String(src?.date ?? fallbackDate ?? ""),
+        time: String(src?.time ?? ""),
+      };
+    })
+    .filter((item) => item.specialistId > 0 && item.date && item.time);
+}
+
+async function reflowChainTail(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  date: string;
+  serviceIds: number[];
+  services: ServiceLite[];
+  specialists: SpecialistLite[];
+  plan: ChainPlanItem[];
+  fromIndex: number;
+}) {
+  const { origin, accountSlug, locationId, date, serviceIds, services, specialists, plan, fromIndex } = args;
+  if (!serviceIds.length || fromIndex <= 0) return plan;
+  const byService = new Map<number, ChainPlanItem>(plan.map((item) => [item.serviceId, { ...item }]));
+  for (let i = 0; i < fromIndex; i += 1) {
+    const serviceId = serviceIds[i]!;
+    if (!byService.has(serviceId)) return null;
+  }
+
+  const getEndAfter = (index: number) => {
+    const serviceId = serviceIds[index]!;
+    const item = byService.get(serviceId);
+    if (!item) return null;
+    const start = timeToMinutes(item.time);
+    const service = services.find((x) => x.id === serviceId) ?? null;
+    const specialist = specialists.find((x) => x.id === item.specialistId) ?? null;
+    if (start == null || !service || !specialist) return null;
+    const effective = getEffectiveServiceForSpecialist(service, specialist);
+    return start + Number(effective.durationMin || 0);
+  };
+
+  for (let i = fromIndex; i < serviceIds.length; i += 1) {
+    const serviceId = serviceIds[i]!;
+    const cursor = getEndAfter(i - 1);
+    if (cursor == null) return null;
+    const current = byService.get(serviceId);
+    if (!current || !current.specialistId) return null;
+    const times = await findTimesForServiceAndSpecialist({
+      origin,
+      accountSlug,
+      locationId,
+      serviceId,
+      specialistId: current.specialistId,
+      date,
+    });
+    const next = times.find((tm) => {
+      const minute = timeToMinutes(tm);
+      return minute != null && minute >= cursor;
+    });
+    if (!next) return null;
+    byService.set(serviceId, { ...current, date, time: next });
+  }
+
+  return serviceIds.map((serviceId) => byService.get(serviceId)).filter((item): item is ChainPlanItem => Boolean(item));
 }
 function applyChangeRollback(messageNorm: string, d: DraftLike) {
   const changeLocation = /(локац|филиал|адрес)/i.test(messageNorm);
@@ -1178,7 +1451,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   } else if (wantsAssistantCheckout) {
     d.mode = "ASSISTANT";
   }
-  if (d.mode === "SELF" && d.locationId && selectedServiceIds.length > 0) {
+  if (d.mode === "SELF" && d.locationId && selectedServiceIds.length === 1) {
     return {
       handled: true,
       nextStatus: "READY_SELF",
@@ -1429,7 +1702,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     d.consentConfirmedAt = null;
   }
 
-  if (wantsChange(messageNorm) && hasContext && d.status !== "COMPLETED") {
+  const explicitEditIntent = wantsEditTimeIntent(messageNorm) || wantsEditSpecialistIntent(messageNorm);
+  if (wantsChange(messageNorm) && !explicitEditIntent && hasContext && d.status !== "COMPLETED") {
     applyChangeRollback(messageNorm, d);
     nextStatus = "COLLECTING";
   }
@@ -2053,29 +2327,65 @@ if (!d.serviceId) {
   if (!d.time) {
     const pref = detectTimePreference(messageNorm);
     const specialistSelected = Boolean(d.specialistId);
+    const selectedServiceIdsForTime = selectedServiceIds.length ? selectedServiceIds : d.serviceId ? [d.serviceId] : [];
     const allTimes = specialistSelected
-      ? await findTimesForServiceAndSpecialist({
-          origin,
-          accountSlug: account.slug,
-          locationId: d.locationId,
-          serviceId: d.serviceId,
-          specialistId: d.specialistId!,
-          date: d.date,
-        })
-      : await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date, holdOwnerMarker ?? undefined);
+      ? selectedServiceIdsForTime.length > 1
+        ? await findValidSingleSpecialistStartTimes({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId,
+            date: d.date,
+            serviceIds: selectedServiceIdsForTime,
+            specialistId: d.specialistId!,
+            services,
+            specialists,
+          })
+        : await findTimesForServiceAndSpecialist({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId,
+            serviceId: d.serviceId,
+            specialistId: d.specialistId!,
+            date: d.date,
+          })
+      : selectedServiceIdsForTime.length > 1
+        ? await findValidChainStartTimesAnySpecialists({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId,
+            date: d.date,
+            serviceIds: selectedServiceIdsForTime,
+            services,
+            specialists,
+            holdOwnerMarker,
+          })
+        : await getSlots(origin, account.slug, d.locationId, d.serviceId, d.date, holdOwnerMarker ?? undefined);
     const times = filterByPreference(allTimes, pref);
     if (!times.length) {
       const nextDates = specialistSelected
-        ? await findNextServiceDatesForSpecialist({
-            origin,
-            accountSlug: account.slug,
-            locationId: d.locationId!,
-            serviceId: d.serviceId!,
-            specialistId: d.specialistId!,
-            fromDate: d.date,
-            daysAhead: 35,
-            maxDates: 6,
-          })
+        ? selectedServiceIdsForTime.length > 1
+          ? await findNextDatesForSingleSpecialistServiceChain({
+              origin,
+              accountSlug: account.slug,
+              locationId: d.locationId!,
+              specialistId: d.specialistId!,
+              serviceIds: selectedServiceIdsForTime,
+              services,
+              specialists,
+              fromDate: d.date,
+              daysAhead: 35,
+              maxDates: 6,
+            })
+          : await findNextServiceDatesForSpecialist({
+              origin,
+              accountSlug: account.slug,
+              locationId: d.locationId!,
+              serviceId: d.serviceId!,
+              specialistId: d.specialistId!,
+              fromDate: d.date,
+              daysAhead: 35,
+              maxDates: 6,
+            })
         : await findNextServiceDates({
             origin,
             accountSlug: account.slug,
@@ -2168,6 +2478,23 @@ if (!d.serviceId) {
         const allowed = new Set(offerService.specialistIds);
         specs = specs.filter((sp) => allowed.has(sp.id));
       }
+    }
+    if (selectedServiceIdsForBooking.length > 1 && d.time) {
+      const viableSpecs: SpecialistLite[] = [];
+      for (const specialist of specs) {
+        const starts = await findValidSingleSpecialistStartTimes({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId!,
+          date: d.date!,
+          serviceIds: selectedServiceIdsForBooking,
+          specialistId: specialist.id,
+          services,
+          specialists,
+        });
+        if (starts.includes(d.time)) viableSpecs.push(specialist);
+      }
+      specs = viableSpecs;
     }
     if (!specs.length) {
       if (selectedServiceIdsForBooking.length === 1) {
@@ -2405,35 +2732,441 @@ if (!d.serviceId) {
       ? [d.serviceId]
       : [];
   const chainPlanReady = isCompleteChainPlan(d, selectedServiceIdsForBooking);
-  const wantsEditTime = /(измени|смен|помен|другое)\s*(время|врем)/iu.test(messageNorm);
-  const wantsEditSpecialist = /(измени|смен|помен|другой)\s*(специалист|мастер)/iu.test(messageNorm);
+  const wantsEditTime = wantsEditTimeIntent(messageNorm);
+  const wantsEditSpecialist = wantsEditSpecialistIntent(messageNorm);
   const hasPlanForEdit = (Array.isArray(d.planJson) && d.planJson.length > 0) || chainPlanReady;
+  const chainTimeSelectionMatch = messageNorm.match(/время\s+услуг[аи]?\s*(?:№|#)?\s*(\d{1,2})\s*[:\-]\s*([01]?\d|2[0-3]):([0-5]\d)/iu);
+  const chainSpecialistSelectionMatch = messageNorm.match(/специалист\s+услуг[аи]?\s*(?:№|#)?\s*(\d{1,2})\s*[:\-]\s*(.+)$/iu);
 
-  if (hasPlanForEdit && wantsEditSpecialist) {
-    return {
-      handled: true,
-      reply: "Изменить специалистов удобнее в онлайн-записи. Открываю оформление с планом визита.",
-      nextStatus: "CHECKING",
-      nextAction: { type: "open_booking", bookingUrl: bookingUrl(publicSlug, d) },
+  if (hasPlanForEdit && d.locationId && d.date && selectedServiceIdsForBooking.length > 1) {
+    const selectedServicesForPlan = selectedServiceIdsForBooking
+      .map((id) => services.find((svc) => svc.id === id) ?? null)
+      .filter((svc): svc is ServiceLite => Boolean(svc));
+    const planForEdit = orderedChainPlan({
+      serviceIds: selectedServiceIdsForBooking,
+      planJson: d.planJson,
+      fallbackDate: d.date,
+    });
+    const serviceIndexFromMessage = parseChainServiceIndexFromMessage({
+      messageNorm,
+      selectedServiceIds: selectedServiceIdsForBooking,
+      selectedServices: selectedServicesForPlan,
+    });
+
+    if ((wantsEditTime || wantsEditSpecialist) && serviceIndexFromMessage == null && !chainTimeSelectionMatch && !chainSpecialistSelectionMatch) {
+      if (wantsEditTime) {
+        return {
+          handled: true,
+          reply: "Для какой услуги изменить время?",
+          nextStatus: "CHECKING",
+          ui: {
+            kind: "quick_replies",
+            options: selectedServicesForPlan.map((service, index) =>
+              optionFromLabel(`Услуга №${index + 1}: ${service.name}`, `изменить время услуги №${index + 1}`),
+            ),
+          },
+        };
+      }
+      if (wantsEditSpecialist) {
+        return {
+          handled: true,
+          reply: "Для какой услуги изменить специалиста?",
+          nextStatus: "CHECKING",
+          ui: {
+            kind: "quick_replies",
+            options: selectedServicesForPlan.map((service, index) =>
+              optionFromLabel(`Услуга №${index + 1}: ${service.name}`, `изменить специалиста услуги №${index + 1}`),
+            ),
+          },
+        };
+      }
+    }
+
+    const buildMinStartMinute = (targetIndex: number) => {
+      if (targetIndex <= 0) return 0;
+      let cursor = 0;
+      for (let i = 0; i < targetIndex; i += 1) {
+        const item = planForEdit[i];
+        const service = selectedServicesForPlan[i];
+        const specialist = item ? specialists.find((sp) => sp.id === item.specialistId) ?? null : null;
+        const startMinute = item ? timeToMinutes(item.time) : null;
+        if (!item || !service || !specialist || startMinute == null) return null;
+        const effective = getEffectiveServiceForSpecialist(service, specialist);
+        cursor = startMinute + Number(effective.durationMin || 0);
+      }
+      return cursor;
     };
+
+    if (wantsEditTime && serviceIndexFromMessage != null && !chainTimeSelectionMatch) {
+      if (!planForEdit.length || planForEdit.length !== selectedServiceIdsForBooking.length) {
+        return {
+          handled: true,
+          reply: "План визита пока не заполнен полностью. Сначала выберите время для первой услуги.",
+          nextStatus: "COLLECTING",
+        };
+      }
+      const targetServiceId = selectedServiceIdsForBooking[serviceIndexFromMessage]!;
+      const targetItem = planForEdit[serviceIndexFromMessage]!;
+      const minStartMinute = buildMinStartMinute(serviceIndexFromMessage);
+      if (minStartMinute == null) {
+        return {
+          handled: true,
+          reply: "Не хватает данных по предыдущим услугам. Сначала зафиксируйте время начала визита.",
+          nextStatus: "COLLECTING",
+        };
+      }
+      const baseTimes = targetItem.specialistId
+        ? await findTimesForServiceAndSpecialist({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId,
+            serviceId: targetServiceId,
+            specialistId: targetItem.specialistId,
+            date: d.date,
+          })
+        : await getSlots(origin, account.slug, d.locationId, targetServiceId, d.date, holdOwnerMarker ?? undefined);
+      const times = baseTimes.filter((tm) => {
+        const minute = timeToMinutes(tm);
+        return minute != null && minute >= minStartMinute;
+      });
+      if (!times.length) {
+        return {
+          handled: true,
+          reply: "Для этой услуги после предыдущей не осталось доступного времени. Выберите другого специалиста или измените предыдущую услугу.",
+          nextStatus: "CHECKING",
+        };
+      }
+      return {
+        handled: true,
+        reply: `Выберите новое время для услуги №${serviceIndexFromMessage + 1}.`,
+        nextStatus: "CHECKING",
+        ui: {
+          kind: "quick_replies",
+          options: times.slice(0, 24).map((tm) => optionFromLabel(tm, `время услуги №${serviceIndexFromMessage + 1}: ${tm}`)),
+        },
+      };
+    }
+
+    if (chainTimeSelectionMatch?.[1] && chainTimeSelectionMatch?.[2] && chainTimeSelectionMatch?.[3]) {
+      const targetIndex = Number(chainTimeSelectionMatch[1]) - 1;
+      if (targetIndex >= 0 && targetIndex < selectedServiceIdsForBooking.length) {
+        if (!planForEdit.length || planForEdit.length !== selectedServiceIdsForBooking.length) {
+          return {
+            handled: true,
+            reply: "План визита пока не заполнен полностью. Сначала выберите время для первой услуги.",
+            nextStatus: "COLLECTING",
+          };
+        }
+        const nextTime = `${String(Number(chainTimeSelectionMatch[2])).padStart(2, "0")}:${chainTimeSelectionMatch[3]}`;
+        const minStartMinute = buildMinStartMinute(targetIndex);
+        const nextMinute = timeToMinutes(nextTime);
+        if (minStartMinute == null || nextMinute == null || nextMinute < minStartMinute) {
+          return {
+            handled: true,
+            reply: "Это время раньше окончания предыдущей услуги. Выберите более поздний слот.",
+            nextStatus: "CHECKING",
+          };
+        }
+        const targetServiceId = selectedServiceIdsForBooking[targetIndex]!;
+        const targetItem = planForEdit[targetIndex]!;
+        const targetSpecialistId = targetItem.specialistId;
+        if (!targetSpecialistId) {
+          return {
+            handled: true,
+            reply: "Сначала выберите специалиста для этой услуги.",
+            nextStatus: "CHECKING",
+          };
+        }
+        const allowedTimes = await findTimesForServiceAndSpecialist({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: targetServiceId,
+          specialistId: targetSpecialistId,
+          date: d.date,
+        });
+        if (!allowedTimes.includes(nextTime)) {
+          return {
+            handled: true,
+            reply: "У выбранного специалиста это время недоступно. Выберите другой слот.",
+            nextStatus: "CHECKING",
+          };
+        }
+
+        const nextPlan = planForEdit.map((item) => ({ ...item }));
+        nextPlan[targetIndex] = { ...nextPlan[targetIndex]!, time: nextTime, date: d.date };
+        const reflowed = await reflowChainTail({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          date: d.date,
+          serviceIds: selectedServiceIdsForBooking,
+          services,
+          specialists,
+          plan: nextPlan,
+          fromIndex: targetIndex + 1,
+        });
+        if (!reflowed) {
+          return {
+            handled: true,
+            reply: "После этого времени не получается последовательно разместить остальные услуги. Выберите другой слот.",
+            nextStatus: "CHECKING",
+          };
+        }
+        d.bookingMode = "chain_multi_specialist";
+        d.planJson = reflowed;
+        d.time = reflowed[0]?.time ?? d.time;
+        d.specialistId = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: `Обновила время услуги №${targetIndex + 1}. Проверьте план визита:\n${bookingSummary(d, locations, services, specialists)}`,
+          nextStatus: "CHECKING",
+          ui: {
+            kind: "quick_replies",
+            options: [
+              optionFromLabel("Изменить время", "изменить время"),
+              optionFromLabel("Изменить специалиста", "изменить специалиста"),
+              optionFromLabel("Самостоятельно", "самостоятельно"),
+              optionFromLabel("Через ассистента", "оформи через ассистента"),
+            ],
+          },
+        };
+      }
+    }
+
+    if (wantsEditSpecialist && serviceIndexFromMessage != null && !chainSpecialistSelectionMatch) {
+      const targetServiceId = selectedServiceIdsForBooking[serviceIndexFromMessage]!;
+      const targetService = services.find((svc) => svc.id === targetServiceId) ?? null;
+      const specs = specialists.filter((sp) => {
+        if (!sp.locationIds.includes(d.locationId!)) return false;
+        if (sp.serviceIds?.length && !sp.serviceIds.includes(targetServiceId)) return false;
+        return true;
+      });
+      if (!specs.length) {
+        return {
+          handled: true,
+          reply: "По этой услуге в выбранном филиале нет доступных специалистов.",
+          nextStatus: "CHECKING",
+        };
+      }
+      return {
+        handled: true,
+        reply: `Выберите специалиста для услуги №${serviceIndexFromMessage + 1}${targetService ? ` (${targetService.name})` : ""}.`,
+        nextStatus: "CHECKING",
+        ui: {
+          kind: "quick_replies",
+          options: specs.map((sp) => optionFromLabel(sp.name, `специалист услуги №${serviceIndexFromMessage + 1}: ${sp.name}`)),
+        },
+      };
+    }
+
+    if (chainSpecialistSelectionMatch?.[1] && chainSpecialistSelectionMatch?.[2]) {
+      const targetIndex = Number(chainSpecialistSelectionMatch[1]) - 1;
+      const specialistText = chainSpecialistSelectionMatch[2].trim();
+      if (targetIndex >= 0 && targetIndex < selectedServiceIdsForBooking.length) {
+        if (!planForEdit.length || planForEdit.length !== selectedServiceIdsForBooking.length) {
+          return {
+            handled: true,
+            reply: "План визита пока не заполнен полностью. Сначала выберите время для первой услуги.",
+            nextStatus: "COLLECTING",
+          };
+        }
+        const targetServiceId = selectedServiceIdsForBooking[targetIndex]!;
+        const allowedSpecs = specialists.filter((sp) => {
+          if (!sp.locationIds.includes(d.locationId!)) return false;
+          if (sp.serviceIds?.length && !sp.serviceIds.includes(targetServiceId)) return false;
+          return true;
+        });
+        const chosen = specialistByText(specialistText, allowedSpecs);
+        if (!chosen) {
+          return {
+            handled: true,
+            reply: "Не удалось распознать специалиста. Выберите специалиста кнопкой ниже.",
+            nextStatus: "CHECKING",
+            ui: {
+              kind: "quick_replies",
+              options: allowedSpecs.map((sp) => optionFromLabel(sp.name, `специалист услуги №${targetIndex + 1}: ${sp.name}`)),
+            },
+          };
+        }
+        const minStartMinute = buildMinStartMinute(targetIndex);
+        if (minStartMinute == null) {
+          return {
+            handled: true,
+            reply: "Не хватает данных по предыдущим услугам. Сначала зафиксируйте время начала визита.",
+            nextStatus: "COLLECTING",
+          };
+        }
+        const availableTimes = await findTimesForServiceAndSpecialist({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: targetServiceId,
+          specialistId: chosen.id,
+          date: d.date,
+        });
+        const filteredTimes = availableTimes.filter((tm) => {
+          const minute = timeToMinutes(tm);
+          return minute != null && minute >= minStartMinute;
+        });
+        if (!filteredTimes.length) {
+          return {
+            handled: true,
+            reply: "У выбранного специалиста нет доступного времени после предыдущей услуги. Выберите другого специалиста или измените время предыдущей услуги.",
+            nextStatus: "CHECKING",
+          };
+        }
+        const currentTime = planForEdit[targetIndex]?.time ?? "";
+        const keepCurrent = filteredTimes.includes(currentTime) ? currentTime : filteredTimes[0]!;
+        const nextPlan = planForEdit.map((item) => ({ ...item }));
+        nextPlan[targetIndex] = {
+          ...nextPlan[targetIndex]!,
+          specialistId: chosen.id,
+          date: d.date,
+          time: keepCurrent,
+        };
+        const reflowed = await reflowChainTail({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          date: d.date,
+          serviceIds: selectedServiceIdsForBooking,
+          services,
+          specialists,
+          plan: nextPlan,
+          fromIndex: targetIndex + 1,
+        });
+        if (!reflowed) {
+          return {
+            handled: true,
+            reply: "После смены специалиста не получается последовательно разместить оставшиеся услуги. Попробуйте другого специалиста.",
+            nextStatus: "CHECKING",
+          };
+        }
+        d.bookingMode = "chain_multi_specialist";
+        d.planJson = reflowed;
+        d.time = reflowed[0]?.time ?? d.time;
+        d.specialistId = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: `Обновила специалиста для услуги №${targetIndex + 1}. Проверьте план визита:\n${bookingSummary(d, locations, services, specialists)}`,
+          nextStatus: "CHECKING",
+          ui: {
+            kind: "quick_replies",
+            options: [
+              optionFromLabel("Изменить время", "изменить время"),
+              optionFromLabel("Изменить специалиста", "изменить специалиста"),
+              optionFromLabel("Самостоятельно", "самостоятельно"),
+              optionFromLabel("Через ассистента", "оформи через ассистента"),
+            ],
+          },
+        };
+      }
+    }
   }
 
   if (wantsEditTime && d.locationId && d.date && selectedServiceIdsForBooking.length) {
-    const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
-    let times = (offers?.times ?? [])
-      .filter((slot) =>
-        selectedServiceIdsForBooking.every((serviceId) => {
-          const offerService = slot.services.find((s) => s.serviceId === serviceId) ?? null;
-          if (!offerService) return false;
-          if (d.specialistId) {
-            return (offerService.specialistIds?.length ?? 0) === 0 || offerService.specialistIds?.includes(d.specialistId);
-          }
-          return (offerService.specialistIds?.length ?? 0) > 0;
-        }),
-      )
-      .map((slot) => slot.time);
-    if (!times.length) {
-      times = await getSlots(origin, account.slug, d.locationId, selectedServiceIdsForBooking[0]!, d.date, holdOwnerMarker ?? undefined);
+    let times: string[] = [];
+    if (d.specialistId && selectedServiceIdsForBooking.length > 1) {
+      times = await findValidSingleSpecialistStartTimes({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        date: d.date,
+        serviceIds: selectedServiceIdsForBooking,
+        specialistId: d.specialistId,
+        services,
+        specialists,
+      });
+      if (!times.length) {
+        const nextDates = await findNextDatesForSingleSpecialistServiceChain({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          specialistId: d.specialistId,
+          serviceIds: selectedServiceIdsForBooking,
+          services,
+          specialists,
+          fromDate: d.date,
+          daysAhead: 35,
+          maxDates: 6,
+        });
+        return {
+          handled: true,
+          reply: nextDates.length
+            ? "У выбранного специалиста на эту дату нет последовательных слотов для всех услуг. Выберите другую дату."
+            : "У выбранного специалиста нет последовательных слотов для всех услуг. Выберите другого специалиста или другую дату.",
+          nextStatus: "COLLECTING",
+          ui: nextDates.length
+            ? {
+                kind: "date_picker",
+                minDate: nextDates[0]!,
+                maxDate: nextDates[nextDates.length - 1]!,
+                initialDate: nextDates[0]!,
+                availableDates: nextDates,
+              }
+            : null,
+        };
+      }
+    } else if (selectedServiceIdsForBooking.length > 1) {
+      times = await findValidChainStartTimesAnySpecialists({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        date: d.date,
+        serviceIds: selectedServiceIdsForBooking,
+        services,
+        specialists,
+        holdOwnerMarker,
+      });
+      if (!times.length) {
+        const nextDates = await findNextServiceDates({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: selectedServiceIdsForBooking[0]!,
+          fromDate: d.date,
+          daysAhead: 35,
+          maxDates: 6,
+        });
+        return {
+          handled: true,
+          reply: nextDates.length
+            ? "На эту дату не получается составить последовательный план всех выбранных услуг. Выберите другую дату."
+            : "Не получается составить последовательный план всех выбранных услуг. Выберите другую дату или услуги.",
+          nextStatus: "COLLECTING",
+          ui: nextDates.length
+            ? {
+                kind: "date_picker",
+                minDate: nextDates[0]!,
+                maxDate: nextDates[nextDates.length - 1]!,
+                initialDate: nextDates[0]!,
+                availableDates: nextDates,
+              }
+            : null,
+        };
+      }
+    } else {
+      const offers = await getOffers(origin, account.slug, d.locationId, d.date, undefined, holdOwnerMarker ?? undefined);
+      times = (offers?.times ?? [])
+        .filter((slot) =>
+          selectedServiceIdsForBooking.every((serviceId) => {
+            const offerService = slot.services.find((s) => s.serviceId === serviceId) ?? null;
+            if (!offerService) return false;
+            if (d.specialistId) {
+              return (offerService.specialistIds?.length ?? 0) === 0 || offerService.specialistIds?.includes(d.specialistId);
+            }
+            return (offerService.specialistIds?.length ?? 0) > 0;
+          }),
+        )
+        .map((slot) => slot.time);
+      if (!times.length) {
+        times = await getSlots(origin, account.slug, d.locationId, selectedServiceIdsForBooking[0]!, d.date, holdOwnerMarker ?? undefined);
+      }
     }
     d.time = null;
     d.planJson = [];
@@ -2665,19 +3398,9 @@ if (!d.serviceId) {
     const effectiveDurationTotal = effectiveRows.reduce((acc, row) => acc + Number(row.effective.durationMin || 0), 0);
     const effectivePriceTotal = effectiveRows.reduce((acc, row) => acc + Number(row.effective.price || 0), 0);
     const hasEffective = effectiveRows.length > 0;
-    const perServiceText =
-      selectedServicesForBooking.length > 1
-        ? "\n" +
-          effectiveRows
-            .map(
-              (row, index) =>
-                `Услуга №${index + 1}: ${row.service.name}\nСтоимость: ${Math.round(row.effective.price)} ₽\nДлительность: ${Math.round(row.effective.durationMin)} мин`,
-            )
-            .join("\n\n")
-        : "";
     const effectiveText = hasEffective
       ? selectedServicesForBooking.length > 1
-        ? `${perServiceText}\n\nОбщая стоимость: ${Math.round(effectivePriceTotal)} ₽\nОбщая длительность: ${effectiveDurationTotal} мин`
+        ? `\nОбщая стоимость: ${Math.round(effectivePriceTotal)} ₽\nОбщая длительность: ${effectiveDurationTotal} мин`
         : `\nСтоимость: ${Math.round(effectivePriceTotal)} ₽\nДлительность: ${effectiveDurationTotal} мин`
       : "";
     const specialistAutoText = autoSelectedSpecialistName
@@ -2702,6 +3425,90 @@ if (!d.serviceId) {
         options: summaryOptions,
       },
     };
+  }
+
+  if (d.mode === "SELF" && selectedServiceIdsForBooking.length > 1 && d.locationId && d.date && !chainPlanReady) {
+    if (d.specialistId && d.time) {
+      const startMinute = timeToMinutes(d.time);
+      const specialist = specialists.find((sp) => sp.id === d.specialistId) ?? null;
+      if (startMinute != null && specialist) {
+        const generatedPlan: ChainPlanItem[] = [];
+        let cursor = startMinute;
+        let valid = true;
+        for (const serviceId of selectedServiceIdsForBooking) {
+          const service = services.find((svc) => svc.id === serviceId) ?? null;
+          if (!service) {
+            valid = false;
+            break;
+          }
+          const times = await findTimesForServiceAndSpecialist({
+            origin,
+            accountSlug: account.slug,
+            locationId: d.locationId,
+            serviceId,
+            specialistId: specialist.id,
+            date: d.date,
+          });
+          const picked =
+            generatedPlan.length === 0 && times.includes(d.time)
+              ? d.time
+              : (times.find((tm) => {
+                  const minute = timeToMinutes(tm);
+                  return minute != null && minute >= cursor;
+                }) ?? null);
+          if (!picked) {
+            valid = false;
+            break;
+          }
+          generatedPlan.push({
+            serviceId,
+            specialistId: specialist.id,
+            date: d.date,
+            time: picked,
+          });
+          const pickedMinute = timeToMinutes(picked);
+          if (pickedMinute == null) {
+            valid = false;
+            break;
+          }
+          const effective = getEffectiveServiceForSpecialist(service, specialist);
+          cursor = pickedMinute + Number(effective.durationMin || 0);
+        }
+        if (valid && generatedPlan.length === selectedServiceIdsForBooking.length) {
+          d.bookingMode = "chain_multi_specialist";
+          d.planJson = generatedPlan;
+          d.time = generatedPlan[0]?.time ?? d.time;
+          d.specialistId = null;
+        }
+      }
+    } else if (d.time) {
+      const generatedPlan = await buildAutoChainPlan({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        date: d.date,
+        startTime: d.time,
+        serviceIds: selectedServiceIdsForBooking,
+        services,
+        specialists,
+        holdOwnerMarker,
+      });
+      if (generatedPlan?.length === selectedServiceIdsForBooking.length) {
+        d.bookingMode = "chain_multi_specialist";
+        d.planJson = generatedPlan;
+        d.time = generatedPlan[0]?.time ?? d.time;
+        d.specialistId = null;
+      }
+    }
+    const selfChainReadyAfterBuild = isCompleteChainPlan(d, selectedServiceIdsForBooking);
+    if (!selfChainReadyAfterBuild) {
+      d.mode = null;
+      return {
+        handled: true,
+        reply: "Не удалось собрать корректный план визита для выбранного времени. Выберите другое время.",
+        nextStatus: "COLLECTING",
+      };
+    }
   }
 
   if (d.mode === "SELF") {

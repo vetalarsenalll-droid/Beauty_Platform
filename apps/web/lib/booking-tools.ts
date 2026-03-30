@@ -187,7 +187,28 @@ export function bookingSummary(
     const specialistId = planItem?.specialistId ?? d.specialistId ?? null;
     const specialistName = specialistId ? specialists.find((x) => x.id === specialistId)?.name ?? `#${specialistId}` : "—";
     const whenDate = planItem?.date ?? d.date;
-    const whenTime = planItem?.time ?? (index === 0 ? d.time : null);
+    let whenTime = planItem?.time ?? (index === 0 ? d.time : null);
+    if (!planItem?.time && !(Array.isArray(d.planJson) && d.planJson.length > 0) && d.specialistId && d.time && index > 0) {
+      let cursor = toMinutes(d.time);
+      if (cursor != null) {
+        for (let i = 0; i <= index; i += 1) {
+          const rowService = services.find((x) => x.id === selectedServiceIds[i]!) ?? null;
+          if (!rowService) {
+            cursor = null;
+            break;
+          }
+          const specialist = specialists.find((x) => x.id === d.specialistId) ?? null;
+          const effective = getEffectiveServiceForSpecialist(rowService, specialist);
+          if (i === index) break;
+          cursor += Number(effective.durationMin || 0);
+        }
+      }
+      if (cursor != null) {
+        const hh = String(Math.floor(cursor / 60)).padStart(2, "0");
+        const mm = String(cursor % 60).padStart(2, "0");
+        whenTime = `${hh}:${mm}`;
+      }
+    }
     return `Услуга №${index + 1}: ${service?.name ?? `#${serviceId}`}\nСпециалист: ${specialistName}\nДата: ${formatYmdRu(whenDate)}\nВремя: ${whenTime ?? "—"}`;
   });
 

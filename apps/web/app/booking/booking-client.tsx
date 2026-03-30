@@ -982,6 +982,7 @@ export default function BookingClient({
 
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [loadingSpecialists, setLoadingSpecialists] = useState(false);
+  const [specialistsFetched, setSpecialistsFetched] = useState(false);
   const [specialistsError, setSpecialistsError] = useState<string | null>(null);
 
   // specialistFirst: только специалиста с рабочими днями
@@ -1594,18 +1595,12 @@ export default function BookingClient({
   }, [pendingSpecialistId, specialists]);
 
   useEffect(() => {
-    if (!specialistId) return;
-    if (loadingSpecialists) return;
-    if (!specialists.some((sp) => sp.id === specialistId)) {
-      setSpecialistId(null);
-    }
-  }, [specialistId, specialists, loadingSpecialists]);
-
-  useEffect(() => {
+    // Do not clear specialist during early bootstrap while services are still loading from URL params.
+    if (services.length === 0) return;
     if (isChainMode && specialistId) {
       setSpecialistId(null);
     }
-  }, [isChainMode, specialistId]);
+  }, [isChainMode, specialistId, services.length]);
 
   const steps = useMemo(() => {
     const common = [{ key: "location", title: "Локация" }];
@@ -1656,19 +1651,20 @@ export default function BookingClient({
   const lastTrackedStepRef = useRef<{ key: string; index: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const currentStepKey = stepsWithScenario[stepIndex]?.key;
-  const lastStepKeyRef = useRef<BookingUiStepKey | null>(null);
+  const prevStepsRef = useRef(stepsWithScenario);
 
   useEffect(() => {
-    lastStepKeyRef.current = (currentStepKey as BookingUiStepKey | undefined) ?? null;
-  }, [currentStepKey]);
-
-  useEffect(() => {
-    const key = lastStepKeyRef.current;
-    if (!key) return;
-    const idx = stepsWithScenario.findIndex((s) => s.key === key);
+    const prevSteps = prevStepsRef.current;
+    const prevKey = prevSteps[stepIndex]?.key;
+    if (!prevKey) {
+      prevStepsRef.current = stepsWithScenario;
+      return;
+    }
+    const idx = stepsWithScenario.findIndex((s) => s.key === prevKey);
     if (idx >= 0 && idx !== stepIndex) {
       setStepIndex(idx);
     }
+    prevStepsRef.current = stepsWithScenario;
   }, [stepsWithScenario, stepIndex]);
 
   const logBookingStep = useCallback(
@@ -1732,6 +1728,16 @@ export default function BookingClient({
     isDateFirst &&
     (currentStepKey === "specialist" || currentStepKey === "chain" || currentStepKey === "details");
 
+  useEffect(() => {
+    if (!specialistId) return;
+    if (!shouldLoadSpecialists) return;
+    if (loadingSpecialists) return;
+    if (!specialistsFetched) return;
+    if (!specialists.some((sp) => sp.id === specialistId)) {
+      setSpecialistId(null);
+    }
+  }, [specialistId, specialists, loadingSpecialists, shouldLoadSpecialists, specialistsFetched]);
+
   const gotoKey = (key: string) => {
     const idx = stepsWithScenario.findIndex((s) => s.key === key);
     if (idx >= 0) setStepIndex(idx);
@@ -1783,14 +1789,18 @@ export default function BookingClient({
     }
 
     const knownLocation = Boolean(initialParams?.locationId);
-    const hasService = Boolean(initialParams?.serviceId);
+    const hasService = Boolean(initialParams?.serviceId || (initialParams?.serviceIds?.length ?? 0) > 0);
     const hasSpecialist = Boolean(initialParams?.specialistId);
     const hasDate = Boolean(initialParams?.dateYmd);
     const hasTime = Boolean(initialParams?.timeChoice);
-    const hasPlan = (initialParams?.planJson?.length ?? 0) > 0;
+    const plan = initialParams?.planJson ?? [];
+    const hasPlan = plan.length > 0;
+    const hasCompletePlan = hasPlan && plan.every((item) => Boolean(item.specialistId) && Boolean(item.time));
     let nextStep: BookingUiStepKey = "location";
     if (knownLocation) {
-      if (hasPlan) {
+      if (hasCompletePlan) {
+        nextStep = "details";
+      } else if (hasPlan) {
         nextStep = "chain";
       } else if (hasService && hasSpecialist && hasDate && hasTime) {
         nextStep = "details";
@@ -1982,16 +1992,19 @@ export default function BookingClient({
     const safeLocationId = Number(locationId);
     if (!shouldLoadSpecialists) {
       setLoadingSpecialists(false);
+      setSpecialistsFetched(false);
       setSpecialistsError(null);
       return;
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setSpecialists([]);
+      setSpecialistsFetched(false);
       return;
     }
 
     let mounted = true;
     setLoadingSpecialists(true);
+    setSpecialistsFetched(false);
     setSpecialistsError(null);
 
     const specialistParams = isChainMode
@@ -2016,6 +2029,7 @@ export default function BookingClient({
       .finally(() => {
         if (!mounted) return;
         setLoadingSpecialists(false);
+        setSpecialistsFetched(true);
       });
 
     return () => {
@@ -3317,10 +3331,13 @@ export default function BookingClient({
   useEffect(() => {
     if (!isSingleSpecialistPlanMode || !specialistId) return;
     if (isSpecialistFirst) return;
+    if (loadingSinglePlanSpecialists) return;
     if (!singlePlanEligibleSpecialistIds) return;
+    // Avoid destructive reset on transient empty state while eligibility is still stabilizing.
+    if (singlePlanEligibleSpecialistIds.size === 0) return;
     if (singlePlanEligibleSpecialistIds.has(specialistId)) return;
     setSpecialistId(null);
-  }, [isSingleSpecialistPlanMode, isSpecialistFirst, specialistId, singlePlanEligibleSpecialistIds]);
+  }, [isSingleSpecialistPlanMode, isSpecialistFirst, specialistId, singlePlanEligibleSpecialistIds, loadingSinglePlanSpecialists]);
 
   const specialistsForSpecialistStep = useMemo(() => {
     if (!isSingleSpecialistPlanMode || !singlePlanEligibleSpecialistIds) {
