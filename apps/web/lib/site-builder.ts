@@ -329,8 +329,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       label: "AI-чат",
       offsetBottomPx: 16,
       offsetRightPx: 16,
-      panelWidthPx: 380,
-      panelHeightVh: 70,
+      panelWidthPx: 400,
+      panelHeightVh: 74,
       radiusPx: null,
       buttonRadiusPx: null,
       buttonColor: null,
@@ -553,8 +553,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-чат",
     offsetBottomPx: numInRange(data.offsetBottomPx, 8, 64, 16),
     offsetRightPx: numInRange(data.offsetRightPx, 8, 64, 16),
-    panelWidthPx: numInRange(data.panelWidthPx, 320, 460, 380),
-    panelHeightVh: numInRange(data.panelHeightVh, 55, 88, 70),
+    panelWidthPx: 400,
+    panelHeightVh: 74,
     radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : theme.radius,
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)

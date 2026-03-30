@@ -676,8 +676,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     label: "AI Ассистент",
     offsetBottomPx: 16,
     offsetRightPx: 16,
-    panelWidthPx: 380,
-    panelHeightVh: 70,
+    panelWidthPx: 400,
+    panelHeightVh: 74,
     style: {
       ...defaultBlockStyle,
       blockBgLight: "#ffffff",
@@ -3346,7 +3346,7 @@ function BlockStyleEditor({
 
   return (
     <div className="space-y-4">
-      {inSection("layout") && (
+      {inSection("layout") && block.type !== "aisha" && (
       <label className="text-sm">
         Отступ сверху: {style.marginTop}px
         <input
@@ -3360,7 +3360,7 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && (
+      {inSection("layout") && block.type !== "aisha" && (
       <label className="text-sm">
         Отступ снизу: {style.marginBottom}px
         <input
@@ -3491,7 +3491,7 @@ function BlockStyleEditor({
         Ширина блока: 12/12 (фиксировано для меню)
       </div>
       )}
-      {inSection("layout") && block.type !== "works" && block.type !== "cover" && (
+      {inSection("layout") && block.type !== "works" && block.type !== "cover" && block.type !== "aisha" && (
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -3505,7 +3505,7 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && (
+      {inSection("layout") && block.type !== "aisha" && (
       <label className="text-sm">
         Радиус кнопки: {style.buttonRadius ?? theme.buttonRadius}px
         <input
@@ -3530,18 +3530,6 @@ function BlockStyleEditor({
         <label className="text-sm">
           {"Отступ справа:"} {Number(block.data.offsetRightPx ?? 16)}px
           <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetRightPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetRightPx: Number(event.target.value) } })} className="mt-2 w-full" />
-        </label>
-        <label className="text-sm">
-          {"Ширина панели:"} {Number(block.data.panelWidthPx ?? 380)}px
-          <input type="range" min={320} max={460} step={2} value={Number(block.data.panelWidthPx ?? 380)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelWidthPx: Number(event.target.value) } })} className="mt-2 w-full" />
-        </label>
-        <label className="text-sm">
-          {"Высота панели:"} {Number(block.data.panelHeightVh ?? 70)}vh
-          <input type="range" min={55} max={95} step={1} value={Number(block.data.panelHeightVh ?? 70)} onChange={(event) => onChange({ ...block, data: { ...block.data, panelHeightVh: Number(event.target.value) } })} className="mt-2 w-full" />
-        </label>
-        <label className="text-sm">
-          {"Радиус сообщения:"} {Number(style.messageRadius ?? 16)}px
-          <input type="range" min={4} max={32} step={1} value={Number(style.messageRadius ?? 16)} onChange={(event) => update({ messageRadius: Number(event.target.value) })} className="mt-2 w-full" />
         </label>
       </>
       )}
@@ -7454,8 +7442,8 @@ function buildAishaWidgetConfig(
         : "AI-ассистент",
     offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 64, 16),
     offsetRightPx: toNumberInRange(data.offsetRightPx, 8, 160, 16),
-    panelWidthPx: toNumberInRange(data.panelWidthPx, 320, 460, 380),
-    panelHeightVh: toNumberInRange(data.panelHeightVh, 55, 95, 70),
+    panelWidthPx: 400,
+    panelHeightVh: 74,
     radiusPx: style.radius ?? theme.radius ?? 16,
     buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 999,
     buttonColor:

@@ -359,15 +359,15 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   }, [widgetConfig, mode, currentMode]);
 
 
-  const panelWidth = Number(widgetConfig?.panelWidthPx ?? 380);
-  const panelHeightVh = Number(widgetConfig?.panelHeightVh ?? 70);
-  const panelRadius = Number(widgetConfig?.radiusPx ?? 16);
-  const messageRadius = Number(widgetConfig?.messageRadiusPx ?? 16);
+  const panelWidth = Number(widgetConfig?.panelWidthPx ?? 400);
+  const panelHeightVh = Number(widgetConfig?.panelHeightVh ?? 74);
+  const panelRadius = 18;
+  const messageRadius = 16;
   const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 16));
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
   const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
-  const fabRadius = Number(widgetConfig?.buttonRadiusPx ?? 999);
-  const buttonRadiusStyle = { borderRadius: `${fabRadius}px` };
+  const fabRadius = 16;
+  const buttonRadiusStyle = { borderRadius: "12px" };
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
   const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
   const inlineFabPosition: CSSProperties =
@@ -764,10 +764,20 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   : options;
                 const isTimeValue = (v: string) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v.trim());
                 const normalizeQuick = (v: string) => v.toLowerCase().replace(/\s+/g, " ").trim();
+                const isWideQuickReply = (option: QuickReply) => {
+                  const text = `${option.label} ${option.value}`.replace(/\s+/g, " ").trim();
+                  return (
+                    text.length >= 34 ||
+                    /[—-]/.test(text) ||
+                    /услуга\s*№|специалист|стоимость|длительность|итого|мастер|уровень/iu.test(text)
+                  );
+                };
+                const quickReplyRadiusStyle = (variant: "chip" | "time" | "row") => {
+                  const radius = variant === "row" ? 14 : variant === "time" ? 10 : 12;
+                  return { borderRadius: `${radius}px` };
+                };
                 const timeControlKind = (option: QuickReply): "show_all" | "part_of_day" | null => {
                   const value = normalizeQuick(option.value);
-                  const label = normalizeQuick(option.label);
-                  const merged = `${value} ${label}`;
                   if (/^(выбрать другую дату|другая дата|другое число хочу выбрать|другое число)$/iu.test(value)) return "show_all";
                   if (/^(покажи все( свободное)? время|показать все( свободное)? время)$/iu.test(value) || /^(покажи всё( свободное)? время|показать всё( свободное)? время)$/iu.test(value)) return "show_all";
                   if (/^(утро|утром|день|днем|днём|вечер|вечером)$/iu.test(value)) return "part_of_day";
@@ -778,6 +788,19 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const partOfDayOptions = timeControlOptions.filter((o) => timeControlKind(o) === "part_of_day");
                 const regularOptions = effectiveOptions.filter((o) => timeControlKind(o) === null);
                 const hasAnyTimeOptions = regularOptions.some((o) => isTimeValue(o.value) || isTimeValue(o.label));
+                const onlyTimeOptions =
+                  regularOptions.length > 0 &&
+                  regularOptions.every((o) => isTimeValue(o.value) || isTimeValue(o.label));
+                const quickReplyEnabledClass = isLastAssistant
+                  ? (currentMode === "dark"
+                      ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110"
+                      : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
+                  : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]";
+                const quickReplySupportClass = isLastAssistant
+                  ? (currentMode === "dark"
+                      ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/10"
+                      : "border-[color:var(--ai-border,#d1d5db)] bg-black/[0.03] text-[color:var(--ai-text,#111827)] hover:bg-black/[0.05]")
+                  : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]";
                 const consentSubmitValue =
                   ui?.kind === "consent"
                     ? ui.consentValue
@@ -787,8 +810,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                     key={messageKey}
                     className={`max-w-[92%] px-3 py-2 text-sm ${
                       msg.role === "user"
-                        ? "ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))]"
-                        : "bg-[color:var(--ai-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))]"
+                        ? "ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))] shadow-sm"
+                        : "bg-[color:var(--ai-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))] shadow-sm"
                     }`}
                     style={messageRadiusStyle}
                   >
@@ -813,12 +836,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                       }
                                       void sendRawMessage(option.value);
                                     }}
-                                    style={buttonRadiusStyle}
-                                    className={`border px-3 py-1.5 text-xs font-medium transition rounded-full ${
-                                      isLastAssistant
-                                        ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
-                                        : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
-                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                    style={quickReplyRadiusStyle("chip")}
+                                    className={`border px-3 py-1.5 text-xs font-medium transition rounded-lg ${quickReplySupportClass} disabled:cursor-not-allowed disabled:opacity-60`}
                                   >
                                     {option.label}
                                   </button>
@@ -841,12 +860,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                       }
                                       void sendRawMessage(option.value);
                                     }}
-                                    style={buttonRadiusStyle}
-                                    className={`border px-3 py-1.5 text-xs font-medium transition rounded-full ${
-                                      isLastAssistant
-                                        ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
-                                        : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
-                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                    style={quickReplyRadiusStyle("chip")}
+                                    className={`border px-3 py-1.5 text-xs font-semibold transition rounded-lg ${quickReplySupportClass} disabled:cursor-not-allowed disabled:opacity-60`}
                                   >
                                     {option.label}
                                   </button>
@@ -856,10 +871,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           </div>
                         ) : null}
                         {regularOptions.length ? (
-                          <div className={`flex flex-wrap gap-1.5 ${hasAnyTimeOptions ? "items-stretch" : ""}`}>
+                          <div className={onlyTimeOptions ? "grid grid-cols-4 gap-1.5" : `flex flex-wrap gap-1.5 ${hasAnyTimeOptions ? "items-stretch" : ""}`}>
                             {regularOptions.map((option) => (
                               (() => {
                                 const isTimeOption = isTimeValue(option.value) || isTimeValue(option.label);
+                                const isWideOption = !isTimeOption && isWideQuickReply(option);
                                 return (
                                   <button
                                     key={`${option.label}:${option.value}`}
@@ -874,15 +890,21 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                       }
                                       void sendRawMessage(option.value);
                                     }}
-                                    style={buttonRadiusStyle}
+                                    style={
+                                      isWideOption
+                                        ? quickReplyRadiusStyle("row")
+                                        : isTimeOption
+                                        ? quickReplyRadiusStyle("time")
+                                        : buttonRadiusStyle
+                                    }
                                     className={`border px-3 py-1.5 text-xs font-medium transition ${
                                       isTimeOption
-                                        ? "w-[62px] rounded-lg text-center [font-variant-numeric:tabular-nums]"
-                                        : "rounded-full"
+                                        ? `${onlyTimeOptions ? "w-full" : "w-[68px]"} rounded-lg text-center [font-variant-numeric:tabular-nums]`
+                                        : isWideOption
+                                        ? "w-full rounded-xl py-2 text-left text-[12px] leading-[1.25rem] whitespace-normal"
+                                        : "rounded-lg"
                                     } ${
-                                      isLastAssistant
-                                        ? (currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110" : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
-                                        : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]"
+                                      quickReplyEnabledClass
                                     } disabled:cursor-not-allowed disabled:opacity-60`}
                                   >
                                     {option.label}
@@ -1103,7 +1125,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           </div>
 
           <form onSubmit={sendMessage} className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}>
-            <div className="relative overflow-hidden rounded-[20px] border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]">
+            <div className="relative overflow-hidden rounded-2xl border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]">
               <textarea
                 ref={inputRef}
                 value={text}
