@@ -443,7 +443,6 @@ export default function JournalView({
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [statusMenuId, setStatusMenuId] = useState<number | null>(null);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<{
@@ -582,7 +581,6 @@ export default function JournalView({
 
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const sellRef = useRef<HTMLDivElement | null>(null);
-  const summaryRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
 
   const pushUrl = (date: Date, locationId: number) => {
@@ -601,9 +599,6 @@ export default function JournalView({
       }
       if (sellRef.current && !sellRef.current.contains(target)) {
         setSellOpen(false);
-      }
-      if (summaryRef.current && !summaryRef.current.contains(target)) {
-        setSummaryOpen(false);
       }
       if (statusMenuRef.current && !statusMenuRef.current.contains(target)) {
         setStatusMenuId(null);
@@ -1040,6 +1035,16 @@ export default function JournalView({
   // ✅ фильтруем записи по выбранной локации
   const filteredAppointments = useMemo(() => {
     const search = searchQuery.trim().toLowerCase();
+    const searchDigits = search.replace(/\D/g, "");
+    const normalizePhoneDigits = (value: string) => {
+      const digits = value.replace(/\D/g, "");
+      if (!digits) return "";
+      if (digits.length === 11 && (digits.startsWith("7") || digits.startsWith("8"))) {
+        return digits.slice(1);
+      }
+      if (digits.length === 10) return digits;
+      return digits;
+    };
 
     return appointmentItems.filter((appointment) => {
       if (
@@ -1069,9 +1074,30 @@ export default function JournalView({
       }
 
       if (search) {
-        const haystack = [appointment.clientName, ...appointment.serviceNames]
+        const haystack = [
+          appointment.clientName,
+          appointment.clientPhone ?? "",
+          appointment.clientEmail ?? "",
+          ...appointment.serviceNames,
+        ]
           .join(" ")
           .toLowerCase();
+        if (searchDigits.length >= 3) {
+          const phoneDigits = normalizePhoneDigits(appointment.clientPhone ?? "");
+          const searchNormalized = normalizePhoneDigits(searchDigits);
+          const searchAlt =
+            searchDigits.length > 1 && (searchDigits.startsWith("7") || searchDigits.startsWith("8"))
+              ? searchDigits.slice(1)
+              : "";
+          if (
+            phoneDigits &&
+            (phoneDigits.includes(searchDigits) ||
+              phoneDigits.includes(searchNormalized) ||
+              (searchAlt && phoneDigits.includes(searchAlt)))
+          ) {
+            return true;
+          }
+        }
         if (!haystack.includes(search)) return false;
       }
 
@@ -1087,13 +1113,6 @@ export default function JournalView({
     weekStart,
     selectedLocationId,
   ]);
-
-  const dailyTotal = useMemo(() => {
-    return filteredAppointments.reduce((total, appointment) => {
-      const value = Number(appointment.priceTotal || 0);
-      return total + (Number.isNaN(value) ? 0 : value);
-    }, 0);
-  }, [filteredAppointments]);
 
   const monthMatrix = useMemo(
     () => buildMonthMatrix(currentDate),
@@ -1880,34 +1899,6 @@ export default function JournalView({
               ) : null}
             </div>
 
-            <div className="relative" ref={summaryRef}>
-              <button
-                type="button"
-                onClick={() => setSummaryOpen((prev) => !prev)}
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm font-medium"
-              >
-                {dailyTotal.toLocaleString("ru-RU")} ₽
-              </button>
-              {summaryOpen ? (
-                <div className="absolute right-0 top-12 z-20 w-56 rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-3 text-sm shadow-[var(--bp-shadow)]">
-                  <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-                    Статистика дня
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span>Записей</span>
-                    <span className="font-semibold">
-                      {filteredAppointments.length}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span>Сумма</span>
-                    <span className="font-semibold">
-                      {dailyTotal.toLocaleString("ru-RU")} ₽
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -1998,22 +1989,8 @@ export default function JournalView({
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Поиск по журналу"
-              className="h-10 w-[220px] rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm"
+              className="h-10 w-[220px] rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm outline-none transition focus:border-[color:var(--bp-accent)] focus:ring-0 focus:shadow-[0_0_0_1px_rgba(17,24,39,0.1)]"
             />
-
-            <button
-              type="button"
-              className="h-10 w-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
-            >
-              🔍
-            </button>
-
-            <button
-              type="button"
-              className="h-10 w-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
-            >
-              👤
-            </button>
 
             <div className="ml-2 flex items-center gap-2">
               <button
