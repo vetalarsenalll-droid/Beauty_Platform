@@ -1392,6 +1392,46 @@ export default function JournalView({
 
     const slotsDuration =
       editorForm.durationMin > 0 ? editorForm.durationMin : (minServiceDuration ?? 0);
+    if (shouldValidateSelectedStart && slotsDuration > 0) {
+      if (loadingStartSlots) {
+        setNoticeModal({
+          title: "Проверьте время",
+          message: "Дождитесь расчета свободных слотов.",
+        });
+        return;
+      }
+      if (startSlotsError) {
+        setNoticeModal({
+          title: "Проверьте время",
+          message:
+            startSlotsError === "MISSING_PARAMS"
+              ? "Не хватает параметров для расчета слотов."
+              : startSlotsError === "INVALID_DATE"
+              ? "Некорректная дата."
+              : startSlotsError === "INVALID_DURATION"
+              ? "Некорректная длительность."
+              : startSlotsError === "NO_WORKING_SCHEDULE"
+              ? "У специалиста нет рабочей смены на эту дату."
+              : startSlotsError === "SCHEDULE_LOCATION_MISMATCH"
+              ? "Смена специалиста привязана к другой локации."
+              : startSlotsError === "SPECIALIST_SERVICES_MISMATCH"
+              ? "Выбранный специалист не выполняет одну из услуг."
+              : startSlotsError === "NO_FREE_SLOTS"
+              ? "На эту длительность нет свободных окон."
+              : startSlotsError === "INVALID_SCHEDULE_WINDOW"
+              ? "Некорректное рабочее окно в расписании."
+              : "Не удалось рассчитать свободные слоты.",
+        });
+        return;
+      }
+      if (availableStartSlots.length === 0) {
+        setNoticeModal({
+          title: "Проверьте время",
+          message: "Нет свободных слотов для выбранной длительности.",
+        });
+        return;
+      }
+    }
     if (
       shouldValidateSelectedStart &&
       slotsDuration > 0 &&
