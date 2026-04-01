@@ -454,6 +454,13 @@ export default function JournalView({
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
   const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
+  const [confirmTransfer, setConfirmTransfer] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    cancelLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<{
     rowIndex: number;
@@ -472,6 +479,9 @@ export default function JournalView({
   const dragMovedRef = useRef(false);
   const dragSuppressClickRef = useRef(0);
   const dragPointerDownAtRef = useRef<number | null>(null);
+  const dragArmedRef = useRef(false);
+  const dragArmTimeoutRef = useRef<number | null>(null);
+  const [dragHoldActiveId, setDragHoldActiveId] = useState<number | null>(null);
   const isInteractiveTarget = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
     return Boolean(
@@ -495,6 +505,7 @@ export default function JournalView({
   useEffect(() => {
     if (!draggingAppointmentId || !dragStartPoint) return;
     const handlePointerMove = (event: PointerEvent) => {
+      if (!dragArmedRef.current) return;
       const dx = event.clientX - dragStartPoint.x;
       const dy = event.clientY - dragStartPoint.y;
       if (Math.abs(dx) + Math.abs(dy) > 4) {
@@ -534,7 +545,11 @@ export default function JournalView({
     };
 
     const handlePointerUp = () => {
-      if (draggingAppointmentId && dragHoverTarget) {
+      if (dragArmTimeoutRef.current) {
+        window.clearTimeout(dragArmTimeoutRef.current);
+        dragArmTimeoutRef.current = null;
+      }
+      if (draggingAppointmentId && dragHoverTarget && dragArmedRef.current) {
         handleAppointmentDrop(
           draggingAppointmentId,
           dragHoverTarget.rowIndex,
@@ -550,6 +565,8 @@ export default function JournalView({
       setDragHoverTarget(null);
       setDragOrigin(null);
       dragMovedRef.current = false;
+      dragArmedRef.current = false;
+      setDragHoldActiveId(null);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -1497,28 +1514,43 @@ export default function JournalView({
     const endAt = new Date(startAt);
     endAt.setMinutes(endAt.getMinutes() + durationForSlot);
 
-    const response = await fetch(`/api/v1/crm/appointments/${appointmentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        staffId,
-        locationId,
-        startAt: startAt.toISOString(),
-        endAt: endAt.toISOString(),
-      }),
-    });
+    const dateKey = formatDateKey(slotDate).split("-").reverse().join(".");
+    setConfirmTransfer({
+      title: "Подтвердите перенос",
+      message: `Перенести запись на ${dateKey} в ${startTime}?`,
+      confirmLabel: "Перенести",
+      cancelLabel: "Отмена",
+      onConfirm: () => {
+        setConfirmTransfer(null);
+        void (async () => {
+          const response = await fetch(
+            `/api/v1/crm/appointments/${appointmentId}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                staffId,
+                locationId,
+                startAt: startAt.toISOString(),
+                endAt: endAt.toISOString(),
+              }),
+            }
+          );
 
-    if (response.ok) {
-      const updated = (await response.json()) as JournalAppointment;
-      setAppointmentItems((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
-      );
-      return;
-    }
-    const error = await response.json().catch(() => null);
-    setNoticeModal({
-      title: "Не удалось перенести запись",
-      message: error?.message ?? "Проверьте доступность и попробуйте снова.",
+          if (response.ok) {
+            const updated = (await response.json()) as JournalAppointment;
+            setAppointmentItems((prev) =>
+              prev.map((item) => (item.id === updated.id ? updated : item))
+            );
+            return;
+          }
+          const error = await response.json().catch(() => null);
+          setNoticeModal({
+            title: "Не удалось перенести запись",
+            message: error?.message ?? "Проверьте доступность и попробуйте снова.",
+          });
+        })();
+      },
     });
   };
 
@@ -2288,6 +2320,10 @@ export default function JournalView({
                           draggingAppointmentId === card.appointment.id
                             ? "bg-[color:var(--bp-panel)]/80 shadow-lg"
                             : ""
+                        } ${
+                          dragHoldActiveId === card.appointment.id && !dragMoved
+                            ? "ring-2 ring-[color:var(--bp-accent)]/30"
+                            : ""
                         }`}
                         style={{
                           gridColumn: card.gridColumn,
@@ -2316,8 +2352,17 @@ export default function JournalView({
                           setDraggingAppointmentId(card.appointment.id);
                           setDragStartPoint({ x: event.clientX, y: event.clientY });
                           setDragMoved(false);
+                          setDragDelta({ x: 0, y: 0 });
                           dragMovedRef.current = false;
                           dragPointerDownAtRef.current = Date.now();
+                          dragArmedRef.current = false;
+                          setDragHoldActiveId(card.appointment.id);
+                          if (dragArmTimeoutRef.current) {
+                            window.clearTimeout(dragArmTimeoutRef.current);
+                          }
+                          dragArmTimeoutRef.current = window.setTimeout(() => {
+                            dragArmedRef.current = true;
+                          }, 350);
                         }}
                         onPointerMove={(event) => {
                           if (!dragStartPoint) return;
@@ -2332,6 +2377,12 @@ export default function JournalView({
                           setDraggingAppointmentId(null);
                           setDragStartPoint(null);
                           setDragMoved(false);
+                          setDragHoldActiveId(null);
+                          dragArmedRef.current = false;
+                          if (dragArmTimeoutRef.current) {
+                            window.clearTimeout(dragArmTimeoutRef.current);
+                            dragArmTimeoutRef.current = null;
+                          }
                         }}
                         onPointerUp={(event) => {
                           if (isInteractiveTarget(event.target)) return;
@@ -2341,11 +2392,13 @@ export default function JournalView({
                             draggingAppointmentId === card.appointment.id &&
                             !dragMovedRef.current &&
                             Date.now() >= dragSuppressClickRef.current &&
-                            heldForMs < 400
+                            !dragArmedRef.current &&
+                            heldForMs < 900
                           ) {
                             handleAppointmentOpen(card.appointment);
                           }
                           dragPointerDownAtRef.current = null;
+                          setDragHoldActiveId(null);
                         }}
                       >
                         <div className={`h-2 ${card.sourceTone}`} />
@@ -2921,6 +2974,42 @@ export default function JournalView({
             >
               Понятно
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmTransfer ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-5 shadow-[var(--bp-shadow)]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">{confirmTransfer.title}</h3>
+              <button
+                type="button"
+                onClick={() => setConfirmTransfer(null)}
+                className="text-[color:var(--bp-muted)]"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-[color:var(--bp-muted)]">
+              {confirmTransfer.message}
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmTransfer(null)}
+                className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+              >
+                {confirmTransfer.cancelLabel}
+              </button>
+              <button
+                type="button"
+                onClick={confirmTransfer.onConfirm}
+                className="rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-medium text-white"
+              >
+                {confirmTransfer.confirmLabel}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
