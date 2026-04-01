@@ -442,6 +442,7 @@ export default function JournalView({
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
   const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [availableStartSlots, setAvailableStartSlots] = useState<string[]>([]);
   const [loadingStartSlots, setLoadingStartSlots] = useState(false);
   const [startSlotsError, setStartSlotsError] = useState<string | null>(null);
@@ -903,6 +904,100 @@ export default function JournalView({
     if (!editorForm) return [];
     const staffItem = staff.find((item) => item.id === editorForm.staffId);
     const staffLevelId = staffItem?.levelId ?? null;
+    const location = locations.find((item) => item.id === editorForm.locationId);
+    const date = parseYmdLocal(editorForm.date);
+    const startMinutes = parseTimeToMinutes(editorForm.startTime);
+    const locationWindow =
+      date && location ? getLocationWindowForDate(location, date) : null;
+    const scheduleEntry =
+      date && editorForm.staffId
+        ? scheduleEntries.find(
+            (entry) =>
+              entry.specialistId === editorForm.staffId &&
+              entry.locationId === editorForm.locationId &&
+              entry.date === formatDateKey(date)
+          )
+        : undefined;
+    const scheduleWindow =
+      scheduleEntry?.type === "WORKING" && scheduleEntry.startTime && scheduleEntry.endTime
+        ? {
+            startMinutes: parseTimeToMinutes(scheduleEntry.startTime) ?? null,
+            endMinutes: parseTimeToMinutes(scheduleEntry.endTime) ?? null,
+          }
+        : null;
+    const windowStartCandidates = [
+      locationWindow?.startMinutes ?? null,
+      scheduleWindow?.startMinutes ?? null,
+      startMinutes ?? null,
+    ].filter((value): value is number => value !== null);
+    const windowEndCandidates = [
+      locationWindow?.endMinutes ?? null,
+      scheduleWindow?.endMinutes ?? null,
+    ].filter((value): value is number => value !== null);
+    const windowStart =
+      windowStartCandidates.length > 0 ? Math.max(...windowStartCandidates) : null;
+    const windowEnd =
+      windowEndCandidates.length > 0 ? Math.min(...windowEndCandidates) : null;
+
+    const blockedStatuses = new Set(["CANCELLED", "NO_SHOW"]);
+    const dayKey = date ? formatDateKey(date) : null;
+    const appointmentsForSlot =
+      dayKey && editorForm.staffId
+        ? appointmentItems.filter((item) => {
+            if (item.specialistId !== editorForm.staffId) return false;
+            if (item.locationId !== editorForm.locationId) return false;
+            if (blockedStatuses.has(item.status)) return false;
+            return item.startAt.slice(0, 10) === dayKey;
+          })
+        : [];
+
+    const breakStarts = scheduleEntry?.breaks
+      ?.map((br) => parseTimeToMinutes(br.startTime))
+      .filter((value): value is number => value !== null) ?? [];
+
+    let nextBlockStart: number | null = null;
+    if (startMinutes !== null) {
+      for (const appt of appointmentsForSlot) {
+        const apptStart = parseTimeToMinutes(appt.startAt.slice(11, 16));
+        const apptEnd = parseTimeToMinutes(appt.endAt.slice(11, 16));
+        if (apptStart === null || apptEnd === null) continue;
+        if (apptStart <= startMinutes && apptEnd > startMinutes) {
+          nextBlockStart = startMinutes;
+          break;
+        }
+        if (apptStart > startMinutes) {
+          nextBlockStart =
+            nextBlockStart === null ? apptStart : Math.min(nextBlockStart, apptStart);
+        }
+      }
+
+      for (const brStart of breakStarts) {
+        if (brStart <= startMinutes) {
+          const brEnd = scheduleEntry?.breaks?.find(
+            (br) => parseTimeToMinutes(br.startTime) === brStart
+          )?.endTime;
+          const brEndMinutes = brEnd ? parseTimeToMinutes(brEnd) : null;
+          if (brEndMinutes && brEndMinutes > startMinutes) {
+            nextBlockStart = startMinutes;
+            break;
+          }
+        } else {
+          nextBlockStart =
+            nextBlockStart === null ? brStart : Math.min(nextBlockStart, brStart);
+        }
+      }
+    }
+
+    const effectiveEnd =
+      windowEnd === null
+        ? nextBlockStart
+        : nextBlockStart === null
+        ? windowEnd
+        : Math.min(windowEnd, nextBlockStart);
+    const remainingMinutes =
+      windowStart !== null && effectiveEnd !== null
+        ? Math.max(0, effectiveEnd - windowStart)
+        : null;
 
     return services
       .filter(
@@ -930,8 +1025,14 @@ export default function JournalView({
           computedPrice: price,
           computedDurationMin: durationMin,
         };
+      })
+      .filter((service) => {
+        if (remainingMinutes === null) return true;
+        const duration = Number(service.computedDurationMin ?? 0);
+        if (!Number.isFinite(duration) || duration <= 0) return false;
+        return duration <= remainingMinutes;
       });
-  }, [editorForm, services, staff]);
+  }, [editorForm, services, staff, locations, scheduleEntries, appointmentItems]);
 
   const availableServiceById = useMemo(
     () => new Map(availableServices.map((service) => [service.id, service])),
@@ -942,8 +1043,11 @@ export default function JournalView({
     const firstServiceId = editorForm.serviceItems[0]?.serviceId ?? null;
     return firstServiceId ? availableServiceById.get(firstServiceId) ?? null : null;
   }, [availableServiceById, editorForm]);
+  const hasAnyService = Boolean(
+    editorForm?.serviceItems.some((item) => item.serviceId)
+  );
   const canAddExtraService =
-    Boolean(firstServiceInForm) && Boolean(firstServiceInForm?.allowMultiServiceBooking);
+    !hasAnyService || Boolean(firstServiceInForm?.allowMultiServiceBooking);
   const serviceOptionsByRow = useCallback(
     (rowIndex: number) => {
       if (rowIndex === 0) return availableServices;
@@ -1094,6 +1198,15 @@ export default function JournalView({
   const handleEditorClose = () => {
     setEditorState(null);
   };
+
+  const removeServiceItemAt = useCallback((index: number) => {
+    if (editorState?.mode !== "new") return;
+    setEditorForm((prev) => {
+      if (!prev) return prev;
+      const nextItems = prev.serviceItems.filter((_, i) => i !== index);
+      return applyServicesToForm(prev, nextItems);
+    });
+  }, [editorState?.mode]);
 
   const goToDate = (nextDate: Date) => {
     const normalized = startOfDay(nextDate);
@@ -2108,19 +2221,15 @@ export default function JournalView({
                           placeholder="Мин"
                           className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                         />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEditorForm((prev) => {
-                              if (!prev) return prev;
-                              const nextItems = prev.serviceItems.filter((_, i) => i !== index);
-                              return applyServicesToForm(prev, nextItems);
-                            })
-                          }
-                          className="h-10 rounded-xl border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700"
-                        >
-                          Удалить
-                        </button>
+                        {editorState?.mode === "new" ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteIndex(index)}
+                            className="h-10 rounded-xl border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700"
+                          >
+                            Удалить
+                          </button>
+                        ) : null}
                       </div>
                       );
                     })}
@@ -2305,6 +2414,46 @@ export default function JournalView({
             >
               Понятно
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmDeleteIndex !== null ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-5 shadow-[var(--bp-shadow)]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Удалить услугу</h3>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteIndex(null)}
+                className="text-[color:var(--bp-muted)]"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-[color:var(--bp-muted)]">
+              Услуга будет удалена из записи. Это действие нельзя отменить.
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteIndex(null)}
+                className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const index = confirmDeleteIndex;
+                  setConfirmDeleteIndex(null);
+                  if (index !== null) removeServiceItemAt(index);
+                }}
+                className="rounded-xl bg-rose-600 px-3 py-2 text-sm font-medium text-white"
+              >
+                Удалить
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

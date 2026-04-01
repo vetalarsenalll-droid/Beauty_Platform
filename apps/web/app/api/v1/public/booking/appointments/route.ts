@@ -117,19 +117,6 @@ export async function POST(request: Request) {
     request.headers.get("idempotency-key") ?? request.headers.get("Idempotency-Key");
   const idempotencyKey = rawIdempotencyKey?.trim() || "";
 
-  console.log("[booking/appointments] request", {
-    locationId,
-    specialistId: Number.isFinite(specialistId) ? specialistId : null,
-    serviceId,
-    serviceIds: selectedServiceIds,
-    dateValue,
-    timeValue,
-    holdId,
-    sessionKey: sessionKey || null,
-    groupBookingId,
-    accountId: resolved.account.id,
-  });
-
   if (!Number.isInteger(specialistId) || specialistId <= 0) {
     specialistId = NaN;
   }
@@ -139,7 +126,6 @@ export async function POST(request: Request) {
       where: { id: holdId, accountId: resolved.account.id },
       select: { specialistId: true, startAt: true, endAt: true, expiresAt: true },
     });
-    console.log("[booking/appointments] hold lookup", holdSpecialist);
     if (holdSpecialist?.specialistId) {
       specialistId = holdSpecialist.specialistId;
     }
@@ -610,14 +596,6 @@ export async function POST(request: Request) {
           },
         });
       }
-
-      console.log("[booking/appointments] create", {
-        specialistId,
-        locationId,
-        holdId,
-        startAtUtc,
-        endAtUtc,
-      });
 
       const finalSpecialistId = Number(specialistId);
       if (!Number.isInteger(finalSpecialistId) || finalSpecialistId <= 0) {
