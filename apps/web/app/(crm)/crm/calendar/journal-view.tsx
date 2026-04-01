@@ -1830,17 +1830,23 @@ export default function JournalView({
             onClick={() => setSidebarOpen((prev) => !prev)}
             className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] text-[color:var(--bp-muted)]"
           >
-            <span className="text-lg">≡</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M17 4.625H7a4 4 0 0 0-4 4v8.75a4 4 0 0 0 4 4h10a4 4 0 0 0 4-4v-8.75a4 4 0 0 0-4-4m-14 6h18m-4-8v4m-10-4v4"
+              />
+            </svg>
           </button>
-
-          <button
-            type="button"
-            onClick={() => goToDate(startOfDay(new Date()))}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] px-4 py-2 text-sm font-medium"
-          >
-            Сегодня
-          </button>
-
           <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-medium">
             <button
               type="button"
@@ -1860,12 +1866,11 @@ export default function JournalView({
           </div>
 
           {/* ✅ ВЫБОР ЛОКАЦИИ (фильтр журнала) */}
-          <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-medium">
-            <span className="text-[color:var(--bp-muted)]">Локация</span>
+          <div className={sidebarOpen ? "ml-[32px]" : ""}>
             <select
               value={selectedLocationId}
               onChange={(e) => handleLocationChange(Number(e.target.value))}
-              className="bg-transparent outline-none"
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm font-medium outline-none"
             >
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>
@@ -1873,32 +1878,6 @@ export default function JournalView({
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative" ref={sellRef}>
-              <button
-                type="button"
-                onClick={() => setSellOpen((prev) => !prev)}
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm font-medium"
-              >
-                Продать
-              </button>
-              {sellOpen ? (
-                <div className="absolute left-0 top-12 z-20 w-48 rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-2 text-sm shadow-[var(--bp-shadow)]">
-                  <button className="flex w-full items-center gap-2 rounded-xl px-3 py-2 hover:bg-[color:var(--bp-panel)]">
-                    Товар
-                  </button>
-                  <button className="flex w-full items-center gap-2 rounded-xl px-3 py-2 hover:bg-[color:var(--bp-panel)]">
-                    Сертификат
-                  </button>
-                  <button className="flex w-full items-center gap-2 rounded-xl px-3 py-2 hover:bg-[color:var(--bp-panel)]">
-                    Абонемент
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -1966,9 +1945,23 @@ export default function JournalView({
                   return ZOOM_STEPS[Math.max(0, index - 1)];
                 })
               }
-              className="h-10 w-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
             >
-              A-
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 14 14"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4.65 6.625H8.6M13 13l-2.146-2.146M6.64 12.28c3.61 0 5.64-2.03 5.64-5.64S10.25 1 6.64 1S1 3.03 1 6.64s2.03 5.64 5.64 5.64"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
 
             <button
@@ -1979,9 +1972,23 @@ export default function JournalView({
                   return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, index + 1)];
                 })
               }
-              className="h-10 w-10 rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-white text-sm"
             >
-              A+
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 14 14"
+                aria-hidden="true"
+              >
+                <path
+                  d="M6.64 4.664v3.951M4.664 6.64h3.951M13 13l-2.146-2.146M6.64 12.28c3.61 0 5.64-2.03 5.64-5.64S10.25 1 6.64 1S1 3.03 1 6.64s2.03 5.64 5.64 5.64"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
 
             <input
@@ -2096,13 +2103,6 @@ export default function JournalView({
         ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col gap-3 rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
-          <div className="flex items-center justify-between text-sm font-semibold">
-            <span>Журнал записи</span>
-            <button className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-xs font-semibold">
-              Выгрузить в PDF
-            </button>
-          </div>
-
           {gridColumns.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-6 text-sm text-[color:var(--bp-muted)]">
               Добавьте сотрудников, чтобы открыть журнал записи.
