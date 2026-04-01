@@ -259,6 +259,13 @@ function parseTimeToMinutes(value: string) {
   return hours * 60 + minutes;
 }
 
+function minutesToTime(value: number) {
+  const safe = Math.max(0, Math.round(value));
+  const hours = Math.floor(safe / 60);
+  const minutes = safe % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 function addMinutesToTime(value: string, minutesToAdd: number) {
   const baseMinutes = parseTimeToMinutes(value);
   if (baseMinutes === null || minutesToAdd <= 0) return "";
@@ -443,6 +450,11 @@ export default function JournalView({
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
   const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<{
+    rowIndex: number;
+    colIndex: number;
+    label: string;
+  } | null>(null);
   const [availableStartSlots, setAvailableStartSlots] = useState<string[]>([]);
   const [loadingStartSlots, setLoadingStartSlots] = useState(false);
   const [startSlotsError, setStartSlotsError] = useState<string | null>(null);
@@ -594,6 +606,41 @@ export default function JournalView({
     }
   }, [editorForm?.startTime, editorForm?.durationMin]);
 
+  const getMinServiceDurationFor = useCallback(
+    (staffId: number, locationId: number) => {
+      const staffItem = staff.find((item) => item.id === staffId);
+      const staffLevelId = staffItem?.levelId ?? null;
+      const durations = services
+        .filter(
+          (service) =>
+            service.locationIds.includes(locationId) &&
+            service.specialistIds.includes(staffId)
+        )
+        .map((service) => {
+          const override = service.specialistOverrides.find(
+            (item) => item.specialistId === staffId
+          );
+          const levelConfig = staffLevelId
+            ? service.levelConfigs.find((cfg) => cfg.levelId === staffLevelId)
+            : null;
+          const duration =
+            override?.durationMin ??
+            levelConfig?.durationMin ??
+            service.baseDurationMin;
+          return Number(duration);
+        })
+        .filter((value) => Number.isFinite(value) && value > 0) as number[];
+      if (durations.length === 0) return null;
+      return Math.min(...durations);
+    },
+    [services, staff]
+  );
+
+  const minServiceDuration = useMemo(() => {
+    if (!editorForm) return null;
+    return getMinServiceDurationFor(editorForm.staffId, editorForm.locationId);
+  }, [editorForm, getMinServiceDurationFor]);
+
   useEffect(() => {
     if (!editorForm) {
       setAvailableStartSlots([]);
@@ -601,7 +648,11 @@ export default function JournalView({
       setStartSlotsError(null);
       return;
     }
-    if (!editorForm.staffId || !editorForm.locationId || !editorForm.date || editorForm.durationMin <= 0) {
+    const durationForSlots =
+      editorForm.durationMin > 0
+        ? editorForm.durationMin
+        : (minServiceDuration ?? 0);
+    if (!editorForm.staffId || !editorForm.locationId || !editorForm.date || durationForSlots <= 0) {
       setAvailableStartSlots([]);
       setLoadingStartSlots(false);
       setStartSlotsError(null);
@@ -612,7 +663,7 @@ export default function JournalView({
       specialistId: String(editorForm.staffId),
       locationId: String(editorForm.locationId),
       date: editorForm.date,
-      durationMin: String(editorForm.durationMin),
+      durationMin: String(durationForSlots),
     });
     if (editorState?.mode === "edit") {
       params.set("appointmentId", String(editorState.appointment.id));
@@ -641,7 +692,8 @@ export default function JournalView({
         setStartSlotsError(
           payload?.message && payload.message !== "OK" ? payload.message : null
         );
-        if (slots.length > 0 && !editorForm.startTime) {
+        const shouldAutofill = slots.length > 0 && !editorForm.startTime;
+        if (shouldAutofill) {
           const nextStart = slots[0];
           setEditorForm((prev) =>
             prev
@@ -673,6 +725,7 @@ export default function JournalView({
     editorForm?.durationMin,
     editorForm?.serviceIds,
     editorState,
+    minServiceDuration,
   ]);
 
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
@@ -756,6 +809,23 @@ export default function JournalView({
     return scheduleByKey.get(`${staffId}:${formatDateKey(date)}`);
   };
 
+  const blockedAppointmentStatuses = useMemo(() => new Set(["CANCELLED", "NO_SHOW"]), []);
+  const appointmentsByKey = useMemo(() => {
+    const map = new Map<string, Array<{ start: number; end: number }>>();
+    appointmentItems.forEach((item) => {
+      if (blockedAppointmentStatuses.has(item.status)) return;
+      const dayKey = item.startAt.slice(0, 10);
+      const start = parseTimeToMinutes(item.startAt.slice(11, 16));
+      const end = parseTimeToMinutes(item.endAt.slice(11, 16));
+      if (start === null || end === null) return;
+      const key = `${item.specialistId}:${item.locationId}:${dayKey}`;
+      const list = map.get(key) ?? [];
+      list.push({ start, end });
+      map.set(key, list);
+    });
+    return map;
+  }, [appointmentItems, blockedAppointmentStatuses]);
+
   const isSlotWorking = (
     entry: ScheduleEntry | undefined,
     slotStart: number,
@@ -791,6 +861,47 @@ export default function JournalView({
     }
     return true;
   };
+
+  const canStartSlotWithDuration = useCallback(
+    (
+      staffId: number,
+      locationId: number,
+      slotDate: Date,
+      slotStart: number,
+      durationMin: number
+    ) => {
+      if (durationMin <= 0) return false;
+      const slotEnd = slotStart + durationMin;
+      const entry = getScheduleEntry(staffId, slotDate);
+      if (!entry || entry.type !== "WORKING") return false;
+      if (entry.locationId && entry.locationId !== locationId) return false;
+      const entryStart = parseTimeToMinutes(entry.startTime ?? "");
+      const entryEnd = parseTimeToMinutes(entry.endTime ?? "");
+      if (entryStart === null || entryEnd === null) return false;
+      if (slotStart < entryStart || slotEnd > entryEnd) return false;
+
+      for (const entryBreak of entry.breaks) {
+        const breakStart = parseTimeToMinutes(entryBreak.startTime);
+        const breakEnd = parseTimeToMinutes(entryBreak.endTime);
+        if (
+          breakStart !== null &&
+          breakEnd !== null &&
+          isOverlap(slotStart, slotEnd, breakStart, breakEnd)
+        ) {
+          return false;
+        }
+      }
+
+      const dayKey = formatDateKey(slotDate);
+      const key = `${staffId}:${locationId}:${dayKey}`;
+      const items = appointmentsByKey.get(key) ?? [];
+      for (const item of items) {
+        if (isOverlap(slotStart, slotEnd, item.start, item.end)) return false;
+      }
+      return true;
+    },
+    [appointmentsByKey, getScheduleEntry]
+  );
 
   // ✅ фильтруем записи по выбранной локации
   const filteredAppointments = useMemo(() => {
@@ -1164,20 +1275,28 @@ export default function JournalView({
     const slotEndMinutes = slotStartMinutes + SLOT_MINUTES;
 
     const scheduleEntry = getScheduleEntry(staffItem.id, slotDate);
-    const canBook = isSlotWorking(
-      scheduleEntry,
-      slotStartMinutes,
-      slotEndMinutes
-    );
+    // ✅ новая запись всегда в выбранной локации
+    const locationId = selectedLocationId || locations[0]?.id || 0;
+    const durationForSlot =
+      editorForm?.durationMin && editorForm.durationMin > 0
+        ? editorForm.durationMin
+        : getMinServiceDurationFor(staffItem.id, locationId) ?? 0;
+    const canBook =
+      durationForSlot > 0 &&
+      isSlotWorking(scheduleEntry, slotStartMinutes, slotEndMinutes) &&
+      canStartSlotWithDuration(
+        staffItem.id,
+        locationId,
+        slotDate,
+        slotStartMinutes,
+        durationForSlot
+      );
     if (!canBook || isPastSlotStart(slotDate, slotStartMinutes)) return;
 
     const startAt = new Date(slotDate);
     startAt.setHours(hours, minutes, 0, 0);
     const endAt = new Date(startAt);
     endAt.setMinutes(endAt.getMinutes() + SLOT_MINUTES);
-
-    // ✅ новая запись всегда в выбранной локации
-    const locationId = selectedLocationId || locations[0]?.id || 0;
 
     setEditorState({
       mode: "new",
@@ -1271,9 +1390,11 @@ export default function JournalView({
           editorForm.durationMin !== editorState.appointment.durationMin ||
           editorForm.serviceChanged));
 
+    const slotsDuration =
+      editorForm.durationMin > 0 ? editorForm.durationMin : (minServiceDuration ?? 0);
     if (
       shouldValidateSelectedStart &&
-      editorForm.durationMin > 0 &&
+      slotsDuration > 0 &&
       availableStartSlots.length > 0 &&
       !availableStartSlots.includes(editorForm.startTime)
     ) {
@@ -1811,20 +1932,44 @@ export default function JournalView({
                           ? getScheduleEntry(staffId, slotDate)
                           : undefined;
 
+                      const durationForSlot =
+                        staffId && selectedLocationId
+                          ? editorForm?.durationMin && editorForm.durationMin > 0
+                            ? editorForm.durationMin
+                            : getMinServiceDurationFor(staffId, selectedLocationId) ?? 0
+                          : 0;
+
                       const isWorking =
                         staffId && slotDate
                           ? isSlotWorking(scheduleEntry, slotStart, slotEnd)
                           : false;
                       const isPast =
                         Boolean(slotDate) && isPastSlotStart(slotDate, slotStart);
-                      const isSelectable = isWorking && !isPast;
+                      const isSelectable =
+                        isWorking &&
+                        !isPast &&
+                        staffId &&
+                        slotDate &&
+                        selectedLocationId &&
+                        durationForSlot > 0 &&
+                        canStartSlotWithDuration(
+                          staffId,
+                          selectedLocationId,
+                          slotDate,
+                          slotStart,
+                          durationForSlot
+                        );
+                      const slotLabel = minutesToTime(slotStart);
+                      const isHovered =
+                        hoveredSlot?.rowIndex === rowIndex &&
+                        hoveredSlot?.colIndex === colIndex;
 
                       return (
                         <button
                           key={`cell-${rowIndex}-${column.key}`}
                           type="button"
                           disabled={!isSelectable}
-                          className={`border-b border-l border-[color:var(--bp-stroke)] ${
+                          className={`relative border-b border-l border-[color:var(--bp-stroke)] ${
                             isSelectable
                               ? "hover:bg-[color:var(--bp-panel)]"
                               : "cursor-not-allowed bg-[color:var(--bp-panel)]/60"
@@ -1833,10 +1978,24 @@ export default function JournalView({
                             gridColumn: colIndex + 2,
                             gridRow: rowIndex + 1,
                           }}
+                          onMouseEnter={() =>
+                            setHoveredSlot({
+                              rowIndex,
+                              colIndex,
+                              label: slotLabel,
+                            })
+                          }
+                          onMouseLeave={() => setHoveredSlot(null)}
                           onClick={() => {
                             if (isSelectable) handleSlotClick(rowIndex, colIndex);
                           }}
-                        />
+                        >
+                          {isHovered ? (
+                            <span className="pointer-events-none absolute left-0 right-0 top-0 flex h-full items-center justify-center text-[10px] font-semibold text-[color:var(--bp-ink)]">
+                              {slotLabel}
+                            </span>
+                          ) : null}
+                        </button>
                       );
                     })
                   )}
