@@ -446,6 +446,11 @@ export default function JournalView({
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [statusMenuId, setStatusMenuId] = useState<number | null>(null);
+  const [statusMenuAnchor, setStatusMenuAnchor] = useState<{
+    id: number;
+    top: number;
+    left: number;
+  } | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
   const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
@@ -455,6 +460,105 @@ export default function JournalView({
     colIndex: number;
     label: string;
   } | null>(null);
+  const [draggingAppointmentId, setDraggingAppointmentId] = useState<number | null>(null);
+  const [dragStartPoint, setDragStartPoint] = useState<{ x: number; y: number } | null>(null);
+  const [dragMoved, setDragMoved] = useState(false);
+  const [dragDelta, setDragDelta] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragOrigin, setDragOrigin] = useState<{
+    colIndex: number;
+    rowIndex: number;
+    cellWidth: number | null;
+  } | null>(null);
+  const dragMovedRef = useRef(false);
+  const dragSuppressClickRef = useRef(0);
+  const dragPointerDownAtRef = useRef<number | null>(null);
+  const isInteractiveTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return Boolean(
+      target.closest(
+        'button, a, input, select, textarea, [data-appointment-action="1"]'
+      )
+    );
+  };
+  const [pendingDragUpdate, setPendingDragUpdate] = useState<{
+    appointmentId: number;
+    staffId: number;
+    date: string;
+    startTime: string;
+  } | null>(null);
+  const [dragHoverTarget, setDragHoverTarget] = useState<{
+    rowIndex: number;
+    colIndex: number;
+    offsetMinutes: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!draggingAppointmentId || !dragStartPoint) return;
+    const handlePointerMove = (event: PointerEvent) => {
+      const dx = event.clientX - dragStartPoint.x;
+      const dy = event.clientY - dragStartPoint.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) {
+        dragMovedRef.current = true;
+        setDragMoved(true);
+      }
+
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const cell = target?.closest?.('[data-slot-cell="1"]') as HTMLElement | null;
+      if (!cell || cell.getAttribute("data-selectable") !== "1") {
+        setDragHoverTarget(null);
+        setDragDelta({ x: 0, y: dy });
+        return;
+      }
+
+      const rowIndex = Number(cell.getAttribute("data-row-index"));
+      const colIndex = Number(cell.getAttribute("data-col-index"));
+      if (!Number.isFinite(rowIndex) || !Number.isFinite(colIndex)) {
+        setDragHoverTarget(null);
+        setDragDelta({ x: 0, y: dy });
+        return;
+      }
+
+      const rect = cell.getBoundingClientRect();
+      const relativeY = Math.min(Math.max(0, event.clientY - rect.top), rect.height);
+      const offsetMinutes = Math.floor((relativeY / rect.height) * 3) * 5;
+
+      const nextOrigin =
+        dragOrigin ?? { colIndex, rowIndex, cellWidth: rect.width };
+      if (!dragOrigin) setDragOrigin(nextOrigin);
+
+      const cellWidth = nextOrigin.cellWidth ?? rect.width;
+      const snapX = (colIndex - nextOrigin.colIndex) * cellWidth;
+
+      setDragDelta({ x: snapX, y: dy });
+      setDragHoverTarget({ rowIndex, colIndex, offsetMinutes });
+    };
+
+    const handlePointerUp = () => {
+      if (draggingAppointmentId && dragHoverTarget) {
+        handleAppointmentDrop(
+          draggingAppointmentId,
+          dragHoverTarget.rowIndex,
+          dragHoverTarget.colIndex,
+          dragHoverTarget.offsetMinutes
+        );
+        dragSuppressClickRef.current = Date.now() + 250;
+      }
+      setDraggingAppointmentId(null);
+      setDragStartPoint(null);
+      setDragMoved(false);
+      setDragDelta({ x: 0, y: 0 });
+      setDragHoverTarget(null);
+      setDragOrigin(null);
+      dragMovedRef.current = false;
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [draggingAppointmentId, dragStartPoint, dragHoverTarget, dragOrigin]);
   const [availableStartSlots, setAvailableStartSlots] = useState<string[]>([]);
   const [loadingStartSlots, setLoadingStartSlots] = useState(false);
   const [startSlotsError, setStartSlotsError] = useState<string | null>(null);
@@ -486,6 +590,7 @@ export default function JournalView({
       }
       if (statusMenuRef.current && !statusMenuRef.current.contains(target)) {
         setStatusMenuId(null);
+        setStatusMenuAnchor(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -563,11 +668,20 @@ export default function JournalView({
             }));
 
       setEditorForm({
-        staffId: appointment.specialistId,
+        staffId:
+          pendingDragUpdate?.appointmentId === appointment.id
+            ? pendingDragUpdate.staffId
+            : appointment.specialistId,
         locationId: appointment.locationId,
         clientId: appointment.clientId,
-        date: formatDateInput(startAt),
-        startTime: formatTimeInput(startAt),
+        date:
+          pendingDragUpdate?.appointmentId === appointment.id
+            ? pendingDragUpdate.date
+            : formatDateInput(startAt),
+        startTime:
+          pendingDragUpdate?.appointmentId === appointment.id
+            ? pendingDragUpdate.startTime
+            : formatTimeInput(startAt),
         endTime: formatTimeInput(endAt),
         status: appointment.status,
         serviceId: appointment.serviceIds[0] ?? null,
@@ -583,8 +697,11 @@ export default function JournalView({
         clientEmail: appointment.clientEmail ?? "",
         comment: appointment.comment ?? "",
       });
+      if (pendingDragUpdate?.appointmentId === appointment.id) {
+        setPendingDragUpdate(null);
+      }
     }
-  }, [editorState, locations, selectedLocationId]);
+  }, [editorState, locations, pendingDragUpdate, selectedLocationId]);
 
   useEffect(() => {
     if (!editorForm) return;
@@ -993,7 +1110,6 @@ export default function JournalView({
       const slotIndex = Math.max(0, Math.floor(rawSlotIndex));
 
       const durationMinutes = (end.getTime() - start.getTime()) / (60 * 1000);
-      const span = Math.max(1, Math.ceil(durationMinutes / SLOT_MINUTES));
 
       const statusMeta = STATUS_META[appointment.status] ?? STATUS_META.NEW;
       const sourceTone =
@@ -1004,7 +1120,9 @@ export default function JournalView({
       return {
         appointment,
         gridColumn: columnIndex + 2,
-        gridRow: `${slotIndex + 1} / span ${span}`,
+        gridColumnIndex: columnIndex,
+        gridRowStart: slotIndex + 1,
+        durationMinutes,
         statusMeta,
         sourceTone,
       };
@@ -1312,6 +1430,96 @@ export default function JournalView({
 
   const handleAppointmentOpen = (appointment: JournalAppointment) => {
     setEditorState({ mode: "edit", appointment });
+  };
+
+  const handleAppointmentDrop = async (
+    appointmentId: number,
+    rowIndex: number,
+    colIndex: number,
+    offsetMinutes: number = 0
+  ) => {
+    const appointment = appointmentItems.find((item) => item.id === appointmentId);
+    if (!appointment) return;
+    if (isTerminalAppointmentStatus(appointment.status)) {
+      setNoticeModal({
+        title: "Редактирование недоступно",
+        message:
+          "Запись с финальным статусом (Завершен / Отменен / Не пришел) нельзя изменять.",
+      });
+      return;
+    }
+
+    const slotDate =
+      viewMode === "day"
+        ? currentDate
+        : weekDays[Math.min(colIndex, weekDays.length - 1)];
+    const staffId =
+      viewMode === "day" ? staffForLocation[colIndex]?.id : selectedStaffId;
+
+    if (!slotDate || !staffId) return;
+
+    const slotStartMinutes =
+      dayStartMinutes + rowIndex * SLOT_MINUTES + Math.max(0, offsetMinutes);
+    const durationForSlot = Math.max(0, appointment.durationMin);
+    const locationId = selectedLocationId || appointment.locationId;
+
+    if (!durationForSlot) {
+      setNoticeModal({
+        title: "Проверьте данные",
+        message: "У записи не указана длительность услуги.",
+      });
+      return;
+    }
+
+    if (
+      !canStartSlotWithDuration(
+        staffId,
+        locationId,
+        slotDate,
+        slotStartMinutes,
+        durationForSlot
+      )
+    ) {
+      setNoticeModal({
+        title: "Проверьте время",
+        message:
+          "Выбранное время недоступно: пересечение с записью, перерывом или выходом за смену.",
+      });
+      return;
+    }
+
+    const startTime = minutesToTime(slotStartMinutes);
+    const [hours, minutes] = startTime.split(":").map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return;
+
+    const startAt = new Date(slotDate);
+    startAt.setHours(hours, minutes, 0, 0);
+    const endAt = new Date(startAt);
+    endAt.setMinutes(endAt.getMinutes() + durationForSlot);
+
+    const response = await fetch(`/api/v1/crm/appointments/${appointmentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        staffId,
+        locationId,
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+      }),
+    });
+
+    if (response.ok) {
+      const updated = (await response.json()) as JournalAppointment;
+      setAppointmentItems((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item))
+      );
+      return;
+    }
+    const error = await response.json().catch(() => null);
+    setNoticeModal({
+      title: "Не удалось перенести запись",
+      message: error?.message ?? "Проверьте доступность и попробуйте снова.",
+    });
   };
 
   const handleEditorClose = () => {
@@ -2013,10 +2221,29 @@ export default function JournalView({
                             isSelectable
                               ? "hover:bg-[color:var(--bp-panel)]"
                               : "cursor-not-allowed bg-[color:var(--bp-panel)]/60"
+                          } ${
+                            dragHoverTarget?.rowIndex === rowIndex &&
+                            dragHoverTarget?.colIndex === colIndex
+                              ? "bg-[color:var(--bp-panel)]"
+                              : ""
                           }`}
                           style={{
                             gridColumn: colIndex + 2,
                             gridRow: rowIndex + 1,
+                          }}
+                          data-slot-cell="1"
+                          data-row-index={rowIndex}
+                          data-col-index={colIndex}
+                          data-selectable={isSelectable ? "1" : "0"}
+                          onPointerEnter={() => {
+                            if (draggingAppointmentId) {
+                              setDragHoverTarget({ rowIndex, colIndex, offsetMinutes: 0 });
+                            }
+                          }}
+                          onPointerLeave={() => {
+                            if (draggingAppointmentId) {
+                              setDragHoverTarget(null);
+                            }
                           }}
                           onMouseEnter={() =>
                             setHoveredSlot({
@@ -2027,7 +2254,15 @@ export default function JournalView({
                           }
                           onMouseLeave={() => setHoveredSlot(null)}
                           onClick={() => {
-                            if (isSelectable) handleSlotClick(rowIndex, colIndex);
+                            if (
+                              !isSelectable ||
+                              draggingAppointmentId ||
+                              dragMovedRef.current ||
+                              Date.now() < dragSuppressClickRef.current
+                            ) {
+                              return;
+                            }
+                            handleSlotClick(rowIndex, colIndex);
                           }}
                         >
                           {isHovered ? (
@@ -2049,14 +2284,69 @@ export default function JournalView({
                     return (
                       <div
                         key={card.appointment.id}
-                        className="relative z-10 m-1 overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white shadow-sm"
+                        className={`relative z-10 mx-1 select-none overflow-hidden rounded-md border border-[color:var(--bp-stroke)] bg-white shadow-sm ${
+                          draggingAppointmentId === card.appointment.id
+                            ? "bg-[color:var(--bp-panel)]/80 shadow-lg"
+                            : ""
+                        }`}
                         style={{
                           gridColumn: card.gridColumn,
-                          gridRow: card.gridRow,
+                          gridRow: card.gridRowStart,
+                          height: Math.max(
+                            slotHeight,
+                            Math.round((card.durationMinutes / SLOT_MINUTES) * slotHeight)
+                          ),
+                          alignSelf: "start",
+                          transform:
+                            draggingAppointmentId === card.appointment.id && dragMoved
+                              ? `translate(${dragDelta.x}px, ${dragDelta.y}px)`
+                              : undefined,
+                          zIndex:
+                            draggingAppointmentId === card.appointment.id ? 30 : undefined,
+                          pointerEvents:
+                            draggingAppointmentId === card.appointment.id && dragMoved
+                              ? "none"
+                              : undefined,
                         }}
                         role="button"
                         tabIndex={0}
-                        onClick={() => handleAppointmentOpen(card.appointment)}
+                        onPointerDown={(event) => {
+                          if (isInteractiveTarget(event.target)) return;
+                          event.preventDefault();
+                          setDraggingAppointmentId(card.appointment.id);
+                          setDragStartPoint({ x: event.clientX, y: event.clientY });
+                          setDragMoved(false);
+                          dragMovedRef.current = false;
+                          dragPointerDownAtRef.current = Date.now();
+                        }}
+                        onPointerMove={(event) => {
+                          if (!dragStartPoint) return;
+                          const dx = Math.abs(event.clientX - dragStartPoint.x);
+                          const dy = Math.abs(event.clientY - dragStartPoint.y);
+                          if (dx + dy > 4) {
+                            dragMovedRef.current = true;
+                            setDragMoved(true);
+                          }
+                        }}
+                        onPointerCancel={() => {
+                          setDraggingAppointmentId(null);
+                          setDragStartPoint(null);
+                          setDragMoved(false);
+                        }}
+                        onPointerUp={(event) => {
+                          if (isInteractiveTarget(event.target)) return;
+                          const downAt = dragPointerDownAtRef.current ?? 0;
+                          const heldForMs = Date.now() - downAt;
+                          if (
+                            draggingAppointmentId === card.appointment.id &&
+                            !dragMovedRef.current &&
+                            Date.now() >= dragSuppressClickRef.current &&
+                            heldForMs < 400
+                          ) {
+                            handleAppointmentOpen(card.appointment);
+                          }
+                          dragPointerDownAtRef.current = null;
+                        }}
                       >
                         <div className={`h-2 ${card.sourceTone}`} />
                         <div className="px-3 pb-2 pt-2 text-xs">
@@ -2070,14 +2360,26 @@ export default function JournalView({
                               onClick={(event) => {
                                 event.stopPropagation();
                                 if (!canChangeStatus) return;
-                                setStatusMenuId((prev) =>
-                                  prev === card.appointment.id
-                                    ? null
-                                    : card.appointment.id
-                                );
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                const menuWidth = 144;
+                                const top = rect.bottom + 6;
+                                const left = Math.max(8, rect.right - menuWidth);
+                                setStatusMenuId((prev) => {
+                                  if (prev === card.appointment.id) {
+                                    setStatusMenuAnchor(null);
+                                    return null;
+                                  }
+                                  setStatusMenuAnchor({
+                                    id: card.appointment.id,
+                                    top,
+                                    left,
+                                  });
+                                  return card.appointment.id;
+                                });
                               }}
                               onMouseDown={(event) => event.stopPropagation()}
                               onPointerDown={(event) => event.stopPropagation()}
+                              data-appointment-action="1"
                               className={`rounded-full px-2 py-1 text-[10px] ${statusMeta.badge}`}
                             >
                               {statusMeta.label}
@@ -2106,12 +2408,18 @@ export default function JournalView({
                             onClick={(event) => event.stopPropagation()}
                             onMouseDown={(event) => event.stopPropagation()}
                             onPointerDown={(event) => event.stopPropagation()}
-                            className="absolute right-2 top-8 z-20 w-36 rounded-xl border border-[color:var(--bp-stroke)] bg-white p-1 text-xs shadow-[var(--bp-shadow)]"
+                            data-appointment-action="1"
+                            className="fixed z-[60] w-36 rounded-xl border border-[color:var(--bp-stroke)] bg-white p-1 text-xs shadow-[var(--bp-shadow)]"
+                            style={{
+                              top: statusMenuAnchor?.top ?? 0,
+                              left: statusMenuAnchor?.left ?? 0,
+                            }}
                           >
                             {allowedStatusOptions.map(({ key, meta }) => (
                               <button
                                 key={key}
                                 type="button"
+                                data-appointment-action="1"
                                 className="flex w-full items-center justify-between rounded-lg px-2 py-1 hover:bg-[color:var(--bp-panel)]"
                                 onClick={(event) => {
                                   event.stopPropagation();
