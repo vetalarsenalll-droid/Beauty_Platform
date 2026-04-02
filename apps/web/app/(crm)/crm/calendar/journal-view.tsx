@@ -424,8 +424,12 @@ export default function JournalView({
   const [currentDate, setCurrentDate] = useState(() =>
     startOfDay(parseYmdLocal(initialDate) ?? new Date())
   );
-  const [viewMode, setViewMode] = useState<"day" | "week">("day");
+  const [viewMode, setViewMode] = useState<"day" | "week" | "list">("day");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const isWeekView = viewMode === "week";
+  const isListView = viewMode === "list";
+  const isDayView = !isWeekView;
 
   const [selectedStaffId, setSelectedStaffId] = useState(staff[0]?.id ?? 0);
 
