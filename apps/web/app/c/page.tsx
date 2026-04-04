@@ -85,11 +85,6 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
 
   const accountBySlug = new Map(accountRecords.map((acc) => [acc.slug, acc]));
 
-  const organizations = accountRecords.map((acc) => ({
-    slug: acc.slug,
-    name: acc.name,
-    bookingLink: `/${buildPublicSlugId(acc.slug, acc.id)}/booking`,
-  }));
 
   const matchedClient = accountSlugParam
     ? session.clients.find((item) => item.accountSlug === accountSlugParam)
@@ -545,6 +540,17 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       };
     });
   }
+
+  const visitedAccountSlugs = new Set(
+    appointments.map((item) => item.accountSlug).filter(Boolean) as string[]
+  );
+  const organizations = accountRecords
+    .filter((acc) => visitedAccountSlugs.has(acc.slug))
+    .map((acc) => ({
+      slug: acc.slug,
+      name: acc.name,
+      bookingLink: `/${buildPublicSlugId(acc.slug, acc.id)}/booking`,
+    }));
 
   const clientTitle = "Личный кабинет";
 

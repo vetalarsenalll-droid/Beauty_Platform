@@ -1955,13 +1955,13 @@ export default function BookingClient({
             data.clients[0] ??
             null;
         }
-        if (!next && data?.user?.email) {
+        if (!next && data?.user) {
           next = {
             id: null,
-            firstName: null,
-            lastName: null,
-            phone: null,
-            email: data.user.email,
+            firstName: data.user.firstName ?? null,
+            lastName: data.user.lastName ?? null,
+            phone: data.user.phone ?? null,
+            email: data.user.email ?? null,
             avatarUrl: null,
           };
         }

@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   const identity = await prisma.userIdentity.findFirst({
     where: { provider: "EMAIL", email },
-    include: { user: true },
+    include: { user: { include: { profile: true } } },
   });
 
   if (!identity || !identity.passwordHash || !identity.passwordSalt || !identity.user) {
@@ -96,6 +96,8 @@ export async function POST(request: Request) {
         data: {
           accountId: account.id,
           userId: identity.userId,
+          firstName: identity.user.profile?.firstName ?? null,
+          lastName: identity.user.profile?.lastName ?? null,
           email: identity.email ?? identity.user.email ?? email,
           phone: identity.user.phone ?? null,
         },

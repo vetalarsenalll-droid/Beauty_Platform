@@ -116,7 +116,17 @@ export async function POST(request: Request) {
     user = await prisma.user.create({
       data: {
         email,
+        phone: phone ?? null,
         type: "CLIENT",
+        profile:
+          firstName || lastName
+            ? {
+                create: {
+                  firstName,
+                  lastName,
+                },
+              }
+            : undefined,
         identities: {
           create: {
             provider: "EMAIL",
