@@ -52,17 +52,6 @@ export default async function AccountProfilePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM · Профиль аккаунта
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Профиль аккаунта
-        </h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Контакты, описание, медиа и доступы.
-        </p>
-      </header>
 
       <AccountProfileClient
         account={{

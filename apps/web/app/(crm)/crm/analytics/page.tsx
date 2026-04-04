@@ -6,14 +6,6 @@ export default async function CrmAnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Раздел аналитики</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Аналитика</h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Выберите нужную вкладку. Здесь собрана аналитика по бизнесу, AI-ассистенту и онлайн-записи.
-        </p>
-        <AnalyticsTabs active="overview" />
-      </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">

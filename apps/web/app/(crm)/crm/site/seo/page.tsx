@@ -20,13 +20,6 @@ export default async function CrmSiteSeoPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM · Сайт
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">SEO</h1>
-        <p className="text-[color:var(--bp-muted)]">SEO настройки публичного сайта.</p>
-      </header>
 
       <SeoClient initialSeo={seoSettings} />
     </div>

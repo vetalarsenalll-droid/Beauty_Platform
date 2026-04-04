@@ -38,18 +38,6 @@ const secondary = [
 export default function CrmHomePage() {
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM Business
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Операционка бизнеса: от локаций до записей
-        </h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Строим CRM по логике: локации → услуги → специалисты → расписание →
-          календарь.
-        </p>
-      </header>
 
       <section className="grid gap-4 lg:grid-cols-2">
         {sections.map((item) => (

@@ -21,15 +21,6 @@ export default async function CrmServicesPage() {
   ]);
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM · Услуги
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Услуги</h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Каталог услуг, категории, уровни и цены.
-        </p>
-      </header>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Категории</h2>

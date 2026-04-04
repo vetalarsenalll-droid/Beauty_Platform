@@ -798,23 +798,6 @@ const handleCopy = async () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM BUSINESS
-        </p>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">График работы</h1>
-            <p className="text-[color:var(--bp-muted)]">Настройка графика работы сотрудников.</p>
-          </div>
-          <button
-            type="button"
-            className="rounded-2xl border border-[color:var(--bp-accent)] px-4 py-2 text-sm font-medium text-[color:var(--bp-accent)]"
-          >
-            Выгрузить в PDF
-          </button>
-        </div>
-      </header>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
         <div className="flex flex-wrap items-center gap-3">

@@ -38,17 +38,6 @@ export default async function ClientProfilePage({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          CRM BUSINESS
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {displayName}
-        </h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Профиль клиента и история взаимодействий.
-        </p>
-      </header>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Контакты</h2>

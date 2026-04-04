@@ -431,16 +431,6 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Раздел аналитики
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Онлайн-запись</h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Воронка, тренд по дням и пошаговые траектории клиентов в форме онлайн-записи.
-        </p>
-        <AnalyticsTabs active="online-booking" />
-      </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">

@@ -615,14 +615,6 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Раздел аналитики</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Аналитика AI-ассистента</h1>
-        <p className="text-[color:var(--bp-muted)]">
-          Полная аналитика по диалогам AI-ассистента: жалобы, качество распознавания, путь к записи и детальные логи диалогов.
-        </p>
-        <AnalyticsTabs active="aisha" />
-      </header>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-6" method="get">
