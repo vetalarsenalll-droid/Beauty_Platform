@@ -3955,10 +3955,61 @@ export default function BookingClient({
   const submitBlockingReasons = useMemo(() => {
     if (submitSuccess) return [] as string[];
 
-    if (!locationId || selectedServiceIds.length === 0) {
-      return ["Выберите локацию и услуги."];
+    const nextStepKey =
+      stepIndex + 1 < stepsWithScenario.length
+        ? (stepsWithScenario[stepIndex + 1]?.key as BookingUiStepKey | undefined) ?? null
+        : null;
+    const nextStepHint = () => {
+      if (!nextStepKey) return "перейдите к следующему шагу.";
+      if (nextStepKey === "details") return "перейдите к контактам.";
+      const target =
+        nextStepKey === "location"
+          ? "локации"
+          : nextStepKey === "datetime"
+            ? "даты и времени"
+            : nextStepKey === "service"
+              ? "услуги"
+              : nextStepKey === "specialist"
+                ? "специалиста"
+                : nextStepKey === "chain"
+                  ? "плана визита"
+                  : "следующего шага";
+      return `перейдите к выбору ${target}.`;
+    };
+
+    if (currentStepKey === "location") {
+      if (!locationId) return ["Выберите локацию."];
+      return [`Локация выбрана, ${nextStepHint()}`];
+    }
+    if (!locationId) {
+      return ["Выберите локацию."];
     }
 
+    if (currentStepKey === "datetime") {
+      if (!timeChoice) return ["Выберите дату и время."];
+      return [`Дата и время выбраны, ${nextStepHint()}`];
+    }
+
+    if (currentStepKey === "service") {
+      if (selectedServiceIds.length === 0) return ["Выберите услугу."];
+      return [`Услуга выбрана, ${nextStepHint()}`];
+    }
+
+    if (currentStepKey === "specialist") {
+      if (!specialistId) return ["Выберите специалиста."];
+      return [`Специалист выбран, ${nextStepHint()}`];
+    }
+
+    if (currentStepKey === "chain") {
+      if (!chainComplete) return ["Выберите специалистов и время для всех услуг."];
+      return [`План визита заполнен, ${nextStepHint()}`];
+    }
+
+    if (currentStepKey !== "details") {
+      return ["Перейдите к следующему шагу."];
+    }
+
+    if (selectedServiceIds.length === 0) return ["Выберите услугу."];
     if (!timeSelectionReady) {
       return [
         isChainMode
@@ -3970,14 +4021,6 @@ export default function BookingClient({
     }
     if (isGroupService && !selectedGroupSessionId) {
       return ["Выберите групповой сеанс."];
-    }
-
-    if (isDateFirst && isGroupService && currentStepKey === "service") {
-      return ["Перейдите к шагу «Специалист»."];
-    }
-
-    if (currentStepKey !== "details") {
-      return ["Перейдите к шагу «Контакты»."];
     }
 
     const reasons: string[] = [];
@@ -4001,15 +4044,18 @@ export default function BookingClient({
   }, [
     submitSuccess,
     locationId,
+    stepIndex,
+    stepsWithScenario,
     selectedServiceIds,
     timeSelectionReady,
     isChainMode,
     isVisitPlanMode,
     currentStepKey,
-    isDateFirst,
     isGroupService,
     selectedGroupSessionId,
     specialistId,
+    timeChoice,
+    chainComplete,
     nameReady,
     phoneReady,
     missingRequiredLegalDocs,
