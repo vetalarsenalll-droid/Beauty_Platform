@@ -736,7 +736,7 @@ function DatePickerLike({
           onChange(ymd);
         }}
         className={cn(
-          "relative h-9 rounded-full text-[14px] font-medium transition shadow-none",
+          "relative h-9 rounded-2xl text-[14px] font-medium transition shadow-none",
           !selected && "booking-soft-accent-hover",
           "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 hover:shadow-none",
           selected
@@ -765,7 +765,7 @@ function DatePickerLike({
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            "booking-soft-accent-hover inline-flex items-center gap-2 rounded-[12px]",
+            "booking-soft-accent-hover inline-flex items-center gap-2 rounded-2xl",
             "border border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] px-3 py-2",
             "shadow-none transition hover:-translate-y-[1px] hover:shadow-none",
             "focus:outline-none focus:ring-0 focus-visible:ring-0"
@@ -781,7 +781,7 @@ function DatePickerLike({
             type="button"
             onClick={goPrev}
             className={cn(
-              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--bp-accent)] shadow-none",
+              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[color:var(--bp-accent)] shadow-none",
               "bg-transparent transition hover:shadow-none",
               "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             )}
@@ -794,7 +794,7 @@ function DatePickerLike({
             type="button"
             onClick={goNext}
             className={cn(
-              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--bp-accent)] shadow-none",
+              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[color:var(--bp-accent)] shadow-none",
               "bg-transparent transition hover:shadow-none",
               "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             )}
