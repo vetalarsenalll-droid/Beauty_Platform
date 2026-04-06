@@ -599,11 +599,11 @@ function ScenarioTabs({
             type="button"
             onClick={() => onChange(tab.key)}
             className={cn(
-              "rounded-2xl border px-3 py-2 text-xs font-medium transition",
+              "rounded-2xl px-3 py-2 text-xs font-medium transition",
               "hover:-translate-y-[1px] hover:shadow-sm",
               active
-                ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                ? "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
+                : "bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
             )}
           >
             {tab.label}
@@ -4532,7 +4532,7 @@ export default function BookingClient({
                   <div className="text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
                 </div>
                 <div className="flex flex-wrap justify-start lg:justify-end">
-                  <div className="flex w-full flex-wrap gap-1 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-1">
+                  <div className="flex w-full flex-wrap gap-1 rounded-2xl bg-[color:var(--bp-paper)] p-1">
                     {[
                       { key: "dateFirst", label: "Дата" },
                       { key: "serviceFirst", label: "Услуга" },
