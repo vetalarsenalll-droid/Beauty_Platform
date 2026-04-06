@@ -4942,7 +4942,7 @@ export default function BookingClient({
                               <div className="flex h-full flex-col gap-3">
                                 <div className="relative">
                                   {service.coverUrl ? (
-                                    <div className="aspect-video overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                    <div className="aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                       <img
                                         src={service.coverUrl}
                                         alt={service.name}
@@ -4950,7 +4950,7 @@ export default function BookingClient({
                                       />
                                     </div>
                                   ) : (
-                                    <div className="flex aspect-video items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                    <div className="flex aspect-[8.5/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                       <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
                                         {initials(service.name)}
                                       </div>
