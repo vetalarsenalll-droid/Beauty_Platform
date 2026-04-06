@@ -4627,7 +4627,7 @@ export default function BookingClient({
               </button>
             </div>
 
-            <div className="mt-4 border-t border-[color:var(--bp-stroke)] pt-4 lg:min-h-0 lg:flex-1">
+            <div className="mt-4 pt-4 lg:min-h-0 lg:flex-1">
               <div className="min-h-[620px] px-1 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:auto] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                 {currentStepKey === "scenario" && (
                   <div className="space-y-3">
@@ -4642,7 +4642,7 @@ export default function BookingClient({
                       <div className="space-y-3">
                         <div
                           className={cn(
-                            "grid gap-3 [grid-auto-rows:1fr]",
+                            "grid gap-3 pt-1 [grid-auto-rows:1fr]",
                             (context?.locations?.length ?? 0) === 1
                               ? "grid-cols-1"
                               : "grid-cols-1 sm:grid-cols-2"
