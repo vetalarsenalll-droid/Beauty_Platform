@@ -629,6 +629,7 @@ function DatePickerLike({
   disabledBeforeYmd,
   availableDates,
   onViewMonthChange,
+  onUnavailableDateSelect,
 }: {
   value: string; // YYYY-MM-DD (TZ account)
   onChange: (ymd: string) => void;
@@ -636,6 +637,7 @@ function DatePickerLike({
   disabledBeforeYmd: string;
   availableDates: Set<string>;
   onViewMonthChange?: (monthStart: string) => void;
+  onUnavailableDateSelect?: (ymd: string, reason: "past" | "unavailable") => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -678,6 +680,11 @@ function DatePickerLike({
     if (availableDates.size > 0 && !availableDates.has(ymd)) return true;
     return false;
   };
+  const disabledReason = (ymd: string): "past" | "unavailable" | null => {
+    if (isPastYmd(ymd, disabledBeforeYmd)) return "past";
+    if (availableDates.size > 0 && !availableDates.has(ymd)) return "unavailable";
+    return null;
+  };
 
   const goPrev = () => {
     if (expanded) {
@@ -719,9 +726,13 @@ function DatePickerLike({
     return (
       <button
         type="button"
-        disabled={disabled}
+        aria-disabled={disabled}
         onClick={() => {
-          if (disabled) return;
+          if (disabled) {
+            const reason = disabledReason(ymd);
+            if (reason) onUnavailableDateSelect?.(ymd, reason);
+            return;
+          }
           onChange(ymd);
         }}
         className={cn(
@@ -2124,6 +2135,8 @@ export default function BookingClient({
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setSpecialists([]);
       setSpecialistsFetched(false);
+      setLoadingSpecialists(false);
+      setSpecialistsError(null);
       return;
     }
 
@@ -2178,6 +2191,8 @@ export default function BookingClient({
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setWorkdaySpecialistIds(new Set());
+      setLoadingWorkdaySpecs(false);
+      setWorkdaySpecsError(null);
       return;
     }
 
@@ -2223,6 +2238,8 @@ export default function BookingClient({
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setServices([]);
+      setLoadingServices(false);
+      setServicesError(null);
       return;
     }
 
@@ -2354,14 +2371,6 @@ export default function BookingClient({
         const next: AvailabilityCalendar = { start: data?.start ?? todayYmdTz, days: cleanedDays };
         setCalendar(next);
 
-        const availableDates = new Set(next.days.map((d) => d.date));
-        if (
-          next.days.length > 0 &&
-          (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !availableDates.has(dateYmd))
-        ) {
-          const first = next.days[0]?.date ?? todayYmdTz;
-          setDateYmd(first);
-        }
       })
       .catch((e: Error) => {
         if (!mounted || calendarRequestIdRef.current !== requestId) return;
@@ -2410,14 +2419,20 @@ export default function BookingClient({
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setOffersByTime({});
+      setOffersError(null);
+      setLoadingOffers(false);
       return;
     }
     if (!dateYmd || isPastYmd(dateYmd, todayYmdTz)) {
       setOffersByTime({});
+      setOffersError(null);
+      setLoadingOffers(false);
       return;
     }
     if (!services.length) {
       setOffersByTime({});
+      setOffersError(null);
+      setLoadingOffers(false);
       return;
     }
     const activeLocation = context?.locations?.find((loc) => loc.id === safeLocationId);
@@ -2518,12 +2533,14 @@ export default function BookingClient({
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setDateFirstAvailableDates(new Set());
       setDateFirstAvailabilityError(null);
+      setLoadingDateFirstAvailability(false);
       return;
     }
     const servicesForDateFirst = services.filter((service) => service.bookingType !== "GROUP");
     if (!servicesForDateFirst.length) {
       setDateFirstAvailableDates(new Set());
       setDateFirstAvailabilityError(null);
+      setLoadingDateFirstAvailability(false);
       return;
     }
 
@@ -2636,18 +2653,6 @@ export default function BookingClient({
     };
   }, [isDateFirst, locationId, dateYmd, specialistId, accountSlug, accountTz, nowTz]);
 
-  useEffect(() => {
-    if (!isDateFirst) return;
-    if (isGroupService) return;
-    if (!dateFirstAvailableDates.size) return;
-    if (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !dateFirstAvailableDates.has(dateYmd)) {
-      const first = Array.from(dateFirstAvailableDates).sort((a, b) =>
-        a > b ? 1 : a < b ? -1 : 0
-      )[0];
-      if (first) setDateYmd(first);
-    }
-  }, [isDateFirst, isGroupService, dateFirstAvailableDates, dateYmd, todayYmdTz]);
-
   // ---------- group sessions: available dates (by sessions)
   useEffect(() => {
     if (!isGroupService || !locationId || !serviceId) {
@@ -2696,18 +2701,6 @@ export default function BookingClient({
     calendarQueryDays,
     accountSlug,
   ]);
-
-  useEffect(() => {
-    if (!isGroupService) return;
-    if (!groupSessionAvailableDates.size) return;
-    if (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !groupSessionAvailableDates.has(dateYmd)) {
-      if (timeChoice) return;
-      const first = Array.from(groupSessionAvailableDates).sort((a, b) =>
-        a > b ? 1 : a < b ? -1 : 0
-      )[0];
-      if (first) setDateYmd(first);
-    }
-  }, [isGroupService, groupSessionAvailableDates, dateYmd, todayYmdTz, timeChoice]);
 
   // ---------- dateFirst: slots by chosen service to filter specialists by timeChoice
   useEffect(() => {
@@ -3505,6 +3498,20 @@ export default function BookingClient({
   const calendarAvailableDates = useMemo(() => {
     return new Set((calendar?.days ?? []).map((d) => d.date));
   }, [calendar]);
+  const activeAvailableDates = useMemo(() => {
+    if (isGroupService) return groupSessionAvailableDates;
+    if (isDateFirst) return dateFirstAvailableDates;
+    return calendarAvailableDates;
+  }, [isGroupService, isDateFirst, groupSessionAvailableDates, dateFirstAvailableDates, calendarAvailableDates]);
+  const nearestAvailableDateYmd = useMemo(() => {
+    const sorted = Array.from(activeAvailableDates)
+      .filter((d) => !isPastYmd(d, todayYmdTz))
+      .sort((a, b) => (a > b ? 1 : a < b ? -1 : 0));
+    if (sorted.length === 0) return null;
+    if (sorted.includes(dateYmd)) return null;
+    const next = sorted.find((d) => d >= dateYmd);
+    return next ?? sorted[0] ?? null;
+  }, [activeAvailableDates, dateYmd, todayYmdTz]);
 
   const availableTimesForCurrentStep = useMemo(() => {
     if (!dateYmd || isPastYmd(dateYmd, todayYmdTz)) return [];
@@ -3630,6 +3637,10 @@ export default function BookingClient({
     const timer = setTimeout(() => setShowNoSlotsNotice(true), 180);
     return () => clearTimeout(timer);
   }, [shouldShowNoSlotsNotice, dateYmd]);
+  const nearestAvailableDateLabel = useMemo(
+    () => (nearestAvailableDateYmd ? formatDateRu(nearestAvailableDateYmd) : ""),
+    [nearestAvailableDateYmd]
+  );
 
   const specialistsByChosenDateTime = useMemo(() => {
     if (isSpecialistFirst) {
@@ -4746,13 +4757,7 @@ export default function BookingClient({
                       value={dateYmd}
                       timeZone={accountTz}
                       disabledBeforeYmd={todayYmdTz}
-                      availableDates={
-                        isGroupService
-                          ? groupSessionAvailableDates
-                          : isDateFirst
-                            ? dateFirstAvailableDates
-                            : calendarAvailableDates
-                      }
+                      availableDates={activeAvailableDates}
                       onViewMonthChange={(monthStart) => {
                         setCalendarViewMonthStart((prev) =>
                           prev === monthStart ? prev : monthStart
@@ -4760,6 +4765,10 @@ export default function BookingClient({
                       }}
                       onChange={(ymd) => {
                         if (isPastYmd(ymd, todayYmdTz)) return;
+                        setDateYmd(ymd);
+                      }}
+                      onUnavailableDateSelect={(ymd, reason) => {
+                        if (reason === "past") return;
                         setDateYmd(ymd);
                       }}
                     />
@@ -4789,7 +4798,19 @@ export default function BookingClient({
                       <div className="space-y-3">
                         {showNoSlotsNotice && (
                           <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
-                            Нет доступных слотов на выбранную дату.
+                            <div>Нет доступных слотов на выбранную дату.</div>
+                            {nearestAvailableDateYmd && (
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span>Ближайшая свободная дата: {nearestAvailableDateLabel}.</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setDateYmd(nearestAvailableDateYmd)}
+                                  className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] px-3 py-1.5 text-xs font-medium text-[color:var(--bp-button-text)] transition hover:opacity-90"
+                                >
+                                  Перейти
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -5424,9 +5445,8 @@ export default function BookingClient({
                 {currentStepKey === "details" && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4">
-                      <SoftPanel className="p-4">
-                        <div className="text-sm font-semibold">Контакты</div>
-                        <div className="mt-3 space-y-3">
+                      <div className="p-4">
+                        <div className="space-y-3">
                           <div>
                             <div className="text-xs font-medium text-[color:var(--bp-muted)]">Имя</div>
                             <input
@@ -5567,7 +5587,7 @@ export default function BookingClient({
                             </div>
                           )}
                         </div>
-                      </SoftPanel>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -5580,6 +5600,7 @@ export default function BookingClient({
             <div className="space-y-4">
               <div className="text-base font-semibold">Сводка</div>
               <div className="space-y-2">
+                <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
                 <SummaryRow label="Дата" value={summaryDateLabel || "—"} />
                 {!isVisitPlanMode ? (
                   <SummaryRow label="Услуга" value={summaryServiceLabel || "—"} />
