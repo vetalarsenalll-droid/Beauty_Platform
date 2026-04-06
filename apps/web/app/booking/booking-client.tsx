@@ -4906,7 +4906,7 @@ export default function BookingClient({
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder="Поиск услуги"
-                        className="h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm sm:w-[280px] sm:flex-none"
+                        className="h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm shadow-[inset_0_0_0_1px_var(--bp-stroke)] transition placeholder:text-[color:var(--bp-muted)] focus:border-[color:var(--bp-accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]/20 sm:w-[280px] sm:flex-none"
                       />
                     </div>
 
