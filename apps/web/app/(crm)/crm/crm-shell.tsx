@@ -663,11 +663,7 @@ const [collapsed, setCollapsed] = useState(false);
             isSiteBuilderPage ? "px-0 pt-0 pb-0" : "px-4 pb-6 pt-6 sm:px-6 lg:px-8"
           }`}
         >
-          <div
-            className={`mx-auto flex w-full flex-col ${
-              isSchedulePage || isSiteBuilderPage ? "max-w-none" : "max-w-[1240px]"
-            }`}
-          >
+          <div className="mx-auto flex w-full max-w-none flex-col">
             {children}
           </div>
         </main>
