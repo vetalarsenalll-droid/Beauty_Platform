@@ -562,12 +562,8 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const bookingGradientDark = style.gradientEnabledDark
     ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
     : "none";
-  const bookingBorderLight = style.borderColorLight?.trim()
-    ? style.borderColorLightResolved || "transparent"
-    : "transparent";
-  const bookingBorderDark = style.borderColorDark?.trim()
-    ? style.borderColorDarkResolved || "transparent"
-    : "transparent";
+  const bookingBorderLight = (style.borderColorLightResolved || "transparent").trim() || "transparent";
+  const bookingBorderDark = (style.borderColorDarkResolved || "transparent").trim() || "transparent";
   const bookingBorderWidthLight = bookingBorderLight === "transparent" ? "0px" : "1px";
   const bookingBorderWidthDark = bookingBorderDark === "transparent" ? "0px" : "1px";
   const bookingBorderWidth = theme.mode === "dark" ? bookingBorderWidthDark : bookingBorderWidthLight;
