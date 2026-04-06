@@ -37,6 +37,7 @@ export async function GET(request: Request) {
   const durationMinRaw = toNum(searchParams.get("durationMin"));
   const dateRaw = searchParams.get("date");
   const appointmentId = toNum(searchParams.get("appointmentId"));
+  const groupSessionId = toNum(searchParams.get("groupSessionId"));
   const serviceIdsRaw = searchParams.get("serviceIds");
 
   if (!specialistId || !locationId || !dateRaw) {
@@ -143,6 +144,7 @@ export async function GET(request: Request) {
         status: { not: "CANCELLED" },
         startAt: { lt: dayEndAt },
         endAt: { gt: dayStartAt },
+        ...(groupSessionId ? { id: { not: groupSessionId } } : {}),
       },
       select: { startAt: true, endAt: true },
     }),

@@ -292,6 +292,8 @@ export async function PATCH(request: Request, { params }: Params) {
 
   return NextResponse.json({
     id: updated.id,
+    startAt: updated.startAt.toISOString(),
+    endAt: updated.endAt.toISOString(),
     status: updated.status,
     capacity: updated.capacity,
     bookedCount: updated.bookedCount,

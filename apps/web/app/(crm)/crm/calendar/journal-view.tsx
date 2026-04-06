@@ -892,6 +892,9 @@ export default function JournalView({
     if (editorState?.mode === "edit") {
       params.set("appointmentId", String(editorState.appointment.id));
     }
+    if (editorState?.mode === "edit-group") {
+      params.set("groupSessionId", String(editorState.session.id));
+    }
     if (editorForm.serviceIds.length > 0) {
       params.set("serviceIds", editorForm.serviceIds.join(","));
     }
@@ -1908,7 +1911,7 @@ export default function JournalView({
 
     const slotsDuration =
       editorForm.durationMin > 0 ? editorForm.durationMin : (minServiceDuration ?? 0);
-    if (shouldValidateSelectedStart && slotsDuration > 0) {
+    if (shouldValidateSelectedStart && slotsDuration > 0 && editorState?.mode !== "edit-group") {
       if (loadingStartSlots) {
         setNoticeModal({
           title: "Проверьте время",
@@ -1952,7 +1955,8 @@ export default function JournalView({
       shouldValidateSelectedStart &&
       slotsDuration > 0 &&
       availableStartSlots.length > 0 &&
-      !availableStartSlots.includes(editorForm.startTime)
+      !availableStartSlots.includes(editorForm.startTime) &&
+      editorState?.mode !== "edit-group"
     ) {
       setNoticeModal({
         title: "Проверьте время",
@@ -2045,10 +2049,13 @@ export default function JournalView({
               item.id === editorForm.groupSessionId
                 ? {
                     ...item,
+                    startAt: updated.startAt ?? startAt.toISOString(),
+                    endAt: updated.endAt ?? endAt.toISOString(),
                     status: updated.status ?? editorForm.status,
                     capacity: updated.capacity ?? editorForm.capacity,
                     pricePerClient: updated.pricePerClient ?? editorForm.pricePerClient ?? null,
                     comment: updated.comment ?? editorForm.comment,
+                    serviceName: editorForm.serviceName || item.serviceName,
                     participants: item.participants ?? [],
                   }
                 : item
@@ -3024,7 +3031,7 @@ export default function JournalView({
                         </>
                       )}
                     </select>
-                    {startSlotsError ? (
+                    {startSlotsError && editorState?.mode !== "edit-group" ? (
                       <p className="mt-1 text-xs text-[color:var(--bp-danger)]">
                         {startSlotsError === "MISSING_PARAMS"
                           ? "Не хватает параметров для расчета слотов."
@@ -3067,26 +3074,28 @@ export default function JournalView({
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs text-[color:var(--bp-muted)]">
-                    Статус
-                  </label>
-                  <select
-                    value={editorForm.status}
-                    onChange={(event) =>
-                      setEditorForm((prev) =>
-                        prev ? { ...prev, status: event.target.value } : prev
-                      )
-                    }
-                    className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                  >
-                    {editorStatusOptions.map(({ key, meta }) => (
-                      <option key={key} value={key}>
-                        {meta.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {editorForm.bookingType !== "GROUP" ? (
+                  <div>
+                    <label className="text-xs text-[color:var(--bp-muted)]">
+                      Статус
+                    </label>
+                    <select
+                      value={editorForm.status}
+                      onChange={(event) =>
+                        setEditorForm((prev) =>
+                          prev ? { ...prev, status: event.target.value } : prev
+                        )
+                      }
+                      className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    >
+                      {editorStatusOptions.map(({ key, meta }) => (
+                        <option key={key} value={key}>
+                          {meta.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
 
                 <div>
                   <label className="text-xs text-[color:var(--bp-muted)]">
@@ -3144,26 +3153,28 @@ export default function JournalView({
               </aside>
 
               <div className="min-w-0 flex flex-col gap-4">
-                <div className="flex flex-wrap gap-2">
-                  {editorStatusOptions.map(({ key, meta }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() =>
-                        setEditorForm((prev) =>
-                          prev ? { ...prev, status: key } : prev
-                        )
-                      }
-                      className={`rounded-full px-4 py-2 text-xs font-semibold ${
-                        editorForm.status === key
-                          ? "bg-[color:var(--bp-ink)] text-white"
-                          : `border border-[color:var(--bp-stroke)] ${meta.badge}`
-                      }`}
-                    >
-                      {meta.label}
-                    </button>
-                  ))}
-                </div>
+                {editorForm.bookingType !== "GROUP" ? (
+                  <div className="flex flex-wrap gap-2">
+                    {editorStatusOptions.map(({ key, meta }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          setEditorForm((prev) =>
+                            prev ? { ...prev, status: key } : prev
+                          )
+                        }
+                        className={`rounded-full px-4 py-2 text-xs font-semibold ${
+                          editorForm.status === key
+                            ? "bg-[color:var(--bp-ink)] text-white"
+                            : `border border-[color:var(--bp-stroke)] ${meta.badge}`
+                        }`}
+                      >
+                        {meta.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
 
                 <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4">
                   <div className="text-sm font-semibold">Услуги</div>
@@ -3175,6 +3186,28 @@ export default function JournalView({
                           {editorForm.serviceName ||
                             editorState.session.serviceName ||
                             "Групповая услуга"}
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                          <label className="text-xs text-[color:var(--bp-muted)]">
+                            Длительность, мин
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            step={5}
+                            value={editorForm.durationMin}
+                            onChange={(event) =>
+                              setEditorForm((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      durationMin: Math.max(1, Number(event.target.value || 0)),
+                                    }
+                                  : prev
+                              )
+                            }
+                            className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                          />
                         </div>
                       </div>
                     ) : (
@@ -3286,7 +3319,10 @@ export default function JournalView({
                         + Добавить услугу
                       </button>
                       <div className="text-xs text-[color:var(--bp-muted)]">
-                        Итого: {editorForm.durationMin} мин / {editorForm.priceTotal} ₽
+                        Итого: {editorForm.durationMin} мин /{" "}
+                        {editorForm.bookingType === "GROUP"
+                          ? (editorForm.pricePerClient || "0")
+                          : editorForm.priceTotal} ₽
                       </div>
                     </div>
                   </div>

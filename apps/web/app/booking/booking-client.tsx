@@ -1083,6 +1083,7 @@ export default function BookingClient({
   const [offersByTime, setOffersByTime] = useState<Record<string, number[]>>({});
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [offersError, setOffersError] = useState<string | null>(null);
+  const [groupOffersByTime, setGroupOffersByTime] = useState<Record<string, number[]>>({});
   const [dateFirstAvailableDates, setDateFirstAvailableDates] = useState<Set<string>>(new Set());
   const [loadingDateFirstAvailability, setLoadingDateFirstAvailability] = useState(false);
   const [dateFirstAvailabilityError, setDateFirstAvailabilityError] = useState<string | null>(null);
@@ -2573,6 +2574,62 @@ export default function BookingClient({
     calendarQueryDays,
   ]);
 
+  // ---------- dateFirst: group offers by time (time -> group serviceIds)
+  useEffect(() => {
+    if (!isDateFirst || !locationId || !dateYmd) {
+      setGroupOffersByTime({});
+      return;
+    }
+
+    let mounted = true;
+    fetchJson<{
+      sessions: Array<{
+        serviceId: number;
+        startAt: string;
+        capacity: number;
+        bookedCount: number;
+        availableSeats?: number;
+      }>;
+    }>(
+      buildUrl("/api/v1/public/booking/group-sessions", {
+        locationId,
+        date: dateYmd,
+        specialistId: specialistId ?? "",
+        account: accountSlug ?? "",
+      })
+    )
+      .then((data) => {
+        if (!mounted) return;
+        const map: Record<string, Set<number>> = {};
+        const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+        for (const session of sessions) {
+          const availableSeats =
+            typeof session.availableSeats === "number"
+              ? session.availableSeats
+              : Math.max(0, session.capacity - session.bookedCount);
+          if (availableSeats <= 0) continue;
+          const time = formatTimeInTz(session.startAt, accountTz);
+          if (isPastTimeOnDate(dateYmd, time, nowTz)) continue;
+          if (!map[time]) map[time] = new Set<number>();
+          map[time].add(session.serviceId);
+        }
+
+        const plain: Record<string, number[]> = {};
+        Object.entries(map).forEach(([t, set]) => {
+          plain[t] = Array.from(set).sort((a, b) => a - b);
+        });
+        setGroupOffersByTime(plain);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setGroupOffersByTime({});
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isDateFirst, locationId, dateYmd, specialistId, accountSlug, accountTz, nowTz]);
+
   useEffect(() => {
     if (!isDateFirst) return;
     if (!dateFirstAvailableDates.size) return;
@@ -3058,7 +3115,13 @@ export default function BookingClient({
 
       if (isDateFirst && timeChoice) {
         const allowed = new Set<number>(offersByTime[timeChoice] ?? []);
-        if (!allowed.has(id) && service.bookingType !== "GROUP") {
+        const allowedGroup = new Set<number>(groupOffersByTime[timeChoice] ?? []);
+        if (service.bookingType === "GROUP") {
+          if (!allowedGroup.has(id)) {
+            setSubmitError("Выберите групповую услугу, доступную на выбранное время.");
+            return;
+          }
+        } else if (!allowed.has(id)) {
           setSubmitError("Выберите услугу, доступную на выбранное время.");
           return;
         }
@@ -3111,6 +3174,7 @@ export default function BookingClient({
       isDateFirst,
       timeChoice,
       offersByTime,
+      groupOffersByTime,
       selectedServiceIds,
       selectedServices,
       serviceId,
@@ -3370,8 +3434,11 @@ export default function BookingClient({
     if (!isDateFirst) return services;
     if (!timeChoice) return isGroupService ? services : [];
     const allowedIds = new Set<number>(offersByTime[timeChoice] ?? []);
-    return services.filter((s) => allowedIds.has(s.id) || s.bookingType === "GROUP");
-  }, [isDateFirst, isGroupService, services, timeChoice, offersByTime]);
+    const allowedGroupIds = new Set<number>(groupOffersByTime[timeChoice] ?? []);
+    return services.filter((s) =>
+      s.bookingType === "GROUP" ? allowedGroupIds.has(s.id) : allowedIds.has(s.id)
+    );
+  }, [isDateFirst, isGroupService, services, timeChoice, offersByTime, groupOffersByTime]);
 
   const baseServicesForServiceStep = useMemo(() => {
     if (isDateFirst) return servicesThatFitPickedTime;
