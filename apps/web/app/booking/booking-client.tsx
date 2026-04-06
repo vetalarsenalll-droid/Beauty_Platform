@@ -4578,7 +4578,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="min-w-0 p-4 sm:p-6 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
+          <SoftPanel className="min-w-0 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">
@@ -4628,7 +4628,7 @@ export default function BookingClient({
             </div>
 
             <div className="mt-4 pt-4 lg:min-h-0 lg:flex-1">
-              <div className="min-h-[620px] px-1 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:auto] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+              <div className="min-h-[620px] pl-0 pr-[2px] -mr-2 sm:pr-[6px] sm:-mr-3 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                 {currentStepKey === "scenario" && (
                   <div className="space-y-3">
                     <ScenarioTabs value={scenario} onChange={setScenario} />
