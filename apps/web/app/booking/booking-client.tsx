@@ -1842,13 +1842,14 @@ export default function BookingClient({
 
   useEffect(() => {
     if (!specialistId) return;
+    if (isGroupService) return;
     if (!shouldLoadSpecialists) return;
     if (loadingSpecialists) return;
     if (!specialistsFetched) return;
     if (!specialists.some((sp) => sp.id === specialistId)) {
       setSpecialistId(null);
     }
-  }, [specialistId, specialists, loadingSpecialists, shouldLoadSpecialists, specialistsFetched]);
+  }, [specialistId, isGroupService, specialists, loadingSpecialists, shouldLoadSpecialists, specialistsFetched]);
 
   const gotoKey = (key: string) => {
     const idx = stepsWithScenario.findIndex((s) => s.key === key);
@@ -2002,7 +2003,12 @@ export default function BookingClient({
     }
     if (!selectedServiceIds.length) return;
     // ✅ В dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
-    if (isDateFirst && !isGroupService) return;
+    if (isDateFirst) {
+      if (isGroupService) {
+        setSelectedGroupSessionId(null);
+      }
+      return;
+    }
 
     // ✅ Для serviceFirst/specialistFirst смена услуги меняет доступность времени
     setTimeChoice(null);
@@ -2632,6 +2638,7 @@ export default function BookingClient({
 
   useEffect(() => {
     if (!isDateFirst) return;
+    if (isGroupService) return;
     if (!dateFirstAvailableDates.size) return;
     if (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !dateFirstAvailableDates.has(dateYmd)) {
       const first = Array.from(dateFirstAvailableDates).sort((a, b) =>
@@ -2639,7 +2646,7 @@ export default function BookingClient({
       )[0];
       if (first) setDateYmd(first);
     }
-  }, [isDateFirst, dateFirstAvailableDates, dateYmd, todayYmdTz]);
+  }, [isDateFirst, isGroupService, dateFirstAvailableDates, dateYmd, todayYmdTz]);
 
   // ---------- group sessions: available dates (by sessions)
   useEffect(() => {
@@ -2658,7 +2665,6 @@ export default function BookingClient({
       buildUrl("/api/v1/public/booking/group-sessions/availability", {
         locationId,
         serviceId,
-        specialistId: specialistId ?? "",
         start: debouncedCalendarQueryStartYmd,
         days: calendarQueryDays,
         account: accountSlug ?? "",
@@ -2686,7 +2692,6 @@ export default function BookingClient({
     isGroupService,
     locationId,
     serviceId,
-    specialistId,
     debouncedCalendarQueryStartYmd,
     calendarQueryDays,
     accountSlug,
@@ -2696,12 +2701,13 @@ export default function BookingClient({
     if (!isGroupService) return;
     if (!groupSessionAvailableDates.size) return;
     if (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !groupSessionAvailableDates.has(dateYmd)) {
+      if (timeChoice) return;
       const first = Array.from(groupSessionAvailableDates).sort((a, b) =>
         a > b ? 1 : a < b ? -1 : 0
       )[0];
       if (first) setDateYmd(first);
     }
-  }, [isGroupService, groupSessionAvailableDates, dateYmd, todayYmdTz]);
+  }, [isGroupService, groupSessionAvailableDates, dateYmd, todayYmdTz, timeChoice]);
 
   // ---------- dateFirst: slots by chosen service to filter specialists by timeChoice
   useEffect(() => {
@@ -2835,7 +2841,6 @@ export default function BookingClient({
       serviceId: String(serviceId),
       date: dateYmd,
     };
-    if (specialistId) params.specialistId = String(specialistId);
 
     fetchJson<{
       sessions: Array<{
@@ -2881,26 +2886,31 @@ export default function BookingClient({
     return () => {
       mounted = false;
     };
-  }, [isGroupService, locationId, serviceId, dateYmd, specialistId, accountSlug, accountTz]);
+  }, [isGroupService, locationId, serviceId, dateYmd, accountSlug, accountTz]);
 
   useEffect(() => {
     if (!isGroupService) {
       setSelectedGroupSessionId(null);
       return;
     }
+    if (groupSessionsLoading) return;
     const match = groupSessionsForDate.find((s) => {
       if (s.time !== timeChoice) return false;
       if (specialistId) return s.specialistId === specialistId;
       return true;
     });
     setSelectedGroupSessionId(match?.id ?? null);
-    if (!match && timeChoice) {
+    if (!match && timeChoice && !(isDateFirst && isGroupService)) {
       setTimeChoice(null);
     }
-    if (match?.specialistId && match.specialistId !== specialistId) {
-      setSpecialistId(match.specialistId);
-    }
-  }, [isGroupService, groupSessionsForDate, timeChoice, specialistId]);
+  }, [
+    isGroupService,
+    isDateFirst,
+    groupSessionsForDate,
+    groupSessionsLoading,
+    timeChoice,
+    specialistId,
+  ]);
 
   const loadSpecialistMetrics = useCallback(
     async (spId: number) => {
@@ -3133,6 +3143,9 @@ export default function BookingClient({
       if (service.bookingType === "GROUP") {
         setServiceId(id);
         setServiceIds([]);
+        if (!isSpecialistFirst) {
+          setSpecialistId(null);
+        }
         if (!isDateFirst || !timeChoice) {
           setTimeChoice(null);
         }
@@ -3172,6 +3185,7 @@ export default function BookingClient({
     },
     [
       isDateFirst,
+      isSpecialistFirst,
       timeChoice,
       offersByTime,
       groupOffersByTime,
@@ -3821,17 +3835,52 @@ export default function BookingClient({
             : s.computedPrice ?? s.basePrice ?? 0;
           return sum + (Number.isFinite(price) ? price : 0);
         }, 0);
+  const groupSummaryDurationMin = useMemo(() => {
+    if (!isGroupService) return null;
+    const source =
+      specialistId != null
+        ? specialistsByChosenDateTime.filter((sp) => sp.id === specialistId)
+        : specialistsByChosenDateTime;
+    const values = source
+      .map((sp) => Number(sp.serviceDurationMin))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (values.length === 0) return null;
+    return Math.min(...values);
+  }, [isGroupService, specialistId, specialistsByChosenDateTime]);
+
+  const groupSummaryPriceMin = useMemo(() => {
+    if (!isGroupService) return null;
+    const source =
+      specialistId != null
+        ? specialistsByChosenDateTime.filter((sp) => sp.id === specialistId)
+        : specialistsByChosenDateTime;
+    const values = source
+      .map((sp) => Number(sp.servicePrice))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    if (values.length === 0) return null;
+    return Math.min(...values);
+  }, [isGroupService, specialistId, specialistsByChosenDateTime]);
+
   const effectiveServiceDuration =
-    isVisitPlanMode && chainComplete && chainTotals ? chainTotals.durationMin : serviceDuration;
+    isVisitPlanMode && chainComplete && chainTotals
+      ? chainTotals.durationMin
+      : isGroupService
+        ? groupSummaryDurationMin ?? serviceDuration
+        : serviceDuration;
   const effectiveServicePrice =
-    isVisitPlanMode && chainComplete && chainTotals ? chainTotals.price : servicePrice;
+    isVisitPlanMode && chainComplete && chainTotals
+      ? chainTotals.price
+      : isGroupService
+        ? groupSummaryPriceMin ?? servicePrice
+        : servicePrice;
   const chainSpecialistsReady =
     isVisitPlanMode &&
     chainItems.length > 0 &&
     chainItems.every((item) => !!item.specialistId);
   const showApproxTotals =
     (!isVisitPlanMode && showFromServiceMetrics) ||
-    (isVisitPlanMode && !chainSpecialistsReady);
+    (isVisitPlanMode && !chainSpecialistsReady) ||
+    (isGroupService && !specialistId);
   const servicePriceLabel =
     effectiveServicePrice != null
       ? `${showApproxTotals ? "от " : ""}${formatMoneyRub(effectiveServicePrice)}`
@@ -3874,9 +3923,9 @@ export default function BookingClient({
     : [];
 
   const slotEnd = useMemo(() => {
-    if (!timeChoice || !serviceDuration) return "";
-    return addMinutes(timeChoice, serviceDuration);
-  }, [timeChoice, serviceDuration]);
+    if (!timeChoice || !effectiveServiceDuration) return "";
+    return addMinutes(timeChoice, effectiveServiceDuration);
+  }, [timeChoice, effectiveServiceDuration]);
 
   const nameReady = clientName.trim().length >= 2;
   const isRuPhoneValid = (raw: string) => {
@@ -3888,7 +3937,7 @@ export default function BookingClient({
   const phoneNormalized = normalizeRuPhone(clientPhone.trim());
   const phoneReady = Boolean(phoneNormalized) && isRuPhoneValid(clientPhone);
   const timeSelectionReady = isGroupService
-    ? !!timeChoice && !!selectedGroupSessionId
+    ? !!timeChoice && !!selectedGroupSessionId && !!specialistId
     : isVisitPlanMode
       ? chainComplete
       : !!specialistId && !!timeChoice;
@@ -3923,6 +3972,10 @@ export default function BookingClient({
       return ["Выберите групповой сеанс."];
     }
 
+    if (isDateFirst && isGroupService && currentStepKey === "service") {
+      return ["Перейдите к шагу «Специалист»."];
+    }
+
     if (currentStepKey !== "details") {
       return ["Перейдите к шагу «Контакты»."];
     }
@@ -3953,8 +4006,10 @@ export default function BookingClient({
     isChainMode,
     isVisitPlanMode,
     currentStepKey,
+    isDateFirst,
     isGroupService,
     selectedGroupSessionId,
+    specialistId,
     nameReady,
     phoneReady,
     missingRequiredLegalDocs,
@@ -4714,9 +4769,6 @@ export default function BookingClient({
                                   groupSessionsForDate.find((s) => s.time === t) ??
                                   null;
                                 setSelectedGroupSessionId(session?.id ?? null);
-                                if (session?.specialistId && session.specialistId !== specialistId) {
-                                  setSpecialistId(session.specialistId);
-                                }
                                 return;
                               }
 
