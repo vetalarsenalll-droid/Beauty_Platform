@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 
 type AppointmentCard = {
   id: number;
+  uid: string;
+  entityType: "APPOINTMENT" | "GROUP_SESSION";
   status: string;
   statusLabel: string;
   statusTone: string;
@@ -132,7 +134,7 @@ export default function ClientAppointments({
 
   const renderCard = (item: AppointmentCard) => (
     <div
-      key={item.id}
+      key={item.uid}
       className="flex flex-col gap-3 rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-5 py-4 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -146,7 +148,14 @@ export default function ClientAppointments({
         </span>
       </div>
       <div className="text-sm text-[color:var(--bp-muted)]">{item.timeLabel}</div>
-      <div className="text-sm font-medium">{item.servicesLabel || "Услуга"}</div>
+      <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <span>{item.servicesLabel || "Услуга"}</span>
+        {item.entityType === "GROUP_SESSION" ? (
+          <span className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--bp-muted)]">
+            Групповая
+          </span>
+        ) : null}
+      </div>
       <div className="text-sm text-[color:var(--bp-muted)]">
         {item.specialistName ? `${item.specialistName} · ` : ""}
         {item.locationName}
@@ -161,7 +170,7 @@ export default function ClientAppointments({
         {item.durationLabel ? <span>{item.durationLabel}</span> : null}
         {item.priceLabel ? <span>{item.priceLabel}</span> : null}
       </div>
-      {item.canCancel ? (
+      {item.canCancel && item.entityType === "APPOINTMENT" ? (
         <button
           type="button"
           disabled={loadingId === item.id}

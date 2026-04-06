@@ -313,7 +313,17 @@ export async function POST(request: Request) {
       endAt: { gt: startAt },
     },
   });
-  if (overlap) {
+  const overlapGroup = await prisma.groupSession.findFirst({
+    where: {
+      accountId: session.accountId,
+      specialistId: specialist.id,
+      status: { not: "CANCELLED" },
+      startAt: { lt: endAt },
+      endAt: { gt: startAt },
+    },
+  });
+
+  if (overlap || overlapGroup) {
     return NextResponse.json(
       { message: "В это время у специалиста уже есть запись." },
       { status: 400 }
@@ -335,6 +345,7 @@ export async function POST(request: Request) {
   const selectedServices: Array<{
     id: number;
     allowMultiServiceBooking: boolean;
+    bookingType: string;
     basePrice: Prisma.Decimal;
     baseDurationMin: number;
     levelConfigs: { levelId: number; price: Prisma.Decimal | null; durationMin: number | null }[];
@@ -354,6 +365,12 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       { message: "Нельзя комбинировать услуги: одна из выбранных услуг не поддерживает мультизапись." },
+      { status: 400 }
+    );
+  }
+  if (selectedServices.some((service) => service.bookingType === "GROUP")) {
+    return NextResponse.json(
+      { message: "Эта услуга доступна только как групповая запись." },
       { status: 400 }
     );
   }

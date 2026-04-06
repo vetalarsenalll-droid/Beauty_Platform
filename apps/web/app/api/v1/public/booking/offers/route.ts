@@ -120,6 +120,7 @@ export async function GET(request: Request) {
     where: {
       accountId: resolved.account.id,
       isActive: true,
+      bookingType: "SINGLE",
       id: { in: allServiceIds },
       locations: { some: { locationId } },
     },
@@ -135,7 +136,7 @@ export async function GET(request: Request) {
   for (const s of services) serviceById.set(s.id, s);
 
   // schedule + appointments + blocks
-  const [scheduleEntries, appointments, blockedSlots, holds] = await Promise.all([
+  const [scheduleEntries, appointments, groupSessions, blockedSlots, holds] = await Promise.all([
     prisma.scheduleEntry.findMany({
       where: {
         accountId: resolved.account.id,
@@ -154,6 +155,17 @@ export async function GET(request: Request) {
         endAt: { gt: dayStartUtc },
         status: { notIn: ["CANCELLED", "NO_SHOW"] },
         ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+      },
+      select: { specialistId: true, startAt: true, endAt: true },
+    }),
+    prisma.groupSession.findMany({
+      where: {
+        accountId: resolved.account.id,
+        locationId,
+        specialistId: { in: specialistIds },
+        startAt: { lt: dayEndUtc },
+        endAt: { gt: dayStartUtc },
+        status: { not: "CANCELLED" },
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
@@ -192,6 +204,14 @@ export async function GET(request: Request) {
       end: toZonedLocalMinutes(a.endAt, tz),
     });
     apptBySp.set(a.specialistId, list);
+  }
+  for (const s of groupSessions) {
+    const list = apptBySp.get(s.specialistId) ?? [];
+    list.push({
+      start: toZonedLocalMinutes(s.startAt, tz),
+      end: toZonedLocalMinutes(s.endAt, tz),
+    });
+    apptBySp.set(s.specialistId, list);
   }
 
   const blkBySp = new Map<number, Window[]>();

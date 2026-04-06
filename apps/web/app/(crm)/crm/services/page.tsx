@@ -83,6 +83,8 @@ export default async function CrmServicesPage() {
                   basePrice: service.basePrice.toString(),
                   isActive: service.isActive,
                   categoryName: service.category?.name ?? null,
+                  bookingType: service.bookingType,
+                  groupCapacityDefault: service.groupCapacityDefault,
                 }}
               />
             ))}

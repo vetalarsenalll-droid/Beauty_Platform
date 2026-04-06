@@ -198,6 +198,8 @@ export async function POST(request: Request) {
         baseDurationMin: true,
         basePrice: true,
         allowMultiServiceBooking: true,
+        bookingType: true,
+        groupCapacityDefault: true,
         specialists: {
           select: {
             specialistId: true,
@@ -239,6 +241,15 @@ export async function POST(request: Request) {
       400
     );
   }
+  if (services.some((s) => s.bookingType === "GROUP")) {
+    return jsonError(
+      "GROUP_SERVICE_NOT_ALLOWED",
+      "Эта услуга доступна только как групповая запись.",
+      null,
+      400
+    );
+  }
+
 
   const locationWindow = getLocationWorkWindowForDate(location, dateValue);
   if (locationWindow.isClosed) {
@@ -493,6 +504,25 @@ export async function POST(request: Request) {
           error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),
         };
       }
+      const conflictGroup = await tx.groupSession.findFirst({
+        where: {
+          accountId: resolved.account.id,
+          locationId,
+          specialistId,
+          status: { not: "CANCELLED" },
+          startAt: { lt: endAtUtc },
+          endAt: { gt: startAtUtc },
+        },
+        select: { id: true },
+      });
+
+      if (conflictGroup) {
+        return {
+          ok: false as const,
+          error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),
+        };
+      }
+
 
       const conflictBlock = await tx.blockedSlot.findFirst({
         where: {

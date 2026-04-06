@@ -19,6 +19,8 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
   const [categoryId, setCategoryId] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [allowMultiServiceBooking, setAllowMultiServiceBooking] = useState(false);
+  const [bookingType, setBookingType] = useState<"SINGLE" | "GROUP">("SINGLE");
+  const [groupCapacityDefault, setGroupCapacityDefault] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,11 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
           categoryId: categoryId ? Number(categoryId) : null,
           isActive,
           allowMultiServiceBooking,
+          bookingType,
+          groupCapacityDefault:
+            bookingType === "GROUP" && groupCapacityDefault.trim()
+              ? Number(groupCapacityDefault)
+              : null,
         }),
       });
       if (!response.ok) {
@@ -118,6 +125,29 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
             onChange={(event) => setIsActive(event.target.checked)}
           />
           Активна
+        </label>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="flex flex-col gap-2 text-sm">
+          Тип записи
+          <select
+            value={bookingType}
+            onChange={(event) => setBookingType(event.target.value as "SINGLE" | "GROUP")}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          >
+            <option value="SINGLE">Одиночная</option>
+            <option value="GROUP">Групповая</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Мест в группе
+          <input
+            value={groupCapacityDefault}
+            onChange={(event) => setGroupCapacityDefault(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+            placeholder="Например, 8"
+            disabled={bookingType !== "GROUP"}
+          />
         </label>
       </div>
       <label className="flex items-center gap-2 text-sm">

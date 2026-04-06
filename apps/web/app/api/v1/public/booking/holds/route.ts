@@ -169,6 +169,8 @@ export async function POST(request: Request) {
         baseDurationMin: true,
         basePrice: true,
         allowMultiServiceBooking: true,
+        bookingType: true,
+        groupCapacityDefault: true,
         specialists: {
           select: {
             specialistId: true,
@@ -210,6 +212,14 @@ export async function POST(request: Request) {
     return jsonError(
       "MULTI_SERVICE_NOT_ALLOWED",
       "Выбранные услуги нельзя записывать вместе.",
+      null,
+      400
+    );
+  }
+  if (services.some((s) => s.bookingType === "GROUP")) {
+    return jsonError(
+      "GROUP_SERVICE_NOT_ALLOWED",
+      "Эта услуга доступна только как групповая запись.",
       null,
       400
     );
@@ -325,13 +335,24 @@ export async function POST(request: Request) {
             }
           }
 
-          const [conflictAppt, conflictBlock, conflictHold] = await Promise.all([
+          const [conflictAppt, conflictGroup, conflictBlock, conflictHold] = await Promise.all([
             tx.appointment.findFirst({
               where: {
                 accountId: resolved.account.id,
                 locationId,
                 specialistId,
                 status: { notIn: ["CANCELLED", "NO_SHOW"] },
+                startAt: { lt: endAtUtc },
+                endAt: { gt: startAtUtc },
+              },
+              select: { id: true },
+            }),
+            tx.groupSession.findFirst({
+              where: {
+                accountId: resolved.account.id,
+                locationId,
+                specialistId,
+                status: { not: "CANCELLED" },
                 startAt: { lt: endAtUtc },
                 endAt: { gt: startAtUtc },
               },
@@ -360,10 +381,10 @@ export async function POST(request: Request) {
             }),
           ]);
 
-          if (conflictAppt || conflictBlock || conflictHold) {
+          if (conflictAppt || conflictGroup || conflictBlock || conflictHold) {
             const reason = conflictHold
               ? "HELD"
-              : conflictAppt
+              : conflictAppt || conflictGroup
                 ? "APPOINTMENT"
                 : "BLOCKED";
             return {

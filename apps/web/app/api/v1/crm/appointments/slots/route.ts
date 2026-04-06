@@ -124,7 +124,7 @@ export async function GET(request: Request) {
   const dayEndAt = new Date(dayStartAt);
   dayEndAt.setDate(dayEndAt.getDate() + 1);
 
-  const [appointments, blockedSlots] = await Promise.all([
+  const [appointments, groupSessions, blockedSlots] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         accountId: session.accountId,
@@ -133,6 +133,16 @@ export async function GET(request: Request) {
         startAt: { lt: dayEndAt },
         endAt: { gt: dayStartAt },
         ...(appointmentId ? { id: { not: appointmentId } } : {}),
+      },
+      select: { startAt: true, endAt: true },
+    }),
+    prisma.groupSession.findMany({
+      where: {
+        accountId: session.accountId,
+        specialistId,
+        status: { not: "CANCELLED" },
+        startAt: { lt: dayEndAt },
+        endAt: { gt: dayStartAt },
       },
       select: { startAt: true, endAt: true },
     }),
@@ -156,6 +166,12 @@ export async function GET(request: Request) {
     start: item.startAt.getHours() * 60 + item.startAt.getMinutes(),
     end: item.endAt.getHours() * 60 + item.endAt.getMinutes(),
   }));
+  for (const item of groupSessions) {
+    appointmentRanges.push({
+      start: item.startAt.getHours() * 60 + item.startAt.getMinutes(),
+      end: item.endAt.getHours() * 60 + item.endAt.getMinutes(),
+    });
+  }
   const blockedRanges = blockedSlots.map((item) => ({
     start: item.startAt.getHours() * 60 + item.startAt.getMinutes(),
     end: item.endAt.getHours() * 60 + item.endAt.getMinutes(),

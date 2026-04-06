@@ -42,6 +42,8 @@ export type ServiceLite = {
   categoryName?: string | null;
   basePrice: number;
   allowMultiServiceBooking?: boolean;
+  bookingType?: "SINGLE" | "GROUP";
+  groupCapacityDefault?: number | null;
   locationIds: number[];
   levelConfigs?: Array<{ levelId: number; durationMin: number | null; price: number | null }>;
   specialistConfigs?: Array<{ specialistId: number; durationOverrideMin: number | null; priceOverride: number | null }>;

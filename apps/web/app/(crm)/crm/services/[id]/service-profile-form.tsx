@@ -16,6 +16,8 @@ type ServiceSummary = {
   basePrice: string;
   isActive: boolean;
   allowMultiServiceBooking: boolean;
+  bookingType: "SINGLE" | "GROUP";
+  groupCapacityDefault: number | null;
   categoryId: number | null;
 };
 
@@ -42,6 +44,12 @@ export default function ServiceProfileForm({
   const [allowMultiServiceBooking, setAllowMultiServiceBooking] = useState(
     service.allowMultiServiceBooking ?? false
   );
+  const [bookingType, setBookingType] = useState<"SINGLE" | "GROUP">(
+    service.bookingType ?? "SINGLE"
+  );
+  const [groupCapacityDefault, setGroupCapacityDefault] = useState(
+    service.groupCapacityDefault != null ? String(service.groupCapacityDefault) : ""
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +70,11 @@ export default function ServiceProfileForm({
           categoryId: categoryId ? Number(categoryId) : null,
           isActive,
           allowMultiServiceBooking,
+          bookingType,
+          groupCapacityDefault:
+            bookingType === "GROUP" && groupCapacityDefault.trim()
+              ? Number(groupCapacityDefault)
+              : null,
         }),
       });
       if (!response.ok) {
@@ -142,6 +155,29 @@ export default function ServiceProfileForm({
             <option value="active">Активна</option>
             <option value="inactive">В архиве</option>
           </select>
+        </label>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="flex flex-col gap-2 text-sm">
+          Тип записи
+          <select
+            value={bookingType}
+            onChange={(event) => setBookingType(event.target.value as "SINGLE" | "GROUP")}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+          >
+            <option value="SINGLE">Одиночная</option>
+            <option value="GROUP">Групповая</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Мест в группе
+          <input
+            value={groupCapacityDefault}
+            onChange={(event) => setGroupCapacityDefault(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+            disabled={bookingType !== "GROUP"}
+          />
         </label>
       </div>
 

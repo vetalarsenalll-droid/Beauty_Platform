@@ -52,6 +52,8 @@ type Service = {
   minPrice?: number | null;
   specialistIds?: number[];
   allowMultiServiceBooking?: boolean;
+  bookingType?: "SINGLE" | "GROUP";
+  groupCapacityDefault?: number | null;
   coverUrl?: string | null;
 };
 
@@ -73,6 +75,18 @@ type Specialist = {
 type Slot = {
   time: string; // "HH:mm"
   specialistId: number;
+};
+
+type GroupSessionSlot = {
+  id: number;
+  specialistId: number;
+  time: string;
+  startAt: string;
+  endAt: string;
+  capacity: number;
+  bookedCount: number;
+  availableSeats: number;
+  pricePerClient: number | null;
 };
 
 type ChainItem = {
@@ -212,6 +226,14 @@ const minutesToTime = (value: number) => {
   return `${pad2(hours)}:${pad2(minutes)}`;
 };
 
+const formatTimeInTz = (iso: string, timeZone: string) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone,
+  }).format(new Date(iso));
+
 const addMinutes = (time: string, minutes: number) => {
   const start = timeToMinutes(time);
   if (start === null) return "";
@@ -288,6 +310,9 @@ const bookingStateStorageKey = (accountSlug?: string, accountPublicSlug?: string
 
 const bookingSessionStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
   `booking-session:v${BOOKING_SESSION_VERSION}:${accountSlug || accountPublicSlug || "public"}`;
+
+const groupSessionStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
+  `group-booked:v1:${accountSlug || accountPublicSlug || "public"}`;
 
 const loadPersistedBookingState = (
   accountSlug?: string,
@@ -847,12 +872,14 @@ function TimeGrid({
   timeBucket,
   onBucket,
   onSelect,
+  metaByTime,
 }: {
   times: string[];
   selected: string | null;
   timeBucket: TimeBucket;
   onBucket: (b: TimeBucket) => void;
   onSelect: (time: string) => void;
+  metaByTime?: Record<string, string>;
 }) {
   const bucketForTime = (time: string) => {
     const minutes = timeToMinutes(time) ?? 0;
@@ -877,13 +904,14 @@ function TimeGrid({
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
         {visible.map((t) => {
           const active = t === selected;
+          const meta = metaByTime?.[t];
           return (
             <button
               key={t}
               type="button"
               onClick={() => onSelect(t)}
               className={cn(
-                "h-10 rounded-2xl border text-sm font-medium transition",
+                "flex min-h-10 flex-col items-center justify-center gap-1 rounded-2xl border px-1.5 py-1 text-sm font-medium transition",
                 !active && "booking-soft-accent-hover",
                 "hover:-translate-y-[1px] hover:shadow-sm",
                 active
@@ -891,7 +919,17 @@ function TimeGrid({
                   : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
               )}
             >
-              {t}
+              <span>{t}</span>
+              {meta ? (
+                <span
+                  className={cn(
+                    "text-[10px] font-medium",
+                    active ? "text-[color:var(--bp-button-text)]/80" : "text-[color:var(--bp-muted)]"
+                  )}
+                >
+                  {meta}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -971,6 +1009,48 @@ export default function BookingClient({
     }
   }, [accountSlug, accountPublicSlug]);
 
+  const groupBookedStorageKey = useMemo(
+    () => groupSessionStorageKey(accountSlug, accountPublicSlug),
+    [accountSlug, accountPublicSlug]
+  );
+  const [groupBookedIds, setGroupBookedIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem(groupBookedStorageKey);
+      if (!raw) {
+        setGroupBookedIds([]);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setGroupBookedIds(parsed.filter((id) => Number.isInteger(id)));
+      } else {
+        setGroupBookedIds([]);
+      }
+    } catch {
+      setGroupBookedIds([]);
+    }
+  }, [groupBookedStorageKey]);
+
+  const markGroupSessionBooked = useCallback(
+    (sessionId: number | null) => {
+      if (!sessionId || typeof window === "undefined") return;
+      setGroupBookedIds((prev) => {
+        if (prev.includes(sessionId)) return prev;
+        const next = [...prev, sessionId];
+        try {
+          window.sessionStorage.setItem(groupBookedStorageKey, JSON.stringify(next));
+        } catch {
+          // ignore storage errors
+        }
+        return next;
+      });
+    },
+    [groupBookedStorageKey]
+  );
+
   const [context, setContext] = useState<ContextData | null>(null);
   const [loadingContext, setLoadingContext] = useState(true);
   const [contextError, setContextError] = useState<string | null>(null);
@@ -980,6 +1060,14 @@ export default function BookingClient({
   const [services, setServices] = useState<Service[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
+
+  const [groupSessionsForDate, setGroupSessionsForDate] = useState<GroupSessionSlot[]>([]);
+  const [groupSessionsLoading, setGroupSessionsLoading] = useState(false);
+  const [groupSessionsError, setGroupSessionsError] = useState<string | null>(null);
+  const [selectedGroupSessionId, setSelectedGroupSessionId] = useState<number | null>(null);
+  const [groupSessionAvailableDates, setGroupSessionAvailableDates] = useState<Set<string>>(new Set());
+  const [groupAvailabilityLoading, setGroupAvailabilityLoading] = useState(false);
+  const [groupAvailabilityError, setGroupAvailabilityError] = useState<string | null>(null);
 
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [loadingSpecialists, setLoadingSpecialists] = useState(false);
@@ -1292,9 +1380,26 @@ export default function BookingClient({
     return idempotencyKeyRef.current;
   };
 
+  const serviceById = useMemo(
+    () => new Map(services.map((srv) => [srv.id, srv])),
+    [services]
+  );
+
+  const activeService = useMemo(
+    () => (serviceId ? serviceById.get(serviceId) ?? null : null),
+    [serviceById, serviceId]
+  );
+
+  const isGroupService = activeService?.bookingType === "GROUP";
+
   const holdSelection = useMemo(
     () =>
-      !isChainMode && locationId && specialistId && selectedServiceIds.length > 0 && timeChoice
+      !isGroupService &&
+      !isChainMode &&
+      locationId &&
+      specialistId &&
+      selectedServiceIds.length > 0 &&
+      timeChoice
         ? {
             locationId,
             specialistId,
@@ -1304,7 +1409,7 @@ export default function BookingClient({
             time: timeChoice,
           }
         : null,
-    [locationId, specialistId, selectedServiceIds, dateYmd, timeChoice, isChainMode]
+    [isGroupService, locationId, specialistId, selectedServiceIds, dateYmd, timeChoice, isChainMode]
   );
 
   const isHoldStillFresh = (value: string, skewMs = 7000) =>
@@ -1767,6 +1872,7 @@ export default function BookingClient({
     stepsWithScenario,
     startScenario,
     isDateFirst,
+    isGroupService,
     isServiceFirst,
     isSpecialistFirst,
     logBookingStep,
@@ -1836,6 +1942,7 @@ export default function BookingClient({
     setServiceIds([]);
     setSpecialistId(null);
     setTimeChoice(null);
+    setSelectedGroupSessionId(null);
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
@@ -1857,6 +1964,7 @@ export default function BookingClient({
     setServiceIds([]);
     setSpecialistId(null);
     setTimeChoice(null);
+    setSelectedGroupSessionId(null);
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
@@ -1874,6 +1982,7 @@ export default function BookingClient({
       return;
     }
     setTimeChoice(null);
+    setSelectedGroupSessionId(null);
     setSubmitError(null);
     setSubmitSuccess(false);
     if (isDateFirst) setOffersByTime({});
@@ -1892,16 +2001,19 @@ export default function BookingClient({
     }
     if (!selectedServiceIds.length) return;
     // ✅ В dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
-    if (isDateFirst) return;
+    if (isDateFirst && !isGroupService) return;
 
     // ✅ Для serviceFirst/specialistFirst смена услуги меняет доступность времени
     setTimeChoice(null);
+    if (isGroupService) {
+      setSelectedGroupSessionId(null);
+    }
 
     setSubmitError(null);
     setSubmitSuccess(false);
 
     // serviceFirst: специалист выбирается после времени, поэтому при смене услуги лучше сбросить специалиста
-  }, [selectedServiceIds, serviceId, isDateFirst]);
+  }, [selectedServiceIds, serviceId, isDateFirst, isGroupService]);
 
   // ---------- context
   useEffect(() => {
@@ -2122,7 +2234,8 @@ export default function BookingClient({
     )
       .then((data) => {
         if (!mounted) return;
-        setServices(Array.isArray(data.services) ? data.services : []);
+        const raw = Array.isArray(data.services) ? data.services : [];
+        setServices(raw);
       })
       .catch((error: Error) => {
         if (!mounted) return;
@@ -2144,6 +2257,12 @@ export default function BookingClient({
     if (!shouldLoadCalendar) {
       setLoadingCalendar(false);
       setCalendarError(null);
+      return;
+    }
+    if (isGroupService) {
+      setLoadingCalendar(false);
+      setCalendarError(null);
+      setCalendar(null);
       return;
     }
     const calendarServiceId = isChainMode ? chainPrimaryServiceId ?? "" : serviceId ?? "";
@@ -2394,7 +2513,8 @@ export default function BookingClient({
       setDateFirstAvailabilityError(null);
       return;
     }
-    if (!services.length) {
+    const servicesForDateFirst = services.filter((service) => service.bookingType !== "GROUP");
+    if (!servicesForDateFirst.length) {
       setDateFirstAvailableDates(new Set());
       setDateFirstAvailabilityError(null);
       return;
@@ -2404,7 +2524,7 @@ export default function BookingClient({
     setLoadingDateFirstAvailability(true);
     setDateFirstAvailabilityError(null);
 
-    const tasks = services.map((s) => () =>
+    const tasks = servicesForDateFirst.map((s) => () =>
       fetchJson<AvailabilityCalendar>(
         buildUrl("/api/v1/public/booking/availability/calendar", {
           locationId: safeLocationId,
@@ -2463,6 +2583,68 @@ export default function BookingClient({
       if (first) setDateYmd(first);
     }
   }, [isDateFirst, dateFirstAvailableDates, dateYmd, todayYmdTz]);
+
+  // ---------- group sessions: available dates (by sessions)
+  useEffect(() => {
+    if (!isGroupService || !locationId || !serviceId) {
+      setGroupSessionAvailableDates(new Set());
+      setGroupAvailabilityError(null);
+      setGroupAvailabilityLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    setGroupAvailabilityLoading(true);
+    setGroupAvailabilityError(null);
+
+    fetchJson<{ days: Array<{ date: string }> }>(
+      buildUrl("/api/v1/public/booking/group-sessions/availability", {
+        locationId,
+        serviceId,
+        specialistId: specialistId ?? "",
+        start: debouncedCalendarQueryStartYmd,
+        days: calendarQueryDays,
+        account: accountSlug ?? "",
+      })
+    )
+      .then((data) => {
+        if (!mounted) return;
+        const dates = Array.isArray(data?.days) ? data.days : [];
+        setGroupSessionAvailableDates(new Set(dates.map((d) => d.date)));
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setGroupAvailabilityError(error.message);
+        setGroupSessionAvailableDates(new Set());
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setGroupAvailabilityLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    isGroupService,
+    locationId,
+    serviceId,
+    specialistId,
+    debouncedCalendarQueryStartYmd,
+    calendarQueryDays,
+    accountSlug,
+  ]);
+
+  useEffect(() => {
+    if (!isGroupService) return;
+    if (!groupSessionAvailableDates.size) return;
+    if (!dateYmd || isPastYmd(dateYmd, todayYmdTz) || !groupSessionAvailableDates.has(dateYmd)) {
+      const first = Array.from(groupSessionAvailableDates).sort((a, b) =>
+        a > b ? 1 : a < b ? -1 : 0
+      )[0];
+      if (first) setDateYmd(first);
+    }
+  }, [isGroupService, groupSessionAvailableDates, dateYmd, todayYmdTz]);
 
   // ---------- dateFirst: slots by chosen service to filter specialists by timeChoice
   useEffect(() => {
@@ -2561,10 +2743,13 @@ export default function BookingClient({
     [specialists]
   );
 
-  const serviceById = useMemo(
-    () => new Map(services.map((srv) => [srv.id, srv])),
-    [services]
-  );
+  useEffect(() => {
+    if (!isGroupService) return;
+    const holdId = activeHold?.holdId ?? null;
+    if (!holdId) return;
+    setActiveHold(null);
+    void releaseHold(holdId).catch(() => {});
+  }, [isGroupService, activeHold]);
 
   const specialistMetricsCacheRef = useRef(
     new Map<number, Map<number, { durationMin: number; price: number }>>()
@@ -2573,6 +2758,92 @@ export default function BookingClient({
   useEffect(() => {
     specialistMetricsCacheRef.current.clear();
   }, [locationId]);
+
+  useEffect(() => {
+    if (!isGroupService || !locationId || !serviceId || !dateYmd) {
+      setGroupSessionsForDate([]);
+      setGroupSessionsError(null);
+      setGroupSessionsLoading(false);
+      setSelectedGroupSessionId(null);
+      return;
+    }
+
+    let mounted = true;
+    setGroupSessionsLoading(true);
+    setGroupSessionsError(null);
+
+    const params: Record<string, string> = {
+      account: accountSlug ?? "",
+      locationId: String(locationId),
+      serviceId: String(serviceId),
+      date: dateYmd,
+    };
+    if (specialistId) params.specialistId = String(specialistId);
+
+    fetchJson<{
+      sessions: Array<{
+        id: number;
+        specialistId: number;
+        startAt: string;
+        endAt: string;
+        capacity: number;
+        bookedCount: number;
+        availableSeats: number;
+        pricePerClient: string | null;
+      }>;
+    }>(buildUrl("/api/v1/public/booking/group-sessions", params))
+      .then((data) => {
+        if (!mounted) return;
+        const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+        const mapped: GroupSessionSlot[] = sessions
+          .map((s) => ({
+            id: s.id,
+            specialistId: s.specialistId,
+            time: formatTimeInTz(s.startAt, accountTz),
+            startAt: s.startAt,
+            endAt: s.endAt,
+            capacity: s.capacity,
+            bookedCount: s.bookedCount,
+            availableSeats: s.availableSeats ?? Math.max(0, s.capacity - s.bookedCount),
+            pricePerClient: s.pricePerClient != null ? Number(s.pricePerClient) : null,
+          }))
+          .filter((s) => s.availableSeats > 0);
+        mapped.sort((a, b) => (timeToMinutes(a.time) ?? 0) - (timeToMinutes(b.time) ?? 0));
+        setGroupSessionsForDate(mapped);
+      })
+      .catch((error: Error) => {
+        if (!mounted) return;
+        setGroupSessionsError(error.message);
+        setGroupSessionsForDate([]);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setGroupSessionsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isGroupService, locationId, serviceId, dateYmd, specialistId, accountSlug, accountTz]);
+
+  useEffect(() => {
+    if (!isGroupService) {
+      setSelectedGroupSessionId(null);
+      return;
+    }
+    const match = groupSessionsForDate.find((s) => {
+      if (s.time !== timeChoice) return false;
+      if (specialistId) return s.specialistId === specialistId;
+      return true;
+    });
+    setSelectedGroupSessionId(match?.id ?? null);
+    if (!match && timeChoice) {
+      setTimeChoice(null);
+    }
+    if (match?.specialistId && match.specialistId !== specialistId) {
+      setSpecialistId(match.specialistId);
+    }
+  }, [isGroupService, groupSessionsForDate, timeChoice, specialistId]);
 
   const loadSpecialistMetrics = useCallback(
     async (spId: number) => {
@@ -2787,7 +3058,7 @@ export default function BookingClient({
 
       if (isDateFirst && timeChoice) {
         const allowed = new Set<number>(offersByTime[timeChoice] ?? []);
-        if (!allowed.has(id)) {
+        if (!allowed.has(id) && service.bookingType !== "GROUP") {
           setSubmitError("Выберите услугу, доступную на выбранное время.");
           return;
         }
@@ -2795,6 +3066,16 @@ export default function BookingClient({
 
       setSubmitError(null);
       setSubmitSuccess(false);
+
+      if (service.bookingType === "GROUP") {
+        setServiceId(id);
+        setServiceIds([]);
+        if (!isDateFirst || !timeChoice) {
+          setTimeChoice(null);
+        }
+        setSelectedGroupSessionId(null);
+        return;
+      }
 
       if (!allowMulti || !currentMultiAllowed) {
         setServiceId(id);
@@ -3087,10 +3368,10 @@ export default function BookingClient({
 
   const servicesThatFitPickedTime = useMemo(() => {
     if (!isDateFirst) return services;
-    if (!timeChoice) return [];
+    if (!timeChoice) return isGroupService ? services : [];
     const allowedIds = new Set<number>(offersByTime[timeChoice] ?? []);
-    return services.filter((s) => allowedIds.has(s.id));
-  }, [isDateFirst, services, timeChoice, offersByTime]);
+    return services.filter((s) => allowedIds.has(s.id) || s.bookingType === "GROUP");
+  }, [isDateFirst, isGroupService, services, timeChoice, offersByTime]);
 
   const baseServicesForServiceStep = useMemo(() => {
     if (isDateFirst) return servicesThatFitPickedTime;
@@ -3146,6 +3427,11 @@ export default function BookingClient({
 
   const availableTimesForCurrentStep = useMemo(() => {
     if (!dateYmd || isPastYmd(dateYmd, todayYmdTz)) return [];
+    if (isGroupService) {
+      const times = groupSessionsForDate.map((s) => s.time);
+      const sorted = uniqSortedTimes(times);
+      return filterPastTimes(dateYmd, sorted, nowTz);
+    }
 
     if (isDateFirst) {
       const times = uniqSortedTimes(Object.keys(offersByTime));
@@ -3156,10 +3442,52 @@ export default function BookingClient({
     const times = dayMap ? Array.from(dayMap.keys()) : [];
     const sorted = uniqSortedTimes(times);
     return filterPastTimes(dateYmd, sorted, nowTz);
-  }, [isDateFirst, dateYmd, offersByTime, calendarByDate, todayYmdTz, nowTz]);
+  }, [
+    isGroupService,
+    groupSessionsForDate,
+    isDateFirst,
+    dateYmd,
+    offersByTime,
+    calendarByDate,
+    todayYmdTz,
+    nowTz,
+  ]);
+
+  const groupTimeMeta = useMemo(() => {
+    if (!isGroupService) return null;
+    const map = new Map<
+      string,
+      { seats: number; prices: number[] }
+    >();
+    for (const session of groupSessionsForDate) {
+      const slot = map.get(session.time) ?? { seats: 0, prices: [] };
+      slot.seats += session.availableSeats;
+      if (session.pricePerClient != null && Number.isFinite(session.pricePerClient)) {
+        slot.prices.push(Number(session.pricePerClient));
+      }
+      map.set(session.time, slot);
+    }
+    const out: Record<string, string> = {};
+    for (const [time, info] of map.entries()) {
+      const parts: string[] = [];
+      if (info.seats > 0) {
+        parts.push(`мест: ${info.seats}`);
+      }
+      if (info.prices.length > 0) {
+        const minPrice = Math.min(...info.prices);
+        parts.push(`от ${formatMoneyRub(minPrice)}`);
+      }
+      if (parts.length > 0) {
+        out[time] = parts.join(" · ");
+      }
+    }
+    return out;
+  }, [isGroupService, groupSessionsForDate]);
 
   const isCalendarWindowTransitioning = !isDateFirst && loadingCalendar;
-  const isTimesPanelLoading = isDateFirst
+  const isTimesPanelLoading = isGroupService
+    ? groupSessionsLoading
+    : isDateFirst
     ? loadingOffers
     : isCalendarWindowTransitioning && availableTimesForCurrentStep.length === 0;
   const isStepLoadingOverlay =
@@ -3167,7 +3495,7 @@ export default function BookingClient({
     (currentStepKey === "service" && loadingServices) ||
     (currentStepKey === "specialist" &&
       (loadingSpecialists || loadingWorkdaySpecs || loadingDateFirstServiceSlots || loadingSinglePlanSpecialists)) ||
-    (currentStepKey === "datetime" && isTimesPanelLoading);
+    (currentStepKey === "datetime" && (isTimesPanelLoading || groupAvailabilityLoading));
   const shouldShowFullscreenLoaderOverlay =
     Boolean(effectiveInlineLoader?.showBookingInline) &&
     (((overlayNextDeadline !== null) && isStepLoadingOverlay) ||
@@ -3229,6 +3557,15 @@ export default function BookingClient({
       return specialists.filter((s) => set.has(s.id));
     }
 
+    if (isGroupService) {
+      const sessions = groupSessionsForDate;
+      if (!sessions.length) return [];
+      const filtered = timeChoice ? sessions.filter((s) => s.time === timeChoice) : sessions;
+      const ids = filtered.map((s) => s.specialistId);
+      const set = new Set(ids);
+      return specialists.filter((s) => set.has(s.id));
+    }
+
     if (!selectedServiceIds.length || !dateYmd || !timeChoice) return [];
 
     if (isDateFirst) {
@@ -3244,6 +3581,8 @@ export default function BookingClient({
     return specialists.filter((s) => set.has(s.id));
   }, [
     isSpecialistFirst,
+    isGroupService,
+    groupSessionsForDate,
     isDateFirst,
     specialists,
     workdaySpecialistIds,
@@ -3481,7 +3820,11 @@ export default function BookingClient({
   };
   const phoneNormalized = normalizeRuPhone(clientPhone.trim());
   const phoneReady = Boolean(phoneNormalized) && isRuPhoneValid(clientPhone);
-  const timeSelectionReady = isVisitPlanMode ? chainComplete : !!specialistId && !!timeChoice;
+  const timeSelectionReady = isGroupService
+    ? !!timeChoice && !!selectedGroupSessionId
+    : isVisitPlanMode
+      ? chainComplete
+      : !!specialistId && !!timeChoice;
 
   const requiredLegalDocs = useMemo(
     () => legalDocs.filter((doc) => doc.isRequired),
@@ -3508,6 +3851,9 @@ export default function BookingClient({
             ? "Выберите специалиста и время для всех услуг."
             : "Выберите специалиста и время.",
       ];
+    }
+    if (isGroupService && !selectedGroupSessionId) {
+      return ["Выберите групповой сеанс."];
     }
 
     if (currentStepKey !== "details") {
@@ -3540,10 +3886,17 @@ export default function BookingClient({
     isChainMode,
     isVisitPlanMode,
     currentStepKey,
+    isGroupService,
+    selectedGroupSessionId,
     nameReady,
     phoneReady,
     missingRequiredLegalDocs,
   ]);
+
+  const groupAlreadyBooked = useMemo(() => {
+    if (!isGroupService || !selectedGroupSessionId) return false;
+    return groupBookedIds.includes(selectedGroupSessionId);
+  }, [groupBookedIds, isGroupService, selectedGroupSessionId]);
 
   const canSubmit = submitBlockingReasons.length === 0;
 
@@ -3569,8 +3922,10 @@ export default function BookingClient({
       case "location":
         return !!locationId;
       case "datetime":
-        return !!timeChoice;
+        if (isDateFirst && selectedServiceIds.length === 0) return true;
+        return isGroupService ? !!selectedGroupSessionId : !!timeChoice;
       case "service":
+        if (isDateFirst && isGroupService && !timeChoice) return true;
         return selectedServiceIds.length > 0;
       case "specialist":
         if (!specialistId) return false;
@@ -3592,12 +3947,19 @@ export default function BookingClient({
     selectedServiceIds,
     specialistId,
     timeChoice,
+    isGroupService,
+    isDateFirst,
+    selectedGroupSessionId,
     chainComplete,
     isSingleSpecialistPlanMode,
     singlePlanEligibleSpecialistIds,
   ]);
 
   const goNext = () => {
+    if (currentStepKey === "service" && isDateFirst && isGroupService && !timeChoice) {
+      setPendingStepKey("datetime");
+      return;
+    }
     setOverlayNextDeadline(Date.now() + 900);
     setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
   };
@@ -3718,6 +4080,7 @@ export default function BookingClient({
     setServiceIds([]);
     setSpecialistId(null);
     setTimeChoice(null);
+    setSelectedGroupSessionId(null);
     setClientName(defaults.name);
     setClientPhone(defaults.phone);
     setClientEmail(defaults.email);
@@ -3740,6 +4103,51 @@ export default function BookingClient({
   };
 
   const submitAppointment = async () => {
+    if (isGroupService) {
+      if (!canSubmit) {
+        setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
+        return;
+      }
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        const { participantId } = await fetchJson<{ participantId: number }>(
+          buildUrl(`/api/v1/public/booking/group-sessions/${selectedGroupSessionId}/book`, {
+            account: accountSlug ?? "",
+          }),
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": getIdempotencyKey(),
+            },
+            body: JSON.stringify({
+              clientName: clientName.trim(),
+              clientPhone: clientPhone.trim(),
+              clientEmail: clientEmail.trim() || undefined,
+              legalVersionIds: Object.entries(legalConsents)
+                .filter(([, checked]) => checked)
+                .map(([id]) => Number(id)),
+            }),
+          }
+        );
+        logBookingStep({
+          stepKey: "completed",
+          stepIndex: stepsWithScenario.length,
+          stepTitle: "Завершено записью",
+          payload: { participantId, groupSessionId: selectedGroupSessionId },
+        });
+        setSubmitSuccess(true);
+        markGroupSessionBooked(selectedGroupSessionId);
+        idempotencyKeyRef.current = null;
+      } catch (error) {
+        setSubmitError(humanizeBookingError(error));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     if (!canSubmit) {
       setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
       return;
@@ -4171,7 +4579,11 @@ export default function BookingClient({
                       timeZone={accountTz}
                       disabledBeforeYmd={todayYmdTz}
                       availableDates={
-                        isDateFirst ? dateFirstAvailableDates : calendarAvailableDates
+                        isGroupService
+                          ? groupSessionAvailableDates
+                          : isDateFirst
+                            ? dateFirstAvailableDates
+                            : calendarAvailableDates
                       }
                       onViewMonthChange={(monthStart) => {
                         setCalendarViewMonthStart((prev) =>
@@ -4196,6 +4608,12 @@ export default function BookingClient({
                         {calendarError && <div className="text-sm text-red-600">{calendarError}</div>}
                       </>
                     )}
+                    {isGroupService && groupAvailabilityError && (
+                      <div className="text-sm text-red-600">{groupAvailabilityError}</div>
+                    )}
+                    {isGroupService && groupSessionsError && (
+                      <div className="text-sm text-red-600">{groupSessionsError}</div>
+                    )}
 
                     {((isDateFirst) ||
                       (isServiceFirst && selectedServiceIds.length > 0) ||
@@ -4213,6 +4631,7 @@ export default function BookingClient({
                             selected={timeChoice}
                             timeBucket={timeBucket}
                             onBucket={setTimeBucket}
+                            metaByTime={isGroupService ? groupTimeMeta ?? undefined : undefined}
                             onSelect={(t) => {
                               if (isPastTimeOnDate(dateYmd, t, nowTz)) return;
                               const changed = t !== timeChoice;
@@ -4221,6 +4640,18 @@ export default function BookingClient({
 
                               setSubmitError(null);
                               setSubmitSuccess(false);
+
+                              if (isGroupService) {
+                                const session =
+                                  groupSessionsForDate.find((s) => s.time === t && (!specialistId || s.specialistId === specialistId)) ??
+                                  groupSessionsForDate.find((s) => s.time === t) ??
+                                  null;
+                                setSelectedGroupSessionId(session?.id ?? null);
+                                if (session?.specialistId && session.specialistId !== specialistId) {
+                                  setSpecialistId(session.specialistId);
+                                }
+                                return;
+                              }
 
                               if (isVisitPlanMode && chainPrimaryServiceId) {
                                 if (isSingleSpecialistPlanMode && !specialistId) {
@@ -5044,6 +5475,11 @@ export default function BookingClient({
               {submitError && <div className="text-sm text-red-600">{submitError}</div>}
               {submitSuccess && (
                 <div className="text-sm text-green-700">Запись оформлена</div>
+              )}
+              {groupAlreadyBooked && !submitSuccess && (
+                <div className="text-xs text-amber-600">
+                  Вы уже бронировали этот групповой сеанс с этого устройства.
+                </div>
               )}
 
               <button

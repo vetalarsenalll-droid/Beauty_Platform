@@ -106,6 +106,26 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     | null = null;
   let appointments: Array<{
     id: number;
+    uid: string;
+    entityType: "APPOINTMENT" | "GROUP_SESSION";
+    startAt: Date;
+    endAt: Date;
+    status: string;
+    priceTotal: number | null;
+    durationTotalMin: number | null;
+    locationName: string;
+    locationAddress: string | null;
+    specialistName: string | null;
+    servicesLabel: string | null;
+    accountName: string | null;
+    accountSlug: string | null;
+    accountTimeZone: string;
+    cancellationWindowHours: number | null;
+  }> = [];
+  let groupSessions: Array<{
+    id: number;
+    uid: string;
+    entityType: "APPOINTMENT" | "GROUP_SESSION";
     startAt: Date;
     endAt: Date;
     status: string;
@@ -206,7 +226,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
         email: account.profile?.email ?? null,
       };
 
-      const [client, appointmentRows, wallet, paymentIntents, paymentTransactions, acceptances, reviewRows] =
+      const [client, appointmentRows, groupRows, wallet, paymentIntents, paymentTransactions, acceptances, reviewRows] =
         await Promise.all([
           prisma.client.findFirst({
             where: { id: selectedClient.clientId, accountId: account.id },
@@ -234,6 +254,39 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
                 },
               },
               services: { select: { service: { select: { name: true } } } },
+            },
+          }),
+          prisma.groupSessionParticipant.findMany({
+            where: {
+              clientId: selectedClient.clientId,
+              groupSession: { accountId: account.id },
+            },
+            orderBy: { groupSession: { startAt: "desc" } },
+            take: 50,
+            select: {
+              id: true,
+              status: true,
+              price: true,
+              groupSession: {
+                select: {
+                  id: true,
+                  startAt: true,
+                  endAt: true,
+                  status: true,
+                  pricePerClient: true,
+                  location: { select: { name: true, address: true } },
+                  specialist: {
+                    select: {
+                      user: {
+                        select: {
+                          profile: { select: { firstName: true, lastName: true } },
+                        },
+                      },
+                    },
+                  },
+                  service: { select: { name: true, baseDurationMin: true } },
+                },
+              },
             },
           }),
           prisma.loyaltyWallet.findUnique({
@@ -291,6 +344,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           .join(", ");
         return {
           id: item.id,
+          uid: `appt-${item.id}`,
+          entityType: "APPOINTMENT",
           startAt: item.startAt,
           endAt: item.endAt,
           status: item.status,
@@ -304,6 +359,33 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           accountSlug: account.slug,
           accountTimeZone: account.timeZone,
           cancellationWindowHours: account.settings?.cancellationWindowHours ?? null,
+        };
+      });
+
+      groupSessions = groupRows.map((item) => {
+        const specialistName = `${item.groupSession.specialist?.user?.profile?.firstName ?? ""} ${
+          item.groupSession.specialist?.user?.profile?.lastName ?? ""
+        }`.trim();
+        const serviceName = item.groupSession.service?.name ?? null;
+        const status =
+          item.groupSession.status === "CANCELLED" ? "CANCELLED" : item.status;
+        return {
+          id: item.id,
+          uid: `group-${item.id}`,
+          entityType: "GROUP_SESSION",
+          startAt: item.groupSession.startAt,
+          endAt: item.groupSession.endAt,
+          status,
+          priceTotal: item.price ? Number(item.price) : item.groupSession.pricePerClient ? Number(item.groupSession.pricePerClient) : null,
+          durationTotalMin: item.groupSession.service?.baseDurationMin ?? null,
+          locationName: item.groupSession.location?.name ?? "Локация",
+          locationAddress: item.groupSession.location?.address ?? null,
+          specialistName: specialistName || null,
+          servicesLabel: serviceName ? `${serviceName} (групповая)` : "Групповая запись",
+          accountName: account.name,
+          accountSlug: account.slug,
+          accountTimeZone: account.timeZone,
+          cancellationWindowHours: null,
         };
       });
 
@@ -368,7 +450,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       clientId: client.clientId,
     }));
 
-    const [appointmentRows, wallets, paymentIntents, paymentTransactions, acceptances, reviewRows] =
+    const [appointmentRows, groupRows, wallets, paymentIntents, paymentTransactions, acceptances, reviewRows] =
       await Promise.all([
         prisma.appointment.findMany({
           where: { OR: clientPairs },
@@ -393,6 +475,37 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
               },
             },
             services: { select: { service: { select: { name: true } } } },
+          },
+        }),
+        prisma.groupSessionParticipant.findMany({
+          where: { clientId: { in: session.clients.map((client) => client.clientId) } },
+          orderBy: { groupSession: { startAt: "desc" } },
+          take: 50,
+          select: {
+            id: true,
+            status: true,
+            price: true,
+            groupSession: {
+              select: {
+                id: true,
+                accountId: true,
+                startAt: true,
+                endAt: true,
+                status: true,
+                pricePerClient: true,
+                location: { select: { name: true, address: true } },
+                specialist: {
+                  select: {
+                    user: {
+                      select: {
+                        profile: { select: { firstName: true, lastName: true } },
+                      },
+                    },
+                  },
+                },
+                service: { select: { name: true, baseDurationMin: true } },
+              },
+            },
           },
         }),
         prisma.loyaltyWallet.findMany({
@@ -449,6 +562,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
         .join(", ");
       return {
         id: item.id,
+        uid: `appt-${item.id}`,
+        entityType: "APPOINTMENT",
         startAt: item.startAt,
         endAt: item.endAt,
         status: item.status,
@@ -462,6 +577,34 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
         accountSlug: account?.slug ?? null,
         accountTimeZone: account?.timeZone ?? "Europe/Moscow",
         cancellationWindowHours: account?.settings?.cancellationWindowHours ?? null,
+      };
+    });
+
+    groupSessions = groupRows.map((item) => {
+      const account = accountByIdLocal.get(item.groupSession.accountId);
+      const specialistName = `${item.groupSession.specialist?.user?.profile?.firstName ?? ""} ${
+        item.groupSession.specialist?.user?.profile?.lastName ?? ""
+      }`.trim();
+      const serviceName = item.groupSession.service?.name ?? null;
+      const status =
+        item.groupSession.status === "CANCELLED" ? "CANCELLED" : item.status;
+      return {
+        id: item.id,
+        uid: `group-${item.id}`,
+        entityType: "GROUP_SESSION",
+        startAt: item.groupSession.startAt,
+        endAt: item.groupSession.endAt,
+        status,
+        priceTotal: item.price ? Number(item.price) : item.groupSession.pricePerClient ? Number(item.groupSession.pricePerClient) : null,
+        durationTotalMin: item.groupSession.service?.baseDurationMin ?? null,
+        locationName: item.groupSession.location?.name ?? "Локация",
+        locationAddress: item.groupSession.location?.address ?? null,
+        specialistName: specialistName || null,
+        servicesLabel: serviceName ? `${serviceName} (групповая)` : "Групповая запись",
+        accountName: account?.name ?? null,
+        accountSlug: account?.slug ?? null,
+        accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+        cancellationWindowHours: null,
       };
     });
 
@@ -541,8 +684,10 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     });
   }
 
+  const records = [...appointments, ...groupSessions];
+
   const visitedAccountSlugs = new Set(
-    appointments.map((item) => item.accountSlug).filter(Boolean) as string[]
+    records.map((item) => item.accountSlug).filter(Boolean) as string[]
   );
   const organizations = accountRecords
     .filter((acc) => visitedAccountSlugs.has(acc.slug))
@@ -574,7 +719,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
   } as CSSProperties;
 
   const now = new Date();
-  const upcoming = appointments
+  const upcoming = records
     .filter((item) => item.startAt > now)
     .sort((a, b) => a.startAt.getTime() - b.startAt.getTime())
     .map((item) => {
@@ -589,6 +734,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
 
       return {
         id: item.id,
+        uid: item.uid,
+        entityType: item.entityType,
         status: item.status,
         statusLabel: statusMeta.label,
         statusTone: statusMeta.tone,
@@ -603,19 +750,22 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
         locationAddress: item.locationAddress,
         specialistName: item.specialistName,
         servicesLabel: item.servicesLabel,
-        canCancel,
+        canCancel: item.entityType === "APPOINTMENT" ? canCancel : false,
         accountName: item.accountName,
         accountSlug: item.accountSlug,
         startAtIso: item.startAt.toISOString(),
       };
     });
 
-  const history = appointments
+  const history = records
     .filter((item) => item.startAt <= now)
+    .sort((a, b) => b.startAt.getTime() - a.startAt.getTime())
     .map((item) => {
       const statusMeta = statusLabelMap[item.status] ?? { label: "Статус", tone: "neutral" };
       return {
         id: item.id,
+        uid: item.uid,
+        entityType: item.entityType,
         status: item.status,
         statusLabel: statusMeta.label,
         statusTone: statusMeta.tone,
@@ -638,7 +788,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     });
 
   const bookLink = accountData ? `/${buildPublicSlugId(accountData.slug, accountData.id)}/booking` : "/";
-  const accountTimeZone = accountData?.timeZone ?? appointments[0]?.accountTimeZone ?? "Europe/Moscow";
+  const accountTimeZone = accountData?.timeZone ?? records[0]?.accountTimeZone ?? "Europe/Moscow";
 
   return (
     <main className="min-h-screen" style={pageStyle}>

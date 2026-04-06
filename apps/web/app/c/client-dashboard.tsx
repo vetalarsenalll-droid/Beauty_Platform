@@ -7,6 +7,8 @@ import ClientReviewForm from "./client-review-form";
 
 type AppointmentCard = {
   id: number;
+  uid: string;
+  entityType: "APPOINTMENT" | "GROUP_SESSION";
   status: string;
   statusLabel: string;
   statusTone: string;

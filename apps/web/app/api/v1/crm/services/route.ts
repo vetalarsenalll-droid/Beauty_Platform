@@ -11,6 +11,8 @@ type DbService = {
   baseDurationMin: number;
   basePrice: Prisma.Decimal;
   allowMultiServiceBooking: boolean;
+  bookingType: string;
+  groupCapacityDefault: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -25,6 +27,8 @@ function mapService(service: DbService) {
     baseDurationMin: service.baseDurationMin,
     basePrice: service.basePrice.toString(),
     allowMultiServiceBooking: service.allowMultiServiceBooking,
+    bookingType: service.bookingType,
+    groupCapacityDefault: service.groupCapacityDefault,
     isActive: service.isActive,
     category: service.category
       ? { id: service.category.id, name: service.category.name }
@@ -76,6 +80,29 @@ export async function POST(request: Request) {
     body.allowMultiServiceBooking !== undefined
       ? Boolean(body.allowMultiServiceBooking)
       : false;
+  const bookingType = String(body.bookingType ?? "SINGLE").toUpperCase();
+  const groupCapacityDefaultRaw =
+    body.groupCapacityDefault !== undefined && body.groupCapacityDefault !== null && body.groupCapacityDefault !== ""
+      ? Number(body.groupCapacityDefault)
+      : null;
+
+  if (bookingType !== "SINGLE" && bookingType !== "GROUP") {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Некорректный тип записи.",
+      { fields: [{ path: "bookingType", issue: "invalid" }] },
+      400
+    );
+  }
+
+  if (groupCapacityDefaultRaw !== null && !Number.isInteger(groupCapacityDefaultRaw)) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Некорректное количество мест.",
+      { fields: [{ path: "groupCapacityDefault", issue: "invalid" }] },
+      400
+    );
+  }
 
   if (!name || !Number.isInteger(baseDurationMin)) {
     return jsonError(
@@ -131,6 +158,8 @@ export async function POST(request: Request) {
       basePrice,
       isActive,
       allowMultiServiceBooking,
+      bookingType,
+      groupCapacityDefault: groupCapacityDefaultRaw,
     },
     include: { category: true },
   });
@@ -149,6 +178,8 @@ export async function POST(request: Request) {
       categoryId,
       isActive,
       allowMultiServiceBooking,
+      bookingType,
+      groupCapacityDefault: groupCapacityDefaultRaw,
     },
   });
 

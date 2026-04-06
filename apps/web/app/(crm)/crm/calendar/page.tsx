@@ -40,6 +40,7 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
     locations,
     clients,
     appointments,
+    groupSessions,
     services,
     scheduleEntries,
   ] = await Promise.all([
@@ -79,6 +80,27 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
         location: true,
         specialist: { include: { user: { include: { profile: true } } } },
         services: { include: { service: true } },
+      },
+      orderBy: { startAt: "asc" },
+    }),
+    prisma.groupSession.findMany({
+      where: {
+        accountId: session.accountId,
+        startAt: { lt: monthEnd },
+        endAt: { gt: monthStart },
+      },
+      include: {
+        service: true,
+        participants: {
+          select: {
+            id: true,
+            clientId: true,
+            status: true,
+            client: {
+              select: { firstName: true, lastName: true, phone: true, email: true },
+            },
+          },
+        },
       },
       orderBy: { startAt: "asc" },
     }),
@@ -189,6 +211,8 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
           id: service.id,
           name: service.name,
           allowMultiServiceBooking: service.allowMultiServiceBooking,
+          bookingType: service.bookingType,
+          groupCapacityDefault: service.groupCapacityDefault,
           basePrice: service.basePrice.toString(),
           baseDurationMin: service.baseDurationMin,
           locationIds: service.locations.map((item) => item.locationId),
@@ -218,6 +242,33 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
           })),
         }))}
         appointments={appointmentItems}
+        groupSessions={groupSessions.map((session) => ({
+          id: session.id,
+          specialistId: session.specialistId,
+          locationId: session.locationId,
+          serviceId: session.serviceId,
+          serviceName: session.service.name,
+          startAt: session.startAt.toISOString(),
+          endAt: session.endAt.toISOString(),
+          status: session.status,
+          capacity: session.capacity,
+          bookedCount: session.bookedCount,
+          pricePerClient: session.pricePerClient ? session.pricePerClient.toString() : null,
+          comment: session.comment ?? "",
+          participants: session.participants.map((participant) => {
+            const firstName = participant.client?.firstName ?? "";
+            const lastName = participant.client?.lastName ?? "";
+            const fullName = `${firstName} ${lastName}`.trim();
+            return {
+              id: participant.id,
+              clientId: participant.clientId,
+              status: participant.status,
+              clientName: fullName || participant.client?.phone || "Без имени",
+              clientPhone: participant.client?.phone ?? null,
+              clientEmail: participant.client?.email ?? null,
+            };
+          }),
+        }))}
       />
     </div>
   );

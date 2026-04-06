@@ -158,6 +158,7 @@ export async function GET(request: Request) {
     },
     select: {
       id: true,
+      bookingType: true,
       baseDurationMin: true,
       specialists: { select: { specialistId: true, durationOverrideMin: true } },
       levelConfigs: { select: { levelId: true, durationMin: true } },
@@ -166,6 +167,10 @@ export async function GET(request: Request) {
 
   if (services.length !== selectedServiceIds.length) {
     return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
+  }
+
+  if (services.some((service) => service.bookingType === "GROUP")) {
+    return jsonOk({ start: safeStart, days: [] });
   }
 
   const specialists = await prisma.specialistProfile.findMany({
@@ -187,7 +192,7 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
-  const [scheduleEntries, appointments, blockedSlots, holds] = await Promise.all([
+  const [scheduleEntries, appointments, groupSessions, blockedSlots, holds] = await Promise.all([
     // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
     prisma.scheduleEntry.findMany({
       where: {
@@ -207,6 +212,17 @@ export async function GET(request: Request) {
         startAt: { lt: rangeEndUtc },
         endAt: { gt: rangeStartUtc },
         status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      },
+      select: { specialistId: true, startAt: true, endAt: true },
+    }),
+    prisma.groupSession.findMany({
+      where: {
+        accountId: resolved.account.id,
+        locationId,
+        specialistId: { in: specialistIds },
+        startAt: { lt: rangeEndUtc },
+        endAt: { gt: rangeStartUtc },
+        status: { not: "CANCELLED" },
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),
@@ -251,6 +267,16 @@ export async function GET(request: Request) {
     list.push({
       start: toZonedLocalMinutes(appt.startAt, tz),
       end: toZonedLocalMinutes(appt.endAt, tz),
+    });
+    apptBySpDay.set(key, list);
+  }
+  for (const session of groupSessions) {
+    const ymd = ymdInTz(session.startAt, tz);
+    const key = `${session.specialistId}:${ymd}`;
+    const list = apptBySpDay.get(key) ?? [];
+    list.push({
+      start: toZonedLocalMinutes(session.startAt, tz),
+      end: toZonedLocalMinutes(session.endAt, tz),
     });
     apptBySpDay.set(key, list);
   }

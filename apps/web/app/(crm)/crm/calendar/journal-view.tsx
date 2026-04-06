@@ -60,6 +60,29 @@ type JournalAppointment = {
   comment?: string;
 };
 
+type GroupSessionItem = {
+  id: number;
+  specialistId: number;
+  locationId: number;
+  serviceId: number;
+  serviceName: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  capacity: number;
+  bookedCount: number;
+  pricePerClient: string | null;
+  comment?: string;
+  participants: Array<{
+    id: number;
+    clientId: number;
+    status: string;
+    clientName: string;
+    clientPhone: string | null;
+    clientEmail: string | null;
+  }>;
+};
+
 type EditorServiceItem = {
   serviceId: number | null;
   price: string;
@@ -81,6 +104,8 @@ type ServiceOption = {
   id: number;
   name: string;
   allowMultiServiceBooking: boolean;
+  bookingType?: "SINGLE" | "GROUP";
+  groupCapacityDefault?: number | null;
   basePrice: string;
   baseDurationMin: number;
   locationIds: number[];
@@ -106,6 +131,7 @@ type JournalViewProps = {
   services: ServiceOption[];
   scheduleEntries: ScheduleEntry[];
   appointments: JournalAppointment[];
+  groupSessions: GroupSessionItem[];
 };
 
 const SLOT_MINUTES = 15;
@@ -383,7 +409,8 @@ type SlotSelection = {
 
 type EditorState =
   | { mode: "new"; slot: SlotSelection }
-  | { mode: "edit"; appointment: JournalAppointment };
+  | { mode: "edit"; appointment: JournalAppointment }
+  | { mode: "edit-group"; session: GroupSessionItem };
 
 type EditorForm = {
   staffId: number;
@@ -405,6 +432,19 @@ type EditorForm = {
   clientPhone: string;
   clientEmail: string;
   comment: string;
+  bookingType: "SINGLE" | "GROUP";
+  groupSessionId: number | null;
+  capacity: number;
+  bookedCount: number;
+  pricePerClient: string;
+  participants: Array<{
+    id: number;
+    clientId: number;
+    status: string;
+    clientName: string;
+    clientPhone: string | null;
+    clientEmail: string | null;
+  }>;
 };
 
 export default function JournalView({
@@ -416,10 +456,12 @@ export default function JournalView({
   services,
   scheduleEntries,
   appointments,
+  groupSessions,
 }: JournalViewProps) {
   const router = useRouter();
 
   const [appointmentItems, setAppointmentItems] = useState(appointments);
+  const [groupSessionItems, setGroupSessionItems] = useState(groupSessions);
 
   const [currentDate, setCurrentDate] = useState(() =>
     startOfDay(parseYmdLocal(initialDate) ?? new Date())
@@ -456,6 +498,8 @@ export default function JournalView({
   } | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
+  const [participantUpdatingId, setParticipantUpdatingId] = useState<number | null>(null);
+  const [participantUpdateError, setParticipantUpdateError] = useState<string | null>(null);
   const [noticeModal, setNoticeModal] = useState<{ title: string; message: string } | null>(null);
   const [confirmTransfer, setConfirmTransfer] = useState<{
     title: string;
@@ -623,6 +667,10 @@ export default function JournalView({
     setAppointmentItems(appointments);
   }, [appointments]);
 
+  useEffect(() => {
+    setGroupSessionItems(groupSessions);
+  }, [groupSessions]);
+
   // ✅ если текущая локация стала невалидной — берем первую
   useEffect(() => {
     if (!locations.some((l) => l.id === selectedLocationId)) {
@@ -664,8 +712,14 @@ export default function JournalView({
         clientPhone: "",
         clientEmail: "",
         comment: "",
+        bookingType: "SINGLE",
+        groupSessionId: null,
+        capacity: 0,
+        bookedCount: 0,
+        pricePerClient: "",
+        participants: [],
       });
-    } else {
+    } else if (editorState.mode === "edit") {
       const appointment = editorState.appointment;
       const startAt = new Date(appointment.startAt);
       const endAt = new Date(appointment.endAt);
@@ -712,10 +766,47 @@ export default function JournalView({
         clientPhone: appointment.clientPhone ?? "",
         clientEmail: appointment.clientEmail ?? "",
         comment: appointment.comment ?? "",
+        bookingType: "SINGLE",
+        groupSessionId: null,
+        capacity: 0,
+        bookedCount: 0,
+        pricePerClient: "",
+        participants: [],
       });
       if (pendingDragUpdate?.appointmentId === appointment.id) {
         setPendingDragUpdate(null);
       }
+    } else {
+      const session = editorState.session;
+      const startAt = new Date(session.startAt);
+      const endAt = new Date(session.endAt);
+      setEditorForm({
+        staffId: session.specialistId,
+        locationId: session.locationId,
+        clientId: null,
+        date: formatDateInput(startAt),
+        startTime: formatTimeInput(startAt),
+        endTime: formatTimeInput(endAt),
+        status: session.status,
+        serviceId: session.serviceId,
+        serviceName: session.serviceName,
+        serviceItems: [{ serviceId: session.serviceId, price: "0", durationMin: 0 }],
+        serviceIds: [session.serviceId],
+        serviceNames: [session.serviceName],
+        serviceChanged: false,
+        priceTotal: "0",
+        durationMin: Math.max(0, Math.round((endAt.getTime() - startAt.getTime()) / (60 * 1000))),
+        clientName: "",
+        clientPhone: "",
+        clientEmail: "",
+        comment: session.comment ?? "",
+        bookingType: "GROUP",
+        groupSessionId: session.id,
+        capacity: session.capacity,
+        bookedCount: session.bookedCount,
+        pricePerClient: session.pricePerClient ?? "",
+        participants: session.participants ?? [],
+      });
     }
   }, [editorState, locations, pendingDragUpdate, selectedLocationId]);
 
@@ -956,8 +1047,19 @@ export default function JournalView({
       list.push({ start, end });
       map.set(key, list);
     });
+    groupSessionItems.forEach((item) => {
+      if (item.status === "CANCELLED") return;
+      const dayKey = item.startAt.slice(0, 10);
+      const start = parseTimeToMinutes(item.startAt.slice(11, 16));
+      const end = parseTimeToMinutes(item.endAt.slice(11, 16));
+      if (start === null || end === null) return;
+      const key = `${item.specialistId}:${item.locationId}:${dayKey}`;
+      const list = map.get(key) ?? [];
+      list.push({ start, end });
+      map.set(key, list);
+    });
     return map;
-  }, [appointmentItems, blockedAppointmentStatuses]);
+  }, [appointmentItems, blockedAppointmentStatuses, groupSessionItems]);
 
   const isSlotWorking = (
     entry: ScheduleEntry | undefined,
@@ -1118,6 +1220,47 @@ export default function JournalView({
     selectedLocationId,
   ]);
 
+  const filteredGroupSessions = useMemo(() => {
+    const search = searchQuery.trim().toLowerCase();
+    return groupSessionItems.filter((session) => {
+      if (selectedLocationId && session.locationId !== selectedLocationId) {
+        return false;
+      }
+
+      const start = new Date(session.startAt);
+
+      if (viewMode === "day") {
+        if (!isSameDay(start, currentDate)) return false;
+      } else {
+        const endOfWeek = addDays(weekStart, 6);
+        if (start < weekStart || start > endOfWeek) return false;
+        if (selectedStaffId && session.specialistId !== selectedStaffId) {
+          return false;
+        }
+      }
+
+      if (statusFilter.length > 0 && !statusFilter.includes(session.status)) {
+        return false;
+      }
+
+      if (search) {
+        const hay = `${session.serviceName ?? ""}`.toLowerCase();
+        if (!hay.includes(search)) return false;
+      }
+
+      return true;
+    });
+  }, [
+    groupSessionItems,
+    currentDate,
+    searchQuery,
+    selectedStaffId,
+    statusFilter,
+    viewMode,
+    weekStart,
+    selectedLocationId,
+  ]);
+
   const monthMatrix = useMemo(
     () => buildMonthMatrix(currentDate),
     [currentDate]
@@ -1169,6 +1312,36 @@ export default function JournalView({
     });
   }, [dayStartMinutes, filteredAppointments, staffForLocation, viewMode, weekDays]);
 
+  const groupSessionCards = useMemo(() => {
+    return filteredGroupSessions.map((session) => {
+      const start = new Date(session.startAt);
+      const end = new Date(session.endAt);
+
+      const dayIndex = weekDays.findIndex((day) => isSameDay(day, start));
+      const columnIndex =
+        viewMode === "day"
+          ? staffForLocation.findIndex((item) => item.id === session.specialistId)
+          : dayIndex;
+
+      if (columnIndex === -1) return null;
+
+      const rawSlotIndex =
+        (start.getHours() * 60 + start.getMinutes() - dayStartMinutes) / SLOT_MINUTES;
+      const slotIndex = Math.max(0, Math.floor(rawSlotIndex));
+      const durationMinutes = (end.getTime() - start.getTime()) / (60 * 1000);
+
+      const statusMeta = STATUS_META[session.status] ?? STATUS_META.NEW;
+
+      return {
+        session,
+        gridColumn: columnIndex + 2,
+        gridRowStart: slotIndex + 1,
+        durationMinutes,
+        statusMeta,
+      };
+    });
+  }, [dayStartMinutes, filteredGroupSessions, staffForLocation, viewMode, weekDays]);
+
   const availableServices = useMemo(() => {
     if (!editorForm) return [];
     const staffItem = staff.find((item) => item.id === editorForm.staffId);
@@ -1219,6 +1392,15 @@ export default function JournalView({
             return item.startAt.slice(0, 10) === dayKey;
           })
         : [];
+    const groupSessionsForSlot =
+      dayKey && editorForm.staffId
+        ? groupSessionItems.filter((item) => {
+            if (item.specialistId !== editorForm.staffId) return false;
+            if (item.locationId !== editorForm.locationId) return false;
+            if (item.status === "CANCELLED") return false;
+            return item.startAt.slice(0, 10) === dayKey;
+          })
+        : [];
 
     const breakStarts = scheduleEntry?.breaks
       ?.map((br) => parseTimeToMinutes(br.startTime))
@@ -1237,6 +1419,22 @@ export default function JournalView({
         if (apptStart > startMinutes) {
           nextBlockStart =
             nextBlockStart === null ? apptStart : Math.min(nextBlockStart, apptStart);
+        }
+      }
+
+      if (nextBlockStart === null) {
+        for (const session of groupSessionsForSlot) {
+          const sessionStart = parseTimeToMinutes(session.startAt.slice(11, 16));
+          const sessionEnd = parseTimeToMinutes(session.endAt.slice(11, 16));
+          if (sessionStart === null || sessionEnd === null) continue;
+          if (sessionStart <= startMinutes && sessionEnd > startMinutes) {
+            nextBlockStart = startMinutes;
+            break;
+          }
+          if (sessionStart > startMinutes) {
+            nextBlockStart =
+              nextBlockStart === null ? sessionStart : Math.min(nextBlockStart, sessionStart);
+          }
         }
       }
 
@@ -1268,9 +1466,11 @@ export default function JournalView({
         ? Math.max(0, effectiveEnd - windowStart)
         : null;
 
+    const allowGroup = editorForm.bookingType === "GROUP";
     return services
       .filter(
         (service) =>
+          (allowGroup ? service.bookingType === "GROUP" : service.bookingType !== "GROUP") &&
           service.locationIds.includes(editorForm.locationId) &&
           service.specialistIds.includes(editorForm.staffId)
       )
@@ -1301,7 +1501,7 @@ export default function JournalView({
         if (!Number.isFinite(duration) || duration <= 0) return false;
         return duration <= remainingMinutes;
       });
-  }, [editorForm, services, staff, locations, scheduleEntries, appointmentItems]);
+  }, [editorForm, services, staff, locations, scheduleEntries, appointmentItems, groupSessionItems]);
 
   const availableServiceById = useMemo(
     () => new Map(availableServices.map((service) => [service.id, service])),
@@ -1316,13 +1516,16 @@ export default function JournalView({
     editorForm?.serviceItems.some((item) => item.serviceId)
   );
   const canAddExtraService =
-    !hasAnyService || Boolean(firstServiceInForm?.allowMultiServiceBooking);
+    editorForm?.bookingType === "GROUP"
+      ? false
+      : !hasAnyService || Boolean(firstServiceInForm?.allowMultiServiceBooking);
   const serviceOptionsByRow = useCallback(
     (rowIndex: number) => {
       if (rowIndex === 0) return availableServices;
+      if (editorForm?.bookingType === "GROUP") return [];
       return availableServices.filter((service) => service.allowMultiServiceBooking);
     },
-    [availableServices]
+    [availableServices, editorForm?.bookingType]
   );
 
   const applyServicesToForm = useCallback((prev: EditorForm, nextItemsRaw: EditorServiceItem[]) => {
@@ -1360,6 +1563,18 @@ export default function JournalView({
       const value = Number(item.price);
       return sum + (Number.isFinite(value) ? value : 0);
     }, 0);
+    const defaultCapacity =
+      prev.bookingType === "GROUP"
+        ? availableServiceById.get(serviceIds[0] ?? 0)?.groupCapacityDefault ?? 0
+        : 0;
+    const nextPricePerClient =
+      prev.bookingType === "GROUP" && (!prev.pricePerClient || prev.pricePerClient === "0")
+        ? String(priceTotal)
+        : prev.pricePerClient;
+    const nextCapacity =
+      prev.bookingType === "GROUP" && prev.capacity <= 0 && defaultCapacity > 0
+        ? defaultCapacity
+        : prev.capacity;
 
     return {
       ...prev,
@@ -1372,20 +1587,28 @@ export default function JournalView({
       priceTotal: serviceIds.length > 0 ? String(priceTotal) : "0",
       durationMin: serviceIds.length > 0 ? durationMin : 0,
       endTime: serviceIds.length > 0 ? addMinutesToTime(prev.startTime, durationMin) : "",
+      pricePerClient: nextPricePerClient,
+      capacity: nextCapacity,
     };
   }, [availableServiceById]);
 
   useEffect(() => {
     if (!editorForm) return;
+    if (editorForm.bookingType === "GROUP" && editorState?.mode === "edit-group") return;
     const filtered = editorForm.serviceItems.filter(
       (item) => !item.serviceId || availableServiceById.has(item.serviceId)
     );
     if (filtered.length === editorForm.serviceItems.length) return;
     setEditorForm((prev) => (prev ? applyServicesToForm(prev, filtered) : prev));
-  }, [availableServiceById, editorForm, applyServicesToForm]);
+  }, [availableServiceById, editorForm, applyServicesToForm, editorState?.mode]);
 
   useEffect(() => {
     if (!editorForm) return;
+    if (editorForm.bookingType === "GROUP" && editorForm.serviceItems.length > 1) {
+      const nextItems = [editorForm.serviceItems[0]];
+      setEditorForm((prev) => (prev ? applyServicesToForm(prev, nextItems) : prev));
+      return;
+    }
     const firstServiceId = editorForm.serviceItems[0]?.serviceId ?? null;
     if (!firstServiceId) return;
     const firstService = availableServiceById.get(firstServiceId);
@@ -1470,6 +1693,10 @@ export default function JournalView({
 
   const handleAppointmentOpen = (appointment: JournalAppointment) => {
     setEditorState({ mode: "edit", appointment });
+  };
+
+  const handleGroupSessionOpen = (session: GroupSessionItem) => {
+    setEditorState({ mode: "edit-group", session });
   };
 
   const handleAppointmentDrop = async (
@@ -1605,14 +1832,21 @@ export default function JournalView({
   const handleEditorSave = async () => {
     if (!editorForm || !editorState) return;
     if (!editorForm.staffId || !editorForm.locationId) return;
-    if (
-      editorState.mode === "edit" &&
-      isTerminalAppointmentStatus(editorState.appointment.status)
-    ) {
+    if (editorState.mode === "edit" && isTerminalAppointmentStatus(editorState.appointment.status)) {
       setNoticeModal({
         title: "Редактирование недоступно",
         message:
           "Запись с финальным статусом (Завершен / Отменен / Не пришел) нельзя изменять.",
+      });
+      return;
+    }
+    if (
+      editorState.mode === "edit-group" &&
+      (editorForm.status === "DONE" || editorForm.status === "CANCELLED")
+    ) {
+      setNoticeModal({
+        title: "Редактирование недоступно",
+        message: "Групповой сеанс со статусом Завершен / Отменен нельзя изменять.",
       });
       return;
     }
@@ -1638,7 +1872,11 @@ export default function JournalView({
     }
 
     const originalStartDate =
-      editorState.mode === "edit" ? new Date(editorState.appointment.startAt) : null;
+      editorState.mode === "edit"
+        ? new Date(editorState.appointment.startAt)
+        : editorState.mode === "edit-group"
+        ? new Date(editorState.session.startAt)
+        : null;
     const originalStartDateKey =
       originalStartDate != null ? formatDateKey(originalStartDate) : null;
     const originalStartTime =
@@ -1651,6 +1889,21 @@ export default function JournalView({
           editorForm.staffId !== editorState.appointment.specialistId ||
           editorForm.locationId !== editorState.appointment.locationId ||
           editorForm.durationMin !== editorState.appointment.durationMin ||
+          editorForm.serviceChanged)) ||
+      (editorState.mode === "edit-group" &&
+        (editorForm.date !== originalStartDateKey ||
+          editorForm.startTime !== originalStartTime ||
+          editorForm.staffId !== editorState.session.specialistId ||
+          editorForm.locationId !== editorState.session.locationId ||
+          editorForm.durationMin !==
+            Math.max(
+              0,
+              Math.round(
+                (new Date(editorState.session.endAt).getTime() -
+                  new Date(editorState.session.startAt).getTime()) /
+                  (60 * 1000)
+              )
+            ) ||
           editorForm.serviceChanged));
 
     const slotsDuration =
@@ -1708,16 +1961,107 @@ export default function JournalView({
       });
       return;
     }
-    if (
-      !editorForm.clientId &&
-      !editorForm.clientName.trim() &&
-      !editorForm.clientPhone.trim()
-    ) {
-      return;
+    if (editorForm.bookingType !== "GROUP") {
+      if (
+        !editorForm.clientId &&
+        !editorForm.clientName.trim() &&
+        !editorForm.clientPhone.trim()
+      ) {
+        return;
+      }
     }
 
     const startAt = new Date(`${editorForm.date}T${editorForm.startTime}:00`);
     const endAt = new Date(`${editorForm.date}T${computedEndTime}:00`);
+
+    // GROUP_BRANCH_INSERTED
+    if (editorForm.bookingType === "GROUP") {
+      const groupServiceId =
+        editorForm.serviceIds[0] ??
+        editorForm.serviceId ??
+        (editorState?.mode === "edit-group" ? editorState.session.serviceId : null);
+      if (!groupServiceId) {
+        setNoticeModal({ title: "Не выбрана услуга", message: "Выберите групповую услугу." });
+        return;
+      }
+      if (!Number.isInteger(editorForm.capacity) || editorForm.capacity <= 0) {
+        setNoticeModal({ title: "Проверьте места", message: "Укажите корректное количество мест." });
+        return;
+      }
+      const groupPayload: Record<string, unknown> = {
+        specialistId: editorForm.staffId,
+        locationId: selectedLocationId || editorForm.locationId,
+        serviceId: groupServiceId,
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+        status: editorForm.status,
+        capacity: editorForm.capacity,
+        pricePerClient: editorForm.pricePerClient,
+        comment: editorForm.comment,
+      };
+      if (editorState?.mode === "new") {
+        const response = await fetch("/api/v1/crm/group-sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(groupPayload),
+        });
+        if (response.ok) {
+          const created = await response.json();
+          setGroupSessionItems((prev) => [
+            {
+              id: created.id,
+              specialistId: editorForm.staffId,
+              locationId: selectedLocationId || editorForm.locationId,
+              serviceId: groupServiceId,
+              serviceName: editorForm.serviceName,
+              startAt: startAt.toISOString(),
+              endAt: endAt.toISOString(),
+              status: editorForm.status,
+              capacity: editorForm.capacity,
+              bookedCount: 0,
+              pricePerClient: editorForm.pricePerClient || null,
+              comment: editorForm.comment,
+              participants: [],
+            },
+            ...prev,
+          ]);
+          setEditorState(null);
+        } else {
+          const error = await response.json().catch(() => null);
+          setNoticeModal({ title: "Не удалось создать сеанс", message: error?.message ?? "Проверьте данные и попробуйте снова." });
+        }
+        return;
+      }
+      if (editorState?.mode === "edit-group") {
+        const response = await fetch(`/api/v1/crm/group-sessions/${editorForm.groupSessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(groupPayload),
+        });
+        if (response.ok) {
+          const updated = await response.json();
+          setGroupSessionItems((prev) =>
+            prev.map((item) =>
+              item.id === editorForm.groupSessionId
+                ? {
+                    ...item,
+                    status: updated.status ?? editorForm.status,
+                    capacity: updated.capacity ?? editorForm.capacity,
+                    pricePerClient: updated.pricePerClient ?? editorForm.pricePerClient ?? null,
+                    comment: updated.comment ?? editorForm.comment,
+                    participants: item.participants ?? [],
+                  }
+                : item
+            )
+          );
+          setEditorState(null);
+        } else {
+          const error = await response.json().catch(() => null);
+          setNoticeModal({ title: "Не удалось сохранить сеанс", message: error?.message ?? "Проверьте данные и попробуйте снова." });
+        }
+        return;
+      }
+    }
 
     const payload: Record<string, unknown> = {
       staffId: editorForm.staffId,
@@ -1801,6 +2145,48 @@ export default function JournalView({
     }
   };
 
+  const handleParticipantStatusChange = async (participantId: number, status: string) => {
+    if (!editorForm?.groupSessionId) return;
+    setParticipantUpdatingId(participantId);
+    setParticipantUpdateError(null);
+    try {
+      const response = await fetch(`/api/v1/crm/group-sessions/participants/${participantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setParticipantUpdateError(payload?.message ?? "Не удалось обновить статус.");
+        return;
+      }
+      const nextStatus = payload?.status ?? status;
+      setEditorForm((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          participants: prev.participants.map((p) =>
+            p.id === participantId ? { ...p, status: nextStatus } : p
+          ),
+        };
+      });
+      setGroupSessionItems((prev) =>
+        prev.map((session) =>
+          session.id !== editorForm.groupSessionId
+            ? session
+            : {
+                ...session,
+                participants: session.participants.map((p) =>
+                  p.id === participantId ? { ...p, status: nextStatus } : p
+                ),
+              }
+        )
+      );
+    } finally {
+      setParticipantUpdatingId(null);
+    }
+  };
+
   const handleQuickStatusChange = async (appointmentId: number, status: string) => {
     const response = await fetch(`/api/v1/crm/appointments/${appointmentId}`, {
       method: "PATCH",
@@ -1817,13 +2203,20 @@ export default function JournalView({
     }
   };
 
+  const isGroupTerminal =
+    editorState?.mode === "edit-group" &&
+    (editorForm?.status === "DONE" || editorForm?.status === "CANCELLED");
   const isEditorLocked =
-    editorState?.mode === "edit" &&
-    isTerminalAppointmentStatus(editorState.appointment.status);
-  const editorStatusOptions =
+    (editorState?.mode === "edit" &&
+      isTerminalAppointmentStatus(editorState.appointment.status));
+  const rawStatusOptions =
     editorState?.mode === "new"
       ? getNewAppointmentStatusOptions(editorForm?.status ?? "NEW")
       : getAllowedStatusOptions(editorForm?.status ?? "NEW");
+  const editorStatusOptions =
+    editorForm?.bookingType === "GROUP"
+      ? rawStatusOptions.filter((item) => item.key !== "NO_SHOW")
+      : rawStatusOptions;
 
   return (
     <div className="flex min-h-[calc(100vh-96px)] flex-col gap-4">
@@ -2468,6 +2861,47 @@ export default function JournalView({
                       </div>
                     );
                   })}
+
+                  {groupSessionCards.map((card) => {
+                    if (!card) return null;
+                    return (
+                      <div
+                        key={`group-${card.session.id}`}
+                        className="relative z-10 mx-1 overflow-hidden rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/70 shadow-sm"
+                        style={{
+                          gridColumn: card.gridColumn,
+                          gridRow: card.gridRowStart,
+                          height: Math.max(
+                            slotHeight,
+                            Math.round((card.durationMinutes / SLOT_MINUTES) * slotHeight)
+                          ),
+                          alignSelf: "start",
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleGroupSessionOpen(card.session)}
+                      >
+                        <div className="h-2 bg-sky-200/70" />
+                        <div className="px-3 pb-2 pt-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-[color:var(--bp-ink)]">
+                              {formatTime(new Date(card.session.startAt))}–
+                              {formatTime(new Date(card.session.endAt))}
+                            </span>
+                            <span className={`rounded-full px-2 py-1 text-[10px] ${card.statusMeta.badge}`}>
+                              {card.statusMeta.label}
+                            </span>
+                          </div>
+                          <div className="mt-1 font-semibold text-[color:var(--bp-ink)]">
+                            {card.session.serviceName}
+                          </div>
+                          <div className="mt-1 text-[11px] text-[color:var(--bp-muted)]">
+                            Мест: {card.session.bookedCount}/{card.session.capacity}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -2480,7 +2914,11 @@ export default function JournalView({
           <div className="flex h-[85vh] w-full max-w-[1280px] flex-col overflow-hidden rounded-3xl border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)]">
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-6 py-4">
               <div className="text-lg font-semibold">
-                {editorState.mode === "new" ? "Новый сеанс" : "Запись"}
+                {editorState.mode === "new"
+                  ? "Новый сеанс"
+                  : editorState.mode === "edit-group"
+                  ? "Групповой сеанс"
+                  : "Запись"}
               </div>
               <button
                 type="button"
@@ -2650,6 +3088,41 @@ export default function JournalView({
                   </select>
                 </div>
 
+                <div>
+                  <label className="text-xs text-[color:var(--bp-muted)]">
+                    Тип записи
+                  </label>
+                  <select
+                    value={editorForm.bookingType}
+                    disabled={editorState?.mode !== "new"}
+                    onChange={(event) => {
+                      const nextType = event.target.value as "SINGLE" | "GROUP";
+                      setEditorForm((prev) => {
+                        if (!prev) return prev;
+                        const nextItems =
+                          nextType === "GROUP"
+                            ? prev.serviceItems.slice(0, 1)
+                            : prev.serviceItems;
+                        return applyServicesToForm(
+                          {
+                            ...prev,
+                            bookingType: nextType,
+                            clientId: nextType === "GROUP" ? null : prev.clientId,
+                            clientName: nextType === "GROUP" ? "" : prev.clientName,
+                            clientPhone: nextType === "GROUP" ? "" : prev.clientPhone,
+                            clientEmail: nextType === "GROUP" ? "" : prev.clientEmail,
+                          },
+                          nextItems
+                        );
+                      });
+                    }}
+                    className="w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="SINGLE">Одиночная</option>
+                    <option value="GROUP">Групповая</option>
+                  </select>
+                </div>
+
                 {/* ✅ ЛОКАЦИЯ В РЕДАКТОРЕ: фиксируем выбранной (и показываем) */}
                 <div>
                   <label className="text-xs text-[color:var(--bp-muted)]">
@@ -2695,85 +3168,96 @@ export default function JournalView({
                 <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4">
                   <div className="text-sm font-semibold">Услуги</div>
                   <div className="mt-3 space-y-3">
-                    {editorForm.serviceItems.map((item, index) => {
-                      const options = serviceOptionsByRow(index);
-                      return (
-                        <div
-                          key={`service-item-${index}`}
-                          className="grid gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-3 md:grid-cols-[minmax(0,1fr)_120px_100px_84px]"
-                        >
-                        <select
-                          value={item.serviceId ?? ""}
-                          onChange={(event) => {
-                            const nextId = Number(event.target.value) || null;
-                            setEditorForm((prev) => {
-                              if (!prev) return prev;
-                              const nextItems = [...prev.serviceItems];
-                              const selected = nextId ? availableServiceById.get(nextId) : null;
-                              nextItems[index] = {
-                                serviceId: nextId,
-                                price: selected?.computedPrice?.toString() ?? "0",
-                                durationMin: selected?.computedDurationMin ?? 0,
-                              };
-                              return applyServicesToForm(prev, nextItems);
-                            });
-                          }}
-                          className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="">Выберите услугу</option>
-                          {options.map((service) => (
-                            <option key={service.id} value={service.id}>
-                              {service.name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={item.price}
-                          onChange={(event) =>
-                            setEditorForm((prev) => {
-                              if (!prev) return prev;
-                              const nextItems = [...prev.serviceItems];
-                              nextItems[index] = { ...nextItems[index], price: event.target.value };
-                              return applyServicesToForm(prev, nextItems);
-                            })
-                          }
-                          placeholder="Цена"
-                          className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          step={5}
-                          value={item.durationMin}
-                          onChange={(event) =>
-                            setEditorForm((prev) => {
-                              if (!prev) return prev;
-                              const nextItems = [...prev.serviceItems];
-                              nextItems[index] = {
-                                ...nextItems[index],
-                                durationMin: Number(event.target.value) || 0,
-                              };
-                              return applyServicesToForm(prev, nextItems);
-                            })
-                          }
-                          placeholder="Мин"
-                          className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                        />
-                        {editorState?.mode === "new" ? (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteIndex(index)}
-                            className="h-10 rounded-xl border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700"
-                          >
-                            Удалить
-                          </button>
-                        ) : null}
+                    {editorForm.bookingType === "GROUP" && editorState?.mode === "edit-group" ? (
+                      <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-3">
+                        <div className="text-xs text-[color:var(--bp-muted)]">Услуга</div>
+                        <div className="mt-1 text-sm font-semibold">
+                          {editorForm.serviceName ||
+                            editorState.session.serviceName ||
+                            "Групповая услуга"}
+                        </div>
                       </div>
-                      );
-                    })}
+                    ) : (
+                      editorForm.serviceItems.map((item, index) => {
+                        const options = serviceOptionsByRow(index);
+                        return (
+                          <div
+                            key={`service-item-${index}`}
+                            className="grid gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-3 md:grid-cols-[minmax(0,1fr)_120px_100px_84px]"
+                          >
+                            <select
+                              value={item.serviceId ?? ""}
+                              onChange={(event) => {
+                                const nextId = Number(event.target.value) || null;
+                                setEditorForm((prev) => {
+                                  if (!prev) return prev;
+                                  const nextItems = [...prev.serviceItems];
+                                  const selected = nextId ? availableServiceById.get(nextId) : null;
+                                  nextItems[index] = {
+                                    serviceId: nextId,
+                                    price: selected?.computedPrice?.toString() ?? "0",
+                                    durationMin: selected?.computedDurationMin ?? 0,
+                                  };
+                                  return applyServicesToForm(prev, nextItems);
+                                });
+                              }}
+                              className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                            >
+                              <option value="">Выберите услугу</option>
+                              {options.map((service) => (
+                                <option key={service.id} value={service.id}>
+                                  {service.name}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={item.price}
+                              onChange={(event) =>
+                                setEditorForm((prev) => {
+                                  if (!prev) return prev;
+                                  const nextItems = [...prev.serviceItems];
+                                  nextItems[index] = { ...nextItems[index], price: event.target.value };
+                                  return applyServicesToForm(prev, nextItems);
+                                })
+                              }
+                              placeholder="Цена"
+                              className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              step={5}
+                              value={item.durationMin}
+                              onChange={(event) =>
+                                setEditorForm((prev) => {
+                                  if (!prev) return prev;
+                                  const nextItems = [...prev.serviceItems];
+                                  nextItems[index] = {
+                                    ...nextItems[index],
+                                    durationMin: Number(event.target.value) || 0,
+                                  };
+                                  return applyServicesToForm(prev, nextItems);
+                                })
+                              }
+                              placeholder="Мин"
+                              className="h-10 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                            />
+                            {editorState?.mode === "new" ? (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteIndex(index)}
+                                className="h-10 rounded-xl border border-rose-200 bg-rose-50 px-2 py-2 text-xs text-rose-700"
+                              >
+                                Удалить
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button
@@ -2824,93 +3308,202 @@ export default function JournalView({
                 </div>
               </div>
 
-              <aside className="min-w-0 flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
-                <div className="text-sm font-semibold">Клиент</div>
+              {editorForm.bookingType !== "GROUP" ? (
+                <aside className="min-w-0 flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
+                  <div className="text-sm font-semibold">Клиент</div>
 
-                <select
-                  value={editorForm.clientId ?? ""}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    const selected = clients.find(
-                      (client) => client.id === Number(value)
-                    );
-                    setEditorForm((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            clientId: value ? Number(value) : null,
-                            clientName: selected?.name ?? prev.clientName,
-                            clientPhone:
-                              selected?.phone != null
-                                ? selected.phone
-                                : prev.clientPhone,
-                            clientEmail:
-                              selected?.email != null
-                                ? selected.email
-                                : prev.clientEmail,
-                          }
-                        : prev
-                    );
-                  }}
-                  className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">Новый клиент</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={editorForm.clientId ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const selected = clients.find(
+                        (client) => client.id === Number(value)
+                      );
+                      setEditorForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              clientId: value ? Number(value) : null,
+                              clientName: selected?.name ?? prev.clientName,
+                              clientPhone:
+                                selected?.phone != null
+                                  ? selected.phone
+                                  : prev.clientPhone,
+                              clientEmail:
+                                selected?.email != null
+                                  ? selected.email
+                                  : prev.clientEmail,
+                            }
+                          : prev
+                      );
+                    }}
+                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Новый клиент</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
 
-                <input
-                  type="text"
-                  value={editorForm.clientName}
-                  onChange={(event) =>
-                    setEditorForm((prev) =>
-                      prev ? { ...prev, clientName: event.target.value } : prev
-                    )
-                  }
-                  placeholder="Имя клиента"
-                  className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                />
-
-                <input
-                  type="tel"
-                  value={editorForm.clientPhone}
-                  onChange={(event) =>
-                    setEditorForm((prev) =>
-                      prev ? { ...prev, clientPhone: event.target.value } : prev
-                    )
-                  }
-                  placeholder="+7"
-                  className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                />
-
-                <input
-                  type="email"
-                  value={editorForm.clientEmail}
-                  onChange={(event) =>
-                    setEditorForm((prev) =>
-                      prev ? { ...prev, clientEmail: event.target.value } : prev
-                    )
-                  }
-                  placeholder="Email"
-                  className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
-                />
-
-                <div>
-                  <label className="text-xs text-[color:var(--bp-muted)]">
-                    Комментарий клиента
-                  </label>
-                  <textarea
-                    value={editorForm.comment}
-                    readOnly
-                    rows={3}
-                    placeholder="Комментарий отсутствует"
-                    className="mt-1 w-full resize-none rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                  <input
+                    type="text"
+                    value={editorForm.clientName}
+                    onChange={(event) =>
+                      setEditorForm((prev) =>
+                        prev ? { ...prev, clientName: event.target.value } : prev
+                      )
+                    }
+                    placeholder="Имя клиента"
+                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
                   />
-                </div>
-              </aside>
+
+                  <input
+                    type="tel"
+                    value={editorForm.clientPhone}
+                    onChange={(event) =>
+                      setEditorForm((prev) =>
+                        prev ? { ...prev, clientPhone: event.target.value } : prev
+                      )
+                    }
+                    placeholder="+7"
+                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                  />
+
+                  <input
+                    type="email"
+                    value={editorForm.clientEmail}
+                    onChange={(event) =>
+                      setEditorForm((prev) =>
+                        prev ? { ...prev, clientEmail: event.target.value } : prev
+                      )
+                    }
+                    placeholder="Email"
+                    className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                  />
+
+                  <div>
+                    <label className="text-xs text-[color:var(--bp-muted)]">
+                      Комментарий клиента
+                    </label>
+                    <textarea
+                      value={editorForm.comment}
+                      readOnly
+                      rows={3}
+                      placeholder="Комментарий отсутствует"
+                      className="mt-1 w-full resize-none rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                </aside>
+              ) : (
+                <aside className="min-w-0 flex flex-col gap-4 rounded-2xl bg-[color:var(--bp-panel)] p-4">
+                  <div className="text-sm font-semibold">Групповой сеанс</div>
+                  <div className="grid gap-2">
+                    <label className="text-xs text-[color:var(--bp-muted)]">
+                      Мест всего
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={editorForm.capacity}
+                      onChange={(event) =>
+                        setEditorForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                capacity: Math.max(1, Number(event.target.value || 0)),
+                              }
+                            : prev
+                        )
+                      }
+                      className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-xs text-[color:var(--bp-muted)]">
+                      Цена за клиента
+                    </label>
+                    <input
+                      type="text"
+                      value={editorForm.pricePerClient}
+                      onChange={(event) =>
+                        setEditorForm((prev) =>
+                          prev ? { ...prev, pricePerClient: event.target.value } : prev
+                        )
+                      }
+                      className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-xs text-[color:var(--bp-muted)]">
+                      Комментарий
+                    </label>
+                    <textarea
+                      value={editorForm.comment}
+                      onChange={(event) =>
+                        setEditorForm((prev) =>
+                          prev ? { ...prev, comment: event.target.value } : prev
+                        )
+                      }
+                      rows={3}
+                      className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="text-xs text-[color:var(--bp-muted)]">
+                    Забронировано: {editorForm.bookedCount}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs text-[color:var(--bp-muted)]">Клиенты</div>
+                    {editorForm.participants.length > 0 ? (
+                      <div className="space-y-2">
+                        {editorForm.participants.map((participant) => {
+                          const statusOptions = getAllowedStatusOptions(participant.status);
+                          const contact = [participant.clientPhone, participant.clientEmail]
+                            .filter(Boolean)
+                            .join(" · ");
+                          return (
+                            <div
+                              key={participant.id}
+                              className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
+                            >
+                              <div className="text-sm font-semibold">
+                                {participant.clientName || `Клиент #${participant.clientId}`}
+                              </div>
+                              <div className="text-xs text-[color:var(--bp-muted)]">
+                                {contact || `ID ${participant.clientId}`}
+                              </div>
+                              <select
+                                value={participant.status}
+                                onChange={(event) =>
+                                  handleParticipantStatusChange(participant.id, event.target.value)
+                                }
+                                disabled={participantUpdatingId === participant.id}
+                                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-xs"
+                              >
+                                {statusOptions.map(({ key, meta }) => (
+                                  <option key={key} value={key}>
+                                    {meta.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-[color:var(--bp-muted)]">
+                        Пока нет участников.
+                      </div>
+                    )}
+                    {participantUpdateError ? (
+                      <div className="text-xs text-[color:var(--bp-danger)]">
+                        {participantUpdateError}
+                      </div>
+                    ) : null}
+                  </div>
+                </aside>
+              )}
             </div>
 
             <div className="flex items-center justify-between border-t border-[color:var(--bp-stroke)] px-6 py-4">
@@ -2927,7 +3520,7 @@ export default function JournalView({
                 disabled={isEditorLocked}
                 className="rounded-2xl bg-[color:var(--bp-accent)] px-6 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Сохранить запись
+                {editorForm.bookingType === "GROUP" ? "Сохранить сеанс" : "Сохранить запись"}
               </button>
             </div>
           </div>

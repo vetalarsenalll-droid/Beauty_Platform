@@ -14,6 +14,8 @@ type ServiceSummary = {
   basePrice: string;
   isActive: boolean;
   allowMultiServiceBooking: boolean;
+  bookingType: "SINGLE" | "GROUP";
+  groupCapacityDefault: number | null;
   categoryId: number | null;
 };
 

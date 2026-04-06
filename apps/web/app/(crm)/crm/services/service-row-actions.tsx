@@ -10,6 +10,8 @@ type ServiceItem = {
   basePrice: string;
   isActive: boolean;
   categoryName: string | null;
+  bookingType: "SINGLE" | "GROUP";
+  groupCapacityDefault: number | null;
 };
 
 type ServiceRowActionsProps = {
@@ -28,6 +30,10 @@ export default function ServiceRowActions({ service }: ServiceRowActionsProps) {
             <span>{service.baseDurationMin} мин</span>
             <span>{service.basePrice} ₽</span>
             <span>{service.isActive ? "Активна" : "В архиве"}</span>
+            <span>{service.bookingType === "GROUP" ? "Группа" : "Одиночная"}</span>
+            {service.bookingType === "GROUP" && service.groupCapacityDefault ? (
+              <span>{service.groupCapacityDefault} мест</span>
+            ) : null}
             {service.categoryName ? <span>{service.categoryName}</span> : null}
           </div>
           {service.description ? (

@@ -42,6 +42,18 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum ServiceBookingType {
+  SINGLE
+  GROUP
+}
+
+enum GroupSessionStatus {
+  NEW
+  CONFIRMED
+  DONE
+  CANCELLED
+}
+
 enum PaymentIntentStatus {
   CREATED
   REQUIRES_ACTION
@@ -474,6 +486,7 @@ model Account {
   specialistProfiles SpecialistProfile[]
     appointments      Appointment[]
     appointmentHolds  AppointmentHold[]
+    groupSessions     GroupSession[]
     scheduleTemplates ScheduleTemplate[]
     scheduleEntries   ScheduleEntry[]
     scheduleNonWorkingTypes ScheduleNonWorkingType[]
@@ -873,6 +886,7 @@ model Location {
   specialists SpecialistLocation[]
   managers    LocationManager[]
   appointments Appointment[]
+  groupSessions GroupSession[]
   workingHours WorkingHour[]
   breaks       Break[]
   vacations    Vacation[]
@@ -1085,6 +1099,7 @@ model SpecialistProfile {
   appointmentHolds AppointmentHold[]
   appointmentServices AppointmentService[]
   appointmentServicesSecondary AppointmentService[] @relation("AppointmentServiceSecondarySpecialist")
+  groupSessions GroupSession[]
   workingHours WorkingHour[]
   breaks      Break[]
   vacations   Vacation[]
@@ -1148,6 +1163,8 @@ model Service {
   basePrice       Decimal  @db.Decimal(12, 2)
   isActive        Boolean  @default(true)
   allowMultiServiceBooking Boolean @default(false)
+  bookingType     ServiceBookingType @default(SINGLE)
+  groupCapacityDefault Int?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1158,6 +1175,7 @@ model Service {
   specialists      SpecialistService[]
   locations        ServiceLocation[]
   appointmentServices AppointmentService[]
+  groupSessions    GroupSession[]
 }
 
 model ServiceVariant {
@@ -1256,6 +1274,7 @@ model Client {
   consents ClientConsent[]
   appointments Appointment[]
   onlineBookingSessions OnlineBookingSession[]
+  groupSessionParticipants GroupSessionParticipant[]
   favorites Favorite[]
   reviews   Review[]
   loyaltyWallet LoyaltyWallet?
@@ -1370,6 +1389,50 @@ model AppointmentService {
   service     Service     @relation(fields: [serviceId], references: [id])
   specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
   secondarySpecialist SpecialistProfile? @relation("AppointmentServiceSecondarySpecialist", fields: [secondarySpecialistId], references: [id])
+}
+
+model GroupSession {
+  id Int @id @default(autoincrement())
+  accountId Int
+  locationId Int
+  specialistId Int
+  serviceId Int
+  startAt DateTime
+  endAt DateTime
+  status GroupSessionStatus @default(NEW)
+  capacity Int
+  bookedCount Int @default(0)
+  pricePerClient Decimal? @db.Decimal(12, 2)
+  source String?
+  comment String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account    Account           @relation(fields: [accountId], references: [id])
+  location   Location          @relation(fields: [locationId], references: [id])
+  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
+  service    Service           @relation(fields: [serviceId], references: [id])
+  participants GroupSessionParticipant[]
+
+  @@index([accountId, startAt])
+  @@index([specialistId, startAt])
+  @@index([locationId, startAt])
+  @@index([status])
+}
+
+model GroupSessionParticipant {
+  id Int @id @default(autoincrement())
+  groupSessionId Int
+  clientId Int
+  status AppointmentStatus @default(NEW)
+  price Decimal? @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+
+  groupSession GroupSession @relation(fields: [groupSessionId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id])
+
+  @@unique([groupSessionId, clientId])
+  @@index([clientId, createdAt])
 }
 
 model AppointmentStatusHistory {

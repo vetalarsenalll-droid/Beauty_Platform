@@ -203,6 +203,8 @@ export default async function ServiceProfilePage({
           basePrice: service.basePrice.toString(),
           isActive: service.isActive,
           allowMultiServiceBooking: service.allowMultiServiceBooking,
+          bookingType: service.bookingType,
+          groupCapacityDefault: service.groupCapacityDefault,
           categoryId: service.categoryId,
         }}
         categories={categories.map((category) => ({

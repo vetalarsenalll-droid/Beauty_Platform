@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
@@ -40,23 +40,10 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
-    return jsonError(
-      "INVALID_BODY",
-      "Некорректное тело запроса.",
-      null,
-      400
-    );
+    return jsonError("INVALID_BODY", "Некорректное тело запроса.", null, 400);
   }
 
-  const data: {
-    name?: string;
-    description?: string | null;
-    baseDurationMin?: number;
-    basePrice?: Prisma.Decimal;
-    categoryId?: number | null;
-    isActive?: boolean;
-    allowMultiServiceBooking?: boolean;
-  } = {};
+  const data: Prisma.ServiceUpdateInput = {};
 
   if (body.name !== undefined) data.name = String(body.name).trim();
   if (body.description !== undefined) {
@@ -86,9 +73,10 @@ export async function PATCH(request: Request, { params }: Params) {
       );
     }
   }
+
   if (body.categoryId !== undefined) {
     if (body.categoryId === null || body.categoryId === "") {
-      data.categoryId = null;
+      data.category = { disconnect: true };
     } else {
       const categoryId = Number(body.categoryId);
       if (!Number.isInteger(categoryId)) {
@@ -111,12 +99,41 @@ export async function PATCH(request: Request, { params }: Params) {
           400
         );
       }
-      data.categoryId = categoryId;
+      data.category = { connect: { id: categoryId } };
     }
   }
+
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
   if (body.allowMultiServiceBooking !== undefined) {
     data.allowMultiServiceBooking = Boolean(body.allowMultiServiceBooking);
+  }
+  if (body.bookingType !== undefined) {
+    const bookingType = String(body.bookingType ?? "").toUpperCase();
+    if (bookingType !== "SINGLE" && bookingType !== "GROUP") {
+      return jsonError(
+        "VALIDATION_FAILED",
+        "Некорректный тип записи.",
+        { fields: [{ path: "bookingType", issue: "invalid" }] },
+        400
+      );
+    }
+    data.bookingType = bookingType as Prisma.ServiceBookingType;
+  }
+  if (body.groupCapacityDefault !== undefined) {
+    if (body.groupCapacityDefault === null || body.groupCapacityDefault === "") {
+      data.groupCapacityDefault = null;
+    } else {
+      const capacity = Number(body.groupCapacityDefault);
+      if (!Number.isInteger(capacity)) {
+        return jsonError(
+          "VALIDATION_FAILED",
+          "Некорректное количество мест.",
+          { fields: [{ path: "groupCapacityDefault", issue: "invalid" }] },
+          400
+        );
+      }
+      data.groupCapacityDefault = capacity;
+    }
   }
 
   const updated = await prisma.service.update({
@@ -144,10 +161,10 @@ export async function PATCH(request: Request, { params }: Params) {
     baseDurationMin: updated.baseDurationMin,
     basePrice: updated.basePrice.toString(),
     allowMultiServiceBooking: updated.allowMultiServiceBooking,
+    bookingType: updated.bookingType,
+    groupCapacityDefault: updated.groupCapacityDefault,
     isActive: updated.isActive,
-    category: updated.category
-      ? { id: updated.category.id, name: updated.category.name }
-      : null,
+    category: updated.category ? { id: updated.category.id, name: updated.category.name } : null,
     createdAt: updated.createdAt.toISOString(),
     updatedAt: updated.updatedAt.toISOString(),
   });
@@ -178,10 +195,10 @@ export async function GET(_request: Request, { params }: Params) {
     baseDurationMin: service.baseDurationMin,
     basePrice: service.basePrice.toString(),
     allowMultiServiceBooking: service.allowMultiServiceBooking,
+    bookingType: service.bookingType,
+    groupCapacityDefault: service.groupCapacityDefault,
     isActive: service.isActive,
-    category: service.category
-      ? { id: service.category.id, name: service.category.name }
-      : null,
+    category: service.category ? { id: service.category.id, name: service.category.name } : null,
     createdAt: service.createdAt.toISOString(),
     updatedAt: service.updatedAt.toISOString(),
   });
