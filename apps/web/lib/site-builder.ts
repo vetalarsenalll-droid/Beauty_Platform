@@ -642,14 +642,15 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
     showCompanyName: true,
     showOnAllPages: true,
     showButton: true,
-    showThemeToggle: false,
+    showThemeToggle: true,
     ctaMode: "booking",
     phoneOverride: "",
     buttonText: "Записаться",
     showSearch: false,
     showAccount: false,
+    presetVersion: 1,
     accountTitle,
-    menuHeight: 40,
+    menuHeight: 64,
     showSocials: false,
     socialIconSize: 40,
     position: "static",
@@ -670,13 +671,45 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       dzen: "",
       ok: "",
     },
-    align: "left",
+    align: "center",
     style: {
       radius: 0,
       buttonRadius: 0,
       fontHeading: "var(--font-manrope), sans-serif",
       fontSubheading: "var(--font-manrope), sans-serif",
       fontBody: "var(--font-manrope), sans-serif",
+      textAlign: "center",
+      textAlignHeading: "center",
+      textAlignSubheading: "center",
+      fontWeightHeading: 500,
+      fontWeightSubheading: 500,
+      fontWeightBody: 400,
+      headingSize: 15,
+      subheadingSize: 14,
+      textSize: 14,
+      blockBgLight: "#ffffff",
+      sectionBgLight: "#ffffff",
+      blockBgDark: "#111827",
+      subBlockBgLight: "#ffffff",
+      subBlockBgDark: "#0f172a",
+      borderColorLight: "#e5e7eb",
+      borderColorDark: "rgba(255,255,255,0.14)",
+      textColorLight: "#111827",
+      textColorDark: "#f3f4f6",
+      mutedColorLight: "#4b5563",
+      mutedColorDark: "#cbd5e1",
+      buttonColorLight: "#111827",
+      buttonColorDark: "#f3f4f6",
+      buttonTextColorLight: "#ffffff",
+      buttonTextColorDark: "#111827",
+      gradientEnabledLight: false,
+      gradientEnabledDark: true,
+      gradientDirectionLight: "vertical",
+      gradientDirectionDark: "vertical",
+      gradientFromLight: "#ffffff",
+      gradientToLight: "#f4f6f8",
+      gradientFromDark: "#1f2937",
+      gradientToDark: "#111827",
     },
   },
 });
@@ -1019,8 +1052,23 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
                 ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
               )
             : [];
+          const presetVersionRaw = Number(safeData.presetVersion);
+          const hasMenuPreset = Number.isFinite(presetVersionRaw) && presetVersionRaw >= 1;
+          if (!hasMenuPreset) {
+            safeData.presetVersion = 1;
+          }
           if (typeof safeData.showOnAllPages !== "boolean") {
             safeData.showOnAllPages = true;
+          }
+          if (typeof safeData.showThemeToggle !== "boolean") {
+            safeData.showThemeToggle = true;
+          }
+          if (!hasMenuPreset || typeof safeData.align !== "string" || !safeData.align.trim()) {
+            safeData.align = "center";
+          }
+          const menuHeightRaw = Number(safeData.menuHeight);
+          if (!hasMenuPreset || !Number.isFinite(menuHeightRaw) || menuHeightRaw < 56) {
+            safeData.menuHeight = block.variant === "v1" ? 64 : 56;
           }
           if (!menuItems.includes("client")) {
             menuItems.splice(2, 0, "client");
@@ -1033,6 +1081,115 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
             Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
               ? Math.round(socialIconSizeRaw)
               : 40;
+          const menuStyle =
+            typeof safeData.style === "object" && safeData.style
+              ? { ...(safeData.style as Record<string, unknown>) }
+              : {};
+          if (!hasMenuPreset || typeof menuStyle.radius !== "number") menuStyle.radius = 0;
+          if (!hasMenuPreset || typeof menuStyle.buttonRadius !== "number") menuStyle.buttonRadius = 0;
+          if (!hasMenuPreset || typeof menuStyle.fontHeading !== "string" || !menuStyle.fontHeading.trim()) {
+            menuStyle.fontHeading = "var(--font-manrope), sans-serif";
+          }
+          if (!hasMenuPreset || typeof menuStyle.fontSubheading !== "string" || !menuStyle.fontSubheading.trim()) {
+            menuStyle.fontSubheading = "var(--font-manrope), sans-serif";
+          }
+          if (!hasMenuPreset || typeof menuStyle.fontBody !== "string" || !menuStyle.fontBody.trim()) {
+            menuStyle.fontBody = "var(--font-manrope), sans-serif";
+          }
+          if (!hasMenuPreset || typeof menuStyle.textAlign !== "string" || !menuStyle.textAlign.trim()) {
+            menuStyle.textAlign = "center";
+          }
+          if (!hasMenuPreset || typeof menuStyle.textAlignHeading !== "string" || !menuStyle.textAlignHeading.trim()) {
+            menuStyle.textAlignHeading = "center";
+          }
+          if (!hasMenuPreset || typeof menuStyle.textAlignSubheading !== "string" || !menuStyle.textAlignSubheading.trim()) {
+            menuStyle.textAlignSubheading = "center";
+          }
+          const headingSizeRaw = Number(menuStyle.headingSize);
+          if (!hasMenuPreset || !Number.isFinite(headingSizeRaw) || headingSizeRaw > 22 || headingSizeRaw < 12) {
+            menuStyle.headingSize = 15;
+          }
+          const subheadingSizeRaw = Number(menuStyle.subheadingSize);
+          if (!hasMenuPreset || !Number.isFinite(subheadingSizeRaw) || subheadingSizeRaw > 20 || subheadingSizeRaw < 12) {
+            menuStyle.subheadingSize = 14;
+          }
+          const textSizeRaw = Number(menuStyle.textSize);
+          if (!hasMenuPreset || !Number.isFinite(textSizeRaw) || textSizeRaw > 18 || textSizeRaw < 12) {
+            menuStyle.textSize = 14;
+          }
+          if (!hasMenuPreset || !Number.isFinite(Number(menuStyle.fontWeightHeading))) menuStyle.fontWeightHeading = 500;
+          if (!hasMenuPreset || !Number.isFinite(Number(menuStyle.fontWeightSubheading))) menuStyle.fontWeightSubheading = 500;
+          if (!hasMenuPreset || !Number.isFinite(Number(menuStyle.fontWeightBody))) menuStyle.fontWeightBody = 400;
+          if (!hasMenuPreset || typeof menuStyle.blockBgLight !== "string" || !menuStyle.blockBgLight.trim()) {
+            menuStyle.blockBgLight = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof menuStyle.sectionBgLight !== "string" || !menuStyle.sectionBgLight.trim()) {
+            menuStyle.sectionBgLight = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof menuStyle.blockBgDark !== "string" || !menuStyle.blockBgDark.trim()) {
+            menuStyle.blockBgDark = "#111827";
+          }
+          if (!hasMenuPreset || typeof menuStyle.subBlockBgLight !== "string" || !menuStyle.subBlockBgLight.trim()) {
+            menuStyle.subBlockBgLight = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof menuStyle.subBlockBgDark !== "string" || !menuStyle.subBlockBgDark.trim()) {
+            menuStyle.subBlockBgDark = "#0f172a";
+          }
+          if (!hasMenuPreset || typeof menuStyle.borderColorLight !== "string" || !menuStyle.borderColorLight.trim()) {
+            menuStyle.borderColorLight = "#e5e7eb";
+          }
+          if (!hasMenuPreset || typeof menuStyle.borderColorDark !== "string" || !menuStyle.borderColorDark.trim()) {
+            menuStyle.borderColorDark = "rgba(255,255,255,0.14)";
+          }
+          if (!hasMenuPreset || typeof menuStyle.textColorLight !== "string" || !menuStyle.textColorLight.trim()) {
+            menuStyle.textColorLight = "#111827";
+          }
+          if (!hasMenuPreset || typeof menuStyle.textColorDark !== "string" || !menuStyle.textColorDark.trim()) {
+            menuStyle.textColorDark = "#f3f4f6";
+          }
+          if (!hasMenuPreset || typeof menuStyle.mutedColorLight !== "string" || !menuStyle.mutedColorLight.trim()) {
+            menuStyle.mutedColorLight = "#4b5563";
+          }
+          if (!hasMenuPreset || typeof menuStyle.mutedColorDark !== "string" || !menuStyle.mutedColorDark.trim()) {
+            menuStyle.mutedColorDark = "#cbd5e1";
+          }
+          if (!hasMenuPreset || typeof menuStyle.buttonColorLight !== "string" || !menuStyle.buttonColorLight.trim()) {
+            menuStyle.buttonColorLight = "#111827";
+          }
+          if (!hasMenuPreset || typeof menuStyle.buttonColorDark !== "string" || !menuStyle.buttonColorDark.trim()) {
+            menuStyle.buttonColorDark = "#f3f4f6";
+          }
+          if (!hasMenuPreset || typeof menuStyle.buttonTextColorLight !== "string" || !menuStyle.buttonTextColorLight.trim()) {
+            menuStyle.buttonTextColorLight = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof menuStyle.buttonTextColorDark !== "string" || !menuStyle.buttonTextColorDark.trim()) {
+            menuStyle.buttonTextColorDark = "#111827";
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientEnabledLight !== "boolean") {
+            menuStyle.gradientEnabledLight = false;
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientEnabledDark !== "boolean") {
+            menuStyle.gradientEnabledDark = true;
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientDirectionLight !== "string" || !menuStyle.gradientDirectionLight.trim()) {
+            menuStyle.gradientDirectionLight = "vertical";
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientDirectionDark !== "string" || !menuStyle.gradientDirectionDark.trim()) {
+            menuStyle.gradientDirectionDark = "vertical";
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientFromLight !== "string" || !menuStyle.gradientFromLight.trim()) {
+            menuStyle.gradientFromLight = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientToLight !== "string" || !menuStyle.gradientToLight.trim()) {
+            menuStyle.gradientToLight = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientFromDark !== "string" || !menuStyle.gradientFromDark.trim()) {
+            menuStyle.gradientFromDark = "#1f2937";
+          }
+          if (!hasMenuPreset || typeof menuStyle.gradientToDark !== "string" || !menuStyle.gradientToDark.trim()) {
+            menuStyle.gradientToDark = "#111827";
+          }
+          safeData.style = menuStyle;
         }
         if (block.type === "works") {
           const rawTitle = typeof safeData.title === "string" ? safeData.title.trim() : "";

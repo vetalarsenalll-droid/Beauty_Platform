@@ -195,6 +195,21 @@ function responsiveBlockWidthCss(columns: number, useEdgePad = true): string {
   return `min(${targetPx}px, calc(100% - (var(--site-edge-pad, 0px) * 2)))`;
 }
 
+function isValidColorValue(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.toLowerCase() === "transparent" || trimmed.toLowerCase() === "currentcolor") {
+    return true;
+  }
+  if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
+    return true;
+  }
+  if (/^(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color|var)\(/i.test(trimmed)) {
+    return true;
+  }
+  return /^[a-zA-Z]+$/.test(trimmed);
+}
+
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
   const numOrNull = (value?: number | string | null) => {
@@ -225,10 +240,24 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   ) => {
     const lightRaw = readColor(lightKey) || readColor(legacyKey);
     const darkRaw = readColor(darkKey);
+    const lightTrimmed = lightRaw.trim();
+    const darkTrimmed = darkRaw.trim();
     const lightResolved =
-      lightRaw.toLowerCase() === "transparent" ? "transparent" : lightRaw || lightFallback;
+      lightTrimmed.toLowerCase() === "transparent"
+        ? "transparent"
+        : !lightTrimmed
+          ? lightFallback
+          : isValidColorValue(lightTrimmed)
+            ? lightTrimmed
+            : lightFallback;
     const darkResolved =
-      darkRaw.toLowerCase() === "transparent" ? "transparent" : darkRaw || darkFallback;
+      darkTrimmed.toLowerCase() === "transparent"
+        ? "transparent"
+        : !darkTrimmed
+          ? darkFallback
+          : isValidColorValue(darkTrimmed)
+            ? darkTrimmed
+            : darkFallback;
     return { lightResolved, darkResolved };
   };
   const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(style, key);
@@ -1150,7 +1179,7 @@ function renderMenu(
     Number.isFinite(menuHeightRaw) && menuHeightRaw >= menuHeightMin && menuHeightRaw <= 96
       ? Math.round(menuHeightRaw)
       : block.variant === "v1"
-        ? 40
+        ? 64
         : 56;
   const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
   const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
@@ -1621,6 +1650,13 @@ function renderMenu(
   }
 
   if (block.variant === "v1") {
+    const topBarStyle: CSSProperties = {
+      height: menuHeight,
+      backgroundColor: "var(--block-bg, var(--site-panel))",
+      backgroundImage: "var(--block-gradient, none)",
+      borderColor: "var(--block-border, var(--site-border))",
+      borderBottomWidth: 1,
+    };
     return (
       <div
         className="w-full"
@@ -1630,19 +1666,13 @@ function renderMenu(
             : undefined
         }
       >
-        <div className="hidden px-4 2xl:block 2xl:px-8" style={{ height: menuHeight }}>
+        <div className="hidden px-4 2xl:block 2xl:px-8" style={topBarStyle}>
           {desktopLayout}
         </div>
         <div className="2xl:hidden">
           <div
             className="flex items-center justify-between gap-3 px-4"
-            style={{
-              height: menuHeight,
-              backgroundColor: "var(--block-bg, var(--site-panel))",
-              backgroundImage: "var(--block-gradient, none)",
-              borderColor: "var(--block-border, var(--site-border))",
-              borderBottomWidth: 1,
-            }}
+            style={topBarStyle}
           >
             {logoNode}
             <details suppressHydrationWarning className="group relative">

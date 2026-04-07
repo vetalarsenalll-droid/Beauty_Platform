@@ -522,14 +522,15 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     showCompanyName: true,
     showOnAllPages: true,
     showButton: true,
-    showThemeToggle: false,
+    showThemeToggle: true,
     ctaMode: "booking",
     phoneOverride: "",
     buttonText: "Записаться",
     showSearch: false,
     showAccount: false,
+    presetVersion: 1,
     accountTitle: "",
-    menuHeight: 40,
+    menuHeight: 64,
     showSocials: false,
     socialIconSize: 40,
     position: "static",
@@ -550,11 +551,48 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       dzen: "",
       ok: "",
     },
-    align: "left",
+    align: "center",
     style: {
       ...defaultBlockStyle,
       blockWidth: LEGACY_WIDTH_REFERENCE,
       blockWidthColumns: MAX_BLOCK_COLUMNS,
+      radius: 0,
+      buttonRadius: 0,
+      fontHeading: "var(--font-manrope), sans-serif",
+      fontSubheading: "var(--font-manrope), sans-serif",
+      fontBody: "var(--font-manrope), sans-serif",
+      textAlign: "center",
+      textAlignHeading: "center",
+      textAlignSubheading: "center",
+      fontWeightHeading: 500,
+      fontWeightSubheading: 500,
+      fontWeightBody: 400,
+      headingSize: 15,
+      subheadingSize: 14,
+      textSize: 14,
+      blockBgLight: "#ffffff",
+      sectionBgLight: "#ffffff",
+      blockBgDark: "#111827",
+      subBlockBgLight: "#ffffff",
+      subBlockBgDark: "#0f172a",
+      borderColorLight: "#e5e7eb",
+      borderColorDark: "rgba(255,255,255,0.14)",
+      textColorLight: "#111827",
+      textColorDark: "#f3f4f6",
+      mutedColorLight: "#4b5563",
+      mutedColorDark: "#cbd5e1",
+      buttonColorLight: "#111827",
+      buttonColorDark: "#f3f4f6",
+      buttonTextColorLight: "#ffffff",
+      buttonTextColorDark: "#111827",
+      gradientEnabledLight: false,
+      gradientEnabledDark: true,
+      gradientDirectionLight: "vertical",
+      gradientDirectionDark: "vertical",
+      gradientFromLight: "#ffffff",
+      gradientToLight: "#ffffff",
+      gradientFromDark: "#1f2937",
+      gradientToDark: "#111827",
     },
   },
   booking: {
@@ -1142,7 +1180,7 @@ export default function SiteClient({
         ...block.data,
         accountTitle: account.name,
         showCompanyName: true,
-        menuHeight: targetVariant === "v1" ? 40 : 56,
+        menuHeight: targetVariant === "v1" ? 64 : 56,
         socialIconSize: 40,
         style:
           targetVariant === "v1" || targetVariant === "v2"
@@ -1425,7 +1463,7 @@ export default function SiteClient({
 
       <div className="relative">
         <div className="h-12" />
-        <div className="fixed top-16 left-0 right-0 z-30 border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-4 shadow-[var(--bp-shadow)] md:left-[var(--crm-sidebar-width)] sm:px-6 lg:px-8">
+        <div className="fixed top-16 left-0 right-0 z-30 border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-4 md:left-[var(--crm-sidebar-width)] sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
@@ -3317,6 +3355,20 @@ function BlockStyleEditor({
     value.trim() === "" || value.trim().toLowerCase() === "transparent"
       ? "transparent"
       : value.trim();
+  const toStoreMenuLightBg = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === "transparent") {
+      return "transparent";
+    }
+    return trimmed;
+  };
+  const toStoreMenuDarkBg = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === "transparent") {
+      return "transparent";
+    }
+    return trimmed;
+  };
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");
   const lightBlockBg = readRaw("blockBgLight") || readRaw("blockBg");
@@ -3688,8 +3740,10 @@ function BlockStyleEditor({
             update(
               block.type === "aisha" || block.type === "menu"
                 ? {
-                    blockBgLight: toStore(value),
-                    blockBg: toStore(value),
+                    blockBgLight:
+                      block.type === "menu" ? toStoreMenuLightBg(value) : toStore(value),
+                    blockBg:
+                      block.type === "menu" ? toStoreMenuLightBg(value) : toStore(value),
                   }
                 : block.type === "works"
                 ? {
@@ -3891,7 +3945,10 @@ function BlockStyleEditor({
               onChange={(value) =>
                 update(
                   block.type === "aisha" || block.type === "menu"
-                    ? { blockBgDark: toStore(value) }
+                    ? {
+                        blockBgDark:
+                          block.type === "menu" ? toStoreMenuDarkBg(value) : toStore(value),
+                      }
                     : block.type === "works"
                     ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
                     : block.type === "booking"
@@ -4455,6 +4512,21 @@ type BlockStyle = {
   quickReplyTextColorDarkResolved: string;
 };
 
+function isValidColorValue(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed.toLowerCase() === "transparent" || trimmed.toLowerCase() === "currentcolor") {
+    return true;
+  }
+  if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
+    return true;
+  }
+  if (/^(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color|var)\(/i.test(trimmed)) {
+    return true;
+  }
+  return /^[a-zA-Z]+$/.test(trimmed);
+}
+
 function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
   const toNumber = (value: unknown) => {
@@ -4485,10 +4557,24 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   ) => {
     const lightRaw = readColor(lightKey) || readColor(legacyKey);
     const darkRaw = readColor(darkKey);
+    const lightTrimmed = lightRaw.trim();
+    const darkTrimmed = darkRaw.trim();
     const lightResolved =
-      lightRaw.toLowerCase() === "transparent" ? "transparent" : lightRaw || lightFallback;
+      lightTrimmed.toLowerCase() === "transparent"
+        ? "transparent"
+        : !lightTrimmed
+          ? lightFallback
+          : isValidColorValue(lightTrimmed)
+            ? lightTrimmed
+            : lightFallback;
     const darkResolved =
-      darkRaw.toLowerCase() === "transparent" ? "transparent" : darkRaw || darkFallback;
+      darkTrimmed.toLowerCase() === "transparent"
+        ? "transparent"
+        : !darkTrimmed
+          ? darkFallback
+          : isValidColorValue(darkTrimmed)
+            ? darkTrimmed
+            : darkFallback;
     return { lightResolved, darkResolved };
   };
   const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(style, key);
@@ -6120,14 +6206,39 @@ function renderMenuBlock(
     Number.isFinite(menuHeightRaw) && menuHeightRaw >= menuHeightMin && menuHeightRaw <= 96
       ? Math.round(menuHeightRaw)
       : block.variant === "v1"
-        ? 40
+        ? 64
         : 56;
   const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
   const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
-  const menuGradient =
-    style.gradientEnabled
-      ? `linear-gradient(${style.gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFrom || theme.gradientFrom}, ${style.gradientTo || theme.gradientTo})`
-      : "none";
+  const menuGradientEnabled =
+    theme.mode === "dark" ? style.gradientEnabledDark : style.gradientEnabledLight;
+  const menuGradientDirection =
+    theme.mode === "dark" ? style.gradientDirectionDark : style.gradientDirectionLight;
+  const menuGradientFrom =
+    theme.mode === "dark" ? style.gradientFromDarkResolved : style.gradientFromLightResolved;
+  const menuGradientTo =
+    theme.mode === "dark" ? style.gradientToDarkResolved : style.gradientToLightResolved;
+  const menuGradient = menuGradientEnabled
+    ? `linear-gradient(${menuGradientDirection === "horizontal" ? "to right" : "to bottom"}, ${menuGradientFrom}, ${menuGradientTo})`
+    : "none";
+  const menuBlockBgRaw =
+    theme.mode === "dark" ? style.blockBgDark.trim() : style.blockBgLight.trim();
+  const menuBlockBgExplicitTransparent =
+    menuBlockBgRaw.toLowerCase() === "transparent";
+  const menuBlockBgResolved =
+    theme.mode === "dark" ? style.blockBgDarkResolved : style.blockBgLightResolved;
+  const menuSectionBgResolved =
+    theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
+  const menuTopBg =
+    menuBlockBgExplicitTransparent
+      ? "transparent"
+      : menuBlockBgResolved && menuBlockBgResolved !== "transparent"
+      ? menuBlockBgResolved
+      : menuSectionBgResolved && menuSectionBgResolved !== "transparent"
+        ? menuSectionBgResolved
+        : theme.mode === "dark"
+          ? "#111827"
+          : "#ffffff";
   const menuTextAlign = (style.textAlignHeading ?? style.textAlign ?? "left") as
     | "left"
     | "center"
@@ -6306,7 +6417,12 @@ function renderMenuBlock(
         promos={promos}
       />
     ) : null;
-  const subBlockBg = style.subBlockBg || style.blockBg || theme.panelColor;
+  const menuSubBlockBgResolved =
+    theme.mode === "dark" ? style.subBlockBgDarkResolved : style.subBlockBgLightResolved;
+  const subBlockBg =
+    menuSubBlockBgResolved && menuSubBlockBgResolved !== "transparent"
+      ? menuSubBlockBgResolved
+      : menuTopBg;
   const subBlockBorder =
     (style.borderColor || theme.borderColor || "").trim() || "transparent";
 
@@ -6363,7 +6479,7 @@ function renderMenuBlock(
       position={position}
       menuHeight={menuHeight}
       menuButtonSize={menuButtonSize}
-      blockBg={style.blockBg || theme.panelColor}
+      blockBg={menuTopBg}
       menuGradient={menuGradient}
       subBlockBg={subBlockBg}
       subBlockBorder={subBlockBorder}
@@ -6655,7 +6771,13 @@ function MenuPreview({
             : { minHeight: mobileOpen ? "82vh" : undefined }
         }
       >
-        <div className="hidden px-4 2xl:block 2xl:px-8" style={{ height: menuHeight }}>
+        <div
+          className="hidden px-4 2xl:block 2xl:px-8"
+          style={{
+            ...topBarStyle,
+            height: menuHeight,
+          }}
+        >
           {desktopLayout}
         </div>
         <div className="2xl:hidden">
