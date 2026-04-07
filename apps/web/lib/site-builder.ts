@@ -671,6 +671,13 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       ok: "",
     },
     align: "left",
+    style: {
+      radius: 0,
+      buttonRadius: 0,
+      fontHeading: "var(--font-manrope), sans-serif",
+      fontSubheading: "var(--font-manrope), sans-serif",
+      fontBody: "var(--font-manrope), sans-serif",
+    },
   },
 });
 
@@ -838,8 +845,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
   ];
 
   const baseTheme: SiteThemePalette = {
-    fontHeading: "Prata, serif",
-    fontBody: "Manrope, sans-serif",
+    fontHeading: "var(--font-manrope), sans-serif",
+    fontBody: "var(--font-manrope), sans-serif",
     accentColor: "#111827",
     shadowColor: "rgba(17, 24, 39, 0.12)",
     shadowSize: 18,

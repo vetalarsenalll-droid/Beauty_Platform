@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
+import { createDefaultDraft } from "@/lib/site-builder";
 import {
   applyAccessCookie,
   requirePlatformApiPermission,
 } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
+import { Prisma } from "@prisma/client";
 
 type DbAccount = {
   id: number;
@@ -80,14 +82,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = await prisma.account.create({
-      data: {
-        name,
-        slug,
-        timeZone,
-        planId: planId ?? undefined,
-      },
-      include: { plan: true },
+    const created = await prisma.$transaction(async (tx) => {
+      const account = await tx.account.create({
+        data: {
+          name,
+          slug,
+          timeZone,
+          planId: planId ?? undefined,
+        },
+        include: { plan: true },
+      });
+
+      await tx.publicPage.create({
+        data: {
+          accountId: account.id,
+          status: "DRAFT",
+          draftJson: createDefaultDraft(name) as Prisma.InputJsonValue,
+        },
+      });
+
+      return account;
     });
 
     await logPlatformAudit({
@@ -100,11 +114,15 @@ export async function POST(request: Request) {
 
     const response = jsonOk(mapAccount(created as DbAccount), 201);
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2002") {
-      const target = Array.isArray(error?.meta?.target)
-        ? error.meta.target[0]
-        : error?.meta?.target;
+  } catch (error: unknown) {
+    const prismaError = error as {
+      code?: string;
+      meta?: { target?: string | string[] };
+    };
+    if (prismaError?.code === "P2002") {
+      const target = Array.isArray(prismaError?.meta?.target)
+        ? prismaError.meta.target[0]
+        : prismaError?.meta?.target;
       const field = target === "slug" ? "slug" : "name";
       const message =
         field === "slug"
@@ -112,7 +130,7 @@ export async function POST(request: Request) {
           : "Название уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
-    if (error?.code === "P2003") {
+    if (prismaError?.code === "P2003") {
       return jsonError("VALIDATION_FAILED", "Тариф не найден", {
         fields: [{ path: "planId", issue: "not_found" }],
       });

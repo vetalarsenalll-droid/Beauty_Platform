@@ -291,19 +291,29 @@ const SOCIAL_LABELS: Record<string, string> = {
 };
 
 const THEME_FONTS = [
-  { label: "Prata", heading: "Prata, serif", body: "Manrope, sans-serif" },
-  { label: "Playfair", heading: "\"Playfair Display\", serif", body: "Manrope, sans-serif" },
-  { label: "Manrope", heading: "Manrope, sans-serif", body: "Manrope, sans-serif" },
-  { label: "Montserrat", heading: "Montserrat, sans-serif", body: "Montserrat, sans-serif" },
-  { label: "Lora", heading: "Lora, serif", body: "Manrope, sans-serif" },
-  { label: "Cormorant", heading: "\"Cormorant Garamond\", serif", body: "Manrope, sans-serif" },
-  { label: "Raleway", heading: "Raleway, sans-serif", body: "Raleway, sans-serif" },
-  { label: "Nunito", heading: "Nunito, sans-serif", body: "Nunito, sans-serif" },
-  { label: "Oswald", heading: "Oswald, sans-serif", body: "Manrope, sans-serif" },
-  { label: "PT Serif", heading: "\"PT Serif\", serif", body: "PT Sans, sans-serif" },
-  { label: "Inter", heading: "Inter, sans-serif", body: "Inter, sans-serif" },
-  { label: "DM Sans", heading: "\"DM Sans\", sans-serif", body: "\"DM Sans\", sans-serif" },
+  {
+    label: "Manrope",
+    heading: "var(--font-manrope), sans-serif",
+    body: "var(--font-manrope), sans-serif",
+  },
+  {
+    label: "Montserrat",
+    heading: "var(--font-montserrat), sans-serif",
+    body: "var(--font-montserrat), sans-serif",
+  },
+  { label: "Arial", heading: "Arial, sans-serif", body: "Arial, sans-serif" },
+  { label: "Georgia", heading: "Georgia, serif", body: "Georgia, serif" },
+  { label: "Times New Roman", heading: "\"Times New Roman\", serif", body: "\"Times New Roman\", serif" },
 ];
+
+const FONT_WEIGHTS = [
+  { label: "300 (Light)", value: 300 },
+  { label: "400 (Regular)", value: 400 },
+  { label: "500 (Medium)", value: 500 },
+  { label: "600 (SemiBold)", value: 600 },
+  { label: "700 (Bold)", value: 700 },
+  { label: "800 (ExtraBold)", value: 800 },
+] as const;
 
 const DEFAULT_BLOCK_WIDTH = 1000;
 const MIN_BLOCK_WIDTH = 800;
@@ -471,9 +481,12 @@ const defaultBlockStyle = {
   textAlign: "left",
   textAlignHeading: "left",
   textAlignSubheading: "left",
-  fontHeading: "",
-  fontSubheading: "",
-  fontBody: "",
+  fontHeading: "var(--font-manrope), sans-serif",
+  fontSubheading: "var(--font-manrope), sans-serif",
+  fontBody: "var(--font-manrope), sans-serif",
+  fontWeightHeading: null,
+  fontWeightSubheading: null,
+  fontWeightBody: null,
   headingSize: null,
   subheadingSize: null,
   textSize: null,
@@ -4236,6 +4249,61 @@ function BlockStyleEditor({
       </label>
       )}
       {inSection("typography") && (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-sm">
+          Жирность заголовка
+          <select
+            value={style.fontWeightHeading?.toString() || ""}
+            onChange={(event) =>
+              update({ fontWeightHeading: event.target.value ? Number(event.target.value) : null })
+            }
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+          >
+            <option value="">По умолчанию</option>
+            {FONT_WEIGHTS.map((weight) => (
+              <option key={weight.value} value={weight.value}>
+                {weight.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          Жирность подзаголовка
+          <select
+            value={style.fontWeightSubheading?.toString() || ""}
+            onChange={(event) =>
+              update({ fontWeightSubheading: event.target.value ? Number(event.target.value) : null })
+            }
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+          >
+            <option value="">По умолчанию</option>
+            {FONT_WEIGHTS.map((weight) => (
+              <option key={weight.value} value={weight.value}>
+                {weight.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          Жирность текста
+          <select
+            value={style.fontWeightBody?.toString() || ""}
+            onChange={(event) =>
+              update({ fontWeightBody: event.target.value ? Number(event.target.value) : null })
+            }
+            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+          >
+            <option value="">По умолчанию</option>
+            {FONT_WEIGHTS.map((weight) => (
+              <option key={weight.value} value={weight.value}>
+                {weight.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      )}
+      {inSection("typography") && (
       <div className="grid grid-cols-3 gap-3">
         <NumberField
           label="Заголовок"
@@ -4347,6 +4415,9 @@ type BlockStyle = {
   fontHeading: string;
   fontSubheading: string;
   fontBody: string;
+  fontWeightHeading: number | null;
+  fontWeightSubheading: number | null;
+  fontWeightBody: number | null;
   headingSize: number | null;
   subheadingSize: number | null;
   textSize: number | null;
@@ -4390,6 +4461,13 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
     return Number.isFinite(parsed) ? (parsed as number) : null;
+  };
+  const toFontWeight = (value: unknown) => {
+    const parsed = toNumber(value);
+    if (parsed === null) return null;
+    const rounded = Math.round(parsed / 100) * 100;
+    if (rounded < 100 || rounded > 900) return null;
+    return rounded;
   };
   const readColor = (key: string) =>
     typeof style[key] === "string" ? (style[key] as string) : "";
@@ -4800,6 +4878,9 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     fontHeading: typeof style.fontHeading === "string" ? style.fontHeading : "",
     fontSubheading: typeof style.fontSubheading === "string" ? style.fontSubheading : "",
     fontBody: typeof style.fontBody === "string" ? style.fontBody : "",
+    fontWeightHeading: toFontWeight(style.fontWeightHeading),
+    fontWeightSubheading: toFontWeight(style.fontWeightSubheading),
+    fontWeightBody: toFontWeight(style.fontWeightBody),
     headingSize: toNumber(style.headingSize),
     subheadingSize: toNumber(style.subheadingSize),
     textSize: toNumber(style.textSize),
@@ -5232,7 +5313,7 @@ function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isCover || isAisha ? 0 : blockRadius,
+            borderRadius: isBooking || isMenu || isCover || isAisha ? 0 : blockRadius,
             backgroundColor: isBooking || isCover || isAisha
               ? "transparent"
               : gradientEnabled
@@ -5669,6 +5750,7 @@ function resolveEntities<T extends { id: number }>(
 function headingStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontHeading || theme.fontHeading,
+    fontWeight: style.fontWeightHeading ?? undefined,
     fontSize: style.headingSize ?? theme.headingSize,
     textAlign: style.textAlignHeading ?? style.textAlign,
     color: style.textColor || theme.textColor,
@@ -5678,6 +5760,7 @@ function headingStyle(style: BlockStyle, theme: SiteTheme) {
 function subheadingStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontSubheading || style.fontBody || theme.fontBody,
+    fontWeight: style.fontWeightSubheading ?? undefined,
     fontSize: style.subheadingSize ?? theme.subheadingSize,
     textAlign: style.textAlignSubheading ?? style.textAlign,
     color: style.mutedColor || theme.mutedColor,
@@ -5687,6 +5770,7 @@ function subheadingStyle(style: BlockStyle, theme: SiteTheme) {
 function textStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontBody || theme.fontBody,
+    fontWeight: style.fontWeightBody ?? undefined,
     fontSize: style.textSize ?? theme.textSize,
     textAlign: style.textAlign,
     color: style.mutedColor || theme.mutedColor,
@@ -5697,6 +5781,7 @@ function buttonStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     backgroundColor: style.buttonColor || theme.buttonColor,
     color: style.buttonTextColor || theme.buttonTextColor,
+    fontWeight: style.fontWeightBody ?? undefined,
     borderRadius:
       style.buttonRadius !== null ? style.buttonRadius : theme.buttonRadius,
   } as const;
@@ -6131,7 +6216,7 @@ function renderMenuBlock(
   const accountIcon = (
       <a
         href={accountLink}
-        className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent text-sm text-[color:var(--bp-ink)]"
+        className="inline-flex h-14 w-14 items-center justify-center rounded-none border border-transparent bg-transparent text-sm text-[color:var(--bp-ink)]"
         title="Личный кабинет"
         aria-label="Личный кабинет"
       >
@@ -6142,7 +6227,7 @@ function renderMenuBlock(
       <button
         type="button"
         onClick={onThemeToggle}
-        className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent text-sm text-[color:var(--bp-ink)]"
+        className="inline-flex h-14 w-14 items-center justify-center rounded-none border border-transparent bg-transparent text-sm text-[color:var(--bp-ink)]"
         aria-label="Переключить тему"
         title="Переключить тему"
       >
@@ -6182,7 +6267,7 @@ function renderMenuBlock(
             href={item.url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent"
+            className="inline-flex h-14 w-14 items-center justify-center rounded-none border border-transparent bg-transparent"
             style={{ width: socialIconSize, height: socialIconSize }}
             title={SOCIAL_LABELS[item.key]}
           >
@@ -6205,7 +6290,7 @@ function renderMenuBlock(
             : buildBookingLink({ publicSlug: account.publicSlug })
         }
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={buttonStyle(style, theme)}
+        style={{ ...buttonStyle(style, theme), borderRadius: 0 }}
       >
         {ctaMode === "phone" && phoneValue ? phoneValue : buttonText}
       </a>
@@ -6397,7 +6482,7 @@ function MenuPreview({
           ) : null}
           <button
             type="button"
-            className="absolute right-8 top-1/2 z-[11] inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+            className="absolute right-8 top-1/2 z-[11] inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
             style={{ width: menuButtonSize, height: menuButtonSize }}
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
@@ -6477,7 +6562,7 @@ function MenuPreview({
         <div className="relative flex items-center px-4 md:px-8" style={topBarStyle}>
           <button
             type="button"
-            className="relative inline-flex h-10 w-10 items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+            className="relative inline-flex h-10 w-10 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? "Закрыть меню" : "Открыть меню"}
             title={mobileOpen ? "Закрыть меню" : "Открыть меню"}
@@ -6507,7 +6592,7 @@ function MenuPreview({
               {logoNode}
             </div>
           ) : null}
-          <div className="ml-auto hidden items-center gap-2 md:flex [&_a]:!rounded-full [&_a]:!border-0 [&_a]:!bg-transparent">
+          <div className="ml-auto hidden items-center gap-2 md:flex [&_a]:!rounded-none [&_a]:!border-0 [&_a]:!bg-transparent">
             {socialsNode}
           </div>
         </div>
@@ -6526,7 +6611,7 @@ function MenuPreview({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
                   aria-label="Закрыть меню"
                   title="Закрыть меню"
                 >
@@ -6578,7 +6663,7 @@ function MenuPreview({
             {logoNode}
             <button
               type="button"
-              className="relative inline-flex items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              className="relative inline-flex items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               style={{ width: menuButtonSize, height: menuButtonSize }}
               onClick={() => setMobileOpen((prev) => !prev)}
               aria-label={mobileOpen ? "Закрыть меню" : "Меню"}
@@ -6614,7 +6699,7 @@ function MenuPreview({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
                   aria-label="Закрыть меню"
                   title="Закрыть меню"
                 >
@@ -6660,7 +6745,7 @@ function MenuPreview({
             {ctaNode}
             <button
               type="button"
-              className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              className="inline-flex h-14 w-14 items-center justify-center rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               onClick={() => setMobileOpen((prev) => !prev)}
               aria-label="Меню"
             >
@@ -6670,7 +6755,7 @@ function MenuPreview({
         </div>
         {mobileOpen && (
           <div
-            className="mt-4 space-y-3 rounded-xl border p-4"
+            className="mt-4 space-y-3 rounded-none border p-4"
             style={subBlockStyle}
           >
             {searchNode}

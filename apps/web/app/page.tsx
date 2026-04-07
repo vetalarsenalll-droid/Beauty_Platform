@@ -1,4 +1,4 @@
-п»їimport type { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,21 +16,21 @@ import {
 
 const routes = [
   {
-    title: "Р—Р°РїРёСЃР°С‚СЊСЃСЏ Рє СЃРїРµС†РёР°Р»РёСЃС‚Сѓ",
+    title: "Записаться к специалисту",
     description:
-      "РџСЂРѕРІРµСЂРµРЅРЅС‹Рµ СЃРїРµС†РёР°Р»РёСЃС‚С‹, СЂРµР№С‚РёРЅРі, СЂРµР°Р»СЊРЅР°СЏ РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ РІСЂРµРјРµРЅРё.",
-    cta: "Р’С‹Р±СЂР°С‚СЊ СѓСЃР»СѓРіСѓ",
+      "Проверенные специалисты, рейтинг, реальная доступность времени.",
+    cta: "Выбрать услугу",
   },
   {
-    title: "РџРѕРґРѕР±СЂР°С‚СЊ СЃРїРµС†РёР°Р»РёСЃС‚Р°",
+    title: "Подобрать специалиста",
     description:
-      "AI-РїРѕРґР±РѕСЂ РїРѕ Р·Р°РґР°С‡Рµ, Р±СЋРґР¶РµС‚Сѓ Рё Р»РѕРєР°С†РёРё вЂ” Р±РµР· Р»РёС€РЅРёС… С€Р°РіРѕРІ.",
-    cta: "Р—Р°РїСѓСЃС‚РёС‚СЊ AI-РїРѕРґР±РѕСЂ",
+      "AI-подбор по задаче, бюджету и локации — без лишних шагов.",
+    cta: "Запустить AI-подбор",
   },
   {
-    title: "РќР°Р№С‚Рё СЃС‚СѓРґРёСЋ",
-    description: "РЎР°Р»РѕРЅС‹ СЃ С‚РѕС‡РЅС‹РјРё СЃР»РѕС‚Р°РјРё Рё РїСЂРѕР·СЂР°С‡РЅС‹Рј РїСЂР°Р№СЃРѕРј.",
-    cta: "РћС‚РєСЂС‹С‚СЊ РєР°С‚Р°Р»РѕРі",
+    title: "Найти студию",
+    description: "Салоны с точными слотами и прозрачным прайсом.",
+    cta: "Открыть каталог",
   },
 ];
 
@@ -62,7 +62,7 @@ export default async function Home() {
   });
 
   const pageStyle: CSSProperties = {
-    fontFamily: '"Montserrat", var(--font-sans)',
+    fontFamily: 'var(--font-montserrat), var(--font-sans)',
     color: "#111827",
     backgroundColor: "#f6f7fb",
     "--bp-ink": "#111827",
@@ -108,12 +108,12 @@ export default async function Home() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-xs uppercase tracking-[0.3em] text-[color:var(--bp-muted)]">
-                  РЎС‚СѓРґРёРё Рё СЃРїРµС†РёР°Р»РёСЃС‚С‹
+                  Студии и специалисты
                 </div>
-                <h2 className="text-2xl font-semibold">Р”РѕСЃС‚СѓРїРЅС‹Рµ РѕСЂРіР°РЅРёР·Р°С†РёРё</h2>
+                <h2 className="text-2xl font-semibold">Доступные организации</h2>
               </div>
               <span className="text-sm text-[color:var(--bp-muted)]">
-                {accounts.length} РѕСЂРіР°РЅРёР·Р°С†РёР№ РґРѕСЃС‚СѓРїРЅРѕ СЃРµР№С‡Р°СЃ
+                {accounts.length} организаций доступно сейчас
               </span>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -132,17 +132,17 @@ export default async function Home() {
                     </div>
                     <div className="text-sm text-[color:var(--bp-muted)]">
                       {account.profile?.description ||
-                        "РџСЂРµРјРёР°Р»СЊРЅС‹Рµ СѓСЃР»СѓРіРё Рё Р·Р°Р±РѕС‚Р° Рѕ РєР»РёРµРЅС‚Р°С…."}
+                        "Премиальные услуги и забота о клиентах."}
                     </div>
                     <div className="text-xs text-[color:var(--bp-muted)]">
-                      {account.profile?.address || "Р“РѕСЂРѕРґ"}
+                      {account.profile?.address || "Город"}
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
                       <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1">
-                        Р›РѕРєР°С†РёР№: {account._count.locations}
+                        Локаций: {account._count.locations}
                       </span>
                       <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1">
-                        РЈСЃР»СѓРі: {account._count.services}
+                        Услуг: {account._count.services}
                       </span>
                     </div>
                     <div className="mt-auto flex flex-wrap gap-2">
@@ -150,13 +150,13 @@ export default async function Home() {
                         href={`/${publicSlug}/booking`}
                         className="inline-flex flex-1 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
                       >
-                        Р—Р°РїРёСЃР°С‚СЊСЃСЏ
+                        Записаться
                       </a>
                       <a
                         href={`/c/login?account=${account.slug}`}
                         className="inline-flex flex-1 items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-ink)]"
                       >
-                        РљР°Р±РёРЅРµС‚
+                        Кабинет
                       </a>
                     </div>
                   </div>
@@ -169,4 +169,5 @@ export default async function Home() {
     </main>
   );
 }
+
 

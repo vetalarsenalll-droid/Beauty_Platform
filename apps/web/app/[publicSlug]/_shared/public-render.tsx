@@ -117,6 +117,9 @@ type BlockStyle = {
   fontHeading?: string;
   fontSubheading?: string;
   fontBody?: string;
+  fontWeightHeading?: number | null;
+  fontWeightSubheading?: number | null;
+  fontWeightBody?: number | null;
   headingSize?: number | null;
   subheadingSize?: number | null;
   textSize?: number | null;
@@ -198,6 +201,13 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
     return Number.isFinite(parsed) ? (parsed as number) : null;
+  };
+  const toFontWeight = (value: unknown) => {
+    const parsed = numOrNull(value as number | string | null);
+    if (parsed === null) return null;
+    const rounded = Math.round(parsed / 100) * 100;
+    if (rounded < 100 || rounded > 900) return null;
+    return rounded;
   };
   const readColor = (key: string) =>
     typeof style[key] === "string" ? (style[key] as string) : "";
@@ -454,6 +464,9 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     fontHeading: (style.fontHeading as string) ?? "",
     fontSubheading: (style.fontSubheading as string) ?? "",
     fontBody: (style.fontBody as string) ?? "",
+    fontWeightHeading: toFontWeight(style.fontWeightHeading),
+    fontWeightSubheading: toFontWeight(style.fontWeightSubheading),
+    fontWeightBody: toFontWeight(style.fontWeightBody),
     headingSize: numOrNull(style.headingSize as number),
     subheadingSize: numOrNull(style.subheadingSize as number),
     textSize: numOrNull(style.textSize as number),
@@ -904,6 +917,7 @@ function resolvePrimarySocialHref(
   function headingStyle(style: BlockStyle) {
     return {
       fontFamily: style.fontHeading || "var(--site-font-heading)",
+      fontWeight: style.fontWeightHeading ?? undefined,
       fontSize: style.headingSize !== null && style.headingSize !== undefined ? `${style.headingSize}px` : "var(--site-h1)",
       textAlign: style.textAlignHeading ?? style.textAlign ?? "left",
       color: "var(--block-text, var(--bp-ink))",
@@ -913,6 +927,7 @@ function resolvePrimarySocialHref(
   function subheadingStyle(style: BlockStyle) {
     return {
       fontFamily: style.fontSubheading || style.fontBody || "var(--site-font-body)",
+      fontWeight: style.fontWeightSubheading ?? undefined,
       fontSize:
         style.subheadingSize !== null && style.subheadingSize !== undefined
           ? `${style.subheadingSize}px`
@@ -925,6 +940,7 @@ function resolvePrimarySocialHref(
   function textStyle(style: BlockStyle) {
     return {
       fontFamily: style.fontBody || "var(--site-font-body)",
+      fontWeight: style.fontWeightBody ?? undefined,
       fontSize: style.textSize !== null && style.textSize !== undefined ? `${style.textSize}px` : "var(--site-text-size)",
       textAlign: style.textAlign ?? "left",
       color: "var(--block-muted, var(--bp-muted))",
@@ -935,6 +951,7 @@ function resolvePrimarySocialHref(
     return {
       backgroundColor: "var(--block-button, var(--site-button))",
       color: "var(--block-button-text, var(--site-button-text))",
+      fontWeight: style.fontWeightBody ?? undefined,
       borderRadius: style.buttonRadius !== null ? style.buttonRadius : "var(--site-button-radius)",
     } as const;
   }
@@ -1003,7 +1020,7 @@ export function buildBlockWrapperStyle(
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isBookingBlock || isCoverBlock ? 0 : radius,
+        borderRadius: isBookingBlock || isCoverBlock || isMenu ? 0 : radius,
         backgroundColor:
           isGallery || isBookingBlock || isCoverBlock
             ? "var(--block-section-bg, var(--block-bg))"
@@ -1259,7 +1276,7 @@ function renderMenu(
             href={item.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-none border border-transparent bg-transparent"
             style={{ width: socialIconSize, height: socialIconSize }}
             title={SOCIAL_LABELS[item.key] ?? item.key}
             aria-label={SOCIAL_LABELS[item.key] ?? item.key}
@@ -1285,7 +1302,7 @@ function renderMenu(
       <a
         href={`tel:${phoneValue}`}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={buttonStyle(style)}
+        style={{ ...buttonStyle(style), borderRadius: 0 }}
       >
         {phoneValue}
       </a>
@@ -1293,7 +1310,7 @@ function renderMenu(
       <Link
         href={buildBookingLink({ publicSlug })}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={buttonStyle(style)}
+        style={{ ...buttonStyle(style), borderRadius: 0 }}
       >
         {buttonText}
       </Link>
@@ -1315,7 +1332,7 @@ function renderMenu(
     isAccountExternal ? (
       <a
         href={accountLink}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
         aria-label="Личный кабинет"
         title="Личный кабинет"
         target="_blank"
@@ -1326,7 +1343,7 @@ function renderMenu(
     ) : (
       <Link
         href={accountLink}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
         aria-label="Личный кабинет"
         title="Личный кабинет"
       >
@@ -1415,7 +1432,7 @@ function renderMenu(
           <Link
             key={key}
             href={href}
-            className="rounded-full border border-[color:var(--site-border)] px-3 py-1 text-xs"
+            className="rounded-none border border-[color:var(--site-border)] px-3 py-1 text-xs"
           >
             {PAGE_LABELS[key]}
           </Link>
@@ -1486,7 +1503,7 @@ function renderMenu(
               </span>
             )}
             <span
-              className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              className="absolute right-8 top-1/2 inline-flex -translate-y-1/2 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               style={{ width: menuButtonSize, height: menuButtonSize }}
             >
               <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
@@ -1548,7 +1565,7 @@ function renderMenu(
             }}
           >
             <span
-              className="relative inline-flex items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+              className="relative inline-flex items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
               style={{ width: menuButtonSize, height: menuButtonSize }}
             >
               <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
@@ -1560,7 +1577,7 @@ function renderMenu(
                 {logoNode}
               </span>
             ) : null}
-            <span className="ml-auto hidden items-center gap-2 md:inline-flex [&_a]:!rounded-full [&_a]:!border-0 [&_a]:!bg-transparent">
+            <span className="ml-auto hidden items-center gap-2 md:inline-flex [&_a]:!rounded-none [&_a]:!border-0 [&_a]:!bg-transparent">
               {socialsNode}
             </span>
           </summary>
@@ -1576,7 +1593,7 @@ function renderMenu(
               <div className="mb-8 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">{searchNode}</div>
                 <DetailsCloseButton
-                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
                   title="Закрыть меню"
                   ariaLabel="Закрыть меню"
                 >
@@ -1630,7 +1647,7 @@ function renderMenu(
             {logoNode}
             <details suppressHydrationWarning className="group relative">
               <summary
-                className="relative inline-flex cursor-pointer list-none items-center justify-center overflow-visible rounded-sm border border-transparent bg-transparent text-[color:var(--bp-ink)] [&::-webkit-details-marker]:hidden"
+                className="relative inline-flex cursor-pointer list-none items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)] [&::-webkit-details-marker]:hidden"
                 style={{ width: menuButtonSize, height: menuButtonSize }}
               >
                 <span className="absolute left-1/2 top-[calc(50%-6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:rotate-45" />
@@ -1641,7 +1658,7 @@ function renderMenu(
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">{logoNode}</div>
                   <DetailsCloseButton
-                    className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-full border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                    className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
                     title="Закрыть меню"
                     ariaLabel="Закрыть меню"
                   >
@@ -1677,7 +1694,7 @@ function renderMenu(
           <div className="flex items-center gap-4">{logoNode}</div>
           <div className="flex flex-wrap items-center gap-3">{actions}</div>
         </div>
-        <div className="rounded-2xl border px-3 py-2" style={subBlockSurfaceStyle}>
+        <div className="rounded-none border px-3 py-2" style={subBlockSurfaceStyle}>
           <div className="flex flex-wrap items-center gap-2">{navPills}</div>
         </div>
       </div>
@@ -1688,7 +1705,7 @@ function renderMenu(
     desktopLayout = (
       <div className="flex flex-col items-center gap-4 text-center">
         {logoNode}
-        <div className="w-full rounded-2xl border px-4 py-3" style={subBlockSurfaceStyle}>
+        <div className="w-full rounded-none border px-4 py-3" style={subBlockSurfaceStyle}>
           {navNode}
         </div>
         {actionsCentered}
@@ -1707,11 +1724,11 @@ function renderMenu(
             {themeToggleNode}
             {ctaNode}
             <details suppressHydrationWarning className="relative">
-              <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full border border-transparent bg-transparent text-[color:var(--bp-ink)]">
+              <summary className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]">
                 <IconMenu />
               </summary>
               <div
-                className="absolute right-0 mt-2 w-72 rounded-xl border p-4 shadow-lg"
+                className="absolute right-0 mt-2 w-72 rounded-none border p-4 shadow-lg"
                 style={subBlockSurfaceStyle}
               >
                 {searchNode && <div className="mb-3">{searchNode}</div>}

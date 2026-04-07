@@ -1,6 +1,8 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
+import { createDefaultDraft } from "@/lib/site-builder";
+import { Prisma } from "@prisma/client";
 
 const parseJson = (value: unknown) => {
   if (!value) return null;
@@ -28,12 +30,16 @@ async function ensurePage(accountId: number) {
     where: { accountId },
   });
   if (existing) return existing;
+  const account = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { name: true },
+  });
 
   return prisma.publicPage.create({
     data: {
       accountId,
       status: "DRAFT",
-      draftJson: {},
+      draftJson: createDefaultDraft(account?.name ?? "Салон красоты") as Prisma.InputJsonValue,
     },
   });
 }
@@ -120,4 +126,3 @@ export async function PATCH(request: Request) {
     },
   });
 }
-

@@ -1,4 +1,4 @@
-п»їimport type { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import HomeLeftSidebar from "../home-left-sidebar";
 import HomeHeroSection from "../home-hero-section";
 
@@ -7,7 +7,7 @@ export const revalidate = 0;
 
 export default function Page() {
   const pageStyle: CSSProperties = {
-    fontFamily: '"Montserrat", var(--font-sans)',
+    fontFamily: 'var(--font-montserrat), var(--font-sans)',
     color: "#111827",
     backgroundColor: "#f6f7fb",
     "--bp-ink": "#111827",
@@ -27,9 +27,9 @@ export default function Page() {
           <HomeHeroSection />
 
           <section className="rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]">
-            <div className="text-lg font-semibold">РР·Р±СЂР°РЅРЅРѕРµ</div>
+            <div className="text-lg font-semibold">Избранное</div>
             <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-              РЎРѕС…СЂР°РЅС‘РЅРЅС‹Рµ СЃС‚СѓРґРёРё Рё СЃРїРµС†РёР°Р»РёСЃС‚С‹ Р±СѓРґСѓС‚ Р·РґРµСЃСЊ.
+              Сохранённые студии и специалисты будут здесь.
             </p>
           </section>
         </div>
@@ -37,3 +37,4 @@ export default function Page() {
     </main>
   );
 }
+
