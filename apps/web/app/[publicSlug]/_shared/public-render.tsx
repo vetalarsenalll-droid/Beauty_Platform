@@ -1462,8 +1462,16 @@ function renderMenu(
           <Link
             key={`${key}-drawer`}
             href={href}
-            className="w-full text-2xl font-medium text-[color:var(--block-text,var(--bp-ink))] md:text-3xl"
-            style={{ ...headingStyle(style), textAlign: align }}
+            className={`w-full font-medium text-[color:var(--block-text,var(--bp-ink))] ${
+              block.variant === "v3" ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl"
+            }`}
+            style={{
+              ...headingStyle(style),
+              textAlign: align,
+              ...(block.variant === "v3"
+                ? { fontSize: `${Math.max(32, Number(style.headingSize ?? 15) + 16)}px`, lineHeight: 1.25 }
+                : {}),
+            }}
           >
             {PAGE_LABELS[key]}
           </Link>
@@ -1638,19 +1646,19 @@ function renderMenu(
               {socialsNode}
             </span>
           </summary>
-          <div className="fixed inset-0 z-40 hidden group-open:block">
+          <div className="fixed inset-0 z-[160] hidden group-open:block">
             <div className="absolute inset-0 bg-[rgba(17,24,39,0.55)]" />
             <aside
-              className="relative z-10 flex h-full w-full flex-col border-r px-6 py-5 text-[color:var(--block-text,var(--bp-ink))] sm:w-[min(360px,78vw)]"
+              className="relative z-10 flex h-full w-full flex-col border-r pb-5 pt-0 text-[color:var(--block-text,var(--bp-ink))] sm:w-[min(360px,78vw)]"
               style={{
                 backgroundColor: "var(--block-sub-bg, var(--block-bg, var(--site-panel)))",
                 borderColor: "var(--block-border, var(--site-border))",
               }}
             >
-              <div className="mb-8 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">{searchNode}</div>
+              <div className="mb-8 flex items-center justify-between gap-3 px-4 md:px-8" style={{ minHeight: menuHeight }}>
                 <DetailsCloseButton
-                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                  className="relative inline-flex items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                  style={{ width: menuButtonSize, height: menuButtonSize }}
                   title="Закрыть меню"
                   ariaLabel="Закрыть меню"
                 >
@@ -1658,14 +1666,15 @@ function renderMenu(
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 opacity-0 bg-current" />
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
                 </DetailsCloseButton>
+                <div className="min-w-0 flex flex-1 justify-end">{searchNode}</div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3 px-6">
                 {drawerLinkItems}
               </div>
-              <div className="mt-auto space-y-4 pt-6">
-                {ctaNode && <div>{ctaNode}</div>}
-                {socialsNode && <div className="md:hidden">{socialsNode}</div>}
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="mt-auto space-y-4 px-6 pt-6">
+                {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
+                {socialsNode && <div className="flex justify-center md:hidden">{socialsNode}</div>}
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   {accountNode}
                   {themeToggleNode}
                 </div>
