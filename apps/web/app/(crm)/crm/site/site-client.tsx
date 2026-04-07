@@ -572,19 +572,19 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       textSize: 14,
       blockBgLight: "#ffffff",
       sectionBgLight: "#ffffff",
-      blockBgDark: "#111827",
+      blockBgDark: "rgba(22, 24, 29, 0.9)",
       subBlockBgLight: "#ffffff",
-      subBlockBgDark: "#0f172a",
+      subBlockBgDark: "rgba(26, 28, 34, 0.92)",
       borderColorLight: "#e5e7eb",
-      borderColorDark: "rgba(255,255,255,0.14)",
+      borderColorDark: "rgba(255, 255, 255, 0.08)",
       textColorLight: "#111827",
-      textColorDark: "#f3f4f6",
+      textColorDark: "#f2f3f5",
       mutedColorLight: "#4b5563",
-      mutedColorDark: "#cbd5e1",
+      mutedColorDark: "#a1a5ad",
       buttonColorLight: "#111827",
-      buttonColorDark: "#f3f4f6",
+      buttonColorDark: "#d3d6db",
       buttonTextColorLight: "#ffffff",
-      buttonTextColorDark: "#111827",
+      buttonTextColorDark: "#0f1012",
       shadowColor: "rgba(17, 24, 39, 0.12)",
       shadowSize: 0,
       gradientEnabledLight: false,
@@ -593,8 +593,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       gradientDirectionDark: "vertical",
       gradientFromLight: "#ffffff",
       gradientToLight: "#ffffff",
-      gradientFromDark: "#1f2937",
-      gradientToDark: "#111827",
+      gradientFromDark: "#0c0e12",
+      gradientToDark: "#111318",
     },
   },
   booking: {
@@ -1431,14 +1431,14 @@ export default function SiteClient({
   const panelTheme =
     activeTheme.mode === "dark"
       ? {
-          surface: "#101010",
-          panel: "#171717",
-          border: "#2b2b2b",
-          text: "#f3f4f6",
-          muted: "#a1a1aa",
-          accent: "#8b8b8b",
-          save: "#000000",
-          saveClose: "#3f3f46",
+          surface: "#14161a",
+          panel: "rgba(22, 24, 29, 0.9)",
+          border: "rgba(255, 255, 255, 0.08)",
+          text: "#f2f3f5",
+          muted: "#a1a5ad",
+          accent: "#d3d6db",
+          save: "#0f1012",
+          saveClose: "#1a1c22",
         }
       : {
           surface: "#f3f3f3",
@@ -5471,7 +5471,7 @@ function BlockPreview({
             ["--works-content-left" as string]: gridLeftPercent,
           }}
         >
-            {isMenu ? <div className="overflow-hidden rounded-[inherit]">{blockContent}</div> : blockContent}
+            {isMenu ? <div className="overflow-visible rounded-[inherit]">{blockContent}</div> : blockContent}
         </div>
       </div>
     </div>
@@ -6370,7 +6370,27 @@ function renderMenuBlock(
         aria-label="Переключить тему"
         title="Переключить тему"
       >
-      {theme.mode === "dark" ? "D" : "L"}
+      {theme.mode === "dark" ? (
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path
+            d="M12.741 20.917a9.389 9.389 0 0 1-1.395-.105a9.141 9.141 0 0 1-1.465-17.7a1.177 1.177 0 0 1 1.21.281a1.273 1.273 0 0 1 .325 1.293a8.112 8.112 0 0 0-.353 2.68a8.266 8.266 0 0 0 4.366 6.857a7.628 7.628 0 0 0 3.711.993a1.242 1.242 0 0 1 .994 1.963a9.148 9.148 0 0 1-7.393 3.738ZM10.261 4.05a.211.211 0 0 0-.065.011a8.137 8.137 0 1 0 9.131 12.526a.224.224 0 0 0 .013-.235a.232.232 0 0 0-.206-.136a8.619 8.619 0 0 1-4.188-1.116a9.274 9.274 0 0 1-4.883-7.7a9.123 9.123 0 0 1 .4-3.008a.286.286 0 0 0-.069-.285a.184.184 0 0 0-.133-.057Z"
+            fill="currentColor"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <g
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </g>
+        </svg>
+      )}
     </button>
   ) : null;
 

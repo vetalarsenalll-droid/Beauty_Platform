@@ -689,19 +689,19 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       textSize: 14,
       blockBgLight: "#ffffff",
       sectionBgLight: "#ffffff",
-      blockBgDark: "#111827",
+      blockBgDark: "rgba(22, 24, 29, 0.9)",
       subBlockBgLight: "#ffffff",
-      subBlockBgDark: "#0f172a",
+      subBlockBgDark: "rgba(26, 28, 34, 0.92)",
       borderColorLight: "#e5e7eb",
-      borderColorDark: "rgba(255,255,255,0.14)",
+      borderColorDark: "rgba(255, 255, 255, 0.08)",
       textColorLight: "#111827",
-      textColorDark: "#f3f4f6",
+      textColorDark: "#f2f3f5",
       mutedColorLight: "#4b5563",
-      mutedColorDark: "#cbd5e1",
+      mutedColorDark: "#a1a5ad",
       buttonColorLight: "#111827",
-      buttonColorDark: "#f3f4f6",
+      buttonColorDark: "#d3d6db",
       buttonTextColorLight: "#ffffff",
-      buttonTextColorDark: "#111827",
+      buttonTextColorDark: "#0f1012",
       shadowColor: "rgba(17, 24, 39, 0.12)",
       shadowSize: 0,
       gradientEnabledLight: false,
@@ -710,8 +710,8 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       gradientDirectionDark: "vertical",
       gradientFromLight: "#ffffff",
       gradientToLight: "#f4f6f8",
-      gradientFromDark: "#1f2937",
-      gradientToDark: "#111827",
+      gradientFromDark: "#0c0e12",
+      gradientToDark: "#111318",
     },
   },
 });
@@ -912,21 +912,21 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
 
   const darkTheme: SiteThemePalette = {
     ...baseTheme,
-    accentColor: "#F3F4F6",
-    shadowColor: "rgba(17, 24, 39, 0.12)",
+    accentColor: "#d3d6db",
+    shadowColor: "rgba(0, 0, 0, 0.5)",
     shadowSize: 0,
-    gradientFrom: "#0F1115",
-    gradientTo: "#1A1D24",
-    surfaceColor: "#0F1115",
-    panelColor: "#1A1D24",
-    textColor: "#F5F7FA",
-    mutedColor: "#A1A7B3",
-    borderColor: "rgba(255, 255, 255, 0.12)",
-    buttonColor: "#F5F7FA",
-    buttonTextColor: "#0F1115",
-    clientCardBg: "#1A1D24",
-    clientButtonColor: "#F5F7FA",
-    clientButtonTextColor: "#0F1115",
+    gradientFrom: "#0c0e12",
+    gradientTo: "#111318",
+    surfaceColor: "#14161a",
+    panelColor: "rgba(22, 24, 29, 0.9)",
+    textColor: "#f2f3f5",
+    mutedColor: "#a1a5ad",
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    buttonColor: "#d3d6db",
+    buttonTextColor: "#0f1012",
+    clientCardBg: "rgba(26, 28, 34, 0.92)",
+    clientButtonColor: "#d3d6db",
+    clientButtonTextColor: "#0f1012",
   };
 
   return {
@@ -1129,43 +1129,43 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
             menuStyle.sectionBgLight = "#ffffff";
           }
           if (!hasMenuPreset || typeof menuStyle.blockBgDark !== "string" || !menuStyle.blockBgDark.trim()) {
-            menuStyle.blockBgDark = "#111827";
+            menuStyle.blockBgDark = "rgba(22, 24, 29, 0.9)";
           }
           if (!hasMenuPreset || typeof menuStyle.subBlockBgLight !== "string" || !menuStyle.subBlockBgLight.trim()) {
             menuStyle.subBlockBgLight = "#ffffff";
           }
           if (!hasMenuPreset || typeof menuStyle.subBlockBgDark !== "string" || !menuStyle.subBlockBgDark.trim()) {
-            menuStyle.subBlockBgDark = "#0f172a";
+            menuStyle.subBlockBgDark = "rgba(26, 28, 34, 0.92)";
           }
           if (!hasMenuPreset || typeof menuStyle.borderColorLight !== "string" || !menuStyle.borderColorLight.trim()) {
             menuStyle.borderColorLight = "#e5e7eb";
           }
           if (!hasMenuPreset || typeof menuStyle.borderColorDark !== "string" || !menuStyle.borderColorDark.trim()) {
-            menuStyle.borderColorDark = "rgba(255,255,255,0.14)";
+            menuStyle.borderColorDark = "rgba(255, 255, 255, 0.08)";
           }
           if (!hasMenuPreset || typeof menuStyle.textColorLight !== "string" || !menuStyle.textColorLight.trim()) {
             menuStyle.textColorLight = "#111827";
           }
           if (!hasMenuPreset || typeof menuStyle.textColorDark !== "string" || !menuStyle.textColorDark.trim()) {
-            menuStyle.textColorDark = "#f3f4f6";
+            menuStyle.textColorDark = "#f2f3f5";
           }
           if (!hasMenuPreset || typeof menuStyle.mutedColorLight !== "string" || !menuStyle.mutedColorLight.trim()) {
             menuStyle.mutedColorLight = "#4b5563";
           }
           if (!hasMenuPreset || typeof menuStyle.mutedColorDark !== "string" || !menuStyle.mutedColorDark.trim()) {
-            menuStyle.mutedColorDark = "#cbd5e1";
+            menuStyle.mutedColorDark = "#a1a5ad";
           }
           if (!hasMenuPreset || typeof menuStyle.buttonColorLight !== "string" || !menuStyle.buttonColorLight.trim()) {
             menuStyle.buttonColorLight = "#111827";
           }
           if (!hasMenuPreset || typeof menuStyle.buttonColorDark !== "string" || !menuStyle.buttonColorDark.trim()) {
-            menuStyle.buttonColorDark = "#f3f4f6";
+            menuStyle.buttonColorDark = "#d3d6db";
           }
           if (!hasMenuPreset || typeof menuStyle.buttonTextColorLight !== "string" || !menuStyle.buttonTextColorLight.trim()) {
             menuStyle.buttonTextColorLight = "#ffffff";
           }
           if (!hasMenuPreset || typeof menuStyle.buttonTextColorDark !== "string" || !menuStyle.buttonTextColorDark.trim()) {
-            menuStyle.buttonTextColorDark = "#111827";
+            menuStyle.buttonTextColorDark = "#0f1012";
           }
           if (!Number.isFinite(Number(menuStyle.shadowSize))) {
             menuStyle.shadowSize = 0;
@@ -1192,10 +1192,10 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
             menuStyle.gradientToLight = "#ffffff";
           }
           if (!hasMenuPreset || typeof menuStyle.gradientFromDark !== "string" || !menuStyle.gradientFromDark.trim()) {
-            menuStyle.gradientFromDark = "#1f2937";
+            menuStyle.gradientFromDark = "#0c0e12";
           }
           if (!hasMenuPreset || typeof menuStyle.gradientToDark !== "string" || !menuStyle.gradientToDark.trim()) {
-            menuStyle.gradientToDark = "#111827";
+            menuStyle.gradientToDark = "#111318";
           }
           safeData.style = menuStyle;
         }

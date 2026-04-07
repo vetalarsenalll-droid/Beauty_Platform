@@ -1062,7 +1062,7 @@ export function buildBlockWrapperStyle(
         : responsiveBlockWidthCss(blockOuterColumns, true);
     return {
       className: isMenu
-        ? "site-block overflow-hidden border border-[color:var(--bp-stroke)] p-0"
+        ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
         : isGallery || isBookingBlock || isCoverBlock
           ? "site-block p-0"
         : "site-block border border-[color:var(--bp-stroke)] p-6",
