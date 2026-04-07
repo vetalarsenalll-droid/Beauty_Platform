@@ -210,6 +210,19 @@ function isValidColorValue(value: string): boolean {
   return /^[a-zA-Z]+$/.test(trimmed);
 }
 
+function isLightShadowColor(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === "#fff" || normalized === "#ffffff" || normalized === "white") {
+    return true;
+  }
+  return (
+    normalized.includes("255,255,255") ||
+    normalized.includes("255 255 255") ||
+    /255\s*,\s*255\s*,\s*255/.test(normalized)
+  );
+}
+
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
   const numOrNull = (value?: number | string | null) => {
@@ -992,10 +1005,18 @@ export function buildBlockWrapperStyle(
   options: { isMenuSticky: boolean; blockType?: SiteBlock["type"] }
 ) {
     const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
-    const blockShadowColor =
+    const blockShadowColorRaw =
       typeof style.shadowColor === "string" && style.shadowColor
         ? style.shadowColor
         : null;
+    const blockShadowColorResolved =
+      blockShadowColorRaw || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+    const blockShadowColor =
+      options.blockType === "menu" &&
+      theme.mode === "dark" &&
+      isLightShadowColor(blockShadowColorResolved)
+        ? "rgba(0, 0, 0, 0.45)"
+        : blockShadowColorResolved;
     const radius = typeof style.radius === "number" ? style.radius : "var(--site-radius)";
     const lightGradient = style.gradientEnabledLight
       ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
@@ -1049,7 +1070,7 @@ export function buildBlockWrapperStyle(
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isBookingBlock || isCoverBlock || isMenu ? 0 : radius,
+        borderRadius: isBookingBlock || isCoverBlock ? 0 : radius,
         backgroundColor:
           isGallery || isBookingBlock || isCoverBlock
             ? "var(--block-section-bg, var(--block-bg))"
@@ -1061,7 +1082,7 @@ export function buildBlockWrapperStyle(
           isGallery || isBookingBlock || isCoverBlock
             ? "none"
             : blockShadowSize !== null
-            ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor ?? "var(--site-shadow-color)"}`
+            ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop:
           options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock
@@ -1331,7 +1352,7 @@ function renderMenu(
       <a
         href={`tel:${phoneValue}`}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={{ ...buttonStyle(style), borderRadius: 0 }}
+        style={buttonStyle(style)}
       >
         {phoneValue}
       </a>
@@ -1339,7 +1360,7 @@ function renderMenu(
       <Link
         href={buildBookingLink({ publicSlug })}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={{ ...buttonStyle(style), borderRadius: 0 }}
+        style={buttonStyle(style)}
       >
         {buttonText}
       </Link>

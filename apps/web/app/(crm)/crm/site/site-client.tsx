@@ -585,6 +585,8 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       buttonColorDark: "#f3f4f6",
       buttonTextColorLight: "#ffffff",
       buttonTextColorDark: "#111827",
+      shadowColor: "rgba(17, 24, 39, 0.12)",
+      shadowSize: 0,
       gradientEnabledLight: false,
       gradientEnabledDark: true,
       gradientDirectionLight: "vertical",
@@ -2151,37 +2153,34 @@ export default function SiteClient({
                   ))}
                 </div>
               </div>
-              <div className="p-4">
-                <div
-                  className="rounded-md border p-4 shadow-sm"
-                  style={{
-                    borderColor: panelTheme.border,
-                    backgroundColor: panelTheme.panel,
-                    color: panelTheme.text,
-                  }}
-                >
-                  {rightPanel === "content" && selectedBlock && (
-                    <BlockEditor
-                      block={selectedBlock}
-                      accountName={account.name}
-                      accountProfile={accountProfile}
-                      locations={locations}
-                      services={services}
-                      specialists={specialists}
-                      promos={promos}
-                      activeSectionId={activePanelSectionId ?? "main"}
-                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                    />
-                  )}
-                  {rightPanel === "settings" && selectedBlock && (
-                    <BlockStyleEditor
-                      block={selectedBlock}
-                      theme={activeTheme}
-                      activeSectionId={activePanelSectionId ?? "layout"}
-                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                    />
-                  )}
-                </div>
+              <div
+                className="h-full p-4"
+                style={{
+                  backgroundColor: panelTheme.panel,
+                  color: panelTheme.text,
+                }}
+              >
+                {rightPanel === "content" && selectedBlock && (
+                  <BlockEditor
+                    block={selectedBlock}
+                    accountName={account.name}
+                    accountProfile={accountProfile}
+                    locations={locations}
+                    services={services}
+                    specialists={specialists}
+                    promos={promos}
+                    activeSectionId={activePanelSectionId ?? "main"}
+                    onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                  />
+                )}
+                {rightPanel === "settings" && selectedBlock && (
+                  <BlockStyleEditor
+                    block={selectedBlock}
+                    theme={activeTheme}
+                    activeSectionId={activePanelSectionId ?? "layout"}
+                    onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                  />
+                )}
               </div>
             </div>
           </aside>
@@ -4003,6 +4002,18 @@ function BlockStyleEditor({
               placeholder={theme.darkPalette.mutedColor}
               onChange={(value) => update({ mutedColorDark: toStore(value) })}
             />
+            <ColorField
+              label="Тень"
+              value={style.shadowColor || theme.shadowColor}
+              onChange={(value) => update({ shadowColor: value })}
+            />
+            <NumberField
+              label="Размер тени"
+              value={style.shadowSize ?? theme.shadowSize}
+              min={0}
+              max={40}
+              onChange={(value) => update({ shadowSize: value })}
+            />
             {block.type === "aisha" && (
               <>
                 <ColorField label="Цвет ответа ассистента" value={toDisplay(darkAssistantBubbleColor)} placeholder={theme.darkPalette.panelColor} onChange={(value) => update({ assistantBubbleColorDark: toStore(value) })} />
@@ -4525,6 +4536,19 @@ function isValidColorValue(value: string): boolean {
     return true;
   }
   return /^[a-zA-Z]+$/.test(trimmed);
+}
+
+function isLightShadowColor(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === "#fff" || normalized === "#ffffff" || normalized === "white") {
+    return true;
+  }
+  return (
+    normalized.includes("255,255,255") ||
+    normalized.includes("255 255 255") ||
+    /255\s*,\s*255\s*,\s*255/.test(normalized)
+  );
 }
 
 function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
@@ -5291,7 +5315,11 @@ function BlockPreview({
   const blockBg = (block.type === "menu" ? style.blockBg || style.sectionBg : style.blockBg) || theme.panelColor;
   const borderColor = (style.borderColor || theme.borderColor || "").trim() || "transparent";
   const shadowSize = style.shadowSize ?? theme.shadowSize ?? 0;
-  const shadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const rawShadowColor = style.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const shadowColor =
+    block.type === "menu" && theme.mode === "dark" && isLightShadowColor(rawShadowColor)
+      ? "rgba(0, 0, 0, 0.45)"
+      : rawShadowColor;
   const textColor = style.textColor || theme.textColor;
   const mutedColor = style.mutedColor || theme.mutedColor;
   const isBooking = block.type === "booking";
@@ -5399,7 +5427,7 @@ function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isMenu || isCover || isAisha ? 0 : blockRadius,
+            borderRadius: isBooking || isCover || isAisha ? 0 : blockRadius,
             backgroundColor: isBooking || isCover || isAisha
               ? "transparent"
               : gradientEnabled
@@ -5415,7 +5443,7 @@ function BlockPreview({
             borderColor: isBooking || isMenu || isGallery || isCover || isAisha ? "transparent" : borderColor,
             borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isMenu || isGallery || isCover || isAisha || shadowSize <= 0
+              isBooking || isGallery || isCover || isAisha || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-ink" as string]: textColor,
@@ -6401,7 +6429,7 @@ function renderMenuBlock(
             : buildBookingLink({ publicSlug: account.publicSlug })
         }
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={{ ...buttonStyle(style, theme), borderRadius: 0 }}
+        style={buttonStyle(style, theme)}
       >
         {ctaMode === "phone" && phoneValue ? phoneValue : buttonText}
       </a>

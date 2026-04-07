@@ -702,6 +702,8 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       buttonColorDark: "#f3f4f6",
       buttonTextColorLight: "#ffffff",
       buttonTextColorDark: "#111827",
+      shadowColor: "rgba(17, 24, 39, 0.12)",
+      shadowSize: 0,
       gradientEnabledLight: false,
       gradientEnabledDark: true,
       gradientDirectionLight: "vertical",
@@ -1164,6 +1166,12 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
           }
           if (!hasMenuPreset || typeof menuStyle.buttonTextColorDark !== "string" || !menuStyle.buttonTextColorDark.trim()) {
             menuStyle.buttonTextColorDark = "#111827";
+          }
+          if (!Number.isFinite(Number(menuStyle.shadowSize))) {
+            menuStyle.shadowSize = 0;
+          }
+          if (typeof menuStyle.shadowColor !== "string" || !menuStyle.shadowColor.trim()) {
+            menuStyle.shadowColor = "rgba(17, 24, 39, 0.12)";
           }
           if (!hasMenuPreset || typeof menuStyle.gradientEnabledLight !== "boolean") {
             menuStyle.gradientEnabledLight = false;
