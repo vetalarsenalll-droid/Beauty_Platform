@@ -1235,10 +1235,10 @@ function renderMenu(
   ) : null;
   const logoNode =
     logoImageNode || companyNameNode ? (
-      <span className="inline-flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {logoImageNode}
         {companyNameNode}
-      </span>
+      </div>
     ) : null;
 
   const linkItems = menuItems.map((key) => {
@@ -1562,7 +1562,7 @@ function renderMenu(
             </span>
           </summary>
           <div
-            className="fixed inset-0 z-50 flex flex-col overflow-hidden border px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
+            className="fixed inset-0 z-[160] flex flex-col overflow-hidden border px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
             style={subBlockSurfaceStyle}
           >
             <div className="flex flex-1 flex-col items-center justify-center py-6">
@@ -1705,11 +1705,15 @@ function renderMenu(
                 <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 bg-current transition-opacity duration-200 ease-out group-open:opacity-0" />
                 <span className="absolute left-1/2 top-[calc(50%+6px)] block h-[2px] w-5 -translate-x-1/2 rotate-0 bg-current transition-all duration-300 ease-out group-open:top-1/2 group-open:-translate-y-1/2 group-open:-rotate-45" />
               </summary>
-              <div className="fixed inset-0 z-50 flex flex-col overflow-hidden border px-6 py-6" style={subBlockSurfaceStyle}>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">{logoNode}</div>
+              <div
+                className="fixed inset-0 z-[160] flex flex-col overflow-hidden pb-6 pt-0"
+                style={{ ...subBlockSurfaceStyle, borderWidth: 0 }}
+              >
+                <div className="mb-4 flex items-center justify-between gap-3 px-4" style={{ height: menuHeight }}>
+                  {logoNode}
                   <DetailsCloseButton
-                    className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--block-text,var(--bp-ink))]"
+                    className="relative inline-flex items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+                    style={{ width: menuButtonSize, height: menuButtonSize }}
                     title="Закрыть меню"
                     ariaLabel="Закрыть меню"
                   >
@@ -1718,13 +1722,13 @@ function renderMenu(
                     <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
                   </DetailsCloseButton>
                 </div>
-                {searchNode && <div className="mb-6">{searchNode}</div>}
+                {searchNode && <div className="mb-6 flex justify-center">{searchNode}</div>}
                 <div className="flex flex-1 flex-col">
                   <div className="flex flex-col gap-2">{linkItems}</div>
                   <div className="mt-auto space-y-3 pt-4">
-                    {ctaNode}
-                    {socialsNode}
-                    <div className="flex items-center gap-2">
+                    {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
+                    {socialsNode && <div className="flex justify-center">{socialsNode}</div>}
+                    <div className="flex items-center justify-center gap-2">
                       {accountNode}
                       {themeToggleNode}
                     </div>

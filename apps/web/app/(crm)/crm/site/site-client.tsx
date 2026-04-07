@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
@@ -6675,7 +6675,7 @@ function MenuPreview({
         </div>
         {mobileOpen && (
           <div
-            className="absolute inset-0 z-10 flex flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
+            className="absolute inset-0 z-[160] flex flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
             style={{ ...subBlockStyle, borderWidth: 0 }}
           >
             <div className="flex flex-1 flex-col items-center justify-center py-6">
@@ -6861,15 +6861,16 @@ function MenuPreview({
           </div>
           {mobileOpen && (
             <div
-              className="absolute inset-0 z-10 flex flex-col overflow-hidden border px-6 py-6"
-              style={subBlockStyle}
+              className="absolute inset-0 z-[160] flex flex-col overflow-hidden pb-6 pt-0"
+              style={{ ...subBlockStyle, borderWidth: 0 }}
             >
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">{logoNode}</div>
+              <div className="mb-4 flex items-center justify-between gap-3 px-4" style={{ height: menuHeight }}>
+                {logoNode}
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="relative inline-flex h-8 w-8 items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+                  className="relative inline-flex items-center justify-center overflow-visible rounded-none border border-transparent bg-transparent text-[color:var(--bp-ink)]"
+                  style={{ width: menuButtonSize, height: menuButtonSize }}
                   aria-label="Закрыть меню"
                   title="Закрыть меню"
                 >
@@ -6878,13 +6879,13 @@ function MenuPreview({
                   <span className="absolute left-1/2 top-1/2 block h-[2px] w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
                 </button>
               </div>
-              {searchNode && <div className="mb-6">{searchNode}</div>}
+              {searchNode && <div className="mb-6 flex justify-center">{searchNode}</div>}
               <div className="flex flex-1 flex-col">
                 <div className="flex flex-col gap-2">{navNode}</div>
                 <div className="mt-auto space-y-3 pt-4">
-                  {ctaNode}
-                  {socialsNode}
-                  <div className="flex items-center gap-2">
+                  {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
+                  {socialsNode && <div className="flex justify-center">{socialsNode}</div>}
+                  <div className="flex items-center justify-center gap-2">
                     {accountNode}
                     {themeToggleNode}
                   </div>
@@ -7932,4 +7933,6 @@ function renderContacts(
     </div>
   );
 }
+
+
 

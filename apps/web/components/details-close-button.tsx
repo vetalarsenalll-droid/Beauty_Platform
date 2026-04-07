@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type DetailsCloseButtonProps = {
   className?: string;
+  style?: CSSProperties;
   title?: string;
   ariaLabel?: string;
   children: ReactNode;
@@ -11,6 +12,7 @@ type DetailsCloseButtonProps = {
 
 export default function DetailsCloseButton({
   className,
+  style,
   title,
   ariaLabel,
   children,
@@ -19,6 +21,7 @@ export default function DetailsCloseButton({
     <button
       type="button"
       className={className}
+      style={style}
       title={title}
       aria-label={ariaLabel}
       onClick={(event) => {
