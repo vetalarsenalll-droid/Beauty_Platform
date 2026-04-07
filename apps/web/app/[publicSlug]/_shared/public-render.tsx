@@ -1282,7 +1282,14 @@ function renderMenu(
         key={`${key}-overlay`}
         href={href}
         className="w-full text-3xl font-medium md:text-5xl"
-        style={{ ...headingStyle(style), color: "var(--block-text, var(--bp-ink))", textAlign: align }}
+        style={{
+          ...headingStyle(style),
+          color: "var(--block-text, var(--bp-ink))",
+          textAlign: align,
+          ...(block.variant === "v2"
+            ? { fontSize: `${Math.max(26, Number(style.headingSize ?? 15) + 12)}px`, lineHeight: 1.25 }
+            : {}),
+        }}
       >
         {PAGE_LABELS[key]}
       </Link>
@@ -1538,7 +1545,7 @@ function renderMenu(
               [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
               [--menu-v2-top-gradient:var(--block-gradient)] group-open:[--menu-v2-top-gradient:none]
               [&::-webkit-details-marker]:hidden
-              group-open:fixed group-open:inset-x-0 group-open:top-0 group-open:py-0 group-open:pl-8 group-open:pr-24"
+              group-open:z-[180] group-open:py-0 group-open:pl-8 group-open:pr-24"
             style={{
               minHeight: menuHeight,
               backgroundColor: "var(--menu-v2-top-bg, var(--block-bg, var(--site-panel)))",

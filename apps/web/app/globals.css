@@ -39,6 +39,10 @@
   --font-sans: var(--font-manrope, "Manrope");
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 .booking-root {
   font-family: var(--bp-font-body, inherit);
   --booking-bg: var(--booking-bg-light, var(--site-panel));
@@ -274,7 +278,9 @@
 }
 
 body:has(#public-site-root .menu-v2-overlay[open]) {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  padding-right: 0;
 }
 
 [data-site-theme="dark"] .booking-root {

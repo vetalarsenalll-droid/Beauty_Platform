@@ -6345,7 +6345,13 @@ function renderMenuBlock(
         key={`${key}-overlay`}
         href={href}
         className="w-full text-3xl font-medium md:text-5xl"
-        style={{ ...headingStyle(style, theme), textAlign: menuTextAlign }}
+        style={{
+          ...headingStyle(style, theme),
+          textAlign: menuTextAlign,
+          ...(block.variant === "v2"
+            ? { fontSize: `${Math.max(26, Number(style.headingSize ?? 15) + 12)}px`, lineHeight: 1.25 }
+            : {}),
+        }}
       >
         {PAGE_LABELS[key]}
       </a>
@@ -6635,7 +6641,7 @@ function MenuPreview({
         }
       >
         <div
-          className={`relative flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "absolute inset-x-0 top-0" : ""}`}
+          className={`relative flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "z-[161]" : "z-[1]"}`}
           style={{ ...topBarStyle, minHeight: menuHeight }}
         >
           <div className="flex items-center gap-3">{logoNode}</div>
