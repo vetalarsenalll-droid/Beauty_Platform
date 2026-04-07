@@ -256,6 +256,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [calendarHintByMessage, setCalendarHintByMessage] = useState<Record<string, string>>({});
   const [complaintTextByMessage, setComplaintTextByMessage] = useState<Record<string, string>>({});
   const [currentMode, setCurrentMode] = useState<"light" | "dark">(themeMode ?? "light");
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -265,6 +266,15 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   useEffect(() => {
     if (themeMode) setCurrentMode(themeMode);
   }, [themeMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobileViewport(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     // Inline mode in CRM preview is controlled by `themeMode` prop, not shared site storage.
@@ -651,9 +661,29 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setComplaintTextByMessage({});
   };
 
-  const rootClass = mode === "floating" ? "public-ai-widget fixed z-[140]" : `public-ai-widget absolute z-[1] ${className ?? ""}`;
+  const isMobileFullscreen = open && isMobileViewport;
+  const rootClass = isMobileFullscreen
+    ? "public-ai-widget fixed inset-0 z-[170]"
+    : mode === "floating"
+      ? "public-ai-widget fixed z-[140]"
+      : `public-ai-widget absolute z-[1] ${className ?? ""}`;
+  const rootStyle: CSSProperties = isMobileFullscreen
+    ? { ...widgetRootStyle, right: 0, bottom: 0 }
+    : widgetRootStyle;
   const panelStyle: CSSProperties =
-    mode === "floating"
+    isMobileFullscreen
+      ? {
+          position: "fixed",
+          inset: 0,
+          width: "100vw",
+          maxWidth: "100vw",
+          height: "100dvh",
+          maxHeight: "100dvh",
+          borderRadius: 0,
+          backgroundImage: panelBackground,
+          boxShadow: "none",
+        }
+      : mode === "floating"
       ? {
           height: `${panelHeightVh}vh`,
           width: `min(${panelWidth}px, calc(100vw - 2rem))`,
@@ -684,7 +714,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   };
 
   return (
-    <div className={rootClass} style={widgetRootStyle}>
+    <div className={rootClass} style={rootStyle}>
       {open ? (
         <div className={`flex flex-col overflow-hidden bg-[color:var(--ai-header-bg,var(--ai-panel,#fff))] ${hasWidgetBorder ? "border border-[color:var(--ai-border)]" : "border-0"}`} style={panelStyle}>
           <div
