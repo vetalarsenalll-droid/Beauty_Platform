@@ -3668,7 +3668,7 @@ function BlockStyleEditor({
       {inSection("colors") && (
       <div className="grid grid-cols-2 gap-3">
         <ColorField
-          label="Фон блока"
+          label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
           value={toDisplay(block.type === "aisha" || block.type === "menu" ? lightBlockBg : lightSectionBg)}
           placeholder={theme.panelColor}
           onChange={(value) =>
@@ -3685,6 +3685,11 @@ function BlockStyleEditor({
                     blockBgLight: toStore(value),
                     blockBg: toStore(value),
                   }
+                : block.type === "booking"
+                ? {
+                    sectionBgLight: toStore(value),
+                    sectionBg: toStore(value),
+                  }
                 : {
                     sectionBgLight: toStore(value),
                     sectionBg: toStore(value),
@@ -3692,6 +3697,19 @@ function BlockStyleEditor({
             )
           }
         />
+        {block.type === "booking" && (
+          <ColorField
+            label="Фон блока"
+            value={toDisplay(lightBlockBg)}
+            placeholder={theme.panelColor}
+            onChange={(value) =>
+              update({
+                blockBgLight: toStore(value),
+                blockBg: toStore(value),
+              })
+            }
+          />
+        )}
         {(block.type === "booking" || block.type === "menu") && (
           <ColorField
             label="Цвет подблока"
@@ -3854,7 +3872,7 @@ function BlockStyleEditor({
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
             <ColorField
-              label="Фон блока"
+              label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
               value={toDisplay(block.type === "aisha" || block.type === "menu" ? darkBlockBg : darkSectionBg)}
               placeholder={theme.darkPalette.panelColor}
               onChange={(value) =>
@@ -3863,10 +3881,20 @@ function BlockStyleEditor({
                     ? { blockBgDark: toStore(value) }
                     : block.type === "works"
                     ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
+                    : block.type === "booking"
+                    ? { sectionBgDark: toStore(value) }
                     : { sectionBgDark: toStore(value) }
                 )
               }
             />
+            {block.type === "booking" && (
+              <ColorField
+                label="Фон блока"
+                value={toDisplay(darkBlockBg)}
+                placeholder={theme.darkPalette.panelColor}
+                onChange={(value) => update({ blockBgDark: toStore(value) })}
+              />
+            )}
             {(block.type === "booking" || block.type === "menu") && (
               <ColorField
                 label="Цвет подблока"
