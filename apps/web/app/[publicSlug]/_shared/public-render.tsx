@@ -5,6 +5,7 @@ import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import DetailsCloseButton from "@/components/details-close-button";
 import GallerySlider from "@/components/gallery-slider";
+import PublicParallaxLayer from "./public-parallax-layer";
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
@@ -36,6 +37,7 @@ const PAGE_LABELS = {
 } as const;
 
 type PageKey = keyof typeof PAGE_LABELS;
+type CoverBackgroundMode = "solid" | "linear" | "radial";
 
 const SOCIAL_ICONS: Record<string, string> = {
   website: "/assets/socials/website.png",
@@ -160,6 +162,65 @@ const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
 const BOOKING_MAX_BLOCK_COLUMNS = 15;
 const PUBLIC_WIDTH_REFERENCE = 1600;
+
+const normalizeHex = (value: string): string | null => {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!match) return null;
+  if (match[1].length === 3) {
+    const [r, g, b] = match[1].split("");
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return trimmed.toLowerCase();
+};
+
+const hexToRgbaString = (hex: string, alpha: number) => {
+  const normalized = normalizeHex(hex) ?? "#000000";
+  const value = normalized.slice(1);
+  const r = Number.parseInt(value.slice(0, 2), 16);
+  const g = Number.parseInt(value.slice(2, 4), 16);
+  const b = Number.parseInt(value.slice(4, 6), 16);
+  const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 1;
+  return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
+};
+
+export function resolveCoverBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string
+) {
+  const modeRaw = typeof data?.coverBackgroundMode === "string" ? data.coverBackgroundMode : "";
+  const mode: CoverBackgroundMode =
+    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const fromRaw = typeof data?.coverBackgroundFrom === "string" ? data.coverBackgroundFrom.trim() : "";
+  const toRaw = typeof data?.coverBackgroundTo === "string" ? data.coverBackgroundTo.trim() : "";
+  const angleRaw = Number(data?.coverBackgroundAngle);
+  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const stopARaw = Number(data?.coverBackgroundStopA);
+  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
+  const stopBRaw = Number(data?.coverBackgroundStopB);
+  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
+  const from = fromRaw || fallbackColor || "#ffffff";
+  const to = toRaw || from;
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
+    };
+  }
+  if (mode === "radial") {
+    const innerStop = Math.min(stopA, stopB);
+    const outerStop = Math.max(stopA, stopB);
+    const innerColor = stopA <= stopB ? from : to;
+    const outerColor = stopA <= stopB ? to : from;
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
+        innerStop
+      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
+}
 
 function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | string): number {
   if (blockType === "booking") {
@@ -744,11 +805,42 @@ function renderCover(
     type: "account",
   };
   const imageUrl = resolveCoverImage(imageSource, branding, locations, services, specialists);
+  const scrollEffect =
+    data.coverScrollEffect === "fixed" || data.coverScrollEffect === "parallax"
+      ? (data.coverScrollEffect as "fixed" | "parallax")
+      : "none";
+  const coverHeightRawValue =
+    typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
   const coverHeightVhRaw = Number(data.coverHeight);
   const coverHeightVh =
     Number.isFinite(coverHeightVhRaw) && coverHeightVhRaw >= 60 && coverHeightVhRaw <= 140
       ? Math.round(coverHeightVhRaw)
       : 100;
+  const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
+    ? coverHeightRawValue
+    : `${coverHeightVh}vh`;
+  const filterStartColorRaw =
+    typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
+  const filterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
+    ? filterStartColorRaw
+    : "#000000";
+  const filterEndColorRaw =
+    typeof data.coverFilterEndColor === "string" ? data.coverFilterEndColor.trim() : "";
+  const filterEndColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterEndColorRaw)
+    ? filterEndColorRaw
+    : "#0f0f0f";
+  const filterStartOpacity = Number.isFinite(Number(data.coverFilterStartOpacity))
+    ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacity)))
+    : 80;
+  const filterEndOpacity = Number.isFinite(Number(data.coverFilterEndOpacity))
+    ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacity)))
+    : 0;
+  const arrowMode = data.coverArrow === "down" ? "down" : "none";
+  const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
+  const arrowColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(arrowColorRaw)
+    ? arrowColorRaw
+    : "#ffffff";
+  const animateArrow = Boolean(data.coverArrowAnimated);
   const headingDesktopSize =
     style.headingSize !== null && style.headingSize !== undefined ? style.headingSize : 42;
   const subheadingDesktopSize =
@@ -765,24 +857,37 @@ function renderCover(
   const gridSpan = Math.max(1, gridEnd - gridStart + 1);
   const gridWidthPercent = `${(gridSpan / MAX_BLOCK_COLUMNS) * 100}%`;
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
-  const overlayGradient =
-    "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
+  const overlayGradient = `linear-gradient(180deg, ${hexToRgbaString(
+    filterStartColor,
+    filterStartOpacity / 100
+  )}, ${hexToRgbaString(filterEndColor, filterEndOpacity / 100)})`;
   const backgroundStyle = imageUrl
     ? {
-        backgroundImage: `${overlayGradient}, url(${imageUrl})`,
+        backgroundImage: `url(${imageUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundAttachment: scrollEffect === "fixed" ? "fixed" : "scroll",
       }
     : {
-        backgroundColor: "var(--block-section-bg, var(--block-bg, var(--site-panel)))",
+        backgroundColor: "transparent",
+        backgroundImage: "none",
       };
+  const showParallaxLayer = Boolean(imageUrl) && scrollEffect === "parallax";
 
   return (
     <section
       className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
-      style={{ ...backgroundStyle, minHeight: `${coverHeightVh}vh`, containerType: "inline-size" }}
+      style={{
+        ...(showParallaxLayer
+          ? { backgroundColor: "transparent", backgroundImage: "none" }
+          : backgroundStyle),
+        minHeight: coverHeightCss,
+        containerType: "inline-size",
+      }}
     >
-      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: `${coverHeightVh}vh` }}>
+      {showParallaxLayer && <PublicParallaxLayer imageUrl={imageUrl as string} />}
+      <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: overlayGradient }} />
+      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: coverHeightCss }}>
         <div
           className="bp-cover-content w-full"
           style={{
@@ -880,6 +985,20 @@ function renderCover(
           </div>
         </div>
       </div>
+      {arrowMode === "down" && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[2] flex justify-center">
+          <span
+            className={animateArrow ? "inline-flex h-8 w-8 items-center justify-center animate-bounce" : "inline-flex h-8 w-8 items-center justify-center"}
+            style={{ color: arrowColor }}
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14" />
+              <path d="m6 13 6 6 6-6" />
+            </svg>
+          </span>
+        </div>
+      )}
     </section>
   );
 }
@@ -1002,7 +1121,11 @@ export function buildBlockWrapperStyle(
   style: BlockStyle,
   theme: SiteTheme,
   blockWidth: number,
-  options: { isMenuSticky: boolean; blockType?: SiteBlock["type"] }
+  options: {
+    isMenuSticky: boolean;
+    blockType?: SiteBlock["type"];
+    coverBackground?: { backgroundColor: string; backgroundImage: string };
+  }
 ) {
     const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
     const blockShadowColorRaw =
@@ -1072,10 +1195,17 @@ export function buildBlockWrapperStyle(
         zIndex: options.isMenuSticky ? 40 : undefined,
         borderRadius: isBookingBlock || isCoverBlock ? 0 : radius,
         backgroundColor:
-          isGallery || isBookingBlock || isCoverBlock
-            ? "var(--block-section-bg, var(--block-bg))"
-            : "var(--block-bg)",
-        backgroundImage: isGallery || isBookingBlock || isCoverBlock ? "none" : "var(--block-gradient)",
+          isCoverBlock
+            ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
+            : isGallery || isBookingBlock
+              ? "var(--block-section-bg, var(--block-bg))"
+              : "var(--block-bg)",
+        backgroundImage:
+          isCoverBlock
+            ? (options.coverBackground?.backgroundImage ?? "none")
+            : isGallery || isBookingBlock
+              ? "none"
+              : "var(--block-gradient)",
         borderColor: isGallery || isBookingBlock || isCoverBlock ? "transparent" : "var(--block-border)",
         borderWidth: isGallery || isBookingBlock || isCoverBlock ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:

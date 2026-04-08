@@ -3,7 +3,12 @@ import { getClientSession } from "@/lib/auth";
 import { cookies } from "next/headers";
 
 import { loadPublicData } from "./_shared/public-data";
-import { buildBlockWrapperStyle, normalizeStyle, renderBlock } from "./_shared/public-render";
+import {
+  buildBlockWrapperStyle,
+  normalizeStyle,
+  renderBlock,
+  resolveCoverBackgroundVisual,
+} from "./_shared/public-render";
 
 type PageProps = {
   params: Promise<{ publicSlug?: string }>;
@@ -98,6 +103,15 @@ export default async function PublicAccountPage({ params }: PageProps) {
         const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
           isMenuSticky,
           blockType: block.type,
+          coverBackground:
+            block.type === "cover"
+              ? resolveCoverBackgroundVisual(
+                  (block.data ?? null) as Record<string, unknown> | null,
+                  (themeForRender.mode === "dark"
+                    ? style.sectionBgDarkResolved
+                    : style.sectionBgLightResolved) || palette.panelColor
+                )
+              : undefined,
         });
         const isBooking = block.type === "booking";
         const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
