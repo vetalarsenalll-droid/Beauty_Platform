@@ -125,6 +125,9 @@ type SiteClientProps = {
   workPhotos: WorkPhotos;
 };
 
+const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
+  JSON.parse(JSON.stringify(value)) as SiteDraft;
+
 const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
   v1: "Вариант 1",
   v2: "Вариант 2",
@@ -816,6 +819,14 @@ export default function SiteClient({
   const [draft, setDraft] = useState<SiteDraft>(() =>
     normalizeDraft(initialPublicPage.draftJson)
   );
+  const historyRef = useRef<{ past: SiteDraft[]; future: SiteDraft[] }>({
+    past: [],
+    future: [],
+  });
+  const historyMetaRef = useRef<{ lastGroupKey: string | null; lastRecordedAt: number }>({
+    lastGroupKey: null,
+    lastRecordedAt: 0,
+  });
   const [activePage, setActivePage] = useState<SitePageKey>("home");
   const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
 
@@ -894,6 +905,58 @@ export default function SiteClient({
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [spacingAnchorBlockId, setSpacingAnchorBlockId] = useState<string | null>(null);
   const slotRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
+
+  const setDraftTracked = (
+    updater: (prev: SiteDraft) => SiteDraft,
+    options?: { recordHistory?: boolean; groupKey?: string }
+  ) => {
+    const recordHistory = options?.recordHistory !== false;
+    const groupKey = options?.groupKey ?? null;
+    setDraft((prev) => {
+      const next = updater(prev);
+      if (!recordHistory || Object.is(next, prev)) {
+        return next;
+      }
+      const now = Date.now();
+      const shouldCoalesce =
+        Boolean(groupKey) &&
+        historyMetaRef.current.lastGroupKey === groupKey &&
+        now - historyMetaRef.current.lastRecordedAt < 700;
+      if (!shouldCoalesce) {
+        historyRef.current.past.push(cloneDraftSnapshot(prev));
+      }
+      if (historyRef.current.past.length > 100) {
+        historyRef.current.past.shift();
+      }
+      historyRef.current.future = [];
+      historyMetaRef.current = { lastGroupKey: groupKey, lastRecordedAt: now };
+      return next;
+    });
+  };
+
+  const undoDraft = () => {
+    const prevSnapshot = historyRef.current.past.pop();
+    if (!prevSnapshot) return;
+    setDraft((current) => {
+      historyRef.current.future.push(cloneDraftSnapshot(current));
+      return cloneDraftSnapshot(prevSnapshot);
+    });
+    historyMetaRef.current = { lastGroupKey: null, lastRecordedAt: 0 };
+    setShowPanelExitConfirm(false);
+  };
+
+  const redoDraft = () => {
+    const nextSnapshot = historyRef.current.future.pop();
+    if (!nextSnapshot) return;
+    setDraft((current) => {
+      historyRef.current.past.push(cloneDraftSnapshot(current));
+      return cloneDraftSnapshot(nextSnapshot);
+    });
+    historyMetaRef.current = { lastGroupKey: null, lastRecordedAt: 0 };
+    setShowPanelExitConfirm(false);
+  };
 
   useEffect(() => {
     if (!displayBlocks.length) {
@@ -1077,8 +1140,10 @@ export default function SiteClient({
   };
   const closePanelWithoutSave = () => {
     if (panelBaselineBlock) {
-      updateBlock(panelBaselineBlock.id, () =>
-        JSON.parse(JSON.stringify(panelBaselineBlock)) as SiteBlock
+      updateBlock(
+        panelBaselineBlock.id,
+        () => JSON.parse(JSON.stringify(panelBaselineBlock)) as SiteBlock,
+        { recordHistory: false }
       );
     }
     setShowPanelExitConfirm(false);
@@ -1086,8 +1151,12 @@ export default function SiteClient({
   };
 
 
-  const updateBlock = (id: string, updater: (block: SiteBlock) => SiteBlock) => {
-    setDraft((prev) => {
+  const updateBlock = (
+    id: string,
+    updater: (block: SiteBlock) => SiteBlock,
+    options?: { recordHistory?: boolean }
+  ) => {
+    setDraftTracked((prev) => {
       const pages = { ...ensurePages(prev) };
       const entityPages = { ...ensureEntityPages(prev) };
       const entityPageKey = resolveEntityPageKey(currentEntity);
@@ -1119,7 +1188,7 @@ export default function SiteClient({
       }
 
       return { ...prev, pages, entityPages, blocks: pages.home ?? prev.blocks };
-    });
+    }, { ...options, groupKey: `block:${id}` });
   };
 
   const applyThemePatch = (prevTheme: SiteTheme, patch: Partial<SiteTheme>): SiteTheme => {
@@ -1157,14 +1226,15 @@ export default function SiteClient({
   };
 
   const setThemeMode = (mode: "light" | "dark") => {
-    setDraft((prev) => ({
+    setDraftTracked((prev) => ({
       ...prev,
       theme: applyThemePatch(prev.theme, { mode }),
-    }));
+    }), { groupKey: "theme-mode" });
   };
 
-  const updateBlocks = (nextBlocks: SiteBlock[]) => {
-    setDraft((prev) => {
+  const updateBlocks = (nextBlocks: SiteBlock[], options?: { recordHistory?: boolean }) => {
+    const groupKey = `blocks:${entityPageKey ?? activePage}:${entityId ?? "root"}`;
+    setDraftTracked((prev) => {
       const pages = { ...ensurePages(prev) };
       const entityPages = { ...ensureEntityPages(prev) };
       const entityPageKey = resolveEntityPageKey(currentEntity);
@@ -1184,7 +1254,7 @@ export default function SiteClient({
       }
       const home = pages.home ?? prev.blocks;
       return { ...prev, pages, entityPages, blocks: home };
-    });
+    }, { ...options, groupKey });
   };
 
   const insertBlock = (
@@ -1218,7 +1288,7 @@ export default function SiteClient({
       const existingMenu = homeBlocks.find((item) => item.type === "menu");
       if (!existingMenu) {
         const nextHome = [block, ...homeBlocks];
-        setDraft((prev) => ({
+        setDraftTracked((prev) => ({
           ...prev,
           pages: { ...ensurePages(prev), home: nextHome },
           blocks: nextHome,
@@ -1559,6 +1629,31 @@ export default function SiteClient({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={undoDraft}
+              disabled={!canUndo}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Отменить действие"
+              title="Отменить"
+            >
+              <svg viewBox="0 0 1024 1024" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+                <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" />
+                <path d="m237.248 512l265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={redoDraft}
+              disabled={!canRedo}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Повторить действие"
+              title="Повторить"
+            >
+              <svg viewBox="0 0 1024 1024" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+                <path d="M754.752 480H160a32 32 0 1 0 0 64h594.752L521.344 777.344a32 32 0 0 0 45.312 45.312l288-288a32 32 0 0 0 0-45.312l-288-288a32 32 0 1 0-45.312 45.312L754.752 480z" />
+              </svg>
+            </button>
             {publicUrl && (
               <a
                 href={publicUrl}
