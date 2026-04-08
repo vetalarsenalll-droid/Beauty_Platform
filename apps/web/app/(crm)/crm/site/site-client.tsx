@@ -1575,7 +1575,7 @@ export default function SiteClient({
           muted: "#6b7280",
           accent: "#2563eb",
           save: "#000000",
-          saveClose: "#6b7280",
+          saveClose: "#ff5a5f",
         };
 
   const isCoverSettingsPanel = rightPanel === "settings" && selectedBlock?.type === "cover";
@@ -2327,7 +2327,7 @@ export default function SiteClient({
                           style={{ borderColor: panelTheme.border }}
                         >
                           <span>{coverGridSpan} колонок</span>
-                          <span className="text-xs">{coverWidthModalOpen ? "▲" : "▼"}</span>
+                          <span className="text-sm leading-none">{coverWidthModalOpen ? "▴" : "▾"}</span>
                         </button>
                         {coverWidthModalOpen && (
                           <div
@@ -2346,19 +2346,35 @@ export default function SiteClient({
                       </div>
                     </div>
 
-                    <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                    <label className="mb-4 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                       Выравнивание
-                      <select
-                        value={coverStyle?.textAlign ?? "left"}
-                        onChange={(event) =>
-                          updateSelectedCoverStyle({ textAlign: event.target.value as BlockStyle["textAlign"] })
-                        }
-                        className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
-                      >
-                        <option value="left">По левому краю</option>
-                        <option value="center">По центру</option>
-                        <option value="right">По правому краю</option>
-                      </select>
+                      <div className="relative mt-2">
+                        <select
+                          value={coverStyle?.textAlign ?? "left"}
+                          onChange={(event) =>
+                            updateSelectedCoverStyle({ textAlign: event.target.value as BlockStyle["textAlign"] })
+                          }
+                          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-sm font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                          style={{
+                            borderTop: "0",
+                            borderLeft: "0",
+                            borderRight: "0",
+                            borderRadius: "0",
+                            boxShadow: "none",
+                            backgroundColor: "transparent",
+                            WebkitAppearance: "none",
+                            MozAppearance: "none",
+                            appearance: "none",
+                          }}
+                        >
+                          <option value="left">По левому краю</option>
+                          <option value="center">По центру</option>
+                          <option value="right">По правому краю</option>
+                        </select>
+                        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                          ▾
+                        </span>
+                      </div>
                     </label>
 
                     {[
@@ -2899,7 +2915,7 @@ function CoverGridWidthControl({
 
       <div
         ref={trackRef}
-        className={`relative border border-[color:var(--bp-stroke)] bg-[#d1d5db] p-1 ${compact ? "rounded-none mt-0" : "mt-3 rounded-lg"}`}
+        className={`relative ${compact ? "mt-0" : "mt-3"}`}
       >
         <div className="grid grid-cols-12 gap-1">
           {Array.from({ length: 12 }, (_, index) => {
@@ -2908,8 +2924,8 @@ function CoverGridWidthControl({
             return (
               <div
                 key={col}
-                className={`${compact ? "h-12" : "h-10"} rounded-sm ${
-                  selected ? "bg-white" : "bg-[#bfc5ce]"
+                className={`${compact ? "h-14" : "h-12"} rounded-sm ${
+                  selected ? "bg-[#ff5a5f]" : "bg-[#c6cbd3]"
                 }`}
               />
             );
@@ -2919,7 +2935,7 @@ function CoverGridWidthControl({
         <button
           type="button"
           aria-label="Левая граница"
-          className="absolute top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+          className="absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
           style={{ left: `${startCenterPercent}%` }}
           onPointerDown={(event) => {
             event.preventDefault();
@@ -2929,7 +2945,7 @@ function CoverGridWidthControl({
         <button
           type="button"
           aria-label="Правая граница"
-          className="absolute top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+          className="absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
           style={{ left: `${endCenterPercent}%` }}
           onPointerDown={(event) => {
             event.preventDefault();
