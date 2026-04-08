@@ -134,15 +134,9 @@ const COVER_LINE_STEP_PX = 30;
 const COVER_LINE_OPTIONS = Array.from({ length: 15 }, (_, index) => index * 0.5);
 const PANEL_ANIMATION_MS = 220;
 const COVER_BACKGROUND_POSITION_OPTIONS = [
-  { value: "left top", label: "↖ Лево Верх" },
   { value: "center top", label: "↑ Центр Верх" },
-  { value: "right top", label: "↗ Право Верх" },
-  { value: "left center", label: "← Лево Центр" },
-  { value: "center center", label: "Центр Центр" },
-  { value: "right center", label: "→ Право Центр" },
-  { value: "left bottom", label: "↙ Лево Низ" },
+  { value: "center center", label: "Центр" },
   { value: "center bottom", label: "↓ Центр Низ" },
-  { value: "right bottom", label: "↘ Право Низ" },
 ] as const;
 const COVER_BACKGROUND_POSITION_VALUES = new Set<string>(
   COVER_BACKGROUND_POSITION_OPTIONS.map((option) => option.value)
