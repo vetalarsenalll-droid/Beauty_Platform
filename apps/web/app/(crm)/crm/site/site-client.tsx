@@ -1785,7 +1785,7 @@ export default function SiteClient({
       gridEndColumn: safeEnd,
     });
   };
-  const floatingPanelsTop = 56;
+  const floatingPanelsTop = rightPanel ? 0 : 56;
 
   return (
     <div className="flex flex-col gap-6">
@@ -1801,6 +1801,7 @@ export default function SiteClient({
 
       <div className="relative">
         <div className="h-8.5" />
+        {!rightPanel && (
         <div className="fixed top-0 left-0 right-0 z-[170] border border-x-0 border-[color:var(--bp-stroke)] bg-[#fcfcfd] px-4 py-2 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
@@ -2088,6 +2089,7 @@ export default function SiteClient({
           </div>
         </div>
         </div>
+        )}
       </div>
 
       <div
@@ -2128,6 +2130,7 @@ export default function SiteClient({
               slotRef={(el) => registerSlotRef(0, el)}
               spacing={getSlotSpacing(0)}
               activeOffset={getSlotActiveOffset(0, activeSpacingTarget)}
+              hideAddButton={Boolean(rightPanel)}
               persistent={hasCustomSlotSpacing(0)}
               active={activeSpacingSlot === 0}
               showValue={activeSpacingSlot === 0}
@@ -2270,6 +2273,7 @@ export default function SiteClient({
                   slotRef={(el) => registerSlotRef(index + 1, el)}
                   spacing={getSlotSpacing(index + 1)}
                   activeOffset={getSlotActiveOffset(index + 1, activeSpacingTarget)}
+                  hideAddButton={Boolean(rightPanel)}
                   persistent={hasCustomSlotSpacing(index + 1)}
                   active={activeSpacingSlot === index + 1}
                   showValue={activeSpacingSlot === index + 1}
@@ -6963,6 +6967,7 @@ function InsertSlot({
   slotRef,
   spacing,
   activeOffset,
+  hideAddButton = false,
   persistent = false,
   active = false,
   showValue = false,
@@ -6974,6 +6979,7 @@ function InsertSlot({
   slotRef?: (el: HTMLDivElement | null) => void;
   spacing: number;
   activeOffset: number;
+  hideAddButton?: boolean;
   persistent?: boolean;
   active?: boolean;
   showValue?: boolean;
@@ -7042,21 +7048,23 @@ function InsertSlot({
           />
         </div>
       )}
-      <button
-        type="button"
-        onClick={onInsert}
-        className="absolute z-[41] flex h-8 w-8 items-center justify-center rounded-full border border-[#cbd5e1] bg-white text-sm text-[#0f172a] shadow-sm"
-        style={{ top, left: "50%", transform: "translate(-50%, -50%)" }}
-        aria-label={`Добавить блок ${index}`}
-        title="Добавить блок"
-      >
-        <span
-          className="leading-none"
-          style={index === 0 ? { transform: "translateY(5px)" } : undefined}
+      {!hideAddButton && (
+        <button
+          type="button"
+          onClick={onInsert}
+          className="absolute z-[41] flex h-8 w-8 items-center justify-center rounded-full border border-[#cbd5e1] bg-white text-sm text-[#0f172a] shadow-sm"
+          style={{ top, left: "50%", transform: "translate(-50%, -50%)" }}
+          aria-label={`Добавить блок ${index}`}
+          title="Добавить блок"
         >
-          +
-        </span>
-      </button>
+          <span
+            className="leading-none"
+            style={index === 0 ? { transform: "translateY(5px)" } : undefined}
+          >
+            +
+          </span>
+        </button>
+      )}
     </div>
   );
 }
