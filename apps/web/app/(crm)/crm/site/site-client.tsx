@@ -3380,14 +3380,24 @@ function TildaInlineColorField({
   const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
   const displayValue = isTransparent ? EMPTY_COLOR_LABEL : normalized || placeholder;
   const colorValue = isHex ? normalized : placeholder;
+  const transparencyPattern = {
+    backgroundColor: "#ffffff",
+    backgroundImage:
+      "linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb), linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb)",
+    backgroundPosition: "0 0, 4px 4px",
+    backgroundSize: "8px 8px",
+  } as const;
   return (
     <label className={`${compact ? "" : "mb-3 "}block`}>
       <div className="min-h-[32px] text-[11px] font-semibold uppercase tracking-[0.15em] leading-4 text-[color:var(--bp-muted)]">
         {label}
       </div>
       <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] pb-1">
-        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-[color:var(--bp-paper)]">
-          <div className="absolute inset-0 rounded-full" style={{ backgroundColor: colorValue }} />
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+          <div
+            className="absolute inset-0 rounded-full"
+            style={isTransparent ? transparencyPattern : { backgroundColor: colorValue }}
+          />
           <input
             type="color"
             value={colorValue}
@@ -3412,7 +3422,7 @@ function TildaInlineColorField({
             onChange(next);
           }}
           onFocus={(event) => event.currentTarget.select()}
-          className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] p-0 text-sm text-[color:var(--bp-muted)] font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
           style={{ border: 0, boxShadow: "none", WebkitAppearance: "none", MozAppearance: "none" }}
         />
         {onClear && (
@@ -3485,6 +3495,14 @@ function TildaBackgroundColorField({
   const normalizedSecond = secondValue?.trim() ?? "";
   const secondIsHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalizedSecond);
   const secondColorValue = secondIsHex ? normalizedSecond : colorValue;
+  const secondIsTransparent = normalizedSecond.toLowerCase() === "transparent";
+  const transparencyPattern = {
+    backgroundColor: "#ffffff",
+    backgroundImage:
+      "linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb), linear-gradient(45deg, #e5e7eb 25%, transparent 25%, transparent 75%, #e5e7eb 75%, #e5e7eb)",
+    backgroundPosition: "0 0, 4px 4px",
+    backgroundSize: "8px 8px",
+  } as const;
   const radialStopAPct = Math.max(0, Math.min(100, Math.round(radialStopA)));
   const radialStopBPct = Math.max(0, Math.min(100, Math.round(radialStopB)));
   const leftPct = Math.min(radialStopAPct, radialStopBPct);
@@ -3577,9 +3595,7 @@ function TildaBackgroundColorField({
       <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
         <div
           className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]"
-          style={{
-            backgroundColor: "var(--bp-paper)",
-          }}
+          style={isTransparent ? transparencyPattern : { backgroundColor: "var(--bp-paper)" }}
         >
           <div
             className="absolute inset-0"
@@ -3627,9 +3643,12 @@ function TildaBackgroundColorField({
         <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
           <div
             className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]"
-            style={{ backgroundColor: "var(--bp-paper)" }}
+            style={secondIsTransparent ? transparencyPattern : { backgroundColor: "var(--bp-paper)" }}
           >
-            <div className="absolute inset-0" style={{ backgroundColor: secondColorValue }} />
+            <div
+              className="absolute inset-0"
+              style={{ backgroundColor: secondIsTransparent ? "transparent" : secondColorValue }}
+            />
             <input
               type="color"
               value={secondColorValue}
