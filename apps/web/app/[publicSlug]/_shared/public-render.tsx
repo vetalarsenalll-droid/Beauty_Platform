@@ -865,9 +865,15 @@ function renderCover(
     style.subheadingSize !== null && style.subheadingSize !== undefined ? style.subheadingSize : 20;
   const textDesktopSize =
     style.textSize !== null && style.textSize !== undefined ? style.textSize : 16;
+  const descriptionMobileSizeRaw = Number(data.coverDescriptionMobileSize);
   const headingMobileSize = Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
   const subheadingMobileSize = Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
-  const textMobileSize = Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+  const textMobileSize =
+    Number.isFinite(descriptionMobileSizeRaw) &&
+    descriptionMobileSizeRaw >= 10 &&
+    descriptionMobileSizeRaw <= 72
+      ? Math.round(descriptionMobileSizeRaw)
+      : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
   const contentColumns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover");
   const contentRange = centeredGridRange(contentColumns);
   const gridStart = clampGridColumn(style.gridStartColumn ?? contentRange.start);

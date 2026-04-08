@@ -3062,7 +3062,7 @@ export default function SiteClient({
                 }}
               >
                 <div
-                  className="sticky top-0 z-20 flex items-center justify-between border-b px-4 py-3"
+                  className="sticky top-0 z-20 flex h-12 items-center justify-between border-b px-4"
                   style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
                 >
                   <div className="w-8" />
@@ -3078,7 +3078,11 @@ export default function SiteClient({
                   <div className="w-8" />
                 </div>
                 <div
-                  className="h-full p-4"
+                  className={`h-full p-4 ${
+                    rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography"
+                      ? "pb-20"
+                      : ""
+                  }`}
                   style={{
                     backgroundColor: panelTheme.panel,
                     color: panelTheme.text,
@@ -3392,10 +3396,10 @@ function TildaInlineColorField({
       <div className="min-h-[32px] text-[11px] font-semibold uppercase tracking-[0.15em] leading-4 text-[color:var(--bp-muted)]">
         {label}
       </div>
-      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] pb-1">
-        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]">
           <div
-            className="absolute inset-0 rounded-full"
+            className="absolute inset-[2px] rounded-full"
             style={isTransparent ? transparencyPattern : { backgroundColor: colorValue }}
           />
           <input
@@ -3422,8 +3426,16 @@ function TildaInlineColorField({
             onChange(next);
           }}
           onFocus={(event) => event.currentTarget.select()}
-          className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] p-0 text-sm text-[color:var(--bp-muted)] font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
-          style={{ border: 0, boxShadow: "none", WebkitAppearance: "none", MozAppearance: "none" }}
+          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-sm text-[color:var(--bp-muted)] font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
         />
         {onClear && (
           <button
@@ -4985,6 +4997,75 @@ function BlockStyleEditor({
   };
   const inSection = (...ids: string[]) =>
     ids.length === 0 || ids.includes(activeSectionId);
+  const renderFlatSelect = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    options: Array<{ value: string; label: string }>
+  ) => (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          style={{
+            borderTop: 0,
+            borderLeft: 0,
+            borderRight: 0,
+            borderBottom: 0,
+            borderRadius: 0,
+            boxShadow: "none",
+            backgroundColor: "transparent",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
+        >
+          {options.map((option) => (
+            <option key={`${label}-${option.value}`} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+          ▾
+        </span>
+      </div>
+    </label>
+  );
+  const renderFlatNumber = (
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    onChange: (value: number) => void
+  ) => (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="w-full rounded-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-0 focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "textfield",
+            appearance: "textfield",
+          }}
+        />
+        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+      </div>
+    </label>
+  );
 
   return (
     <div className="space-y-4">
@@ -5776,7 +5857,98 @@ function BlockStyleEditor({
           </div>
         </>
       )}
-      {inSection("typography") && (
+      {inSection("typography") && block.type === "cover" && (
+        <>
+          <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Заголовок</div>
+          <TildaInlineColorField
+            label="Цвет"
+            value={style.textColor || theme.textColor}
+            onChange={(value) => update({ textColor: value })}
+            onClear={() => update({ textColor: "transparent" })}
+            placeholder="#000000"
+            compact
+          />
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.headingSize ?? theme.headingSize,
+            0,
+            140,
+            (value) => update({ headingSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontHeading || "",
+            (value) => update({ fontHeading: value }),
+            [{ value: "", label: "По умолчанию" }, ...THEME_FONTS.map((font) => ({ value: font.heading, label: font.label }))]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightHeading?.toString() || "",
+            (value) => update({ fontWeightHeading: value ? Number(value) : null }),
+            [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
+          )}
+
+          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Подзаголовок</div>
+          <TildaInlineColorField
+            label="Цвет"
+            value={style.mutedColor || theme.mutedColor}
+            onChange={(value) => update({ mutedColor: value })}
+            onClear={() => update({ mutedColor: "transparent" })}
+            placeholder="#ffffff"
+            compact
+          />
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.subheadingSize ?? theme.subheadingSize,
+            0,
+            100,
+            (value) => update({ subheadingSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontSubheading || "",
+            (value) => update({ fontSubheading: value }),
+            [{ value: "", label: "По умолчанию" }, ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label }))]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightSubheading?.toString() || "",
+            (value) => update({ fontWeightSubheading: value ? Number(value) : null }),
+            [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
+          )}
+
+          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Описание</div>
+          <TildaInlineColorField
+            label="Цвет"
+            value={style.mutedColor || theme.mutedColor}
+            onChange={(value) => update({ mutedColor: value })}
+            onClear={() => update({ mutedColor: "transparent" })}
+            placeholder="#ffffff"
+            compact
+          />
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.textSize ?? theme.textSize,
+            0,
+            72,
+            (value) => update({ textSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontBody || "",
+            (value) => update({ fontBody: value }),
+            [{ value: "", label: "По умолчанию" }, ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label }))]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightBody?.toString() || "",
+            (value) => update({ fontWeightBody: value ? Number(value) : null }),
+            [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
+          )}
+          <div className="h-6" />
+        </>
+      )}
+      {inSection("typography") && block.type !== "cover" && (
       <label className="text-sm">
         Шрифт заголовка
         <select
@@ -5793,7 +5965,7 @@ function BlockStyleEditor({
         </select>
       </label>
       )}
-      {inSection("typography") && (
+      {inSection("typography") && block.type !== "cover" && (
       <label className="text-sm">
         Шрифт подзаголовка
         <select
@@ -5810,7 +5982,7 @@ function BlockStyleEditor({
         </select>
       </label>
       )}
-      {inSection("typography") && (
+      {inSection("typography") && block.type !== "cover" && (
       <label className="text-sm">
         Шрифт текста
         <select
@@ -5827,7 +5999,7 @@ function BlockStyleEditor({
         </select>
       </label>
       )}
-      {inSection("typography") && (
+      {inSection("typography") && block.type !== "cover" && (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="text-sm">
           Жирность заголовка
@@ -5882,7 +6054,7 @@ function BlockStyleEditor({
         </label>
       </div>
       )}
-      {inSection("typography") && (
+      {inSection("typography") && block.type !== "cover" && (
       <div className="grid grid-cols-3 gap-3">
         <NumberField
           label="Заголовок"
@@ -7616,9 +7788,15 @@ function renderCover(
   const headingDesktopSize = style.headingSize ?? theme.headingSize;
   const subheadingDesktopSize = style.subheadingSize ?? theme.subheadingSize;
   const textDesktopSize = style.textSize ?? theme.textSize;
+  const descriptionMobileSizeRaw = Number(data.coverDescriptionMobileSize);
   const headingMobileSize = Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
   const subheadingMobileSize = Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
-  const textMobileSize = Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+  const textMobileSize =
+    Number.isFinite(descriptionMobileSizeRaw) &&
+    descriptionMobileSizeRaw >= 10 &&
+    descriptionMobileSizeRaw <= 72
+      ? Math.round(descriptionMobileSizeRaw)
+      : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
   const contentColumns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover");
   const contentRange = centeredGridRange(contentColumns);
   const gridStart = clampGridColumn(style.gridStartColumn ?? contentRange.start);
