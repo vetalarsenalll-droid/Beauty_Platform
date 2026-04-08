@@ -4982,6 +4982,15 @@ function BlockStyleEditor({
   const update = (patch: Partial<BlockStyle>) => {
     onChange(updateBlockStyle(block, patch));
   };
+  const updateCoverData = (patch: Record<string, unknown>) => {
+    onChange({
+      ...block,
+      data: {
+        ...(block.data as Record<string, unknown>),
+        ...patch,
+      },
+    });
+  };
   const applyGridRange = (nextStart: number, nextEnd: number) => {
     const safeStart = clampGridColumn(nextStart);
     const safeEnd = Math.max(safeStart, clampGridColumn(nextEnd));
@@ -4997,6 +5006,21 @@ function BlockStyleEditor({
   };
   const inSection = (...ids: string[]) =>
     ids.length === 0 || ids.includes(activeSectionId);
+  const coverData = (block.data as Record<string, unknown>) ?? {};
+  const resolveCoverTextColorInput = (raw: unknown, fallback: string) => {
+    const value = typeof raw === "string" ? raw.trim() : "";
+    if (!value) return fallback;
+    if (isValidColorValue(value)) return value;
+    return fallback;
+  };
+  const coverSubtitleColorInput = resolveCoverTextColorInput(
+    coverData.coverSubtitleColor,
+    "#ffffff"
+  );
+  const coverDescriptionColorInput = resolveCoverTextColorInput(
+    coverData.coverDescriptionColor,
+    "#ffffff"
+  );
   const renderFlatSelect = (
     label: string,
     value: string,
@@ -5051,15 +5075,15 @@ function BlockStyleEditor({
           max={max}
           value={value}
           onChange={(event) => onChange(Number(event.target.value))}
-          className="w-full rounded-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-0 focus:outline-none focus:ring-0"
+          className="w-full rounded-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
           style={{
             border: 0,
             borderRadius: 0,
             backgroundColor: "transparent",
             boxShadow: "none",
-            WebkitAppearance: "none",
-            MozAppearance: "textfield",
-            appearance: "textfield",
+            WebkitAppearance: "auto",
+            MozAppearance: "auto",
+            appearance: "auto",
           }}
         />
         <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
@@ -5862,9 +5886,17 @@ function BlockStyleEditor({
           <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Заголовок</div>
           <TildaInlineColorField
             label="Цвет"
-            value={style.textColor || theme.textColor}
-            onChange={(value) => update({ textColor: value })}
-            onClear={() => update({ textColor: "transparent" })}
+            value={style.textColorLight || style.textColor || theme.textColor}
+            onChange={(value) =>
+              update({ textColorLight: value, textColorDark: value, textColor: value })
+            }
+            onClear={() =>
+              update({
+                textColorLight: "transparent",
+                textColorDark: "transparent",
+                textColor: "transparent",
+              })
+            }
             placeholder="#000000"
             compact
           />
@@ -5891,9 +5923,9 @@ function BlockStyleEditor({
           <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Подзаголовок</div>
           <TildaInlineColorField
             label="Цвет"
-            value={style.mutedColor || theme.mutedColor}
-            onChange={(value) => update({ mutedColor: value })}
-            onClear={() => update({ mutedColor: "transparent" })}
+            value={coverSubtitleColorInput}
+            onChange={(value) => updateCoverData({ coverSubtitleColor: value })}
+            onClear={() => updateCoverData({ coverSubtitleColor: "transparent" })}
             placeholder="#ffffff"
             compact
           />
@@ -5920,9 +5952,9 @@ function BlockStyleEditor({
           <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Описание</div>
           <TildaInlineColorField
             label="Цвет"
-            value={style.mutedColor || theme.mutedColor}
-            onChange={(value) => update({ mutedColor: value })}
-            onClear={() => update({ mutedColor: "transparent" })}
+            value={coverDescriptionColorInput}
+            onChange={(value) => updateCoverData({ coverDescriptionColor: value })}
+            onClear={() => updateCoverData({ coverDescriptionColor: "transparent" })}
             placeholder="#ffffff"
             compact
           />
@@ -7785,6 +7817,16 @@ function renderCover(
         ? arrowColorRaw
         : "#ffffff";
   const animateArrow = Boolean(data.coverArrowAnimated);
+  const subtitleColorRaw =
+    typeof data.coverSubtitleColor === "string" ? data.coverSubtitleColor.trim() : "";
+  const subtitleColor =
+    subtitleColorRaw && isValidColorValue(subtitleColorRaw) ? subtitleColorRaw : "#ffffff";
+  const descriptionColorRaw =
+    typeof data.coverDescriptionColor === "string" ? data.coverDescriptionColor.trim() : "";
+  const descriptionColor =
+    descriptionColorRaw && isValidColorValue(descriptionColorRaw)
+      ? descriptionColorRaw
+      : "#ffffff";
   const headingDesktopSize = style.headingSize ?? theme.headingSize;
   const subheadingDesktopSize = style.subheadingSize ?? theme.subheadingSize;
   const textDesktopSize = style.textSize ?? theme.textSize;
@@ -7875,6 +7917,7 @@ function renderCover(
             className="text-white leading-[1.08] tracking-[-0.01em]"
             style={{
               ...headingStyle(style, theme),
+              textAlign: contentAlign,
               fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
                 headingMobileSize,
                 headingDesktopSize
@@ -7888,6 +7931,8 @@ function renderCover(
               className="mt-6 text-white/90 leading-[1.25]"
               style={{
                 ...subheadingStyle(style, theme),
+                textAlign: contentAlign,
+                color: subtitleColor,
                 fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
                   subheadingMobileSize,
                   subheadingDesktopSize
@@ -7902,6 +7947,8 @@ function renderCover(
               className="mt-5 max-w-[720px] text-white/80 leading-[1.45]"
               style={{
                 ...textStyle(style, theme),
+                textAlign: contentAlign,
+                color: descriptionColor,
                 fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
                   textMobileSize,
                   textDesktopSize

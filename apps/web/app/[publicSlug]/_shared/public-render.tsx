@@ -859,12 +859,28 @@ function renderCover(
     ? arrowColorRaw
     : "#ffffff";
   const animateArrow = Boolean(data.coverArrowAnimated);
+  const subtitleColorRaw =
+    typeof data.coverSubtitleColor === "string" ? data.coverSubtitleColor.trim() : "";
+  const subtitleColor =
+    subtitleColorRaw && isValidColorValue(subtitleColorRaw) ? subtitleColorRaw : "#ffffff";
+  const descriptionColorRaw =
+    typeof data.coverDescriptionColor === "string" ? data.coverDescriptionColor.trim() : "";
+  const descriptionColor =
+    descriptionColorRaw && isValidColorValue(descriptionColorRaw)
+      ? descriptionColorRaw
+      : "#ffffff";
   const headingDesktopSize =
-    style.headingSize !== null && style.headingSize !== undefined ? style.headingSize : 42;
+    style.headingSize !== null && style.headingSize !== undefined
+      ? style.headingSize
+      : theme.headingSize;
   const subheadingDesktopSize =
-    style.subheadingSize !== null && style.subheadingSize !== undefined ? style.subheadingSize : 20;
+    style.subheadingSize !== null && style.subheadingSize !== undefined
+      ? style.subheadingSize
+      : theme.subheadingSize;
   const textDesktopSize =
-    style.textSize !== null && style.textSize !== undefined ? style.textSize : 16;
+    style.textSize !== null && style.textSize !== undefined
+      ? style.textSize
+      : theme.textSize;
   const descriptionMobileSizeRaw = Number(data.coverDescriptionMobileSize);
   const headingMobileSize = Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
   const subheadingMobileSize = Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
@@ -929,6 +945,7 @@ function renderCover(
             className="text-white leading-[1.08] tracking-[-0.01em]"
             style={{
               ...headingStyle(style),
+              textAlign: contentAlign,
               fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
                 headingMobileSize,
                 headingDesktopSize
@@ -942,6 +959,8 @@ function renderCover(
               className="mt-6 text-white/90 leading-[1.25]"
               style={{
                 ...subheadingStyle(style),
+                textAlign: contentAlign,
+                color: subtitleColor,
                 fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
                   subheadingMobileSize,
                   subheadingDesktopSize
@@ -956,6 +975,8 @@ function renderCover(
               className="mt-5 max-w-[720px] text-white/80 leading-[1.45]"
               style={{
                 ...textStyle(style),
+                textAlign: contentAlign,
+                color: descriptionColor,
                 fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
                   textMobileSize,
                   textDesktopSize
