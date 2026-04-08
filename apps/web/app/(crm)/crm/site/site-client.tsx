@@ -180,6 +180,7 @@ const MOBILE_VIEWPORTS = {
 type MobileViewportKey = keyof typeof MOBILE_VIEWPORTS;
 
 type EditorSection = { id: string; label: string };
+type CoverBackgroundMode = "solid" | "linear" | "radial";
 
 const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = {
   menu: [
@@ -1680,6 +1681,18 @@ export default function SiteClient({
   const coverGridSpan = Math.max(1, coverGridEnd - coverGridStart + 1);
   const coverMarginTopLines = coverStyle ? Math.max(0, Math.min(7, Math.round((coverStyle.marginTop / COVER_LINE_STEP_PX) * 2) / 2)) : 0;
   const coverMarginBottomLines = coverStyle ? Math.max(0, Math.min(7, Math.round((coverStyle.marginBottom / COVER_LINE_STEP_PX) * 2) / 2)) : 0;
+  const coverData =
+    isCoverSettingsPanel && selectedBlock
+      ? (selectedBlock.data as Record<string, unknown>)
+      : null;
+  const coverBackgroundMode: CoverBackgroundMode =
+    coverData?.coverBackgroundMode === "linear" || coverData?.coverBackgroundMode === "radial"
+      ? (coverData.coverBackgroundMode as CoverBackgroundMode)
+      : "solid";
+  const coverBackgroundTo = String(coverData?.coverBackgroundTo ?? "");
+  const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
+    ? Math.max(0, Math.min(360, Number(coverData?.coverBackgroundAngle)))
+    : 135;
 
   const updateSelectedCoverStyle = (patch: Partial<BlockStyle>) => {
     if (!isCoverSettingsPanel || !selectedBlock) return;
@@ -2596,8 +2609,18 @@ export default function SiteClient({
                     <TildaBackgroundColorField
                       label="Цвет фона для всего блока"
                       value={String(coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "")}
+                      mode={coverBackgroundMode}
+                      secondValue={coverBackgroundTo}
+                      angle={coverBackgroundAngle}
                       placeholder="#ffffff"
-                      onChange={(value) =>
+                      onModeChange={(mode) => updateSelectedCoverData({ coverBackgroundMode: mode })}
+                      onSecondChange={(value) =>
+                        updateSelectedCoverData({ coverBackgroundTo: value })
+                      }
+                      onAngleChange={(value) =>
+                        updateSelectedCoverData({ coverBackgroundAngle: value })
+                      }
+                      onChange={(value) => {
                         updateSelectedCoverStyle({
                           sectionBgLight: value,
                           sectionBgDark: value,
@@ -2605,8 +2628,9 @@ export default function SiteClient({
                           blockBgLight: value,
                           blockBgDark: value,
                           blockBg: value,
-                        })
-                      }
+                        });
+                        updateSelectedCoverData({ coverBackgroundFrom: value });
+                      }}
                     />
                   </>
                 ) : (
@@ -2961,11 +2985,23 @@ function ColorField({
 function TildaBackgroundColorField({
   label,
   value,
+  mode = "solid",
+  secondValue = "",
+  angle = 135,
+  onModeChange,
+  onSecondChange,
+  onAngleChange,
   onChange,
   placeholder,
 }: {
   label: string;
   value: string;
+  mode?: CoverBackgroundMode;
+  secondValue?: string;
+  angle?: number;
+  onModeChange?: (value: CoverBackgroundMode) => void;
+  onSecondChange?: (value: string) => void;
+  onAngleChange?: (value: number) => void;
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
@@ -2989,11 +3025,36 @@ function TildaBackgroundColorField({
     : isTransparent
       ? "#ffffff"
       : placeholderHex || "#ffffff";
+  const normalizedSecond = secondValue?.trim() ?? "";
+  const secondIsHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalizedSecond);
+  const secondColorValue = secondIsHex ? normalizedSecond : colorValue;
 
   return (
     <label className="block">
       <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
         {label}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <select
+          value={mode}
+          onChange={(event) => onModeChange?.(event.target.value as CoverBackgroundMode)}
+          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-sm normal-case tracking-normal shadow-none outline-none focus:ring-0"
+          style={{
+            borderTop: "0",
+            borderLeft: "0",
+            borderRight: "0",
+            borderRadius: "0",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
+        >
+          <option value="solid">Сплошной цвет</option>
+          <option value="linear">Линейный градиент</option>
+          <option value="radial">Радиальный градиент</option>
+        </select>
+        <span className="pointer-events-none text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
       </div>
       <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
         <div
@@ -3044,6 +3105,71 @@ function TildaBackgroundColorField({
           ×
         </button>
       </div>
+      {mode !== "solid" && (
+        <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
+          <div
+            className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]"
+            style={{ backgroundColor: "var(--bp-paper)" }}
+          >
+            <div className="absolute inset-0" style={{ backgroundColor: secondColorValue }} />
+            <input
+              type="color"
+              value={secondColorValue}
+              onChange={(event) => onSecondChange?.(event.target.value)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </div>
+          <input
+            type="text"
+            value={normalizedSecond || secondColorValue}
+            onChange={(event) => onSecondChange?.(event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            placeholder={placeholder}
+            className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] px-0 py-1 text-sm text-[color:var(--bp-muted)] shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+            style={{ border: 0, boxShadow: "none" }}
+          />
+          <button
+            type="button"
+            onClick={() => onSecondChange?.(colorValue)}
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-base leading-none text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+            aria-label="Сбросить второй цвет"
+            title="Сбросить второй цвет"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {mode === "linear" && (
+        <div className="mt-2">
+          <div className="mb-1 text-xs text-[color:var(--bp-muted)]">Угол {Math.round(angle)}</div>
+          <div className="relative h-5">
+            <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[color:var(--bp-stroke)]" />
+            <div
+              className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+              style={{
+                width: `${Math.max(0, Math.min(100, (Math.round(angle) / 360) * 100))}%`,
+                backgroundColor: "#ff5a5f",
+              }}
+            />
+            <div
+              className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
+              style={{
+                left: `${Math.max(0, Math.min(100, (Math.round(angle) / 360) * 100))}%`,
+                backgroundColor: "#ff5a5f",
+              }}
+            />
+            <input
+              type="range"
+              min={0}
+              max={360}
+              step={1}
+              value={Math.round(angle)}
+              onChange={(event) => onAngleChange?.(Number(event.target.value))}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </div>
+        </div>
+      )}
       <div className="mt-1 border-b border-[color:var(--bp-stroke)]" />
     </label>
   );
@@ -6085,6 +6211,34 @@ function CoverImageEditor({
   );
 }
 
+function resolveCoverBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string
+) {
+  const modeRaw = typeof data?.coverBackgroundMode === "string" ? data.coverBackgroundMode : "";
+  const mode: CoverBackgroundMode =
+    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const fromRaw = typeof data?.coverBackgroundFrom === "string" ? data.coverBackgroundFrom.trim() : "";
+  const toRaw = typeof data?.coverBackgroundTo === "string" ? data.coverBackgroundTo.trim() : "";
+  const angleRaw = Number(data?.coverBackgroundAngle);
+  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const from = fromRaw || fallbackColor || "#ffffff";
+  const to = toRaw || from;
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
+    };
+  }
+  if (mode === "radial") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle at center, ${from}, ${to})`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
+}
+
 function BlockPreview({
   block,
   account,
@@ -6198,6 +6352,10 @@ function BlockPreview({
     previewMode,
     onThemeToggle
   );
+  const coverBackground = resolveCoverBackgroundVisual(
+    isCover ? (block.data as Record<string, unknown>) : null,
+    sectionBg || theme.panelColor
+  );
   return (
     <div
       role="button"
@@ -6221,8 +6379,10 @@ function BlockPreview({
         paddingBottom: isGallery || isBooking || isCover || isAisha ? style.marginBottom : undefined,
         backgroundColor: isMenu || isAisha
           ? "transparent"
-          : sectionBg,
-        backgroundImage: "none",
+          : isCover
+            ? coverBackground.backgroundColor
+            : sectionBg,
+        backgroundImage: isCover ? coverBackground.backgroundImage : "none",
       }}
     >
       <div
@@ -6787,7 +6947,6 @@ function renderCover(
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const contentMaxWidth = forceMobileLayout ? "100%" : gridWidthPercent;
   const contentMarginLeft = forceMobileLayout ? 0 : gridLeftPercent;
-  const sectionBg = theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
   const overlayGradient =
     "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
   const backgroundStyle = imageUrl
@@ -6797,7 +6956,8 @@ function renderCover(
         backgroundPosition: "center",
       }
     : {
-        backgroundColor: sectionBg || style.blockBg || theme.panelColor,
+        backgroundColor: "transparent",
+        backgroundImage: "none",
       };
 
   return (
