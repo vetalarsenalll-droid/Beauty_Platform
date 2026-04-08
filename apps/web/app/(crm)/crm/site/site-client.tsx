@@ -1693,6 +1693,12 @@ export default function SiteClient({
   const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
     ? Math.max(0, Math.min(360, Number(coverData?.coverBackgroundAngle)))
     : 135;
+  const coverBackgroundStopA = Number.isFinite(Number(coverData?.coverBackgroundStopA))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopA)))
+    : 0;
+  const coverBackgroundStopB = Number.isFinite(Number(coverData?.coverBackgroundStopB))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopB)))
+    : 100;
 
   const updateSelectedCoverStyle = (patch: Partial<BlockStyle>) => {
     if (!isCoverSettingsPanel || !selectedBlock) return;
@@ -2612,6 +2618,8 @@ export default function SiteClient({
                       mode={coverBackgroundMode}
                       secondValue={coverBackgroundTo}
                       angle={coverBackgroundAngle}
+                      radialStopA={coverBackgroundStopA}
+                      radialStopB={coverBackgroundStopB}
                       placeholder="#ffffff"
                       onModeChange={(mode) => updateSelectedCoverData({ coverBackgroundMode: mode })}
                       onSecondChange={(value) =>
@@ -2619,6 +2627,12 @@ export default function SiteClient({
                       }
                       onAngleChange={(value) =>
                         updateSelectedCoverData({ coverBackgroundAngle: value })
+                      }
+                      onRadialStopAChange={(value) =>
+                        updateSelectedCoverData({ coverBackgroundStopA: value })
+                      }
+                      onRadialStopBChange={(value) =>
+                        updateSelectedCoverData({ coverBackgroundStopB: value })
                       }
                       onChange={(value) => {
                         updateSelectedCoverStyle({
@@ -2988,9 +3002,13 @@ function TildaBackgroundColorField({
   mode = "solid",
   secondValue = "",
   angle = 135,
+  radialStopA = 0,
+  radialStopB = 100,
   onModeChange,
   onSecondChange,
   onAngleChange,
+  onRadialStopAChange,
+  onRadialStopBChange,
   onChange,
   placeholder,
 }: {
@@ -2999,9 +3017,13 @@ function TildaBackgroundColorField({
   mode?: CoverBackgroundMode;
   secondValue?: string;
   angle?: number;
+  radialStopA?: number;
+  radialStopB?: number;
   onModeChange?: (value: CoverBackgroundMode) => void;
   onSecondChange?: (value: string) => void;
   onAngleChange?: (value: number) => void;
+  onRadialStopAChange?: (value: number) => void;
+  onRadialStopBChange?: (value: number) => void;
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
@@ -3028,6 +3050,67 @@ function TildaBackgroundColorField({
   const normalizedSecond = secondValue?.trim() ?? "";
   const secondIsHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalizedSecond);
   const secondColorValue = secondIsHex ? normalizedSecond : colorValue;
+  const radialStopAPct = Math.max(0, Math.min(100, Math.round(radialStopA)));
+  const radialStopBPct = Math.max(0, Math.min(100, Math.round(radialStopB)));
+  const leftPct = Math.min(radialStopAPct, radialStopBPct);
+  const rightPct = Math.max(radialStopAPct, radialStopBPct);
+  const leftColor = radialStopAPct <= radialStopBPct ? colorValue : secondColorValue;
+  const rightColor = radialStopAPct <= radialStopBPct ? secondColorValue : colorValue;
+  const radialTrackRef = useRef<HTMLDivElement | null>(null);
+  const radialDragRef = useRef<"stopA" | "stopB" | null>(null);
+  const [activeRadialThumb, setActiveRadialThumb] = useState<"stopA" | "stopB" | null>(null);
+
+  const clampPct = (value: number) => Math.max(0, Math.min(100, value));
+  const resolvePercentFromClientX = (clientX: number) => {
+    const rect = radialTrackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return 0;
+    return clampPct(((clientX - rect.left) / rect.width) * 100);
+  };
+  const applyRadialPercent = (target: "stopA" | "stopB", percent: number) => {
+    const nextPercent = clampPct(percent);
+    if (target === "stopA") {
+      onRadialStopAChange?.(Math.round(nextPercent));
+      return;
+    }
+    onRadialStopBChange?.(Math.round(nextPercent));
+  };
+  const startRadialDrag = (
+    event: React.PointerEvent<HTMLDivElement>,
+    forcedTarget?: "stopA" | "stopB"
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startPercent = resolvePercentFromClientX(event.clientX);
+    const target =
+      forcedTarget ??
+      (Math.abs(startPercent - radialStopAPct) <= Math.abs(startPercent - radialStopBPct)
+        ? "stopA"
+        : "stopB");
+    radialDragRef.current = target;
+    setActiveRadialThumb(target);
+    applyRadialPercent(target, startPercent);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // no-op
+    }
+    const handleMove = (nextEvent: PointerEvent) => {
+      const dragTarget = radialDragRef.current;
+      if (!dragTarget) return;
+      const nextPercent = resolvePercentFromClientX(nextEvent.clientX);
+      applyRadialPercent(dragTarget, nextPercent);
+    };
+    const handleUp = () => {
+      radialDragRef.current = null;
+      setActiveRadialThumb(null);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  };
 
   return (
     <label className="block">
@@ -3166,6 +3249,39 @@ function TildaBackgroundColorField({
               value={Math.round(angle)}
               onChange={(event) => onAngleChange?.(Number(event.target.value))}
               className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </div>
+        </div>
+      )}
+      {mode === "radial" && (
+        <div className="mt-2">
+          <div className="mb-1 text-xs text-[color:var(--bp-muted)]">
+            Цвет 1: {radialStopAPct}% · Цвет 2: {radialStopBPct}%
+          </div>
+          <div
+            ref={radialTrackRef}
+            className="relative h-6 cursor-pointer touch-none"
+            onPointerDown={(event) => startRadialDrag(event)}
+          >
+            <div
+              className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+              style={{
+                background: `linear-gradient(to right, ${leftColor} 0%, ${leftColor} ${leftPct}%, ${rightColor} ${rightPct}%, ${rightColor} 100%)`,
+              }}
+            />
+            <div
+              className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-white shadow-sm ${
+                activeRadialThumb === "stopA" ? "border-[#2563eb]" : "border-white"
+              }`}
+              style={{ left: `${radialStopAPct}%`, backgroundColor: colorValue }}
+              onPointerDown={(event) => startRadialDrag(event, "stopA")}
+            />
+            <div
+              className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-white shadow-sm ${
+                activeRadialThumb === "stopB" ? "border-[#2563eb]" : "border-white"
+              }`}
+              style={{ left: `${radialStopBPct}%`, backgroundColor: secondColorValue }}
+              onPointerDown={(event) => startRadialDrag(event, "stopB")}
             />
           </div>
         </div>
@@ -6222,6 +6338,10 @@ function resolveCoverBackgroundVisual(
   const toRaw = typeof data?.coverBackgroundTo === "string" ? data.coverBackgroundTo.trim() : "";
   const angleRaw = Number(data?.coverBackgroundAngle);
   const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const stopARaw = Number(data?.coverBackgroundStopA);
+  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
+  const stopBRaw = Number(data?.coverBackgroundStopB);
+  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
   const from = fromRaw || fallbackColor || "#ffffff";
   const to = toRaw || from;
   if (mode === "linear") {
@@ -6231,9 +6351,15 @@ function resolveCoverBackgroundVisual(
     };
   }
   if (mode === "radial") {
+    const innerStop = Math.min(stopA, stopB);
+    const outerStop = Math.max(stopA, stopB);
+    const innerColor = stopA <= stopB ? from : to;
+    const outerColor = stopA <= stopB ? to : from;
     return {
       backgroundColor: from,
-      backgroundImage: `radial-gradient(circle at center, ${from}, ${to})`,
+      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
+        innerStop
+      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
     };
   }
   return { backgroundColor: from, backgroundImage: "none" };
