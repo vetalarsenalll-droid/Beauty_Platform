@@ -2593,6 +2593,21 @@ export default function SiteClient({
                         </div>
                       </label>
                     </div>
+                    <TildaBackgroundColorField
+                      label="Цвет фона для всего блока"
+                      value={String(coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "")}
+                      placeholder="#ffffff"
+                      onChange={(value) =>
+                        updateSelectedCoverStyle({
+                          sectionBgLight: value,
+                          sectionBgDark: value,
+                          sectionBg: value,
+                          blockBgLight: value,
+                          blockBgDark: value,
+                          blockBg: value,
+                        })
+                      }
+                    />
                   </>
                 ) : (
                   currentPanelSections.map((section) => (
@@ -2939,6 +2954,97 @@ function ColorField({
           className="w-full bg-transparent text-xs text-[color:var(--bp-ink)] outline-none selection:bg-[color:var(--bp-accent)] selection:text-[color:var(--bp-paper)]"
         />
       </div>
+    </label>
+  );
+}
+
+function TildaBackgroundColorField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const EMPTY_COLOR_LABEL = "Цвет не выбран";
+  const normalized = value?.trim() ?? "";
+  const isTransparent = normalized.toLowerCase() === "transparent";
+  const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
+  const placeholderValue = typeof placeholder === "string" ? placeholder : "";
+  const placeholderHex =
+    typeof placeholderValue === "string" &&
+    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(placeholderValue)
+      ? placeholderValue
+      : "";
+  const displayValue = isTransparent
+    ? EMPTY_COLOR_LABEL
+    : normalized === ""
+      ? placeholderValue || "#ffffff"
+      : normalized;
+  const colorValue = isHex
+    ? normalized
+    : isTransparent
+      ? "#ffffff"
+      : placeholderHex || "#ffffff";
+
+  return (
+    <label className="block">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+        {label}
+      </div>
+      <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
+        <div
+          className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]"
+          style={{
+            backgroundColor: "var(--bp-paper)",
+          }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: isTransparent ? "transparent" : colorValue }}
+          />
+          <input
+            type="color"
+            value={colorValue}
+            onChange={(event) => onChange(event.target.value)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+        </div>
+        <input
+          type="text"
+          value={displayValue}
+          onChange={(event) => {
+            const next = event.target.value;
+            const lowered = next.trim().toLowerCase();
+            if (lowered === "transparent" || lowered === EMPTY_COLOR_LABEL.toLowerCase()) {
+              onChange("transparent");
+              return;
+            }
+            if (next.trim() === "") {
+              onChange("transparent");
+              return;
+            }
+            onChange(next);
+          }}
+          onFocus={(event) => event.currentTarget.select()}
+          placeholder={placeholder}
+          className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] px-0 py-1 text-sm text-[color:var(--bp-muted)] shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          style={{ border: 0, boxShadow: "none" }}
+        />
+        <button
+          type="button"
+          onClick={() => onChange("transparent")}
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-base leading-none text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+          aria-label="Сбросить цвет"
+          title="Сбросить цвет"
+        >
+          ×
+        </button>
+      </div>
+      <div className="mt-1 border-b border-[color:var(--bp-stroke)]" />
     </label>
   );
 }
@@ -6113,11 +6219,9 @@ function BlockPreview({
         marginBottom: isGallery || isBooking || isCover || isAisha ? 0 : style.marginBottom,
         paddingTop: isGallery || isBooking || isCover || isAisha ? style.marginTop : undefined,
         paddingBottom: isGallery || isBooking || isCover || isAisha ? style.marginBottom : undefined,
-        backgroundColor: isMenu || isCover || isAisha
+        backgroundColor: isMenu || isAisha
           ? "transparent"
-          : isGallery
-            ? sectionBg
-            : sectionBg,
+          : sectionBg,
         backgroundImage: "none",
       }}
     >
