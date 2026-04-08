@@ -986,17 +986,23 @@ function renderCover(
         </div>
       </div>
       {arrowMode === "down" && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[2] flex justify-center">
-          <span
-            className={animateArrow ? "inline-flex h-8 w-8 items-center justify-center animate-bounce" : "inline-flex h-8 w-8 items-center justify-center"}
-            style={{ color: arrowColor }}
-            aria-hidden="true"
+        <div
+          className={`pointer-events-none absolute bottom-6 left-1/2 z-[2] -translate-x-1/2 ${
+            animateArrow ? "animate-bounce" : ""
+          }`}
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-6 w-6"
+            fill="none"
+            stroke={arrowColor}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14" />
-              <path d="m6 13 6 6 6-6" />
-            </svg>
-          </span>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </div>
       )}
     </section>

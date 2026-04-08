@@ -1707,6 +1707,13 @@ export default function SiteClient({
   const coverScrollHeight = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverScrollHeightRaw)
     ? coverScrollHeightRaw
     : "100vh";
+  const coverScrollHeightPx = (() => {
+    const pxMatch = coverScrollHeight.match(/^(\d+(?:\.\d+)?)px$/i);
+    if (pxMatch) {
+      return Math.max(0, Math.round(Number(pxMatch[1])));
+    }
+    return 700;
+  })();
   const coverFilterStartColorRaw =
     typeof coverData?.coverFilterStartColor === "string"
       ? coverData.coverFilterStartColor.trim()
@@ -2500,7 +2507,7 @@ export default function SiteClient({
                 </div>
               </div>
 
-              <div className="space-y-3 p-3">
+              <div className="space-y-3 p-3 pb-12">
                 {isCoverSettingsPanel ? (
                   <>
                     <div className="p-0" style={{ backgroundColor: panelTheme.panel }}>
@@ -2599,45 +2606,52 @@ export default function SiteClient({
 
                     <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                       Высота
-                      <input
-                        type="text"
-                        value={coverScrollHeight}
-                        onChange={(event) =>
-                          updateSelectedCoverData({ coverScrollHeight: event.target.value })
-                        }
-                        className="mt-2 w-full rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
-                        style={{ borderTop: 0, borderLeft: 0, borderRight: 0, borderRadius: 0 }}
-                      />
-                      <div className="mt-2 text-xs font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">
-                        Пример: 700px (или 100vh. Единицы измерения: px — пиксели, vh — высота области просмотра в процентах)
+                      <div className="mt-2 text-base font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
+                        {coverScrollHeightPx}px
+                      </div>
+                      <div className="relative mt-2 h-5">
+                        <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[color:var(--bp-stroke)]" />
+                        <div
+                          className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+                          style={{
+                            width: `${Math.max(0, Math.min(100, ((coverScrollHeightPx - 200) / 1200) * 100))}%`,
+                            backgroundColor: "#ff5a5f",
+                          }}
+                        />
+                        <div
+                          className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
+                          style={{
+                            left: `${Math.max(0, Math.min(100, ((coverScrollHeightPx - 200) / 1200) * 100))}%`,
+                            backgroundColor: "#ff5a5f",
+                          }}
+                        />
+                        <input
+                          type="range"
+                          min={200}
+                          max={1400}
+                          step={10}
+                          value={coverScrollHeightPx}
+                          onChange={(event) => {
+                            const nextValue = Math.max(200, Math.min(1400, Number(event.target.value)));
+                            updateSelectedCoverData({ coverScrollHeight: `${nextValue}px` });
+                          }}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        />
                       </div>
                     </label>
 
                     <div className="mb-3 grid grid-cols-2 gap-4">
-                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                        Цвет фильтра в начале
-                        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
-                          <input
-                            type="color"
-                            value={coverFilterStartColor}
-                            onChange={(event) =>
-                              updateSelectedCoverData({ coverFilterStartColor: event.target.value })
-                            }
-                            className="h-6 w-6 shrink-0 rounded-full border border-[color:var(--bp-stroke)]"
-                          />
-                          <input
-                            type="text"
-                            value={coverFilterStartColor}
-                            onChange={(event) =>
-                              updateSelectedCoverData({ coverFilterStartColor: event.target.value })
-                            }
-                            className="w-full border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal outline-none"
-                          />
-                        </div>
-                      </label>
-                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                        Непрозрачность
-                        <div className="relative mt-2">
+                      <TildaInlineColorField
+                        compact
+                        label="Цвет фильтра в начале"
+                        value={coverFilterStartColor}
+                        onChange={(value) => updateSelectedCoverData({ coverFilterStartColor: value })}
+                        onClear={() => updateSelectedCoverData({ coverFilterStartColor: "#000000" })}
+                        placeholder="#000000"
+                      />
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        <div className="min-h-[32px] leading-4">Непрозрачность</div>
+                        <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
                           <select
                             value={String(Math.round(coverFilterStartOpacity))}
                             onChange={(event) =>
@@ -2645,14 +2659,18 @@ export default function SiteClient({
                                 coverFilterStartOpacity: Number(event.target.value),
                               })
                             }
-                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
                             style={{
                               borderTop: 0,
                               borderLeft: 0,
                               borderRight: 0,
+                              borderBottom: 0,
                               borderRadius: 0,
                               boxShadow: "none",
                               backgroundColor: "transparent",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                              appearance: "none",
                             }}
                           >
                             {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
@@ -2669,30 +2687,17 @@ export default function SiteClient({
                     </div>
 
                     <div className="mb-3 grid grid-cols-2 gap-4">
-                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                        Цвет фильтра в конце
-                        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
-                          <input
-                            type="color"
-                            value={coverFilterEndColor}
-                            onChange={(event) =>
-                              updateSelectedCoverData({ coverFilterEndColor: event.target.value })
-                            }
-                            className="h-6 w-6 shrink-0 rounded-full border border-[color:var(--bp-stroke)]"
-                          />
-                          <input
-                            type="text"
-                            value={coverFilterEndColor}
-                            onChange={(event) =>
-                              updateSelectedCoverData({ coverFilterEndColor: event.target.value })
-                            }
-                            className="w-full border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal outline-none"
-                          />
-                        </div>
-                      </label>
-                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                        Непрозрачность
-                        <div className="relative mt-2">
+                      <TildaInlineColorField
+                        compact
+                        label="Цвет фильтра в конце"
+                        value={coverFilterEndColor}
+                        onChange={(value) => updateSelectedCoverData({ coverFilterEndColor: value })}
+                        onClear={() => updateSelectedCoverData({ coverFilterEndColor: "#0f0f0f" })}
+                        placeholder="#0f0f0f"
+                      />
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        <div className="min-h-[32px] leading-4">Непрозрачность</div>
+                        <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
                           <select
                             value={String(Math.round(coverFilterEndOpacity))}
                             onChange={(event) =>
@@ -2700,14 +2705,18 @@ export default function SiteClient({
                                 coverFilterEndOpacity: Number(event.target.value),
                               })
                             }
-                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
                             style={{
                               borderTop: 0,
                               borderLeft: 0,
                               borderRight: 0,
+                              borderBottom: 0,
                               borderRadius: 0,
                               boxShadow: "none",
                               backgroundColor: "transparent",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                              appearance: "none",
                             }}
                           >
                             {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
@@ -2723,10 +2732,10 @@ export default function SiteClient({
                       </label>
                     </div>
 
-                    <div className="mb-2 grid grid-cols-2 gap-4">
-                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                        Стрелка
-                        <div className="relative mt-2">
+                    <div className="mb-3 grid grid-cols-2 gap-4">
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        <div className="min-h-[32px] leading-4">Стрелка</div>
+                        <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
                           <select
                             value={coverArrow}
                             onChange={(event) =>
@@ -2734,14 +2743,18 @@ export default function SiteClient({
                                 coverArrow: event.target.value as "none" | "down",
                               })
                             }
-                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
                             style={{
                               borderTop: 0,
                               borderLeft: 0,
                               borderRight: 0,
+                              borderBottom: 0,
                               borderRadius: 0,
                               boxShadow: "none",
                               backgroundColor: "transparent",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                              appearance: "none",
                             }}
                           >
                             <option value="none">Нет</option>
@@ -2752,27 +2765,14 @@ export default function SiteClient({
                           </span>
                         </div>
                       </label>
-                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                        Цвет стрелки
-                        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
-                          <input
-                            type="color"
-                            value={coverArrowColor}
-                            onChange={(event) =>
-                              updateSelectedCoverData({ coverArrowColor: event.target.value })
-                            }
-                            className="h-6 w-6 shrink-0 rounded-full border border-[color:var(--bp-stroke)]"
-                          />
-                          <input
-                            type="text"
-                            value={coverArrowColor}
-                            onChange={(event) =>
-                              updateSelectedCoverData({ coverArrowColor: event.target.value })
-                            }
-                            className="w-full border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal outline-none"
-                          />
-                        </div>
-                      </label>
+                      <TildaInlineColorField
+                        compact
+                        label="Цвет стрелки"
+                        value={coverArrowColor}
+                        onChange={(value) => updateSelectedCoverData({ coverArrowColor: value })}
+                        onClear={() => updateSelectedCoverData({ coverArrowColor: "#ffffff" })}
+                        placeholder="#ffffff"
+                      />
                     </div>
 
                     <label className="mb-3 mt-2 flex items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
@@ -3261,6 +3261,64 @@ function ColorField({
           placeholder={placeholder}
           className="w-full bg-transparent text-xs text-[color:var(--bp-ink)] outline-none selection:bg-[color:var(--bp-accent)] selection:text-[color:var(--bp-paper)]"
         />
+      </div>
+    </label>
+  );
+}
+
+function TildaInlineColorField({
+  label,
+  value,
+  onChange,
+  onClear,
+  placeholder = "#ffffff",
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onClear?: () => void;
+  placeholder?: string;
+  compact?: boolean;
+}) {
+  const normalized = value?.trim() ?? "";
+  const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
+  const displayValue = normalized || placeholder;
+  const colorValue = isHex ? normalized : placeholder;
+  return (
+    <label className={`${compact ? "" : "mb-3 "}block`}>
+      <div className="min-h-[32px] text-[11px] font-semibold uppercase tracking-[0.15em] leading-4 text-[color:var(--bp-muted)]">
+        {label}
+      </div>
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] pb-1">
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-[color:var(--bp-paper)]">
+          <div className="absolute inset-0 rounded-full" style={{ backgroundColor: colorValue }} />
+          <input
+            type="color"
+            value={colorValue}
+            onChange={(event) => onChange(event.target.value)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+        </div>
+        <input
+          type="text"
+          value={displayValue}
+          onChange={(event) => onChange(event.target.value)}
+          onFocus={(event) => event.currentTarget.select()}
+          className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{ border: 0, boxShadow: "none", WebkitAppearance: "none", MozAppearance: "none" }}
+        />
+        {onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-base leading-none text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+            aria-label="Сбросить цвет"
+            title="Сбросить цвет"
+          >
+            ×
+          </button>
+        )}
       </div>
     </label>
   );
