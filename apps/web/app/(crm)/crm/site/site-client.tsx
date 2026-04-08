@@ -132,6 +132,7 @@ const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
 
 const COVER_LINE_STEP_PX = 30;
 const COVER_LINE_OPTIONS = Array.from({ length: 15 }, (_, index) => index * 0.5);
+const PANEL_ANIMATION_MS = 220;
 
 const formatCoverLineLabel = (lineValue: number) => {
   if (lineValue === 0) return "0";
@@ -905,6 +906,8 @@ export default function SiteClient({
   const [rightPanel, setRightPanel] = useState<"content" | "settings" | null>(
     null
   );
+  const [isRightPanelVisible, setIsRightPanelVisible] = useState(false);
+  const rightPanelCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [mobileViewport, setMobileViewport] = useState<MobileViewportKey>("mobile360");
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
@@ -1162,10 +1165,41 @@ export default function SiteClient({
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [coverWidthModalOpen]);
 
+  useEffect(() => {
+    if (!rightPanel) return;
+    if (rightPanelCloseTimerRef.current) {
+      clearTimeout(rightPanelCloseTimerRef.current);
+      rightPanelCloseTimerRef.current = null;
+    }
+    setIsRightPanelVisible(false);
+    const raf = window.requestAnimationFrame(() => setIsRightPanelVisible(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [rightPanel]);
+
+  useEffect(() => {
+    return () => {
+      if (rightPanelCloseTimerRef.current) {
+        clearTimeout(rightPanelCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const closeRightPanel = useCallback(() => {
+    if (!rightPanel) return;
+    setIsRightPanelVisible(false);
+    if (rightPanelCloseTimerRef.current) {
+      clearTimeout(rightPanelCloseTimerRef.current);
+    }
+    rightPanelCloseTimerRef.current = setTimeout(() => {
+      setRightPanel(null);
+      rightPanelCloseTimerRef.current = null;
+    }, PANEL_ANIMATION_MS);
+  }, [rightPanel]);
+
   const savePanelDraft = async (closeAfterSave: boolean) => {
     const ok = await savePublic(false);
     if (closeAfterSave && ok) {
-      setRightPanel(null);
+      closeRightPanel();
       setShowPanelExitConfirm(false);
       return;
     }
@@ -1176,7 +1210,7 @@ export default function SiteClient({
   const requestClosePanel = () => {
     if (!rightPanel) return;
     if (!panelHasUnsavedChanges) {
-      setRightPanel(null);
+      closeRightPanel();
       return;
     }
     setShowPanelExitConfirm(true);
@@ -1190,7 +1224,7 @@ export default function SiteClient({
       );
     }
     setShowPanelExitConfirm(false);
-    setRightPanel(null);
+    closeRightPanel();
   };
 
 
@@ -1801,8 +1835,11 @@ export default function SiteClient({
 
       <div className="relative">
         <div className="h-8.5" />
-        {!rightPanel && (
-        <div className="fixed top-0 left-0 right-0 z-[170] border border-x-0 border-[color:var(--bp-stroke)] bg-[#fcfcfd] px-4 py-2 sm:px-6 lg:px-8">
+        <div
+          className={`fixed top-0 left-0 right-0 z-[230] border border-x-0 border-[color:var(--bp-stroke)] bg-[#fcfcfd] px-4 py-2 sm:px-6 lg:px-8 transition-all duration-[220ms] ease-out ${
+            isRightPanelVisible ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
+          }`}
+        >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
             <Link
@@ -2089,7 +2126,6 @@ export default function SiteClient({
           </div>
         </div>
         </div>
-        )}
       </div>
 
       <div
@@ -2439,7 +2475,9 @@ export default function SiteClient({
           <button
             type="button"
             aria-label="Закрыть панель"
-            className="fixed inset-0 z-[219] cursor-default bg-transparent"
+            className={`fixed inset-0 z-[219] cursor-default bg-transparent transition-opacity duration-[220ms] ease-out ${
+              isRightPanelVisible ? "opacity-100" : "opacity-0"
+            }`}
             style={{ top: floatingPanelsTop }}
             onClick={requestClosePanel}
           />
@@ -2448,7 +2486,9 @@ export default function SiteClient({
         {rightPanel && (
           <>
             <aside
-              className={`fixed z-[220] w-[360px] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+              className={`fixed z-[220] w-[360px] overflow-y-auto border shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+              } ${
                 activeTheme.mode === "dark"
                   ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                   : ""
@@ -2953,7 +2993,9 @@ export default function SiteClient({
             {((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
               (isCoverSettingsPanel && coverDrawerKey && selectedBlock)) && (
               <aside
-                className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-transform duration-200 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                  isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+                } ${
                   activeTheme.mode === "dark"
                     ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                     : ""
