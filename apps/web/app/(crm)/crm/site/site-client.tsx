@@ -133,6 +133,20 @@ const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
 const COVER_LINE_STEP_PX = 30;
 const COVER_LINE_OPTIONS = Array.from({ length: 15 }, (_, index) => index * 0.5);
 const PANEL_ANIMATION_MS = 220;
+const COVER_BACKGROUND_POSITION_OPTIONS = [
+  { value: "left top", label: "↖ Лево Верх" },
+  { value: "center top", label: "↑ Центр Верх" },
+  { value: "right top", label: "↗ Право Верх" },
+  { value: "left center", label: "← Лево Центр" },
+  { value: "center center", label: "Центр Центр" },
+  { value: "right center", label: "→ Право Центр" },
+  { value: "left bottom", label: "↙ Лево Низ" },
+  { value: "center bottom", label: "↓ Центр Низ" },
+  { value: "right bottom", label: "↘ Право Низ" },
+] as const;
+const COVER_BACKGROUND_POSITION_VALUES = new Set<string>(
+  COVER_BACKGROUND_POSITION_OPTIONS.map((option) => option.value)
+);
 
 const formatCoverLineLabel = (lineValue: number) => {
   if (lineValue === 0) return "0";
@@ -1787,6 +1801,13 @@ export default function SiteClient({
         ? coverArrowColorRaw
         : "#ffffff";
   const coverArrowAnimated = Boolean(coverData?.coverArrowAnimated);
+  const coverBackgroundPositionRaw =
+    typeof coverData?.coverBackgroundPosition === "string"
+      ? coverData.coverBackgroundPosition.trim().toLowerCase()
+      : "";
+  const coverBackgroundPosition = COVER_BACKGROUND_POSITION_VALUES.has(coverBackgroundPositionRaw)
+    ? coverBackgroundPositionRaw
+    : "center center";
   const coverBackgroundTo = String(coverData?.coverBackgroundTo ?? "");
   const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
     ? Math.max(0, Math.min(360, Number(coverData?.coverBackgroundAngle)))
@@ -2855,6 +2876,41 @@ export default function SiteClient({
                       </button>
                     ))}
 
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                      Позиционирование изображения
+                      <div className="relative mt-2">
+                        <select
+                          value={coverBackgroundPosition}
+                          onChange={(event) =>
+                            updateSelectedCoverData({
+                              coverBackgroundPosition: event.target.value,
+                            })
+                          }
+                          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-sm font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                          style={{
+                            borderTop: "0",
+                            borderLeft: "0",
+                            borderRight: "0",
+                            borderRadius: "0",
+                            boxShadow: "none",
+                            backgroundColor: "transparent",
+                            WebkitAppearance: "none",
+                            MozAppearance: "none",
+                            appearance: "none",
+                          }}
+                        >
+                          {COVER_BACKGROUND_POSITION_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                          ▾
+                        </span>
+                      </div>
+                    </label>
+
                     <div className="grid grid-cols-2 gap-3">
                       <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                         Отступ сверху
@@ -3150,7 +3206,7 @@ export default function SiteClient({
         )}
 
         {showPanelExitConfirm && rightPanel && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/30 p-4">
+          <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/30 p-4">
             <div
               className="w-full max-w-[520px] rounded-xl border p-6 shadow-2xl"
               style={{
@@ -3190,7 +3246,7 @@ export default function SiteClient({
         )}
 
         {pendingDeleteBlockId && (
-          <div className="fixed inset-0 z-[151] flex items-center justify-center bg-black/30 p-4">
+          <div className="fixed inset-0 z-[261] flex items-center justify-center bg-black/30 p-4">
             <div
               className="w-full max-w-[520px] rounded-xl border p-6 shadow-2xl"
               style={{
@@ -6818,6 +6874,7 @@ function BlockPreview({
     if (!isCover || coverScrollEffect !== "parallax") {
       return;
     }
+    let baselineDelta: number | null = null;
     const updateParallax = () => {
       const node = previewRootRef.current;
       if (!node) return;
@@ -6825,7 +6882,11 @@ function BlockPreview({
       const viewportCenter = window.innerHeight / 2;
       const blockCenter = rect.top + rect.height / 2;
       const delta = blockCenter - viewportCenter;
-      const nextOffset = Math.max(-140, Math.min(140, delta * -0.22));
+      if (baselineDelta === null) {
+        baselineDelta = delta;
+      }
+      const relativeDelta = delta - baselineDelta;
+      const nextOffset = Math.max(-140, Math.min(140, relativeDelta * -0.22));
       setCoverParallaxOffset(nextOffset);
     };
     let rafId: number | null = null;
@@ -7491,6 +7552,13 @@ function renderCover(
     data.coverScrollEffect === "fixed" || data.coverScrollEffect === "parallax"
       ? (data.coverScrollEffect as "fixed" | "parallax")
       : "none";
+  const coverBackgroundPositionRaw =
+    typeof data.coverBackgroundPosition === "string"
+      ? data.coverBackgroundPosition.trim().toLowerCase()
+      : "";
+  const coverBackgroundPosition = COVER_BACKGROUND_POSITION_VALUES.has(coverBackgroundPositionRaw)
+    ? coverBackgroundPositionRaw
+    : "center center";
   const coverHeightRawValue =
     typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
   const coverHeightVhRaw = Number(data.coverHeight);
@@ -7561,7 +7629,7 @@ function renderCover(
     ? {
         backgroundImage: `url(${imageUrl})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundPosition: coverBackgroundPosition,
         backgroundAttachment: scrollEffect === "fixed" ? "fixed" : "scroll",
       }
     : {
@@ -7591,7 +7659,7 @@ function renderCover(
           style={{
             backgroundImage: `url(${imageUrl})`,
             backgroundSize: "cover",
-            backgroundPosition: "center",
+            backgroundPosition: coverBackgroundPosition,
             transform: `translate3d(0, ${parallaxOffset.toFixed(1)}px, 0) scale(1.12)`,
             transformOrigin: "center",
             willChange: "transform",
