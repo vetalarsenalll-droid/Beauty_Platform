@@ -1718,16 +1718,22 @@ export default function SiteClient({
     typeof coverData?.coverFilterStartColor === "string"
       ? coverData.coverFilterStartColor.trim()
       : "";
-  const coverFilterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterStartColorRaw)
-    ? coverFilterStartColorRaw
-    : "#000000";
+  const coverFilterStartColor =
+    coverFilterStartColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterStartColorRaw)
+        ? coverFilterStartColorRaw
+        : "#000000";
   const coverFilterEndColorRaw =
     typeof coverData?.coverFilterEndColor === "string"
       ? coverData.coverFilterEndColor.trim()
       : "";
-  const coverFilterEndColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterEndColorRaw)
-    ? coverFilterEndColorRaw
-    : "#0f0f0f";
+  const coverFilterEndColor =
+    coverFilterEndColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterEndColorRaw)
+        ? coverFilterEndColorRaw
+        : "#0f0f0f";
   const coverFilterStartOpacity = Number.isFinite(Number(coverData?.coverFilterStartOpacity))
     ? Math.max(0, Math.min(100, Number(coverData?.coverFilterStartOpacity)))
     : 80;
@@ -1740,9 +1746,12 @@ export default function SiteClient({
     typeof coverData?.coverArrowColor === "string"
       ? coverData.coverArrowColor.trim()
       : "";
-  const coverArrowColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverArrowColorRaw)
-    ? coverArrowColorRaw
-    : "#ffffff";
+  const coverArrowColor =
+    coverArrowColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverArrowColorRaw)
+        ? coverArrowColorRaw
+        : "#ffffff";
   const coverArrowAnimated = Boolean(coverData?.coverArrowAnimated);
   const coverBackgroundTo = String(coverData?.coverBackgroundTo ?? "");
   const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
@@ -2606,37 +2615,25 @@ export default function SiteClient({
 
                     <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                       Высота
-                      <div className="mt-2 text-base font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
-                        {coverScrollHeightPx}px
-                      </div>
-                      <div className="relative mt-2 h-5">
-                        <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[color:var(--bp-stroke)]" />
-                        <div
-                          className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
-                          style={{
-                            width: `${Math.max(0, Math.min(100, ((coverScrollHeightPx - 200) / 1200) * 100))}%`,
-                            backgroundColor: "#ff5a5f",
-                          }}
-                        />
-                        <div
-                          className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
-                          style={{
-                            left: `${Math.max(0, Math.min(100, ((coverScrollHeightPx - 200) / 1200) * 100))}%`,
-                            backgroundColor: "#ff5a5f",
-                          }}
-                        />
+                      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
                         <input
-                          type="range"
-                          min={200}
-                          max={1400}
-                          step={10}
+                          type="number"
+                          min={0}
+                          step={1}
                           value={coverScrollHeightPx}
                           onChange={(event) => {
-                            const nextValue = Math.max(200, Math.min(1400, Number(event.target.value)));
+                            const nextValue = Math.max(
+                              0,
+                              Number.isFinite(Number(event.target.value))
+                                ? Math.round(Number(event.target.value))
+                                : 0
+                            );
                             updateSelectedCoverData({ coverScrollHeight: `${nextValue}px` });
                           }}
-                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                          style={{ border: 0, boxShadow: "none", WebkitAppearance: "none", MozAppearance: "none" }}
                         />
+                        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
                       </div>
                     </label>
 
@@ -2646,7 +2643,7 @@ export default function SiteClient({
                         label="Цвет фильтра в начале"
                         value={coverFilterStartColor}
                         onChange={(value) => updateSelectedCoverData({ coverFilterStartColor: value })}
-                        onClear={() => updateSelectedCoverData({ coverFilterStartColor: "#000000" })}
+                        onClear={() => updateSelectedCoverData({ coverFilterStartColor: "transparent" })}
                         placeholder="#000000"
                       />
                       <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -2692,7 +2689,7 @@ export default function SiteClient({
                         label="Цвет фильтра в конце"
                         value={coverFilterEndColor}
                         onChange={(value) => updateSelectedCoverData({ coverFilterEndColor: value })}
-                        onClear={() => updateSelectedCoverData({ coverFilterEndColor: "#0f0f0f" })}
+                        onClear={() => updateSelectedCoverData({ coverFilterEndColor: "transparent" })}
                         placeholder="#0f0f0f"
                       />
                       <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -2770,7 +2767,7 @@ export default function SiteClient({
                         label="Цвет стрелки"
                         value={coverArrowColor}
                         onChange={(value) => updateSelectedCoverData({ coverArrowColor: value })}
-                        onClear={() => updateSelectedCoverData({ coverArrowColor: "#ffffff" })}
+                        onClear={() => updateSelectedCoverData({ coverArrowColor: "transparent" })}
                         placeholder="#ffffff"
                       />
                     </div>
@@ -3281,9 +3278,11 @@ function TildaInlineColorField({
   placeholder?: string;
   compact?: boolean;
 }) {
+  const EMPTY_COLOR_LABEL = "Цвет не выбран";
   const normalized = value?.trim() ?? "";
+  const isTransparent = normalized.toLowerCase() === "transparent";
   const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
-  const displayValue = normalized || placeholder;
+  const displayValue = isTransparent ? EMPTY_COLOR_LABEL : normalized || placeholder;
   const colorValue = isHex ? normalized : placeholder;
   return (
     <label className={`${compact ? "" : "mb-3 "}block`}>
@@ -3303,7 +3302,19 @@ function TildaInlineColorField({
         <input
           type="text"
           value={displayValue}
-          onChange={(event) => onChange(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            const lowered = next.trim().toLowerCase();
+            if (lowered === "transparent" || lowered === EMPTY_COLOR_LABEL.toLowerCase()) {
+              onChange("transparent");
+              return;
+            }
+            if (next.trim() === "") {
+              onChange("transparent");
+              return;
+            }
+            onChange(next);
+          }}
           onFocus={(event) => event.currentTarget.select()}
           className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
           style={{ border: 0, boxShadow: "none", WebkitAppearance: "none", MozAppearance: "none" }}
@@ -7442,14 +7453,20 @@ function renderCover(
     : `${coverHeightVh}vh`;
   const filterStartColorRaw =
     typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
-  const filterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
-    ? filterStartColorRaw
-    : "#000000";
+  const filterStartColor =
+    filterStartColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
+        ? filterStartColorRaw
+        : "#000000";
   const filterEndColorRaw =
     typeof data.coverFilterEndColor === "string" ? data.coverFilterEndColor.trim() : "";
-  const filterEndColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterEndColorRaw)
-    ? filterEndColorRaw
-    : "#0f0f0f";
+  const filterEndColor =
+    filterEndColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterEndColorRaw)
+        ? filterEndColorRaw
+        : "#0f0f0f";
   const filterStartOpacity = Number.isFinite(Number(data.coverFilterStartOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacity)))
     : 80;
@@ -7458,9 +7475,12 @@ function renderCover(
     : 0;
   const arrowMode = data.coverArrow === "down" ? "down" : "none";
   const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
-  const arrowColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(arrowColorRaw)
-    ? arrowColorRaw
-    : "#ffffff";
+  const arrowColor =
+    arrowColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(arrowColorRaw)
+        ? arrowColorRaw
+        : "#ffffff";
   const animateArrow = Boolean(data.coverArrowAnimated);
   const headingDesktopSize = style.headingSize ?? theme.headingSize;
   const subheadingDesktopSize = style.subheadingSize ?? theme.subheadingSize;
@@ -7477,10 +7497,16 @@ function renderCover(
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const contentMaxWidth = forceMobileLayout ? "100%" : gridWidthPercent;
   const contentMarginLeft = forceMobileLayout ? 0 : gridLeftPercent;
-  const filterOverlay = `linear-gradient(180deg, ${hexToRgbaString(
+  const toOverlayRgba = (color: string, opacity: number, fallbackHex: string) => {
+    if (color === "transparent") return "rgba(0, 0, 0, 0)";
+    const safeHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color) ? color : fallbackHex;
+    return hexToRgbaString(safeHex, opacity / 100);
+  };
+  const filterOverlay = `linear-gradient(180deg, ${toOverlayRgba(
     filterStartColor,
-    filterStartOpacity / 100
-  )}, ${hexToRgbaString(filterEndColor, filterEndOpacity / 100)})`;
+    filterStartOpacity,
+    "#000000"
+  )}, ${toOverlayRgba(filterEndColor, filterEndOpacity, "#0f0f0f")})`;
   const backgroundStyle = imageUrl
     ? {
         backgroundImage: `url(${imageUrl})`,
