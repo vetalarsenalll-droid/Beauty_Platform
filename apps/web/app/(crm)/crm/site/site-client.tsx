@@ -832,6 +832,7 @@ export default function SiteClient({
   const [draft, setDraft] = useState<SiteDraft>(() =>
     normalizeDraft(initialPublicPage.draftJson)
   );
+  const draftRef = useRef<SiteDraft>(draft);
   const historyRef = useRef<{ past: SiteDraft[]; future: SiteDraft[] }>({
     past: [],
     future: [],
@@ -937,6 +938,7 @@ export default function SiteClient({
     setDraft((prev) => {
       const next = updater(prev);
       if (!recordHistory || Object.is(next, prev)) {
+        draftRef.current = next;
         return next;
       }
       const now = Date.now();
@@ -952,6 +954,7 @@ export default function SiteClient({
       }
       historyRef.current.future = [];
       historyMetaRef.current = { lastGroupKey: groupKey, lastRecordedAt: now };
+      draftRef.current = next;
       return next;
     });
   };
@@ -961,7 +964,9 @@ export default function SiteClient({
     if (!prevSnapshot) return;
     setDraft((current) => {
       historyRef.current.future.push(cloneDraftSnapshot(current));
-      return cloneDraftSnapshot(prevSnapshot);
+      const next = cloneDraftSnapshot(prevSnapshot);
+      draftRef.current = next;
+      return next;
     });
     historyMetaRef.current = { lastGroupKey: null, lastRecordedAt: 0 };
     setShowPanelExitConfirm(false);
@@ -972,7 +977,9 @@ export default function SiteClient({
     if (!nextSnapshot) return;
     setDraft((current) => {
       historyRef.current.past.push(cloneDraftSnapshot(current));
-      return cloneDraftSnapshot(nextSnapshot);
+      const next = cloneDraftSnapshot(nextSnapshot);
+      draftRef.current = next;
+      return next;
     });
     historyMetaRef.current = { lastGroupKey: null, lastRecordedAt: 0 };
     setShowPanelExitConfirm(false);
@@ -1483,9 +1490,10 @@ export default function SiteClient({
   const savePublic = async (publish: boolean): Promise<boolean> => {
     setSaving("public");
     setMessage(null);
+    const currentDraft = draftRef.current;
     const payloadDraft = {
-      ...draft,
-      blocks: draft.pages?.home ?? draft.blocks,
+      ...currentDraft,
+      blocks: currentDraft.pages?.home ?? currentDraft.blocks,
     };
     try {
       const response = await fetch("/api/v1/crm/settings/public-page", {
@@ -1510,9 +1518,10 @@ export default function SiteClient({
     }
   };
   const saveDraftSilently = async () => {
+    const currentDraft = draftRef.current;
     const payloadDraft = {
-      ...draft,
-      blocks: draft.pages?.home ?? draft.blocks,
+      ...currentDraft,
+      blocks: currentDraft.pages?.home ?? currentDraft.blocks,
     };
     try {
       const response = await fetch("/api/v1/crm/settings/public-page", {
@@ -1689,6 +1698,45 @@ export default function SiteClient({
     coverData?.coverBackgroundMode === "linear" || coverData?.coverBackgroundMode === "radial"
       ? (coverData.coverBackgroundMode as CoverBackgroundMode)
       : "solid";
+  const coverScrollEffect =
+    coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
+      ? (coverData.coverScrollEffect as "fixed" | "parallax")
+      : "none";
+  const coverScrollHeightRaw =
+    typeof coverData?.coverScrollHeight === "string" ? coverData.coverScrollHeight.trim() : "";
+  const coverScrollHeight = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverScrollHeightRaw)
+    ? coverScrollHeightRaw
+    : "100vh";
+  const coverFilterStartColorRaw =
+    typeof coverData?.coverFilterStartColor === "string"
+      ? coverData.coverFilterStartColor.trim()
+      : "";
+  const coverFilterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterStartColorRaw)
+    ? coverFilterStartColorRaw
+    : "#000000";
+  const coverFilterEndColorRaw =
+    typeof coverData?.coverFilterEndColor === "string"
+      ? coverData.coverFilterEndColor.trim()
+      : "";
+  const coverFilterEndColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterEndColorRaw)
+    ? coverFilterEndColorRaw
+    : "#0f0f0f";
+  const coverFilterStartOpacity = Number.isFinite(Number(coverData?.coverFilterStartOpacity))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverFilterStartOpacity)))
+    : 80;
+  const coverFilterEndOpacity = Number.isFinite(Number(coverData?.coverFilterEndOpacity))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverFilterEndOpacity)))
+    : 0;
+  const coverArrow =
+    coverData?.coverArrow === "down" ? "down" : "none";
+  const coverArrowColorRaw =
+    typeof coverData?.coverArrowColor === "string"
+      ? coverData.coverArrowColor.trim()
+      : "";
+  const coverArrowColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverArrowColorRaw)
+    ? coverArrowColorRaw
+    : "#ffffff";
+  const coverArrowAnimated = Boolean(coverData?.coverArrowAnimated);
   const coverBackgroundTo = String(coverData?.coverBackgroundTo ?? "");
   const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
     ? Math.max(0, Math.min(360, Number(coverData?.coverBackgroundAngle)))
@@ -2514,6 +2562,228 @@ export default function SiteClient({
                           ▾
                         </span>
                       </div>
+                    </label>
+
+                    <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                      Эффект при скролле
+                      <div className="relative mt-2">
+                        <select
+                          value={coverScrollEffect}
+                          onChange={(event) =>
+                            updateSelectedCoverData({
+                              coverScrollEffect: event.target.value as "none" | "fixed" | "parallax",
+                            })
+                          }
+                          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-sm font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                          style={{
+                            borderTop: "0",
+                            borderLeft: "0",
+                            borderRight: "0",
+                            borderRadius: "0",
+                            boxShadow: "none",
+                            backgroundColor: "transparent",
+                            WebkitAppearance: "none",
+                            MozAppearance: "none",
+                            appearance: "none",
+                          }}
+                        >
+                          <option value="none">Без эффекта</option>
+                          <option value="fixed">С фиксацией</option>
+                          <option value="parallax">Параллакс</option>
+                        </select>
+                        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                          ▾
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                      Высота
+                      <input
+                        type="text"
+                        value={coverScrollHeight}
+                        onChange={(event) =>
+                          updateSelectedCoverData({ coverScrollHeight: event.target.value })
+                        }
+                        className="mt-2 w-full rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                        style={{ borderTop: 0, borderLeft: 0, borderRight: 0, borderRadius: 0 }}
+                      />
+                      <div className="mt-2 text-xs font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">
+                        Пример: 700px (или 100vh. Единицы измерения: px — пиксели, vh — высота области просмотра в процентах)
+                      </div>
+                    </label>
+
+                    <div className="mb-3 grid grid-cols-2 gap-4">
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Цвет фильтра в начале
+                        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                          <input
+                            type="color"
+                            value={coverFilterStartColor}
+                            onChange={(event) =>
+                              updateSelectedCoverData({ coverFilterStartColor: event.target.value })
+                            }
+                            className="h-6 w-6 shrink-0 rounded-full border border-[color:var(--bp-stroke)]"
+                          />
+                          <input
+                            type="text"
+                            value={coverFilterStartColor}
+                            onChange={(event) =>
+                              updateSelectedCoverData({ coverFilterStartColor: event.target.value })
+                            }
+                            className="w-full border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal outline-none"
+                          />
+                        </div>
+                      </label>
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Непрозрачность
+                        <div className="relative mt-2">
+                          <select
+                            value={String(Math.round(coverFilterStartOpacity))}
+                            onChange={(event) =>
+                              updateSelectedCoverData({
+                                coverFilterStartOpacity: Number(event.target.value),
+                              })
+                            }
+                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            style={{
+                              borderTop: 0,
+                              borderLeft: 0,
+                              borderRight: 0,
+                              borderRadius: 0,
+                              boxShadow: "none",
+                              backgroundColor: "transparent",
+                            }}
+                          >
+                            {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
+                              <option key={`start-opacity-${value}`} value={value}>
+                                {value}%
+                              </option>
+                            ))}
+                          </select>
+                          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                            ▾
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="mb-3 grid grid-cols-2 gap-4">
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Цвет фильтра в конце
+                        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                          <input
+                            type="color"
+                            value={coverFilterEndColor}
+                            onChange={(event) =>
+                              updateSelectedCoverData({ coverFilterEndColor: event.target.value })
+                            }
+                            className="h-6 w-6 shrink-0 rounded-full border border-[color:var(--bp-stroke)]"
+                          />
+                          <input
+                            type="text"
+                            value={coverFilterEndColor}
+                            onChange={(event) =>
+                              updateSelectedCoverData({ coverFilterEndColor: event.target.value })
+                            }
+                            className="w-full border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal outline-none"
+                          />
+                        </div>
+                      </label>
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Непрозрачность
+                        <div className="relative mt-2">
+                          <select
+                            value={String(Math.round(coverFilterEndOpacity))}
+                            onChange={(event) =>
+                              updateSelectedCoverData({
+                                coverFilterEndOpacity: Number(event.target.value),
+                              })
+                            }
+                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            style={{
+                              borderTop: 0,
+                              borderLeft: 0,
+                              borderRight: 0,
+                              borderRadius: 0,
+                              boxShadow: "none",
+                              backgroundColor: "transparent",
+                            }}
+                          >
+                            {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
+                              <option key={`end-opacity-${value}`} value={value}>
+                                {value}%
+                              </option>
+                            ))}
+                          </select>
+                          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                            ▾
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="mb-2 grid grid-cols-2 gap-4">
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Стрелка
+                        <div className="relative mt-2">
+                          <select
+                            value={coverArrow}
+                            onChange={(event) =>
+                              updateSelectedCoverData({
+                                coverArrow: event.target.value as "none" | "down",
+                              })
+                            }
+                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            style={{
+                              borderTop: 0,
+                              borderLeft: 0,
+                              borderRight: 0,
+                              borderRadius: 0,
+                              boxShadow: "none",
+                              backgroundColor: "transparent",
+                            }}
+                          >
+                            <option value="none">Нет</option>
+                            <option value="down">Вниз</option>
+                          </select>
+                          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                            ▾
+                          </span>
+                        </div>
+                      </label>
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Цвет стрелки
+                        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                          <input
+                            type="color"
+                            value={coverArrowColor}
+                            onChange={(event) =>
+                              updateSelectedCoverData({ coverArrowColor: event.target.value })
+                            }
+                            className="h-6 w-6 shrink-0 rounded-full border border-[color:var(--bp-stroke)]"
+                          />
+                          <input
+                            type="text"
+                            value={coverArrowColor}
+                            onChange={(event) =>
+                              updateSelectedCoverData({ coverArrowColor: event.target.value })
+                            }
+                            className="w-full border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal outline-none"
+                          />
+                        </div>
+                      </label>
+                    </div>
+
+                    <label className="mb-3 mt-2 flex items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
+                      <input
+                        type="checkbox"
+                        checked={coverArrowAnimated}
+                        onChange={(event) =>
+                          updateSelectedCoverData({ coverArrowAnimated: event.target.checked })
+                        }
+                      />
+                      Анимировать стрелку
                     </label>
 
                     {[
@@ -6400,6 +6670,8 @@ function BlockPreview({
   onSelect: () => void;
   isSelected: boolean;
 }) {
+  const previewRootRef = useRef<HTMLDivElement | null>(null);
+  const [coverParallaxOffset, setCoverParallaxOffset] = useState(0);
   const style = normalizeBlockStyle(block, theme);
   const blockRadius =
     style.radius !== null && Number.isFinite(style.radius)
@@ -6422,6 +6694,44 @@ function BlockPreview({
   const isGallery = block.type === "works";
   const isCover = block.type === "cover";
   const isAisha = block.type === "aisha";
+  const coverData = isCover ? (block.data as Record<string, unknown>) : null;
+  const coverScrollEffect =
+    coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
+      ? (coverData.coverScrollEffect as "fixed" | "parallax")
+      : "none";
+  useEffect(() => {
+    if (!isCover || coverScrollEffect !== "parallax") {
+      return;
+    }
+    const updateParallax = () => {
+      const node = previewRootRef.current;
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      const viewportCenter = window.innerHeight / 2;
+      const blockCenter = rect.top + rect.height / 2;
+      const delta = blockCenter - viewportCenter;
+      const nextOffset = Math.max(-140, Math.min(140, delta * -0.22));
+      setCoverParallaxOffset(nextOffset);
+    };
+    let rafId: number | null = null;
+    const scheduleUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateParallax();
+      });
+    };
+    updateParallax();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    return () => {
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [isCover, coverScrollEffect]);
   const menuBlockBgLight =
     isMenu && !style.blockBgLight.trim() ? style.sectionBgLightResolved : style.blockBgLightResolved;
   const menuBlockBgDark =
@@ -6476,7 +6786,8 @@ function BlockPreview({
     loaderConfig,
     currentEntity,
     previewMode,
-    onThemeToggle
+    onThemeToggle,
+    coverParallaxOffset
   );
   const coverBackground = resolveCoverBackgroundVisual(
     isCover ? (block.data as Record<string, unknown>) : null,
@@ -6484,6 +6795,7 @@ function BlockPreview({
   );
   return (
     <div
+      ref={previewRootRef}
       role="button"
       tabIndex={0}
       onClick={onSelect}
@@ -6694,7 +7006,8 @@ function renderBlock(
   loaderConfig: SiteLoaderConfig | null,
   currentEntity: CurrentEntity,
   previewMode: "desktop" | "mobile",
-  onThemeToggle: () => void
+  onThemeToggle: () => void,
+  coverParallaxOffset = 0
 ) {
   const style = normalizeBlockStyle(block, theme);
   const blockType = String(block.type);
@@ -6710,7 +7023,8 @@ function renderBlock(
         specialists,
         theme,
         style,
-        previewMode === "mobile"
+        previewMode === "mobile",
+        coverParallaxOffset
       );
     case "menu":
       return renderMenuBlock(
@@ -7035,7 +7349,8 @@ function renderCover(
   specialists: SpecialistItem[],
   theme: SiteTheme,
   style: BlockStyle,
-  forceMobileLayout = false
+  forceMobileLayout = false,
+  parallaxOffset = 0
 ) {
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || account.name;
@@ -7053,11 +7368,42 @@ function renderCover(
     type: "account",
   };
   const imageUrl = resolveCoverImage(imageSource, branding, locations, services, specialists);
+  const scrollEffect =
+    data.coverScrollEffect === "fixed" || data.coverScrollEffect === "parallax"
+      ? (data.coverScrollEffect as "fixed" | "parallax")
+      : "none";
+  const coverHeightRawValue =
+    typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
   const coverHeightVhRaw = Number(data.coverHeight);
   const coverHeightVh =
     Number.isFinite(coverHeightVhRaw) && coverHeightVhRaw >= 60 && coverHeightVhRaw <= 140
       ? Math.round(coverHeightVhRaw)
       : 100;
+  const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
+    ? coverHeightRawValue
+    : `${coverHeightVh}vh`;
+  const filterStartColorRaw =
+    typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
+  const filterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
+    ? filterStartColorRaw
+    : "#000000";
+  const filterEndColorRaw =
+    typeof data.coverFilterEndColor === "string" ? data.coverFilterEndColor.trim() : "";
+  const filterEndColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterEndColorRaw)
+    ? filterEndColorRaw
+    : "#0f0f0f";
+  const filterStartOpacity = Number.isFinite(Number(data.coverFilterStartOpacity))
+    ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacity)))
+    : 80;
+  const filterEndOpacity = Number.isFinite(Number(data.coverFilterEndOpacity))
+    ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacity)))
+    : 0;
+  const arrowMode = data.coverArrow === "down" ? "down" : "none";
+  const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
+  const arrowColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(arrowColorRaw)
+    ? arrowColorRaw
+    : "#ffffff";
+  const animateArrow = Boolean(data.coverArrowAnimated);
   const headingDesktopSize = style.headingSize ?? theme.headingSize;
   const subheadingDesktopSize = style.subheadingSize ?? theme.subheadingSize;
   const textDesktopSize = style.textSize ?? theme.textSize;
@@ -7073,29 +7419,53 @@ function renderCover(
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const contentMaxWidth = forceMobileLayout ? "100%" : gridWidthPercent;
   const contentMarginLeft = forceMobileLayout ? 0 : gridLeftPercent;
-  const overlayGradient =
-    "linear-gradient(105deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.1) 100%)";
+  const filterOverlay = `linear-gradient(180deg, ${hexToRgbaString(
+    filterStartColor,
+    filterStartOpacity / 100
+  )}, ${hexToRgbaString(filterEndColor, filterEndOpacity / 100)})`;
   const backgroundStyle = imageUrl
     ? {
-        backgroundImage: `${overlayGradient}, url(${imageUrl})`,
+        backgroundImage: `url(${imageUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        backgroundAttachment: scrollEffect === "fixed" ? "fixed" : "scroll",
       }
     : {
         backgroundColor: "transparent",
         backgroundImage: "none",
       };
+  const showParallaxLayer = Boolean(imageUrl) && scrollEffect === "parallax";
 
   return (
-    <section
+      <section
       className={
         forceMobileLayout
           ? "relative overflow-hidden px-4 py-14"
           : "relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
       }
-      style={{ ...backgroundStyle, minHeight: `${coverHeightVh}vh`, containerType: "inline-size" }}
+      style={{
+        ...(showParallaxLayer
+          ? { backgroundColor: "transparent", backgroundImage: "none" }
+          : backgroundStyle),
+        minHeight: coverHeightCss,
+        containerType: "inline-size",
+      }}
     >
-      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: `${coverHeightVh}vh` }}>
+      {showParallaxLayer && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `url(${imageUrl})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            transform: `translate3d(0, ${parallaxOffset.toFixed(1)}px, 0) scale(1.12)`,
+            transformOrigin: "center",
+            willChange: "transform",
+          }}
+        />
+      )}
+      <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
+      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: coverHeightCss }}>
         <div
           className="bp-cover-content w-full"
           style={{
@@ -7194,6 +7564,18 @@ function renderCover(
           </div>
         </div>
       </div>
+      {arrowMode === "down" && (
+        <div
+          className={`pointer-events-none absolute bottom-6 left-1/2 z-[2] -translate-x-1/2 ${
+            animateArrow ? "animate-bounce" : ""
+          }`}
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke={arrowColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
+      )}
     </section>
   );
 }
@@ -9052,8 +9434,3 @@ function renderContacts(
     </div>
   );
 }
-
-
-
-
-
