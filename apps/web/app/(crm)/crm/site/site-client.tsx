@@ -6886,8 +6886,8 @@ function BlockPreview({
         baselineDelta = delta;
       }
       const relativeDelta = delta - baselineDelta;
-      const nextOffset = Math.max(-140, Math.min(140, relativeDelta * -0.22));
-      setCoverParallaxOffset(nextOffset);
+      const nextOffset = Math.max(-140, Math.min(140, relativeDelta * -0.18));
+      setCoverParallaxOffset((prev) => prev + (nextOffset - prev) * 0.16);
     };
     let rafId: number | null = null;
     const scheduleUpdate = () => {

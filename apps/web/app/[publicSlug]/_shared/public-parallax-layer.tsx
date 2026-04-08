@@ -29,8 +29,8 @@ export default function PublicParallaxLayer({
         baselineDelta = delta;
       }
       const relativeDelta = delta - baselineDelta;
-      const next = Math.max(-140, Math.min(140, relativeDelta * -0.22));
-      setOffset(next);
+      const next = Math.max(-140, Math.min(140, relativeDelta * -0.18));
+      setOffset((prev) => prev + (next - prev) * 0.16);
     };
     const scheduleUpdate = () => {
       if (rafId !== null) return;
