@@ -6963,7 +6963,7 @@ function BlockPreview({
     currentEntity,
     previewMode,
     onThemeToggle,
-    coverParallaxOffset
+    coverScrollEffect === "parallax" ? coverParallaxOffset : 0
   );
   const coverBackground = resolveCoverBackgroundVisual(
     isCover ? (block.data as Record<string, unknown>) : null,
@@ -7636,7 +7636,11 @@ function renderCover(
         backgroundColor: "transparent",
         backgroundImage: "none",
       };
-  const showParallaxLayer = Boolean(imageUrl) && scrollEffect === "parallax";
+  const showMotionLayer = Boolean(imageUrl) && scrollEffect === "parallax";
+  const coverMotionScale =
+    scrollEffect === "parallax"
+      ? 1 + Math.min(0.12, Math.abs(parallaxOffset) / 1200)
+      : 1;
 
   return (
       <section
@@ -7646,21 +7650,21 @@ function renderCover(
           : "relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
       }
       style={{
-        ...(showParallaxLayer
+        ...(showMotionLayer
           ? { backgroundColor: "transparent", backgroundImage: "none" }
           : backgroundStyle),
         minHeight: coverHeightCss,
         containerType: "inline-size",
       }}
     >
-      {showParallaxLayer && (
+      {showMotionLayer && (
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage: `url(${imageUrl})`,
             backgroundSize: "cover",
             backgroundPosition: coverBackgroundPosition,
-            transform: `translate3d(0, ${parallaxOffset.toFixed(1)}px, 0) scale(1.12)`,
+            transform: `translate3d(0, ${parallaxOffset.toFixed(1)}px, 0) scale(${coverMotionScale.toFixed(3)})`,
             transformOrigin: "center",
             willChange: "transform",
           }}

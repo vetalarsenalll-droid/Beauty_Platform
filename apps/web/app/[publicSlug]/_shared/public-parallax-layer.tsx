@@ -4,21 +4,18 @@ import { useEffect, useRef, useState } from "react";
 
 type PublicParallaxLayerProps = {
   imageUrl: string;
-  speed?: number;
-  maxOffset?: number;
-  scale?: number;
+  backgroundPosition?: string;
 };
 
 export default function PublicParallaxLayer({
   imageUrl,
-  speed = 0.22,
-  maxOffset = 140,
-  scale = 1.12,
+  backgroundPosition = "center center",
 }: PublicParallaxLayerProps) {
   const layerRef = useRef<HTMLDivElement | null>(null);
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {
+    let baselineDelta: number | null = null;
     let rafId: number | null = null;
     const update = () => {
       const layer = layerRef.current;
@@ -28,7 +25,11 @@ export default function PublicParallaxLayer({
       const viewportCenter = window.innerHeight / 2;
       const sectionCenter = rect.top + rect.height / 2;
       const delta = sectionCenter - viewportCenter;
-      const next = Math.max(-maxOffset, Math.min(maxOffset, delta * -speed));
+      if (baselineDelta === null) {
+        baselineDelta = delta;
+      }
+      const relativeDelta = delta - baselineDelta;
+      const next = Math.max(-140, Math.min(140, relativeDelta * -0.22));
       setOffset(next);
     };
     const scheduleUpdate = () => {
@@ -47,7 +48,9 @@ export default function PublicParallaxLayer({
       window.removeEventListener("resize", scheduleUpdate);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
-  }, [maxOffset, speed]);
+  }, []);
+
+  const scale = 1 + Math.min(0.12, Math.abs(offset) / 1200);
 
   return (
     <div
@@ -56,8 +59,8 @@ export default function PublicParallaxLayer({
       style={{
         backgroundImage: `url(${imageUrl})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
-        transform: `translate3d(0, ${offset.toFixed(1)}px, 0) scale(${scale})`,
+        backgroundPosition,
+        transform: `translate3d(0, ${offset.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`,
         transformOrigin: "center",
         willChange: "transform",
       }}
@@ -65,4 +68,3 @@ export default function PublicParallaxLayer({
     />
   );
 }
-

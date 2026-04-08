@@ -38,6 +38,17 @@ const PAGE_LABELS = {
 
 type PageKey = keyof typeof PAGE_LABELS;
 type CoverBackgroundMode = "solid" | "linear" | "radial";
+const COVER_BACKGROUND_POSITION_VALUES = new Set<string>([
+  "left top",
+  "center top",
+  "right top",
+  "left center",
+  "center center",
+  "right center",
+  "left bottom",
+  "center bottom",
+  "right bottom",
+]);
 
 const SOCIAL_ICONS: Record<string, string> = {
   website: "/assets/socials/website.png",
@@ -809,6 +820,13 @@ function renderCover(
     data.coverScrollEffect === "fixed" || data.coverScrollEffect === "parallax"
       ? (data.coverScrollEffect as "fixed" | "parallax")
       : "none";
+  const coverBackgroundPositionRaw =
+    typeof data.coverBackgroundPosition === "string"
+      ? data.coverBackgroundPosition.trim().toLowerCase()
+      : "";
+  const coverBackgroundPosition = COVER_BACKGROUND_POSITION_VALUES.has(coverBackgroundPositionRaw)
+    ? coverBackgroundPositionRaw
+    : "center center";
   const coverHeightRawValue =
     typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
   const coverHeightVhRaw = Number(data.coverHeight);
@@ -865,27 +883,32 @@ function renderCover(
     ? {
         backgroundImage: `url(${imageUrl})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundPosition: coverBackgroundPosition,
         backgroundAttachment: scrollEffect === "fixed" ? "fixed" : "scroll",
       }
     : {
         backgroundColor: "transparent",
         backgroundImage: "none",
       };
-  const showParallaxLayer = Boolean(imageUrl) && scrollEffect === "parallax";
+  const showMotionLayer = Boolean(imageUrl) && scrollEffect === "parallax";
 
   return (
     <section
       className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
       style={{
-        ...(showParallaxLayer
+        ...(showMotionLayer
           ? { backgroundColor: "transparent", backgroundImage: "none" }
           : backgroundStyle),
         minHeight: coverHeightCss,
         containerType: "inline-size",
       }}
     >
-      {showParallaxLayer && <PublicParallaxLayer imageUrl={imageUrl as string} />}
+      {showMotionLayer && (
+        <PublicParallaxLayer
+          imageUrl={imageUrl as string}
+          backgroundPosition={coverBackgroundPosition}
+        />
+      )}
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: overlayGradient }} />
       <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: coverHeightCss }}>
         <div
