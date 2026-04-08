@@ -1702,7 +1702,7 @@ export default function SiteClient({
       gridEndColumn: safeEnd,
     });
   };
-  const floatingPanelsTop = 64;
+  const floatingPanelsTop = 56;
 
   return (
     <div className="flex flex-col gap-6">
@@ -1718,7 +1718,7 @@ export default function SiteClient({
 
       <div className="relative">
         <div className="h-8.5" />
-        <div className="fixed top-0 left-0 right-0 z-[170] border border-x-0 border-[color:var(--bp-stroke)] bg-[#eef0f3] px-4 py-2 sm:px-6 lg:px-8">
+        <div className="fixed top-0 left-0 right-0 z-[170] border border-x-0 border-[color:var(--bp-stroke)] bg-[#fcfcfd] px-4 py-2 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
             <Link
@@ -2366,6 +2366,12 @@ export default function SiteClient({
                   ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                   : ""
               }`}
+              onClick={() => {
+                if (activePanelSectionId !== null || coverDrawerKey !== null) {
+                  setActivePanelSectionId(null);
+                  setCoverDrawerKey(null);
+                }
+              }}
               style={{
                 top: floatingPanelsTop,
                 bottom: 0,
@@ -2499,7 +2505,14 @@ export default function SiteClient({
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setCoverDrawerKey(item.id as "typography" | "button" | "animation")}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setCoverDrawerKey((prev) =>
+                            prev === item.id
+                              ? null
+                              : (item.id as "typography" | "button" | "animation")
+                          );
+                        }}
                         className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
                         style={{
                           borderColor: coverDrawerKey === item.id ? "#f29a75" : panelTheme.border,
@@ -2512,59 +2525,72 @@ export default function SiteClient({
                       </button>
                     ))}
 
-                    <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                      SEO: тег для заголовка
-                      <select
-                        value={String((selectedBlock?.data as Record<string, unknown>)?.seoHeadingTag ?? "")}
-                        onChange={(event) =>
-                          updateSelectedCoverData({ seoHeadingTag: event.target.value || null })
-                        }
-                        className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
-                      >
-                        <option value="">Не задан</option>
-                        <option value="h1">H1</option>
-                        <option value="h2">H2</option>
-                        <option value="h3">H3</option>
-                        <option value="div">DIV</option>
-                      </select>
-                    </label>
-
                     <div className="grid grid-cols-2 gap-3">
                       <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                         Отступ сверху
-                        <select
-                          value={String(coverMarginTopLines)}
-                          onChange={(event) =>
-                            updateSelectedCoverStyle({
-                              marginTop: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
-                            })
-                          }
-                          className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
-                        >
-                          {COVER_LINE_OPTIONS.map((lineValue) => (
-                            <option key={`top-${lineValue}`} value={lineValue}>
-                              {formatCoverLineLabel(lineValue)}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative mt-2">
+                          <select
+                            value={String(coverMarginTopLines)}
+                            onChange={(event) =>
+                              updateSelectedCoverStyle({
+                                marginTop: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
+                              })
+                            }
+                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            style={{
+                              borderTop: "0",
+                              borderLeft: "0",
+                              borderRight: "0",
+                              borderRadius: "0",
+                              boxShadow: "none",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                              appearance: "none",
+                            }}
+                          >
+                            {COVER_LINE_OPTIONS.map((lineValue) => (
+                              <option key={`top-${lineValue}`} value={lineValue}>
+                                {formatCoverLineLabel(lineValue)}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                            ▾
+                          </span>
+                        </div>
                       </label>
                       <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                         Отступ снизу
-                        <select
-                          value={String(coverMarginBottomLines)}
-                          onChange={(event) =>
-                            updateSelectedCoverStyle({
-                              marginBottom: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
-                            })
-                          }
-                          className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
-                        >
-                          {COVER_LINE_OPTIONS.map((lineValue) => (
-                            <option key={`bottom-${lineValue}`} value={lineValue}>
-                              {formatCoverLineLabel(lineValue)}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative mt-2">
+                          <select
+                            value={String(coverMarginBottomLines)}
+                            onChange={(event) =>
+                              updateSelectedCoverStyle({
+                                marginBottom: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
+                              })
+                            }
+                            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                            style={{
+                              borderTop: "0",
+                              borderLeft: "0",
+                              borderRight: "0",
+                              borderRadius: "0",
+                              boxShadow: "none",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                              appearance: "none",
+                            }}
+                          >
+                            {COVER_LINE_OPTIONS.map((lineValue) => (
+                              <option key={`bottom-${lineValue}`} value={lineValue}>
+                                {formatCoverLineLabel(lineValue)}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                            ▾
+                          </span>
+                        </div>
                       </label>
                     </div>
                   </>
@@ -2573,7 +2599,12 @@ export default function SiteClient({
                     <button
                       key={section.id}
                       type="button"
-                      onClick={() => setActivePanelSectionId(section.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActivePanelSectionId((prev) =>
+                          prev === section.id ? null : section.id
+                        );
+                      }}
                       className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
                       style={{
                         borderColor:
@@ -2618,19 +2649,7 @@ export default function SiteClient({
                   className="sticky top-0 z-20 flex items-center justify-between border-b px-4 py-3"
                   style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActivePanelSectionId(null);
-                      setCoverDrawerKey(null);
-                    }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-lg leading-none"
-                    style={{ borderColor: panelTheme.border, color: panelTheme.muted }}
-                    aria-label="Закрыть раздел"
-                    title="Назад"
-                  >
-                    ‹
-                  </button>
+                  <div className="w-8" />
                   <div className="text-sm font-semibold">
                     {isCoverSettingsPanel
                       ? (coverDrawerKey === "typography"
@@ -4954,54 +4973,6 @@ function BlockStyleEditor({
             )}
           </div>
         </>
-      )}
-      {inSection("typography") && (
-      <label className="text-sm">
-        Выравнивание текста
-        <select
-          value={style.textAlign}
-          onChange={(event) =>
-            update({ textAlign: event.target.value as BlockStyle["textAlign"] })
-          }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="left">Слева</option>
-          <option value="center">По центру</option>
-          <option value="right">Справа</option>
-        </select>
-      </label>
-      )}
-      {inSection("typography") && (
-      <label className="text-sm">
-        Выравнивание заголовка
-        <select
-          value={style.textAlignHeading}
-          onChange={(event) =>
-            update({ textAlignHeading: event.target.value as BlockStyle["textAlignHeading"] })
-          }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="left">Слева</option>
-          <option value="center">По центру</option>
-          <option value="right">Справа</option>
-        </select>
-      </label>
-      )}
-      {inSection("typography") && (
-      <label className="text-sm">
-        Выравнивание подзаголовка
-        <select
-          value={style.textAlignSubheading}
-          onChange={(event) =>
-            update({ textAlignSubheading: event.target.value as BlockStyle["textAlignSubheading"] })
-          }
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="left">Слева</option>
-          <option value="center">По центру</option>
-          <option value="right">Справа</option>
-        </select>
-      </label>
       )}
       {inSection("typography") && (
       <label className="text-sm">
