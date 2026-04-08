@@ -1717,7 +1717,7 @@ export default function SiteClient({
       )}
 
       <div className="relative">
-        <div className="h-10" />
+        <div className="h-8.5" />
         <div className="fixed top-0 left-0 right-0 z-[170] border border-x-0 border-[color:var(--bp-stroke)] bg-[#eef0f3] px-4 py-2 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
@@ -6308,7 +6308,12 @@ function InsertSlot({
         aria-label={`Добавить блок ${index}`}
         title="Добавить блок"
       >
-        +
+        <span
+          className="leading-none"
+          style={index === 0 ? { transform: "translateY(5px)" } : undefined}
+        >
+          +
+        </span>
       </button>
     </div>
   );
