@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   BLOCK_LABELS,
   BLOCK_VARIANTS,
@@ -127,6 +127,15 @@ type SiteClientProps = {
 
 const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
   JSON.parse(JSON.stringify(value)) as SiteDraft;
+
+const COVER_LINE_STEP_PX = 30;
+const COVER_LINE_OPTIONS = Array.from({ length: 15 }, (_, index) => index * 0.5);
+
+const formatCoverLineLabel = (lineValue: number) => {
+  if (lineValue === 0) return "0";
+  const px = Math.round(lineValue * COVER_LINE_STEP_PX);
+  return `${lineValue} line (${px}px)`;
+};
 
 const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
   v1: "Вариант 1",
@@ -893,6 +902,10 @@ export default function SiteClient({
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
+  const [coverDrawerKey, setCoverDrawerKey] = useState<"typography" | "button" | "animation" | null>(null);
+  const [coverWidthModalOpen, setCoverWidthModalOpen] = useState(false);
+  const coverWidthButtonRef = useRef<HTMLButtonElement | null>(null);
+  const coverWidthPopoverRef = useRef<HTMLDivElement | null>(null);
   const [showPanelExitConfirm, setShowPanelExitConfirm] = useState(false);
   const [pendingDeleteBlockId, setPendingDeleteBlockId] = useState<string | null>(null);
   const [panelBaselineKey, setPanelBaselineKey] = useState<string | null>(null);
@@ -1090,11 +1103,11 @@ export default function SiteClient({
       setActivePanelSectionId(null);
       return;
     }
-    if (
-      !activePanelSectionId ||
-      !currentPanelSections.some((section) => section.id === activePanelSectionId)
-    ) {
-      setActivePanelSectionId(currentPanelSections[0].id);
+    if (!activePanelSectionId) {
+      return;
+    }
+    if (!currentPanelSections.some((section) => section.id === activePanelSectionId)) {
+      setActivePanelSectionId(null);
     }
   }, [currentPanelSections, activePanelSectionId]);
 
@@ -1115,9 +1128,25 @@ export default function SiteClient({
           ? (JSON.parse(JSON.stringify(selectedBlock)) as SiteBlock)
           : null
       );
+      setActivePanelSectionId(null);
+      setCoverDrawerKey(null);
+      setCoverWidthModalOpen(false);
       setShowPanelExitConfirm(false);
     }
   }, [rightPanel, panelTargetKey, currentPanelSignature, panelBaselineKey, selectedBlock]);
+
+  useEffect(() => {
+    if (!coverWidthModalOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (coverWidthPopoverRef.current?.contains(target)) return;
+      if (coverWidthButtonRef.current?.contains(target)) return;
+      setCoverWidthModalOpen(false);
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [coverWidthModalOpen]);
 
   const savePanelDraft = async (closeAfterSave: boolean) => {
     const ok = await savePublic(false);
@@ -1539,7 +1568,7 @@ export default function SiteClient({
           saveClose: "#1a1c22",
         }
       : {
-          surface: "#f3f3f3",
+          surface: "#ffffff",
           panel: "#ffffff",
           border: "#d9dde5",
           text: "#111827",
@@ -1548,6 +1577,42 @@ export default function SiteClient({
           save: "#000000",
           saveClose: "#6b7280",
         };
+
+  const isCoverSettingsPanel = rightPanel === "settings" && selectedBlock?.type === "cover";
+  const coverStyle = isCoverSettingsPanel && selectedBlock
+    ? normalizeBlockStyle(selectedBlock, activeTheme)
+    : null;
+  const coverResolvedColumns = coverStyle
+    ? clampBlockColumns(coverStyle.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover")
+    : DEFAULT_BLOCK_COLUMNS;
+  const coverGridFallback = centeredGridRange(coverResolvedColumns);
+  const coverGridStart = coverStyle?.gridStartColumn ?? coverGridFallback.start;
+  const coverGridEnd = coverStyle?.gridEndColumn ?? coverGridFallback.end;
+  const coverGridSpan = Math.max(1, coverGridEnd - coverGridStart + 1);
+  const coverMarginTopLines = coverStyle ? Math.max(0, Math.min(7, Math.round((coverStyle.marginTop / COVER_LINE_STEP_PX) * 2) / 2)) : 0;
+  const coverMarginBottomLines = coverStyle ? Math.max(0, Math.min(7, Math.round((coverStyle.marginBottom / COVER_LINE_STEP_PX) * 2) / 2)) : 0;
+
+  const updateSelectedCoverStyle = (patch: Partial<BlockStyle>) => {
+    if (!isCoverSettingsPanel || !selectedBlock) return;
+    updateBlock(selectedBlock.id, (block) => updateBlockStyle(block, patch));
+  };
+  const updateSelectedCoverData = (patch: Record<string, unknown>) => {
+    if (!isCoverSettingsPanel || !selectedBlock) return;
+    updateBlock(selectedBlock.id, (block) => ({ ...block, data: { ...block.data, ...patch } }));
+  };
+  const applySelectedCoverGridRange = (nextStart: number, nextEnd: number) => {
+    const safeStart = clampGridColumn(nextStart);
+    const safeEnd = Math.max(safeStart, clampGridColumn(nextEnd));
+    const nextColumns = Math.max(1, safeEnd - safeStart + 1);
+    const nextWidth = Math.round((nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
+    updateSelectedCoverStyle({
+      useCustomWidth: true,
+      blockWidth: nextWidth,
+      blockWidthColumns: nextColumns,
+      gridStartColumn: safeStart,
+      gridEndColumn: safeEnd,
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -2180,79 +2245,201 @@ export default function SiteClient({
         )}
 
         {rightPanel && (
-          <aside
-            className={`fixed z-[140] w-[760px] max-w-[calc(100vw-var(--crm-sidebar-width,272px)-24px)] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&_input:focus]:outline-none [&_select:focus]:outline-none [&_textarea:focus]:outline-none ${
-              activeTheme.mode === "dark"
-                ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
-                : ""
-            }`}
-            style={{
-              top: 64,
-              bottom: 0,
-              left: "var(--crm-sidebar-width, 272px)",
-              borderColor: panelTheme.border,
-              backgroundColor: panelTheme.surface,
-              color: panelTheme.text,
-              accentColor: panelTheme.accent,
-              colorScheme: activeTheme.mode,
-              "--bp-paper": panelTheme.panel,
-              "--bp-surface": panelTheme.surface,
-              "--bp-stroke": panelTheme.border,
-              "--bp-ink": panelTheme.text,
-              "--bp-muted": panelTheme.muted,
-              "--bp-accent": panelTheme.accent,
-              "--input-bg": activeTheme.mode === "dark" ? "#121212" : "#ffffff",
-              "--text": panelTheme.text,
-              "--border": panelTheme.border,
-              "--muted": panelTheme.muted,
-            } as CssVars}
-          >
-            <div
-              className="sticky top-0 z-20 border-b"
-              style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
+          <>
+            <aside
+              className={`fixed z-[140] w-[360px] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                activeTheme.mode === "dark"
+                  ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+                  : ""
+              }`}
+              style={{
+                top: 64,
+                bottom: 0,
+                left: "var(--crm-sidebar-width, 272px)",
+                borderColor: panelTheme.border,
+                backgroundColor: panelTheme.surface,
+                color: panelTheme.text,
+                accentColor: panelTheme.accent,
+                colorScheme: activeTheme.mode,
+                "--bp-paper": panelTheme.panel,
+                "--bp-surface": panelTheme.surface,
+                "--bp-stroke": panelTheme.border,
+                "--bp-ink": panelTheme.text,
+                "--bp-muted": panelTheme.muted,
+                "--bp-accent": panelTheme.accent,
+                "--input-bg": activeTheme.mode === "dark" ? "#121212" : "#ffffff",
+                "--text": panelTheme.text,
+                "--border": panelTheme.border,
+                "--muted": panelTheme.muted,
+              } as CssVars}
             >
-              <div className="grid grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => savePanelDraft(false)}
-                  disabled={saving === "public"}
-                  className="h-12 px-4 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ backgroundColor: panelTheme.save }}
-                >
-                  Сохранить
-                </button>
-                <button
-                  type="button"
-                  onClick={() => savePanelDraft(true)}
-                  disabled={saving === "public"}
-                  className="h-12 px-4 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ backgroundColor: panelTheme.saveClose }}
-                >
-                  Сохранить и закрыть
-                </button>
-              </div>
               <div
-                className="flex items-center justify-between border-t px-4 py-3"
-                style={{ borderColor: panelTheme.border }}
-              >
-                <div className="text-sm font-semibold" style={{ color: panelTheme.text }}>
-                  {rightPanel === "settings"
-                      ? selectedBlock
-                        ? `Настройки · ${BLOCK_LABELS[selectedBlock.type]}`
-                        : "Настройки блока"
-                      : selectedBlock
-                        ? `Контент · ${BLOCK_LABELS[selectedBlock.type]}`
-                        : "Контент блока"}
-                </div>
-              </div>
-            </div>
-            <div className="grid min-h-[calc(100vh-176px)] grid-cols-[260px_minmax(0,1fr)]">
-              <div
-                className="border-r p-3"
+                className="sticky top-0 z-20 border-b"
                 style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
               >
-                <div className="space-y-2">
-                  {currentPanelSections.map((section) => (
+                <div className="grid grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => savePanelDraft(false)}
+                    disabled={saving === "public"}
+                    className="h-12 px-3 text-xs font-medium whitespace-nowrap text-white disabled:opacity-60"
+                    style={{ backgroundColor: panelTheme.save }}
+                  >
+                    Сохранить
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => savePanelDraft(true)}
+                    disabled={saving === "public"}
+                    className="h-12 px-3 text-xs font-medium whitespace-nowrap text-white disabled:opacity-60"
+                    style={{ backgroundColor: panelTheme.saveClose }}
+                  >
+                    Сохранить и закрыть
+                  </button>
+                </div>
+                <div
+                  className="border-t px-4 py-3"
+                  style={{ borderColor: panelTheme.border }}
+                >
+                  <div className="text-sm font-semibold" style={{ color: panelTheme.text }}>
+                    {rightPanel === "settings"
+                        ? selectedBlock
+                          ? `Настройки · ${BLOCK_LABELS[selectedBlock.type]}`
+                          : "Настройки блока"
+                        : selectedBlock
+                          ? `Контент · ${BLOCK_LABELS[selectedBlock.type]}`
+                          : "Контент блока"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 p-3">
+                {isCoverSettingsPanel ? (
+                  <>
+                    <div className="p-0" style={{ backgroundColor: panelTheme.panel }}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Ширина блока</div>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          ref={coverWidthButtonRef}
+                          onClick={() => setCoverWidthModalOpen((prev) => !prev)}
+                          className="mt-2 flex w-full items-center justify-between border-b pb-2 text-left text-sm"
+                          style={{ borderColor: panelTheme.border }}
+                        >
+                          <span>{coverGridSpan} колонок</span>
+                          <span className="text-xs">{coverWidthModalOpen ? "▲" : "▼"}</span>
+                        </button>
+                        {coverWidthModalOpen && (
+                          <div
+                            ref={coverWidthPopoverRef}
+                            className="absolute inset-x-0 top-[calc(100%+8px)] z-[160] rounded-none border px-3 py-4 shadow-2xl"
+                            style={{ backgroundColor: panelTheme.panel, borderColor: panelTheme.border }}
+                          >
+                            <CoverGridWidthControl
+                              start={coverGridStart}
+                              end={coverGridEnd}
+                              onChange={applySelectedCoverGridRange}
+                              compact
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                      Выравнивание
+                      <select
+                        value={coverStyle?.textAlign ?? "left"}
+                        onChange={(event) =>
+                          updateSelectedCoverStyle({ textAlign: event.target.value as BlockStyle["textAlign"] })
+                        }
+                        className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
+                      >
+                        <option value="left">По левому краю</option>
+                        <option value="center">По центру</option>
+                        <option value="right">По правому краю</option>
+                      </select>
+                    </label>
+
+                    {[
+                      { id: "typography", label: "Типографика" },
+                      { id: "button", label: "Кнопка" },
+                      { id: "animation", label: "Анимация" },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setCoverDrawerKey(item.id as "typography" | "button" | "animation")}
+                        className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                        style={{
+                          borderColor: coverDrawerKey === item.id ? "#f29a75" : panelTheme.border,
+                          backgroundColor: panelTheme.panel,
+                          color: coverDrawerKey === item.id ? panelTheme.text : panelTheme.muted,
+                        }}
+                      >
+                        <span>{item.label}</span>
+                        <span className="text-xs">{coverDrawerKey === item.id ? "‹" : "›"}</span>
+                      </button>
+                    ))}
+
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                      SEO: тег для заголовка
+                      <select
+                        value={String((selectedBlock?.data as Record<string, unknown>)?.seoHeadingTag ?? "")}
+                        onChange={(event) =>
+                          updateSelectedCoverData({ seoHeadingTag: event.target.value || null })
+                        }
+                        className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
+                      >
+                        <option value="">Не задан</option>
+                        <option value="h1">H1</option>
+                        <option value="h2">H2</option>
+                        <option value="h3">H3</option>
+                        <option value="div">DIV</option>
+                      </select>
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Отступ сверху
+                        <select
+                          value={String(coverMarginTopLines)}
+                          onChange={(event) =>
+                            updateSelectedCoverStyle({
+                              marginTop: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
+                            })
+                          }
+                          className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
+                        >
+                          {COVER_LINE_OPTIONS.map((lineValue) => (
+                            <option key={`top-${lineValue}`} value={lineValue}>
+                              {formatCoverLineLabel(lineValue)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Отступ снизу
+                        <select
+                          value={String(coverMarginBottomLines)}
+                          onChange={(event) =>
+                            updateSelectedCoverStyle({
+                              marginBottom: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
+                            })
+                          }
+                          className="mt-2 w-full border-b border-[color:var(--bp-stroke)] bg-transparent py-1 text-base"
+                        >
+                          {COVER_LINE_OPTIONS.map((lineValue) => (
+                            <option key={`bottom-${lineValue}`} value={lineValue}>
+                              {formatCoverLineLabel(lineValue)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </>
+                ) : (
+                  currentPanelSections.map((section) => (
                     <button
                       key={section.id}
                       type="button"
@@ -2273,40 +2460,178 @@ export default function SiteClient({
                       <span>{section.label}</span>
                       <span className="text-xs">›</span>
                     </button>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
-              <div
-                className="h-full p-4"
+            </aside>
+
+            {((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
+              (isCoverSettingsPanel && coverDrawerKey && selectedBlock)) && (
+              <aside
+                className={`fixed z-[141] w-[440px] max-w-[calc(100vw-var(--crm-sidebar-width,272px)-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-transform duration-200 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                  activeTheme.mode === "dark"
+                    ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+                    : ""
+                }`}
                 style={{
+                  top: 64,
+                  bottom: 0,
+                  left: "calc(var(--crm-sidebar-width, 272px) + 360px)",
+                  borderColor: panelTheme.border,
                   backgroundColor: panelTheme.panel,
                   color: panelTheme.text,
+                  accentColor: panelTheme.accent,
+                  colorScheme: activeTheme.mode,
                 }}
               >
-                {rightPanel === "content" && selectedBlock && (
-                  <BlockEditor
-                    block={selectedBlock}
-                    accountName={account.name}
-                    accountProfile={accountProfile}
-                    locations={locations}
-                    services={services}
-                    specialists={specialists}
-                    promos={promos}
-                    activeSectionId={activePanelSectionId ?? "main"}
-                    onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                  />
-                )}
-                {rightPanel === "settings" && selectedBlock && (
-                  <BlockStyleEditor
-                    block={selectedBlock}
-                    theme={activeTheme}
-                    activeSectionId={activePanelSectionId ?? "layout"}
-                    onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                  />
-                )}
-              </div>
-            </div>
-          </aside>
+                <div
+                  className="sticky top-0 z-20 flex items-center justify-between border-b px-4 py-3"
+                  style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivePanelSectionId(null);
+                      setCoverDrawerKey(null);
+                    }}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-lg leading-none"
+                    style={{ borderColor: panelTheme.border, color: panelTheme.muted }}
+                    aria-label="Закрыть раздел"
+                    title="Назад"
+                  >
+                    ‹
+                  </button>
+                  <div className="text-sm font-semibold">
+                    {isCoverSettingsPanel
+                      ? (coverDrawerKey === "typography"
+                          ? "Типографика"
+                          : coverDrawerKey === "button"
+                            ? "Кнопка"
+                            : "Анимация")
+                      : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
+                  </div>
+                  <div className="w-8" />
+                </div>
+                <div
+                  className="h-full p-4"
+                  style={{
+                    backgroundColor: panelTheme.panel,
+                    color: panelTheme.text,
+                  }}
+                >
+                  {rightPanel === "content" && (
+                    <BlockEditor
+                      block={selectedBlock}
+                      accountName={account.name}
+                      accountProfile={accountProfile}
+                      locations={locations}
+                      services={services}
+                      specialists={specialists}
+                      promos={promos}
+                      activeSectionId={activePanelSectionId}
+                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                    />
+                  )}
+                  {rightPanel === "settings" && !isCoverSettingsPanel && (
+                    <BlockStyleEditor
+                      block={selectedBlock}
+                      theme={activeTheme}
+                      activeSectionId={activePanelSectionId}
+                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                    />
+                  )}
+                  {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography" && (
+                    <BlockStyleEditor
+                      block={selectedBlock}
+                      theme={activeTheme}
+                      activeSectionId="typography"
+                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                    />
+                  )}
+                  {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "button" && (
+                    <div className="space-y-4">
+                      <label className="text-sm">
+                        Текст кнопки
+                        <input
+                          type="text"
+                          value={String((selectedBlock.data as Record<string, unknown>).buttonText ?? "Записаться")}
+                          onChange={(event) => updateSelectedCoverData({ buttonText: event.target.value })}
+                          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                        />
+                      </label>
+                      <ColorField
+                        label="Цвет кнопки"
+                        value={coverStyle?.buttonColorLight || coverStyle?.buttonColor || activeTheme.buttonColor}
+                        onChange={(value) => updateSelectedCoverStyle({ buttonColor: value, buttonColorLight: value })}
+                      />
+                      <ColorField
+                        label="Текст кнопки"
+                        value={coverStyle?.buttonTextColorLight || coverStyle?.buttonTextColor || activeTheme.buttonTextColor}
+                        onChange={(value) => updateSelectedCoverStyle({ buttonTextColor: value, buttonTextColorLight: value })}
+                      />
+                      <NumberField
+                        label="Скругление"
+                        value={coverStyle?.buttonRadius ?? activeTheme.buttonRadius}
+                        min={0}
+                        max={80}
+                        onChange={(value) => updateSelectedCoverStyle({ buttonRadius: value })}
+                      />
+                    </div>
+                  )}
+                  {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "animation" && (
+                    <div className="space-y-4">
+                      <div className="text-xs text-[color:var(--bp-muted)]">Работает на опубликованных страницах или в режиме предпросмотра.</div>
+                      <label className="text-sm">
+                        Анимация: заголовок
+                        <select
+                          value={String((selectedBlock.data as Record<string, unknown>).animHeading ?? "none")}
+                          onChange={(event) => updateSelectedCoverData({ animHeading: event.target.value })}
+                          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                        >
+                          <option value="none">Нет</option>
+                          <option value="fade-up">Прозрачность (снизу)</option>
+                          <option value="fade-down">Прозрачность (сверху)</option>
+                          <option value="fade-left">Прозрачность (слева)</option>
+                          <option value="fade-right">Прозрачность (справа)</option>
+                          <option value="zoom-in">Прозрачность (увеличение)</option>
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        Анимация: описание
+                        <select
+                          value={String((selectedBlock.data as Record<string, unknown>).animDescription ?? "none")}
+                          onChange={(event) => updateSelectedCoverData({ animDescription: event.target.value })}
+                          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                        >
+                          <option value="none">Нет</option>
+                          <option value="fade-up">Прозрачность (снизу)</option>
+                          <option value="fade-down">Прозрачность (сверху)</option>
+                          <option value="fade-left">Прозрачность (слева)</option>
+                          <option value="fade-right">Прозрачность (справа)</option>
+                          <option value="zoom-in">Прозрачность (увеличение)</option>
+                        </select>
+                      </label>
+                      <label className="text-sm">
+                        Анимация: кнопка
+                        <select
+                          value={String((selectedBlock.data as Record<string, unknown>).animButton ?? "none")}
+                          onChange={(event) => updateSelectedCoverData({ animButton: event.target.value })}
+                          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                        >
+                          <option value="none">Нет</option>
+                          <option value="fade-up">Прозрачность (снизу)</option>
+                          <option value="fade-down">Прозрачность (сверху)</option>
+                          <option value="fade-left">Прозрачность (слева)</option>
+                          <option value="fade-right">Прозрачность (справа)</option>
+                          <option value="zoom-in">Прозрачность (увеличение)</option>
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </aside>
+            )}
+          </>
         )}
 
         {showPanelExitConfirm && rightPanel && (
@@ -2359,12 +2684,11 @@ export default function SiteClient({
                 color: panelTheme.text,
               }}
             >
-              <h3 className="text-xl font-semibold">Удалить блок?</h3>
-              <p className="mt-3 text-sm" style={{ color: panelTheme.muted }}>
+              <h3 className="text-xl font-semibold">
                 {pendingDeleteBlock
-                  ? `Блок «${BLOCK_LABELS[pendingDeleteBlock.type]}» будет удален без возможности восстановления.`
-                  : "Блок будет удален без возможности восстановления."}
-              </p>
+                  ? `Вы уверены, что хотите удалить блок «${BLOCK_LABELS[pendingDeleteBlock.type]}»?`
+                  : "Вы уверены, что хотите удалить блок?"}
+              </h3>
               <div className="mt-6 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -2495,6 +2819,125 @@ function NumberField({
         className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-sm"
       />
     </label>
+  );
+}
+
+function CoverGridWidthControl({
+  start,
+  end,
+  onChange,
+  compact = false,
+}: {
+  start: number;
+  end: number;
+  onChange: (nextStart: number, nextEnd: number) => void;
+  compact?: boolean;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [dragging, setDragging] = useState<"start" | "end" | null>(null);
+  const span = Math.max(1, end - start + 1);
+
+  const columnFromClientX = useCallback((clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return start;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const column = Math.round(ratio * (GRID_MAX_COLUMN - GRID_MIN_COLUMN)) + GRID_MIN_COLUMN;
+    return clampGridColumn(column);
+  }, [start]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const handleMove = (event: PointerEvent) => {
+      const nextColumn = columnFromClientX(event.clientX);
+      if (dragging === "start") {
+        onChange(Math.min(nextColumn, end), end);
+        return;
+      }
+      onChange(start, Math.max(nextColumn, start));
+    };
+    const handleUp = () => setDragging(null);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+    };
+  }, [columnFromClientX, dragging, onChange, start, end]);
+
+  const startCenterPercent = ((start - 0.5) / MAX_BLOCK_COLUMNS) * 100;
+  const endCenterPercent = ((end - 0.5) / MAX_BLOCK_COLUMNS) * 100;
+
+  return (
+    <div className={`${compact ? "" : "rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3"}`}>
+      {!compact ? (
+        <>
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+            Ширина блока
+          </div>
+          <div className="mt-2 flex items-center justify-between text-sm">
+            <span>{span} колонок</span>
+            <select
+              value={String(span)}
+              onChange={(event) => {
+                const nextSpan = Math.max(1, Math.min(12, Number(event.target.value)));
+                const centered = centeredGridRange(nextSpan);
+                onChange(centered.start, centered.end);
+              }}
+              className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 py-1 text-sm"
+            >
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      ) : null}
+
+      <div
+        ref={trackRef}
+        className={`relative border border-[color:var(--bp-stroke)] bg-[#d1d5db] p-1 ${compact ? "rounded-none mt-0" : "mt-3 rounded-lg"}`}
+      >
+        <div className="grid grid-cols-12 gap-1">
+          {Array.from({ length: 12 }, (_, index) => {
+            const col = index + 1;
+            const selected = col >= start && col <= end;
+            return (
+              <div
+                key={col}
+                className={`${compact ? "h-12" : "h-10"} rounded-sm ${
+                  selected ? "bg-white" : "bg-[#bfc5ce]"
+                }`}
+              />
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          aria-label="Левая граница"
+          className="absolute top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+          style={{ left: `${startCenterPercent}%` }}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            setDragging("start");
+          }}
+        />
+        <button
+          type="button"
+          aria-label="Правая граница"
+          className="absolute top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+          style={{ left: `${endCenterPercent}%` }}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            setDragging("end");
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -3576,6 +4019,19 @@ function BlockStyleEditor({
   const update = (patch: Partial<BlockStyle>) => {
     onChange(updateBlockStyle(block, patch));
   };
+  const applyGridRange = (nextStart: number, nextEnd: number) => {
+    const safeStart = clampGridColumn(nextStart);
+    const safeEnd = Math.max(safeStart, clampGridColumn(nextEnd));
+    const nextColumns = Math.max(1, safeEnd - safeStart + 1);
+    const nextWidth = Math.round((nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
+    update({
+      useCustomWidth: true,
+      blockWidth: nextWidth,
+      blockWidthColumns: nextColumns,
+      gridStartColumn: safeStart,
+      gridEndColumn: safeEnd,
+    });
+  };
   const inSection = (...ids: string[]) =>
     ids.length === 0 || ids.includes(activeSectionId);
 
@@ -3633,7 +4089,14 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && block.type !== "menu" && block.type !== "booking" && block.type !== "aisha" && (
+      {inSection("layout") && block.type === "cover" && (
+      <CoverGridWidthControl
+        start={style.gridStartColumn ?? centeredGridRange(resolvedBlockColumns).start}
+        end={style.gridEndColumn ?? centeredGridRange(resolvedBlockColumns).end}
+        onChange={applyGridRange}
+      />
+      )}
+      {inSection("layout") && block.type !== "menu" && block.type !== "booking" && block.type !== "aisha" && block.type !== "cover" && (
       <>
         <div className="text-sm">
           Ширина блока: {Math.max(1, (style.gridEndColumn ?? 12) - (style.gridStartColumn ?? 1) + 1)}/12
@@ -3650,17 +4113,7 @@ function BlockStyleEditor({
               const nextStart = clampGridColumn(Number(event.target.value));
               const currentEnd = style.gridEndColumn ?? centeredGridRange(resolvedBlockColumns).end;
               const nextEnd = Math.max(nextStart, currentEnd);
-              const nextColumns = Math.max(1, nextEnd - nextStart + 1);
-              const nextWidth = Math.round(
-                (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
-              );
-              update({
-                useCustomWidth: true,
-                blockWidth: nextWidth,
-                blockWidthColumns: nextColumns,
-                gridStartColumn: nextStart,
-                gridEndColumn: nextEnd,
-              });
+              applyGridRange(nextStart, nextEnd);
             }}
             className="mt-2 w-full"
           />
@@ -3677,17 +4130,7 @@ function BlockStyleEditor({
               const currentStart = style.gridStartColumn ?? centeredGridRange(resolvedBlockColumns).start;
               const nextEnd = clampGridColumn(Number(event.target.value));
               const safeEnd = Math.max(currentStart, nextEnd);
-              const nextColumns = Math.max(1, safeEnd - currentStart + 1);
-              const nextWidth = Math.round(
-                (nextColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE
-              );
-              update({
-                useCustomWidth: true,
-                blockWidth: nextWidth,
-                blockWidthColumns: nextColumns,
-                gridStartColumn: currentStart,
-                gridEndColumn: safeEnd,
-              });
+              applyGridRange(currentStart, safeEnd);
             }}
             className="mt-2 w-full"
           />
