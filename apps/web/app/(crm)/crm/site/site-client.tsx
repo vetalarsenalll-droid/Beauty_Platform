@@ -883,8 +883,10 @@ export default function SiteClient({
   const [saving, setSaving] = useState<string | null>(null);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
   const [showPanelExitConfirm, setShowPanelExitConfirm] = useState(false);
+  const [pendingDeleteBlockId, setPendingDeleteBlockId] = useState<string | null>(null);
   const [panelBaselineKey, setPanelBaselineKey] = useState<string | null>(null);
   const [panelBaselineSignature, setPanelBaselineSignature] = useState<string | null>(null);
+  const [panelBaselineBlock, setPanelBaselineBlock] = useState<SiteBlock | null>(null);
   const [activeSpacingSlot, setActiveSpacingSlot] = useState<number | null>(null);
   const [activeSpacingTarget, setActiveSpacingTarget] = useState<"prev" | "next" | null>(
     null
@@ -902,6 +904,12 @@ export default function SiteClient({
       setSelectedId(displayBlocks[0]?.id ?? null);
     }
   }, [displayBlocks, selectedId]);
+  useEffect(() => {
+    if (!pendingDeleteBlockId) return;
+    if (!displayBlocks.some((block) => block.id === pendingDeleteBlockId)) {
+      setPendingDeleteBlockId(null);
+    }
+  }, [displayBlocks, pendingDeleteBlockId]);
   const [message, setMessage] = useState<string | null>(null);
   useEffect(() => {
     if (!message) return;
@@ -910,6 +918,9 @@ export default function SiteClient({
   }, [message]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
+  const pendingDeleteBlock = pendingDeleteBlockId
+    ? displayBlocks.find((block) => block.id === pendingDeleteBlockId) ?? null
+    : null;
   const activeBlockId = spacingAnchorBlockId ?? selectedId;
   const activeTheme: SiteTheme = draft.theme;
 
@@ -1028,6 +1039,7 @@ export default function SiteClient({
     if (!rightPanel) {
       setPanelBaselineKey(null);
       setPanelBaselineSignature(null);
+      setPanelBaselineBlock(null);
       setShowPanelExitConfirm(false);
       return;
     }
@@ -1035,9 +1047,14 @@ export default function SiteClient({
     if (panelBaselineKey !== panelTargetKey) {
       setPanelBaselineKey(panelTargetKey);
       setPanelBaselineSignature(currentPanelSignature);
+      setPanelBaselineBlock(
+        selectedBlock
+          ? (JSON.parse(JSON.stringify(selectedBlock)) as SiteBlock)
+          : null
+      );
       setShowPanelExitConfirm(false);
     }
-  }, [rightPanel, panelTargetKey, currentPanelSignature, panelBaselineKey]);
+  }, [rightPanel, panelTargetKey, currentPanelSignature, panelBaselineKey, selectedBlock]);
 
   const savePanelDraft = async (closeAfterSave: boolean) => {
     const ok = await savePublic(false);
@@ -1059,6 +1076,11 @@ export default function SiteClient({
     setShowPanelExitConfirm(true);
   };
   const closePanelWithoutSave = () => {
+    if (panelBaselineBlock) {
+      updateBlock(panelBaselineBlock.id, () =>
+        JSON.parse(JSON.stringify(panelBaselineBlock)) as SiteBlock
+      );
+    }
     setShowPanelExitConfirm(false);
     setRightPanel(null);
   };
@@ -1260,6 +1282,12 @@ export default function SiteClient({
     if (target < 0 || target >= next.length) return;
     [next[idx], next[target]] = [next[target], next[idx]];
     updateBlocks(next);
+  };
+
+  const confirmRemoveBlock = () => {
+    if (!pendingDeleteBlockId) return;
+    removeBlock(pendingDeleteBlockId);
+    setPendingDeleteBlockId(null);
   };
 
   const clampBlockOffset = (value: number) =>
@@ -1696,7 +1724,7 @@ export default function SiteClient({
                         </button>
                         <button
                           type="button"
-                          onClick={() => removeBlock(block.id)}
+                          onClick={() => setPendingDeleteBlockId(block.id)}
                           className={removeBtnClass}
                           aria-label="Удалить блок"
                           title="Удалить"
@@ -2220,6 +2248,48 @@ export default function SiteClient({
                   style={{ backgroundColor: panelTheme.saveClose }}
                 >
                   Выйти
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pendingDeleteBlockId && (
+          <div className="fixed inset-0 z-[151] flex items-center justify-center bg-black/30 p-4">
+            <div
+              className="w-full max-w-[520px] rounded-xl border p-6 shadow-2xl"
+              style={{
+                backgroundColor: panelTheme.panel,
+                borderColor: panelTheme.border,
+                color: panelTheme.text,
+              }}
+            >
+              <h3 className="text-xl font-semibold">Удалить блок?</h3>
+              <p className="mt-3 text-sm" style={{ color: panelTheme.muted }}>
+                {pendingDeleteBlock
+                  ? `Блок «${BLOCK_LABELS[pendingDeleteBlock.type]}» будет удален без возможности восстановления.`
+                  : "Блок будет удален без возможности восстановления."}
+              </p>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPendingDeleteBlockId(null)}
+                  className="rounded-lg border px-4 py-2 text-sm"
+                  style={{
+                    borderColor: panelTheme.border,
+                    backgroundColor: panelTheme.panel,
+                    color: panelTheme.text,
+                  }}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmRemoveBlock}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: "#dc2626" }}
+                >
+                  Удалить
                 </button>
               </div>
             </div>
