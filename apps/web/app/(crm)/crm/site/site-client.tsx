@@ -5666,7 +5666,7 @@ function InsertSlot({
   onAdjustSpacing?: (deltaY: number, target: "prev" | "next") => void;
   onInsert: () => void;
 }) {
-  const slotHeight = 0;
+  const slotHeight = 24;
   const top = "50%";
   const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!onAdjustSpacing) return;
@@ -5710,7 +5710,8 @@ function InsertSlot({
         <div
           role="slider"
           aria-label={`Изменить отступ между блоками ${index}`}
-          className="absolute inset-x-0 top-1/2 z-[9] h-8 -translate-y-1/2 cursor-row-resize touch-none"
+          className="absolute inset-x-0 top-1/2 z-[40] h-10 -translate-y-1/2 cursor-ns-resize touch-none"
+          style={{ cursor: "ns-resize" }}
           onPointerDown={handleResizeStart}
         >
           {showValue && (
@@ -5729,7 +5730,7 @@ function InsertSlot({
       <button
         type="button"
         onClick={onInsert}
-        className="absolute z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[#cbd5e1] bg-white text-sm text-[#0f172a] shadow-sm"
+        className="absolute z-[41] flex h-8 w-8 items-center justify-center rounded-full border border-[#cbd5e1] bg-white text-sm text-[#0f172a] shadow-sm"
         style={{ top, left: "50%", transform: "translate(-50%, -50%)" }}
         aria-label={`Добавить блок ${index}`}
         title="Добавить блок"
