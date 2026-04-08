@@ -6239,7 +6239,7 @@ function InsertSlot({
   onAdjustSpacing?: (deltaY: number, target: "prev" | "next") => void;
   onInsert: () => void;
 }) {
-  const slotHeight = 24;
+  const slotHeight = 0;
   const top = "50%";
   const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!onAdjustSpacing) return;
