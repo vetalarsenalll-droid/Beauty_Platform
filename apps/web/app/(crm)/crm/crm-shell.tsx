@@ -111,6 +111,7 @@ const STAFF_ITEMS: NavItem[] = [
 ];
 
 const SITE_ITEMS: NavItem[] = [
+  { label: "Проект", href: "/crm/site/project" },
   { label: "Конструктор", href: "/crm/site" },
   { label: "SEO", href: "/crm/site/seo" },
 ];
@@ -136,7 +137,7 @@ const [collapsed, setCollapsed] = useState(false);
   const effectiveCollapsed = collapsed && !mobileOpen;
   const isSchedulePage =
     pathname.startsWith("/crm/schedule") || pathname.startsWith("/crm/calendar");
-  const isSiteBuilderPage = pathname.startsWith("/crm/site");
+  const isSiteBuilderPage = pathname === "/crm/site";
 
   const initials = useMemo(() => {
     const base = userEmail?.split("@")[0] ?? "CRM";
@@ -256,11 +257,12 @@ const [collapsed, setCollapsed] = useState(false);
         aria-hidden="true"
       />
 
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-[color:var(--bp-stroke)] bg-[color:var(--sidebar-bg)] shadow-[var(--bp-shadow)] transition-[transform,width] duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)] md:fixed md:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        } ${effectiveCollapsed ? "w-[272px] md:w-[78px]" : "w-[272px]"}`}
-      >
+      {!isSiteBuilderPage && (
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-[color:var(--bp-stroke)] bg-[color:var(--sidebar-bg)] shadow-[var(--bp-shadow)] transition-[transform,width] duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)] md:fixed md:translate-x-0 ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          } ${effectiveCollapsed ? "w-[272px] md:w-[78px]" : "w-[272px]"}`}
+        >
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-xs font-semibold text-white">
@@ -488,10 +490,13 @@ const [collapsed, setCollapsed] = useState(false);
                     </button>
                     <div className={`mt-1 flex flex-col gap-1 pl-7 ${siteOpen ? "" : "hidden"}`}>
                       {SITE_ITEMS.map((siteItem) => {
+                        const isProjectTab = pathname.startsWith("/crm/site/project");
                         const isSeoTab = pathname.startsWith("/crm/site/seo");
                         const siteActive =
-                          siteItem.href === "/crm/site"
-                            ? pathname.startsWith("/crm/site") && !isSeoTab
+                          siteItem.href === "/crm/site/project"
+                            ? isProjectTab
+                            : siteItem.href === "/crm/site"
+                              ? pathname.startsWith("/crm/site") && !isProjectTab && !isSeoTab
                             : siteItem.href === "/crm/site/seo"
                               ? pathname.startsWith("/crm/site") && isSeoTab
                               : pathname === siteItem.href;
@@ -594,18 +599,20 @@ const [collapsed, setCollapsed] = useState(false);
             </span>
           </button>
         </div>
-      </aside>
+        </aside>
+      )}
 
       <div
         className={`flex min-h-screen flex-1 flex-col overflow-x-hidden ${
-          effectiveCollapsed ? "md:pl-[78px]" : "md:pl-[272px]"
+          isSiteBuilderPage ? "" : effectiveCollapsed ? "md:pl-[78px]" : "md:pl-[272px]"
         }`}
       >
-        <header
-          className={`fixed top-0 z-30 flex h-16 items-center border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/90 px-4 shadow-[var(--bp-shadow)] backdrop-blur-[var(--glass-blur)] sm:px-6 ${
-            effectiveCollapsed ? "md:left-[78px]" : "md:left-[272px]"
-          } left-0 right-0`}
-        >
+        {!isSiteBuilderPage && (
+          <header
+            className={`fixed top-0 z-30 flex h-16 items-center border-b border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/90 px-4 shadow-[var(--bp-shadow)] backdrop-blur-[var(--glass-blur)] sm:px-6 ${
+              effectiveCollapsed ? "md:left-[78px]" : "md:left-[272px]"
+            } left-0 right-0`}
+          >
           <button
             type="button"
             aria-label="Открыть меню"
@@ -656,11 +663,12 @@ const [collapsed, setCollapsed] = useState(false);
               {darkMode ? <IconSun /> : <IconMoon />}
             </button>
           </div>
-        </header>
+          </header>
+        )}
 
         <main
-          className={`flex-1 mt-16 pb-[env(safe-area-inset-bottom)] ${
-            isSiteBuilderPage ? "px-0 pt-0 pb-0" : "px-4 pb-6 pt-6 sm:px-6 lg:px-8"
+          className={`flex-1 pb-[env(safe-area-inset-bottom)] ${
+            isSiteBuilderPage ? "mt-0 px-0 pt-0 pb-0" : "mt-16 px-4 pb-6 pt-6 sm:px-6 lg:px-8"
           }`}
         >
           <div className="mx-auto flex w-full max-w-none flex-col">

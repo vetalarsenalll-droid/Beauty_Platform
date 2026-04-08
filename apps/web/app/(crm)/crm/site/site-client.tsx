@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   BLOCK_LABELS,
@@ -114,6 +115,7 @@ type Branding = {
 };
 
 type SiteClientProps = {
+  initialActivePage?: SitePageKey;
   initialPublicPage: PublicPageData;
   account: AccountInfo;
   accountProfile: AccountProfile;
@@ -814,6 +816,7 @@ function createBlock(type: BlockType): SiteBlock {
 }
 
 export default function SiteClient({
+  initialActivePage = "home",
   initialPublicPage,
   account,
   accountProfile,
@@ -836,7 +839,7 @@ export default function SiteClient({
     lastGroupKey: null,
     lastRecordedAt: 0,
   });
-  const [activePage, setActivePage] = useState<SitePageKey>("home");
+  const [activePage, setActivePage] = useState<SitePageKey>(initialActivePage);
   const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
 
   const ensurePages = (value: SiteDraft): SitePages =>
@@ -892,7 +895,10 @@ export default function SiteClient({
   const [selectedId, setSelectedId] = useState<string | null>(
     displayBlocks[0]?.id ?? null
   );
-  const [leftPanel, setLeftPanel] = useState<"pages" | "library" | null>(null);
+  const [leftPanel, setLeftPanel] = useState<"library" | null>(null);
+  const [pagesMenuOpen, setPagesMenuOpen] = useState(false);
+  const [pagesSearch, setPagesSearch] = useState("");
+  const pagesMenuRef = useRef<HTMLDivElement | null>(null);
   const [libraryBlock, setLibraryBlock] = useState<BlockType | null>(null);
   const [rightPanel, setRightPanel] = useState<"content" | "settings" | null>(
     null
@@ -1522,6 +1528,89 @@ export default function SiteClient({
   };
 
   const publicUrl = account.publicSlug ? `/${account.publicSlug}` : null;
+  const hasPageBlocks = (key: SitePageKey) => (draft.pages?.[key]?.length ?? 0) > 0;
+  const availablePageKeys = useMemo<SitePageKey[]>(() => {
+    return PAGE_KEYS.filter((key) => {
+      if (key === "home") return true;
+      if (key === "locations") return locations.length > 0 || hasPageBlocks(key);
+      if (key === "services") return services.length > 0 || hasPageBlocks(key);
+      if (key === "specialists") return specialists.length > 0 || hasPageBlocks(key);
+      if (key === "promos") return promos.length > 0 || hasPageBlocks(key);
+      return hasPageBlocks(key);
+    });
+  }, [draft.pages, locations.length, services.length, specialists.length, promos.length]);
+  const projectTitle = account.name?.trim() || account.publicSlug || account.slug || "Мой сайт";
+  const currentEntityLabel = useMemo(() => {
+    if (!currentEntity) return null;
+    if (currentEntity.type === "location") {
+      return locations.find((item) => item.id === currentEntity.id)?.name ?? null;
+    }
+    if (currentEntity.type === "service") {
+      return services.find((item) => item.id === currentEntity.id)?.name ?? null;
+    }
+    if (currentEntity.type === "specialist") {
+      return specialists.find((item) => item.id === currentEntity.id)?.name ?? null;
+    }
+    if (currentEntity.type === "promo") {
+      return promos.find((item) => item.id === currentEntity.id)?.name ?? null;
+    }
+    return null;
+  }, [currentEntity, locations, services, specialists, promos]);
+  const currentPageTitle = currentEntityLabel
+    ? currentEntityLabel
+    : availablePageKeys.includes(activePageKey)
+      ? PAGE_LABELS[activePageKey]
+      : PAGE_LABELS[availablePageKeys[0] ?? "home"];
+  const pagesSearchValue = pagesSearch.trim().toLowerCase();
+  const matchSearch = (value: string) =>
+    pagesSearchValue.length === 0 || value.toLowerCase().includes(pagesSearchValue);
+  const filteredPageKeys = useMemo(
+    () => availablePageKeys.filter((key) => matchSearch(PAGE_LABELS[key])),
+    [availablePageKeys, pagesSearchValue]
+  );
+  const filteredLocationItems = useMemo(
+    () => locations.filter((item) => matchSearch(item.name)),
+    [locations, pagesSearchValue]
+  );
+  const filteredServiceItems = useMemo(
+    () => services.filter((item) => matchSearch(item.name)),
+    [services, pagesSearchValue]
+  );
+  const filteredSpecialistItems = useMemo(
+    () => specialists.filter((item) => matchSearch(item.name)),
+    [specialists, pagesSearchValue]
+  );
+  const filteredPromoItems = useMemo(
+    () => promos.filter((item) => matchSearch(item.name)),
+    [promos, pagesSearchValue]
+  );
+  const hasFilteredPagesMenuItems =
+    filteredPageKeys.length > 0 ||
+    filteredLocationItems.length > 0 ||
+    filteredServiceItems.length > 0 ||
+    filteredSpecialistItems.length > 0 ||
+    filteredPromoItems.length > 0;
+
+  useEffect(() => {
+    if (!pagesMenuOpen) return;
+    const handleOutside = (event: MouseEvent) => {
+      if (!pagesMenuRef.current) return;
+      if (!pagesMenuRef.current.contains(event.target as Node)) {
+        setPagesMenuOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPagesMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [pagesMenuOpen]);
 
   const globalBorderColor = activeTheme.borderColor?.trim() || "transparent";
   const themeStyle: Record<string, string> = {
@@ -1613,6 +1702,7 @@ export default function SiteClient({
       gridEndColumn: safeEnd,
     });
   };
+  const floatingPanelsTop = 64;
 
   return (
     <div className="flex flex-col gap-6">
@@ -1627,26 +1717,201 @@ export default function SiteClient({
       )}
 
       <div className="relative">
-        <div className="h-12" />
-        <div className="fixed top-16 left-0 right-0 z-30 border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-4 md:left-[var(--crm-sidebar-width)] sm:px-6 lg:px-8">
+        <div className="h-10" />
+        <div className="fixed top-0 left-0 right-0 z-[170] border border-x-0 border-[color:var(--bp-stroke)] bg-[#eef0f3] px-4 py-2 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-              Конструктор сайта
-            </div>
-            <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
-              Статус: {publicPage.status}
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
+            <Link
+              href="/crm/site/project"
+              className="text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
+              title="Открыть проект"
+            >
+              {projectTitle}
+            </Link>
+            <span>/</span>
+            <div ref={pagesMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setPagesMenuOpen((prev) => !prev)}
+                className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
+                title="Открыть список страниц"
+              >
+                {currentPageTitle}
+                <span className="text-sm leading-none">{pagesMenuOpen ? "▴" : "▾"}</span>
+              </button>
+              {pagesMenuOpen && (
+                <div className="absolute left-0 top-full z-[300] w-[360px] rounded-xl border border-[color:var(--bp-stroke)] bg-white p-3 text-[color:var(--bp-ink)] shadow-[var(--bp-shadow)]">
+                  <div className="relative mb-2">
+                    <input
+                      type="text"
+                      value={pagesSearch}
+                      onChange={(event) => setPagesSearch(event.target.value)}
+                      placeholder="Поиск страницы"
+                      className="h-10 w-full rounded-md border border-[color:var(--bp-stroke)] bg-white px-3 pr-9 text-sm outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--ring)]"
+                    />
+                    {pagesSearch.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPagesSearch("")}
+                        className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-base leading-none text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+                        aria-label="Очистить поиск"
+                        title="Очистить"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
+                    {filteredPageKeys.map((pageKey) => (
+                      <button
+                        key={pageKey}
+                        type="button"
+                        onClick={() => {
+                          setActivePage(pageKey);
+                          setCurrentEntity(null);
+                          setPagesMenuOpen(false);
+                          setPagesSearch("");
+                        }}
+                        className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                          pageKey === activePage
+                            ? "bg-[#f3f4f6] font-semibold"
+                            : "hover:bg-[#f8fafc]"
+                        }`}
+                      >
+                        {PAGE_LABELS[pageKey]}
+                      </button>
+                    ))}
+                    {filteredLocationItems.length > 0 && (
+                      <div>
+                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
+                          Локации
+                        </div>
+                        <div className="space-y-1">
+                          {filteredLocationItems.map((item) => (
+                            <button
+                              key={`location-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("locations");
+                                setCurrentEntity({ type: "location", id: item.id });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "location" && currentEntity.id === item.id
+                                  ? "bg-[#f3f4f6] font-semibold"
+                                  : "hover:bg-[#f8fafc]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {filteredServiceItems.length > 0 && (
+                      <div>
+                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
+                          Услуги
+                        </div>
+                        <div className="space-y-1">
+                          {filteredServiceItems.map((item) => (
+                            <button
+                              key={`service-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("services");
+                                setCurrentEntity({ type: "service", id: item.id });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "service" && currentEntity.id === item.id
+                                  ? "bg-[#f3f4f6] font-semibold"
+                                  : "hover:bg-[#f8fafc]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {filteredSpecialistItems.length > 0 && (
+                      <div>
+                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
+                          Специалисты
+                        </div>
+                        <div className="space-y-1">
+                          {filteredSpecialistItems.map((item) => (
+                            <button
+                              key={`specialist-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("specialists");
+                                setCurrentEntity({ type: "specialist", id: item.id });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "specialist" && currentEntity.id === item.id
+                                  ? "bg-[#f3f4f6] font-semibold"
+                                  : "hover:bg-[#f8fafc]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {filteredPromoItems.length > 0 && (
+                      <div>
+                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
+                          Промо
+                        </div>
+                        <div className="space-y-1">
+                          {filteredPromoItems.map((item) => (
+                            <button
+                              key={`promo-${item.id}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage("promos");
+                                setCurrentEntity({ type: "promo", id: item.id });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                currentEntity?.type === "promo" && currentEntity.id === item.id
+                                  ? "bg-[#f3f4f6] font-semibold"
+                                  : "hover:bg-[#f8fafc]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!hasFilteredPagesMenuItems && (
+                      <div className="rounded-md px-3 py-2 text-sm text-[color:var(--bp-muted)]">
+                        Ничего не найдено
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() =>
-                setLeftPanel((prev) => (prev === "pages" ? null : "pages"))
-              }
+              onClick={() => {
+                window.location.href = "/crm/site/project";
+              }}
               className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
             >
-              Страницы сайта
+              Вернуться в CRM
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -1997,15 +2262,13 @@ export default function SiteClient({
           </div>
         </main>
 
-        {leftPanel && (
+        {leftPanel === "library" && (
           <aside
             className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            style={{ left: "var(--crm-sidebar-width, 272px)", top: 64, bottom: 0 }}
+            style={{ left: 0, top: floatingPanelsTop, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
-              <div className="text-sm font-semibold">
-                {leftPanel === "pages" ? "Страницы сайта" : "Библиотека блоков"}
-              </div>
+              <div className="text-sm font-semibold">Библиотека блоков</div>
               <button
                 type="button"
                 onClick={() => {
@@ -2017,185 +2280,36 @@ export default function SiteClient({
                 Закрыть
               </button>
             </div>
-            {leftPanel === "pages" && (
-              <div className="p-4">
-                <div className="flex flex-col gap-2">
-                  {PAGE_KEYS.map((pageKey) => (
-                    <button
-                      key={pageKey}
-                      type="button"
-                      onClick={() => {
-                        setActivePage(pageKey);
-                        setCurrentEntity(null);
-                        setLeftPanel(null);
-                      }}
-                      className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                        pageKey === activePage
-                          ? "border-[color:var(--bp-accent)] bg-white"
-                          : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
-                      }`}
-                    >
-                      {PAGE_LABELS[pageKey]}
-                    </button>
-                  ))}
-                </div>
-
-                {(locations.length > 0 ||
-                  services.length > 0 ||
-                  specialists.length > 0 ||
-                  promos.length > 0) && (
-                  <div className="mt-5 border-t border-[color:var(--bp-stroke)] pt-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-                      Профили
-                    </div>
-                    {locations.length > 0 && (
-                      <div className="mt-3">
-                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
-                          Локации
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {locations.map((item) => (
-                            <button
-                              key={`location-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("locations");
-                                setCurrentEntity({ type: "location", id: item.id });
-                                setLeftPanel(null);
-                              }}
-                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "location" &&
-                                currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {services.length > 0 && (
-                      <div className="mt-4">
-                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
-                          Услуги
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {services.map((item) => (
-                            <button
-                              key={`service-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("services");
-                                setCurrentEntity({ type: "service", id: item.id });
-                                setLeftPanel(null);
-                              }}
-                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "service" &&
-                                currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {specialists.length > 0 && (
-                      <div className="mt-4">
-                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
-                          Специалисты
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {specialists.map((item) => (
-                            <button
-                              key={`specialist-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("specialists");
-                                setCurrentEntity({ type: "specialist", id: item.id });
-                                setLeftPanel(null);
-                              }}
-                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "specialist" &&
-                                currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {promos.length > 0 && (
-                      <div className="mt-4">
-                        <div className="mb-2 text-xs font-semibold text-[color:var(--bp-muted)]">
-                          Промо
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          {promos.map((item) => (
-                            <button
-                              key={`promo-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("promos");
-                                setCurrentEntity({ type: "promo", id: item.id });
-                                setLeftPanel(null);
-                              }}
-                              className={`rounded-xl border px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "promo" &&
-                                currentEntity.id === item.id
-                                  ? "border-[color:var(--bp-accent)] bg-white"
-                                  : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+            <div className="p-4">
+              <div className="flex flex-col gap-2">
+                {(Object.keys(BLOCK_LABELS) as BlockType[])
+                  .filter((type) => !isSystemBlockType(type))
+                  .map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setLibraryBlock(type)}
+                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
+                      libraryBlock === type
+                        ? "border-[color:var(--bp-accent)] bg-white"
+                        : "border-[color:var(--bp-stroke)] bg-white"
+                    }`}
+                  >
+                    <span>{BLOCK_LABELS[type]}</span>
+                    <span className="text-xs text-[color:var(--bp-muted)]">
+                      Варианты
+                    </span>
+                  </button>
+                ))}
               </div>
-            )}
-            {leftPanel === "library" && (
-              <div className="p-4">
-                <div className="flex flex-col gap-2">
-                  {(Object.keys(BLOCK_LABELS) as BlockType[])
-                    .filter((type) => !isSystemBlockType(type))
-                    .map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setLibraryBlock(type)}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
-                        libraryBlock === type
-                          ? "border-[color:var(--bp-accent)] bg-white"
-                          : "border-[color:var(--bp-stroke)] bg-white"
-                      }`}
-                    >
-                      <span>{BLOCK_LABELS[type]}</span>
-                      <span className="text-xs text-[color:var(--bp-muted)]">
-                        Варианты
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
           </aside>
         )}
 
         {leftPanel === "library" && libraryBlock && (
           <aside
             className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            style={{ left: "calc(var(--crm-sidebar-width, 272px) + 320px)", top: 64, bottom: 0 }}
+            style={{ left: 320, top: floatingPanelsTop, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
               <div className="text-sm font-semibold">
@@ -2238,8 +2352,8 @@ export default function SiteClient({
           <button
             type="button"
             aria-label="Закрыть панель"
-            className="fixed inset-0 z-[139] cursor-default bg-transparent"
-            style={{ top: 64 }}
+            className="fixed inset-0 z-[219] cursor-default bg-transparent"
+            style={{ top: floatingPanelsTop }}
             onClick={requestClosePanel}
           />
         )}
@@ -2247,15 +2361,15 @@ export default function SiteClient({
         {rightPanel && (
           <>
             <aside
-              className={`fixed z-[140] w-[360px] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+              className={`fixed z-[220] w-[360px] overflow-y-auto border shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
                 activeTheme.mode === "dark"
                   ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                   : ""
               }`}
               style={{
-                top: 64,
+                top: floatingPanelsTop,
                 bottom: 0,
-                left: "var(--crm-sidebar-width, 272px)",
+                left: 0,
                 borderColor: panelTheme.border,
                 backgroundColor: panelTheme.surface,
                 color: panelTheme.text,
@@ -2484,15 +2598,15 @@ export default function SiteClient({
             {((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
               (isCoverSettingsPanel && coverDrawerKey && selectedBlock)) && (
               <aside
-                className={`fixed z-[141] w-[440px] max-w-[calc(100vw-var(--crm-sidebar-width,272px)-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-transform duration-200 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+                className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-transform duration-200 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
                   activeTheme.mode === "dark"
                     ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                     : ""
                 }`}
                 style={{
-                  top: 64,
+                  top: floatingPanelsTop,
                   bottom: 0,
-                  left: "calc(var(--crm-sidebar-width, 272px) + 360px)",
+                  left: 360,
                   borderColor: panelTheme.border,
                   backgroundColor: panelTheme.panel,
                   color: panelTheme.text,
@@ -2544,7 +2658,7 @@ export default function SiteClient({
                       services={services}
                       specialists={specialists}
                       promos={promos}
-                      activeSectionId={activePanelSectionId}
+                      activeSectionId={activePanelSectionId ?? ""}
                       onChange={(next) => updateBlock(selectedBlock.id, () => next)}
                     />
                   )}
@@ -2552,7 +2666,7 @@ export default function SiteClient({
                     <BlockStyleEditor
                       block={selectedBlock}
                       theme={activeTheme}
-                      activeSectionId={activePanelSectionId}
+                      activeSectionId={activePanelSectionId ?? ""}
                       onChange={(next) => updateBlock(selectedBlock.id, () => next)}
                     />
                   )}
@@ -7834,7 +7948,7 @@ function renderServices(
                       {service.description && <div className="text-sm text-white/90">{service.description}</div>}
                       <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/90">
                         {showDuration && <span>{service.baseDurationMin} мин</span>}
-                        {showPrice && <span>{service.basePrice} ₽</span>}
+                        {showPrice && <span>{service.basePrice} ?</span>}
                       </div>
                       {showButton && account.publicSlug && (
                         <a
@@ -7886,7 +8000,7 @@ function renderServices(
                   )}
                   <div className="flex flex-wrap gap-2 text-xs text-[color:var(--block-muted,var(--bp-muted))]">
                     {showDuration && <span>{service.baseDurationMin} мин</span>}
-                    {showPrice && <span>{service.basePrice} ₽</span>}
+                    {showPrice && <span>{service.basePrice} ?</span>}
                   </div>
                   {showButton && account.publicSlug && (
                     <a
@@ -8057,7 +8171,7 @@ function renderPromos(
           >
             <div className="text-base font-semibold">{promo.name}</div>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ₽`}
+              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ?`}
               {promo.startsAt || promo.endsAt ? " · " : ""}
               {promo.startsAt ? `с ${promo.startsAt}` : ""}
               {promo.endsAt ? ` по ${promo.endsAt}` : ""}
@@ -8572,6 +8686,8 @@ function renderContacts(
     </div>
   );
 }
+
+
 
 
 

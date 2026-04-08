@@ -2,11 +2,38 @@
 import { prisma } from "@/lib/prisma";
 import SiteClient from "./site-client";
 import { buildPublicSlugId } from "@/lib/public-slug";
-import { createDefaultDraft, normalizeDraft, type SiteDraft } from "@/lib/site-builder";
+import {
+  createDefaultDraft,
+  normalizeDraft,
+  type SiteDraft,
+  type SitePageKey,
+} from "@/lib/site-builder";
 import { Prisma } from "@prisma/client";
 
-export default async function CrmSitePage() {
+const ALLOWED_PAGE_KEYS: SitePageKey[] = [
+  "home",
+  "booking",
+  "client",
+  "locations",
+  "services",
+  "specialists",
+  "promos",
+];
+
+const normalizeInitialPage = (value: string | undefined): SitePageKey => {
+  if (!value) return "home";
+  return ALLOWED_PAGE_KEYS.includes(value as SitePageKey)
+    ? (value as SitePageKey)
+    : "home";
+};
+
+export default async function CrmSitePage({
+  searchParams,
+}: {
+  searchParams?: { page?: string };
+}) {
   const session = await requireCrmPermission("crm.settings.read");
+  const initialActivePage = normalizeInitialPage(searchParams?.page);
 
   const account = await prisma.account.findUnique({
     where: { id: session.accountId },
@@ -174,6 +201,7 @@ export default async function CrmSitePage() {
   return (
     <div className="flex flex-col gap-6">
       <SiteClient
+        initialActivePage={initialActivePage}
         initialPublicPage={{
           id: page.id,
           status: page.status,
