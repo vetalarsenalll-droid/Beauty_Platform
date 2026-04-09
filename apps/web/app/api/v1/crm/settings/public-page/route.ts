@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
-import { createDefaultDraft } from "@/lib/site-builder";
+import { createDefaultDraft, DEFAULT_ACCOUNT_NAME } from "@/lib/site-builder";
 import { Prisma } from "@prisma/client";
 
 const parseJson = (value: unknown) => {
@@ -39,7 +39,7 @@ async function ensurePage(accountId: number) {
     data: {
       accountId,
       status: "DRAFT",
-      draftJson: createDefaultDraft(account?.name ?? "Салон красоты") as Prisma.InputJsonValue,
+      draftJson: createDefaultDraft(account?.name?.trim() || DEFAULT_ACCOUNT_NAME) as Prisma.InputJsonValue,
     },
   });
 }

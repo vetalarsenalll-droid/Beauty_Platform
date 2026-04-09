@@ -518,7 +518,7 @@ const defaultBlockStyle = {
 
 const defaultBlockData: Record<string, Record<string, unknown>> = {
   cover: {
-    title: "Салон красоты",
+    title: "",
     subtitle: "Онлайн-запись и лучшие специалисты рядом",
     description: "Выберите услугу, специалиста и удобное время.",
     buttonText: "Записаться",
@@ -526,11 +526,31 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
     secondaryButtonText: "Наши соцсети",
     showSecondaryButton: false,
     secondaryButtonSource: "auto",
+    coverScrollEffect: "none",
+    coverScrollHeight: "700px",
+    coverFilterStartColor: "#000000",
+    coverFilterStartOpacity: 10,
+    coverFilterEndColor: "#0f0f0f",
+    coverFilterEndOpacity: 60,
+    coverSubtitleColor: "#ffffff",
+    coverDescriptionColor: "#ffffff",
     coverHeight: 100,
     align: "left",
     imageSource: { type: "account" },
     style: {
       ...defaultBlockStyle,
+      useCustomWidth: true,
+      blockWidth: Math.round((7 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+      blockWidthColumns: 7,
+      textAlign: "left",
+      textAlignHeading: "left",
+      textAlignSubheading: "left",
+      fontHeading: "Manrope",
+      fontSubheading: "Manrope",
+      fontBody: "Manrope",
+      headingSize: 48,
+      subheadingSize: 35,
+      textSize: 28,
       textColorLight: "#ffffff",
       textColorDark: "#ffffff",
       textColor: "#ffffff",
@@ -793,7 +813,7 @@ const defaultBlockData: Record<string, Record<string, unknown>> = {
       quickReplyTextColorLight: "#ffffff",
       quickReplyTextColorDark: "#ffffff",
       radius: 16,
-      buttonRadius: 999,
+      buttonRadius: 0,
       messageRadius: 16,
       shadowColor: "rgba(17,24,39,0.16)",
       shadowSize: 16,
@@ -839,7 +859,7 @@ export default function SiteClient({
 }: SiteClientProps) {
   const [publicPage, setPublicPage] = useState(initialPublicPage);
   const [draft, setDraft] = useState<SiteDraft>(() =>
-    normalizeDraft(initialPublicPage.draftJson)
+    normalizeDraft(initialPublicPage.draftJson, account.name)
   );
   const draftRef = useRef<SiteDraft>(draft);
   const historyRef = useRef<{ past: SiteDraft[]; future: SiteDraft[] }>({
@@ -1748,7 +1768,7 @@ export default function SiteClient({
     typeof coverData?.coverScrollHeight === "string" ? coverData.coverScrollHeight.trim() : "";
   const coverScrollHeight = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverScrollHeightRaw)
     ? coverScrollHeightRaw
-    : "100vh";
+    : "700px";
   const coverScrollHeightPx = (() => {
     const pxMatch = coverScrollHeight.match(/^(\d+(?:\.\d+)?)px$/i);
     if (pxMatch) {
@@ -1778,10 +1798,10 @@ export default function SiteClient({
         : "#0f0f0f";
   const coverFilterStartOpacity = Number.isFinite(Number(coverData?.coverFilterStartOpacity))
     ? Math.max(0, Math.min(100, Number(coverData?.coverFilterStartOpacity)))
-    : 80;
+    : 10;
   const coverFilterEndOpacity = Number.isFinite(Number(coverData?.coverFilterEndOpacity))
     ? Math.max(0, Math.min(100, Number(coverData?.coverFilterEndOpacity)))
-    : 0;
+    : 60;
   const coverArrow =
     coverData?.coverArrow === "down" ? "down" : "none";
   const coverArrowColorRaw =
@@ -7957,14 +7977,9 @@ function renderCover(
     : "center center";
   const coverHeightRawValue =
     typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
-  const coverHeightVhRaw = Number(data.coverHeight);
-  const coverHeightVh =
-    Number.isFinite(coverHeightVhRaw) && coverHeightVhRaw >= 60 && coverHeightVhRaw <= 140
-      ? Math.round(coverHeightVhRaw)
-      : 100;
   const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
     ? coverHeightRawValue
-    : `${coverHeightVh}vh`;
+    : "700px";
   const filterStartColorRaw =
     typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
   const filterStartColor =
@@ -7983,10 +7998,10 @@ function renderCover(
         : "#0f0f0f";
   const filterStartOpacity = Number.isFinite(Number(data.coverFilterStartOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacity)))
-    : 80;
+    : 10;
   const filterEndOpacity = Number.isFinite(Number(data.coverFilterEndOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacity)))
-    : 0;
+    : 60;
   const arrowMode = data.coverArrow === "down" ? "down" : "none";
   const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
   const arrowColor =
@@ -9895,7 +9910,7 @@ function buildAishaWidgetConfig(
     panelWidthPx: 400,
     panelHeightVh: 74,
     radiusPx: style.radius ?? theme.radius ?? 16,
-    buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 999,
+    buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 0,
     buttonColor:
       pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) || style.buttonColor || null,
     buttonTextColor:

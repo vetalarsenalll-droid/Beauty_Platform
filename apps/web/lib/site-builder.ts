@@ -85,6 +85,7 @@ export const SITE_PAGE_KEYS: SitePageKey[] = [
   "specialists",
   "promos",
 ];
+export const DEFAULT_ACCOUNT_NAME = "Салон красоты";
 
 export type SitePages = Record<SitePageKey, SiteBlock[]>;
 
@@ -717,14 +718,15 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
 });
 
 export const createDefaultDraft = (accountName: string): SiteDraft => {
+  const safeAccountName = accountName?.trim() || DEFAULT_ACCOUNT_NAME;
   const homeBlocks: SiteBlock[] = [
-    createMenuBlock(accountName),
+    createMenuBlock(safeAccountName),
     {
       id: makeBlockId(),
       type: "cover",
       variant: "v1",
       data: {
-        title: accountName || "Салон красоты",
+        title: safeAccountName,
         subtitle: "Онлайн-запись и лучшие специалистЫ рядом с вами",
         description:
           "Удобно записывайтесь онлайн, выбирайте специалистов и услуги в пару кликов.",
@@ -733,10 +735,30 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         secondaryButtonText: "Наши соцсети",
         showSecondaryButton: false,
         secondaryButtonSource: "auto",
+        coverScrollEffect: "none",
+        coverScrollHeight: "700px",
+        coverFilterStartColor: "#000000",
+        coverFilterStartOpacity: 10,
+        coverFilterEndColor: "#0f0f0f",
+        coverFilterEndOpacity: 60,
+        coverSubtitleColor: "#ffffff",
+        coverDescriptionColor: "#ffffff",
         coverHeight: 100,
         align: "left",
         imageSource: { type: "account" } as CoverImageSource,
         style: {
+          useCustomWidth: true,
+          blockWidth: 1400,
+          blockWidthColumns: 7,
+          textAlign: "left",
+          textAlignHeading: "left",
+          textAlignSubheading: "left",
+          fontHeading: "Manrope",
+          fontSubheading: "Manrope",
+          fontBody: "Manrope",
+          headingSize: 48,
+          subheadingSize: 35,
+          textSize: 28,
           textColorLight: "#ffffff",
           textColorDark: "#ffffff",
           textColor: "#ffffff",
@@ -898,7 +920,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     buttonColor: "#111827",
     buttonTextColor: "#FFFFFF",
     radius: 28,
-    buttonRadius: 999,
+    buttonRadius: 0,
     blockSpacing: 0,
     headingSize: 28,
     subheadingSize: 18,
@@ -976,15 +998,21 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
   };
 };
 
-export const normalizeDraft = (value: unknown): SiteDraft => {
+export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft => {
+  const safeAccountName = accountName?.trim() || DEFAULT_ACCOUNT_NAME;
   if (!value || typeof value !== "object") {
-    return createDefaultDraft("Салон красоты");
+    return createDefaultDraft(safeAccountName);
   }
   const draft = value as SiteDraft;
   if (draft.version !== 1 || !Array.isArray(draft.blocks)) {
-    return createDefaultDraft("Салон красоты");
+    return createDefaultDraft(safeAccountName);
   }
-  const fallbackTheme = createDefaultDraft("Салон красоты").theme;
+  const fallbackTheme = createDefaultDraft(safeAccountName).theme;
+  const migrateLegacyButtonRadius = (raw: unknown, fallback: number) => {
+    if (!Number.isFinite(raw)) return fallback;
+    const next = Number(raw);
+    return next === 999 ? 0 : next;
+  };
   const normalizePalette = (
     palette: Partial<SiteThemePalette> | undefined,
     fallback: SiteThemePalette
@@ -1017,9 +1045,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
     buttonColor: palette?.buttonColor || fallback.buttonColor,
     buttonTextColor: palette?.buttonTextColor || fallback.buttonTextColor,
     radius: Number.isFinite(palette?.radius) ? (palette?.radius as number) : fallback.radius,
-    buttonRadius: Number.isFinite(palette?.buttonRadius)
-      ? (palette?.buttonRadius as number)
-      : fallback.buttonRadius,
+    buttonRadius: migrateLegacyButtonRadius(palette?.buttonRadius, fallback.buttonRadius),
     blockSpacing: Number.isFinite(palette?.blockSpacing)
       ? (palette?.blockSpacing as number)
       : fallback.blockSpacing,
@@ -1048,6 +1074,19 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
       .map((block, index) => {
         const safeData =
           typeof block.data === "object" && block.data ? { ...block.data } : {};
+        if (block.type === "cover") {
+          const rawTitle = typeof safeData.title === "string" ? safeData.title.trim() : "";
+          if (!rawTitle || rawTitle.toLowerCase() === DEFAULT_ACCOUNT_NAME.toLowerCase()) {
+            safeData.title = safeAccountName;
+          }
+        }
+        if (safeData.style && typeof safeData.style === "object") {
+          const style = { ...(safeData.style as Record<string, unknown>) };
+          if (Number.isFinite(style.buttonRadius) && Number(style.buttonRadius) === 999) {
+            style.buttonRadius = 0;
+          }
+          safeData.style = style;
+        }
         if (block.type === "menu") {
           const menuItems = Array.isArray(safeData.menuItems)
             ? (safeData.menuItems as SitePageKey[]).filter((item) =>
@@ -1284,7 +1323,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
       })
       .filter((block) => block.type in BLOCK_LABELS);
 
-  const fallbackPages = createDefaultDraft("Салон красоты").pages!;
+  const fallbackPages = createDefaultDraft(safeAccountName).pages!;
   const hasStructuredPages = Boolean(draft.pages && typeof draft.pages === "object");
   const pagesInput = hasStructuredPages
     ? (draft.pages as Partial<SitePages>)
@@ -1324,7 +1363,7 @@ export const normalizeDraft = (value: unknown): SiteDraft => {
   };
 
   if (!hasStructuredPages && !pages.home.some((block) => block.type === "menu")) {
-    pages.home = [createMenuBlock(), ...pages.home];
+    pages.home = [createMenuBlock(safeAccountName), ...pages.home];
   }
   if (!pages.booking.some((block) => block.type === "booking")) {
     pages.booking = [

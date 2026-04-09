@@ -864,14 +864,9 @@ function renderCover(
     : "center center";
   const coverHeightRawValue =
     typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
-  const coverHeightVhRaw = Number(data.coverHeight);
-  const coverHeightVh =
-    Number.isFinite(coverHeightVhRaw) && coverHeightVhRaw >= 60 && coverHeightVhRaw <= 140
-      ? Math.round(coverHeightVhRaw)
-      : 100;
   const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
     ? coverHeightRawValue
-    : `${coverHeightVh}vh`;
+    : "700px";
   const filterStartColorRaw =
     typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
   const filterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
@@ -884,10 +879,10 @@ function renderCover(
     : "#0f0f0f";
   const filterStartOpacity = Number.isFinite(Number(data.coverFilterStartOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacity)))
-    : 80;
+    : 10;
   const filterEndOpacity = Number.isFinite(Number(data.coverFilterEndOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacity)))
-    : 0;
+    : 60;
   const arrowMode = data.coverArrow === "down" ? "down" : "none";
   const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
   const arrowColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(arrowColorRaw)

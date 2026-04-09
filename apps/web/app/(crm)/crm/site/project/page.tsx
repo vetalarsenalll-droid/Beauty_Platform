@@ -4,6 +4,7 @@ import { requireCrmPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   createDefaultDraft,
+  DEFAULT_ACCOUNT_NAME,
   normalizeDraft,
   type SiteDraft,
   type SitePageKey,
@@ -47,7 +48,8 @@ export default async function CrmSiteProjectPage() {
     },
   });
 
-  const defaultDraft = createDefaultDraft(account?.name ?? "Салон красоты");
+  const accountName = account?.name?.trim() || DEFAULT_ACCOUNT_NAME;
+  const defaultDraft = createDefaultDraft(accountName);
   const page = publicPage
     ? publicPage
     : await prisma.publicPage.create({
@@ -64,7 +66,7 @@ export default async function CrmSiteProjectPage() {
         },
       });
 
-  const safeDraft = normalizeDraft((page.draftJson ?? defaultDraft) as SiteDraft);
+  const safeDraft = normalizeDraft((page.draftJson ?? defaultDraft) as SiteDraft, accountName);
 
   const [locationsCount, servicesCount, specialistsCount, promosCount] = await Promise.all([
     prisma.location.count({ where: { accountId: session.accountId } }),
@@ -139,4 +141,3 @@ export default async function CrmSiteProjectPage() {
     </div>
   );
 }
-

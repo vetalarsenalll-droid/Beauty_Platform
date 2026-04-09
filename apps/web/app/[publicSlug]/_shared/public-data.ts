@@ -106,7 +106,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
 
   const sourceJson =
     (publicPage?.publishedVersion?.contentJson ?? publicPage?.draftJson ?? null) as SiteDraft | null;
-  const draft = normalizeDraft(sourceJson);
+  const draft = normalizeDraft(sourceJson, account.name);
 
   const [locations, services, specialists, promotions, profile, branding] = await Promise.all([
     prisma.location.findMany({

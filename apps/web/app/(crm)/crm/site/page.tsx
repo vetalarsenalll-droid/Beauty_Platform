@@ -4,6 +4,7 @@ import SiteClient from "./site-client";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import {
   createDefaultDraft,
+  DEFAULT_ACCOUNT_NAME,
   normalizeDraft,
   type SiteDraft,
   type SitePageKey,
@@ -44,7 +45,8 @@ export default async function CrmSitePage({
     where: { accountId: session.accountId },
   });
 
-  const defaultDraft = createDefaultDraft(account?.name ?? "Салон красоты");
+  const accountName = account?.name?.trim() || DEFAULT_ACCOUNT_NAME;
+  const defaultDraft = createDefaultDraft(accountName);
   const page = publicPage
     ? publicPage
     : await prisma.publicPage.create({
@@ -56,7 +58,8 @@ export default async function CrmSitePage({
       });
 
   const safeDraftJson = normalizeDraft(
-    (page.draftJson ?? defaultDraft) as SiteDraft
+    (page.draftJson ?? defaultDraft) as SiteDraft,
+    accountName
   );
 
   const [locations, services, specialists, promotions, profile, branding] = await Promise.all([
@@ -210,7 +213,7 @@ export default async function CrmSitePage({
         }}
         account={{
           id: account?.id ?? session.accountId,
-          name: account?.name ?? "Салон красоты",
+          name: accountName,
           slug: account?.slug ?? "",
           publicSlug,
           timeZone: account?.timeZone ?? "Europe/Moscow",
