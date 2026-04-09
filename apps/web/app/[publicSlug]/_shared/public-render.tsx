@@ -976,6 +976,9 @@ function renderCover(
               style={{
                 ...textStyle(style),
                 textAlign: contentAlign,
+                marginLeft:
+                  contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
+                marginRight: contentAlign === "center" ? "auto" : 0,
                 color: descriptionColor,
                 fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
                   textMobileSize,

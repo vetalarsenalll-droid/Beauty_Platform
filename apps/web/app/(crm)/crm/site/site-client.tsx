@@ -5081,8 +5081,6 @@ function BlockStyleEditor({
             borderRadius: 0,
             backgroundColor: "transparent",
             boxShadow: "none",
-            WebkitAppearance: "auto",
-            MozAppearance: "auto",
             appearance: "auto",
           }}
         />
@@ -7948,6 +7946,9 @@ function renderCover(
               style={{
                 ...textStyle(style, theme),
                 textAlign: contentAlign,
+                marginLeft:
+                  contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
+                marginRight: contentAlign === "center" ? "auto" : 0,
                 color: descriptionColor,
                 fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
                   textMobileSize,
