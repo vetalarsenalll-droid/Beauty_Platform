@@ -7060,7 +7060,12 @@ function CoverImageEditor({
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
+  const [customImages, setCustomImages] = useState<{ id: number; url: string }[]>([]);
+  const [customSelectedId, setCustomSelectedId] = useState<number | null>(null);
+  const [customLoading, setCustomLoading] = useState(false);
+
   const [uploading, setUploading] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -7068,12 +7073,64 @@ function CoverImageEditor({
     onChange({ imageSource: next });
   };
 
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setCustomLoading(true);
+      try {
+        const response = await fetch("/api/v1/crm/account/media?type=siteCover");
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) return;
+        const itemsRaw = payload?.data?.items;
+        const items = Array.isArray(itemsRaw)
+          ? itemsRaw
+              .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const record = item as Record<string, unknown>;
+                const id = record.id;
+                const url = record.url;
+                if (typeof id !== "number" || !Number.isFinite(id)) return null;
+                if (typeof url !== "string" || url.trim().length === 0) return null;
+                return { id, url } as const;
+              })
+              .filter((item): item is { id: number; url: string } => item !== null)
+          : [];
+        if (!active) return;
+        setCustomImages(items);
+      } finally {
+        if (active) setCustomLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const selectedCustomImage =
+    customSelectedId === null
+      ? null
+      : customImages.find((item) => item.id === customSelectedId) ?? null;
+  const fallbackCustomImage = selectedCustomImage ?? customImages[0] ?? null;
+
   const previewUrl =
     imageSource.type === "custom"
-      ? imageSource.url ?? null
+      ? (imageSource.url && imageSource.url.trim().length > 0
+          ? imageSource.url
+          : (fallbackCustomImage?.url ?? null))
       : imageSource.type === "account"
         ? (branding.coverUrl ?? null)
         : null;
+
+  useEffect(() => {
+    if (imageSource.type !== "custom") return;
+    const currentUrl = typeof imageSource.url === "string" ? imageSource.url.trim() : "";
+    if (currentUrl.length > 0) return;
+    const first = customImages[0];
+    if (!first) return;
+    if (customSelectedId !== first.id) setCustomSelectedId(first.id);
+    setSource({ type: "custom", url: first.url });
+  }, [customImages, customSelectedId, imageSource.type, imageSource.url]);
 
   const uploadCustomImage = async (file: File) => {
     const formData = new FormData();
@@ -7089,7 +7146,7 @@ function CoverImageEditor({
         body: formData,
       });
       const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.data?.url) {
+      if (!response.ok || !payload?.data?.url || typeof payload?.data?.id !== "number") {
         const errorMessage =
           typeof payload?.error?.message === "string"
             ? payload.error.message
@@ -7097,11 +7154,52 @@ function CoverImageEditor({
         setUploadError(errorMessage);
         return;
       }
-      setSource({ type: "custom", url: String(payload.data.url) });
+      const nextImage = { id: payload.data.id, url: String(payload.data.url) };
+      setCustomImages((prev) => [
+        nextImage,
+        ...prev.filter((item) => item.id !== nextImage.id && item.url !== nextImage.url),
+      ]);
+      setCustomSelectedId(nextImage.id);
+      setSource({ type: "custom", url: nextImage.url });
     } catch {
       setUploadError("Не удалось загрузить изображение.");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const selectCustomImage = (next: { id: number; url: string }) => {
+    if (customSelectedId !== next.id) setCustomSelectedId(next.id);
+    setSource({ type: "custom", url: next.url });
+  };
+
+  const removeCustomImage = async (image: { id: number; url: string }) => {
+    setRemovingId(image.id);
+    setUploadError(null);
+    try {
+      const response = await fetch(`/api/v1/crm/account/media/${image.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        setUploadError("Не удалось удалить изображение.");
+        return;
+      }
+      const nextImages = customImages.filter((item) => item.id !== image.id);
+      const nextSelectedId =
+        customSelectedId === image.id ? (nextImages[0]?.id ?? null) : customSelectedId;
+      setCustomImages(nextImages);
+      setCustomSelectedId(nextSelectedId);
+      if (imageSource.type === "custom") {
+        const nextUrl =
+          nextSelectedId === null
+            ? ""
+            : (nextImages.find((item) => item.id === nextSelectedId)?.url ?? "");
+        setSource({ type: "custom", url: nextUrl });
+      }
+    } catch {
+      setUploadError("Не удалось удалить изображение.");
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -7110,34 +7208,60 @@ function CoverImageEditor({
       <label className="text-sm">
         Фоновое изображение
         <select
-          value={imageSource.type === "custom" ? "custom" : "account"}
-          onChange={(event) =>
-            setSource(
-              event.target.value === "custom"
-                ? { type: "custom", url: imageSource.url ?? "" }
-                : { type: "account" }
-            )
+          value={
+            imageSource.type === "custom"
+              ? "custom"
+              : imageSource.type === "none"
+                ? "none"
+                : "account"
           }
+          onChange={(event) => {
+            if (event.target.value === "custom") {
+              const currentUrl = typeof imageSource.url === "string" ? imageSource.url.trim() : "";
+              const matchByUrl =
+                currentUrl.length > 0
+                  ? customImages.find((item) => item.url === currentUrl) ?? null
+                  : null;
+              const matchById =
+                customSelectedId === null
+                  ? null
+                  : customImages.find((item) => item.id === customSelectedId) ?? null;
+              const nextImage = matchByUrl ?? matchById ?? customImages[0] ?? null;
+              if (nextImage) {
+                setCustomSelectedId(nextImage.id);
+                setSource({ type: "custom", url: nextImage.url });
+              } else {
+                setCustomSelectedId(null);
+                setSource({ type: "custom", url: currentUrl });
+              }
+              return;
+            }
+            setSource(event.target.value === "none" ? { type: "none" } : { type: "account" });
+          }}
           className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
+          <option value="none">Без изображения</option>
           <option value="account">Профиль аккаунта</option>
           <option value="custom">Своё изображение</option>
         </select>
       </label>
 
       {previewUrl ? (
-        <div className="space-y-2">
-          <div className="h-28 w-full overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
-            <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-cover" />
+          <div className="space-y-2">
+          <div className="flex h-28 w-full items-center justify-center overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+            <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-contain" />
           </div>
           {imageSource.type === "custom" && (
-            <button
-              type="button"
-              onClick={() => setSource({ type: "custom", url: "" })}
-              className="text-xs text-[color:var(--bp-muted)] underline-offset-2 hover:underline"
-            >
-              Удалить своё изображение
-            </button>
+              <button
+                type="button"
+              onClick={() => {
+                setCustomSelectedId(null);
+                setSource({ type: "none" });
+              }}
+                className="text-xs text-[color:var(--bp-muted)] underline-offset-2 hover:underline"
+              >
+                Очистить выбор
+              </button>
           )}
         </div>
       ) : (
@@ -7146,6 +7270,46 @@ function CoverImageEditor({
 
       {imageSource.type === "custom" && (
         <div className="space-y-2">
+          {customLoading && (
+            <div className="text-xs text-[color:var(--bp-muted)]">Загрузка изображений...</div>
+          )}
+          {customImages.length > 0 && (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
+              {customImages.map((image) => {
+                const isSelected =
+                  customSelectedId === image.id ||
+                  (customSelectedId === null && image.url === previewUrl);
+                return (
+                  <div
+                    key={image.id}
+                    className={`relative overflow-hidden rounded-lg border bg-[color:var(--bp-paper)] ${
+                      isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectCustomImage(image)}
+                      className="block w-full"
+                      disabled={removingId === image.id}
+                      aria-label="Выбрать изображение"
+                    >
+                      <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
+                        <img src={image.url} alt="" className="h-full w-full object-contain" />
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void removeCustomImage(image)}
+                      disabled={removingId === image.id}
+                      className="absolute right-1 top-1 inline-flex h-6 items-center justify-center rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
+                    >
+                      {removingId === image.id ? "..." : "×"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -7161,7 +7325,7 @@ function CoverImageEditor({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || removingId !== null}
             className="inline-flex h-9 items-center justify-center border border-[color:var(--bp-stroke)] px-3 text-sm disabled:opacity-60"
           >
             {uploading ? "Загрузка..." : "Загрузить файл"}
@@ -8110,7 +8274,7 @@ function renderCover(
     >
       {showMotionLayer && (
         <div
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute -top-[180px] -bottom-[180px] left-0 right-0"
           style={{
             backgroundImage: `url(${imageUrl})`,
             backgroundSize: "cover",

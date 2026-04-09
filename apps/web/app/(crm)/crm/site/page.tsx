@@ -31,10 +31,11 @@ const normalizeInitialPage = (value: string | undefined): SitePageKey => {
 export default async function CrmSitePage({
   searchParams,
 }: {
-  searchParams?: { page?: string };
+  searchParams?: Promise<{ page?: string }> | { page?: string };
 }) {
   const session = await requireCrmPermission("crm.settings.read");
-  const initialActivePage = normalizeInitialPage(searchParams?.page);
+  const resolvedSearchParams = await searchParams;
+  const initialActivePage = normalizeInitialPage(resolvedSearchParams?.page);
 
   const account = await prisma.account.findUnique({
     where: { id: session.accountId },

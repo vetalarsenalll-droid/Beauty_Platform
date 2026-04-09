@@ -20,6 +20,38 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_DIMENSION = 2560;
 const MAX_PIXELS = 20_000_000;
 
+export async function GET(request: Request) {
+  const auth = await requireCrmApiPermission("crm.settings.read");
+  if ("response" in auth) return auth.response;
+
+  const url = new URL(request.url);
+  const typeKey = String(url.searchParams.get("type") ?? "").trim();
+  const entityType = MEDIA_TYPES[typeKey as keyof typeof MEDIA_TYPES];
+
+  if (!entityType) {
+    return jsonError(
+      "VALIDATION_FAILED",
+      "Передайте корректный тип изображения.",
+      null,
+      400
+    );
+  }
+
+  const items = await prisma.mediaLink.findMany({
+    where: {
+      entityType,
+      entityId: String(auth.session.accountId),
+    },
+    include: { asset: true },
+    orderBy: [{ id: "desc" }],
+  });
+
+  const response = jsonOk({
+    items: items.map((link) => ({ id: link.id, url: link.asset.url })),
+  });
+  return applyCrmAccessCookie(response, auth);
+}
+
 export async function POST(request: Request) {
   const auth = await requireCrmApiPermission("crm.settings.update");
   if ("response" in auth) return auth.response;
@@ -179,7 +211,7 @@ export async function POST(request: Request) {
       },
     });
 
-    if (existingLinks.length > 0) {
+    if (typeKey !== "siteCover" && existingLinks.length > 0) {
       const assetIds = existingLinks.map((item) => item.assetId);
       await tx.mediaLink.deleteMany({
         where: { id: { in: existingLinks.map((item) => item.id) } },
@@ -205,7 +237,10 @@ export async function POST(request: Request) {
         assetId: created.id,
         entityType,
         entityId: String(auth.session.accountId),
-        sortOrder: 0,
+        sortOrder:
+          typeKey === "siteCover"
+            ? existingLinks.reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1
+            : 0,
         isCover: true,
       },
     });

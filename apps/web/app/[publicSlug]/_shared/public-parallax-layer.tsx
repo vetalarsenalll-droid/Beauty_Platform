@@ -55,7 +55,7 @@ export default function PublicParallaxLayer({
   return (
     <div
       ref={layerRef}
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute -top-[180px] -bottom-[180px] left-0 right-0"
       style={{
         backgroundImage: `url(${imageUrl})`,
         backgroundSize: "cover",
