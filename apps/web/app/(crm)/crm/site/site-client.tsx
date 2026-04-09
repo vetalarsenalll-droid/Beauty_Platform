@@ -4167,8 +4167,10 @@ function BlockEditor({
   return (
     <div className="space-y-6 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
       {(variantOptions.length > 1 && block.type !== "loader" && inSection("main", "structure")) && (
-        <label className="text-sm">
-          Вариант
+        <label className="block">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+            Вариант
+          </div>
           <select
             value={block.variant}
             onChange={(event) =>
@@ -4192,22 +4194,22 @@ function BlockEditor({
         <>
           {inSection("brand") && (
             <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={block.data.showLogo !== false}
-                  onChange={(event) => updateData({ showLogo: event.target.checked })}
-                />
-                Показывать логотип
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={block.data.showCompanyName !== false}
-                  onChange={(event) => updateData({ showCompanyName: event.target.checked })}
-                />
-                Показывать название компании
-              </label>
+              <div className="space-y-2">
+                <div>
+                  <FlatCheckbox
+                    checked={block.data.showLogo !== false}
+                    onChange={(checked) => updateData({ showLogo: checked })}
+                    label="Показывать логотип"
+                  />
+                </div>
+                <div>
+                  <FlatCheckbox
+                    checked={block.data.showCompanyName !== false}
+                    onChange={(checked) => updateData({ showCompanyName: checked })}
+                    label="Показывать название компании"
+                  />
+                </div>
+              </div>
               <FieldText
                 label="Название компании"
                 value={(block.data.accountTitle as string) ?? accountName}
@@ -4217,16 +4219,17 @@ function BlockEditor({
           )}
           {inSection("structure") && (
             <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <div>
+                <FlatCheckbox
                   checked={block.data.showOnAllPages !== false}
-                  onChange={(event) => updateData({ showOnAllPages: event.target.checked })}
+                  onChange={(checked) => updateData({ showOnAllPages: checked })}
+                  label="Показывать на всех страницах"
                 />
-                Показывать на всех страницах
-              </label>
-              <label className="text-sm">
-                Позиция меню
+              </div>
+              <label className="block">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Позиция меню
+                </div>
                 <select
                   value={(block.data.position as string) ?? "static"}
                   onChange={(event) => updateData({ position: event.target.value })}
@@ -4237,26 +4240,27 @@ function BlockEditor({
                 </select>
               </label>
               <div className="space-y-2">
-                <div className="text-sm font-semibold">Пункты меню</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Пункты меню
+                </div>
                 {PAGE_KEYS.map((key) => {
                   const items = Array.isArray(block.data.menuItems)
                     ? (block.data.menuItems as SitePageKey[])
                     : [];
                   const checked = items.includes(key);
                   return (
-                    <label key={key} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <div key={key}>
+                      <FlatCheckbox
                         checked={checked}
-                        onChange={(event) => {
-                          const next = event.target.checked
+                        onChange={(nextChecked) => {
+                          const next = nextChecked
                             ? [...items, key]
                             : items.filter((item) => item !== key);
                           updateData({ menuItems: next });
                         }}
+                        label={PAGE_LABELS[key]}
                       />
-                      {PAGE_LABELS[key]}
-                    </label>
+                    </div>
                   );
                 })}
               </div>
@@ -4264,16 +4268,17 @@ function BlockEditor({
           )}
           {inSection("actions") && (
             <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <div>
+                <FlatCheckbox
                   checked={Boolean(block.data.showButton)}
-                  onChange={(event) => updateData({ showButton: event.target.checked })}
+                  onChange={(checked) => updateData({ showButton: checked })}
+                  label="Показывать кнопку записи"
                 />
-                Показывать кнопку записи
-              </label>
-              <label className="text-sm">
-                Действие кнопки
+              </div>
+              <label className="block">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Действие кнопки
+                </div>
                 <select
                   value={(block.data.ctaMode as string) ?? "booking"}
                   onChange={(event) => updateData({ ctaMode: event.target.value })}
@@ -4297,40 +4302,40 @@ function BlockEditor({
           )}
           {inSection("extras") && (
             <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(block.data.showSearch)}
-                  onChange={(event) => updateData({ showSearch: event.target.checked })}
-                />
-                Показывать поиск
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(block.data.showAccount)}
-                  onChange={(event) => updateData({ showAccount: event.target.checked })}
-                />
-                Иконка входа
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(block.data.showThemeToggle)}
-                  onChange={(event) => updateData({ showThemeToggle: event.target.checked })}
-                />
-                Переключатель темы
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(block.data.showSocials)}
-                  onChange={(event) => updateData({ showSocials: event.target.checked })}
-                />
-                Показывать соцсети
-              </label>
-              <label className="text-sm">
-                Соцсети
+              <div className="space-y-2">
+                <div>
+                  <FlatCheckbox
+                    checked={Boolean(block.data.showSearch)}
+                    onChange={(checked) => updateData({ showSearch: checked })}
+                    label="Показывать поиск"
+                  />
+                </div>
+                <div>
+                  <FlatCheckbox
+                    checked={Boolean(block.data.showAccount)}
+                    onChange={(checked) => updateData({ showAccount: checked })}
+                    label="Иконка входа"
+                  />
+                </div>
+                <div>
+                  <FlatCheckbox
+                    checked={Boolean(block.data.showThemeToggle)}
+                    onChange={(checked) => updateData({ showThemeToggle: checked })}
+                    label="Переключатель темы"
+                  />
+                </div>
+                <div>
+                  <FlatCheckbox
+                    checked={Boolean(block.data.showSocials)}
+                    onChange={(checked) => updateData({ showSocials: checked })}
+                    label="Показывать соцсети"
+                  />
+                </div>
+              </div>
+              <label className="block">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Соцсети
+                </div>
                 <select
                   value={(block.data.socialsMode as string) ?? "auto"}
                   onChange={(event) => updateData({ socialsMode: event.target.value })}
@@ -4341,25 +4346,58 @@ function BlockEditor({
                 </select>
               </label>
               {Boolean(block.data.showSocials) && (
-                <label className="text-sm">
-                  Размер иконок соцсетей:{" "}
-                  {Number.isFinite(Number((block.data as Record<string, unknown>).socialIconSize))
-                    ? Number((block.data as Record<string, unknown>).socialIconSize)
-                    : 40}
-                  px
-                  <input
-                    type="range"
-                    min={24}
-                    max={72}
-                    step={1}
-                    value={
-                      Number.isFinite(Number((block.data as Record<string, unknown>).socialIconSize))
-                        ? Number((block.data as Record<string, unknown>).socialIconSize)
-                        : 40
-                    }
-                    onChange={(event) => updateData({ socialIconSize: Number(event.target.value) })}
-                    className="mt-2 w-full"
-                  />
+                <label className="block">
+                  {(() => {
+                    const socialIconSize = Number.isFinite(
+                      Number((block.data as Record<string, unknown>).socialIconSize)
+                    )
+                      ? Number((block.data as Record<string, unknown>).socialIconSize)
+                      : 40;
+                    const min = 24;
+                    const max = 72;
+                    const pct =
+                      ((Math.max(min, Math.min(max, Math.round(socialIconSize))) - min) /
+                        (max - min)) *
+                      100;
+                    return (
+                      <>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                          Размер иконок соцсетей
+                        </div>
+                        <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                          {Math.max(min, Math.min(max, Math.round(socialIconSize)))}px
+                        </div>
+                        <div className="relative mt-2 h-5">
+                          <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[color:var(--bp-stroke)]" />
+                          <div
+                            className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, pct))}%`,
+                              backgroundColor: "#ff5a5f",
+                            }}
+                          />
+                          <div
+                            className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
+                            style={{
+                              left: `${Math.max(0, Math.min(100, pct))}%`,
+                              backgroundColor: "#ff5a5f",
+                            }}
+                          />
+                          <input
+                            type="range"
+                            min={min}
+                            max={max}
+                            step={1}
+                            value={Math.max(min, Math.min(max, Math.round(socialIconSize)))}
+                            onChange={(event) =>
+                              updateData({ socialIconSize: Number(event.target.value) })
+                            }
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
                 </label>
               )}
             </>
