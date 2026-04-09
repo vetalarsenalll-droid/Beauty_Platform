@@ -6288,30 +6288,34 @@ function BlockStyleEditor({
             })
           }
         />
+        {block.type !== "menu" && (
+          <ColorField
+            label="Цвет кнопки"
+            value={toDisplay(lightButtonColor)}
+            placeholder={theme.buttonColor}
+            onChange={(value) =>
+              update({
+                buttonColorLight: toStore(value),
+                buttonColor: toStore(value),
+              })
+            }
+          />
+        )}
+        {block.type !== "menu" && (
+          <ColorField
+            label="Текст кнопки"
+            value={toDisplay(lightButtonTextColor)}
+            placeholder={theme.buttonTextColor}
+            onChange={(value) =>
+              update({
+                buttonTextColorLight: toStore(value),
+                buttonTextColor: toStore(value),
+              })
+            }
+          />
+        )}
         <ColorField
-          label="Цвет кнопки"
-          value={toDisplay(lightButtonColor)}
-          placeholder={theme.buttonColor}
-          onChange={(value) =>
-            update({
-              buttonColorLight: toStore(value),
-              buttonColor: toStore(value),
-            })
-          }
-        />
-        <ColorField
-          label="Текст кнопки"
-          value={toDisplay(lightButtonTextColor)}
-          placeholder={theme.buttonTextColor}
-          onChange={(value) =>
-            update({
-              buttonTextColorLight: toStore(value),
-              buttonTextColor: toStore(value),
-            })
-          }
-        />
-        <ColorField
-          label="Текст"
+          label={block.type === "menu" ? "Заголовок" : "Текст"}
           value={toDisplay(lightTextColor)}
           placeholder={theme.textColor}
           onChange={(value) =>
@@ -6319,7 +6323,7 @@ function BlockStyleEditor({
           }
         />
         <ColorField
-          label="Вторичный текст"
+          label={block.type === "menu" ? "Текст" : "Вторичный текст"}
           value={toDisplay(lightMutedColor)}
           placeholder={theme.mutedColor}
           onChange={(value) =>
@@ -6467,25 +6471,13 @@ function BlockStyleEditor({
               onChange={(value) => update({ borderColorDark: toStore(value) })}
             />
             <ColorField
-              label="Цвет кнопки"
-              value={toDisplay(darkButtonColor)}
-              placeholder={theme.darkPalette.buttonColor}
-              onChange={(value) => update({ buttonColorDark: toStore(value) })}
-            />
-            <ColorField
-              label="Текст кнопки"
-              value={toDisplay(darkButtonTextColor)}
-              placeholder={theme.darkPalette.buttonTextColor}
-              onChange={(value) => update({ buttonTextColorDark: toStore(value) })}
-            />
-            <ColorField
-              label="Текст"
+              label={block.type === "menu" ? "Заголовок" : "Текст"}
               value={toDisplay(darkTextColor)}
               placeholder={theme.darkPalette.textColor}
               onChange={(value) => update({ textColorDark: toStore(value) })}
             />
             <ColorField
-              label="Вторичный текст"
+              label={block.type === "menu" ? "Текст" : "Вторичный текст"}
               value={toDisplay(darkMutedColor)}
               placeholder={theme.darkPalette.mutedColor}
               onChange={(value) => update({ mutedColorDark: toStore(value) })}
