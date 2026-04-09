@@ -2640,6 +2640,7 @@ export default function SiteClient({
                 "--bp-ink": panelTheme.text,
                 "--bp-muted": panelTheme.muted,
                 "--bp-accent": panelTheme.accent,
+                "--bp-save-close": panelTheme.saveClose,
                 "--input-bg": activeTheme.mode === "dark" ? "#121212" : "#ffffff",
                 "--text": panelTheme.text,
                 "--border": panelTheme.border,
@@ -4164,7 +4165,7 @@ function BlockEditor({
     !(availableSecondarySources as string[]).includes(secondaryButtonSource);
 
   return (
-    <div className="space-y-4 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
+    <div className="space-y-6 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
       {(variantOptions.length > 1 && block.type !== "loader" && inSection("main", "structure")) && (
         <label className="text-sm">
           Вариант
@@ -4436,8 +4437,10 @@ function BlockEditor({
                     value={(block.data.secondaryButtonText as string) ?? "Наши соцсети"}
                     onChange={(value) => updateData({ secondaryButtonText: value })}
                   />
-                  <label className="text-sm">
-                    Ссылка второй кнопки
+                  <label className="block">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                      Ссылка второй кнопки
+                    </div>
                     <select
                       value={secondaryButtonSource}
                       onChange={(event) =>
@@ -6917,9 +6920,11 @@ function FieldText({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const labelClassName =
+    "text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]";
   return (
-    <label className="text-sm">
-      {label}
+    <label className="block">
+      <div className={labelClassName}>{label}</div>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -6938,9 +6943,11 @@ function FieldTextarea({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const labelClassName =
+    "text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]";
   return (
-    <label className="text-sm">
-      {label}
+    <label className="block">
+      <div className={labelClassName}>{label}</div>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -7204,9 +7211,11 @@ function CoverImageEditor({
   };
 
   return (
-    <div className="space-y-3">
-      <label className="text-sm">
-        Фоновое изображение
+    <div className="space-y-4">
+      <label className="block">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Фоновое изображение
+        </div>
         <select
           value={
             imageSource.type === "custom"
@@ -7251,18 +7260,6 @@ function CoverImageEditor({
           <div className="flex h-28 w-full items-center justify-center overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
             <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-contain" />
           </div>
-          {imageSource.type === "custom" && (
-              <button
-                type="button"
-              onClick={() => {
-                setCustomSelectedId(null);
-                setSource({ type: "none" });
-              }}
-                className="text-xs text-[color:var(--bp-muted)] underline-offset-2 hover:underline"
-              >
-                Очистить выбор
-              </button>
-          )}
         </div>
       ) : (
         <div className="text-xs text-[color:var(--bp-muted)]">Изображение не выбрано</div>
@@ -7283,25 +7280,27 @@ function CoverImageEditor({
                   <div
                     key={image.id}
                     className={`relative overflow-hidden rounded-lg border bg-[color:var(--bp-paper)] ${
-                      isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
+                      isSelected
+                        ? "border-[color:var(--bp-save-close,var(--bp-accent))]"
+                        : "border-[color:var(--bp-stroke)]"
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => selectCustomImage(image)}
-                      className="block w-full"
+                      className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)]"
                       disabled={removingId === image.id}
                       aria-label="Выбрать изображение"
                     >
                       <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
-                        <img src={image.url} alt="" className="h-full w-full object-contain" />
+                        <img src={image.url} alt="" className="h-full w-full object-cover" />
                       </div>
                     </button>
                     <button
                       type="button"
                       onClick={() => void removeCustomImage(image)}
                       disabled={removingId === image.id}
-                      className="absolute right-1 top-1 inline-flex h-6 items-center justify-center rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
+                      className="absolute right-1 top-1 inline-flex h-6 items-center justify-center rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)]"
                     >
                       {removingId === image.id ? "..." : "×"}
                     </button>
