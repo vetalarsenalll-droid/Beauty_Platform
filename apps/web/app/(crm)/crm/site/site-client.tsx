@@ -6600,7 +6600,98 @@ function BlockStyleEditor({
           <div className="h-6" />
         </>
       )}
-      {inSection("typography") && block.type !== "cover" && (
+      {inSection("typography") && block.type === "menu" && (
+        <>
+          <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Заголовок
+          </div>
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.headingSize ?? theme.headingSize,
+            0,
+            140,
+            (value) => update({ headingSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontHeading || "",
+            (value) => update({ fontHeading: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.heading, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightHeading?.toString() || "",
+            (value) => update({ fontWeightHeading: value ? Number(value) : null }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+            ]
+          )}
+
+          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Текст
+          </div>
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.textSize ?? theme.textSize,
+            0,
+            72,
+            (value) => update({ textSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontBody || "",
+            (value) => update({ fontBody: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightBody?.toString() || "",
+            (value) => update({ fontWeightBody: value ? Number(value) : null }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+            ]
+          )}
+
+          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Кнопка
+          </div>
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.subheadingSize ?? theme.subheadingSize,
+            0,
+            100,
+            (value) => update({ subheadingSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontSubheading || "",
+            (value) => update({ fontSubheading: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightSubheading?.toString() || "",
+            (value) => update({ fontWeightSubheading: value ? Number(value) : null }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+            ]
+          )}
+          <div className="h-6" />
+        </>
+      )}
+      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
       <label className="text-sm">
         Шрифт заголовка
         <select
@@ -6617,7 +6708,7 @@ function BlockStyleEditor({
         </select>
       </label>
       )}
-      {inSection("typography") && block.type !== "cover" && (
+      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
       <label className="text-sm">
         Шрифт подзаголовка
         <select
@@ -6634,7 +6725,7 @@ function BlockStyleEditor({
         </select>
       </label>
       )}
-      {inSection("typography") && block.type !== "cover" && (
+      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
       <label className="text-sm">
         Шрифт текста
         <select
@@ -6651,7 +6742,7 @@ function BlockStyleEditor({
         </select>
       </label>
       )}
-      {inSection("typography") && block.type !== "cover" && (
+      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="text-sm">
           Жирность заголовка
@@ -6706,7 +6797,7 @@ function BlockStyleEditor({
         </label>
       </div>
       )}
-      {inSection("typography") && block.type !== "cover" && (
+      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
       <div className="grid grid-cols-3 gap-3">
         <NumberField
           label="Заголовок"
@@ -9450,6 +9541,15 @@ function renderMenuBlock(
         ))}
       </div>
     ) : null;
+  const ctaTypographyStyle: CSSProperties = {
+    fontFamily: style.fontSubheading || style.fontBody || theme.fontBody,
+    fontWeight: style.fontWeightSubheading ?? style.fontWeightBody ?? undefined,
+    fontSize:
+      style.subheadingSize !== null && style.subheadingSize !== undefined
+        ? `${style.subheadingSize}px`
+        : undefined,
+    lineHeight: 1.15,
+  };
   const ctaNode =
     showButton && account.publicSlug && (ctaMode === "booking" || phoneValue) ? (
       <a
@@ -9459,7 +9559,7 @@ function renderMenuBlock(
             : buildBookingLink({ publicSlug: account.publicSlug })
         }
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={buttonStyle(style, theme)}
+        style={{ ...buttonStyle(style, theme), ...ctaTypographyStyle }}
       >
         {ctaMode === "phone" && phoneValue ? phoneValue : buttonText}
       </a>

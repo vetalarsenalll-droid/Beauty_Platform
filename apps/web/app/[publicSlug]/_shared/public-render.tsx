@@ -1698,13 +1698,22 @@ function renderMenu(
   const usePhone = ctaMode === "phone" && canPhone;
   const showCta = showButton && (canBook || canPhone);
   const isAccountExternal = false;
+  const ctaTypographyStyle: CSSProperties = {
+    fontFamily: style.fontSubheading || style.fontBody || "var(--site-font-body)",
+    fontWeight: style.fontWeightSubheading ?? style.fontWeightBody ?? undefined,
+    fontSize:
+      style.subheadingSize !== null && style.subheadingSize !== undefined
+        ? `${style.subheadingSize}px`
+        : undefined,
+    lineHeight: 1.15,
+  };
 
   const ctaNode = showCta ? (
     usePhone ? (
       <a
         href={`tel:${phoneValue}`}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={buttonStyle(style)}
+        style={{ ...buttonStyle(style), ...ctaTypographyStyle }}
       >
         {phoneValue}
       </a>
@@ -1712,7 +1721,7 @@ function renderMenu(
       <Link
         href={buildBookingLink({ publicSlug })}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={buttonStyle(style)}
+        style={{ ...buttonStyle(style), ...ctaTypographyStyle }}
       >
         {buttonText}
       </Link>
