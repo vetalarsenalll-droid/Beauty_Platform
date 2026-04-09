@@ -3134,6 +3134,204 @@ export default function SiteClient({
                       }}
                     />
                   </>
+                ) : selectedBlock?.type === "menu" ? (
+                  <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
+                    {(() => {
+                      const data = (selectedBlock.data as Record<string, unknown>) ?? {};
+                      const style = normalizeBlockStyle(selectedBlock, activeTheme);
+                      const menuHeightRaw = Number(data.menuHeight);
+                      const menuHeightMin = selectedBlock.variant === "v1" ? 40 : 30;
+                      const menuHeight =
+                        Number.isFinite(menuHeightRaw) &&
+                        menuHeightRaw >= menuHeightMin &&
+                        menuHeightRaw <= 96
+                          ? Math.round(menuHeightRaw)
+                          : selectedBlock.variant === "v1"
+                            ? 64
+                            : 56;
+
+                      const applyMenuHeight = (value: number) => {
+                        updateBlock(selectedBlock.id, (prev) => ({
+                          ...prev,
+                          data: {
+                            ...(prev.data as Record<string, unknown>),
+                            menuHeight: value,
+                          },
+                        }));
+                      };
+
+                      const menuMarginTopLines = Math.max(
+                        0,
+                        Math.min(7, Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2)
+                      );
+                      const menuMarginBottomLines = Math.max(
+                        0,
+                        Math.min(7, Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2)
+                      );
+
+                      return (
+                        <>
+                          <div className="space-y-6">
+                            <div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                Высота меню
+                              </div>
+                              <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
+                                {menuHeight}px
+                              </div>
+                              <div className="mt-3">
+                                <SliderTrack
+                                  label="Высота меню"
+                                  value={menuHeight}
+                                  min={menuHeightMin}
+                                  max={96}
+                                  onChange={applyMenuHeight}
+                                  accentColor={panelTheme.saveClose}
+                                  railColor={panelTheme.border}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6">
+                              <div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                  Радиус блока
+                                </div>
+                                <div className="mt-2 text-sm">0px</div>
+                              </div>
+                              <div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                  Радиус кнопки
+                                </div>
+                                <div className="mt-2 text-sm">0px</div>
+                              </div>
+                            </div>
+
+                            <div className="text-sm text-[color:var(--bp-muted)]">
+                              Ширина блока: 12/12 (фиксировано для меню)
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            {currentPanelSections
+                              .filter((section) => section.id === "colors" || section.id === "typography")
+                              .map((section) => (
+                                <button
+                                  key={section.id}
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setActivePanelSectionId((prev) =>
+                                      prev === section.id ? null : section.id
+                                    );
+                                  }}
+                                  className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                                  style={{
+                                    borderColor:
+                                      activePanelSectionId === section.id
+                                        ? panelTheme.accent
+                                        : panelTheme.border,
+                                    backgroundColor: panelTheme.panel,
+                                    color:
+                                      activePanelSectionId === section.id
+                                        ? panelTheme.text
+                                        : panelTheme.muted,
+                                  }}
+                                >
+                                  <span>{section.label}</span>
+                                  <span className="text-xs">›</span>
+                                </button>
+                              ))}
+                          </div>
+
+                          <div className="space-y-3 pt-1">
+                            <div className="text-sm text-[color:var(--bp-muted)]">
+                              Ширина блока: 12/12 (фиксировано для меню)
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                Отступ сверху
+                                <div className="relative mt-2">
+                                  <select
+                                    value={String(menuMarginTopLines)}
+                                    onChange={(event) =>
+                                      updateBlock(selectedBlock.id, (prev) =>
+                                        updateBlockStyle(prev, {
+                                          marginTop: Math.round(
+                                            Number(event.target.value) * COVER_LINE_STEP_PX
+                                          ),
+                                        })
+                                      )
+                                    }
+                                    className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                                    style={{
+                                      borderTop: "0",
+                                      borderLeft: "0",
+                                      borderRight: "0",
+                                      borderRadius: "0",
+                                      boxShadow: "none",
+                                      WebkitAppearance: "none",
+                                      MozAppearance: "none",
+                                      appearance: "none",
+                                    }}
+                                  >
+                                    {COVER_LINE_OPTIONS.map((lineValue) => (
+                                      <option key={`menu-top-main-${lineValue}`} value={lineValue}>
+                                        {formatCoverLineLabel(lineValue)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                                    ▾
+                                  </span>
+                                </div>
+                              </label>
+                              <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                Отступ снизу
+                                <div className="relative mt-2">
+                                  <select
+                                    value={String(menuMarginBottomLines)}
+                                    onChange={(event) =>
+                                      updateBlock(selectedBlock.id, (prev) =>
+                                        updateBlockStyle(prev, {
+                                          marginBottom: Math.round(
+                                            Number(event.target.value) * COVER_LINE_STEP_PX
+                                          ),
+                                        })
+                                      )
+                                    }
+                                    className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                                    style={{
+                                      borderTop: "0",
+                                      borderLeft: "0",
+                                      borderRight: "0",
+                                      borderRadius: "0",
+                                      boxShadow: "none",
+                                      WebkitAppearance: "none",
+                                      MozAppearance: "none",
+                                      appearance: "none",
+                                    }}
+                                  >
+                                    {COVER_LINE_OPTIONS.map((lineValue) => (
+                                      <option
+                                        key={`menu-bottom-main-${lineValue}`}
+                                        value={lineValue}
+                                      >
+                                        {formatCoverLineLabel(lineValue)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                                    ▾
+                                  </span>
+                                </div>
+                              </label>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
                 ) : (
                   currentPanelSections.map((section) => (
                     <button
@@ -7177,6 +7375,101 @@ function FlatCheckbox({
       </span>
       <span>{label}</span>
     </label>
+  );
+}
+
+function SliderTrack({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  accentColor,
+  railColor,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  accentColor: string;
+  railColor: string;
+}) {
+  const draggingRef = useRef(false);
+  const clamp = (next: number) => Math.max(min, Math.min(max, Math.round(next)));
+  const ratio = max === min ? 0 : Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const percent = ratio * 100;
+
+  const applyFromClientX = (node: HTMLDivElement, clientX: number) => {
+    const rect = node.getBoundingClientRect();
+    const nextRatio =
+      rect.width <= 0 ? 0 : Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onChange(clamp(min + nextRatio * (max - min)));
+  };
+
+  return (
+    <div
+      className="relative h-4 w-full cursor-pointer select-none touch-none"
+      role="slider"
+      aria-label={label}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          onChange(clamp(value - 1));
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          onChange(clamp(value + 1));
+        }
+      }}
+      onPointerDown={(event) => {
+        const node = event.currentTarget;
+        draggingRef.current = true;
+        try {
+          node.setPointerCapture(event.pointerId);
+        } catch {}
+        applyFromClientX(node, event.clientX);
+      }}
+      onPointerMove={(event) => {
+        if (!draggingRef.current) return;
+        applyFromClientX(event.currentTarget, event.clientX);
+      }}
+      onPointerUp={(event) => {
+        draggingRef.current = false;
+        try {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        } catch {}
+      }}
+      onPointerCancel={() => {
+        draggingRef.current = false;
+      }}
+    >
+      <div
+        className="absolute left-0 top-1/2 h-[2px] w-full"
+        style={{ transform: "translateY(-50%)", backgroundColor: railColor }}
+      />
+      <div
+        className="absolute left-0 top-1/2 h-[2px]"
+        style={{
+          transform: "translateY(-50%)",
+          width: `${percent}%`,
+          backgroundColor: accentColor,
+        }}
+      />
+      <div
+        className="absolute top-1/2 h-3 w-3 rounded-full"
+        style={{
+          left: `${percent}%`,
+          transform: "translate(-50%, -50%)",
+          backgroundColor: accentColor,
+          boxShadow: "0 0 0 4px rgba(0,0,0,0.05)",
+        }}
+      />
+    </div>
   );
 }
 
