@@ -212,7 +212,6 @@ const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = 
     { id: "layout", label: "Основные настройки" },
     { id: "colors", label: "Цвета" },
     { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
   ],
   cover: [
     { id: "layout", label: "Основные настройки" },
@@ -5284,33 +5283,207 @@ function BlockStyleEditor({
 
   return (
     <div className="space-y-4">
-      {inSection("layout") && block.type !== "aisha" && (
-      <label className="text-sm">
-        Отступ сверху: {style.marginTop}px
-        <input
-          type="range"
-          min={0}
-          max={120}
-          step={2}
-          value={style.marginTop}
-          onChange={(event) => update({ marginTop: Number(event.target.value) })}
-          className="mt-2 w-full"
-        />
-      </label>
+      {inSection("layout") && block.type === "menu" && (
+        <>
+          {(() => {
+            const minMenuHeight = block.variant === "v1" ? 40 : 30;
+            const currentMenuHeight = Number.isFinite(
+              Number((block.data as Record<string, unknown>).menuHeight)
+            )
+              ? Number((block.data as Record<string, unknown>).menuHeight)
+              : block.variant === "v1"
+                ? 64
+                : 56;
+            const menuHeight = Math.max(
+              minMenuHeight,
+              Math.min(96, Math.round(currentMenuHeight))
+            );
+            const pct =
+              ((menuHeight - minMenuHeight) / (96 - minMenuHeight)) * 100;
+            return (
+              <div className="mt-1">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Высота меню
+                </div>
+                <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                  {menuHeight}px
+                </div>
+                <div className="relative mt-2 h-5">
+                  <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[color:var(--bp-stroke)]" />
+                  <div
+                    className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, pct))}%`,
+                      backgroundColor: "#ff5a5f",
+                    }}
+                  />
+                  <div
+                    className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
+                    style={{
+                      left: `${Math.max(0, Math.min(100, pct))}%`,
+                      backgroundColor: "#ff5a5f",
+                    }}
+                  />
+                  <input
+                    type="range"
+                    min={minMenuHeight}
+                    max={96}
+                    step={1}
+                    value={menuHeight}
+                    onChange={(event) =>
+                      onChange({
+                        ...block,
+                        data: {
+                          ...block.data,
+                          menuHeight: Number(event.target.value),
+                        },
+                      })
+                    }
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+              <div className="min-h-[32px] leading-4">Радиус блока</div>
+              <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1 text-sm text-[color:var(--bp-ink)]">
+                0px
+              </div>
+            </div>
+            <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+              <div className="min-h-[32px] leading-4">Радиус кнопки</div>
+              <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1 text-sm text-[color:var(--bp-ink)]">
+                0px
+              </div>
+            </div>
+          </div>
+
+          <div className="text-sm text-[color:var(--bp-muted)]">
+            Ширина блока: 12/12 (фиксировано для меню)
+          </div>
+
+          {(() => {
+            const menuMarginTopLines = Math.max(
+              0,
+              Math.min(
+                7,
+                Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2
+              )
+            );
+            const menuMarginBottomLines = Math.max(
+              0,
+              Math.min(
+                7,
+                Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2
+              )
+            );
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Отступ сверху
+                  <div className="relative mt-2">
+                    <select
+                      value={String(menuMarginTopLines)}
+                      onChange={(event) =>
+                        update({
+                          marginTop: Math.round(
+                            Number(event.target.value) * COVER_LINE_STEP_PX
+                          ),
+                        })
+                      }
+                      className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                      style={{
+                        borderTop: "0",
+                        borderLeft: "0",
+                        borderRight: "0",
+                        borderRadius: "0",
+                        boxShadow: "none",
+                        WebkitAppearance: "none",
+                        MozAppearance: "none",
+                        appearance: "none",
+                      }}
+                    >
+                      {COVER_LINE_OPTIONS.map((lineValue) => (
+                        <option key={`menu-top-${lineValue}`} value={lineValue}>
+                          {formatCoverLineLabel(lineValue)}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                      ▾
+                    </span>
+                  </div>
+                </label>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Отступ снизу
+                  <div className="relative mt-2">
+                    <select
+                      value={String(menuMarginBottomLines)}
+                      onChange={(event) =>
+                        update({
+                          marginBottom: Math.round(
+                            Number(event.target.value) * COVER_LINE_STEP_PX
+                          ),
+                        })
+                      }
+                      className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                      style={{
+                        borderTop: "0",
+                        borderLeft: "0",
+                        borderRight: "0",
+                        borderRadius: "0",
+                        boxShadow: "none",
+                        WebkitAppearance: "none",
+                        MozAppearance: "none",
+                        appearance: "none",
+                      }}
+                    >
+                      {COVER_LINE_OPTIONS.map((lineValue) => (
+                        <option key={`menu-bottom-${lineValue}`} value={lineValue}>
+                          {formatCoverLineLabel(lineValue)}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                      ▾
+                    </span>
+                  </div>
+                </label>
+              </div>
+            );
+          })()}
+        </>
       )}
-      {inSection("layout") && block.type !== "aisha" && (
-      <label className="text-sm">
-        Отступ снизу: {style.marginBottom}px
-        <input
-          type="range"
-          min={0}
-          max={120}
-          step={2}
-          value={style.marginBottom}
-          onChange={(event) => update({ marginBottom: Number(event.target.value) })}
-          className="mt-2 w-full"
-        />
-      </label>
+      {inSection("layout") && block.type !== "aisha" && block.type !== "menu" && (
+        <label className="text-sm">
+          Отступ сверху: {style.marginTop}px
+          <input
+            type="range"
+            min={0}
+            max={120}
+            step={2}
+            value={style.marginTop}
+            onChange={(event) => update({ marginTop: Number(event.target.value) })}
+            className="mt-2 w-full"
+          />
+        </label>
+      )}
+      {inSection("layout") && block.type !== "aisha" && block.type !== "menu" && (
+        <label className="text-sm">
+          Отступ снизу: {style.marginBottom}px
+          <input
+            type="range"
+            min={0}
+            max={120}
+            step={2}
+            value={style.marginBottom}
+            onChange={(event) => update({ marginBottom: Number(event.target.value) })}
+            className="mt-2 w-full"
+          />
+        </label>
       )}
       {inSection("layout") && block.type === "booking" && (
       <label className="text-sm">
@@ -5411,12 +5584,7 @@ function BlockStyleEditor({
           />
         </label>
       )}
-      {inSection("layout") && block.type === "menu" && (
-      <div className="text-sm text-[color:var(--bp-muted)]">
-        Ширина блока: 12/12 (фиксировано для меню)
-      </div>
-      )}
-      {inSection("layout") && block.type !== "works" && block.type !== "cover" && block.type !== "aisha" && (
+      {inSection("layout") && block.type !== "works" && block.type !== "cover" && block.type !== "aisha" && block.type !== "menu" && (
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -5430,7 +5598,7 @@ function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && block.type !== "aisha" && (
+      {inSection("layout") && block.type !== "aisha" && block.type !== "menu" && (
       <label className="text-sm">
         Радиус кнопки: {style.buttonRadius ?? theme.buttonRadius}px
         <input
@@ -5458,42 +5626,7 @@ function BlockStyleEditor({
         </label>
       </>
       )}
-      {block.type === "menu" && (
-        inSection("layout") && (
-        (() => {
-          const minMenuHeight = block.variant === "v1" ? 40 : 30;
-          const currentMenuHeight = Number.isFinite(Number((block.data as Record<string, unknown>).menuHeight))
-            ? Number((block.data as Record<string, unknown>).menuHeight)
-            : block.variant === "v1"
-              ? 40
-              : 56;
-          return (
-        <label className="text-sm">
-          Высота меню:{" "}
-          {currentMenuHeight}
-          px
-          <input
-            type="range"
-            min={minMenuHeight}
-            max={96}
-            step={1}
-            value={currentMenuHeight}
-            onChange={(event) =>
-              onChange({
-                ...block,
-                data: {
-                  ...block.data,
-                  menuHeight: Number(event.target.value),
-                },
-              })
-            }
-            className="mt-2 w-full"
-          />
-        </label>
-          );
-        })()
-        )
-      )}
+      {/* menu layout is rendered выше в одном блоке */}
       {block.type === "works" && inSection("layout") && (
         <>
           <label className="text-sm">
@@ -5585,39 +5718,137 @@ function BlockStyleEditor({
         </>
       )}
       {inSection("colors") && (
-      <div className="grid grid-cols-2 gap-3">
-        <ColorField
-          label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
-          value={toDisplay(block.type === "aisha" || block.type === "menu" ? lightBlockBg : lightSectionBg)}
-          placeholder={theme.panelColor}
-          onChange={(value) =>
-            update(
-              block.type === "aisha" || block.type === "menu"
-                ? {
-                    blockBgLight:
-                      block.type === "menu" ? toStoreMenuLightBg(value) : toStore(value),
-                    blockBg:
-                      block.type === "menu" ? toStoreMenuLightBg(value) : toStore(value),
-                  }
-                : block.type === "works"
-                ? {
-                    sectionBgLight: toStore(value),
-                    sectionBg: toStore(value),
-                    blockBgLight: toStore(value),
-                    blockBg: toStore(value),
-                  }
-                : block.type === "booking"
-                ? {
-                    sectionBgLight: toStore(value),
-                    sectionBg: toStore(value),
-                  }
-                : {
-                    sectionBgLight: toStore(value),
-                    sectionBg: toStore(value),
-                  }
-            )
-          }
-        />
+        <div className="space-y-4">
+          {block.type === "menu" && (
+            <>
+              {(() => {
+                const data = block.data as Record<string, unknown>;
+                const modeRaw =
+                  typeof data.menuBlockBackgroundMode === "string"
+                    ? data.menuBlockBackgroundMode
+                    : "";
+                const mode: CoverBackgroundMode =
+                  modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+                return (
+                  <TildaBackgroundColorField
+                    label="Цвет блока"
+                    value={String(lightBlockBg || "")}
+                    mode={mode}
+                    secondValue={String(data.menuBlockBackgroundTo ?? "")}
+                    angle={Number(data.menuBlockBackgroundAngle ?? 135)}
+                    radialStopA={Number(data.menuBlockBackgroundStopA ?? 0)}
+                    radialStopB={Number(data.menuBlockBackgroundStopB ?? 100)}
+                    placeholder={theme.panelColor}
+                    onModeChange={(nextMode) =>
+                      updateCoverData({ menuBlockBackgroundMode: nextMode })
+                    }
+                    onSecondChange={(value) =>
+                      updateCoverData({ menuBlockBackgroundTo: value })
+                    }
+                    onAngleChange={(value) =>
+                      updateCoverData({ menuBlockBackgroundAngle: value })
+                    }
+                    onRadialStopAChange={(value) =>
+                      updateCoverData({ menuBlockBackgroundStopA: value })
+                    }
+                    onRadialStopBChange={(value) =>
+                      updateCoverData({ menuBlockBackgroundStopB: value })
+                    }
+                    onChange={(value) => {
+                      update({
+                        blockBgLight: toStoreMenuLightBg(value),
+                        blockBgDark: toStoreMenuDarkBg(value),
+                        blockBg: toStoreMenuLightBg(value),
+                        gradientEnabled: false,
+                        gradientEnabledLight: false,
+                        gradientEnabledDark: false,
+                      });
+                      updateCoverData({ menuBlockBackgroundFrom: value });
+                    }}
+                  />
+                );
+              })()}
+
+              {(() => {
+                const data = block.data as Record<string, unknown>;
+                const modeRaw =
+                  typeof data.menuSectionBackgroundMode === "string"
+                    ? data.menuSectionBackgroundMode
+                    : "";
+                const mode: CoverBackgroundMode =
+                  modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+                return (
+                  <TildaBackgroundColorField
+                    label="Цвет фона для всего блока"
+                    value={String(lightSectionBg || "")}
+                    mode={mode}
+                    secondValue={String(data.menuSectionBackgroundTo ?? "")}
+                    angle={Number(data.menuSectionBackgroundAngle ?? 135)}
+                    radialStopA={Number(data.menuSectionBackgroundStopA ?? 0)}
+                    radialStopB={Number(data.menuSectionBackgroundStopB ?? 100)}
+                    placeholder="#ffffff"
+                    onModeChange={(nextMode) =>
+                      updateCoverData({ menuSectionBackgroundMode: nextMode })
+                    }
+                    onSecondChange={(value) =>
+                      updateCoverData({ menuSectionBackgroundTo: value })
+                    }
+                    onAngleChange={(value) =>
+                      updateCoverData({ menuSectionBackgroundAngle: value })
+                    }
+                    onRadialStopAChange={(value) =>
+                      updateCoverData({ menuSectionBackgroundStopA: value })
+                    }
+                    onRadialStopBChange={(value) =>
+                      updateCoverData({ menuSectionBackgroundStopB: value })
+                    }
+                    onChange={(value) => {
+                      update({
+                        sectionBgLight: toStore(value),
+                        sectionBgDark: toStore(value),
+                        sectionBg: toStore(value),
+                      });
+                      updateCoverData({ menuSectionBackgroundFrom: value });
+                    }}
+                  />
+                );
+              })()}
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {block.type !== "menu" && (
+              <ColorField
+                label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
+                value={toDisplay(block.type === "aisha" ? lightBlockBg : lightSectionBg)}
+                placeholder={theme.panelColor}
+                onChange={(value) =>
+                  update(
+                    block.type === "aisha"
+                      ? {
+                          blockBgLight: toStore(value),
+                          blockBg: toStore(value),
+                        }
+                      : block.type === "works"
+                        ? {
+                            sectionBgLight: toStore(value),
+                            sectionBg: toStore(value),
+                            blockBgLight: toStore(value),
+                            blockBg: toStore(value),
+                          }
+                        : block.type === "booking"
+                          ? {
+                              sectionBgLight: toStore(value),
+                              sectionBg: toStore(value),
+                            }
+                          : {
+                              sectionBgLight: toStore(value),
+                              sectionBg: toStore(value),
+                            }
+                  )
+                }
+              />
+            )}
         {block.type === "booking" && (
           <ColorField
             label="Фон блока"
@@ -5784,7 +6015,8 @@ function BlockStyleEditor({
           max={40}
           onChange={(value) => update({ shadowSize: value })}
         />
-      </div>
+          </div>
+        </div>
       )}
       {inSection("colors") && (
       <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
@@ -5792,25 +6024,24 @@ function BlockStyleEditor({
           Темная тема
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
-            <ColorField
-              label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
-              value={toDisplay(block.type === "aisha" || block.type === "menu" ? darkBlockBg : darkSectionBg)}
-              placeholder={theme.darkPalette.panelColor}
-              onChange={(value) =>
-                update(
-                  block.type === "aisha" || block.type === "menu"
-                    ? {
-                        blockBgDark:
-                          block.type === "menu" ? toStoreMenuDarkBg(value) : toStore(value),
-                      }
-                    : block.type === "works"
-                    ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
-                    : block.type === "booking"
-                    ? { sectionBgDark: toStore(value) }
-                    : { sectionBgDark: toStore(value) }
-                )
-              }
-            />
+          {block.type !== "menu" && (
+              <ColorField
+                label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
+                value={toDisplay(block.type === "aisha" ? darkBlockBg : darkSectionBg)}
+                placeholder={theme.darkPalette.panelColor}
+                onChange={(value) =>
+                  update(
+                    block.type === "aisha"
+                      ? { blockBgDark: toStore(value) }
+                      : block.type === "works"
+                      ? { sectionBgDark: toStore(value), blockBgDark: toStore(value) }
+                      : block.type === "booking"
+                      ? { sectionBgDark: toStore(value) }
+                      : { sectionBgDark: toStore(value) }
+                  )
+                }
+              />
+          )}
             {block.type === "booking" && (
               <ColorField
                 label="Фон блока"
@@ -6734,8 +6965,8 @@ function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     gridStartColumn: useCustomWidth ? resolvedGridStart : null,
     gridEndColumn: useCustomWidth ? resolvedGridEnd : null,
     useCustomWidth,
-    radius: toNumber(style.radius),
-    buttonRadius: toNumber(style.buttonRadius),
+    radius: block.type === "menu" ? 0 : toNumber(style.radius),
+    buttonRadius: block.type === "menu" ? 0 : toNumber(style.buttonRadius),
     sectionBgLight: readColor("sectionBgLight") || readColor("sectionBg"),
     sectionBgDark: readColor("sectionBgDark"),
     sectionBg: resolveColor("sectionBgLight", "sectionBgDark", "sectionBg"),
@@ -7412,6 +7643,88 @@ function resolveCoverBackgroundVisual(
   return { backgroundColor: from, backgroundImage: "none" };
 }
 
+function resolveMenuBlockBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string
+) {
+  const modeRaw =
+    typeof data?.menuBlockBackgroundMode === "string" ? data.menuBlockBackgroundMode : "";
+  const mode: CoverBackgroundMode =
+    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const fromRaw =
+    typeof data?.menuBlockBackgroundFrom === "string" ? data.menuBlockBackgroundFrom.trim() : "";
+  const toRaw =
+    typeof data?.menuBlockBackgroundTo === "string" ? data.menuBlockBackgroundTo.trim() : "";
+  const angleRaw = Number(data?.menuBlockBackgroundAngle);
+  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const stopARaw = Number(data?.menuBlockBackgroundStopA);
+  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
+  const stopBRaw = Number(data?.menuBlockBackgroundStopB);
+  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
+  const from = fromRaw || fallbackColor || "#ffffff";
+  const to = toRaw || from;
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
+    };
+  }
+  if (mode === "radial") {
+    const innerStop = Math.min(stopA, stopB);
+    const outerStop = Math.max(stopA, stopB);
+    const innerColor = stopA <= stopB ? from : to;
+    const outerColor = stopA <= stopB ? to : from;
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
+        innerStop
+      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
+}
+
+function resolveMenuSectionBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string
+) {
+  const modeRaw =
+    typeof data?.menuSectionBackgroundMode === "string" ? data.menuSectionBackgroundMode : "";
+  const mode: CoverBackgroundMode =
+    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const fromRaw =
+    typeof data?.menuSectionBackgroundFrom === "string" ? data.menuSectionBackgroundFrom.trim() : "";
+  const toRaw =
+    typeof data?.menuSectionBackgroundTo === "string" ? data.menuSectionBackgroundTo.trim() : "";
+  const angleRaw = Number(data?.menuSectionBackgroundAngle);
+  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const stopARaw = Number(data?.menuSectionBackgroundStopA);
+  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
+  const stopBRaw = Number(data?.menuSectionBackgroundStopB);
+  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
+  const from = fromRaw || fallbackColor || "#ffffff";
+  const to = toRaw || from;
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
+    };
+  }
+  if (mode === "radial") {
+    const innerStop = Math.min(stopA, stopB);
+    const outerStop = Math.max(stopA, stopB);
+    const innerColor = stopA <= stopB ? from : to;
+    const outerColor = stopA <= stopB ? to : from;
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
+        innerStop
+      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
+}
+
 function BlockPreview({
   block,
   account,
@@ -7575,6 +7888,10 @@ function BlockPreview({
     isCover ? (block.data as Record<string, unknown>) : null,
     sectionBg || theme.panelColor
   );
+  const menuSectionBackground = resolveMenuSectionBackgroundVisual(
+    isMenu ? (block.data as Record<string, unknown>) : null,
+    sectionBg || theme.panelColor
+  );
   return (
     <div
       ref={previewRootRef}
@@ -7593,16 +7910,22 @@ function BlockPreview({
         maxWidth: "100%",
         marginLeft: isGallery || isBooking || isMenu || isCover || isAisha ? "auto" : gridLeftPercent,
         marginRight: isGallery || isBooking || isMenu || isCover || isAisha ? "auto" : 0,
-        marginTop: isGallery || isBooking || isCover || isAisha ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking || isCover || isAisha ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isCover || isAisha ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking || isCover || isAisha ? style.marginBottom : undefined,
-        backgroundColor: isMenu || isAisha
+        marginTop: isGallery || isBooking || isMenu || isCover || isAisha ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha ? style.marginBottom : undefined,
+        backgroundColor: isMenu
+          ? menuSectionBackground.backgroundColor
+          : isAisha
           ? "transparent"
           : isCover
             ? coverBackground.backgroundColor
             : sectionBg,
-        backgroundImage: isCover ? coverBackground.backgroundImage : "none",
+        backgroundImage: isCover
+          ? coverBackground.backgroundImage
+          : isMenu
+            ? menuSectionBackground.backgroundImage
+            : "none",
       }}
     >
       <div
@@ -7620,13 +7943,13 @@ function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isCover || isAisha ? 0 : blockRadius,
-            backgroundColor: isBooking || isCover || isAisha
+            borderRadius: isBooking || isMenu || isCover || isAisha ? 0 : blockRadius,
+            backgroundColor: isBooking || isMenu || isCover || isAisha
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isCover || isAisha
+            backgroundImage: isBooking || isMenu || isCover || isAisha
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
@@ -8620,17 +8943,6 @@ function renderMenuBlock(
         : 56;
   const menuButtonSize = Math.max(18, Math.min(42, menuHeight - 4));
   const logoImageHeight = Math.max(14, Math.min(32, menuHeight - 10));
-  const menuGradientEnabled =
-    theme.mode === "dark" ? style.gradientEnabledDark : style.gradientEnabledLight;
-  const menuGradientDirection =
-    theme.mode === "dark" ? style.gradientDirectionDark : style.gradientDirectionLight;
-  const menuGradientFrom =
-    theme.mode === "dark" ? style.gradientFromDarkResolved : style.gradientFromLightResolved;
-  const menuGradientTo =
-    theme.mode === "dark" ? style.gradientToDarkResolved : style.gradientToLightResolved;
-  const menuGradient = menuGradientEnabled
-    ? `linear-gradient(${menuGradientDirection === "horizontal" ? "to right" : "to bottom"}, ${menuGradientFrom}, ${menuGradientTo})`
-    : "none";
   const menuBlockBgRaw =
     theme.mode === "dark" ? style.blockBgDark.trim() : style.blockBgLight.trim();
   const menuBlockBgExplicitTransparent =
@@ -8639,7 +8951,7 @@ function renderMenuBlock(
     theme.mode === "dark" ? style.blockBgDarkResolved : style.blockBgLightResolved;
   const menuSectionBgResolved =
     theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved;
-  const menuTopBg =
+  const menuFallbackBg =
     menuBlockBgExplicitTransparent
       ? "transparent"
       : menuBlockBgResolved && menuBlockBgResolved !== "transparent"
@@ -8649,6 +8961,23 @@ function renderMenuBlock(
         : theme.mode === "dark"
           ? "#111827"
           : "#ffffff";
+  const menuBarBackground = resolveMenuBlockBackgroundVisual(data, menuFallbackBg);
+  const legacyMenuGradientEnabled =
+    theme.mode === "dark" ? style.gradientEnabledDark : style.gradientEnabledLight;
+  const legacyMenuGradientDirection =
+    theme.mode === "dark" ? style.gradientDirectionDark : style.gradientDirectionLight;
+  const legacyMenuGradientFrom =
+    theme.mode === "dark" ? style.gradientFromDarkResolved : style.gradientFromLightResolved;
+  const legacyMenuGradientTo =
+    theme.mode === "dark" ? style.gradientToDarkResolved : style.gradientToLightResolved;
+  const legacyMenuGradient = legacyMenuGradientEnabled
+    ? `linear-gradient(${legacyMenuGradientDirection === "horizontal" ? "to right" : "to bottom"}, ${legacyMenuGradientFrom}, ${legacyMenuGradientTo})`
+    : "none";
+  const menuGradient =
+    menuBarBackground.backgroundImage !== "none"
+      ? menuBarBackground.backgroundImage
+      : legacyMenuGradient;
+  const menuTopBg = menuBarBackground.backgroundColor;
   const menuTextAlign = (style.textAlignHeading ?? style.textAlign ?? "left") as
     | "left"
     | "center"

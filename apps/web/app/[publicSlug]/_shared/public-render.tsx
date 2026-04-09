@@ -233,6 +233,92 @@ export function resolveCoverBackgroundVisual(
   return { backgroundColor: from, backgroundImage: "none" };
 }
 
+export function resolveMenuBlockBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string
+) {
+  const modeRaw =
+    typeof data?.menuBlockBackgroundMode === "string" ? data.menuBlockBackgroundMode : "";
+  const mode: CoverBackgroundMode =
+    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const fromRaw =
+    typeof data?.menuBlockBackgroundFrom === "string" ? data.menuBlockBackgroundFrom.trim() : "";
+  const toRaw =
+    typeof data?.menuBlockBackgroundTo === "string" ? data.menuBlockBackgroundTo.trim() : "";
+  const angleRaw = Number(data?.menuBlockBackgroundAngle);
+  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const stopARaw = Number(data?.menuBlockBackgroundStopA);
+  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
+  const stopBRaw = Number(data?.menuBlockBackgroundStopB);
+  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
+  const from = fromRaw || fallbackColor || "#ffffff";
+  const to = toRaw || from;
+
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
+    };
+  }
+  if (mode === "radial") {
+    const innerStop = Math.min(stopA, stopB);
+    const outerStop = Math.max(stopA, stopB);
+    const innerColor = stopA <= stopB ? from : to;
+    const outerColor = stopA <= stopB ? to : from;
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
+        innerStop
+      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
+}
+
+export function resolveMenuSectionBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string
+) {
+  const modeRaw =
+    typeof data?.menuSectionBackgroundMode === "string" ? data.menuSectionBackgroundMode : "";
+  const mode: CoverBackgroundMode =
+    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const fromRaw =
+    typeof data?.menuSectionBackgroundFrom === "string"
+      ? data.menuSectionBackgroundFrom.trim()
+      : "";
+  const toRaw =
+    typeof data?.menuSectionBackgroundTo === "string" ? data.menuSectionBackgroundTo.trim() : "";
+  const angleRaw = Number(data?.menuSectionBackgroundAngle);
+  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
+  const stopARaw = Number(data?.menuSectionBackgroundStopA);
+  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
+  const stopBRaw = Number(data?.menuSectionBackgroundStopB);
+  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
+  const from = fromRaw || fallbackColor || "#ffffff";
+  const to = toRaw || from;
+
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
+    };
+  }
+  if (mode === "radial") {
+    const innerStop = Math.min(stopA, stopB);
+    const outerStop = Math.max(stopA, stopB);
+    const innerColor = stopA <= stopB ? from : to;
+    const outerColor = stopA <= stopB ? to : from;
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
+        innerStop
+      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
+}
+
 function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | string): number {
   if (blockType === "booking") {
     return Math.min(
@@ -297,6 +383,7 @@ function isLightShadowColor(value: string): boolean {
 
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
+  const isMenuBlock = block.type === "menu";
   const numOrNull = (value?: number | string | null) => {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
@@ -525,8 +612,8 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     gridStartColumn: useCustomWidth ? resolvedGridStart : null,
     gridEndColumn: useCustomWidth ? resolvedGridEnd : null,
     useCustomWidth,
-    radius: numOrNull(style.radius as number),
-    buttonRadius: numOrNull(style.buttonRadius as number),
+    radius: isMenuBlock ? 0 : numOrNull(style.radius as number),
+    buttonRadius: isMenuBlock ? 0 : numOrNull(style.buttonRadius as number),
     subBlockBg: resolveColor("subBlockBgLight", "subBlockBgDark", "subBlockBg"),
     sectionBg: resolveColor("sectionBgLight", "sectionBgDark", "sectionBg"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
@@ -1243,6 +1330,7 @@ export function buildBlockWrapperStyle(
     isMenuSticky: boolean;
     blockType?: SiteBlock["type"];
     coverBackground?: { backgroundColor: string; backgroundImage: string };
+    menuSectionBackground?: { backgroundColor: string; backgroundImage: string };
   }
 ) {
     const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
@@ -1311,17 +1399,21 @@ export function buildBlockWrapperStyle(
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isBookingBlock || isCoverBlock ? 0 : radius,
+        borderRadius: isMenu || isBookingBlock || isCoverBlock ? 0 : radius,
         backgroundColor:
           isCoverBlock
             ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
-            : isGallery || isBookingBlock
+            : isMenu
+              ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
+              : isGallery || isBookingBlock
               ? "var(--block-section-bg, var(--block-bg))"
               : "var(--block-bg)",
         backgroundImage:
           isCoverBlock
             ? (options.coverBackground?.backgroundImage ?? "none")
-            : isGallery || isBookingBlock
+            : isMenu
+              ? (options.menuSectionBackground?.backgroundImage ?? "none")
+              : isGallery || isBookingBlock
               ? "none"
               : "var(--block-gradient)",
         borderColor: isGallery || isBookingBlock || isCoverBlock ? "transparent" : "var(--block-border)",
@@ -1339,18 +1431,18 @@ export function buildBlockWrapperStyle(
               ? style.marginTop
               : 0,
         marginBottom:
-          options.blockType === "works" || isBookingBlock || isCoverBlock
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock
             ? 0
             : typeof style.marginBottom === "number"
               ? style.marginBottom
               : 0,
         paddingTop:
-          (options.blockType === "works" || isBookingBlock || isCoverBlock) &&
+          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock) &&
           typeof style.marginTop === "number"
             ? style.marginTop
             : undefined,
         paddingBottom:
-          (options.blockType === "works" || isBookingBlock || isCoverBlock) &&
+          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock) &&
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
@@ -1408,6 +1500,11 @@ function renderMenu(
 ) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
+  const menuFallbackBg =
+    style.blockBg ||
+    (theme.mode === "dark" ? theme.darkPalette.panelColor : theme.lightPalette.panelColor) ||
+    "#ffffff";
+  const menuBarBackground = resolveMenuBlockBackgroundVisual(data ?? null, menuFallbackBg);
   const menuItems = Array.isArray(data.menuItems)
     ? (data.menuItems as PageKey[]).filter((item) => item in PAGE_LABELS)
     : (Object.keys(PAGE_LABELS) as PageKey[]);
@@ -1795,11 +1892,20 @@ function renderMenu(
             : undefined
         }
       >
-        <details suppressHydrationWarning className="group menu-v2-overlay w-full">
+        <details
+          suppressHydrationWarning
+          className="group menu-v2-overlay w-full"
+          style={
+            {
+              ["--menu-v2-top-bg" as string]: menuBarBackground.backgroundColor,
+              ["--menu-v2-top-gradient" as string]: menuBarBackground.backgroundImage,
+            } as CSSProperties
+          }
+        >
           <summary
             className="relative z-[60] flex cursor-pointer list-none items-center border-b py-0 pl-8 pr-24
-              [--menu-v2-top-bg:var(--block-bg)] group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
-              [--menu-v2-top-gradient:var(--block-gradient)] group-open:[--menu-v2-top-gradient:none]
+              group-open:[--menu-v2-top-bg:var(--block-sub-bg)]
+              group-open:[--menu-v2-top-gradient:none]
               [&::-webkit-details-marker]:hidden
               group-open:z-[180] group-open:py-0 group-open:pl-8 group-open:pr-24"
             style={{
@@ -1871,8 +1977,8 @@ function renderMenu(
             className="relative flex list-none items-center px-4 md:px-8 [&::-webkit-details-marker]:hidden"
             style={{
               minHeight: menuHeight,
-              backgroundColor: "var(--block-bg, var(--site-panel))",
-              backgroundImage: "var(--block-gradient, none)",
+              backgroundColor: menuBarBackground.backgroundColor,
+              backgroundImage: menuBarBackground.backgroundImage,
               borderColor: "var(--block-border, var(--site-border))",
               borderBottomWidth: 1,
             }}
@@ -1937,8 +2043,8 @@ function renderMenu(
   if (block.variant === "v1") {
     const topBarStyle: CSSProperties = {
       height: menuHeight,
-      backgroundColor: "var(--block-bg, var(--site-panel))",
-      backgroundImage: "var(--block-gradient, none)",
+      backgroundColor: menuBarBackground.backgroundColor,
+      backgroundImage: menuBarBackground.backgroundImage,
       borderColor: "var(--block-border, var(--site-border))",
       borderBottomWidth: 1,
     };
