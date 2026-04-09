@@ -212,6 +212,7 @@ const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[]>> = 
     { id: "layout", label: "Основные настройки" },
     { id: "colors", label: "Цвета" },
     { id: "typography", label: "Типографика" },
+    { id: "button", label: "Кнопка" },
   ],
   cover: [
     { id: "layout", label: "Основные настройки" },
@@ -3214,7 +3215,16 @@ export default function SiteClient({
 
                           <div className="space-y-3">
                             {currentPanelSections
-                              .filter((section) => section.id === "colors" || section.id === "typography")
+                              .filter(
+                                (section) =>
+                                  section.id === "colors" ||
+                                  section.id === "typography" ||
+                                  section.id === "button"
+                              )
+                              .sort((a, b) => {
+                                const order = ["colors", "typography", "button"];
+                                return order.indexOf(a.id) - order.indexOf(b.id);
+                              })
                               .map((section) => (
                                 <button
                                   key={section.id}
@@ -3413,14 +3423,208 @@ export default function SiteClient({
                     color: panelTheme.text,
                   }}
                 >
-                  {rightPanel === "settings" && !isCoverSettingsPanel && (
-                    <BlockStyleEditor
-                      block={selectedBlock}
-                      theme={activeTheme}
-                      activeSectionId={activePanelSectionId ?? ""}
-                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                    />
-                  )}
+                  {rightPanel === "settings" &&
+                    !isCoverSettingsPanel &&
+                    selectedBlock?.type === "menu" &&
+                    activePanelSectionId === "button" && (
+                      <div className="space-y-4 pb-10">
+                        {(() => {
+                          const menuData = (selectedBlock.data as Record<string, unknown>) ?? {};
+                          const ctaMode = (menuData.ctaMode as string) === "phone" ? "phone" : "booking";
+                          const phoneOverrideRaw =
+                            typeof menuData.phoneOverride === "string"
+                              ? menuData.phoneOverride.trim()
+                              : "";
+                          const phoneSource = phoneOverrideRaw ? "custom" : "account";
+                          const accountPhone = String(accountProfile.phone ?? "").trim();
+                          const menuButtonBorderColorRaw =
+                            typeof menuData.menuButtonBorderColor === "string"
+                              ? menuData.menuButtonBorderColor.trim()
+                              : "";
+                          const menuButtonBorderColor =
+                            menuButtonBorderColorRaw.toLowerCase() === "transparent"
+                              ? "transparent"
+                              : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
+                                ? menuButtonBorderColorRaw
+                                : "transparent";
+                          const menuButtonRadiusRaw = Number(menuData.menuButtonRadius);
+                          const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
+                            ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
+                            : 0;
+                          const menuStyle = normalizeBlockStyle(selectedBlock, activeTheme);
+
+                          const updateMenuData = (patch: Record<string, unknown>) =>
+                            updateBlock(selectedBlock.id, (prev) => ({
+                              ...prev,
+                              data: { ...(prev.data as Record<string, unknown>), ...patch },
+                            }));
+                          const updateMenuStyle = (patch: Partial<BlockStyle>) =>
+                            updateBlock(selectedBlock.id, (prev) => updateBlockStyle(prev, patch));
+
+                          return (
+                            <>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                Кнопка
+                              </div>
+
+                              <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                <div className="min-h-[32px] leading-4">Действие кнопки</div>
+                                <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                                  <select
+                                    value={ctaMode}
+                                    onChange={(event) =>
+                                      updateMenuData({ ctaMode: event.target.value })
+                                    }
+                                    className="w-full appearance-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                                    style={{
+                                      border: 0,
+                                      borderRadius: 0,
+                                      backgroundColor: "transparent",
+                                      boxShadow: "none",
+                                      WebkitAppearance: "none",
+                                      MozAppearance: "none",
+                                      appearance: "none",
+                                    }}
+                                  >
+                                    <option value="booking">Запись</option>
+                                    <option value="phone">Телефон</option>
+                                  </select>
+                                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                                    ▾
+                                  </span>
+                                </div>
+                              </label>
+
+                              {ctaMode === "booking" && (
+                                <>
+                                  {renderCoverFlatTextInput(
+                                    "Текст кнопки",
+                                    String(menuData.buttonText ?? "Записаться"),
+                                    (value) => updateMenuData({ buttonText: value })
+                                  )}
+                                </>
+                              )}
+
+                              {ctaMode === "phone" && (
+                                <>
+                                  <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                    <div className="min-h-[32px] leading-4">Телефон</div>
+                                    <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                                      <select
+                                        value={phoneSource}
+                                        onChange={(event) => {
+                                          const next = event.target.value;
+                                          if (next === "custom") {
+                                            updateMenuData({
+                                              phoneOverride: phoneOverrideRaw || accountPhone || "",
+                                            });
+                                          } else {
+                                            updateMenuData({ phoneOverride: "" });
+                                          }
+                                        }}
+                                        className="w-full appearance-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                                        style={{
+                                          border: 0,
+                                          borderRadius: 0,
+                                          backgroundColor: "transparent",
+                                          boxShadow: "none",
+                                          WebkitAppearance: "none",
+                                          MozAppearance: "none",
+                                          appearance: "none",
+                                        }}
+                                      >
+                                        <option value="account">Из аккаунта</option>
+                                        <option value="custom">Свой телефон</option>
+                                      </select>
+                                      <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+                                        ▾
+                                      </span>
+                                    </div>
+                                    {phoneSource === "account" && (
+                                      <div className="mt-2 text-xs font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">
+                                        {accountPhone ? `Телефон аккаунта: ${accountPhone}` : "Телефон аккаунта не указан"}
+                                      </div>
+                                    )}
+                                  </label>
+                                  {phoneSource === "custom" &&
+                                    renderCoverFlatTextInput(
+                                      "Номер телефона",
+                                      phoneOverrideRaw,
+                                      (value) => updateMenuData({ phoneOverride: value })
+                                    )}
+                                </>
+                              )}
+
+                              <TildaInlineColorField
+                                compact
+                                label="Цвет кнопки"
+                                value={
+                                  menuStyle.buttonColorLight ||
+                                  menuStyle.buttonColor ||
+                                  activeTheme.buttonColor
+                                }
+                                onChange={(value) =>
+                                  updateMenuStyle({
+                                    buttonColor: value,
+                                    buttonColorLight: value,
+                                  })
+                                }
+                                onClear={() =>
+                                  updateMenuStyle({ buttonColor: "", buttonColorLight: "" })
+                                }
+                                placeholder="#111827"
+                              />
+                              <TildaInlineColorField
+                                compact
+                                label="Текст кнопки"
+                                value={
+                                  menuStyle.buttonTextColorLight ||
+                                  menuStyle.buttonTextColor ||
+                                  activeTheme.buttonTextColor
+                                }
+                                onChange={(value) =>
+                                  updateMenuStyle({
+                                    buttonTextColor: value,
+                                    buttonTextColorLight: value,
+                                  })
+                                }
+                                onClear={() =>
+                                  updateMenuStyle({ buttonTextColor: "", buttonTextColorLight: "" })
+                                }
+                                placeholder="#ffffff"
+                              />
+                              <TildaInlineColorField
+                                compact
+                                label="Контур кнопки"
+                                value={menuButtonBorderColor}
+                                onChange={(value) => updateMenuData({ menuButtonBorderColor: value })}
+                                onClear={() =>
+                                  updateMenuData({ menuButtonBorderColor: "transparent" })
+                                }
+                                placeholder="transparent"
+                              />
+                              {renderCoverFlatNumberInput(
+                                "Скругление",
+                                menuButtonRadius,
+                                0,
+                                80,
+                                (value) => updateMenuData({ menuButtonRadius: value })
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  {rightPanel === "settings" &&
+                    !isCoverSettingsPanel &&
+                    !(selectedBlock?.type === "menu" && activePanelSectionId === "button") && (
+                      <BlockStyleEditor
+                        block={selectedBlock}
+                        theme={activeTheme}
+                        activeSectionId={activePanelSectionId ?? ""}
+                        onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                      />
+                    )}
                   {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography" && (
                     <BlockStyleEditor
                       block={selectedBlock}
@@ -8853,6 +9057,18 @@ function renderCover(
   const contentAlign = style.textAlign ?? align;
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
+  const menuButtonBorderColorRaw =
+    typeof data.menuButtonBorderColor === "string" ? data.menuButtonBorderColor.trim() : "";
+  const menuButtonBorderColor =
+    menuButtonBorderColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
+        ? menuButtonBorderColorRaw
+        : "transparent";
+  const menuButtonRadiusRaw = Number(data.menuButtonRadius);
+  const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
+    ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
+    : 0;
   const showSecondaryButton = Boolean(data.showSecondaryButton);
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
@@ -9301,6 +9517,18 @@ function renderMenuBlock(
   const phoneValue =
     (data.phoneOverride as string) || accountProfile.phone || "";
   const buttonText = (data.buttonText as string) || "Записаться";
+  const menuButtonBorderColorRaw =
+    typeof data.menuButtonBorderColor === "string" ? data.menuButtonBorderColor.trim() : "";
+  const menuButtonBorderColor =
+    menuButtonBorderColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
+        ? menuButtonBorderColorRaw
+        : "transparent";
+  const menuButtonRadiusRaw = Number(data.menuButtonRadius);
+  const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
+    ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
+    : 0;
   const showSearch = Boolean(data.showSearch);
   const showAccount = Boolean(data.showAccount);
   const accountLink = account.slug ? `/c/login?account=${account.slug}` : "/c/login";
@@ -9559,7 +9787,14 @@ function renderMenuBlock(
             : buildBookingLink({ publicSlug: account.publicSlug })
         }
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={{ ...buttonStyle(style, theme), ...ctaTypographyStyle }}
+        style={{
+          ...buttonStyle(style, theme),
+          ...ctaTypographyStyle,
+          borderRadius: `${menuButtonRadius}px`,
+          borderStyle: "solid",
+          borderWidth: menuButtonBorderColor === "transparent" ? 0 : 1,
+          borderColor: menuButtonBorderColor,
+        }}
       >
         {ctaMode === "phone" && phoneValue ? phoneValue : buttonText}
       </a>

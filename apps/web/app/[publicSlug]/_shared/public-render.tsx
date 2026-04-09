@@ -1534,6 +1534,18 @@ function renderMenu(
   const socialsMode = (data.socialsMode as string) || "auto";
   const socialsCustom = (data.socialsCustom as Record<string, string>) ?? {};
   const buttonText = (data.buttonText as string) || "Записаться";
+  const menuButtonBorderColorRaw =
+    typeof data.menuButtonBorderColor === "string" ? data.menuButtonBorderColor.trim() : "";
+  const menuButtonBorderColor =
+    menuButtonBorderColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
+        ? menuButtonBorderColorRaw
+        : "transparent";
+  const menuButtonRadiusRaw = Number(data.menuButtonRadius);
+  const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
+    ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
+    : 0;
   const basePath = publicSlug ? `/${publicSlug}` : "#";
   const position = data.position === "sticky" ? "sticky" : "static";
   const accountTitleRaw =
@@ -1713,7 +1725,14 @@ function renderMenu(
       <a
         href={`tel:${phoneValue}`}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={{ ...buttonStyle(style), ...ctaTypographyStyle }}
+        style={{
+          ...buttonStyle(style),
+          ...ctaTypographyStyle,
+          borderRadius: `${menuButtonRadius}px`,
+          borderStyle: "solid",
+          borderWidth: menuButtonBorderColor === "transparent" ? 0 : 1,
+          borderColor: menuButtonBorderColor,
+        }}
       >
         {phoneValue}
       </a>
@@ -1721,7 +1740,14 @@ function renderMenu(
       <Link
         href={buildBookingLink({ publicSlug })}
         className="inline-flex px-4 py-2 text-sm font-semibold"
-        style={{ ...buttonStyle(style), ...ctaTypographyStyle }}
+        style={{
+          ...buttonStyle(style),
+          ...ctaTypographyStyle,
+          borderRadius: `${menuButtonRadius}px`,
+          borderStyle: "solid",
+          borderWidth: menuButtonBorderColor === "transparent" ? 0 : 1,
+          borderColor: menuButtonBorderColor,
+        }}
       >
         {buttonText}
       </Link>
