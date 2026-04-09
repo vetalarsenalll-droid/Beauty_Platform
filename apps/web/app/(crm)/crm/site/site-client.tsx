@@ -2611,7 +2611,7 @@ export default function SiteClient({
         {rightPanel && (
           <>
             <aside
-              className={`fixed z-[220] w-[360px] overflow-y-auto border shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+              className={`fixed z-[220] overflow-y-auto border shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
                 isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
               } ${
                 activeTheme.mode === "dark"
@@ -2628,6 +2628,7 @@ export default function SiteClient({
                 top: floatingPanelsTop,
                 bottom: 0,
                 left: 0,
+                width: rightPanel === "content" ? "min(820px, 56vw)" : "360px",
                 borderColor: panelTheme.border,
                 backgroundColor: panelTheme.surface,
                 color: panelTheme.text,
@@ -2686,7 +2687,22 @@ export default function SiteClient({
               </div>
 
               <div className="space-y-3 p-3 pb-12">
-                {isCoverSettingsPanel ? (
+                {rightPanel === "content" && selectedBlock ? (
+                  <div className="px-1 pb-8 pt-1">
+                    <BlockEditor
+                      block={selectedBlock}
+                      accountName={account.name}
+                      branding={branding}
+                      accountProfile={accountProfile}
+                      locations={locations}
+                      services={services}
+                      specialists={specialists}
+                      promos={promos}
+                      activeSectionId="main"
+                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                    />
+                  </div>
+                ) : isCoverSettingsPanel ? (
                   <>
                     <div className="p-0" style={{ backgroundColor: panelTheme.panel }}>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Ширина блока</div>
@@ -3150,8 +3166,9 @@ export default function SiteClient({
               </div>
             </aside>
 
-            {((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
-              (isCoverSettingsPanel && coverDrawerKey && selectedBlock)) && (
+            {(rightPanel === "settings" &&
+              ((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
+                (isCoverSettingsPanel && coverDrawerKey && selectedBlock))) && (
               <aside
                 className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
                   isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
@@ -3198,19 +3215,6 @@ export default function SiteClient({
                     color: panelTheme.text,
                   }}
                 >
-                  {rightPanel === "content" && (
-                    <BlockEditor
-                      block={selectedBlock}
-                      accountName={account.name}
-                      accountProfile={accountProfile}
-                      locations={locations}
-                      services={services}
-                      specialists={specialists}
-                      promos={promos}
-                      activeSectionId={activePanelSectionId ?? ""}
-                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                    />
-                  )}
                   {rightPanel === "settings" && !isCoverSettingsPanel && (
                     <BlockStyleEditor
                       block={selectedBlock}
@@ -4073,6 +4077,7 @@ function CoverGridWidthControl({
 function BlockEditor({
   block,
   accountName,
+  branding,
   accountProfile,
   locations,
   services,
@@ -4083,6 +4088,7 @@ function BlockEditor({
 }: {
   block: SiteBlock;
   accountName: string;
+  branding: Branding;
   accountProfile: AccountProfile;
   locations: LocationItem[];
   services: ServiceItem[];
@@ -4158,7 +4164,7 @@ function BlockEditor({
     !(availableSecondarySources as string[]).includes(secondaryButtonSource);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
       {(variantOptions.length > 1 && block.type !== "loader" && inSection("main", "structure")) && (
         <label className="text-sm">
           Вариант
@@ -4402,45 +4408,27 @@ function BlockEditor({
                 value={(block.data.description as string) ?? ""}
                 onChange={(value) => updateData({ description: value })}
               />
-              <label className="text-sm">
-                Выравнивание
-                <select
-                  value={(block.data.align as string) ?? "left"}
-                  onChange={(event) => updateData({ align: event.target.value })}
-                  className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-                >
-                  <option value="left">Слева</option>
-                  <option value="center">По центру</option>
-                  <option value="right">Справа</option>
-                </select>
-              </label>
             </>
           )}
           {inSection("actions", "main") && (
             <>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <div className="grid grid-cols-[auto,1fr] items-end gap-4">
+                <FlatCheckbox
                   checked={Boolean(block.data.showButton)}
-                  onChange={(event) => updateData({ showButton: event.target.checked })}
+                  onChange={(checked) => updateData({ showButton: checked })}
+                  label="Показывать кнопку записи"
                 />
-                Показывать кнопку записи
-              </label>
-              <FieldText
-                label="Текст кнопки"
-                value={(block.data.buttonText as string) ?? ""}
-                onChange={(value) => updateData({ buttonText: value })}
+                <FieldText
+                  label="Текст кнопки"
+                  value={(block.data.buttonText as string) ?? ""}
+                  onChange={(value) => updateData({ buttonText: value })}
+                />
+              </div>
+              <FlatCheckbox
+                checked={Boolean(block.data.showSecondaryButton)}
+                onChange={(checked) => updateData({ showSecondaryButton: checked })}
+                label="Показывать вторую кнопку (соцсети)"
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(block.data.showSecondaryButton)}
-                  onChange={(event) =>
-                    updateData({ showSecondaryButton: event.target.checked })
-                  }
-                />
-                Показывать вторую кнопку (соцсети)
-              </label>
               {Boolean(block.data.showSecondaryButton) && (
                 <>
                   <FieldText
@@ -4482,9 +4470,7 @@ function BlockEditor({
           {inSection("media", "main") && (
             <CoverImageEditor
               data={block.data}
-              locations={locations}
-              services={services}
-              specialists={specialists}
+              branding={branding}
               onChange={updateData}
             />
           )}
@@ -6890,6 +6876,38 @@ function updateBlockStyle(
   };
 }
 
+function FlatCheckbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+      <span
+        aria-hidden
+        className={`flex h-4 w-4 items-center justify-center border text-[10px] leading-none transition ${
+          checked
+            ? "border-[#ff5a5f] bg-[#ff5a5f] text-white"
+            : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
+        }`}
+      >
+        ✓
+      </span>
+      <span>{label}</span>
+    </label>
+  );
+}
+
 function FieldText({
   label,
   value,
@@ -7032,118 +7050,124 @@ function EntityListEditor({
 
 function CoverImageEditor({
   data,
-  locations,
-  services,
-  specialists,
+  branding,
   onChange,
 }: {
   data: Record<string, unknown>;
-  locations: LocationItem[];
-  services: ServiceItem[];
-  specialists: SpecialistItem[];
+  branding: Branding;
   onChange: (patch: Record<string, unknown>) => void;
 }) {
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const setSource = (next: { type: string; id?: number | null; url?: string }) => {
     onChange({ imageSource: next });
   };
 
+  const previewUrl =
+    imageSource.type === "custom"
+      ? imageSource.url ?? null
+      : imageSource.type === "account"
+        ? (branding.coverUrl ?? null)
+        : null;
+
+  const uploadCustomImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append("type", "siteCover");
+    formData.append("file", file);
+
+    setUploading(true);
+    setUploadError(null);
+
+    try {
+      const response = await fetch("/api/v1/crm/account/media", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.data?.url) {
+        const errorMessage =
+          typeof payload?.error?.message === "string"
+            ? payload.error.message
+            : "Не удалось загрузить изображение.";
+        setUploadError(errorMessage);
+        return;
+      }
+      setSource({ type: "custom", url: String(payload.data.url) });
+    } catch {
+      setUploadError("Не удалось загрузить изображение.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <label className="text-sm">
-        Источник обложки
+        Фоновое изображение
         <select
-          value={imageSource.type ?? "account"}
-          onChange={(event) => setSource({ type: event.target.value })}
+          value={imageSource.type === "custom" ? "custom" : "account"}
+          onChange={(event) =>
+            setSource(
+              event.target.value === "custom"
+                ? { type: "custom", url: imageSource.url ?? "" }
+                : { type: "account" }
+            )
+          }
           className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
         >
           <option value="account">Профиль аккаунта</option>
-          <option value="location">Локация</option>
-          <option value="specialist">Специалист</option>
-          <option value="service">Услуга</option>
-          <option value="custom">Своя картинка (URL)</option>
-          <option value="none">Без картинки</option>
+          <option value="custom">Своё изображение</option>
         </select>
       </label>
 
-      {imageSource.type === "location" && (
-        <label className="text-sm">
-          Локация
-          <select
-            value={String(imageSource.id ?? "")}
-            onChange={(event) =>
-              setSource({
-                type: "location",
-                id: event.target.value ? Number(event.target.value) : undefined,
-              })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="">Не выбрано</option>
-            {locations.map((location) => (
-              <option key={location.id} value={location.id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {imageSource.type === "specialist" && (
-        <label className="text-sm">
-          Специалист
-          <select
-            value={String(imageSource.id ?? "")}
-            onChange={(event) =>
-              setSource({
-                type: "specialist",
-                id: event.target.value ? Number(event.target.value) : undefined,
-              })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="">Не выбрано</option>
-            {specialists.map((specialist) => (
-              <option key={specialist.id} value={specialist.id}>
-                {specialist.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {imageSource.type === "service" && (
-        <label className="text-sm">
-          Услуга
-          <select
-            value={String(imageSource.id ?? "")}
-            onChange={(event) =>
-              setSource({
-                type: "service",
-                id: event.target.value ? Number(event.target.value) : undefined,
-              })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="">Не выбрано</option>
-            {services.map((service) => (
-              <option key={service.id} value={service.id}>
-                {service.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      {previewUrl ? (
+        <div className="space-y-2">
+          <div className="h-28 w-full overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+            <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-cover" />
+          </div>
+          {imageSource.type === "custom" && (
+            <button
+              type="button"
+              onClick={() => setSource({ type: "custom", url: "" })}
+              className="text-xs text-[color:var(--bp-muted)] underline-offset-2 hover:underline"
+            >
+              Удалить своё изображение
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="text-xs text-[color:var(--bp-muted)]">Изображение не выбрано</div>
       )}
 
       {imageSource.type === "custom" && (
-        <FieldText
-          label="URL картинки"
-          value={imageSource.url ?? ""}
-          onChange={(value) => setSource({ type: "custom", url: value })}
-        />
+        <div className="space-y-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.heic,.heif"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              void uploadCustomImage(file);
+              event.currentTarget.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex h-9 items-center justify-center border border-[color:var(--bp-stroke)] px-3 text-sm disabled:opacity-60"
+          >
+            {uploading ? "Загрузка..." : "Загрузить файл"}
+          </button>
+          {uploadError ? <div className="text-xs text-[#c2410c]">{uploadError}</div> : null}
+        </div>
       )}
     </div>
   );

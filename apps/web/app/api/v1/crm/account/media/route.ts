@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 const MEDIA_TYPES = {
   logo: "account.logo",
   cover: "account.cover",
+  siteCover: "account.site_cover",
 } as const;
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -209,18 +210,20 @@ export async function POST(request: Request) {
       },
     });
 
-    await tx.accountBranding.upsert({
-      where: { accountId: auth.session.accountId },
-      create: {
-        accountId: auth.session.accountId,
-        logoUrl: typeKey === "logo" ? url : null,
-        coverUrl: typeKey === "cover" ? url : null,
-      },
-      update: {
-        logoUrl: typeKey === "logo" ? url : undefined,
-        coverUrl: typeKey === "cover" ? url : undefined,
-      },
-    });
+    if (typeKey === "logo" || typeKey === "cover") {
+      await tx.accountBranding.upsert({
+        where: { accountId: auth.session.accountId },
+        create: {
+          accountId: auth.session.accountId,
+          logoUrl: typeKey === "logo" ? url : null,
+          coverUrl: typeKey === "cover" ? url : null,
+        },
+        update: {
+          logoUrl: typeKey === "logo" ? url : undefined,
+          coverUrl: typeKey === "cover" ? url : undefined,
+        },
+      });
+    }
 
     return newLink;
   });
