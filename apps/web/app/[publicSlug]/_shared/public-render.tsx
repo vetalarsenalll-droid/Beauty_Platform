@@ -812,6 +812,41 @@ function renderCover(
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
   const socialHref = resolvePrimarySocialHref(profile, secondaryButtonSource);
+  const primaryButtonBorderColorRaw =
+    typeof data.coverPrimaryButtonBorderColor === "string"
+      ? data.coverPrimaryButtonBorderColor.trim()
+      : "";
+  const primaryButtonBorderColor =
+    primaryButtonBorderColorRaw && isValidColorValue(primaryButtonBorderColorRaw)
+      ? primaryButtonBorderColorRaw
+      : "transparent";
+  const secondaryButtonColorRaw =
+    typeof data.coverSecondaryButtonColor === "string"
+      ? data.coverSecondaryButtonColor.trim()
+      : "";
+  const secondaryButtonColor =
+    secondaryButtonColorRaw && isValidColorValue(secondaryButtonColorRaw)
+      ? secondaryButtonColorRaw
+      : "transparent";
+  const secondaryButtonTextColorRaw =
+    typeof data.coverSecondaryButtonTextColor === "string"
+      ? data.coverSecondaryButtonTextColor.trim()
+      : "";
+  const secondaryButtonTextColor =
+    secondaryButtonTextColorRaw && isValidColorValue(secondaryButtonTextColorRaw)
+      ? secondaryButtonTextColorRaw
+      : "#ffffff";
+  const secondaryButtonBorderColorRaw =
+    typeof data.coverSecondaryButtonBorderColor === "string"
+      ? data.coverSecondaryButtonBorderColor.trim()
+      : "";
+  const secondaryButtonBorderColor =
+    secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
+      ? secondaryButtonBorderColorRaw
+      : "rgba(255,255,255,0.45)";
+  const secondaryButtonRadius = Number.isFinite(Number(data.coverSecondaryButtonRadius))
+    ? Math.max(0, Math.min(80, Math.round(Number(data.coverSecondaryButtonRadius))))
+    : (style.buttonRadius ?? theme.buttonRadius);
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
@@ -1006,8 +1041,18 @@ function renderCover(
                 className="inline-flex items-center whitespace-nowrap font-semibold"
                 style={{
                   ...buttonStyle(style),
-                  borderRadius: 0,
                   color: "#ffffff",
+                  borderStyle: "solid",
+                  borderWidth:
+                    primaryButtonBorderColor !== "transparent" &&
+                    primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? 1
+                      : 0,
+                  borderColor:
+                    primaryButtonBorderColor !== "transparent" &&
+                    primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? primaryButtonBorderColor
+                      : "transparent",
                   minHeight: "clamp(46px, 6cqw, 54px)",
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
@@ -1024,8 +1069,27 @@ function renderCover(
                 rel="noreferrer"
                 className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
                 style={{
-                  borderColor: "rgba(255,255,255,0.45)",
-                  borderRadius: 0,
+                  backgroundColor:
+                    secondaryButtonColor !== "transparent" &&
+                    secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? secondaryButtonColor
+                      : "transparent",
+                  color:
+                    secondaryButtonTextColor !== "transparent" &&
+                    secondaryButtonTextColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? secondaryButtonTextColor
+                      : "#ffffff",
+                  borderColor:
+                    secondaryButtonBorderColor !== "transparent" &&
+                    secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? secondaryButtonBorderColor
+                      : "transparent",
+                  borderWidth:
+                    secondaryButtonBorderColor !== "transparent" &&
+                    secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? 1
+                      : 0,
+                  borderRadius: secondaryButtonRadius,
                   minHeight: "clamp(46px, 6cqw, 54px)",
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",

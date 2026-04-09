@@ -1812,6 +1812,50 @@ export default function SiteClient({
   const coverBackgroundStopB = Number.isFinite(Number(coverData?.coverBackgroundStopB))
     ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopB)))
     : 100;
+  const coverShowSecondaryButton = Boolean(coverData?.showSecondaryButton);
+  const coverPrimaryButtonBorderColorRaw =
+    typeof coverData?.coverPrimaryButtonBorderColor === "string"
+      ? coverData.coverPrimaryButtonBorderColor.trim()
+      : "";
+  const coverPrimaryButtonBorderColor =
+    coverPrimaryButtonBorderColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverPrimaryButtonBorderColorRaw && isValidColorValue(coverPrimaryButtonBorderColorRaw)
+        ? coverPrimaryButtonBorderColorRaw
+        : "transparent";
+  const coverSecondaryButtonColorRaw =
+    typeof coverData?.coverSecondaryButtonColor === "string"
+      ? coverData.coverSecondaryButtonColor.trim()
+      : "";
+  const coverSecondaryButtonColor =
+    coverSecondaryButtonColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonColorRaw && isValidColorValue(coverSecondaryButtonColorRaw)
+        ? coverSecondaryButtonColorRaw
+        : "transparent";
+  const coverSecondaryButtonTextColorRaw =
+    typeof coverData?.coverSecondaryButtonTextColor === "string"
+      ? coverData.coverSecondaryButtonTextColor.trim()
+      : "";
+  const coverSecondaryButtonTextColor =
+    coverSecondaryButtonTextColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonTextColorRaw && isValidColorValue(coverSecondaryButtonTextColorRaw)
+        ? coverSecondaryButtonTextColorRaw
+        : "#ffffff";
+  const coverSecondaryButtonBorderColorRaw =
+    typeof coverData?.coverSecondaryButtonBorderColor === "string"
+      ? coverData.coverSecondaryButtonBorderColor.trim()
+      : "";
+  const coverSecondaryButtonBorderColor =
+    coverSecondaryButtonBorderColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonBorderColorRaw && isValidColorValue(coverSecondaryButtonBorderColorRaw)
+        ? coverSecondaryButtonBorderColorRaw
+        : "rgba(255,255,255,0.45)";
+  const coverSecondaryButtonRadius = Number.isFinite(Number(coverData?.coverSecondaryButtonRadius))
+    ? Math.max(0, Math.min(80, Math.round(Number(coverData?.coverSecondaryButtonRadius))))
+    : (coverStyle?.buttonRadius ?? activeTheme.buttonRadius);
 
   const updateSelectedCoverStyle = (patch: Partial<BlockStyle>) => {
     if (!isCoverSettingsPanel || !selectedBlock) return;
@@ -1835,6 +1879,52 @@ export default function SiteClient({
     });
   };
   const floatingPanelsTop = rightPanel ? 0 : 56;
+  const renderCoverFlatTextInput = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void
+  ) => (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+        />
+      </div>
+    </label>
+  );
+  const renderCoverFlatNumberInput = (
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    onChange: (value: number) => void
+  ) => (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(event) => {
+            const parsed = Number(event.target.value);
+            onChange(
+              Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.round(parsed))) : min
+            );
+          }}
+          className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+        />
+        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+      </div>
+    </label>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -3118,33 +3208,89 @@ export default function SiteClient({
                     />
                   )}
                   {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "button" && (
-                    <div className="space-y-4">
-                      <label className="text-sm">
-                        Текст кнопки
-                        <input
-                          type="text"
-                          value={String((selectedBlock.data as Record<string, unknown>).buttonText ?? "Записаться")}
-                          onChange={(event) => updateSelectedCoverData({ buttonText: event.target.value })}
-                          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-                        />
-                      </label>
-                      <ColorField
+                    <div className="space-y-4 pb-10">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                        Первая кнопка
+                      </div>
+                      {renderCoverFlatTextInput(
+                        "Текст кнопки",
+                        String((selectedBlock.data as Record<string, unknown>).buttonText ?? "Записаться"),
+                        (value) => updateSelectedCoverData({ buttonText: value })
+                      )}
+                      <TildaInlineColorField
+                        compact
                         label="Цвет кнопки"
                         value={coverStyle?.buttonColorLight || coverStyle?.buttonColor || activeTheme.buttonColor}
                         onChange={(value) => updateSelectedCoverStyle({ buttonColor: value, buttonColorLight: value })}
+                        onClear={() => updateSelectedCoverStyle({ buttonColor: "", buttonColorLight: "" })}
+                        placeholder="#111827"
                       />
-                      <ColorField
+                      <TildaInlineColorField
+                        compact
                         label="Текст кнопки"
                         value={coverStyle?.buttonTextColorLight || coverStyle?.buttonTextColor || activeTheme.buttonTextColor}
                         onChange={(value) => updateSelectedCoverStyle({ buttonTextColor: value, buttonTextColorLight: value })}
+                        onClear={() => updateSelectedCoverStyle({ buttonTextColor: "", buttonTextColorLight: "" })}
+                        placeholder="#ffffff"
                       />
-                      <NumberField
-                        label="Скругление"
-                        value={coverStyle?.buttonRadius ?? activeTheme.buttonRadius}
-                        min={0}
-                        max={80}
-                        onChange={(value) => updateSelectedCoverStyle({ buttonRadius: value })}
+                      <TildaInlineColorField
+                        compact
+                        label="Контур кнопки"
+                        value={coverPrimaryButtonBorderColor}
+                        onChange={(value) => updateSelectedCoverData({ coverPrimaryButtonBorderColor: value })}
+                        onClear={() => updateSelectedCoverData({ coverPrimaryButtonBorderColor: "transparent" })}
+                        placeholder="#ffffff"
                       />
+                      {renderCoverFlatNumberInput(
+                        "Скругление",
+                        coverStyle?.buttonRadius ?? activeTheme.buttonRadius,
+                        0,
+                        80,
+                        (value) => updateSelectedCoverStyle({ buttonRadius: value })
+                      )}
+                      {coverShowSecondaryButton && (
+                        <>
+                          <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                            Вторая кнопка
+                          </div>
+                          {renderCoverFlatTextInput(
+                            "Текст второй кнопки",
+                            String((selectedBlock.data as Record<string, unknown>).secondaryButtonText ?? "Наши соцсети"),
+                            (value) => updateSelectedCoverData({ secondaryButtonText: value })
+                          )}
+                          <TildaInlineColorField
+                            compact
+                            label="Цвет второй кнопки"
+                            value={coverSecondaryButtonColor}
+                            onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonColor: value })}
+                            onClear={() => updateSelectedCoverData({ coverSecondaryButtonColor: "transparent" })}
+                            placeholder="#ffffff"
+                          />
+                          <TildaInlineColorField
+                            compact
+                            label="Текст второй кнопки"
+                            value={coverSecondaryButtonTextColor}
+                            onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonTextColor: value })}
+                            onClear={() => updateSelectedCoverData({ coverSecondaryButtonTextColor: "transparent" })}
+                            placeholder="#ffffff"
+                          />
+                          <TildaInlineColorField
+                            compact
+                            label="Контур второй кнопки"
+                            value={coverSecondaryButtonBorderColor}
+                            onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonBorderColor: value })}
+                            onClear={() => updateSelectedCoverData({ coverSecondaryButtonBorderColor: "transparent" })}
+                            placeholder="#ffffff"
+                          />
+                          {renderCoverFlatNumberInput(
+                            "Скругление второй кнопки",
+                            coverSecondaryButtonRadius,
+                            0,
+                            80,
+                            (value) => updateSelectedCoverData({ coverSecondaryButtonRadius: value })
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                   {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "animation" && (
@@ -7759,6 +7905,41 @@ function renderCover(
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
   const socialHref = resolvePrimarySocialHref(accountProfile, secondaryButtonSource);
+  const primaryButtonBorderColorRaw =
+    typeof data.coverPrimaryButtonBorderColor === "string"
+      ? data.coverPrimaryButtonBorderColor.trim()
+      : "";
+  const primaryButtonBorderColor =
+    primaryButtonBorderColorRaw && isValidColorValue(primaryButtonBorderColorRaw)
+      ? primaryButtonBorderColorRaw
+      : "transparent";
+  const secondaryButtonColorRaw =
+    typeof data.coverSecondaryButtonColor === "string"
+      ? data.coverSecondaryButtonColor.trim()
+      : "";
+  const secondaryButtonColor =
+    secondaryButtonColorRaw && isValidColorValue(secondaryButtonColorRaw)
+      ? secondaryButtonColorRaw
+      : "transparent";
+  const secondaryButtonTextColorRaw =
+    typeof data.coverSecondaryButtonTextColor === "string"
+      ? data.coverSecondaryButtonTextColor.trim()
+      : "";
+  const secondaryButtonTextColor =
+    secondaryButtonTextColorRaw && isValidColorValue(secondaryButtonTextColorRaw)
+      ? secondaryButtonTextColorRaw
+      : "#ffffff";
+  const secondaryButtonBorderColorRaw =
+    typeof data.coverSecondaryButtonBorderColor === "string"
+      ? data.coverSecondaryButtonBorderColor.trim()
+      : "";
+  const secondaryButtonBorderColor =
+    secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
+      ? secondaryButtonBorderColorRaw
+      : "rgba(255,255,255,0.45)";
+  const secondaryButtonRadius = Number.isFinite(Number(data.coverSecondaryButtonRadius))
+    ? Math.max(0, Math.min(80, Math.round(Number(data.coverSecondaryButtonRadius))))
+    : (style.buttonRadius ?? theme.buttonRadius);
   const imageSource = (data.imageSource as { type?: string; id?: number; url?: string }) ?? {
     type: "account",
   };
@@ -7977,8 +8158,18 @@ function renderCover(
                 className="inline-flex items-center whitespace-nowrap font-semibold"
                 style={{
                   ...buttonStyle(style, theme),
-                  borderRadius: 0,
                   color: "#ffffff",
+                  borderStyle: "solid",
+                  borderWidth:
+                    primaryButtonBorderColor !== "transparent" &&
+                    primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? 1
+                      : 0,
+                  borderColor:
+                    primaryButtonBorderColor !== "transparent" &&
+                    primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? primaryButtonBorderColor
+                      : "transparent",
                   minHeight: "clamp(46px, 6cqw, 54px)",
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
@@ -7995,8 +8186,27 @@ function renderCover(
                 rel="noreferrer"
                 className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
                 style={{
-                  borderColor: "rgba(255,255,255,0.45)",
-                  borderRadius: 0,
+                  backgroundColor:
+                    secondaryButtonColor !== "transparent" &&
+                    secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? secondaryButtonColor
+                      : "transparent",
+                  color:
+                    secondaryButtonTextColor !== "transparent" &&
+                    secondaryButtonTextColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? secondaryButtonTextColor
+                      : "#ffffff",
+                  borderColor:
+                    secondaryButtonBorderColor !== "transparent" &&
+                    secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? secondaryButtonBorderColor
+                      : "transparent",
+                  borderWidth:
+                    secondaryButtonBorderColor !== "transparent" &&
+                    secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                      ? 1
+                      : 0,
+                  borderRadius: secondaryButtonRadius,
                   minHeight: "clamp(46px, 6cqw, 54px)",
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
