@@ -12,15 +12,18 @@ import {
   type SiteLoaderConfig,
   type SiteTheme,
 } from "@/lib/site-builder";
+import {
+  resolveMenuBlockBackgroundVisual,
+} from "@/features/site-builder/shared/background-visuals";
 import type {
-  AccountProfile,
-  Branding,
-  LocationItem,
-  PromoItem,
-  ServiceItem,
-  SpecialistItem,
-  WorkPhotos,
-} from "./public-data";
+  SiteAccountProfile as AccountProfile,
+  SiteBranding as Branding,
+  SiteLocationItem as LocationItem,
+  SitePromoItem as PromoItem,
+  SiteServiceItem as ServiceItem,
+  SiteSpecialistItem as SpecialistItem,
+  SiteWorkPhotos as WorkPhotos,
+} from "@/features/site-builder/shared/site-data";
 
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -37,7 +40,6 @@ const PAGE_LABELS = {
 } as const;
 
 type PageKey = keyof typeof PAGE_LABELS;
-type CoverBackgroundMode = "solid" | "linear" | "radial";
 const COVER_BACKGROUND_POSITION_VALUES = new Set<string>([
   "left top",
   "center top",
@@ -194,130 +196,6 @@ const hexToRgbaString = (hex: string, alpha: number) => {
   const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 1;
   return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
 };
-
-export function resolveCoverBackgroundVisual(
-  data: Record<string, unknown> | null,
-  fallbackColor: string
-) {
-  const modeRaw = typeof data?.coverBackgroundMode === "string" ? data.coverBackgroundMode : "";
-  const mode: CoverBackgroundMode =
-    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
-  const fromRaw = typeof data?.coverBackgroundFrom === "string" ? data.coverBackgroundFrom.trim() : "";
-  const toRaw = typeof data?.coverBackgroundTo === "string" ? data.coverBackgroundTo.trim() : "";
-  const angleRaw = Number(data?.coverBackgroundAngle);
-  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
-  const stopARaw = Number(data?.coverBackgroundStopA);
-  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
-  const stopBRaw = Number(data?.coverBackgroundStopB);
-  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
-  const from = fromRaw || fallbackColor || "#ffffff";
-  const to = toRaw || from;
-  if (mode === "linear") {
-    return {
-      backgroundColor: from,
-      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
-    };
-  }
-  if (mode === "radial") {
-    const innerStop = Math.min(stopA, stopB);
-    const outerStop = Math.max(stopA, stopB);
-    const innerColor = stopA <= stopB ? from : to;
-    const outerColor = stopA <= stopB ? to : from;
-    return {
-      backgroundColor: from,
-      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
-        innerStop
-      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
-    };
-  }
-  return { backgroundColor: from, backgroundImage: "none" };
-}
-
-export function resolveMenuBlockBackgroundVisual(
-  data: Record<string, unknown> | null,
-  fallbackColor: string
-) {
-  const modeRaw =
-    typeof data?.menuBlockBackgroundMode === "string" ? data.menuBlockBackgroundMode : "";
-  const mode: CoverBackgroundMode =
-    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
-  const fromRaw =
-    typeof data?.menuBlockBackgroundFrom === "string" ? data.menuBlockBackgroundFrom.trim() : "";
-  const toRaw =
-    typeof data?.menuBlockBackgroundTo === "string" ? data.menuBlockBackgroundTo.trim() : "";
-  const angleRaw = Number(data?.menuBlockBackgroundAngle);
-  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
-  const stopARaw = Number(data?.menuBlockBackgroundStopA);
-  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
-  const stopBRaw = Number(data?.menuBlockBackgroundStopB);
-  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
-  const from = fromRaw || fallbackColor || "#ffffff";
-  const to = toRaw || from;
-
-  if (mode === "linear") {
-    return {
-      backgroundColor: from,
-      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
-    };
-  }
-  if (mode === "radial") {
-    const innerStop = Math.min(stopA, stopB);
-    const outerStop = Math.max(stopA, stopB);
-    const innerColor = stopA <= stopB ? from : to;
-    const outerColor = stopA <= stopB ? to : from;
-    return {
-      backgroundColor: from,
-      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
-        innerStop
-      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
-    };
-  }
-  return { backgroundColor: from, backgroundImage: "none" };
-}
-
-export function resolveMenuSectionBackgroundVisual(
-  data: Record<string, unknown> | null,
-  fallbackColor: string
-) {
-  const modeRaw =
-    typeof data?.menuSectionBackgroundMode === "string" ? data.menuSectionBackgroundMode : "";
-  const mode: CoverBackgroundMode =
-    modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
-  const fromRaw =
-    typeof data?.menuSectionBackgroundFrom === "string"
-      ? data.menuSectionBackgroundFrom.trim()
-      : "";
-  const toRaw =
-    typeof data?.menuSectionBackgroundTo === "string" ? data.menuSectionBackgroundTo.trim() : "";
-  const angleRaw = Number(data?.menuSectionBackgroundAngle);
-  const angle = Number.isFinite(angleRaw) ? Math.max(0, Math.min(360, angleRaw)) : 135;
-  const stopARaw = Number(data?.menuSectionBackgroundStopA);
-  const stopA = Number.isFinite(stopARaw) ? Math.max(0, Math.min(100, stopARaw)) : 0;
-  const stopBRaw = Number(data?.menuSectionBackgroundStopB);
-  const stopB = Number.isFinite(stopBRaw) ? Math.max(0, Math.min(100, stopBRaw)) : 100;
-  const from = fromRaw || fallbackColor || "#ffffff";
-  const to = toRaw || from;
-
-  if (mode === "linear") {
-    return {
-      backgroundColor: from,
-      backgroundImage: `linear-gradient(${Math.round(angle)}deg, ${from}, ${to})`,
-    };
-  }
-  if (mode === "radial") {
-    const innerStop = Math.min(stopA, stopB);
-    const outerStop = Math.max(stopA, stopB);
-    const innerColor = stopA <= stopB ? from : to;
-    const outerColor = stopA <= stopB ? to : from;
-    return {
-      backgroundColor: from,
-      backgroundImage: `radial-gradient(circle at center, ${innerColor} 0%, ${innerColor} ${Math.round(
-        innerStop
-      )}%, ${outerColor} ${Math.round(outerStop)}%, ${outerColor} 100%)`,
-    };
-  }
-  return { backgroundColor: from, backgroundImage: "none" };
-}
 
 function clampBlockColumns(columns: number, blockType: SiteBlock["type"] | string): number {
   if (blockType === "booking") {

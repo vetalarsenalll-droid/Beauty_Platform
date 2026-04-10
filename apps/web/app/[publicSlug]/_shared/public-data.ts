@@ -1,90 +1,27 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { parsePublicSlugId } from "@/lib/public-slug";
 import { normalizeDraft, type SiteDraft } from "@/lib/site-builder";
+import type {
+  PublicSiteData,
+  SiteAccountProfile as AccountProfile,
+  SiteBranding as Branding,
+  SiteLocationItem as LocationItem,
+  SitePromoItem as PromoItem,
+  SiteServiceItem as ServiceItem,
+  SiteSpecialistItem as SpecialistItem,
+  SiteWorkPhotos as WorkPhotos,
+} from "@/features/site-builder/shared/site-data";
 
-export type AccountProfile = {
-  description: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  websiteUrl: string | null;
-  instagramUrl: string | null;
-  whatsappUrl: string | null;
-  telegramUrl: string | null;
-  facebookUrl: string | null;
-  tiktokUrl: string | null;
-  youtubeUrl: string | null;
-  twitterUrl: string | null;
-  dzenUrl: string | null;
-  okUrl: string | null;
-  maxUrl: string | null;
-  vkUrl: string | null;
-  viberUrl: string | null;
-  pinterestUrl: string | null;
+export type {
+  PublicSiteData,
+  AccountProfile,
+  Branding,
+  LocationItem,
+  PromoItem,
+  ServiceItem,
+  SpecialistItem,
+  WorkPhotos,
 };
-
-export type Branding = {
-  logoUrl: string | null;
-  coverUrl: string | null;
-};
-
-export type LocationItem = {
-  id: number;
-  name: string;
-  address: string;
-  phone: string | null;
-  coverUrl: string | null;
-  geo: { lat: number; lng: number } | null;
-};
-
-export type ServiceItem = {
-  id: number;
-  name: string;
-  description: string | null;
-  baseDurationMin: number;
-  basePrice: number;
-  coverUrl: string | null;
-  locationIds: number[];
-};
-
-export type SpecialistItem = {
-  id: number;
-  name: string;
-  level: string | null;
-  locationIds: number[];
-  coverUrl: string | null;
-};
-
-export type PromoItem = {
-  id: number;
-  name: string;
-  type: "PERCENT" | "FIXED" | "BUNDLE";
-  value: number;
-  startsAt: string | null;
-  endsAt: string | null;
-  isActive: boolean;
-  codes: string[];
-};
-
-export type WorkPhotos = {
-  locations: Array<{ entityId: string; url: string }>;
-  services: Array<{ entityId: string; url: string }>;
-  specialists: Array<{ entityId: string; url: string }>;
-};
-
-export type PublicSiteData = {
-  account: { id: number; name: string; slug: string; timeZone: string };
-  publicSlug: string;
-  draft: SiteDraft;
-  accountProfile: AccountProfile;
-  branding: Branding;
-  locations: LocationItem[];
-  services: ServiceItem[];
-  specialists: SpecialistItem[];
-  promos: PromoItem[];
-  workPhotos: WorkPhotos;
-};
-
 export async function loadPublicData(publicSlug: string): Promise<PublicSiteData | null> {
   const parsed = parsePublicSlugId(publicSlug);
   if (!parsed) return null;
