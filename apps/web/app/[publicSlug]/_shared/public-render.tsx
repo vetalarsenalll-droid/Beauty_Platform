@@ -948,15 +948,22 @@ function renderCover(
     typeof data.coverSliderArrowOutlineColor === "string"
       ? data.coverSliderArrowOutlineColor.trim()
       : "";
-  const sliderArrowOutlineColor =
+  const sliderArrowOutlineColorCandidate =
     sliderArrowOutlineColorRaw && isValidColorValue(sliderArrowOutlineColorRaw)
       ? sliderArrowOutlineColorRaw
-      : "transparent";
+      : "";
   const sliderArrowOutlineThicknessRaw = Number(data.coverSliderArrowOutlineThickness);
   const sliderArrowOutlineThickness =
     Number.isFinite(sliderArrowOutlineThicknessRaw) && sliderArrowOutlineThicknessRaw > 0
       ? Math.max(1, Math.min(8, Math.round(sliderArrowOutlineThicknessRaw)))
       : 1;
+  const sliderArrowOutlineColor =
+    sliderArrowOutlineColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : sliderArrowOutlineColorCandidate || sliderArrowColor;
+  const sliderArrowShowOutline =
+    sliderArrowOutlineColor !== "transparent" ||
+    sliderArrowOutlineThickness !== 1;
   const sliderDotSizeRaw = Number(data.coverSliderDotSize);
   const sliderDotSize =
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
@@ -1115,7 +1122,7 @@ function renderCover(
         arrowHoverColor={sliderArrowHoverColor}
         arrowBgColor={sliderArrowBgColor}
         arrowHoverBgColor={sliderArrowHoverBgColor}
-        arrowShowOutline={sliderArrowOutlineColor !== "transparent"}
+        arrowShowOutline={sliderArrowShowOutline}
         arrowOutlineColor={sliderArrowOutlineColor}
         arrowOutlineThickness={sliderArrowOutlineThickness}
         dotSize={sliderDotSize}

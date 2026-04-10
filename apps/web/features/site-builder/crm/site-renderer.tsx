@@ -2139,6 +2139,8 @@ function CoverVariantV2Hero({
   const hoverArrowBg = arrowHoverBgColor || arrowBgColor;
   const baseArrowColor = arrowColor;
   const hoverArrowColor = arrowHoverColor || arrowColor;
+  const effectiveOutlineColor =
+    arrowOutlineColor && arrowOutlineColor !== "transparent" ? arrowOutlineColor : baseArrowColor;
 
   return (
     <section
@@ -2247,7 +2249,7 @@ function CoverVariantV2Hero({
               color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
               backgroundColor: hoveredArrow === "prev" ? hoverArrowBg : baseArrowBg,
               borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
-              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
+              borderColor: arrowShowOutline ? effectiveOutlineColor : "transparent",
               borderStyle: "solid",
               fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
               lineHeight: 1,
@@ -2261,7 +2263,7 @@ function CoverVariantV2Hero({
               className="mx-auto"
               style={{ width: arrowPx * 0.5, height: arrowPx * 0.5 }}
               fill="none"
-              stroke="currentColor"
+              stroke={hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor}
               strokeWidth={arrowThickness}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -2280,7 +2282,7 @@ function CoverVariantV2Hero({
               color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
               backgroundColor: hoveredArrow === "next" ? hoverArrowBg : baseArrowBg,
               borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
-              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
+              borderColor: arrowShowOutline ? effectiveOutlineColor : "transparent",
               borderStyle: "solid",
               fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
               lineHeight: 1,
@@ -2294,7 +2296,7 @@ function CoverVariantV2Hero({
               className="mx-auto"
               style={{ width: arrowPx * 0.5, height: arrowPx * 0.5 }}
               fill="none"
-              stroke="currentColor"
+              stroke={hoveredArrow === "next" ? hoverArrowColor : baseArrowColor}
               strokeWidth={arrowThickness}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -2546,15 +2548,22 @@ export function renderCover(
     typeof data.coverSliderArrowOutlineColor === "string"
       ? data.coverSliderArrowOutlineColor.trim()
       : "";
-  const sliderArrowOutlineColor =
+  const sliderArrowOutlineColorCandidate =
     sliderArrowOutlineColorRaw && isValidColorValue(sliderArrowOutlineColorRaw)
       ? sliderArrowOutlineColorRaw
-      : "transparent";
+      : "";
   const sliderArrowOutlineThicknessRaw = Number(data.coverSliderArrowOutlineThickness);
   const sliderArrowOutlineThickness =
     Number.isFinite(sliderArrowOutlineThicknessRaw) && sliderArrowOutlineThicknessRaw > 0
       ? Math.max(1, Math.min(8, Math.round(sliderArrowOutlineThicknessRaw)))
       : 1;
+  const sliderArrowOutlineColor =
+    sliderArrowOutlineColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : sliderArrowOutlineColorCandidate || sliderArrowColor;
+  const sliderArrowShowOutline =
+    sliderArrowOutlineColor !== "transparent" ||
+    sliderArrowOutlineThickness !== 1;
   const sliderDotSizeRaw = Number(data.coverSliderDotSize);
   const sliderDotSize =
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
@@ -2688,7 +2697,7 @@ export function renderCover(
         arrowHoverColor={sliderArrowHoverColor}
         arrowBgColor={sliderArrowBgColor}
         arrowHoverBgColor={sliderArrowHoverBgColor}
-        arrowShowOutline={sliderArrowOutlineColor !== "transparent"}
+        arrowShowOutline={sliderArrowShowOutline}
         arrowOutlineColor={sliderArrowOutlineColor}
         arrowOutlineThickness={sliderArrowOutlineThickness}
         dotSize={sliderDotSize}

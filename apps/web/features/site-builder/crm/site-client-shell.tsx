@@ -482,7 +482,7 @@ export default function SiteClient({
                 title="Открыть список страниц"
               >
                 {currentPageTitle}
-                <span className="text-sm leading-none">{pagesMenuOpen ? "?" : "?"}</span>
+                <span className="text-sm leading-none">{pagesMenuOpen ? "▴" : "▾"}</span>
               </button>
               {pagesMenuOpen && (
                 <div className="absolute left-0 top-full z-[300] w-[360px] rounded-xl border border-[color:var(--bp-stroke)] bg-white p-3 text-[color:var(--bp-ink)] shadow-[var(--bp-shadow)]">
@@ -882,7 +882,7 @@ export default function SiteClient({
                           aria-label="Переместить вверх"
                           title="Вверх"
                         >
-                          ^
+                          ↑
                         </button>
                         <button
                           type="button"
@@ -891,7 +891,7 @@ export default function SiteClient({
                           aria-label="Переместить вниз"
                           title="Вниз"
                         >
-                          v
+                          ↓
                         </button>
                         <button
                           type="button"
@@ -900,7 +900,7 @@ export default function SiteClient({
                           aria-label="Удалить блок"
                           title="Удалить"
                         >
-                          ?
+                          🗑
                         </button>
                       </div>
                     )}

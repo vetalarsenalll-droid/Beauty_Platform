@@ -293,9 +293,11 @@ export function SiteCoverDrawerSections({
   if (coverDrawerKey === "button") {
     return (
       <div className="space-y-4 pb-10">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Первая кнопка
-        </div>
+        {selectedBlock.variant !== "v2" ? (
+          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+            Первая кнопка
+          </div>
+        ) : null}
         {renderCoverFlatTextInput(
           "Текст кнопки",
           String((selectedBlock.data as Record<string, unknown>).buttonText ?? "Записаться"),

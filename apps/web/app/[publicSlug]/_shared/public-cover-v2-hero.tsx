@@ -136,6 +136,8 @@ export default function PublicCoverV2Hero({
   const hoverArrowBg = arrowHoverBgColor || arrowBgColor;
   const baseArrowColor = arrowColor;
   const hoverArrowColor = arrowHoverColor || arrowColor;
+  const effectiveOutlineColor =
+    arrowOutlineColor && arrowOutlineColor !== "transparent" ? arrowOutlineColor : baseArrowColor;
 
   return (
     <section
@@ -243,7 +245,7 @@ export default function PublicCoverV2Hero({
               backgroundColor: hoveredArrow === "prev" ? hoverArrowBg : baseArrowBg,
               color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
               borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
-              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
+              borderColor: arrowShowOutline ? effectiveOutlineColor : "transparent",
               borderStyle: "solid",
             }}
             aria-label="Предыдущий слайд"
@@ -255,7 +257,7 @@ export default function PublicCoverV2Hero({
               className="mx-auto"
               style={{ width: arrowPx * 0.5, height: arrowPx * 0.5 }}
               fill="none"
-              stroke="currentColor"
+              stroke={hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor}
               strokeWidth={arrowThickness}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -274,7 +276,7 @@ export default function PublicCoverV2Hero({
               backgroundColor: hoveredArrow === "next" ? hoverArrowBg : baseArrowBg,
               color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
               borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
-              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
+              borderColor: arrowShowOutline ? effectiveOutlineColor : "transparent",
               borderStyle: "solid",
             }}
             aria-label="Следующий слайд"
@@ -286,7 +288,7 @@ export default function PublicCoverV2Hero({
               className="mx-auto"
               style={{ width: arrowPx * 0.5, height: arrowPx * 0.5 }}
               fill="none"
-              stroke="currentColor"
+              stroke={hoveredArrow === "next" ? hoverArrowColor : baseArrowColor}
               strokeWidth={arrowThickness}
               strokeLinecap="round"
               strokeLinejoin="round"

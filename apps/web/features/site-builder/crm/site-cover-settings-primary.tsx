@@ -93,7 +93,7 @@ export function SiteCoverSettingsPrimary({
             style={{ borderColor: panelTheme.border }}
           >
             <span>{coverGridSpan} колонок</span>
-            <span className="text-sm leading-none">{coverWidthModalOpen ? "?" : "?"}</span>
+            <span className="text-sm leading-none">{coverWidthModalOpen ? "▴" : "▾"}</span>
           </button>
           {coverWidthModalOpen && (
             <div
