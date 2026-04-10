@@ -1146,6 +1146,9 @@ export function BlockEditor({
                         const isUploading = Boolean(coverSlideUploadingById[slideId]);
                         const uploadError = coverSlideUploadErrorById[slideId] ?? "";
                         const imageUrl = String(slide.imageUrl ?? "").trim();
+                        const imageFileName = imageUrl
+                          ? imageUrl.split("?")[0]?.split("/").pop() ?? imageUrl
+                          : "";
                         return (
                           <div
                             key={slideId}
@@ -1219,19 +1222,10 @@ export function BlockEditor({
                             </label>
                             <div className="space-y-2">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                                Изображение карточки
+                                Изображение
                               </div>
-                              {imageUrl ? (
-                                <div className="overflow-hidden rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
-                                  <img src={imageUrl} alt="" className="h-36 w-full object-cover" />
-                                </div>
-                              ) : (
-                                <div className="rounded-lg border border-dashed border-[color:var(--bp-stroke)] px-3 py-6 text-center text-xs text-[color:var(--bp-muted)]">
-                                  Изображение не выбрано
-                                </div>
-                              )}
                               <div className="flex items-center gap-2">
-                                <label className="inline-flex cursor-pointer items-center justify-center border border-[color:var(--bp-stroke)] px-3 py-2 text-sm">
+                                <label className="inline-flex cursor-pointer items-center justify-center rounded-md bg-[#111827] px-5 py-2 text-sm font-medium text-white">
                                   <input
                                     type="file"
                                     accept="image/*,.heic,.heif"
@@ -1245,16 +1239,41 @@ export function BlockEditor({
                                   />
                                   {isUploading ? "Загрузка..." : "Загрузить файл"}
                                 </label>
-                                {imageUrl ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => updateSlide({ imageUrl: "" })}
-                                    className="inline-flex items-center justify-center border border-[color:var(--bp-stroke)] px-3 py-2 text-sm"
-                                  >
-                                    Удалить
-                                  </button>
-                                ) : null}
                               </div>
+                              {imageUrl ? (
+                                <div className="flex items-center gap-3 py-1">
+                                  <img src={imageUrl} alt="" className="h-20 w-32 rounded-md object-cover" />
+                                  <div className="min-w-0 flex-1 text-xs text-[color:var(--bp-muted)]">
+                                    <div className="truncate">{imageFileName}</div>
+                                  </div>
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => updateSlide({ imageUrl: "" })}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        updateSlide({ imageUrl: "" });
+                                      }
+                                    }}
+                                    className="inline-flex cursor-pointer items-center justify-center text-black"
+                                    aria-label="Удалить изображение"
+                                  >
+                                    <svg
+                                      viewBox="0 0 448 512"
+                                      className="h-4 w-4"
+                                      fill="currentColor"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path d="M166.2-16c-13.3 0-25.3 8.3-30 20.8L120 48H24C10.7 48 0 58.7 0 72s10.7 24 24 24h400c13.3 0 24-10.7 24-24s-10.7-24-24-24h-96L311.8 4.8c-4.7-12.5-16.6-20.8-30-20.8zM32 144v304c0 35.3 28.7 64 64 64h256c35.3 0 64-28.7 64-64V144h-48v304c0 8.8-7.2 16-16 16H96c-8.8 0-16-7.2-16-16V144zm160 72c0-13.3-10.7-24-24-24s-24 10.7-24 24v176c0 13.3 10.7 24 24 24s24-10.7 24-24zm112 0c0-13.3-10.7-24-24-24s-24 10.7-24 24v176c0 13.3 10.7 24 24 24s24-10.7 24-24z" />
+                                    </svg>
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="rounded-md border border-dashed border-[color:var(--bp-stroke)] px-3 py-4 text-center text-xs text-[color:var(--bp-muted)]">
+                                  Изображение не выбрано
+                                </div>
+                              )}
                               {uploadError ? (
                                 <div className="text-xs text-[#c2410c]">{uploadError}</div>
                               ) : null}
