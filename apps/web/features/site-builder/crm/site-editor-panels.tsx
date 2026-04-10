@@ -776,12 +776,30 @@ export function BlockEditor({
           </div>
           <select
             value={block.variant}
-            onChange={(event) =>
-              onChange({
+            onChange={(event) => {
+              const nextVariant = event.target.value as "v1" | "v2" | "v3" | "v4" | "v5";
+              let nextBlock: SiteBlock = {
                 ...block,
-                variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
-              })
-            }
+                variant: nextVariant,
+              };
+              if (block.type === "cover" && nextVariant === "v2") {
+                const nextData = { ...(block.data as Record<string, unknown>) };
+                const nextStyle =
+                  typeof nextData.style === "object" && nextData.style ? nextData.style : {};
+                nextData.align = "center";
+                nextData.style = {
+                  ...nextStyle,
+                  textAlign: "center",
+                  textAlignHeading: "center",
+                  textAlignSubheading: "center",
+                };
+                nextBlock = {
+                  ...nextBlock,
+                  data: nextData,
+                };
+              }
+              onChange(nextBlock);
+            }}
             className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
           >
             {variantOptions.map((variant) => (
@@ -3307,33 +3325,43 @@ export function BlockStyleEditor({
             [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
           )}
 
-          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Подзаголовок</div>
-          <TildaInlineColorField
-            label="Цвет"
-            value={coverSubtitleColorInput}
-            onChange={(value) => updateCoverData({ coverSubtitleColor: value })}
-            onClear={() => updateCoverData({ coverSubtitleColor: "transparent" })}
-            placeholder="#ffffff"
-            compact
-          />
-          {renderFlatNumber(
-            "Размер шрифта",
-            style.subheadingSize ?? theme.subheadingSize,
-            0,
-            100,
-            (value) => update({ subheadingSize: value })
-          )}
-          {renderFlatSelect(
-            "Шрифт",
-            style.fontSubheading || "",
-            (value) => update({ fontSubheading: value }),
-            [{ value: "", label: "По умолчанию" }, ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label }))]
-          )}
-          {renderFlatSelect(
-            "Насыщенность",
-            style.fontWeightSubheading?.toString() || "",
-            (value) => update({ fontWeightSubheading: value ? Number(value) : null }),
-            [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
+          {block.variant !== "v2" && (
+            <>
+              <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Подзаголовок</div>
+              <TildaInlineColorField
+                label="Цвет"
+                value={coverSubtitleColorInput}
+                onChange={(value) => updateCoverData({ coverSubtitleColor: value })}
+                onClear={() => updateCoverData({ coverSubtitleColor: "transparent" })}
+                placeholder="#ffffff"
+                compact
+              />
+              {renderFlatNumber(
+                "Размер шрифта",
+                style.subheadingSize ?? theme.subheadingSize,
+                0,
+                100,
+                (value) => update({ subheadingSize: value })
+              )}
+              {renderFlatSelect(
+                "Шрифт",
+                style.fontSubheading || "",
+                (value) => update({ fontSubheading: value }),
+                [
+                  { value: "", label: "По умолчанию" },
+                  ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label })),
+                ]
+              )}
+              {renderFlatSelect(
+                "Насыщенность",
+                style.fontWeightSubheading?.toString() || "",
+                (value) => update({ fontWeightSubheading: value ? Number(value) : null }),
+                [
+                  { value: "", label: "По умолчанию" },
+                  ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+                ]
+              )}
+            </>
           )}
 
           <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Описание</div>

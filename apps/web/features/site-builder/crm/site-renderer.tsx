@@ -2205,7 +2205,7 @@ function CoverVariantV2Hero({
           )}
           {current.buttonText && resolvedButtonHref && (
             <div
-              className="mt-7 flex"
+              className="mt-6 flex"
               style={{
                 justifyContent:
                   contentAlign === "center"
@@ -2221,13 +2221,10 @@ function CoverVariantV2Hero({
                 style={{
                   ...buttonStyle(style, theme),
                   color: "#ffffff",
-                  minHeight: "clamp(46px, 6cqw, 54px)",
-                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
-                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                  fontSize: `clamp(${subheadingMobileSize}px, 3.2cqw, ${Math.max(
-                    subheadingMobileSize,
-                    subheadingDesktopSize
-                  )}px)`,
+                  minHeight: "clamp(40px, 5.2cqw, 48px)",
+                  paddingInline: "clamp(18px, 3cqw, 30px)",
+                  paddingBlock: "clamp(8px, 1.1cqw, 11px)",
+                  fontSize: "clamp(14px, 2.6cqw, 16px)",
                 }}
               >
                 {current.buttonText}

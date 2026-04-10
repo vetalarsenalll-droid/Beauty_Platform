@@ -172,6 +172,23 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
             : currentStyle,
       };
     }
+    if (type === "cover" && targetVariant === "v2") {
+      const currentStyle =
+        typeof (block.data as Record<string, unknown>).style === "object" &&
+        (block.data as Record<string, unknown>).style
+          ? { ...((block.data as Record<string, unknown>).style as Record<string, unknown>) }
+          : { ...defaultBlockStyle };
+      block.data = {
+        ...block.data,
+        align: "center",
+        style: {
+          ...currentStyle,
+          textAlign: "center",
+          textAlignHeading: "center",
+          textAlignSubheading: "center",
+        },
+      };
+    }
     if (variant) block.variant = variant;
 
     if (type === "menu" && args.activePage !== "home") {
