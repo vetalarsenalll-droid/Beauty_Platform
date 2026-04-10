@@ -1154,6 +1154,7 @@ export default function SiteClient({
                     coverArrow={coverArrow as "none" | "down"}
                     coverArrowColor={coverArrowColor}
                     coverArrowAnimated={coverArrowAnimated}
+                    isCoverVariantV2={selectedBlock?.variant === "v2"}
                     coverDrawerKey={coverDrawerKey}
                     setCoverDrawerKey={setCoverDrawerKey}
                     coverBackgroundPosition={coverBackgroundPosition}
@@ -1205,106 +1206,107 @@ export default function SiteClient({
                   ))
                 )}
 
-            {(rightPanel === "settings" &&
-              ((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
-                (isCoverSettingsPanel && coverDrawerKey && selectedBlock))) && (
-              <aside
-                className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
-                  isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
-                } ${
-                  activeTheme.mode === "dark"
-                    ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
-                    : ""
-                }`}
-                style={{
-                  top: floatingPanelsTop,
-                  bottom: 0,
-                  left: 360,
-                  borderColor: panelTheme.border,
-                  backgroundColor: panelTheme.panel,
-                  color: panelTheme.text,
-                  accentColor: panelTheme.accent,
-                  colorScheme: activeTheme.mode,
-                }}
-              >
-                <div
-                  className="sticky top-0 z-20 flex h-12 items-center justify-between border-b px-4"
-                  style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
-                >
-                  <div className="w-8" />
-                  <div className="text-sm font-semibold">
-                    {isCoverSettingsPanel
-                      ? (coverDrawerKey === "typography"
-                          ? "Типографика"
-                          : coverDrawerKey === "button"
-                            ? "Кнопка"
-                            : "Анимация")
-                      : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
-                  </div>
-                  <div className="w-8" />
-                </div>
-                <div
-                  className={`h-full p-4 ${
-                    rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography"
-                      ? "pb-20"
-                      : ""
-                  }`}
-                  style={{
-                    backgroundColor: panelTheme.panel,
-                    color: panelTheme.text,
-                  }}
-                >
-                  {rightPanel === "settings" &&
-                    !isCoverSettingsPanel &&
-                    selectedBlock?.type === "menu" &&
-                    activePanelSectionId === "button" && (
-                      <SiteMenuButtonDrawer
-                        selectedBlock={selectedBlock}
-                        activeTheme={activeTheme}
-                        accountProfile={accountProfile}
-                        updateBlock={updateBlock}
-                      />
-                    )}
-                  {rightPanel === "settings" &&
-                    !isCoverSettingsPanel &&
-                    !(selectedBlock?.type === "menu" && activePanelSectionId === "button") && (
-                      <BlockStyleEditor
-                        block={selectedBlock}
-                        theme={activeTheme}
-                        activeSectionId={activePanelSectionId ?? ""}
-                        onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                      />
-                    )}
-                  {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography" && (
-                    <BlockStyleEditor
-                      block={selectedBlock}
-                      theme={activeTheme}
-                      activeSectionId="typography"
-                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                    />
-                  )}
-                  {rightPanel === "settings" &&
-                    isCoverSettingsPanel &&
-                    (coverDrawerKey === "button" || coverDrawerKey === "animation") && (
-                      <SiteCoverDrawerSections
-                        coverDrawerKey={coverDrawerKey}
-                        selectedBlock={selectedBlock}
-                        activeTheme={activeTheme}
-                        coverStyle={coverStyle}
-                        coverShowSecondaryButton={coverShowSecondaryButton}
-                        coverPrimaryButtonBorderColor={coverPrimaryButtonBorderColor}
-                        coverSecondaryButtonColor={coverSecondaryButtonColor}
-                        coverSecondaryButtonTextColor={coverSecondaryButtonTextColor}
-                        coverSecondaryButtonBorderColor={coverSecondaryButtonBorderColor}
-                        coverSecondaryButtonRadius={coverSecondaryButtonRadius}
-                        updateSelectedCoverStyle={updateSelectedCoverStyle}
-                        updateSelectedCoverData={updateSelectedCoverData}
-                      />
-                    )}
-                </div>
-              </aside>
-            )}
         </SiteRightPanelFrame>
+
+        {(rightPanel === "settings" &&
+          ((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
+            (isCoverSettingsPanel && coverDrawerKey && selectedBlock))) && (
+          <aside
+            className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+              isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+            } ${
+              activeTheme.mode === "dark"
+                ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+                : ""
+            }`}
+            style={{
+              top: floatingPanelsTop,
+              bottom: 0,
+              left: 360,
+              borderColor: panelTheme.border,
+              backgroundColor: panelTheme.panel,
+              color: panelTheme.text,
+              accentColor: panelTheme.accent,
+              colorScheme: activeTheme.mode,
+            }}
+          >
+            <div
+              className="sticky top-0 z-20 flex h-12 items-center justify-between border-b px-4"
+              style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
+            >
+              <div className="w-8" />
+              <div className="text-sm font-semibold">
+                {isCoverSettingsPanel
+                  ? (coverDrawerKey === "typography"
+                      ? "Типографика"
+                      : coverDrawerKey === "button"
+                        ? "Кнопка"
+                        : "Анимация")
+                  : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
+              </div>
+              <div className="w-8" />
+            </div>
+            <div
+              className={`h-full p-4 ${
+                rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography"
+                  ? "pb-20"
+                  : ""
+              }`}
+              style={{
+                backgroundColor: panelTheme.panel,
+                color: panelTheme.text,
+              }}
+            >
+              {rightPanel === "settings" &&
+                !isCoverSettingsPanel &&
+                selectedBlock?.type === "menu" &&
+                activePanelSectionId === "button" && (
+                  <SiteMenuButtonDrawer
+                    selectedBlock={selectedBlock}
+                    activeTheme={activeTheme}
+                    accountProfile={accountProfile}
+                    updateBlock={updateBlock}
+                  />
+                )}
+              {rightPanel === "settings" &&
+                !isCoverSettingsPanel &&
+                !(selectedBlock?.type === "menu" && activePanelSectionId === "button") && (
+                  <BlockStyleEditor
+                    block={selectedBlock}
+                    theme={activeTheme}
+                    activeSectionId={activePanelSectionId ?? ""}
+                    onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                  />
+                )}
+              {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography" && (
+                <BlockStyleEditor
+                  block={selectedBlock}
+                  theme={activeTheme}
+                  activeSectionId="typography"
+                  onChange={(next) => updateBlock(selectedBlock.id, () => next)}
+                />
+              )}
+              {rightPanel === "settings" &&
+                isCoverSettingsPanel &&
+                (coverDrawerKey === "button" || coverDrawerKey === "animation") && (
+                  <SiteCoverDrawerSections
+                    coverDrawerKey={coverDrawerKey}
+                    selectedBlock={selectedBlock}
+                    activeTheme={activeTheme}
+                    coverStyle={coverStyle}
+                    coverShowSecondaryButton={coverShowSecondaryButton}
+                    coverPrimaryButtonBorderColor={coverPrimaryButtonBorderColor}
+                    coverSecondaryButtonColor={coverSecondaryButtonColor}
+                    coverSecondaryButtonTextColor={coverSecondaryButtonTextColor}
+                    coverSecondaryButtonBorderColor={coverSecondaryButtonBorderColor}
+                    coverSecondaryButtonRadius={coverSecondaryButtonRadius}
+                    updateSelectedCoverStyle={updateSelectedCoverStyle}
+                    updateSelectedCoverData={updateSelectedCoverData}
+                  />
+                )}
+            </div>
+          </aside>
+        )}
 
         <SiteRightPanelOverlays
           rightPanel={rightPanel}

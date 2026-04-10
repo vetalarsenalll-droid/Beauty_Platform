@@ -6,6 +6,7 @@ import SiteThemeToggle from "@/components/site-theme-toggle";
 import DetailsCloseButton from "@/components/details-close-button";
 import GallerySlider from "@/components/gallery-slider";
 import PublicParallaxLayer from "./public-parallax-layer";
+import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
@@ -574,6 +575,7 @@ export function renderBlock(
       return renderCover(
         block,
         accountName,
+        accountSlug,
         publicSlug,
         profile,
         branding,
@@ -755,6 +757,7 @@ function resolveEntities<T extends { id: number }>(
 function renderCover(
   block: SiteBlock,
   accountName: string,
+  accountSlug: string,
   publicSlug: string,
   profile: AccountProfile,
   branding: Branding,
@@ -771,6 +774,14 @@ function renderCover(
   const alignRaw = (data.align as string) ?? "left";
   const align = alignRaw === "center" || alignRaw === "right" ? alignRaw : "left";
   const contentAlign = style.textAlign ?? align;
+  const contentVerticalAlignRaw =
+    typeof data.coverContentVerticalAlign === "string"
+      ? data.coverContentVerticalAlign.trim().toLowerCase()
+      : "";
+  const contentVerticalAlign: "top" | "center" | "bottom" =
+    contentVerticalAlignRaw === "top" || contentVerticalAlignRaw === "bottom"
+      ? contentVerticalAlignRaw
+      : "center";
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const showSecondaryButton = Boolean(data.showSecondaryButton);
@@ -885,6 +896,132 @@ function renderCover(
     descriptionMobileSizeRaw <= 72
       ? Math.round(descriptionMobileSizeRaw)
       : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+  const sliderInfinite = data.coverSliderInfinite !== false;
+  const sliderShowArrows = data.coverSliderShowArrows !== false;
+  const sliderShowDots = data.coverSliderShowDots !== false;
+  const sliderAutoplayMsRaw = Number(data.coverSliderAutoplayMs);
+  const sliderAutoplayMs =
+    Number.isFinite(sliderAutoplayMsRaw) && sliderAutoplayMsRaw >= 0
+      ? Math.min(20000, Math.round(sliderAutoplayMsRaw))
+      : 0;
+  const sliderArrowSizeRaw = String(data.coverSliderArrowSize ?? "sm");
+  const sliderArrowSize: "sm" | "md" | "lg" | "xl" =
+    sliderArrowSizeRaw === "md" ||
+    sliderArrowSizeRaw === "lg" ||
+    sliderArrowSizeRaw === "xl"
+      ? sliderArrowSizeRaw
+      : "sm";
+  const sliderArrowThicknessRaw = Number(data.coverSliderArrowThickness);
+  const sliderArrowThickness =
+    Number.isFinite(sliderArrowThicknessRaw) && sliderArrowThicknessRaw > 0
+      ? Math.max(1, Math.min(8, Math.round(sliderArrowThicknessRaw)))
+      : 3;
+  const sliderArrowColorRaw =
+    typeof data.coverSliderArrowColor === "string" ? data.coverSliderArrowColor.trim() : "";
+  const sliderArrowColor =
+    sliderArrowColorRaw && isValidColorValue(sliderArrowColorRaw)
+      ? sliderArrowColorRaw
+      : "#222222";
+  const sliderArrowBgColorRaw =
+    typeof data.coverSliderArrowBgColor === "string" ? data.coverSliderArrowBgColor.trim() : "";
+  const sliderArrowBgColor =
+    sliderArrowBgColorRaw && isValidColorValue(sliderArrowBgColorRaw)
+      ? sliderArrowBgColorRaw
+      : "#ffffff";
+  const sliderDotSizeRaw = Number(data.coverSliderDotSize);
+  const sliderDotSize =
+    Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
+      ? Math.max(6, Math.min(24, Math.round(sliderDotSizeRaw)))
+      : 10;
+  const sliderDotColorRaw =
+    typeof data.coverSliderDotColor === "string" ? data.coverSliderDotColor.trim() : "";
+  const sliderDotColor =
+    sliderDotColorRaw && isValidColorValue(sliderDotColorRaw)
+      ? sliderDotColorRaw
+      : "#000000";
+  const sliderDotActiveColorRaw =
+    typeof data.coverSliderDotActiveColor === "string"
+      ? data.coverSliderDotActiveColor.trim()
+      : "";
+  const sliderDotActiveColor =
+    sliderDotActiveColorRaw && isValidColorValue(sliderDotActiveColorRaw)
+      ? sliderDotActiveColorRaw
+      : "#ffffff";
+  const sliderDotBorderWidthRaw = Number(data.coverSliderDotBorderWidth);
+  const sliderDotBorderWidth =
+    Number.isFinite(sliderDotBorderWidthRaw) && sliderDotBorderWidthRaw >= 0
+      ? Math.max(0, Math.min(6, Math.round(sliderDotBorderWidthRaw)))
+      : 2;
+  const sliderDotBorderColorRaw =
+    typeof data.coverSliderDotBorderColor === "string"
+      ? data.coverSliderDotBorderColor.trim()
+      : "";
+  const sliderDotBorderColor =
+    sliderDotBorderColorRaw && isValidColorValue(sliderDotBorderColorRaw)
+      ? sliderDotBorderColorRaw
+      : "#ffffff";
+  const resolvePageHref = (pageKey: PageKey): string => {
+    const basePath = publicSlug ? `/${publicSlug}` : "#";
+    if (pageKey === "home") return basePath;
+    if (pageKey === "booking") return `${basePath}/booking`;
+    if (pageKey === "client") return accountSlug ? `/c?account=${accountSlug}` : "/c/login";
+    return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
+  };
+  const rawSlides = Array.isArray(data.coverSlides)
+    ? (data.coverSlides as Array<Record<string, unknown>>)
+    : [];
+  const coverSlides: PublicCoverSlide[] = rawSlides
+    .map((slide, idx) => {
+      const slideTitle = typeof slide.title === "string" ? slide.title.trim() : "";
+      const slideDescription = typeof slide.description === "string" ? slide.description.trim() : "";
+      const slideButtonText = typeof slide.buttonText === "string" ? slide.buttonText.trim() : "";
+      const slideButtonPageRaw = typeof slide.buttonPage === "string" ? slide.buttonPage.trim() : "";
+      const slideButtonPage = (Object.keys(PAGE_LABELS) as PageKey[]).includes(slideButtonPageRaw as PageKey)
+        ? (slideButtonPageRaw as PageKey)
+        : null;
+      const slideButtonHref = typeof slide.buttonHref === "string" ? slide.buttonHref.trim() : "";
+      const slideImage = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
+      const resolvedButtonHref =
+        slideButtonPage
+          ? resolvePageHref(slideButtonPage)
+          : slideButtonHref.startsWith("#") ||
+              slideButtonHref.startsWith("/") ||
+              slideButtonHref.startsWith("mailto:") ||
+              slideButtonHref.startsWith("tel:") ||
+              slideButtonHref.startsWith("http://") ||
+              slideButtonHref.startsWith("https://")
+            ? slideButtonHref
+            : slideButtonHref
+              ? normalizeExternalHref(slideButtonHref)
+              : publicSlug
+                ? buildBookingLink({ publicSlug })
+                : "#";
+      return {
+        id:
+          typeof slide.id === "string" && slide.id.trim()
+            ? slide.id.trim()
+            : `slide-${idx + 1}`,
+        title: slideTitle || title,
+        description: slideDescription || description || subtitle,
+        buttonText: slideButtonText || buttonText || "Подробнее",
+        buttonHref: resolvedButtonHref,
+        imageUrl: slideImage || null,
+      };
+    })
+    .filter((slide) => Boolean(slide.title || slide.description || slide.buttonText || slide.imageUrl));
+  const normalizedCoverSlides =
+    coverSlides.length > 0
+      ? coverSlides
+      : [
+          {
+            id: "slide-fallback",
+            title: title || accountName,
+            description: description || subtitle,
+            buttonText: buttonText || "Подробнее",
+            buttonHref: publicSlug ? buildBookingLink({ publicSlug }) : "#",
+            imageUrl: null,
+          },
+        ];
   const contentColumns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover");
   const contentRange = centeredGridRange(contentColumns);
   const gridStart = clampGridColumn(style.gridStartColumn ?? contentRange.start);
@@ -896,6 +1033,41 @@ function renderCover(
     filterStartColor,
     filterStartOpacity / 100
   )}, ${hexToRgbaString(filterEndColor, filterEndOpacity / 100)})`;
+
+  if (block.variant === "v2") {
+    return (
+      <PublicCoverV2Hero
+        slides={normalizedCoverSlides}
+        contentAlign={contentAlign}
+        contentVerticalAlign={contentVerticalAlign}
+        contentMaxWidth={gridWidthPercent}
+        contentMarginLeft={gridLeftPercent}
+        coverHeightCss={coverHeightCss}
+        filterOverlay={overlayGradient}
+        showArrows={sliderShowArrows}
+        showDots={sliderShowDots}
+        infinite={sliderInfinite}
+        autoplayMs={sliderAutoplayMs}
+        arrowSize={sliderArrowSize}
+        arrowThickness={sliderArrowThickness}
+        arrowColor={sliderArrowColor}
+        arrowBgColor={sliderArrowBgColor}
+        dotSize={sliderDotSize}
+        dotColor={sliderDotColor}
+        dotActiveColor={sliderDotActiveColor}
+        dotBorderWidth={sliderDotBorderWidth}
+        dotBorderColor={sliderDotBorderColor}
+        headingCss={headingStyle(style)}
+        textCss={textStyle(style)}
+        buttonCss={buttonStyle(style)}
+        headingDesktopSize={headingDesktopSize}
+        headingMobileSize={headingMobileSize}
+        textDesktopSize={textDesktopSize}
+        textMobileSize={textMobileSize}
+        descriptionColor={descriptionColor}
+      />
+    );
+  }
   const backgroundStyle = imageUrl
     ? {
         backgroundImage: `url(${imageUrl})`,

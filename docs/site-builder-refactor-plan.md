@@ -223,3 +223,21 @@
     - Onboarding path documented end-to-end.
   - Validation:
     - targeted TypeScript check for touched CRM modules reports no errors in refactored files.
+- Phase 4 continued (Cover v2 hardening by UX feedback):
+  - Updated `Главный экран / Вариант 2` editor and renderer according to requested behavior.
+  - `apps/web/features/site-builder/crm/site-editor-panels.tsx`:
+    - Removed fallback cover-image block from `v2` media section (no "Фоновое изображение / Своё изображение" for v2).
+    - In each slide card replaced `URL изображения` with direct file upload (`/api/v1/crm/account/media`, type `siteCover`) + preview + delete.
+    - Replaced button URL text input with page selector (`PAGE_KEYS`/`PAGE_LABELS`).
+    - Added layout controls for cover content positioning:
+      - horizontal (`Слева/По центру/Справа`)
+      - vertical (`Сверху/По центру/Снизу`).
+  - `apps/web/features/site-builder/crm/site-renderer.tsx`:
+    - Added page-key to href resolution for slide button links.
+    - Removed slide image fallback to lower cover image for `v2` (slide now uses only its own image).
+    - Added vertical content alignment support via `coverContentVerticalAlign`.
+    - Replaced legacy English placeholder strings with Russian display fallbacks.
+  - `apps/web/features/site-builder/crm/site-client-core.ts`:
+    - Updated default `coverSlides` content to Russian and added page-key defaults for slide buttons.
+  - Validation:
+    - targeted TypeScript check for touched CRM modules reports no errors in refactored files.

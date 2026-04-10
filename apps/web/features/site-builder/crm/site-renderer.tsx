@@ -1990,6 +1990,306 @@ export function IconMenu() {
   );
 }
 
+type CoverSlideItem = {
+  id: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  buttonHref: string;
+  imageUrl: string | null;
+};
+
+function CoverVariantV2Hero({
+  slides,
+  style,
+  theme,
+  contentAlign,
+  contentVerticalAlign,
+  contentMaxWidth,
+  contentMarginLeft,
+  coverHeightCss,
+  filterOverlay,
+  showArrows,
+  showDots,
+  infinite,
+  autoplayMs,
+  arrowSize,
+  arrowThickness,
+  arrowColor,
+  arrowBgColor,
+  dotSize,
+  dotColor,
+  dotActiveColor,
+  dotBorderWidth,
+  dotBorderColor,
+  subtitleColor,
+  descriptionColor,
+  headingDesktopSize,
+  subheadingDesktopSize,
+  textDesktopSize,
+  headingMobileSize,
+  subheadingMobileSize,
+  textMobileSize,
+}: {
+  slides: CoverSlideItem[];
+  style: BlockStyle;
+  theme: SiteTheme;
+  contentAlign: "left" | "center" | "right";
+  contentVerticalAlign: "top" | "center" | "bottom";
+  contentMaxWidth: string;
+  contentMarginLeft: string | number;
+  coverHeightCss: string;
+  filterOverlay: string;
+  showArrows: boolean;
+  showDots: boolean;
+  infinite: boolean;
+  autoplayMs: number;
+  arrowSize: "sm" | "md" | "lg" | "xl";
+  arrowThickness: number;
+  arrowColor: string;
+  arrowBgColor: string;
+  dotSize: number;
+  dotColor: string;
+  dotActiveColor: string;
+  dotBorderWidth: number;
+  dotBorderColor: string;
+  subtitleColor: string;
+  descriptionColor: string;
+  headingDesktopSize: number;
+  subheadingDesktopSize: number;
+  textDesktopSize: number;
+  headingMobileSize: number;
+  subheadingMobileSize: number;
+  textMobileSize: number;
+}) {
+  const [index, setIndex] = useState(0);
+  const canSlide = slides.length > 1;
+
+  useEffect(() => {
+    if (slides.length === 0) {
+      setIndex(0);
+      return;
+    }
+    if (index >= slides.length) {
+      setIndex(slides.length - 1);
+    }
+  }, [index, slides.length]);
+
+  useEffect(() => {
+    if (!canSlide || autoplayMs <= 0) return;
+    const timer = setInterval(() => {
+      setIndex((prev) => {
+        if (infinite) return (prev + 1) % slides.length;
+        if (prev >= slides.length - 1) return prev;
+        return prev + 1;
+      });
+    }, autoplayMs);
+    return () => clearInterval(timer);
+  }, [autoplayMs, canSlide, infinite, slides.length]);
+
+  const current = slides[index] ?? slides[0];
+  if (!current) return null;
+
+  const arrowSizeMap = { sm: 40, md: 48, lg: 56, xl: 64 } as const;
+  const arrowPx = arrowSizeMap[arrowSize] ?? 40;
+  const canGoPrev = infinite || index > 0;
+  const canGoNext = infinite || index < slides.length - 1;
+  const goPrev = () => {
+    if (!canGoPrev) return;
+    setIndex((prev) => {
+      if (infinite) return (prev - 1 + slides.length) % slides.length;
+      return Math.max(0, prev - 1);
+    });
+  };
+  const goNext = () => {
+    if (!canGoNext) return;
+    setIndex((prev) => {
+      if (infinite) return (prev + 1) % slides.length;
+      return Math.min(slides.length - 1, prev + 1);
+    });
+  };
+
+  const buttonHref = current.buttonHref.trim();
+  const resolvedButtonHref =
+    buttonHref.startsWith("#") ||
+    buttonHref.startsWith("/") ||
+    buttonHref.startsWith("mailto:") ||
+    buttonHref.startsWith("tel:") ||
+    buttonHref.startsWith("http://") ||
+    buttonHref.startsWith("https://")
+      ? buttonHref
+      : buttonHref
+        ? normalizeExternalHref(buttonHref)
+        : "";
+
+  return (
+    <section
+      className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      style={{
+        minHeight: coverHeightCss,
+        backgroundImage: current.imageUrl ? `url(${current.imageUrl})` : "none",
+        backgroundSize: "cover",
+        backgroundPosition: "center center",
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
+      <div
+        className="relative z-[1] mx-auto flex w-full"
+        style={{
+          minHeight: coverHeightCss,
+          alignItems:
+            contentVerticalAlign === "top"
+              ? "flex-start"
+              : contentVerticalAlign === "bottom"
+                ? "flex-end"
+                : "center",
+        }}
+      >
+        <div
+          className="w-full"
+          style={{
+            maxWidth: contentMaxWidth,
+            marginLeft: contentMarginLeft,
+            marginRight: 0,
+          }}
+        >
+          <h2
+            className="text-white leading-[1.08] tracking-[-0.01em]"
+            style={{
+              ...headingStyle(style, theme),
+              textAlign: contentAlign,
+              fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+                headingMobileSize,
+                headingDesktopSize
+              )}px)`,
+            }}
+          >
+            {current.title}
+          </h2>
+          {current.description && (
+            <p
+              className="mt-5 max-w-[760px] text-white/80 leading-[1.45]"
+              style={{
+                ...textStyle(style, theme),
+                textAlign: contentAlign,
+                color: descriptionColor || subtitleColor,
+                marginLeft:
+                  contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
+                marginRight: contentAlign === "center" ? "auto" : 0,
+                fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+                  textMobileSize,
+                  textDesktopSize
+                )}px)`,
+              }}
+            >
+              {current.description}
+            </p>
+          )}
+          {current.buttonText && resolvedButtonHref && (
+            <div
+              className="mt-7 flex"
+              style={{
+                justifyContent:
+                  contentAlign === "center"
+                    ? "center"
+                    : contentAlign === "right"
+                      ? "flex-end"
+                      : "flex-start",
+              }}
+            >
+              <a
+                href={resolvedButtonHref}
+                className="inline-flex items-center whitespace-nowrap font-semibold"
+                style={{
+                  ...buttonStyle(style, theme),
+                  color: "#ffffff",
+                  minHeight: "clamp(46px, 6cqw, 54px)",
+                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                  fontSize: `clamp(${subheadingMobileSize}px, 3.2cqw, ${Math.max(
+                    subheadingMobileSize,
+                    subheadingDesktopSize
+                  )}px)`,
+                }}
+              >
+                {current.buttonText}
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showArrows && canSlide && (
+        <>
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={!canGoPrev}
+            className="absolute left-6 top-1/2 z-[3] inline-flex -translate-y-1/2 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              width: arrowPx,
+              height: arrowPx,
+              color: arrowColor,
+              backgroundColor: arrowBgColor,
+              borderWidth: Math.max(1, Math.round(arrowThickness / 2)),
+              borderColor: "transparent",
+              borderStyle: "solid",
+              fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
+              lineHeight: 1,
+            }}
+            aria-label="Предыдущий слайд"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={!canGoNext}
+            className="absolute right-6 top-1/2 z-[3] inline-flex -translate-y-1/2 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              width: arrowPx,
+              height: arrowPx,
+              color: arrowColor,
+              backgroundColor: arrowBgColor,
+              borderWidth: Math.max(1, Math.round(arrowThickness / 2)),
+              borderColor: "transparent",
+              borderStyle: "solid",
+              fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
+              lineHeight: 1,
+            }}
+            aria-label="Следующий слайд"
+          >
+            ›
+          </button>
+        </>
+      )}
+
+      {showDots && canSlide && (
+        <div className="absolute bottom-6 left-1/2 z-[3] flex -translate-x-1/2 items-center gap-2">
+          {slides.map((slide, slideIndex) => (
+            <button
+              key={slide.id || `cover-slide-dot-${slideIndex}`}
+              type="button"
+              onClick={() => setIndex(slideIndex)}
+              className="rounded-full transition"
+              style={{
+                width: dotSize,
+                height: dotSize,
+                borderRadius: 999,
+                backgroundColor: slideIndex === index ? dotActiveColor : dotColor,
+                borderStyle: "solid",
+                borderWidth: dotBorderWidth,
+                borderColor: dotBorderColor,
+              }}
+              aria-label={`Слайд ${slideIndex + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function renderCover(
   block: SiteBlock,
   account: AccountInfo,
@@ -2009,6 +2309,14 @@ export function renderCover(
   const description = (data.description as string) || "";
   const align = (data.align as "left" | "center" | "right") ?? style.textAlign;
   const contentAlign = style.textAlign ?? align;
+  const contentVerticalAlignRaw =
+    typeof data.coverContentVerticalAlign === "string"
+      ? data.coverContentVerticalAlign.trim().toLowerCase()
+      : "";
+  const contentVerticalAlign: "top" | "center" | "bottom" =
+    contentVerticalAlignRaw === "top" || contentVerticalAlignRaw === "bottom"
+      ? contentVerticalAlignRaw
+      : "center";
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
   const menuButtonBorderColorRaw =
@@ -2104,6 +2412,16 @@ export function renderCover(
   const filterEndOpacity = Number.isFinite(Number(data.coverFilterEndOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacity)))
     : 60;
+  const toOverlayRgba = (color: string, opacity: number, fallbackHex: string) => {
+    if (color === "transparent") return "rgba(0, 0, 0, 0)";
+    const safeHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color) ? color : fallbackHex;
+    return hexToRgbaString(safeHex, opacity / 100);
+  };
+  const filterOverlay = `linear-gradient(180deg, ${toOverlayRgba(
+    filterStartColor,
+    filterStartOpacity,
+    "#000000"
+  )}, ${toOverlayRgba(filterEndColor, filterEndOpacity, "#0f0f0f")})`;
   const arrowMode = data.coverArrow === "down" ? "down" : "none";
   const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
   const arrowColor =
@@ -2135,6 +2453,135 @@ export function renderCover(
     descriptionMobileSizeRaw <= 72
       ? Math.round(descriptionMobileSizeRaw)
       : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+  const sliderInfinite = data.coverSliderInfinite !== false;
+  const sliderShowArrows = data.coverSliderShowArrows !== false;
+  const sliderShowDots = data.coverSliderShowDots !== false;
+  const sliderAutoplayMsRaw = Number(data.coverSliderAutoplayMs);
+  const sliderAutoplayMs =
+    Number.isFinite(sliderAutoplayMsRaw) && sliderAutoplayMsRaw >= 0
+      ? Math.min(20000, Math.round(sliderAutoplayMsRaw))
+      : 0;
+  const sliderArrowSizeRaw = String(data.coverSliderArrowSize ?? "sm");
+  const sliderArrowSize: "sm" | "md" | "lg" | "xl" =
+    sliderArrowSizeRaw === "md" ||
+    sliderArrowSizeRaw === "lg" ||
+    sliderArrowSizeRaw === "xl"
+      ? sliderArrowSizeRaw
+      : "sm";
+  const sliderArrowThicknessRaw = Number(data.coverSliderArrowThickness);
+  const sliderArrowThickness =
+    Number.isFinite(sliderArrowThicknessRaw) && sliderArrowThicknessRaw > 0
+      ? Math.max(1, Math.min(8, Math.round(sliderArrowThicknessRaw)))
+      : 3;
+  const sliderArrowColorRaw =
+    typeof data.coverSliderArrowColor === "string" ? data.coverSliderArrowColor.trim() : "";
+  const sliderArrowColor =
+    sliderArrowColorRaw && isValidColorValue(sliderArrowColorRaw)
+      ? sliderArrowColorRaw
+      : "#222222";
+  const sliderArrowBgColorRaw =
+    typeof data.coverSliderArrowBgColor === "string" ? data.coverSliderArrowBgColor.trim() : "";
+  const sliderArrowBgColor =
+    sliderArrowBgColorRaw && isValidColorValue(sliderArrowBgColorRaw)
+      ? sliderArrowBgColorRaw
+      : "#ffffff";
+  const sliderDotSizeRaw = Number(data.coverSliderDotSize);
+  const sliderDotSize =
+    Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
+      ? Math.max(6, Math.min(24, Math.round(sliderDotSizeRaw)))
+      : 10;
+  const sliderDotColorRaw =
+    typeof data.coverSliderDotColor === "string" ? data.coverSliderDotColor.trim() : "";
+  const sliderDotColor =
+    sliderDotColorRaw && isValidColorValue(sliderDotColorRaw)
+      ? sliderDotColorRaw
+      : "#000000";
+  const sliderDotActiveColorRaw =
+    typeof data.coverSliderDotActiveColor === "string"
+      ? data.coverSliderDotActiveColor.trim()
+      : "";
+  const sliderDotActiveColor =
+    sliderDotActiveColorRaw && isValidColorValue(sliderDotActiveColorRaw)
+      ? sliderDotActiveColorRaw
+      : "#ffffff";
+  const sliderDotBorderWidthRaw = Number(data.coverSliderDotBorderWidth);
+  const sliderDotBorderWidth =
+    Number.isFinite(sliderDotBorderWidthRaw) && sliderDotBorderWidthRaw >= 0
+      ? Math.max(0, Math.min(6, Math.round(sliderDotBorderWidthRaw)))
+      : 2;
+  const sliderDotBorderColorRaw =
+    typeof data.coverSliderDotBorderColor === "string"
+      ? data.coverSliderDotBorderColor.trim()
+      : "";
+  const sliderDotBorderColor =
+    sliderDotBorderColorRaw && isValidColorValue(sliderDotBorderColorRaw)
+      ? sliderDotBorderColorRaw
+      : "#ffffff";
+  const rawSlides = Array.isArray(data.coverSlides)
+    ? (data.coverSlides as Array<Record<string, unknown>>)
+    : [];
+  const coverSlides: CoverSlideItem[] = rawSlides
+    .map((slide, idx) => {
+      const slideTitle = typeof slide.title === "string" ? slide.title.trim() : "";
+      const slideDescription = typeof slide.description === "string" ? slide.description.trim() : "";
+      const slideButtonText =
+        typeof slide.buttonText === "string" ? slide.buttonText.trim() : "";
+      const slideButtonPageRaw =
+        typeof slide.buttonPage === "string" ? slide.buttonPage.trim() : "";
+      const slideButtonPage = PAGE_KEYS.includes(slideButtonPageRaw as SitePageKey)
+        ? (slideButtonPageRaw as SitePageKey)
+        : null;
+      const slideButtonHref =
+        typeof slide.buttonHref === "string" ? slide.buttonHref.trim() : "";
+      const slideImage = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
+      const localizedTitle =
+        slideTitle === "A TRUE NORTHERN PLAYA"
+          ? "Красота без компромиссов"
+          : slideTitle === "GETTING HERE AND AROUND"
+            ? "Услуги для вашего образа"
+            : slideTitle === "LAKELAND ROUTES"
+              ? "Сильная команда мастеров"
+              : slideTitle;
+      const localizedDescription =
+        slideDescription ===
+        "Get around by train, bus, car, ferry, cruise ship, bicycle, skis, or sleigh."
+          ? "Запишитесь на любимую услугу в удобное время и доверяйте себя профессионалам."
+          : slideDescription === "Relax and enjoy yourself!"
+            ? "Стрижки, окрашивание, уход и макияж в одном салоне с персональным подходом."
+            : slideDescription === "Explore nearby locations with comfort and style."
+              ? "Выберите специалиста по рейтингу, портфолио и свободному времени."
+              : slideDescription;
+      const localizedButtonText = slideButtonText === "Read more" ? "Подробнее" : slideButtonText;
+      const resolvedPageHref = slideButtonPage ? resolveSitePageHref(slideButtonPage, account) : "";
+      return {
+        id:
+          typeof slide.id === "string" && slide.id.trim()
+            ? slide.id.trim()
+            : `slide-${idx + 1}`,
+        title: localizedTitle || title,
+        description: localizedDescription || description || subtitle,
+        buttonText: localizedButtonText || buttonText || "Подробнее",
+        buttonHref:
+          resolvedPageHref ||
+          slideButtonHref ||
+          (account.publicSlug ? buildBookingLink({ publicSlug: account.publicSlug }) : "#"),
+        imageUrl: slideImage || null,
+      };
+    })
+    .filter((slide) => Boolean(slide.imageUrl || slide.title || slide.description || slide.buttonText));
+  const normalizedCoverSlides =
+    coverSlides.length > 0
+      ? coverSlides
+      : [
+          {
+            id: "slide-fallback",
+            title: title || account.name,
+            description: description || subtitle,
+            buttonText: buttonText || "Подробнее",
+            buttonHref: account.publicSlug ? buildBookingLink({ publicSlug: account.publicSlug }) : "#",
+            imageUrl: null,
+          },
+        ];
   const contentColumns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, "cover");
   const contentRange = centeredGridRange(contentColumns);
   const gridStart = clampGridColumn(style.gridStartColumn ?? contentRange.start);
@@ -2144,16 +2591,44 @@ export function renderCover(
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const contentMaxWidth = forceMobileLayout ? "100%" : gridWidthPercent;
   const contentMarginLeft = forceMobileLayout ? 0 : gridLeftPercent;
-  const toOverlayRgba = (color: string, opacity: number, fallbackHex: string) => {
-    if (color === "transparent") return "rgba(0, 0, 0, 0)";
-    const safeHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color) ? color : fallbackHex;
-    return hexToRgbaString(safeHex, opacity / 100);
-  };
-  const filterOverlay = `linear-gradient(180deg, ${toOverlayRgba(
-    filterStartColor,
-    filterStartOpacity,
-    "#000000"
-  )}, ${toOverlayRgba(filterEndColor, filterEndOpacity, "#0f0f0f")})`;
+
+  if (block.variant === "v2") {
+    return (
+      <CoverVariantV2Hero
+        slides={normalizedCoverSlides}
+        style={style}
+        theme={theme}
+        contentAlign={contentAlign}
+        contentVerticalAlign={contentVerticalAlign}
+        contentMaxWidth={contentMaxWidth}
+        contentMarginLeft={contentMarginLeft}
+        coverHeightCss={coverHeightCss}
+        filterOverlay={filterOverlay}
+        showArrows={sliderShowArrows}
+        showDots={sliderShowDots}
+        infinite={sliderInfinite}
+        autoplayMs={sliderAutoplayMs}
+        arrowSize={sliderArrowSize}
+        arrowThickness={sliderArrowThickness}
+        arrowColor={sliderArrowColor}
+        arrowBgColor={sliderArrowBgColor}
+        dotSize={sliderDotSize}
+        dotColor={sliderDotColor}
+        dotActiveColor={sliderDotActiveColor}
+        dotBorderWidth={sliderDotBorderWidth}
+        dotBorderColor={sliderDotBorderColor}
+        subtitleColor={subtitleColor}
+        descriptionColor={descriptionColor}
+        headingDesktopSize={headingDesktopSize}
+        subheadingDesktopSize={subheadingDesktopSize}
+        textDesktopSize={textDesktopSize}
+        headingMobileSize={headingMobileSize}
+        subheadingMobileSize={subheadingMobileSize}
+        textMobileSize={textMobileSize}
+      />
+    );
+  }
+
   const backgroundStyle = imageUrl
     ? {
         backgroundImage: `url(${imageUrl})`,
@@ -2356,6 +2831,14 @@ export function normalizeExternalHref(value: string): string {
   return value.startsWith("http://") || value.startsWith("https://")
     ? value
     : `https://${value}`;
+}
+
+function resolveSitePageHref(pageKey: SitePageKey, account: AccountInfo): string {
+  const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
+  if (pageKey === "home") return basePath;
+  if (pageKey === "booking") return `${basePath}/booking`;
+  if (pageKey === "client") return `/c?account=${account.slug}`;
+  return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
 }
 
 export function resolveSocialHrefByKey(accountProfile: AccountProfile, key: string): string | null {

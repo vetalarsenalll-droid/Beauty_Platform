@@ -117,7 +117,7 @@ export const BLOCK_VARIANTS: Record<
   BlockType,
   Array<"v1" | "v2" | "v3" | "v4" | "v5">
 > = {
-  cover: ["v1"],
+  cover: ["v1", "v2"],
   menu: ["v1", "v2", "v3"],
   loader: ["v1", "v2", "v3"],
   about: ["v1", "v2"],

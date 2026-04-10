@@ -34,14 +34,13 @@ export function SiteRightPanelFrame({
 
   return (
     <aside
-      className={`fixed z-[220] overflow-y-auto border shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+      className={`fixed z-[220] overflow-y-auto overflow-x-visible border shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
         isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
       } ${
         activeThemeMode === "dark"
           ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
           : ""
       }`}
-      onClick={onSurfaceClick}
       style={{
         top: floatingPanelsTop,
         bottom: 0,
@@ -96,7 +95,9 @@ export function SiteRightPanelFrame({
         </div>
       </div>
 
-      <div className="space-y-3 p-3 pb-12">{children}</div>
+      <div className="space-y-3 p-3 pb-12" onClick={(event) => event.stopPropagation()}>
+        {children}
+      </div>
     </aside>
   );
 }

@@ -760,6 +760,12 @@ export function BlockEditor({
   const selectedSecondarySourceMissing =
     secondaryButtonSource !== "auto" &&
     !(availableSecondarySources as string[]).includes(secondaryButtonSource);
+  const [coverSlideUploadingById, setCoverSlideUploadingById] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [coverSlideUploadErrorById, setCoverSlideUploadErrorById] = useState<
+    Record<string, string>
+  >({});
 
   return (
     <div className="space-y-6 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
@@ -1028,25 +1034,248 @@ export function BlockEditor({
       {block.type === "cover" && (
         <>
           {inSection("text", "main") && (
-            <>
-              <FieldText
-                label="Заголовок"
-                value={(block.data.title as string) ?? ""}
-                onChange={(value) => updateData({ title: value })}
-              />
-              <FieldText
-                label="Подзаголовок"
-                value={(block.data.subtitle as string) ?? ""}
-                onChange={(value) => updateData({ subtitle: value })}
-              />
-              <FieldTextarea
-                label="Описание"
-                value={(block.data.description as string) ?? ""}
-                onChange={(value) => updateData({ description: value })}
-              />
-            </>
+            block.variant === "v2" ? (
+              <div className="space-y-3">
+                {(() => {
+                  const rawSlides = Array.isArray(block.data.coverSlides)
+                    ? (block.data.coverSlides as Array<Record<string, unknown>>)
+                    : [];
+                  const slides =
+                    rawSlides.length > 0
+                      ? rawSlides
+                      : [
+                          {
+                            id: "slide-1",
+                            title: "Красота без компромиссов",
+                            description:
+                              "Запишитесь на любимую услугу в удобное время и доверяйте себя профессионалам.",
+                            buttonText: "Подробнее",
+                            buttonPage: "booking",
+                            buttonHref: "",
+                            imageUrl: "",
+                          },
+                        ];
+                  const updateSlides = (nextSlides: Array<Record<string, unknown>>) =>
+                    updateData({ coverSlides: nextSlides });
+                  const addSlide = () => {
+                    const slideId = `slide-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                    updateSlides([
+                      ...slides,
+                      {
+                        id: slideId,
+                        title: "Новый слайд",
+                        description: "Добавьте описание слайда",
+                        buttonText: "Подробнее",
+                        buttonPage: "booking",
+                        buttonHref: "",
+                        imageUrl: "",
+                      },
+                    ]);
+                  };
+                  return (
+                    <>
+                      {slides.map((slide, index) => {
+                        const slideId = String(slide.id ?? `slide-${index + 1}`);
+                        const updateSlide = (patch: Record<string, unknown>) => {
+                          const next = [...slides];
+                          next[index] = { ...next[index], ...patch };
+                          updateSlides(next);
+                        };
+                        const moveSlide = (dir: -1 | 1) => {
+                          const target = index + dir;
+                          if (target < 0 || target >= slides.length) return;
+                          const next = [...slides];
+                          [next[index], next[target]] = [next[target], next[index]];
+                          updateSlides(next);
+                        };
+                        const removeSlide = () => {
+                          if (slides.length <= 1) return;
+                          updateSlides(slides.filter((_, slideIndex) => slideIndex !== index));
+                        };
+                        const uploadSlideImage = async (file: File) => {
+                          setCoverSlideUploadingById((prev) => ({ ...prev, [slideId]: true }));
+                          setCoverSlideUploadErrorById((prev) => ({ ...prev, [slideId]: "" }));
+                          try {
+                            const formData = new FormData();
+                            formData.append("type", "siteCover");
+                            formData.append("file", file);
+                            const response = await fetch("/api/v1/crm/account/media", {
+                              method: "POST",
+                              body: formData,
+                            });
+                            const payload = await response.json().catch(() => null);
+                            if (!response.ok || typeof payload?.data?.url !== "string") {
+                              const message =
+                                typeof payload?.error?.message === "string"
+                                  ? payload.error.message
+                                  : "Не удалось загрузить изображение.";
+                              setCoverSlideUploadErrorById((prev) => ({
+                                ...prev,
+                                [slideId]: message,
+                              }));
+                              return;
+                            }
+                            updateSlide({ imageUrl: payload.data.url });
+                          } catch {
+                            setCoverSlideUploadErrorById((prev) => ({
+                              ...prev,
+                              [slideId]: "Не удалось загрузить изображение.",
+                            }));
+                          } finally {
+                            setCoverSlideUploadingById((prev) => ({ ...prev, [slideId]: false }));
+                          }
+                        };
+                        const isUploading = Boolean(coverSlideUploadingById[slideId]);
+                        const uploadError = coverSlideUploadErrorById[slideId] ?? "";
+                        const imageUrl = String(slide.imageUrl ?? "").trim();
+                        return (
+                          <div
+                            key={slideId}
+                            className="space-y-3 rounded-xl border border-[color:var(--bp-stroke)] p-3"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
+                                Карточка #{index + 1}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => moveSlide(-1)}
+                                  className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                                  disabled={index === 0}
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveSlide(1)}
+                                  className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                                  disabled={index === slides.length - 1}
+                                >
+                                  ↓
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={removeSlide}
+                                  className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs text-red-600"
+                                  disabled={slides.length <= 1}
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            </div>
+                            <FieldText
+                              label="Заголовок"
+                              value={String(slide.title ?? "")}
+                              onChange={(value) => updateSlide({ title: value })}
+                            />
+                            <FieldTextarea
+                              label="Описание"
+                              value={String(slide.description ?? "")}
+                              onChange={(value) => updateSlide({ description: value })}
+                            />
+                            <FieldText
+                              label="Текст кнопки"
+                              value={String(slide.buttonText ?? "Подробнее")}
+                              onChange={(value) => updateSlide({ buttonText: value })}
+                            />
+                            <label className="block text-sm">
+                              Страница кнопки
+                              <select
+                                value={String(slide.buttonPage ?? "")}
+                                onChange={(event) =>
+                                  updateSlide({
+                                    buttonPage: event.target.value || null,
+                                    buttonHref: "",
+                                  })
+                                }
+                                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                              >
+                                <option value="">Не выбрано</option>
+                                {PAGE_KEYS.map((key) => (
+                                  <option key={`${slideId}-page-${key}`} value={key}>
+                                    {PAGE_LABELS[key]}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <div className="space-y-2">
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                                Изображение карточки
+                              </div>
+                              {imageUrl ? (
+                                <div className="overflow-hidden rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                  <img src={imageUrl} alt="" className="h-36 w-full object-cover" />
+                                </div>
+                              ) : (
+                                <div className="rounded-lg border border-dashed border-[color:var(--bp-stroke)] px-3 py-6 text-center text-xs text-[color:var(--bp-muted)]">
+                                  Изображение не выбрано
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <label className="inline-flex cursor-pointer items-center justify-center border border-[color:var(--bp-stroke)] px-3 py-2 text-sm">
+                                  <input
+                                    type="file"
+                                    accept="image/*,.heic,.heif"
+                                    className="hidden"
+                                    onChange={(event) => {
+                                      const file = event.target.files?.[0];
+                                      if (!file) return;
+                                      void uploadSlideImage(file);
+                                      event.currentTarget.value = "";
+                                    }}
+                                  />
+                                  {isUploading ? "Загрузка..." : "Загрузить файл"}
+                                </label>
+                                {imageUrl ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSlide({ imageUrl: "" })}
+                                    className="inline-flex items-center justify-center border border-[color:var(--bp-stroke)] px-3 py-2 text-sm"
+                                  >
+                                    Удалить
+                                  </button>
+                                ) : null}
+                              </div>
+                              {uploadError ? (
+                                <div className="text-xs text-[#c2410c]">{uploadError}</div>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={addSlide}
+                        className="w-full rounded-lg border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-medium"
+                      >
+                        Добавить слайд
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              <>
+                <FieldText
+                  label="Заголовок"
+                  value={(block.data.title as string) ?? ""}
+                  onChange={(value) => updateData({ title: value })}
+                />
+                <FieldText
+                  label="Подзаголовок"
+                  value={(block.data.subtitle as string) ?? ""}
+                  onChange={(value) => updateData({ subtitle: value })}
+                />
+                <FieldTextarea
+                  label="Описание"
+                  value={(block.data.description as string) ?? ""}
+                  onChange={(value) => updateData({ description: value })}
+                />
+              </>
+            )
           )}
-          {inSection("actions", "main") && (
+          {inSection("actions", "main") && block.variant !== "v2" && (
             <>
               <div className="grid grid-cols-[auto,1fr] items-end gap-4">
                 <FlatCheckbox
@@ -1106,11 +1335,137 @@ export function BlockEditor({
             </>
           )}
           {inSection("media", "main") && (
-            <CoverImageEditor
-              data={block.data}
-              branding={branding}
-              onChange={updateData}
-            />
+            block.variant === "v2" ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FlatCheckbox
+                    checked={Boolean(block.data.coverSliderInfinite ?? true)}
+                    onChange={(checked) => updateData({ coverSliderInfinite: checked })}
+                    label="Бесконечная галерея"
+                  />
+                  <FlatCheckbox
+                    checked={Boolean(block.data.coverSliderShowArrows ?? true)}
+                    onChange={(checked) => updateData({ coverSliderShowArrows: checked })}
+                    label="Показывать стрелки"
+                  />
+                </div>
+                <FlatCheckbox
+                  checked={Boolean(block.data.coverSliderShowDots ?? true)}
+                  onChange={(checked) => updateData({ coverSliderShowDots: checked })}
+                  label="Показывать точки"
+                />
+                <label className="block text-sm">
+                  Автопрокрутка
+                  <select
+                    value={String(block.data.coverSliderAutoplayMs ?? 0)}
+                    onChange={(event) =>
+                      updateData({ coverSliderAutoplayMs: Number(event.target.value) })
+                    }
+                    className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                  >
+                    <option value="0">Выключено</option>
+                    <option value="2500">Быстро</option>
+                    <option value="5000">Средне</option>
+                    <option value="8000">Медленно</option>
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  Размер стрелки
+                  <select
+                    value={String(block.data.coverSliderArrowSize ?? "sm")}
+                    onChange={(event) => updateData({ coverSliderArrowSize: event.target.value })}
+                    className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+                  >
+                    <option value="sm">Маленький</option>
+                    <option value="md">Средний</option>
+                    <option value="lg">Большой</option>
+                    <option value="xl">Самый большой</option>
+                  </select>
+                </label>
+                <label className="text-sm">
+                  Толщина стрелки
+                  <input
+                    type="range"
+                    min={1}
+                    max={8}
+                    step={1}
+                    value={Number(block.data.coverSliderArrowThickness ?? 3)}
+                    onChange={(event) =>
+                      updateData({ coverSliderArrowThickness: Number(event.target.value) })
+                    }
+                    className="mt-2 w-full"
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <TildaInlineColorField
+                    label="Стрелка: цвет"
+                    value={String(block.data.coverSliderArrowColor ?? "#222222")}
+                    onChange={(value) => updateData({ coverSliderArrowColor: value })}
+                    compact
+                  />
+                  <TildaInlineColorField
+                    label="Стрелка: фон"
+                    value={String(block.data.coverSliderArrowBgColor ?? "#ffffff")}
+                    onChange={(value) => updateData({ coverSliderArrowBgColor: value })}
+                    compact
+                  />
+                </div>
+                <label className="text-sm">
+                  Размер точки
+                  <input
+                    type="range"
+                    min={6}
+                    max={24}
+                    step={1}
+                    value={Number(block.data.coverSliderDotSize ?? 10)}
+                    onChange={(event) =>
+                      updateData({ coverSliderDotSize: Number(event.target.value) })
+                    }
+                    className="mt-2 w-full"
+                  />
+                </label>
+                <label className="text-sm">
+                  Толщина обводки точки
+                  <input
+                    type="range"
+                    min={0}
+                    max={6}
+                    step={1}
+                    value={Number(block.data.coverSliderDotBorderWidth ?? 2)}
+                    onChange={(event) =>
+                      updateData({ coverSliderDotBorderWidth: Number(event.target.value) })
+                    }
+                    className="mt-2 w-full"
+                  />
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  <TildaInlineColorField
+                    label="Точка: цвет"
+                    value={String(block.data.coverSliderDotColor ?? "#000000")}
+                    onChange={(value) => updateData({ coverSliderDotColor: value })}
+                    compact
+                  />
+                  <TildaInlineColorField
+                    label="Точка: активная"
+                    value={String(block.data.coverSliderDotActiveColor ?? "#ffffff")}
+                    onChange={(value) => updateData({ coverSliderDotActiveColor: value })}
+                    compact
+                  />
+                  <TildaInlineColorField
+                    label="Точка: обводка"
+                    value={String(block.data.coverSliderDotBorderColor ?? "#ffffff")}
+                    onChange={(value) => updateData({ coverSliderDotBorderColor: value })}
+                    compact
+                  />
+                </div>
+              </div>
+            ) : (
+              <CoverImageEditor
+                data={block.data}
+                branding={branding}
+                onChange={updateData}
+              />
+            )
           )}
         </>
       )}
@@ -2094,6 +2449,44 @@ export function BlockStyleEditor({
         end={style.gridEndColumn ?? centeredGridRange(resolvedBlockColumns).end}
         onChange={applyGridRange}
       />
+      )}
+      {inSection("layout") && block.type === "cover" && (
+        <div className="grid grid-cols-2 gap-3">
+          {renderFlatSelect(
+            "Позиция текста",
+            style.textAlign ?? "left",
+            (value) =>
+              update({
+                textAlign:
+                  value === "center" || value === "right" ? value : "left",
+                textAlignHeading:
+                  value === "center" || value === "right" ? value : "left",
+                textAlignSubheading:
+                  value === "center" || value === "right" ? value : "left",
+              }),
+            [
+              { value: "left", label: "Слева" },
+              { value: "center", label: "По центру" },
+              { value: "right", label: "Справа" },
+            ]
+          )}
+          {renderFlatSelect(
+            "Позиция по вертикали",
+            typeof coverData.coverContentVerticalAlign === "string"
+              ? String(coverData.coverContentVerticalAlign)
+              : "center",
+            (value) =>
+              updateCoverData({
+                coverContentVerticalAlign:
+                  value === "top" || value === "bottom" ? value : "center",
+              }),
+            [
+              { value: "top", label: "Сверху" },
+              { value: "center", label: "По центру" },
+              { value: "bottom", label: "Снизу" },
+            ]
+          )}
+        </div>
       )}
       {inSection("layout") && block.type !== "menu" && block.type !== "booking" && block.type !== "aisha" && block.type !== "cover" && (
       <>

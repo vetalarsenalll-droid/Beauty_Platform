@@ -31,6 +31,7 @@ type SiteCoverSettingsPrimaryProps = {
   coverArrow: "none" | "down";
   coverArrowColor: string;
   coverArrowAnimated: boolean;
+  isCoverVariantV2: boolean;
   coverDrawerKey: "typography" | "button" | "animation" | null;
   setCoverDrawerKey: Dispatch<SetStateAction<"typography" | "button" | "animation" | null>>;
   coverBackgroundPosition: string;
@@ -65,6 +66,7 @@ export function SiteCoverSettingsPrimary({
   coverArrow,
   coverArrowColor,
   coverArrowAnimated,
+  isCoverVariantV2,
   coverDrawerKey,
   setCoverDrawerKey,
   coverBackgroundPosition,
@@ -280,57 +282,61 @@ export function SiteCoverSettingsPrimary({
         </label>
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-4">
-        <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          <div className="min-h-[32px] leading-4">Стрелка</div>
-          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-            <select
-              value={coverArrow}
-              onChange={(event) =>
-                updateSelectedCoverData({
-                  coverArrow: event.target.value as "none" | "down",
-                })
-              }
-              className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
-              style={{
-                borderTop: 0,
-                borderLeft: 0,
-                borderRight: 0,
-                borderBottom: 0,
-                borderRadius: 0,
-                boxShadow: "none",
-                backgroundColor: "transparent",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                appearance: "none",
-              }}
-            >
-              <option value="none">Нет</option>
-              <option value="down">Вниз</option>
-            </select>
-            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+      {!isCoverVariantV2 && (
+        <>
+          <div className="mb-3 grid grid-cols-2 gap-4">
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+              <div className="min-h-[32px] leading-4">Стрелка</div>
+              <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                <select
+                  value={coverArrow}
+                  onChange={(event) =>
+                    updateSelectedCoverData({
+                      coverArrow: event.target.value as "none" | "down",
+                    })
+                  }
+                  className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                  style={{
+                    borderTop: 0,
+                    borderLeft: 0,
+                    borderRight: 0,
+                    borderBottom: 0,
+                    borderRadius: 0,
+                    boxShadow: "none",
+                    backgroundColor: "transparent",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    appearance: "none",
+                  }}
+                >
+                  <option value="none">Нет</option>
+                  <option value="down">Вниз</option>
+                </select>
+                <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+              </div>
+            </label>
+            <TildaInlineColorField
+              compact
+              label="Цвет стрелки"
+              value={coverArrowColor}
+              onChange={(value) => updateSelectedCoverData({ coverArrowColor: value })}
+              onClear={() => updateSelectedCoverData({ coverArrowColor: "transparent" })}
+              placeholder="#ffffff"
+            />
           </div>
-        </label>
-        <TildaInlineColorField
-          compact
-          label="Цвет стрелки"
-          value={coverArrowColor}
-          onChange={(value) => updateSelectedCoverData({ coverArrowColor: value })}
-          onClear={() => updateSelectedCoverData({ coverArrowColor: "transparent" })}
-          placeholder="#ffffff"
-        />
-      </div>
 
-      <label className="mb-3 mt-2 flex items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
-        <input
-          type="checkbox"
-          checked={coverArrowAnimated}
-          onChange={(event) =>
-            updateSelectedCoverData({ coverArrowAnimated: event.target.checked })
-          }
-        />
-        Анимировать стрелку
-      </label>
+          <label className="mb-3 mt-2 flex items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
+            <input
+              type="checkbox"
+              checked={coverArrowAnimated}
+              onChange={(event) =>
+                updateSelectedCoverData({ coverArrowAnimated: event.target.checked })
+              }
+            />
+            Анимировать стрелку
+          </label>
+        </>
+      )}
 
       {[
         { id: "typography", label: "Типографика" },
