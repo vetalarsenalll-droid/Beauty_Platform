@@ -32,8 +32,10 @@ type SiteCoverSettingsPrimaryProps = {
   coverArrowColor: string;
   coverArrowAnimated: boolean;
   isCoverVariantV2: boolean;
-  coverDrawerKey: "typography" | "button" | "animation" | null;
-  setCoverDrawerKey: Dispatch<SetStateAction<"typography" | "button" | "animation" | null>>;
+  coverDrawerKey: "slider" | "typography" | "button" | "animation" | null;
+  setCoverDrawerKey: Dispatch<
+    SetStateAction<"slider" | "typography" | "button" | "animation" | null>
+  >;
   coverBackgroundPosition: string;
   coverMarginTopLines: number;
   coverMarginBottomLines: number;
@@ -139,36 +141,38 @@ export function SiteCoverSettingsPrimary({
         </div>
       </label>
 
-      <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-        Эффект при скролле
-        <div className="relative mt-2">
-          <select
-            value={coverScrollEffect}
-            onChange={(event) =>
-              updateSelectedCoverData({
-                coverScrollEffect: event.target.value as "none" | "fixed" | "parallax",
-              })
-            }
-            className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-sm font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
-            style={{
-              borderTop: "0",
-              borderLeft: "0",
-              borderRight: "0",
-              borderRadius: "0",
-              boxShadow: "none",
-              backgroundColor: "transparent",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
-              appearance: "none",
-            }}
-          >
-            <option value="none">Без эффекта</option>
-            <option value="fixed">С фиксацией</option>
-            <option value="parallax">Параллакс</option>
-          </select>
-          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
-        </div>
-      </label>
+      {!isCoverVariantV2 && (
+        <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Эффект при скролле
+          <div className="relative mt-2">
+            <select
+              value={coverScrollEffect}
+              onChange={(event) =>
+                updateSelectedCoverData({
+                  coverScrollEffect: event.target.value as "none" | "fixed" | "parallax",
+                })
+              }
+              className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent py-1 pr-6 text-sm font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+              style={{
+                borderTop: "0",
+                borderLeft: "0",
+                borderRight: "0",
+                borderRadius: "0",
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              <option value="none">Без эффекта</option>
+              <option value="fixed">С фиксацией</option>
+              <option value="parallax">Параллакс</option>
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+          </div>
+        </label>
+      )}
 
       <label className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
         Высота
@@ -339,6 +343,7 @@ export function SiteCoverSettingsPrimary({
       )}
 
       {[
+        ...(isCoverVariantV2 ? [{ id: "slider", label: "Стиль слайдера" }] : []),
         { id: "typography", label: "Типографика" },
         { id: "button", label: "Кнопка" },
         { id: "animation", label: "Анимация" },
@@ -351,7 +356,7 @@ export function SiteCoverSettingsPrimary({
             setCoverDrawerKey((prev) =>
               prev === item.id
                 ? null
-                : (item.id as "typography" | "button" | "animation")
+                : (item.id as "slider" | "typography" | "button" | "animation")
             );
           }}
           className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"

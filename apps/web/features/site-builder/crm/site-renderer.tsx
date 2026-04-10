@@ -2007,6 +2007,7 @@ function CoverVariantV2Hero({
   contentVerticalAlign,
   contentMaxWidth,
   contentMarginLeft,
+  coverBackgroundPosition,
   coverHeightCss,
   filterOverlay,
   showArrows,
@@ -2016,7 +2017,12 @@ function CoverVariantV2Hero({
   arrowSize,
   arrowThickness,
   arrowColor,
+  arrowHoverColor,
   arrowBgColor,
+  arrowHoverBgColor,
+  arrowBgOpacity,
+  arrowHoverBgOpacity,
+  arrowShowOutline,
   dotSize,
   dotColor,
   dotActiveColor,
@@ -2038,6 +2044,7 @@ function CoverVariantV2Hero({
   contentVerticalAlign: "top" | "center" | "bottom";
   contentMaxWidth: string;
   contentMarginLeft: string | number;
+  coverBackgroundPosition: string;
   coverHeightCss: string;
   filterOverlay: string;
   showArrows: boolean;
@@ -2047,7 +2054,12 @@ function CoverVariantV2Hero({
   arrowSize: "sm" | "md" | "lg" | "xl";
   arrowThickness: number;
   arrowColor: string;
+  arrowHoverColor: string;
   arrowBgColor: string;
+  arrowHoverBgColor: string;
+  arrowBgOpacity: number | null;
+  arrowHoverBgOpacity: number | null;
+  arrowShowOutline: boolean;
   dotSize: number;
   dotColor: string;
   dotActiveColor: string;
@@ -2064,6 +2076,7 @@ function CoverVariantV2Hero({
 }) {
   const [index, setIndex] = useState(0);
   const canSlide = slides.length > 1;
+  const [hoveredArrow, setHoveredArrow] = useState<"prev" | "next" | null>(null);
 
   useEffect(() => {
     if (slides.length === 0) {
@@ -2122,6 +2135,19 @@ function CoverVariantV2Hero({
         ? normalizeExternalHref(buttonHref)
         : "";
 
+  const resolveBg = (color: string, opacity: number | null) => {
+    if (color === "transparent") return "transparent";
+    if (opacity === null) return color;
+    return hexToRgbaString(color, opacity);
+  };
+  const baseArrowBg = resolveBg(arrowBgColor, arrowBgOpacity);
+  const hoverArrowBg = resolveBg(
+    arrowHoverBgColor || arrowBgColor,
+    arrowHoverBgOpacity ?? arrowBgOpacity
+  );
+  const baseArrowColor = arrowColor;
+  const hoverArrowColor = arrowHoverColor || arrowColor;
+
   return (
     <section
       className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
@@ -2129,7 +2155,7 @@ function CoverVariantV2Hero({
         minHeight: coverHeightCss,
         backgroundImage: current.imageUrl ? `url(${current.imageUrl})` : "none",
         backgroundSize: "cover",
-        backgroundPosition: "center center",
+        backgroundPosition: coverBackgroundPosition,
       }}
     >
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
@@ -2229,17 +2255,30 @@ function CoverVariantV2Hero({
             style={{
               width: arrowPx,
               height: arrowPx,
-              color: arrowColor,
-              backgroundColor: arrowBgColor,
-              borderWidth: Math.max(1, Math.round(arrowThickness / 2)),
-              borderColor: "transparent",
+              color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
+              backgroundColor: hoveredArrow === "prev" ? hoverArrowBg : baseArrowBg,
+              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
+              borderColor: arrowShowOutline ? "currentColor" : "transparent",
               borderStyle: "solid",
               fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
               lineHeight: 1,
             }}
             aria-label="Предыдущий слайд"
+            onMouseEnter={() => setHoveredArrow("prev")}
+            onMouseLeave={() => setHoveredArrow(null)}
           >
-            ‹
+            <svg
+              viewBox="0 0 24 24"
+              className="mx-auto"
+              style={{ width: arrowPx * 0.5, height: arrowPx * 0.5 }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={arrowThickness}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 6-6 6 6 6" />
+            </svg>
           </button>
           <button
             type="button"
@@ -2249,17 +2288,30 @@ function CoverVariantV2Hero({
             style={{
               width: arrowPx,
               height: arrowPx,
-              color: arrowColor,
-              backgroundColor: arrowBgColor,
-              borderWidth: Math.max(1, Math.round(arrowThickness / 2)),
-              borderColor: "transparent",
+              color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
+              backgroundColor: hoveredArrow === "next" ? hoverArrowBg : baseArrowBg,
+              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
+              borderColor: arrowShowOutline ? "currentColor" : "transparent",
               borderStyle: "solid",
               fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
               lineHeight: 1,
             }}
             aria-label="Следующий слайд"
+            onMouseEnter={() => setHoveredArrow("next")}
+            onMouseLeave={() => setHoveredArrow(null)}
           >
-            ›
+            <svg
+              viewBox="0 0 24 24"
+              className="mx-auto"
+              style={{ width: arrowPx * 0.5, height: arrowPx * 0.5 }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={arrowThickness}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m9 6 6 6-6 6" />
+            </svg>
           </button>
         </>
       )}
@@ -2479,12 +2531,43 @@ export function renderCover(
     sliderArrowColorRaw && isValidColorValue(sliderArrowColorRaw)
       ? sliderArrowColorRaw
       : "#222222";
+  const sliderArrowHoverColorRaw =
+    typeof data.coverSliderArrowHoverColor === "string"
+      ? data.coverSliderArrowHoverColor.trim()
+      : "";
+  const sliderArrowHoverColor =
+    sliderArrowHoverColorRaw && isValidColorValue(sliderArrowHoverColorRaw)
+      ? sliderArrowHoverColorRaw
+      : "";
   const sliderArrowBgColorRaw =
     typeof data.coverSliderArrowBgColor === "string" ? data.coverSliderArrowBgColor.trim() : "";
   const sliderArrowBgColor =
     sliderArrowBgColorRaw && isValidColorValue(sliderArrowBgColorRaw)
       ? sliderArrowBgColorRaw
       : "#ffffff";
+  const sliderArrowHoverBgColorRaw =
+    typeof data.coverSliderArrowHoverBgColor === "string"
+      ? data.coverSliderArrowHoverBgColor.trim()
+      : "";
+  const sliderArrowHoverBgColor =
+    sliderArrowHoverBgColorRaw && isValidColorValue(sliderArrowHoverBgColorRaw)
+      ? sliderArrowHoverBgColorRaw
+      : "";
+  const sliderArrowBgOpacityRaw = Number(data.coverSliderArrowBgOpacity);
+  const sliderArrowBgOpacity =
+    Number.isFinite(sliderArrowBgOpacityRaw) &&
+    sliderArrowBgOpacityRaw >= 0 &&
+    sliderArrowBgOpacityRaw <= 100
+      ? Math.round(sliderArrowBgOpacityRaw) / 100
+      : null;
+  const sliderArrowHoverBgOpacityRaw = Number(data.coverSliderArrowHoverBgOpacity);
+  const sliderArrowHoverBgOpacity =
+    Number.isFinite(sliderArrowHoverBgOpacityRaw) &&
+    sliderArrowHoverBgOpacityRaw >= 0 &&
+    sliderArrowHoverBgOpacityRaw <= 100
+      ? Math.round(sliderArrowHoverBgOpacityRaw) / 100
+      : null;
+  const sliderArrowShowOutline = Boolean(data.coverSliderArrowShowOutline);
   const sliderDotSizeRaw = Number(data.coverSliderDotSize);
   const sliderDotSize =
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
@@ -2602,6 +2685,7 @@ export function renderCover(
         contentVerticalAlign={contentVerticalAlign}
         contentMaxWidth={contentMaxWidth}
         contentMarginLeft={contentMarginLeft}
+        coverBackgroundPosition={coverBackgroundPosition}
         coverHeightCss={coverHeightCss}
         filterOverlay={filterOverlay}
         showArrows={sliderShowArrows}
@@ -2611,7 +2695,12 @@ export function renderCover(
         arrowSize={sliderArrowSize}
         arrowThickness={sliderArrowThickness}
         arrowColor={sliderArrowColor}
+        arrowHoverColor={sliderArrowHoverColor}
         arrowBgColor={sliderArrowBgColor}
+        arrowHoverBgColor={sliderArrowHoverBgColor}
+        arrowBgOpacity={sliderArrowBgOpacity}
+        arrowHoverBgOpacity={sliderArrowHoverBgOpacity}
+        arrowShowOutline={sliderArrowShowOutline}
         dotSize={sliderDotSize}
         dotColor={sliderDotColor}
         dotActiveColor={sliderDotActiveColor}

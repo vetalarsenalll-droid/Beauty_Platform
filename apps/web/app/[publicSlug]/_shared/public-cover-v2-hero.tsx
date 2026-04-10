@@ -17,6 +17,7 @@ type PublicCoverV2HeroProps = {
   contentVerticalAlign: "top" | "center" | "bottom";
   contentMaxWidth: string;
   contentMarginLeft: string | number;
+  coverBackgroundPosition: string;
   coverHeightCss: string;
   filterOverlay: string;
   showArrows: boolean;
@@ -26,7 +27,12 @@ type PublicCoverV2HeroProps = {
   arrowSize: "sm" | "md" | "lg" | "xl";
   arrowThickness: number;
   arrowColor: string;
+  arrowHoverColor: string;
   arrowBgColor: string;
+  arrowHoverBgColor: string;
+  arrowBgOpacity: number | null;
+  arrowHoverBgOpacity: number | null;
+  arrowShowOutline: boolean;
   dotSize: number;
   dotColor: string;
   dotActiveColor: string;
@@ -48,6 +54,7 @@ export default function PublicCoverV2Hero({
   contentVerticalAlign,
   contentMaxWidth,
   contentMarginLeft,
+  coverBackgroundPosition,
   coverHeightCss,
   filterOverlay,
   showArrows,
@@ -57,7 +64,12 @@ export default function PublicCoverV2Hero({
   arrowSize,
   arrowThickness,
   arrowColor,
+  arrowHoverColor,
   arrowBgColor,
+  arrowHoverBgColor,
+  arrowBgOpacity,
+  arrowHoverBgOpacity,
+  arrowShowOutline,
   dotSize,
   dotColor,
   dotActiveColor,
@@ -74,6 +86,7 @@ export default function PublicCoverV2Hero({
 }: PublicCoverV2HeroProps) {
   const [index, setIndex] = useState(0);
   const canSlide = slides.length > 1;
+  const [hoveredArrow, setHoveredArrow] = useState<"prev" | "next" | null>(null);
 
   useEffect(() => {
     if (slides.length === 0) {
@@ -119,6 +132,26 @@ export default function PublicCoverV2Hero({
     });
   };
 
+  const resolveBg = (color: string, opacity: number | null) => {
+    if (color === "transparent") return "transparent";
+    if (opacity === null) return color;
+    if (!color.startsWith("#")) return color;
+    const hex = color.length === 4
+      ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+      : color;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+  const baseArrowBg = resolveBg(arrowBgColor, arrowBgOpacity);
+  const hoverArrowBg = resolveBg(
+    arrowHoverBgColor || arrowBgColor,
+    arrowHoverBgOpacity ?? arrowBgOpacity
+  );
+  const baseArrowColor = arrowColor;
+  const hoverArrowColor = arrowHoverColor || arrowColor;
+
   return (
     <section
       className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
@@ -126,7 +159,7 @@ export default function PublicCoverV2Hero({
         minHeight: coverHeightCss,
         backgroundImage: current.imageUrl ? `url(${current.imageUrl})` : "none",
         backgroundSize: "cover",
-        backgroundPosition: "center center",
+        backgroundPosition: coverBackgroundPosition,
       }}
     >
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
@@ -222,10 +255,15 @@ export default function PublicCoverV2Hero({
             style={{
               width: arrowPx,
               height: arrowPx,
-              backgroundColor: arrowBgColor,
-              color: arrowColor,
+              backgroundColor: hoveredArrow === "prev" ? hoverArrowBg : baseArrowBg,
+              color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
+              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
+              borderColor: arrowShowOutline ? "currentColor" : "transparent",
+              borderStyle: "solid",
             }}
             aria-label="Предыдущий слайд"
+            onMouseEnter={() => setHoveredArrow("prev")}
+            onMouseLeave={() => setHoveredArrow(null)}
           >
             <svg
               viewBox="0 0 24 24"
@@ -248,10 +286,15 @@ export default function PublicCoverV2Hero({
             style={{
               width: arrowPx,
               height: arrowPx,
-              backgroundColor: arrowBgColor,
-              color: arrowColor,
+              backgroundColor: hoveredArrow === "next" ? hoverArrowBg : baseArrowBg,
+              color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
+              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
+              borderColor: arrowShowOutline ? "currentColor" : "transparent",
+              borderStyle: "solid",
             }}
             aria-label="Следующий слайд"
+            onMouseEnter={() => setHoveredArrow("next")}
+            onMouseLeave={() => setHoveredArrow(null)}
           >
             <svg
               viewBox="0 0 24 24"

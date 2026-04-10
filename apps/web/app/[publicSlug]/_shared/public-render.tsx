@@ -922,12 +922,43 @@ function renderCover(
     sliderArrowColorRaw && isValidColorValue(sliderArrowColorRaw)
       ? sliderArrowColorRaw
       : "#222222";
+  const sliderArrowHoverColorRaw =
+    typeof data.coverSliderArrowHoverColor === "string"
+      ? data.coverSliderArrowHoverColor.trim()
+      : "";
+  const sliderArrowHoverColor =
+    sliderArrowHoverColorRaw && isValidColorValue(sliderArrowHoverColorRaw)
+      ? sliderArrowHoverColorRaw
+      : "";
   const sliderArrowBgColorRaw =
     typeof data.coverSliderArrowBgColor === "string" ? data.coverSliderArrowBgColor.trim() : "";
   const sliderArrowBgColor =
     sliderArrowBgColorRaw && isValidColorValue(sliderArrowBgColorRaw)
       ? sliderArrowBgColorRaw
       : "#ffffff";
+  const sliderArrowHoverBgColorRaw =
+    typeof data.coverSliderArrowHoverBgColor === "string"
+      ? data.coverSliderArrowHoverBgColor.trim()
+      : "";
+  const sliderArrowHoverBgColor =
+    sliderArrowHoverBgColorRaw && isValidColorValue(sliderArrowHoverBgColorRaw)
+      ? sliderArrowHoverBgColorRaw
+      : "";
+  const sliderArrowBgOpacityRaw = Number(data.coverSliderArrowBgOpacity);
+  const sliderArrowBgOpacity =
+    Number.isFinite(sliderArrowBgOpacityRaw) &&
+    sliderArrowBgOpacityRaw >= 0 &&
+    sliderArrowBgOpacityRaw <= 100
+      ? Math.round(sliderArrowBgOpacityRaw) / 100
+      : null;
+  const sliderArrowHoverBgOpacityRaw = Number(data.coverSliderArrowHoverBgOpacity);
+  const sliderArrowHoverBgOpacity =
+    Number.isFinite(sliderArrowHoverBgOpacityRaw) &&
+    sliderArrowHoverBgOpacityRaw >= 0 &&
+    sliderArrowHoverBgOpacityRaw <= 100
+      ? Math.round(sliderArrowHoverBgOpacityRaw) / 100
+      : null;
+  const sliderArrowShowOutline = Boolean(data.coverSliderArrowShowOutline);
   const sliderDotSizeRaw = Number(data.coverSliderDotSize);
   const sliderDotSize =
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
@@ -1042,6 +1073,7 @@ function renderCover(
         contentVerticalAlign={contentVerticalAlign}
         contentMaxWidth={gridWidthPercent}
         contentMarginLeft={gridLeftPercent}
+        coverBackgroundPosition={coverBackgroundPosition}
         coverHeightCss={coverHeightCss}
         filterOverlay={overlayGradient}
         showArrows={sliderShowArrows}
@@ -1051,7 +1083,12 @@ function renderCover(
         arrowSize={sliderArrowSize}
         arrowThickness={sliderArrowThickness}
         arrowColor={sliderArrowColor}
+        arrowHoverColor={sliderArrowHoverColor}
         arrowBgColor={sliderArrowBgColor}
+        arrowHoverBgColor={sliderArrowHoverBgColor}
+        arrowBgOpacity={sliderArrowBgOpacity}
+        arrowHoverBgOpacity={sliderArrowHoverBgOpacity}
+        arrowShowOutline={sliderArrowShowOutline}
         dotSize={sliderDotSize}
         dotColor={sliderDotColor}
         dotActiveColor={sliderDotActiveColor}

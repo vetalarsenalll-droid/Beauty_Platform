@@ -17,7 +17,9 @@ type UseRightPanelArgs = {
   savePublic: (publish: boolean) => Promise<boolean>;
   updateBlock: UpdateBlock;
   setActivePanelSectionId: Dispatch<SetStateAction<string | null>>;
-  setCoverDrawerKey: Dispatch<SetStateAction<"typography" | "button" | "animation" | null>>;
+  setCoverDrawerKey: Dispatch<
+    SetStateAction<"slider" | "typography" | "button" | "animation" | null>
+  >;
   setCoverWidthModalOpen: Dispatch<SetStateAction<boolean>>;
   animationMs: number;
 };

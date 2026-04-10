@@ -143,7 +143,9 @@ export default function SiteClient({
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
-  const [coverDrawerKey, setCoverDrawerKey] = useState<"typography" | "button" | "animation" | null>(null);
+  const [coverDrawerKey, setCoverDrawerKey] = useState<
+    "slider" | "typography" | "button" | "animation" | null
+  >(null);
   const [coverWidthModalOpen, setCoverWidthModalOpen] = useState(false);
   const coverWidthButtonRef = useRef<HTMLButtonElement | null>(null);
   const coverWidthPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -1235,15 +1237,17 @@ export default function SiteClient({
               style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
             >
               <div className="w-8" />
-              <div className="text-sm font-semibold">
-                {isCoverSettingsPanel
-                  ? (coverDrawerKey === "typography"
-                      ? "Типографика"
-                      : coverDrawerKey === "button"
-                        ? "Кнопка"
-                        : "Анимация")
-                  : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
-              </div>
+                  <div className="text-sm font-semibold">
+                    {isCoverSettingsPanel
+                      ? (coverDrawerKey === "slider"
+                          ? "Стиль слайдера"
+                          : coverDrawerKey === "typography"
+                            ? "Типографика"
+                            : coverDrawerKey === "button"
+                              ? "Кнопка"
+                              : "Анимация")
+                      : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
+                  </div>
               <div className="w-8" />
             </div>
             <div
@@ -1288,7 +1292,9 @@ export default function SiteClient({
               )}
               {rightPanel === "settings" &&
                 isCoverSettingsPanel &&
-                (coverDrawerKey === "button" || coverDrawerKey === "animation") && (
+                (coverDrawerKey === "slider" ||
+                  coverDrawerKey === "button" ||
+                  coverDrawerKey === "animation") && (
                   <SiteCoverDrawerSections
                     coverDrawerKey={coverDrawerKey}
                     selectedBlock={selectedBlock}
