@@ -30,9 +30,9 @@ type PublicCoverV2HeroProps = {
   arrowHoverColor: string;
   arrowBgColor: string;
   arrowHoverBgColor: string;
-  arrowBgOpacity: number | null;
-  arrowHoverBgOpacity: number | null;
   arrowShowOutline: boolean;
+  arrowOutlineColor: string;
+  arrowOutlineThickness: number;
   dotSize: number;
   dotColor: string;
   dotActiveColor: string;
@@ -67,9 +67,9 @@ export default function PublicCoverV2Hero({
   arrowHoverColor,
   arrowBgColor,
   arrowHoverBgColor,
-  arrowBgOpacity,
-  arrowHoverBgOpacity,
   arrowShowOutline,
+  arrowOutlineColor,
+  arrowOutlineThickness,
   dotSize,
   dotColor,
   dotActiveColor,
@@ -132,23 +132,8 @@ export default function PublicCoverV2Hero({
     });
   };
 
-  const resolveBg = (color: string, opacity: number | null) => {
-    if (color === "transparent") return "transparent";
-    if (opacity === null) return color;
-    if (!color.startsWith("#")) return color;
-    const hex = color.length === 4
-      ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
-      : color;
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  };
-  const baseArrowBg = resolveBg(arrowBgColor, arrowBgOpacity);
-  const hoverArrowBg = resolveBg(
-    arrowHoverBgColor || arrowBgColor,
-    arrowHoverBgOpacity ?? arrowBgOpacity
-  );
+  const baseArrowBg = arrowBgColor;
+  const hoverArrowBg = arrowHoverBgColor || arrowBgColor;
   const baseArrowColor = arrowColor;
   const hoverArrowColor = arrowHoverColor || arrowColor;
 
@@ -257,8 +242,8 @@ export default function PublicCoverV2Hero({
               height: arrowPx,
               backgroundColor: hoveredArrow === "prev" ? hoverArrowBg : baseArrowBg,
               color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
-              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
-              borderColor: arrowShowOutline ? "currentColor" : "transparent",
+              borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
+              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
               borderStyle: "solid",
             }}
             aria-label="Предыдущий слайд"
@@ -288,8 +273,8 @@ export default function PublicCoverV2Hero({
               height: arrowPx,
               backgroundColor: hoveredArrow === "next" ? hoverArrowBg : baseArrowBg,
               color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
-              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
-              borderColor: arrowShowOutline ? "currentColor" : "transparent",
+              borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
+              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
               borderStyle: "solid",
             }}
             aria-label="Следующий слайд"

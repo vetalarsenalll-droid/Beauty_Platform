@@ -1,6 +1,7 @@
 ﻿import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type { BlockStyle } from "./site-renderer";
 import { TildaInlineColorField } from "./site-editor-panels";
+import { SliderTrack } from "./site-renderer";
 import { renderCoverFlatNumberInput, renderCoverFlatTextInput } from "./cover-settings";
 
 type SiteCoverDrawerSectionsProps = {
@@ -32,6 +33,39 @@ export function SiteCoverDrawerSections({
   updateSelectedCoverStyle,
   updateSelectedCoverData,
 }: SiteCoverDrawerSectionsProps) {
+  const AccentCheckbox = ({
+    checked,
+    label,
+    onChange,
+  }: {
+    checked: boolean;
+    label: string;
+    onChange: (next: boolean) => void;
+  }) => (
+    <label className="inline-flex items-center gap-2 text-sm">
+      <span
+        className="relative inline-flex h-4 w-4 items-center justify-center rounded-sm border"
+        style={{
+          borderColor: "#ff5a5f",
+          backgroundColor: checked ? "#ff5a5f" : "transparent",
+        }}
+      >
+        {checked && (
+          <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="#ffffff" strokeWidth="2">
+            <path d="M4 10l3 3 9-9" />
+          </svg>
+        )}
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+      {label}
+    </label>
+  );
+
   const data = (selectedBlock.data as Record<string, unknown>) ?? {};
   if (coverDrawerKey === "slider") {
     const sliderInfinite = data.coverSliderInfinite !== false;
@@ -48,21 +82,10 @@ export function SiteCoverDrawerSections({
     const sliderArrowHoverColor = String(data.coverSliderArrowHoverColor ?? "");
     const sliderArrowBgColor = String(data.coverSliderArrowBgColor ?? "#ffffff");
     const sliderArrowHoverBgColor = String(data.coverSliderArrowHoverBgColor ?? "");
-    const sliderArrowBgOpacityRaw = Number(data.coverSliderArrowBgOpacity);
-    const sliderArrowBgOpacity =
-      Number.isFinite(sliderArrowBgOpacityRaw) &&
-      sliderArrowBgOpacityRaw >= 0 &&
-      sliderArrowBgOpacityRaw <= 100
-        ? Math.round(sliderArrowBgOpacityRaw)
-        : null;
-    const sliderArrowHoverBgOpacityRaw = Number(data.coverSliderArrowHoverBgOpacity);
-    const sliderArrowHoverBgOpacity =
-      Number.isFinite(sliderArrowHoverBgOpacityRaw) &&
-      sliderArrowHoverBgOpacityRaw >= 0 &&
-      sliderArrowHoverBgOpacityRaw <= 100
-        ? Math.round(sliderArrowHoverBgOpacityRaw)
-        : null;
-    const sliderArrowShowOutline = Boolean(data.coverSliderArrowShowOutline);
+    const sliderArrowOutlineColor = String(data.coverSliderArrowOutlineColor ?? "transparent");
+    const sliderArrowOutlineThickness = Number.isFinite(Number(data.coverSliderArrowOutlineThickness))
+      ? Math.max(1, Math.min(8, Math.round(Number(data.coverSliderArrowOutlineThickness))))
+      : 1;
     const sliderDotSize = Number.isFinite(Number(data.coverSliderDotSize))
       ? Math.max(6, Math.min(24, Math.round(Number(data.coverSliderDotSize))))
       : 10;
@@ -78,79 +101,94 @@ export function SiteCoverDrawerSections({
     return (
       <div className="space-y-4 pb-10">
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={sliderInfinite}
-              onChange={(event) =>
-                updateSelectedCoverData({ coverSliderInfinite: event.target.checked })
-              }
-            />
-            Бесконечная галерея
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={sliderShowArrows}
-              onChange={(event) =>
-                updateSelectedCoverData({ coverSliderShowArrows: event.target.checked })
-              }
-            />
-            Показывать стрелки
-          </label>
+          <AccentCheckbox
+            checked={sliderInfinite}
+            onChange={(next) => updateSelectedCoverData({ coverSliderInfinite: next })}
+            label="Бесконечная галерея"
+          />
+          <AccentCheckbox
+            checked={sliderShowArrows}
+            onChange={(next) => updateSelectedCoverData({ coverSliderShowArrows: next })}
+            label="Показывать стрелки"
+          />
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={sliderShowDots}
-            onChange={(event) =>
-              updateSelectedCoverData({ coverSliderShowDots: event.target.checked })
-            }
-          />
-          Показывать точки
-        </label>
-        <label className="text-sm">
+        <AccentCheckbox
+          checked={sliderShowDots}
+          onChange={(next) => updateSelectedCoverData({ coverSliderShowDots: next })}
+          label="Показывать точки"
+        />
+        <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
           Автопрокрутка
-          <select
-            value={String(sliderAutoplayMs)}
-            onChange={(event) =>
-              updateSelectedCoverData({ coverSliderAutoplayMs: Number(event.target.value) })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="0">Выключено</option>
-            <option value="2500">Быстро</option>
-            <option value="5000">Средне</option>
-            <option value="8000">Медленно</option>
-          </select>
+          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <select
+              value={String(sliderAutoplayMs)}
+              onChange={(event) =>
+                updateSelectedCoverData({ coverSliderAutoplayMs: Number(event.target.value) })
+              }
+              className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              style={{
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                borderBottom: 0,
+                borderRadius: 0,
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              <option value="0">Выключено</option>
+              <option value="2500">Быстро</option>
+              <option value="5000">Средне</option>
+              <option value="8000">Медленно</option>
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+          </div>
         </label>
-        <label className="text-sm">
+        <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
           Размер стрелки
-          <select
-            value={sliderArrowSize}
-            onChange={(event) => updateSelectedCoverData({ coverSliderArrowSize: event.target.value })}
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="sm">Маленький</option>
-            <option value="md">Средний</option>
-            <option value="lg">Большой</option>
-            <option value="xl">Самый большой</option>
-          </select>
+          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <select
+              value={sliderArrowSize}
+              onChange={(event) =>
+                updateSelectedCoverData({ coverSliderArrowSize: event.target.value })
+              }
+              className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              style={{
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                borderBottom: 0,
+                borderRadius: 0,
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              <option value="sm">Маленький</option>
+              <option value="md">Средний</option>
+              <option value="lg">Большой</option>
+              <option value="xl">Самый большой</option>
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+          </div>
         </label>
-        <label className="text-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
           Толщина стрелки
-          <input
-            type="range"
-            min={1}
-            max={8}
-            step={1}
-            value={sliderArrowThickness}
-            onChange={(event) =>
-              updateSelectedCoverData({ coverSliderArrowThickness: Number(event.target.value) })
-            }
-            className="mt-2 w-full"
-          />
-        </label>
+        </div>
+        <SliderTrack
+          label="Толщина стрелки"
+          value={sliderArrowThickness}
+          min={1}
+          max={8}
+          onChange={(value) => updateSelectedCoverData({ coverSliderArrowThickness: value })}
+          accentColor="#ff5a5f"
+          railColor="var(--bp-stroke)"
+        />
         <div className="grid grid-cols-2 gap-4">
           <TildaInlineColorField
             compact
@@ -180,88 +218,54 @@ export function SiteCoverDrawerSections({
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <label className="text-sm">
-            Непрозрачность фона
-            <select
-              value={sliderArrowBgOpacity === null ? "" : String(sliderArrowBgOpacity)}
-              onChange={(event) =>
-                updateSelectedCoverData({
-                  coverSliderArrowBgOpacity: event.target.value
-                    ? Number(event.target.value)
-                    : null,
-                })
-              }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="">По умолчанию</option>
-              {opacityOptions.slice(1).map((value) => (
-                <option key={`arrow-bg-${value}`} value={value}>
-                  {value}%
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            Непрозрачность при наведении
-            <select
-              value={sliderArrowHoverBgOpacity === null ? "" : String(sliderArrowHoverBgOpacity)}
-              onChange={(event) =>
-                updateSelectedCoverData({
-                  coverSliderArrowHoverBgOpacity: event.target.value
-                    ? Number(event.target.value)
-                    : null,
-                })
-              }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="">По умолчанию</option>
-              {opacityOptions.slice(1).map((value) => (
-                <option key={`arrow-bg-hover-${value}`} value={value}>
-                  {value}%
-                </option>
-              ))}
-            </select>
-          </label>
+          <TildaInlineColorField
+            compact
+            label="Стрелка: обводка"
+            value={sliderArrowOutlineColor}
+            onChange={(value) => updateSelectedCoverData({ coverSliderArrowOutlineColor: value })}
+            onClear={() => updateSelectedCoverData({ coverSliderArrowOutlineColor: "transparent" })}
+            placeholder="#ff5a5f"
+          />
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={sliderArrowShowOutline}
-            onChange={(event) =>
-              updateSelectedCoverData({ coverSliderArrowShowOutline: event.target.checked })
-            }
-          />
-          Показывать обводку
-        </label>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Толщина обводки стрелки
+        </div>
+        <SliderTrack
+          label="Толщина обводки стрелки"
+          value={sliderArrowOutlineThickness}
+          min={1}
+          max={8}
+          onChange={(value) =>
+            updateSelectedCoverData({ coverSliderArrowOutlineThickness: value })
+          }
+          accentColor="#ff5a5f"
+          railColor="var(--bp-stroke)"
+        />
 
-        <label className="text-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
           Размер точки
-          <input
-            type="range"
-            min={6}
-            max={24}
-            step={1}
-            value={sliderDotSize}
-            onChange={(event) =>
-              updateSelectedCoverData({ coverSliderDotSize: Number(event.target.value) })
-            }
-            className="mt-2 w-full"
-          />
-        </label>
-        <label className="text-sm">
+        </div>
+        <SliderTrack
+          label="Размер точки"
+          value={sliderDotSize}
+          min={6}
+          max={24}
+          onChange={(value) => updateSelectedCoverData({ coverSliderDotSize: value })}
+          accentColor="#ff5a5f"
+          railColor="var(--bp-stroke)"
+        />
+        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
           Толщина обводки точки
-          <input
-            type="range"
-            min={0}
-            max={6}
-            step={1}
-            value={sliderDotBorderWidth}
-            onChange={(event) =>
-              updateSelectedCoverData({ coverSliderDotBorderWidth: Number(event.target.value) })
-            }
-            className="mt-2 w-full"
-          />
-        </label>
+        </div>
+        <SliderTrack
+          label="Толщина обводки точки"
+          value={sliderDotBorderWidth}
+          min={0}
+          max={6}
+          onChange={(value) => updateSelectedCoverData({ coverSliderDotBorderWidth: value })}
+          accentColor="#ff5a5f"
+          railColor="var(--bp-stroke)"
+        />
         <div className="grid grid-cols-3 gap-3">
           <TildaInlineColorField
             compact

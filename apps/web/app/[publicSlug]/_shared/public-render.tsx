@@ -944,21 +944,19 @@ function renderCover(
     sliderArrowHoverBgColorRaw && isValidColorValue(sliderArrowHoverBgColorRaw)
       ? sliderArrowHoverBgColorRaw
       : "";
-  const sliderArrowBgOpacityRaw = Number(data.coverSliderArrowBgOpacity);
-  const sliderArrowBgOpacity =
-    Number.isFinite(sliderArrowBgOpacityRaw) &&
-    sliderArrowBgOpacityRaw >= 0 &&
-    sliderArrowBgOpacityRaw <= 100
-      ? Math.round(sliderArrowBgOpacityRaw) / 100
-      : null;
-  const sliderArrowHoverBgOpacityRaw = Number(data.coverSliderArrowHoverBgOpacity);
-  const sliderArrowHoverBgOpacity =
-    Number.isFinite(sliderArrowHoverBgOpacityRaw) &&
-    sliderArrowHoverBgOpacityRaw >= 0 &&
-    sliderArrowHoverBgOpacityRaw <= 100
-      ? Math.round(sliderArrowHoverBgOpacityRaw) / 100
-      : null;
-  const sliderArrowShowOutline = Boolean(data.coverSliderArrowShowOutline);
+  const sliderArrowOutlineColorRaw =
+    typeof data.coverSliderArrowOutlineColor === "string"
+      ? data.coverSliderArrowOutlineColor.trim()
+      : "";
+  const sliderArrowOutlineColor =
+    sliderArrowOutlineColorRaw && isValidColorValue(sliderArrowOutlineColorRaw)
+      ? sliderArrowOutlineColorRaw
+      : "transparent";
+  const sliderArrowOutlineThicknessRaw = Number(data.coverSliderArrowOutlineThickness);
+  const sliderArrowOutlineThickness =
+    Number.isFinite(sliderArrowOutlineThicknessRaw) && sliderArrowOutlineThicknessRaw > 0
+      ? Math.max(1, Math.min(8, Math.round(sliderArrowOutlineThicknessRaw)))
+      : 1;
   const sliderDotSizeRaw = Number(data.coverSliderDotSize);
   const sliderDotSize =
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
@@ -1086,9 +1084,9 @@ function renderCover(
         arrowHoverColor={sliderArrowHoverColor}
         arrowBgColor={sliderArrowBgColor}
         arrowHoverBgColor={sliderArrowHoverBgColor}
-        arrowBgOpacity={sliderArrowBgOpacity}
-        arrowHoverBgOpacity={sliderArrowHoverBgOpacity}
-        arrowShowOutline={sliderArrowShowOutline}
+        arrowShowOutline={sliderArrowOutlineColor !== "transparent"}
+        arrowOutlineColor={sliderArrowOutlineColor}
+        arrowOutlineThickness={sliderArrowOutlineThickness}
         dotSize={sliderDotSize}
         dotColor={sliderDotColor}
         dotActiveColor={sliderDotActiveColor}

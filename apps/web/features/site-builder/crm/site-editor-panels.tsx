@@ -1336,9 +1336,7 @@ export function BlockEditor({
           )}
           {inSection("media", "main") && (
             block.variant === "v2" ? (
-              <div className="text-sm text-[color:var(--bp-muted)]">
-                Настройки изображения доступны в карточках слайдов.
-              </div>
+              <div />
             ) : (
               <CoverImageEditor
                 data={block.data}

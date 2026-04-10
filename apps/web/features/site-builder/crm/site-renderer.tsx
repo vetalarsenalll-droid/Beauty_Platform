@@ -2020,9 +2020,9 @@ function CoverVariantV2Hero({
   arrowHoverColor,
   arrowBgColor,
   arrowHoverBgColor,
-  arrowBgOpacity,
-  arrowHoverBgOpacity,
   arrowShowOutline,
+  arrowOutlineColor,
+  arrowOutlineThickness,
   dotSize,
   dotColor,
   dotActiveColor,
@@ -2057,9 +2057,9 @@ function CoverVariantV2Hero({
   arrowHoverColor: string;
   arrowBgColor: string;
   arrowHoverBgColor: string;
-  arrowBgOpacity: number | null;
-  arrowHoverBgOpacity: number | null;
   arrowShowOutline: boolean;
+  arrowOutlineColor: string;
+  arrowOutlineThickness: number;
   dotSize: number;
   dotColor: string;
   dotActiveColor: string;
@@ -2135,16 +2135,8 @@ function CoverVariantV2Hero({
         ? normalizeExternalHref(buttonHref)
         : "";
 
-  const resolveBg = (color: string, opacity: number | null) => {
-    if (color === "transparent") return "transparent";
-    if (opacity === null) return color;
-    return hexToRgbaString(color, opacity);
-  };
-  const baseArrowBg = resolveBg(arrowBgColor, arrowBgOpacity);
-  const hoverArrowBg = resolveBg(
-    arrowHoverBgColor || arrowBgColor,
-    arrowHoverBgOpacity ?? arrowBgOpacity
-  );
+  const baseArrowBg = arrowBgColor;
+  const hoverArrowBg = arrowHoverBgColor || arrowBgColor;
   const baseArrowColor = arrowColor;
   const hoverArrowColor = arrowHoverColor || arrowColor;
 
@@ -2257,8 +2249,8 @@ function CoverVariantV2Hero({
               height: arrowPx,
               color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
               backgroundColor: hoveredArrow === "prev" ? hoverArrowBg : baseArrowBg,
-              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
-              borderColor: arrowShowOutline ? "currentColor" : "transparent",
+              borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
+              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
               borderStyle: "solid",
               fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
               lineHeight: 1,
@@ -2290,8 +2282,8 @@ function CoverVariantV2Hero({
               height: arrowPx,
               color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
               backgroundColor: hoveredArrow === "next" ? hoverArrowBg : baseArrowBg,
-              borderWidth: arrowShowOutline ? Math.max(1, Math.round(arrowThickness / 2)) : 0,
-              borderColor: arrowShowOutline ? "currentColor" : "transparent",
+              borderWidth: arrowShowOutline ? arrowOutlineThickness : 0,
+              borderColor: arrowShowOutline ? arrowOutlineColor : "transparent",
               borderStyle: "solid",
               fontSize: Math.max(18, Math.round(arrowPx * 0.48)),
               lineHeight: 1,
@@ -2553,21 +2545,19 @@ export function renderCover(
     sliderArrowHoverBgColorRaw && isValidColorValue(sliderArrowHoverBgColorRaw)
       ? sliderArrowHoverBgColorRaw
       : "";
-  const sliderArrowBgOpacityRaw = Number(data.coverSliderArrowBgOpacity);
-  const sliderArrowBgOpacity =
-    Number.isFinite(sliderArrowBgOpacityRaw) &&
-    sliderArrowBgOpacityRaw >= 0 &&
-    sliderArrowBgOpacityRaw <= 100
-      ? Math.round(sliderArrowBgOpacityRaw) / 100
-      : null;
-  const sliderArrowHoverBgOpacityRaw = Number(data.coverSliderArrowHoverBgOpacity);
-  const sliderArrowHoverBgOpacity =
-    Number.isFinite(sliderArrowHoverBgOpacityRaw) &&
-    sliderArrowHoverBgOpacityRaw >= 0 &&
-    sliderArrowHoverBgOpacityRaw <= 100
-      ? Math.round(sliderArrowHoverBgOpacityRaw) / 100
-      : null;
-  const sliderArrowShowOutline = Boolean(data.coverSliderArrowShowOutline);
+  const sliderArrowOutlineColorRaw =
+    typeof data.coverSliderArrowOutlineColor === "string"
+      ? data.coverSliderArrowOutlineColor.trim()
+      : "";
+  const sliderArrowOutlineColor =
+    sliderArrowOutlineColorRaw && isValidColorValue(sliderArrowOutlineColorRaw)
+      ? sliderArrowOutlineColorRaw
+      : "transparent";
+  const sliderArrowOutlineThicknessRaw = Number(data.coverSliderArrowOutlineThickness);
+  const sliderArrowOutlineThickness =
+    Number.isFinite(sliderArrowOutlineThicknessRaw) && sliderArrowOutlineThicknessRaw > 0
+      ? Math.max(1, Math.min(8, Math.round(sliderArrowOutlineThicknessRaw)))
+      : 1;
   const sliderDotSizeRaw = Number(data.coverSliderDotSize);
   const sliderDotSize =
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
@@ -2698,9 +2688,9 @@ export function renderCover(
         arrowHoverColor={sliderArrowHoverColor}
         arrowBgColor={sliderArrowBgColor}
         arrowHoverBgColor={sliderArrowHoverBgColor}
-        arrowBgOpacity={sliderArrowBgOpacity}
-        arrowHoverBgOpacity={sliderArrowHoverBgOpacity}
-        arrowShowOutline={sliderArrowShowOutline}
+        arrowShowOutline={sliderArrowOutlineColor !== "transparent"}
+        arrowOutlineColor={sliderArrowOutlineColor}
+        arrowOutlineThickness={sliderArrowOutlineThickness}
         dotSize={sliderDotSize}
         dotColor={sliderDotColor}
         dotActiveColor={sliderDotActiveColor}
