@@ -766,6 +766,9 @@ export function BlockEditor({
   const [coverSlideUploadErrorById, setCoverSlideUploadErrorById] = useState<
     Record<string, string>
   >({});
+  const [openButtonPageSelectSlideId, setOpenButtonPageSelectSlideId] = useState<string | null>(
+    null
+  );
 
   return (
     <div className="space-y-6 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
@@ -1202,23 +1205,152 @@ export function BlockEditor({
                             />
                             <label className="block text-sm">
                               Страница кнопки
-                              <select
-                                value={String(slide.buttonPage ?? "")}
-                                onChange={(event) =>
-                                  updateSlide({
-                                    buttonPage: event.target.value || null,
-                                    buttonHref: "",
-                                  })
-                                }
-                                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-                              >
-                                <option value="">Не выбрано</option>
-                                {PAGE_KEYS.map((key) => (
-                                  <option key={`${slideId}-page-${key}`} value={key}>
-                                    {PAGE_LABELS[key]}
-                                  </option>
-                                ))}
-                              </select>
+                              {(() => {
+                                const buttonPageValue = String(slide.buttonPage ?? "");
+                                const selectedLabel =
+                                  !buttonPageValue
+                                    ? "Не выбрано"
+                                    : PAGE_KEYS.includes(buttonPageValue as SitePageKey)
+                                      ? PAGE_LABELS[buttonPageValue as SitePageKey]
+                                      : buttonPageValue.startsWith("location:")
+                                        ? locations.find(
+                                            (location) =>
+                                              `location:${location.id}` === buttonPageValue
+                                          )?.name ?? "Локация"
+                                        : buttonPageValue.startsWith("specialist:")
+                                          ? specialists.find(
+                                              (specialist) =>
+                                                `specialist:${specialist.id}` === buttonPageValue
+                                            )?.name ?? "Специалист"
+                                          : buttonPageValue.startsWith("service:")
+                                            ? services.find(
+                                                (service) =>
+                                                  `service:${service.id}` === buttonPageValue
+                                              )?.name ?? "Услуга"
+                                            : "Не выбрано";
+                                const isOpen = openButtonPageSelectSlideId === slideId;
+                                const selectButtonClass =
+                                  "mt-2 flex h-8 w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 text-left";
+                                const optionClass =
+                                  "block w-full px-3 py-2 text-left text-sm hover:bg-[#f3f4f6]";
+                                return (
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setOpenButtonPageSelectSlideId((prev) =>
+                                          prev === slideId ? null : slideId
+                                        )
+                                      }
+                                      className={selectButtonClass}
+                                    >
+                                      <span className="truncate">{selectedLabel}</span>
+                                      <span className="text-xs text-[color:var(--bp-muted)]">▾</span>
+                                    </button>
+                                    {isOpen ? (
+                                      <div className="absolute z-[40] mt-1 w-full rounded-none border border-[color:var(--bp-stroke)] bg-white shadow-lg">
+                                        <div className="max-h-72 overflow-y-auto py-1 [scrollbar-width:thin] [scrollbar-color:#ff5a5f_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#ff5a5f] [&::-webkit-scrollbar-track]:bg-transparent">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              updateSlide({ buttonPage: null, buttonHref: "" });
+                                              setOpenButtonPageSelectSlideId(null);
+                                            }}
+                                            className={optionClass}
+                                          >
+                                            Не выбрано
+                                          </button>
+                                          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--bp-muted)]">
+                                            Страницы
+                                          </div>
+                                          {PAGE_KEYS.map((key) => (
+                                            <button
+                                              key={`${slideId}-page-${key}`}
+                                              type="button"
+                                              onClick={() => {
+                                                updateSlide({ buttonPage: key, buttonHref: "" });
+                                                setOpenButtonPageSelectSlideId(null);
+                                              }}
+                                              className={optionClass}
+                                            >
+                                              {PAGE_LABELS[key]}
+                                            </button>
+                                          ))}
+                                          {locations.length > 0 ? (
+                                            <>
+                                              <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--bp-muted)]">
+                                                Локации
+                                              </div>
+                                              {locations.map((location) => (
+                                                <button
+                                                  key={`${slideId}-location-${location.id}`}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    updateSlide({
+                                                      buttonPage: `location:${location.id}`,
+                                                      buttonHref: "",
+                                                    });
+                                                    setOpenButtonPageSelectSlideId(null);
+                                                  }}
+                                                  className={optionClass}
+                                                >
+                                                  {location.name}
+                                                </button>
+                                              ))}
+                                            </>
+                                          ) : null}
+                                          {specialists.length > 0 ? (
+                                            <>
+                                              <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--bp-muted)]">
+                                                Специалисты
+                                              </div>
+                                              {specialists.map((specialist) => (
+                                                <button
+                                                  key={`${slideId}-specialist-${specialist.id}`}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    updateSlide({
+                                                      buttonPage: `specialist:${specialist.id}`,
+                                                      buttonHref: "",
+                                                    });
+                                                    setOpenButtonPageSelectSlideId(null);
+                                                  }}
+                                                  className={optionClass}
+                                                >
+                                                  {specialist.name}
+                                                </button>
+                                              ))}
+                                            </>
+                                          ) : null}
+                                          {services.length > 0 ? (
+                                            <>
+                                              <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--bp-muted)]">
+                                                Услуги
+                                              </div>
+                                              {services.map((service) => (
+                                                <button
+                                                  key={`${slideId}-service-${service.id}`}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    updateSlide({
+                                                      buttonPage: `service:${service.id}`,
+                                                      buttonHref: "",
+                                                    });
+                                                    setOpenButtonPageSelectSlideId(null);
+                                                  }}
+                                                  className={optionClass}
+                                                >
+                                                  {service.name}
+                                                </button>
+                                              ))}
+                                            </>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })()}
                             </label>
                             <div className="space-y-2">
                               <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">

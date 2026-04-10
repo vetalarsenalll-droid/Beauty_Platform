@@ -2598,9 +2598,6 @@ export function renderCover(
         typeof slide.buttonText === "string" ? slide.buttonText.trim() : "";
       const slideButtonPageRaw =
         typeof slide.buttonPage === "string" ? slide.buttonPage.trim() : "";
-      const slideButtonPage = PAGE_KEYS.includes(slideButtonPageRaw as SitePageKey)
-        ? (slideButtonPageRaw as SitePageKey)
-        : null;
       const slideButtonHref =
         typeof slide.buttonHref === "string" ? slide.buttonHref.trim() : "";
       const slideImage = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
@@ -2622,7 +2619,13 @@ export function renderCover(
               ? "Выберите специалиста по рейтингу, портфолио и свободному времени."
               : slideDescription;
       const localizedButtonText = slideButtonText === "Read more" ? "Подробнее" : slideButtonText;
-      const resolvedPageHref = slideButtonPage ? resolveSitePageHref(slideButtonPage, account) : "";
+      const resolvedPageHref = resolveCoverSlideTargetHref(
+        slideButtonPageRaw,
+        account,
+        locations,
+        services,
+        specialists
+      );
       return {
         id:
           typeof slide.id === "string" && slide.id.trim()
@@ -2915,6 +2918,48 @@ function resolveSitePageHref(pageKey: SitePageKey, account: AccountInfo): string
   if (pageKey === "booking") return `${basePath}/booking`;
   if (pageKey === "client") return `/c?account=${account.slug}`;
   return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
+}
+
+function resolveCoverSlideTargetHref(
+  target: string,
+  account: AccountInfo,
+  locations: LocationItem[],
+  services: ServiceItem[],
+  specialists: SpecialistItem[]
+): string {
+  const normalizedTarget = target.trim();
+  if (!normalizedTarget) return "";
+  if (PAGE_KEYS.includes(normalizedTarget as SitePageKey)) {
+    return resolveSitePageHref(normalizedTarget as SitePageKey, account);
+  }
+  if (!account.publicSlug) return "";
+  const basePath = `/${account.publicSlug}`;
+
+  const locationMatch = normalizedTarget.match(/^location:(\d+)$/);
+  if (locationMatch) {
+    const locationId = Number(locationMatch[1]);
+    return locations.some((item) => item.id === locationId)
+      ? `${basePath}/locations/${locationId}`
+      : "";
+  }
+
+  const specialistMatch = normalizedTarget.match(/^specialist:(\d+)$/);
+  if (specialistMatch) {
+    const specialistId = Number(specialistMatch[1]);
+    return specialists.some((item) => item.id === specialistId)
+      ? `${basePath}/specialists/${specialistId}`
+      : "";
+  }
+
+  const serviceMatch = normalizedTarget.match(/^service:(\d+)$/);
+  if (serviceMatch) {
+    const serviceId = Number(serviceMatch[1]);
+    return services.some((item) => item.id === serviceId)
+      ? `${basePath}/services/${serviceId}`
+      : "";
+  }
+
+  return "";
 }
 
 export function resolveSocialHrefByKey(accountProfile: AccountProfile, key: string): string | null {

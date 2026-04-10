@@ -996,6 +996,41 @@ function renderCover(
     if (pageKey === "client") return accountSlug ? `/c?account=${accountSlug}` : "/c/login";
     return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
   };
+  const resolveCoverSlideTargetHref = (target: string): string => {
+    const normalizedTarget = target.trim();
+    if (!normalizedTarget) return "";
+    if ((Object.keys(PAGE_LABELS) as PageKey[]).includes(normalizedTarget as PageKey)) {
+      return resolvePageHref(normalizedTarget as PageKey);
+    }
+    if (!publicSlug) return "";
+    const basePath = `/${publicSlug}`;
+
+    const locationMatch = normalizedTarget.match(/^location:(\d+)$/);
+    if (locationMatch) {
+      const locationId = Number(locationMatch[1]);
+      return locations.some((item) => item.id === locationId)
+        ? `${basePath}/locations/${locationId}`
+        : "";
+    }
+
+    const specialistMatch = normalizedTarget.match(/^specialist:(\d+)$/);
+    if (specialistMatch) {
+      const specialistId = Number(specialistMatch[1]);
+      return specialists.some((item) => item.id === specialistId)
+        ? `${basePath}/specialists/${specialistId}`
+        : "";
+    }
+
+    const serviceMatch = normalizedTarget.match(/^service:(\d+)$/);
+    if (serviceMatch) {
+      const serviceId = Number(serviceMatch[1]);
+      return services.some((item) => item.id === serviceId)
+        ? `${basePath}/services/${serviceId}`
+        : "";
+    }
+
+    return "";
+  };
   const rawSlides = Array.isArray(data.coverSlides)
     ? (data.coverSlides as Array<Record<string, unknown>>)
     : [];
@@ -1005,26 +1040,22 @@ function renderCover(
       const slideDescription = typeof slide.description === "string" ? slide.description.trim() : "";
       const slideButtonText = typeof slide.buttonText === "string" ? slide.buttonText.trim() : "";
       const slideButtonPageRaw = typeof slide.buttonPage === "string" ? slide.buttonPage.trim() : "";
-      const slideButtonPage = (Object.keys(PAGE_LABELS) as PageKey[]).includes(slideButtonPageRaw as PageKey)
-        ? (slideButtonPageRaw as PageKey)
-        : null;
       const slideButtonHref = typeof slide.buttonHref === "string" ? slide.buttonHref.trim() : "";
       const slideImage = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
       const resolvedButtonHref =
-        slideButtonPage
-          ? resolvePageHref(slideButtonPage)
-          : slideButtonHref.startsWith("#") ||
-              slideButtonHref.startsWith("/") ||
-              slideButtonHref.startsWith("mailto:") ||
-              slideButtonHref.startsWith("tel:") ||
-              slideButtonHref.startsWith("http://") ||
-              slideButtonHref.startsWith("https://")
-            ? slideButtonHref
-            : slideButtonHref
-              ? normalizeExternalHref(slideButtonHref)
-              : publicSlug
-                ? buildBookingLink({ publicSlug })
-                : "#";
+        resolveCoverSlideTargetHref(slideButtonPageRaw) ||
+        (slideButtonHref.startsWith("#") ||
+        slideButtonHref.startsWith("/") ||
+        slideButtonHref.startsWith("mailto:") ||
+        slideButtonHref.startsWith("tel:") ||
+        slideButtonHref.startsWith("http://") ||
+        slideButtonHref.startsWith("https://")
+          ? slideButtonHref
+          : slideButtonHref
+            ? normalizeExternalHref(slideButtonHref)
+            : publicSlug
+              ? buildBookingLink({ publicSlug })
+              : "#");
       return {
         id:
           typeof slide.id === "string" && slide.id.trim()
