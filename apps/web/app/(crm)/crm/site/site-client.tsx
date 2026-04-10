@@ -3193,24 +3193,6 @@ export default function SiteClient({
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-6">
-                              <div>
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                                  Радиус блока
-                                </div>
-                                <div className="mt-2 text-sm">0px</div>
-                              </div>
-                              <div>
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                                  Радиус кнопки
-                                </div>
-                                <div className="mt-2 text-sm">0px</div>
-                              </div>
-                            </div>
-
-                            <div className="text-sm text-[color:var(--bp-muted)]">
-                              Ширина блока: 12/12 (фиксировано для меню)
-                            </div>
                           </div>
 
                           <div className="space-y-3">
@@ -3255,9 +3237,6 @@ export default function SiteClient({
                           </div>
 
                           <div className="space-y-3 pt-1">
-                            <div className="text-sm text-[color:var(--bp-muted)]">
-                              Ширина блока: 12/12 (фиксировано для меню)
-                            </div>
                             <div className="grid grid-cols-2 gap-3">
                               <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                                 Отступ сверху
@@ -5747,25 +5726,6 @@ function BlockStyleEditor({
               </div>
             );
           })()}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-              <div className="min-h-[32px] leading-4">Радиус блока</div>
-              <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1 text-sm text-[color:var(--bp-ink)]">
-                0px
-              </div>
-            </div>
-            <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-              <div className="min-h-[32px] leading-4">Радиус кнопки</div>
-              <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1 text-sm text-[color:var(--bp-ink)]">
-                0px
-              </div>
-            </div>
-          </div>
-
-          <div className="text-sm text-[color:var(--bp-muted)]">
-            Ширина блока: 12/12 (фиксировано для меню)
-          </div>
 
           {(() => {
             const menuMarginTopLines = Math.max(
