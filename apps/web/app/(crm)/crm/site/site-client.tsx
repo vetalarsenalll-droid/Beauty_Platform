@@ -3998,7 +3998,7 @@ function TildaInlineColorField({
             onChange(next);
           }}
           onFocus={(event) => event.currentTarget.select()}
-          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-sm text-[color:var(--bp-muted)] font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-sm text-[color:var(--bp-ink)] font-normal normal-case tracking-normal shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
           style={{
             border: 0,
             borderRadius: 0,
@@ -4158,7 +4158,7 @@ function TildaBackgroundColorField({
         <select
           value={mode}
           onChange={(event) => onModeChange?.(event.target.value as CoverBackgroundMode)}
-          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-sm normal-case tracking-normal shadow-none outline-none focus:ring-0"
+          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-sm normal-case tracking-normal text-[color:var(--bp-ink)] shadow-none outline-none focus:ring-0"
           style={{
             borderTop: "0",
             borderLeft: "0",
@@ -4174,9 +4174,9 @@ function TildaBackgroundColorField({
           <option value="linear">Линейный градиент</option>
           <option value="radial">Радиальный градиент</option>
         </select>
-        <span className="pointer-events-none text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+        <span className="pointer-events-none text-sm leading-none text-[color:var(--bp-ink)]">▾</span>
       </div>
-      <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
+      <div className="mt-2 flex items-center gap-2 bg-transparent">
         <div
           className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]"
           style={isTransparent ? transparencyPattern : { backgroundColor: "var(--bp-paper)" }}
@@ -4210,7 +4210,7 @@ function TildaBackgroundColorField({
           }}
           onFocus={(event) => event.currentTarget.select()}
           placeholder={placeholder}
-          className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] px-0 py-1 text-sm text-[color:var(--bp-muted)] shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-sm text-[color:var(--bp-ink)] shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
           style={{ border: 0, boxShadow: "none" }}
         />
         <button
@@ -4224,7 +4224,7 @@ function TildaBackgroundColorField({
         </button>
       </div>
       {mode !== "solid" && (
-        <div className="mt-2 flex items-center gap-2 bg-[color:var(--bp-paper)]">
+        <div className="mt-2 flex items-center gap-2 bg-transparent">
           <div
             className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-[color:var(--bp-stroke)]"
             style={secondIsTransparent ? transparencyPattern : { backgroundColor: "var(--bp-paper)" }}
@@ -4246,7 +4246,7 @@ function TildaBackgroundColorField({
             onChange={(event) => onSecondChange?.(event.target.value)}
             onFocus={(event) => event.currentTarget.select()}
             placeholder={placeholder}
-            className="w-full appearance-none border-0 bg-[color:var(--bp-paper)] px-0 py-1 text-sm text-[color:var(--bp-muted)] shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+            className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-sm text-[color:var(--bp-ink)] shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
             style={{ border: 0, boxShadow: "none" }}
           />
           <button
@@ -6134,7 +6134,7 @@ function BlockStyleEditor({
                 return (
                   <TildaBackgroundColorField
                     label="Цвет блока"
-                    value={String(lightBlockBg || "")}
+                    value={String(data.menuBlockBackgroundFrom ?? lightBlockBg ?? "")}
                     mode={mode}
                     secondValue={String(data.menuBlockBackgroundTo ?? "")}
                     angle={Number(data.menuBlockBackgroundAngle ?? 135)}
@@ -6182,7 +6182,7 @@ function BlockStyleEditor({
                 return (
                   <TildaBackgroundColorField
                     label="Цвет фона для всего блока"
-                    value={String(lightSectionBg || "")}
+                    value={String(data.menuSectionBackgroundFrom ?? lightSectionBg ?? "")}
                     mode={mode}
                     secondValue={String(data.menuSectionBackgroundTo ?? "")}
                     angle={Number(data.menuSectionBackgroundAngle ?? 135)}
@@ -6218,8 +6218,90 @@ function BlockStyleEditor({
             </>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            {block.type !== "menu" && (
+          {block.type === "menu" ? (
+            <div className="space-y-3">
+              <TildaInlineColorField
+                label="Цвет подблока"
+                value={toDisplay(lightSubBlockBg)}
+                placeholder={theme.panelColor}
+                onChange={(value) =>
+                  update({
+                    subBlockBgLight: toStore(value),
+                    subBlockBg: toStore(value),
+                  })
+                }
+                onClear={() =>
+                  update({
+                    subBlockBgLight: toStore("transparent"),
+                    subBlockBg: toStore("transparent"),
+                  })
+                }
+              />
+              <TildaInlineColorField
+                label="Цвет обводки"
+                value={toDisplay(lightBorderColor)}
+                placeholder={theme.borderColor}
+                onChange={(value) =>
+                  update({
+                    borderColorLight: toStore(value),
+                    borderColor: toStore(value),
+                  })
+                }
+                onClear={() =>
+                  update({
+                    borderColorLight: toStore("transparent"),
+                    borderColor: toStore("transparent"),
+                  })
+                }
+              />
+              <TildaInlineColorField
+                label="Заголовок"
+                value={toDisplay(lightTextColor)}
+                placeholder={theme.textColor}
+                onChange={(value) =>
+                  update({ textColorLight: toStore(value), textColor: toStore(value) })
+                }
+                onClear={() =>
+                  update({
+                    textColorLight: toStore("transparent"),
+                    textColor: toStore("transparent"),
+                  })
+                }
+              />
+              <TildaInlineColorField
+                label="Текст"
+                value={toDisplay(lightMutedColor)}
+                placeholder={theme.mutedColor}
+                onChange={(value) =>
+                  update({
+                    mutedColorLight: toStore(value),
+                    mutedColor: toStore(value),
+                  })
+                }
+                onClear={() =>
+                  update({
+                    mutedColorLight: toStore("transparent"),
+                    mutedColor: toStore("transparent"),
+                  })
+                }
+              />
+              <TildaInlineColorField
+                label="Тень"
+                value={style.shadowColor || theme.shadowColor}
+                placeholder={theme.shadowColor}
+                onChange={(value) => update({ shadowColor: value })}
+                onClear={() => update({ shadowColor: "transparent" })}
+              />
+              <TildaInlineNumberField
+                label="Размер тени"
+                value={style.shadowSize ?? theme.shadowSize}
+                min={0}
+                max={40}
+                onChange={(value) => update({ shadowSize: value })}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
               <ColorField
                 label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
                 value={toDisplay(block.type === "aisha" ? lightBlockBg : lightSectionBg)}
@@ -6250,7 +6332,6 @@ function BlockStyleEditor({
                   )
                 }
               />
-            )}
         {block.type === "booking" && (
           <ColorField
             label="Фон блока"
@@ -6264,7 +6345,7 @@ function BlockStyleEditor({
             }
           />
         )}
-        {(block.type === "booking" || block.type === "menu") && (
+        {block.type === "booking" && (
           <ColorField
             label="Цвет подблока"
             value={toDisplay(lightSubBlockBg)}
@@ -6288,34 +6369,30 @@ function BlockStyleEditor({
             })
           }
         />
-        {block.type !== "menu" && (
-          <ColorField
-            label="Цвет кнопки"
-            value={toDisplay(lightButtonColor)}
-            placeholder={theme.buttonColor}
-            onChange={(value) =>
-              update({
-                buttonColorLight: toStore(value),
-                buttonColor: toStore(value),
-              })
-            }
-          />
-        )}
-        {block.type !== "menu" && (
-          <ColorField
-            label="Текст кнопки"
-            value={toDisplay(lightButtonTextColor)}
-            placeholder={theme.buttonTextColor}
-            onChange={(value) =>
-              update({
-                buttonTextColorLight: toStore(value),
-                buttonTextColor: toStore(value),
-              })
-            }
-          />
-        )}
         <ColorField
-          label={block.type === "menu" ? "Заголовок" : "Текст"}
+          label="Цвет кнопки"
+          value={toDisplay(lightButtonColor)}
+          placeholder={theme.buttonColor}
+          onChange={(value) =>
+            update({
+              buttonColorLight: toStore(value),
+              buttonColor: toStore(value),
+            })
+          }
+        />
+        <ColorField
+          label="Текст кнопки"
+          value={toDisplay(lightButtonTextColor)}
+          placeholder={theme.buttonTextColor}
+          onChange={(value) =>
+            update({
+              buttonTextColorLight: toStore(value),
+              buttonTextColor: toStore(value),
+            })
+          }
+        />
+        <ColorField
+          label="Текст"
           value={toDisplay(lightTextColor)}
           placeholder={theme.textColor}
           onChange={(value) =>
@@ -6323,7 +6400,7 @@ function BlockStyleEditor({
           }
         />
         <ColorField
-          label={block.type === "menu" ? "Текст" : "Вторичный текст"}
+          label="Вторичный текст"
           value={toDisplay(lightMutedColor)}
           placeholder={theme.mutedColor}
           onChange={(value) =>
@@ -6422,6 +6499,7 @@ function BlockStyleEditor({
           onChange={(value) => update({ shadowSize: value })}
         />
           </div>
+          )}
         </div>
       )}
       {inSection("colors") && (
@@ -6429,8 +6507,53 @@ function BlockStyleEditor({
         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
           Темная тема
         </div>
+        {block.type === "menu" ? (
+          <div className="mt-3 space-y-3">
+            <TildaInlineColorField
+              label="Цвет подблока"
+              value={toDisplay(darkSubBlockBg)}
+              placeholder={theme.darkPalette.panelColor}
+              onChange={(value) => update({ subBlockBgDark: toStore(value) })}
+              onClear={() => update({ subBlockBgDark: toStore("transparent") })}
+            />
+            <TildaInlineColorField
+              label="Цвет обводки"
+              value={toDisplay(darkBorderColor)}
+              placeholder={theme.darkPalette.borderColor}
+              onChange={(value) => update({ borderColorDark: toStore(value) })}
+              onClear={() => update({ borderColorDark: toStore("transparent") })}
+            />
+            <TildaInlineColorField
+              label="Заголовок"
+              value={toDisplay(darkTextColor)}
+              placeholder={theme.darkPalette.textColor}
+              onChange={(value) => update({ textColorDark: toStore(value) })}
+              onClear={() => update({ textColorDark: toStore("transparent") })}
+            />
+            <TildaInlineColorField
+              label="Текст"
+              value={toDisplay(darkMutedColor)}
+              placeholder={theme.darkPalette.mutedColor}
+              onChange={(value) => update({ mutedColorDark: toStore(value) })}
+              onClear={() => update({ mutedColorDark: toStore("transparent") })}
+            />
+            <TildaInlineColorField
+              label="Тень"
+              value={style.shadowColor || theme.shadowColor}
+              placeholder={theme.shadowColor}
+              onChange={(value) => update({ shadowColor: value })}
+              onClear={() => update({ shadowColor: "transparent" })}
+            />
+            <TildaInlineNumberField
+              label="Размер тени"
+              value={style.shadowSize ?? theme.shadowSize}
+              min={0}
+              max={40}
+              onChange={(value) => update({ shadowSize: value })}
+            />
+          </div>
+        ) : (
         <div className="mt-3 grid grid-cols-2 gap-3">
-          {block.type !== "menu" && (
               <ColorField
                 label={block.type === "booking" ? "Фон страницы" : "Фон блока"}
                 value={toDisplay(block.type === "aisha" ? darkBlockBg : darkSectionBg)}
@@ -6447,7 +6570,6 @@ function BlockStyleEditor({
                   )
                 }
               />
-          )}
             {block.type === "booking" && (
               <ColorField
                 label="Фон блока"
@@ -6456,7 +6578,7 @@ function BlockStyleEditor({
                 onChange={(value) => update({ blockBgDark: toStore(value) })}
               />
             )}
-            {(block.type === "booking" || block.type === "menu") && (
+            {block.type === "booking" && (
               <ColorField
                 label="Цвет подблока"
                 value={toDisplay(darkSubBlockBg)}
@@ -6471,13 +6593,13 @@ function BlockStyleEditor({
               onChange={(value) => update({ borderColorDark: toStore(value) })}
             />
             <ColorField
-              label={block.type === "menu" ? "Заголовок" : "Текст"}
+              label="Текст"
               value={toDisplay(darkTextColor)}
               placeholder={theme.darkPalette.textColor}
               onChange={(value) => update({ textColorDark: toStore(value) })}
             />
             <ColorField
-              label={block.type === "menu" ? "Текст" : "Вторичный текст"}
+              label="Вторичный текст"
               value={toDisplay(darkMutedColor)}
               placeholder={theme.darkPalette.mutedColor}
               onChange={(value) => update({ mutedColorDark: toStore(value) })}
@@ -6567,6 +6689,7 @@ function BlockStyleEditor({
               </>
             )}
         </div>
+        )}
       </div>
       )}
       {inSection("effects") && (
@@ -7661,6 +7784,58 @@ function FlatCheckbox({
         ✓
       </span>
       <span>{label}</span>
+    </label>
+  );
+}
+
+function TildaInlineNumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
+  return (
+    <label className="block">
+      <div className="min-h-[32px] text-[11px] font-semibold uppercase tracking-[0.15em] leading-4 text-[color:var(--bp-muted)]">
+        {label}
+      </div>
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <input
+          type="number"
+          value={Number.isFinite(value) ? value : 0}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(event) => {
+            const raw = event.target.value;
+            const parsed = raw.trim() === "" ? 0 : Number(raw);
+            if (!Number.isFinite(parsed)) return;
+            let next = parsed;
+            if (typeof min === "number") next = Math.max(min, next);
+            if (typeof max === "number") next = Math.min(max, next);
+            onChange(next);
+          }}
+          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-sm text-[color:var(--bp-ink)] font-normal normal-case tracking-normal shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "textfield",
+            appearance: "none",
+          }}
+        />
+      </div>
     </label>
   );
 }
