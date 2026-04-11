@@ -146,6 +146,17 @@ export function TildaInlineColorField({
   placeholder?: string;
   compact?: boolean;
 }) {
+  const normalizeLegacyColor = (rawValue: string) => {
+    const raw = rawValue.trim().toLowerCase();
+    if (raw === "rgba(22, 24, 29, 0.9)" || raw === "rgba(22,24,29,0.9)") return "#16181d";
+    if (raw === "rgba(26, 28, 34, 0.92)" || raw === "rgba(26,28,34,0.92)") return "#1a1c22";
+    if (raw === "rgba(255, 255, 255, 0.08)" || raw === "rgba(255,255,255,0.08)") return "#ffffff14";
+    if (raw === "rgba(17, 24, 39, 0.12)" || raw === "rgba(17,24,39,0.12)") return "#111827";
+    if (raw === "#16181de6") return "#16181d";
+    if (raw === "#1a1c22eb") return "#1a1c22";
+    if (raw === "#1118271f") return "#111827";
+    return rawValue.trim();
+  };
   const HEX_ANY_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
   const toColorInputHex = (raw: string, fallback: string) => {
     const normalized = raw.trim();
@@ -156,7 +167,7 @@ export function TildaInlineColorField({
     return "#ffffff";
   };
   const EMPTY_COLOR_LABEL = "Цвет не выбран";
-  const normalized = value?.trim() ?? "";
+  const normalized = normalizeLegacyColor(value?.trim() ?? "");
   const isTransparent = normalized.toLowerCase() === "transparent";
   const isHex = HEX_ANY_RE.test(normalized);
   const displayValue = isTransparent ? EMPTY_COLOR_LABEL : normalized || placeholder;
@@ -261,6 +272,17 @@ export function TildaBackgroundColorField({
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
+  const normalizeLegacyColor = (rawValue: string) => {
+    const raw = rawValue.trim().toLowerCase();
+    if (raw === "rgba(22, 24, 29, 0.9)" || raw === "rgba(22,24,29,0.9)") return "#16181d";
+    if (raw === "rgba(26, 28, 34, 0.92)" || raw === "rgba(26,28,34,0.92)") return "#1a1c22";
+    if (raw === "rgba(255, 255, 255, 0.08)" || raw === "rgba(255,255,255,0.08)") return "#ffffff14";
+    if (raw === "rgba(17, 24, 39, 0.12)" || raw === "rgba(17,24,39,0.12)") return "#111827";
+    if (raw === "#16181de6") return "#16181d";
+    if (raw === "#1a1c22eb") return "#1a1c22";
+    if (raw === "#1118271f") return "#111827";
+    return rawValue.trim();
+  };
   const HEX_ANY_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
   const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
   const toColorInputHex = (raw: string, fallback: string) => {
@@ -272,7 +294,7 @@ export function TildaBackgroundColorField({
     return "#ffffff";
   };
   const EMPTY_COLOR_LABEL = "Цвет не выбран";
-  const normalized = value?.trim() ?? "";
+  const normalized = normalizeLegacyColor(value?.trim() ?? "");
   const isTransparent = normalized.toLowerCase() === "transparent";
   const isHex = HEX_ANY_RE.test(normalized);
   const placeholderValue = typeof placeholder === "string" ? placeholder : "";
@@ -289,7 +311,7 @@ export function TildaBackgroundColorField({
     : isTransparent
       ? "#ffffff"
       : placeholderHex || "#ffffff";
-  const normalizedSecond = secondValue?.trim() ?? "";
+  const normalizedSecond = normalizeLegacyColor(secondValue?.trim() ?? "");
   const secondIsHex = HEX_ANY_RE.test(normalizedSecond);
   const secondColorValue = secondIsHex
     ? toColorInputHex(normalizedSecond, colorValue)
@@ -373,7 +395,7 @@ export function TildaBackgroundColorField({
         <select
           value={mode}
           onChange={(event) => onModeChange?.(event.target.value as CoverBackgroundMode)}
-          className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-sm normal-case tracking-normal text-[color:var(--bp-ink)] shadow-none outline-none focus:ring-0"
+          className="w-full appearance-none !rounded-none !border-0 border-b border-[color:var(--bp-stroke)] !bg-transparent px-0 py-1 pr-5 text-sm normal-case tracking-normal text-[color:var(--bp-ink)] !shadow-none outline-none focus:ring-0"
           style={{
             borderTop: "0",
             borderLeft: "0",
@@ -425,7 +447,7 @@ export function TildaBackgroundColorField({
           }}
           onFocus={(event) => event.currentTarget.select()}
           placeholder={placeholder}
-          className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-sm text-[color:var(--bp-ink)] shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
+          className="w-full appearance-none !rounded-none !border-0 !bg-transparent px-0 py-1 text-sm text-[color:var(--bp-ink)] !shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
           style={{ border: 0, boxShadow: "none" }}
         />
         <button
@@ -461,7 +483,7 @@ export function TildaBackgroundColorField({
             onChange={(event) => onSecondChange?.(event.target.value)}
             onFocus={(event) => event.currentTarget.select()}
             placeholder={placeholder}
-            className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-sm text-[color:var(--bp-ink)] shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
+            className="w-full appearance-none !rounded-none !border-0 !bg-transparent px-0 py-1 text-sm text-[color:var(--bp-ink)] !shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
             style={{ border: 0, boxShadow: "none" }}
           />
           <button
@@ -2131,24 +2153,50 @@ export function BlockStyleEditor({
   const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
   const readRaw = (key: string) =>
     typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
-  const toDisplay = (value: string) => value;
+  const toDisplay = (value: string) =>
+    value.trim().toLowerCase() === "transparent" ? "transparent" : rgbaToHex(value);
+  const rgbaToHex = (value: string) => {
+    const match = value
+      .trim()
+      .match(
+        /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*((?:\d+|\d*\.\d+)))?\s*\)$/i
+      );
+    if (!match) return value.trim();
+    const r = Math.max(0, Math.min(255, Number(match[1])));
+    const g = Math.max(0, Math.min(255, Number(match[2])));
+    const b = Math.max(0, Math.min(255, Number(match[3])));
+    const aRaw = match[4];
+    const toHex = (n: number) => n.toString(16).padStart(2, "0");
+    if (r === 22 && g === 24 && b === 29) return "#16181d";
+    if (r === 26 && g === 28 && b === 34) return "#1a1c22";
+    if (r === 17 && g === 24 && b === 39) return "#111827";
+    if (r === 255 && g === 255 && b === 255 && Number(aRaw) <= 0.12) return "#ffffff14";
+    if (typeof aRaw === "undefined") {
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+    const alpha = Math.max(0, Math.min(1, Number(aRaw)));
+    if (!Number.isFinite(alpha) || alpha >= 0.999) {
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    }
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(Math.round(alpha * 255))}`;
+  };
   const toStore = (value: string) =>
     value.trim() === "" || value.trim().toLowerCase() === "transparent"
       ? "transparent"
-      : value.trim();
+      : rgbaToHex(value);
   const toStoreMenuLightBg = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed || trimmed.toLowerCase() === "transparent") {
       return "transparent";
     }
-    return trimmed;
+    return rgbaToHex(trimmed);
   };
   const toStoreMenuDarkBg = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed || trimmed.toLowerCase() === "transparent") {
       return "transparent";
     }
-    return trimmed;
+    return rgbaToHex(trimmed);
   };
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");
@@ -2770,7 +2818,7 @@ export function BlockStyleEditor({
                 return (
                   <TildaBackgroundColorField
                     label="Цвет блока"
-                    value={String(data.menuBlockBackgroundFrom ?? lightBlockBg ?? "")}
+                    value={toDisplay(String(data.menuBlockBackgroundFrom ?? lightBlockBg ?? ""))}
                     mode={mode}
                     secondValue={String(data.menuBlockBackgroundTo ?? "")}
                     angle={Number(data.menuBlockBackgroundAngle ?? 135)}
@@ -2817,7 +2865,7 @@ export function BlockStyleEditor({
                 return (
                   <TildaBackgroundColorField
                     label="Цвет фона для всего блока"
-                    value={String(data.menuSectionBackgroundFrom ?? lightSectionBg ?? "")}
+                    value={toDisplay(String(data.menuSectionBackgroundFrom ?? lightSectionBg ?? ""))}
                     mode={mode}
                     secondValue={String(data.menuSectionBackgroundTo ?? "")}
                     angle={Number(data.menuSectionBackgroundAngle ?? 135)}
@@ -3154,7 +3202,7 @@ export function BlockStyleEditor({
               return (
                 <TildaBackgroundColorField
                   label="Цвет блока"
-                  value={String(data.menuBlockBackgroundFromDark ?? darkBlockBg ?? "")}
+                  value={toDisplay(String(data.menuBlockBackgroundFromDark ?? darkBlockBg ?? ""))}
                   mode={mode}
                   secondValue={String(data.menuBlockBackgroundToDark ?? "")}
                   angle={Number(data.menuBlockBackgroundAngleDark ?? 135)}
@@ -3198,7 +3246,7 @@ export function BlockStyleEditor({
               return (
                 <TildaBackgroundColorField
                   label="Цвет фона для всего блока"
-                  value={String(data.menuSectionBackgroundFromDark ?? darkSectionBg ?? "")}
+                  value={toDisplay(String(data.menuSectionBackgroundFromDark ?? darkSectionBg ?? ""))}
                   mode={mode}
                   secondValue={String(data.menuSectionBackgroundToDark ?? "")}
                   angle={Number(data.menuSectionBackgroundAngleDark ?? 135)}

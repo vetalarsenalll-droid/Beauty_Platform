@@ -914,7 +914,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     fontHeading: "var(--font-manrope), sans-serif",
     fontBody: "var(--font-manrope), sans-serif",
     accentColor: "#111827",
-    shadowColor: "rgba(17, 24, 39, 0.12)",
+    shadowColor: "#111827",
     shadowSize: 18,
     contentWidth: 1120,
     gradientEnabled: false,
@@ -1100,10 +1100,10 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           const normalizeMenuColor = (value: unknown) => {
             const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
             if (!raw) return value;
-            if (raw === "rgba(22, 24, 29, 0.9)") return "#16181d";
-            if (raw === "rgba(26, 28, 34, 0.92)") return "#1a1c22";
-            if (raw === "rgba(255, 255, 255, 0.08)") return "#ffffff14";
-            if (raw === "rgba(17, 24, 39, 0.12)") return "#111827";
+            if (/^rgba\(\s*22\s*,\s*24\s*,\s*29\s*,\s*0?\.?9\s*\)$/.test(raw)) return "#16181d";
+            if (/^rgba\(\s*26\s*,\s*28\s*,\s*34\s*,\s*0?\.?92\s*\)$/.test(raw)) return "#1a1c22";
+            if (/^rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0?\.?08\s*\)$/.test(raw)) return "#ffffff14";
+            if (/^rgba\(\s*17\s*,\s*24\s*,\s*39\s*,\s*0?\.?12\s*\)$/.test(raw)) return "#111827";
             return value;
           };
           const menuItems = Array.isArray(safeData.menuItems)
