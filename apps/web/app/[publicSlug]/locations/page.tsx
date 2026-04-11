@@ -1,6 +1,5 @@
 ﻿import { notFound } from "next/navigation";
 import { getClientSession } from "@/lib/auth";
-import { cookies } from "next/headers";
 
 import { loadPublicData } from "../_shared/public-data";
 import { renderPublicPageShell } from "../_shared/public-page-shell";
@@ -21,17 +20,11 @@ export default async function PublicLocationsPage({ params }: PageProps) {
     ? `/c?account=${data.account.slug}`
     : `/c/login?account=${data.account.slug}`;
 
-  const cookieStore = await cookies();
-  const storedMode = cookieStore.get?.("site-theme-mode")?.value;
-  const modeOverride =
-    storedMode === "dark" || storedMode === "light" ? storedMode : undefined;
-
   return renderPublicPageShell({
     data,
     pageKey: "locations",
     publicSlug,
     accountLinkOverride,
-    modeOverride,
     layout: {
       rootTag: "main",
       rootClassName: "min-h-screen pb-0",

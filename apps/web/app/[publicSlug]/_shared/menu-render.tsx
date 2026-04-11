@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import type { CSSProperties, ReactNode } from "react";
 import {
   resolveAishaWidgetConfig,
@@ -35,12 +34,7 @@ export async function renderPublicMenuFrame(
     (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
   if (!shouldShowSharedMenu) return null;
 
-  const cookieStore = await cookies();
-  const storedMode = cookieStore.get?.("site-theme-mode")?.value;
-  const initialMode =
-    storedMode === "dark" || storedMode === "light"
-      ? storedMode
-      : data.draft.theme.mode;
+  const initialMode = data.draft.theme.mode;
   const aishaConfig = resolveAishaWidgetConfig(data.draft, initialMode);
   const palette =
     initialMode === "dark"

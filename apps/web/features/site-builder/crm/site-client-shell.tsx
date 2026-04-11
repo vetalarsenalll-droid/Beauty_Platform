@@ -460,7 +460,7 @@ export default function SiteClient({
       <div className="relative">
         <div className="h-8.5" />
         <div
-          className={`fixed top-0 left-0 right-0 z-[230] border border-x-0 border-[color:var(--bp-stroke)] bg-[#fcfcfd] px-4 py-2 sm:px-6 lg:px-8 transition-all duration-[220ms] ease-out ${
+          className={`fixed top-0 left-0 right-0 z-[230] border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 sm:px-6 lg:px-8 transition-all duration-[220ms] ease-out ${
             isRightPanelVisible ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
           }`}
         >
@@ -485,14 +485,14 @@ export default function SiteClient({
                 <span className="text-sm leading-none">{pagesMenuOpen ? "▴" : "▾"}</span>
               </button>
               {pagesMenuOpen && (
-                <div className="absolute left-0 top-full z-[300] w-[360px] rounded-xl border border-[color:var(--bp-stroke)] bg-white p-3 text-[color:var(--bp-ink)] shadow-[var(--bp-shadow)]">
+                <div className="absolute left-0 top-full z-[300] w-[360px] rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-[color:var(--bp-ink)] shadow-[var(--bp-shadow)]">
                   <div className="relative mb-2">
                     <input
                       type="text"
                       value={pagesSearch}
                       onChange={(event) => setPagesSearch(event.target.value)}
                       placeholder="Поиск страницы"
-                      className="h-10 w-full rounded-md border border-[color:var(--bp-stroke)] bg-white px-3 pr-9 text-sm outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--ring)]"
+                      className="h-10 w-full rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-3 pr-9 text-sm outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--ring)]"
                     />
                     {pagesSearch.length > 0 && (
                       <button
@@ -502,7 +502,7 @@ export default function SiteClient({
                         aria-label="Очистить поиск"
                         title="Очистить"
                       >
-                        ?
+                          ×
                       </button>
                     )}
                   </div>
@@ -519,8 +519,8 @@ export default function SiteClient({
                         }}
                         className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                           pageKey === activePage
-                            ? "bg-[#f3f4f6] font-semibold"
-                            : "hover:bg-[#f8fafc]"
+                            ? "bg-[color:var(--bp-surface)] font-semibold"
+                            : "hover:bg-[color:var(--bp-surface)]/70"
                         }`}
                       >
                         {PAGE_LABELS[pageKey]}
@@ -544,8 +544,8 @@ export default function SiteClient({
                               }}
                               className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "location" && currentEntity.id === item.id
-                                  ? "bg-[#f3f4f6] font-semibold"
-                                  : "hover:bg-[#f8fafc]"
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
                               }`}
                             >
                               {item.name}
@@ -572,8 +572,8 @@ export default function SiteClient({
                               }}
                               className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "service" && currentEntity.id === item.id
-                                  ? "bg-[#f3f4f6] font-semibold"
-                                  : "hover:bg-[#f8fafc]"
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
                               }`}
                             >
                               {item.name}
@@ -600,8 +600,8 @@ export default function SiteClient({
                               }}
                               className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "specialist" && currentEntity.id === item.id
-                                  ? "bg-[#f3f4f6] font-semibold"
-                                  : "hover:bg-[#f8fafc]"
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
                               }`}
                             >
                               {item.name}
@@ -628,8 +628,8 @@ export default function SiteClient({
                               }}
                               className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
                                 currentEntity?.type === "promo" && currentEntity.id === item.id
-                                  ? "bg-[#f3f4f6] font-semibold"
-                                  : "hover:bg-[#f8fafc]"
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
                               }`}
                             >
                               {item.name}
@@ -755,8 +755,8 @@ export default function SiteClient({
       <div
         className="relative"
         style={{
-          backgroundColor: "#ffffff",
-          backgroundImage: "none",
+          backgroundColor: "var(--site-surface)",
+          backgroundImage: "var(--site-gradient)",
         }}
       >
         <main
@@ -764,8 +764,8 @@ export default function SiteClient({
           data-site-theme={activeTheme.mode}
           style={{
             ...themeStyle,
-            backgroundColor: "#ffffff",
-            backgroundImage: "none",
+            backgroundColor: "var(--site-surface)",
+            backgroundImage: "var(--site-gradient)",
             color: activeTheme.textColor,
             fontFamily: activeTheme.fontBody,
           }}
@@ -971,7 +971,7 @@ export default function SiteClient({
               className={`mt-0 border-t px-4 py-6 ${
                 activeTheme.mode === "dark"
                   ? "border-[#1f2937] bg-[#111111]"
-                  : "border-[color:var(--bp-stroke)] bg-white"
+                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
               }`}
             >
               <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-center gap-2">
@@ -998,7 +998,7 @@ export default function SiteClient({
                     className={`rounded-md border px-3 py-2 text-sm ${
                       activeTheme.mode === "dark"
                         ? "border-[#3f3f46] bg-transparent text-[#e4e4e7]"
-                        : "border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-ink)]"
+                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
                     }`}
                   >
                     {BLOCK_LABELS[type]}
@@ -1011,7 +1011,7 @@ export default function SiteClient({
 
         {leftPanel === "library" && (
           <aside
-            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: 0, top: floatingPanelsTop, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1036,8 +1036,8 @@ export default function SiteClient({
                     onClick={() => setLibraryBlock(type)}
                     className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
                       libraryBlock === type
-                        ? "border-[color:var(--bp-accent)] bg-white"
-                        : "border-[color:var(--bp-stroke)] bg-white"
+                        ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
+                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
                     }`}
                   >
                     <span>{BLOCK_LABELS[type]}</span>
@@ -1053,7 +1053,7 @@ export default function SiteClient({
 
         {leftPanel === "library" && libraryBlock && (
           <aside
-            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-white shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: 320, top: floatingPanelsTop, bottom: 0 }}
           >
             <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
@@ -1078,7 +1078,7 @@ export default function SiteClient({
                     setLeftPanel(null);
                     setLibraryBlock(null);
                   }}
-                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4 text-left"
+                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-left"
                 >
                   <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
                     {BLOCK_LABELS[libraryBlock]}

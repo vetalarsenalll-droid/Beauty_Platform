@@ -30,7 +30,6 @@ type RenderPublicPageShellParams = {
   loaderConfig?: SiteLoaderConfig | null;
   includeCoverBackground?: boolean;
   layout?: PublicPageShellLayout;
-  modeOverride?: "light" | "dark";
 };
 
 const resolveBlocksForPage = (
@@ -126,13 +125,18 @@ export function renderPublicPageShell({
   loaderConfig = null,
   includeCoverBackground = false,
   layout,
-  modeOverride,
 }: RenderPublicPageShellParams): ReactNode {
-  const baseTheme = data.draft.pageThemes?.[pageKey] ?? data.draft.theme;
-  const initialMode =
-    modeOverride === "dark" || modeOverride === "light"
-      ? modeOverride
-      : baseTheme.mode;
+  const globalTheme = data.draft.theme;
+  const pageTheme = pageKey === "home" ? null : data.draft.pageThemes?.[pageKey];
+  const baseTheme = pageTheme
+    ? {
+        ...globalTheme,
+        ...pageTheme,
+        lightPalette: { ...globalTheme.lightPalette, ...pageTheme.lightPalette },
+        darkPalette: { ...globalTheme.darkPalette, ...pageTheme.darkPalette },
+      }
+    : globalTheme;
+  const initialMode = globalTheme.mode;
   const palette =
     initialMode === "dark" ? baseTheme.darkPalette : baseTheme.lightPalette;
   const themeForRender = { ...baseTheme, mode: initialMode };
@@ -144,7 +148,25 @@ export function renderPublicPageShell({
   const blocks = resolveBlocksForPage(data, pageKey, currentEntity);
   const themeStyle = buildThemeStyle(palette);
   const content = blocks.map((block) => {
-    const style = normalizeStyle(block, themeForRender);
+    let style = normalizeStyle(block, themeForRender);
+    if (block.type === "menu") {
+      const menuData = (block.data ?? {}) as Record<string, unknown>;
+      const readColor = (key: string) => {
+        const value = menuData[key];
+        return typeof value === "string" ? value.trim() : "";
+      };
+      const menuBlockLight = readColor("menuBlockBackgroundFrom");
+      const menuBlockDark = readColor("menuBlockBackgroundFromDark");
+      const menuSectionLight = readColor("menuSectionBackgroundFrom");
+      const menuSectionDark = readColor("menuSectionBackgroundFromDark");
+      style = {
+        ...style,
+        blockBgLightResolved: menuBlockLight || style.blockBgLightResolved,
+        blockBgDarkResolved: menuBlockDark || style.blockBgDarkResolved,
+        sectionBgLightResolved: menuSectionLight || style.sectionBgLightResolved,
+        sectionBgDarkResolved: menuSectionDark || style.sectionBgDarkResolved,
+      };
+    }
     const menuPosition =
       typeof (block.data as { position?: string })?.position === "string"
         ? (block.data as { position?: string }).position

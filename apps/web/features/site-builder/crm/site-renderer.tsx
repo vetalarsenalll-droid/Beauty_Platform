@@ -1432,7 +1432,8 @@ export function BlockPreview({
   );
   const menuSectionBackground = resolveMenuSectionBackgroundVisual(
     isMenu ? (block.data as Record<string, unknown>) : null,
-    sectionBg || theme.panelColor
+    sectionBg || theme.panelColor,
+    theme.mode
   );
   return (
     <div
@@ -3140,22 +3141,8 @@ export function renderMenuBlock(
         : theme.mode === "dark"
           ? "#111827"
           : "#ffffff";
-  const menuBarBackground = resolveMenuBlockBackgroundVisual(data, menuFallbackBg);
-  const legacyMenuGradientEnabled =
-    theme.mode === "dark" ? style.gradientEnabledDark : style.gradientEnabledLight;
-  const legacyMenuGradientDirection =
-    theme.mode === "dark" ? style.gradientDirectionDark : style.gradientDirectionLight;
-  const legacyMenuGradientFrom =
-    theme.mode === "dark" ? style.gradientFromDarkResolved : style.gradientFromLightResolved;
-  const legacyMenuGradientTo =
-    theme.mode === "dark" ? style.gradientToDarkResolved : style.gradientToLightResolved;
-  const legacyMenuGradient = legacyMenuGradientEnabled
-    ? `linear-gradient(${legacyMenuGradientDirection === "horizontal" ? "to right" : "to bottom"}, ${legacyMenuGradientFrom}, ${legacyMenuGradientTo})`
-    : "none";
-  const menuGradient =
-    menuBarBackground.backgroundImage !== "none"
-      ? menuBarBackground.backgroundImage
-      : legacyMenuGradient;
+  const menuBarBackground = resolveMenuBlockBackgroundVisual(data, menuFallbackBg, theme.mode);
+  const menuGradient = menuBarBackground.backgroundImage;
   const menuTopBg = menuBarBackground.backgroundColor;
   const menuTextAlign = (style.textAlignHeading ?? style.textAlign ?? "left") as
     | "left"

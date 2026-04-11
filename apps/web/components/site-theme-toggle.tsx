@@ -55,21 +55,6 @@ export default function SiteThemeToggle({
 }: SiteThemeToggleProps) {
   const storageKey = "site-theme-mode";
   const cookieKey = "site-theme-mode";
-  const getCookieMode = () => {
-    if (typeof document === "undefined") return null;
-    const match = document.cookie
-      .split("; ")
-      .find((item) => item.startsWith(`${cookieKey}=`));
-    if (!match) return null;
-    const value = decodeURIComponent(match.split("=")[1] ?? "");
-    return value === "light" || value === "dark" ? value : null;
-  };
-  const getStoredMode = () => {
-    if (typeof window === "undefined") return null;
-    const stored = window.localStorage.getItem(storageKey);
-    if (stored === "light" || stored === "dark") return stored;
-    return getCookieMode();
-  };
   const [currentMode, setCurrentMode] = useState<"light" | "dark">(mode);
   const lightVars = useMemo(() => paletteToVars(lightPalette), [lightPalette]);
   const darkVars = useMemo(() => paletteToVars(darkPalette), [darkPalette]);
@@ -109,12 +94,10 @@ export default function SiteThemeToggle({
   };
 
   useEffect(() => {
-    const stored = getStoredMode();
-    if (stored && stored !== currentMode) {
-      setCurrentMode(stored);
-      applyMode(stored);
-      return;
-    }
+    setCurrentMode(mode);
+  }, [mode]);
+
+  useEffect(() => {
     applyMode(currentMode);
   }, [currentMode, darkVars, lightVars, targetId]);
 

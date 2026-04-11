@@ -1,6 +1,5 @@
 ﻿import { notFound } from "next/navigation";
 import { getClientSession } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { resolveSiteLoaderConfig } from "@/lib/site-builder";
 
 import { loadPublicData } from "../_shared/public-data";
@@ -23,10 +22,6 @@ export default async function PublicBookingPage({ params }: PageProps) {
     : `/c/login?account=${data.account.slug}`;
 
   const loaderConfig = resolveSiteLoaderConfig(data.draft);
-  const cookieStore = await cookies();
-  const storedMode = cookieStore.get?.("site-theme-mode")?.value;
-  const modeOverride =
-    storedMode === "dark" || storedMode === "light" ? storedMode : undefined;
 
   return renderPublicPageShell({
     data,
@@ -34,7 +29,6 @@ export default async function PublicBookingPage({ params }: PageProps) {
     publicSlug,
     accountLinkOverride,
     loaderConfig,
-    modeOverride,
     layout: {
       rootTag: "div",
       rootClassName: "flex min-h-screen w-full flex-col pt-0 pb-12",

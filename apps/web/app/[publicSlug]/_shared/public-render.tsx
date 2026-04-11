@@ -13,9 +13,6 @@ import {
   type SiteLoaderConfig,
   type SiteTheme,
 } from "@/lib/site-builder";
-import {
-  resolveMenuBlockBackgroundVisual,
-} from "@/features/site-builder/shared/background-visuals";
 import type {
   SiteAccountProfile as AccountProfile,
   SiteBranding as Branding,
@@ -1623,11 +1620,6 @@ function renderMenu(
 ) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
-  const menuFallbackBg =
-    style.blockBg ||
-    (theme.mode === "dark" ? theme.darkPalette.panelColor : theme.lightPalette.panelColor) ||
-    "#ffffff";
-  const menuBarBackground = resolveMenuBlockBackgroundVisual(data ?? null, menuFallbackBg);
   const menuItems = Array.isArray(data.menuItems)
     ? (data.menuItems as PageKey[]).filter((item) => item in PAGE_LABELS)
     : (Object.keys(PAGE_LABELS) as PageKey[]);
@@ -2053,12 +2045,6 @@ function renderMenu(
         <details
           suppressHydrationWarning
           className="group menu-v2-overlay w-full"
-          style={
-            {
-              ["--menu-v2-top-bg" as string]: menuBarBackground.backgroundColor,
-              ["--menu-v2-top-gradient" as string]: menuBarBackground.backgroundImage,
-            } as CSSProperties
-          }
         >
           <summary
             className="relative z-[60] flex cursor-pointer list-none items-center border-b py-0 pl-8 pr-24
@@ -2068,8 +2054,8 @@ function renderMenu(
               group-open:z-[180] group-open:py-0 group-open:pl-8 group-open:pr-24"
             style={{
               minHeight: menuHeight,
-              backgroundColor: "var(--menu-v2-top-bg, var(--block-bg, var(--site-panel)))",
-              backgroundImage: "var(--menu-v2-top-gradient, none)",
+              backgroundColor: "var(--block-bg, var(--site-panel))",
+              backgroundImage: "none",
               borderColor: "var(--block-border, var(--site-border))",
             }}
           >
@@ -2135,8 +2121,8 @@ function renderMenu(
             className="relative flex list-none items-center px-4 md:px-8 [&::-webkit-details-marker]:hidden"
             style={{
               minHeight: menuHeight,
-              backgroundColor: menuBarBackground.backgroundColor,
-              backgroundImage: menuBarBackground.backgroundImage,
+              backgroundColor: "var(--block-bg, var(--site-panel))",
+              backgroundImage: "none",
               borderColor: "var(--block-border, var(--site-border))",
               borderBottomWidth: 1,
             }}
@@ -2201,8 +2187,8 @@ function renderMenu(
   if (block.variant === "v1") {
     const topBarStyle: CSSProperties = {
       height: menuHeight,
-      backgroundColor: menuBarBackground.backgroundColor,
-      backgroundImage: menuBarBackground.backgroundImage,
+      backgroundColor: "var(--block-bg, var(--site-panel))",
+      backgroundImage: "none",
       borderColor: "var(--block-border, var(--site-border))",
       borderBottomWidth: 1,
     };

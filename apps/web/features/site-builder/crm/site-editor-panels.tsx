@@ -1232,7 +1232,7 @@ export function BlockEditor({
                                 const selectButtonClass =
                                   "mt-2 flex h-8 w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 text-left";
                                 const optionClass =
-                                  "block w-full px-3 py-2 text-left text-sm hover:bg-[#f3f4f6]";
+                                  "block w-full px-3 py-2 text-left text-sm hover:bg-[color:var(--bp-surface)]";
                                 return (
                                   <div className="relative">
                                     <button
@@ -1248,7 +1248,7 @@ export function BlockEditor({
                                       <span className="text-xs text-[color:var(--bp-muted)]">▾</span>
                                     </button>
                                     {isOpen ? (
-                                      <div className="absolute z-[40] mt-1 w-full rounded-none border border-[color:var(--bp-stroke)] bg-white shadow-lg">
+                                      <div className="absolute z-[40] mt-1 w-full rounded-none border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-lg">
                                         <div className="max-h-72 overflow-y-auto py-1 [scrollbar-width:thin] [scrollbar-color:#ff5a5f_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#ff5a5f] [&::-webkit-scrollbar-track]:bg-transparent">
                                           <button
                                             type="button"
@@ -1388,7 +1388,7 @@ export function BlockEditor({
                                         updateSlide({ imageUrl: "" });
                                       }
                                     }}
-                                    className="inline-flex cursor-pointer items-center justify-center text-black"
+                                    className="inline-flex cursor-pointer items-center justify-center text-[color:var(--bp-ink)]"
                                     aria-label="Удалить изображение"
                                   >
                                     <svg
@@ -2776,7 +2776,6 @@ export function BlockStyleEditor({
                     onChange={(value) => {
                       update({
                         blockBgLight: toStoreMenuLightBg(value),
-                        blockBgDark: toStoreMenuDarkBg(value),
                         blockBg: toStoreMenuLightBg(value),
                         gradientEnabled: false,
                         gradientEnabledLight: false,
@@ -2824,7 +2823,6 @@ export function BlockStyleEditor({
                     onChange={(value) => {
                       update({
                         sectionBgLight: toStore(value),
-                        sectionBgDark: toStore(value),
                         sectionBg: toStore(value),
                       });
                       updateCoverData({ menuSectionBackgroundFrom: value });
@@ -3126,6 +3124,93 @@ export function BlockStyleEditor({
         </div>
         {block.type === "menu" ? (
           <div className="mt-3 space-y-3">
+            {(() => {
+              const data = block.data as Record<string, unknown>;
+              const modeRaw =
+                typeof data.menuBlockBackgroundModeDark === "string"
+                  ? data.menuBlockBackgroundModeDark
+                  : "";
+              const mode: CoverBackgroundMode =
+                modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+              return (
+                <TildaBackgroundColorField
+                  label="Цвет блока"
+                  value={String(data.menuBlockBackgroundFromDark ?? darkBlockBg ?? "")}
+                  mode={mode}
+                  secondValue={String(data.menuBlockBackgroundToDark ?? "")}
+                  angle={Number(data.menuBlockBackgroundAngleDark ?? 135)}
+                  radialStopA={Number(data.menuBlockBackgroundStopADark ?? 0)}
+                  radialStopB={Number(data.menuBlockBackgroundStopBDark ?? 100)}
+                  placeholder={theme.darkPalette.panelColor}
+                  onModeChange={(nextMode) =>
+                    updateCoverData({ menuBlockBackgroundModeDark: nextMode })
+                  }
+                  onSecondChange={(value) =>
+                    updateCoverData({ menuBlockBackgroundToDark: value })
+                  }
+                  onAngleChange={(value) =>
+                    updateCoverData({ menuBlockBackgroundAngleDark: value })
+                  }
+                  onRadialStopAChange={(value) =>
+                    updateCoverData({ menuBlockBackgroundStopADark: value })
+                  }
+                  onRadialStopBChange={(value) =>
+                    updateCoverData({ menuBlockBackgroundStopBDark: value })
+                  }
+                  onChange={(value) => {
+                    update({
+                      blockBgDark: toStoreMenuDarkBg(value),
+                      gradientEnabledDark: false,
+                    });
+                    updateCoverData({ menuBlockBackgroundFromDark: value });
+                  }}
+                />
+              );
+            })()}
+
+            {(() => {
+              const data = block.data as Record<string, unknown>;
+              const modeRaw =
+                typeof data.menuSectionBackgroundModeDark === "string"
+                  ? data.menuSectionBackgroundModeDark
+                  : "";
+              const mode: CoverBackgroundMode =
+                modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+              return (
+                <TildaBackgroundColorField
+                  label="Цвет фона для всего блока"
+                  value={String(data.menuSectionBackgroundFromDark ?? darkSectionBg ?? "")}
+                  mode={mode}
+                  secondValue={String(data.menuSectionBackgroundToDark ?? "")}
+                  angle={Number(data.menuSectionBackgroundAngleDark ?? 135)}
+                  radialStopA={Number(data.menuSectionBackgroundStopADark ?? 0)}
+                  radialStopB={Number(data.menuSectionBackgroundStopBDark ?? 100)}
+                  placeholder={theme.darkPalette.panelColor}
+                  onModeChange={(nextMode) =>
+                    updateCoverData({ menuSectionBackgroundModeDark: nextMode })
+                  }
+                  onSecondChange={(value) =>
+                    updateCoverData({ menuSectionBackgroundToDark: value })
+                  }
+                  onAngleChange={(value) =>
+                    updateCoverData({ menuSectionBackgroundAngleDark: value })
+                  }
+                  onRadialStopAChange={(value) =>
+                    updateCoverData({ menuSectionBackgroundStopADark: value })
+                  }
+                  onRadialStopBChange={(value) =>
+                    updateCoverData({ menuSectionBackgroundStopBDark: value })
+                  }
+                  onChange={(value) => {
+                    update({
+                      sectionBgDark: toStore(value),
+                    });
+                    updateCoverData({ menuSectionBackgroundFromDark: value });
+                  }}
+                />
+              );
+            })()}
+
             <TildaInlineColorField
               label="Цвет подблока"
               value={toDisplay(darkSubBlockBg)}

@@ -65,28 +65,32 @@ export function resolveCoverBackgroundVisual(
 
 export function resolveMenuBlockBackgroundVisual(
   data: Record<string, unknown> | null,
-  fallbackColor: string
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
 ) {
+  const suffix = mode === "dark" ? "Dark" : "";
   return resolveBackgroundVisual(data, fallbackColor, {
-    mode: "menuBlockBackgroundMode",
-    from: "menuBlockBackgroundFrom",
-    to: "menuBlockBackgroundTo",
-    angle: "menuBlockBackgroundAngle",
-    stopA: "menuBlockBackgroundStopA",
-    stopB: "menuBlockBackgroundStopB",
+    mode: `menuBlockBackgroundMode${suffix}`,
+    from: `menuBlockBackgroundFrom${suffix}`,
+    to: `menuBlockBackgroundTo${suffix}`,
+    angle: `menuBlockBackgroundAngle${suffix}`,
+    stopA: `menuBlockBackgroundStopA${suffix}`,
+    stopB: `menuBlockBackgroundStopB${suffix}`,
   });
 }
 
 export function resolveMenuSectionBackgroundVisual(
   data: Record<string, unknown> | null,
-  fallbackColor: string
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
 ) {
+  const suffix = mode === "dark" ? "Dark" : "";
   return resolveBackgroundVisual(data, fallbackColor, {
-    mode: "menuSectionBackgroundMode",
-    from: "menuSectionBackgroundFrom",
-    to: "menuSectionBackgroundTo",
-    angle: "menuSectionBackgroundAngle",
-    stopA: "menuSectionBackgroundStopA",
-    stopB: "menuSectionBackgroundStopB",
+    mode: `menuSectionBackgroundMode${suffix}`,
+    from: `menuSectionBackgroundFrom${suffix}`,
+    to: `menuSectionBackgroundTo${suffix}`,
+    angle: `menuSectionBackgroundAngle${suffix}`,
+    stopA: `menuSectionBackgroundStopA${suffix}`,
+    stopB: `menuSectionBackgroundStopB${suffix}`,
   });
 }
