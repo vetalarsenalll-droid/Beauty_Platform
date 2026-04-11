@@ -38,7 +38,7 @@ export function SiteRightPanelFrame({
         isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
       } ${
         activeThemeMode === "dark"
-          ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+          ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[color:var(--bp-surface)] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[color:var(--bp-surface)] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[color:var(--bp-surface)] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[color:var(--bp-surface)] [&_option]:text-[#f3f4f6]"
           : ""
       }`}
       style={{
@@ -58,7 +58,7 @@ export function SiteRightPanelFrame({
         "--bp-muted": panelTheme.muted,
         "--bp-accent": panelTheme.accent,
         "--bp-save-close": panelTheme.saveClose,
-        "--input-bg": activeThemeMode === "dark" ? "#121212" : "#ffffff",
+        "--input-bg": activeThemeMode === "dark" ? panelTheme.surface : "#ffffff",
         "--text": panelTheme.text,
         "--border": panelTheme.border,
         "--muted": panelTheme.muted,

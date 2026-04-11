@@ -146,12 +146,21 @@ export function TildaInlineColorField({
   placeholder?: string;
   compact?: boolean;
 }) {
+  const HEX_ANY_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+  const toColorInputHex = (raw: string, fallback: string) => {
+    const normalized = raw.trim();
+    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized)) return normalized;
+    if (/^#([0-9a-fA-F]{8})$/.test(normalized)) return `#${normalized.slice(1, 7)}`;
+    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(fallback)) return fallback;
+    if (/^#([0-9a-fA-F]{8})$/.test(fallback)) return `#${fallback.slice(1, 7)}`;
+    return "#ffffff";
+  };
   const EMPTY_COLOR_LABEL = "Цвет не выбран";
   const normalized = value?.trim() ?? "";
   const isTransparent = normalized.toLowerCase() === "transparent";
-  const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
+  const isHex = HEX_ANY_RE.test(normalized);
   const displayValue = isTransparent ? EMPTY_COLOR_LABEL : normalized || placeholder;
-  const colorValue = isHex ? normalized : placeholder;
+  const colorValue = isHex ? toColorInputHex(normalized, placeholder) : toColorInputHex(placeholder, "#ffffff");
   const transparencyPattern = {
     backgroundColor: "#ffffff",
     backgroundImage:
@@ -252,29 +261,39 @@ export function TildaBackgroundColorField({
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
+  const HEX_ANY_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+  const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  const toColorInputHex = (raw: string, fallback: string) => {
+    const normalized = raw.trim();
+    if (HEX_COLOR_RE.test(normalized)) return normalized;
+    if (/^#([0-9a-fA-F]{8})$/.test(normalized)) return `#${normalized.slice(1, 7)}`;
+    if (HEX_COLOR_RE.test(fallback)) return fallback;
+    if (/^#([0-9a-fA-F]{8})$/.test(fallback)) return `#${fallback.slice(1, 7)}`;
+    return "#ffffff";
+  };
   const EMPTY_COLOR_LABEL = "Цвет не выбран";
   const normalized = value?.trim() ?? "";
   const isTransparent = normalized.toLowerCase() === "transparent";
-  const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized);
+  const isHex = HEX_ANY_RE.test(normalized);
   const placeholderValue = typeof placeholder === "string" ? placeholder : "";
-  const placeholderHex =
-    typeof placeholderValue === "string" &&
-    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(placeholderValue)
-      ? placeholderValue
-      : "";
+  const placeholderHex = HEX_ANY_RE.test(placeholderValue)
+    ? toColorInputHex(placeholderValue, "#ffffff")
+    : "";
   const displayValue = isTransparent
     ? EMPTY_COLOR_LABEL
     : normalized === ""
       ? placeholderValue || "#ffffff"
       : normalized;
   const colorValue = isHex
-    ? normalized
+    ? toColorInputHex(normalized, placeholderHex || "#ffffff")
     : isTransparent
       ? "#ffffff"
       : placeholderHex || "#ffffff";
   const normalizedSecond = secondValue?.trim() ?? "";
-  const secondIsHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalizedSecond);
-  const secondColorValue = secondIsHex ? normalizedSecond : colorValue;
+  const secondIsHex = HEX_ANY_RE.test(normalizedSecond);
+  const secondColorValue = secondIsHex
+    ? toColorInputHex(normalizedSecond, colorValue)
+    : colorValue;
   const secondIsTransparent = normalizedSecond.toLowerCase() === "transparent";
   const transparencyPattern = {
     backgroundColor: "#ffffff",

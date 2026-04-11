@@ -15,8 +15,8 @@ export function resolvePanelTheme(mode: SiteTheme["mode"]): PanelTheme {
   if (mode === "dark") {
     return {
       surface: "#14161a",
-      panel: "rgba(22, 24, 29, 0.9)",
-      border: "rgba(255, 255, 255, 0.08)",
+      panel: "#16181d",
+      border: "#ffffff14",
       text: "#f2f3f5",
       muted: "#a1a5ad",
       accent: "#d3d6db",

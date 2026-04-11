@@ -656,6 +656,14 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
     socialIconSize: 40,
     position: "static",
     socialsMode: "auto",
+    menuBlockBackgroundMode: "solid",
+    menuBlockBackgroundFrom: "#ffffff",
+    menuBlockBackgroundModeDark: "solid",
+    menuBlockBackgroundFromDark: "#16181d",
+    menuSectionBackgroundMode: "solid",
+    menuSectionBackgroundFrom: "#ffffff",
+    menuSectionBackgroundModeDark: "solid",
+    menuSectionBackgroundFromDark: "#16181d",
     socialsCustom: {
       website: "",
       instagram: "",
@@ -690,11 +698,12 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       textSize: 14,
       blockBgLight: "#ffffff",
       sectionBgLight: "#ffffff",
-      blockBgDark: "rgba(22, 24, 29, 0.9)",
+      blockBgDark: "#16181d",
+      sectionBgDark: "#16181d",
       subBlockBgLight: "#ffffff",
-      subBlockBgDark: "rgba(26, 28, 34, 0.92)",
+      subBlockBgDark: "#1a1c22",
       borderColorLight: "#e5e7eb",
-      borderColorDark: "rgba(255, 255, 255, 0.08)",
+      borderColorDark: "#ffffff14",
       textColorLight: "#111827",
       textColorDark: "#f2f3f5",
       mutedColorLight: "#4b5563",
@@ -703,10 +712,10 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       buttonColorDark: "#d3d6db",
       buttonTextColorLight: "#ffffff",
       buttonTextColorDark: "#0f1012",
-      shadowColor: "rgba(17, 24, 39, 0.12)",
+      shadowColor: "#111827",
       shadowSize: 0,
       gradientEnabledLight: false,
-      gradientEnabledDark: true,
+      gradientEnabledDark: false,
       gradientDirectionLight: "vertical",
       gradientDirectionDark: "vertical",
       gradientFromLight: "#ffffff",
@@ -935,18 +944,18 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
   const darkTheme: SiteThemePalette = {
     ...baseTheme,
     accentColor: "#d3d6db",
-    shadowColor: "rgba(0, 0, 0, 0.5)",
+    shadowColor: "#00000080",
     shadowSize: 0,
     gradientFrom: "#0c0e12",
     gradientTo: "#111318",
     surfaceColor: "#14161a",
-    panelColor: "rgba(22, 24, 29, 0.9)",
+    panelColor: "#16181d",
     textColor: "#f2f3f5",
     mutedColor: "#a1a5ad",
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "#ffffff14",
     buttonColor: "#d3d6db",
     buttonTextColor: "#0f1012",
-    clientCardBg: "rgba(26, 28, 34, 0.92)",
+    clientCardBg: "#1a1c22",
     clientButtonColor: "#d3d6db",
     clientButtonTextColor: "#0f1012",
   };
@@ -1088,6 +1097,15 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           safeData.style = style;
         }
         if (block.type === "menu") {
+          const normalizeMenuColor = (value: unknown) => {
+            const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+            if (!raw) return value;
+            if (raw === "rgba(22, 24, 29, 0.9)") return "#16181d";
+            if (raw === "rgba(26, 28, 34, 0.92)") return "#1a1c22";
+            if (raw === "rgba(255, 255, 255, 0.08)") return "#ffffff14";
+            if (raw === "rgba(17, 24, 39, 0.12)") return "#111827";
+            return value;
+          };
           const menuItems = Array.isArray(safeData.menuItems)
             ? (safeData.menuItems as SitePageKey[]).filter((item) =>
                 ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
@@ -1107,6 +1125,34 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           if (!hasMenuPreset || typeof safeData.align !== "string" || !safeData.align.trim()) {
             safeData.align = "center";
           }
+          if (!hasMenuPreset || typeof safeData.menuBlockBackgroundMode !== "string") {
+            safeData.menuBlockBackgroundMode = "solid";
+          }
+          if (!hasMenuPreset || typeof safeData.menuBlockBackgroundFrom !== "string" || !safeData.menuBlockBackgroundFrom.trim()) {
+            safeData.menuBlockBackgroundFrom = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof safeData.menuBlockBackgroundModeDark !== "string") {
+            safeData.menuBlockBackgroundModeDark = "solid";
+          }
+          if (!hasMenuPreset || typeof safeData.menuBlockBackgroundFromDark !== "string" || !safeData.menuBlockBackgroundFromDark.trim()) {
+            safeData.menuBlockBackgroundFromDark = "#16181d";
+          }
+          if (!hasMenuPreset || typeof safeData.menuSectionBackgroundMode !== "string") {
+            safeData.menuSectionBackgroundMode = "solid";
+          }
+          if (!hasMenuPreset || typeof safeData.menuSectionBackgroundFrom !== "string" || !safeData.menuSectionBackgroundFrom.trim()) {
+            safeData.menuSectionBackgroundFrom = "#ffffff";
+          }
+          if (!hasMenuPreset || typeof safeData.menuSectionBackgroundModeDark !== "string") {
+            safeData.menuSectionBackgroundModeDark = "solid";
+          }
+          if (!hasMenuPreset || typeof safeData.menuSectionBackgroundFromDark !== "string" || !safeData.menuSectionBackgroundFromDark.trim()) {
+            safeData.menuSectionBackgroundFromDark = "#16181d";
+          }
+          safeData.menuBlockBackgroundFrom = normalizeMenuColor(safeData.menuBlockBackgroundFrom);
+          safeData.menuBlockBackgroundFromDark = normalizeMenuColor(safeData.menuBlockBackgroundFromDark);
+          safeData.menuSectionBackgroundFrom = normalizeMenuColor(safeData.menuSectionBackgroundFrom);
+          safeData.menuSectionBackgroundFromDark = normalizeMenuColor(safeData.menuSectionBackgroundFromDark);
           const menuHeightRaw = Number(safeData.menuHeight);
           if (!hasMenuPreset || !Number.isFinite(menuHeightRaw) || menuHeightRaw < 56) {
             safeData.menuHeight = block.variant === "v1" ? 64 : 56;
@@ -1168,19 +1214,22 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             menuStyle.sectionBgLight = "#ffffff";
           }
           if (!hasMenuPreset || typeof menuStyle.blockBgDark !== "string" || !menuStyle.blockBgDark.trim()) {
-            menuStyle.blockBgDark = "rgba(22, 24, 29, 0.9)";
+            menuStyle.blockBgDark = "#16181d";
+          }
+          if (!hasMenuPreset || typeof menuStyle.sectionBgDark !== "string" || !menuStyle.sectionBgDark.trim()) {
+            menuStyle.sectionBgDark = "#16181d";
           }
           if (!hasMenuPreset || typeof menuStyle.subBlockBgLight !== "string" || !menuStyle.subBlockBgLight.trim()) {
             menuStyle.subBlockBgLight = "#ffffff";
           }
           if (!hasMenuPreset || typeof menuStyle.subBlockBgDark !== "string" || !menuStyle.subBlockBgDark.trim()) {
-            menuStyle.subBlockBgDark = "rgba(26, 28, 34, 0.92)";
+            menuStyle.subBlockBgDark = "#1a1c22";
           }
           if (!hasMenuPreset || typeof menuStyle.borderColorLight !== "string" || !menuStyle.borderColorLight.trim()) {
             menuStyle.borderColorLight = "#e5e7eb";
           }
           if (!hasMenuPreset || typeof menuStyle.borderColorDark !== "string" || !menuStyle.borderColorDark.trim()) {
-            menuStyle.borderColorDark = "rgba(255, 255, 255, 0.08)";
+            menuStyle.borderColorDark = "#ffffff14";
           }
           if (!hasMenuPreset || typeof menuStyle.textColorLight !== "string" || !menuStyle.textColorLight.trim()) {
             menuStyle.textColorLight = "#111827";
@@ -1210,13 +1259,18 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             menuStyle.shadowSize = 0;
           }
           if (typeof menuStyle.shadowColor !== "string" || !menuStyle.shadowColor.trim()) {
-            menuStyle.shadowColor = "rgba(17, 24, 39, 0.12)";
+            menuStyle.shadowColor = "#111827";
           }
+          menuStyle.blockBgDark = normalizeMenuColor(menuStyle.blockBgDark);
+          menuStyle.sectionBgDark = normalizeMenuColor(menuStyle.sectionBgDark);
+          menuStyle.subBlockBgDark = normalizeMenuColor(menuStyle.subBlockBgDark);
+          menuStyle.borderColorDark = normalizeMenuColor(menuStyle.borderColorDark);
+          menuStyle.shadowColor = normalizeMenuColor(menuStyle.shadowColor);
           if (!hasMenuPreset || typeof menuStyle.gradientEnabledLight !== "boolean") {
             menuStyle.gradientEnabledLight = false;
           }
           if (!hasMenuPreset || typeof menuStyle.gradientEnabledDark !== "boolean") {
-            menuStyle.gradientEnabledDark = true;
+            menuStyle.gradientEnabledDark = false;
           }
           if (!hasMenuPreset || typeof menuStyle.gradientDirectionLight !== "string" || !menuStyle.gradientDirectionLight.trim()) {
             menuStyle.gradientDirectionLight = "vertical";
