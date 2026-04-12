@@ -9,12 +9,20 @@ import { renderGenericSettingsPanel } from "../../runtime/ui/generic-settings-pa
 import { CoverV1ContentPanel } from "./content-panel";
 
 function updateSelected(ctx: CrmPanelCtx, next: unknown) {
-  ctx.updateBlock(ctx.block.id, () => next as any);
+  ctx.updateBlock(ctx.block.id, () => next as typeof ctx.block);
 }
 
 export const HE001: BlockVersion = {
   blockCode: "HE001",
-  normalizeData: (input) => (typeof input === "object" && input ? (input as Record<string, unknown>) : {}),
+  normalizeData: (input) => {
+    if (!input || typeof input !== "object") return {};
+    const data = input as Record<string, unknown>;
+    const raw = typeof data.secondaryButtonSource === "string" ? data.secondaryButtonSource : "";
+    if (raw === "auto") {
+      return { ...data, secondaryButtonSource: "" };
+    }
+    return data;
+  },
   createDefault: ({ accountName }) => {
     const base = (defaultBlockData.cover ?? {}) as Record<string, unknown>;
     const baseStyle =
@@ -26,6 +34,7 @@ export const HE001: BlockVersion = {
       data: {
         ...base,
         title: accountName,
+        secondaryButtonSource: "",
         style: { ...defaultBlockStyle, ...baseStyle },
       },
     };
@@ -68,7 +77,7 @@ export const HE001: BlockVersion = {
         coverArrow={cover.coverArrow as "none" | "down"}
         coverArrowColor={cover.coverArrowColor}
         coverArrowAnimated={cover.coverArrowAnimated}
-        isCoverVariantV2={ctx.block.variant === "v2"}
+        isCoverVariantV2={false}
         coverDrawerKey={ctx.coverDrawerKey}
         setCoverDrawerKey={ctx.setCoverDrawerKey}
         coverBackgroundPosition={cover.coverBackgroundPosition}

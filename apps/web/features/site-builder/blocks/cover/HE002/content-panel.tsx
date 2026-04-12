@@ -218,36 +218,6 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
         }}
       />
 
-      <label className="block">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Вариант
-        </div>
-        <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-          <select
-            value={block.variant}
-            onChange={(event) => {
-              const nextVariant = event.target.value as "v1" | "v2";
-              ctx.updateBlock(block.id, (prev) => ({ ...prev, variant: nextVariant }));
-            }}
-            className="w-full appearance-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
-            style={{
-              border: 0,
-              borderRadius: 0,
-              backgroundColor: "transparent",
-              boxShadow: "none",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
-              appearance: "none",
-            }}
-          >
-            <option value="v1">Вариант 1</option>
-            <option value="v2">Вариант 2</option>
-          </select>
-          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-            ▾
-          </span>
-        </div>
-      </label>
 
       <div className="flex items-center justify-between gap-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -454,8 +424,10 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   </button>
                 </div>
 
-                {libraryError ? <div className="text-xs text-[#c2410c]">{libraryError}</div> : null}
-                {libraryLoading ? (
+                {openLibraryForSlideId === slide.id && libraryError ? (
+                  <div className="text-xs text-[#c2410c]">{libraryError}</div>
+                ) : null}
+                {openLibraryForSlideId === slide.id && libraryLoading ? (
                   <div className="text-xs text-[color:var(--bp-muted)]">Загрузка изображений...</div>
                 ) : null}
 

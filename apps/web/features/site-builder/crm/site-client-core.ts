@@ -48,9 +48,9 @@ export const COVER_LINE_STEP_PX = 30;
 export const COVER_LINE_OPTIONS = Array.from({ length: 15 }, (_, index) => index * 0.5);
 export const PANEL_ANIMATION_MS = 220;
 export const COVER_BACKGROUND_POSITION_OPTIONS = [
-  { value: "center top", label: "↑ Центр Верх" },
+  { value: "center top", label: "^ Центр Верх" },
   { value: "center center", label: "Центр" },
-  { value: "center bottom", label: "↓ Центр Низ" },
+  { value: "center bottom", label: "v Центр Низ" },
 ] as const;
 export const COVER_BACKGROUND_POSITION_VALUES = new Set<string>(
   COVER_BACKGROUND_POSITION_OPTIONS.map((option) => option.value)
@@ -391,6 +391,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     secondaryButtonText: "Наши соцсети",
     showSecondaryButton: false,
     secondaryButtonSource: "auto",
+    secondaryButtonHref: "",
     coverScrollEffect: "none",
     coverScrollHeight: "700px",
     coverFilterStartColor: "#000000",
@@ -447,7 +448,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     coverSliderDotBorderWidth: 2,
     coverSliderDotBorderColor: "#ffffff",
     align: "left",
-    imageSource: { type: "account" },
+    imageSource: { type: "none" },
     style: {
       ...defaultBlockStyle,
       useCustomWidth: true,
@@ -755,3 +756,4 @@ export function createBlock(type: BlockType): SiteBlock {
     },
   };
 }
+

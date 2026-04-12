@@ -1147,50 +1147,65 @@ export function CoverImageEditor({
         <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
           Фоновое изображение
         </div>
-        <select
-          value={
-            imageSource.type === "custom"
-              ? "custom"
-              : imageSource.type === "none"
-                ? "none"
-                : "account"
-          }
-          onChange={(event) => {
-            if (event.target.value === "custom") {
-              const currentUrl = typeof imageSource.url === "string" ? imageSource.url.trim() : "";
-              const matchByUrl =
-                currentUrl.length > 0
-                  ? customImages.find((item) => item.url === currentUrl) ?? null
-                  : null;
-              const matchById =
-                customSelectedId === null
-                  ? null
-                  : customImages.find((item) => item.id === customSelectedId) ?? null;
-              const nextImage = matchByUrl ?? matchById ?? customImages[0] ?? null;
-              if (nextImage) {
-                setCustomSelectedId(nextImage.id);
-                setSource({ type: "custom", url: nextImage.url });
-              } else {
-                setCustomSelectedId(null);
-                setSource({ type: "custom", url: currentUrl });
-              }
-              return;
+        <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+          <select
+            value={
+              imageSource.type === "custom"
+                ? "custom"
+                : imageSource.type === "none"
+                  ? "none"
+                  : "account"
             }
-            setSource(event.target.value === "none" ? { type: "none" } : { type: "account" });
-          }}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="none">Без изображения</option>
-          <option value="account">Профиль аккаунта</option>
-          <option value="custom">Своё изображение</option>
-        </select>
+            onChange={(event) => {
+              if (event.target.value === "custom") {
+                const currentUrl = typeof imageSource.url === "string" ? imageSource.url.trim() : "";
+                const matchByUrl =
+                  currentUrl.length > 0
+                    ? customImages.find((item) => item.url === currentUrl) ?? null
+                    : null;
+                const matchById =
+                  customSelectedId === null
+                    ? null
+                    : customImages.find((item) => item.id === customSelectedId) ?? null;
+                const nextImage = matchByUrl ?? matchById ?? customImages[0] ?? null;
+                if (nextImage) {
+                  setCustomSelectedId(nextImage.id);
+                  setSource({ type: "custom", url: nextImage.url });
+                } else {
+                  setCustomSelectedId(null);
+                  setSource({ type: "custom", url: currentUrl });
+                }
+                return;
+              }
+              setSource(event.target.value === "none" ? { type: "none" } : { type: "account" });
+            }}
+            className="w-full appearance-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+            style={{
+              border: 0,
+              borderRadius: 0,
+              backgroundColor: "transparent",
+              boxShadow: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              appearance: "none",
+            }}
+          >
+            <option value="none">Без изображения</option>
+            <option value="account">Профиль аккаунта</option>
+            <option value="custom">Своё изображение</option>
+          </select>
+          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+            ▾
+          </span>
+        </div>
       </label>
 
       {previewUrl ? (
-          <div className="space-y-2">
-          <div className="flex h-28 w-full items-center justify-center overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
-            <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-contain" />
+        <div className="flex items-center gap-3">
+          <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
+            <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-cover" />
           </div>
+          <div className="text-xs text-[color:var(--bp-muted)]">Изображение выбрано</div>
         </div>
       ) : (
         <div className="text-xs text-[color:var(--bp-muted)]">Изображение не выбрано</div>
@@ -2378,7 +2393,10 @@ export function renderCover(
   const showSecondaryButton = Boolean(data.showSecondaryButton);
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
+  const secondaryButtonHrefRaw =
+    typeof data.secondaryButtonHref === "string" ? data.secondaryButtonHref.trim() : "";
   const socialHref = resolvePrimarySocialHref(accountProfile, secondaryButtonSource);
+  const secondaryButtonHref = secondaryButtonHrefRaw || socialHref;
   const primaryButtonBorderColorRaw =
     typeof data.coverPrimaryButtonBorderColor === "string"
       ? data.coverPrimaryButtonBorderColor.trim()
@@ -2860,9 +2878,9 @@ export function renderCover(
                 {buttonText}
               </a>
             )}
-            {showSecondaryButton && socialHref && (
+            {showSecondaryButton && secondaryButtonHref && (
               <a
-                href={socialHref}
+                href={secondaryButtonHref}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
