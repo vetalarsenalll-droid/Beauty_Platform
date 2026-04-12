@@ -222,7 +222,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     if (args.sharedMenuBlock && args.sharedMenuBlock.id === id && args.activePage !== "home") return;
     if (
       !args.entityPageKey &&
-      (args.activePage === "client" || args.activePage === "booking") &&
+      args.activePage === "booking" &&
       args.pageBlocks.some((block) => block.id === id && isSystemBlockType(block.type))
     ) {
       return;
@@ -238,7 +238,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     if (args.sharedMenuBlock && args.sharedMenuBlock.id === id && args.activePage !== "home") return;
     if (
       !args.entityPageKey &&
-      (args.activePage === "client" || args.activePage === "booking") &&
+      args.activePage === "booking" &&
       args.pageBlocks.some((block) => block.id === id && isSystemBlockType(block.type))
     ) {
       return;
