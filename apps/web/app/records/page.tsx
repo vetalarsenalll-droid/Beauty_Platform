@@ -14,8 +14,8 @@ export default function Page() {
     "--bp-muted": "#6b7280",
     "--bp-paper": "#ffffff",
     "--bp-stroke": "rgba(17, 24, 39, 0.08)",
-    "--bp-accent": "#ff6a3d",
-    "--bp-accent-strong": "#e3562d",
+    "--bp-accent": "#ff5a5f",
+    "--bp-accent-strong": "#e14b50",
     "--bp-shadow": "0 24px 50px rgba(17, 24, 39, 0.12)",
   } as CSSProperties;
 
@@ -27,9 +27,9 @@ export default function Page() {
           <HomeHeroSection />
 
           <section className="rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]">
-            <div className="text-lg font-semibold">Мои записи</div>
+            <div className="text-lg font-semibold">РњРѕРё Р·Р°РїРёСЃРё</div>
             <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-              История и будущие записи в одном месте.
+              РСЃС‚РѕСЂРёСЏ Рё Р±СѓРґСѓС‰РёРµ Р·Р°РїРёСЃРё РІ РѕРґРЅРѕРј РјРµСЃС‚Рµ.
             </p>
           </section>
         </div>

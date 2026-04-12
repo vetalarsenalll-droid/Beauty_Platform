@@ -80,19 +80,9 @@ export const PAGE_LABELS: Record<SitePageKey, string> = {
   promos: "Промо/скидки",
 };
 
-export const PAGE_KEYS = Object.keys(PAGE_LABELS) as SitePageKey[];
-export const isSystemBlockType = (type: unknown): type is "client" | "booking" =>
-  type === "client" || type === "booking";
-export const QUICK_BLOCK_TYPES: BlockType[] = [
-  "cover",
-  "about",
-  "locations",
-  "services",
-  "specialists",
-  "works",
-  "promos",
-  "contacts",
-];
+export const PAGE_KEYS: SitePageKey[] = ["home", "booking"];
+export const isSystemBlockType = (type: unknown): type is "booking" => type === "booking";
+export const QUICK_BLOCK_TYPES: BlockType[] = ["cover"];
 
 export const MOBILE_VIEWPORTS = {
   mobile360: { label: "Мобильный 360px", width: 360 },
@@ -117,6 +107,9 @@ export const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[
     { id: "actions", label: "Кнопка" },
     { id: "media", label: "Изображение" },
   ],
+  loader: [{ id: "main", label: "Контент блока" }],
+  booking: [{ id: "main", label: "Контент блока" }],
+  aisha: [{ id: "main", label: "Контент блока" }],
 };
 
 export type CssVars = CSSProperties & Record<`--${string}`, string | number>;
@@ -134,54 +127,12 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "typography", label: "Типографика" },
     { id: "effects", label: "Эффекты" },
   ],
-  about: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
   loader: [
     { id: "layout", label: "Основные настройки" },
     { id: "colors", label: "Цвета" },
     { id: "effects", label: "Эффекты" },
   ],
-  locations: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
-  services: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
-  specialists: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
-  promos: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
-  works: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
-  reviews: [
-    { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
-    { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
-  ],
-  contacts: [
+  booking: [
     { id: "layout", label: "Основные настройки" },
     { id: "colors", label: "Цвета" },
     { id: "typography", label: "Типографика" },
@@ -521,7 +472,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
   },
   menu: {
     title: "Меню",
-    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking"],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,

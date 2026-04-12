@@ -638,7 +638,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
   variant: "v1",
   data: {
     title: "Меню",
-    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking"],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,
@@ -736,9 +736,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       variant: "v1",
       data: {
         title: safeAccountName,
-        subtitle: "Онлайн-запись и лучшие специалистЫ рядом с вами",
-        description:
-          "Удобно записывайтесь онлайн, выбирайте специалистов и услуги в пару кликов.",
+        subtitle: "Онлайн-запись и лучшие специалисты рядом",
+        description: "Выберите услугу, специалиста и удобное время.",
         buttonText: "Записаться",
         showButton: true,
         secondaryButtonText: "Наши соцсети",
@@ -779,133 +778,40 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     },
     {
       id: makeBlockId(),
-      type: "about",
+      type: "loader",
       variant: "v1",
       data: {
-        title: "О нас",
-        text: "",
-        showContacts: true,
-      },
-    },
-    {
-      id: makeBlockId(),
-      type: "locations",
-      variant: "v1",
-      data: {
-        title: "Локации",
-        subtitle: "Выберите удобное место",
-        mode: "all",
-        ids: [],
-        showButton: true,
-        buttonText: "Записаться",
-      },
-    },
-    {
-      id: makeBlockId(),
-      type: "services",
-      variant: "v1",
-      data: {
-        title: "Услуги",
-        subtitle: "Подберите удобную услугу",
-        mode: "all",
-        ids: [],
-        cardsPerRow: 3,
-        showPrice: true,
-        showDuration: true,
-        showButton: true,
-        buttonText: "Записаться",
-      },
-    },
-    {
-      id: makeBlockId(),
-      type: "specialists",
-      variant: "v1",
-      data: {
-        title: "Специалисты",
-        subtitle: "Выберите специалиста",
-        mode: "all",
-        ids: [],
-        locationId: null,
-        showButton: true,
-        buttonText: "Записаться",
-      },
-    },
-    {
-      id: makeBlockId(),
-      type: "works",
-      variant: "v1",
-      data: {
-        title: "",
-        subtitle: "",
-        source: "locations",
-        mode: "all",
-        ids: [],
-        useCurrent: false,
-        galleryHeight: 550,
-        imageRadius: 0,
-        imageFit: "cover",
-        maxSlides: 12,
-        arrowColor: "",
-        arrowColorLight: "",
-        arrowColorDark: "",
-        arrowBgColor: "",
-        arrowBgColorLight: "",
-        arrowBgColorDark: "",
-        dotActiveColor: "",
-        dotActiveColorLight: "",
-        dotActiveColorDark: "",
-        dotInactiveColor: "",
-        dotInactiveColorLight: "",
-        dotInactiveColorDark: "",
-        arrowVariant: "chevron",
+        enabled: true,
+        showPageOverlay: true,
+        showBookingInline: true,
+        backdropEnabled: false,
+        backdropColor: "rgba(17,24,39,0.16)",
+        backdropHex: "#111827",
+        backdropOpacity: 0.16,
+        color: "#111827",
+        size: 36,
+        speedMs: 900,
+        thickness: 3,
+        fixedDurationEnabled: false,
+        fixedDurationSec: 1,
         style: {
-          radius: 0,
-          sectionBgLight: "#ffffff",
-          sectionBg: "#ffffff",
-          blockBgLight: "#ffffff",
-          blockBg: "#ffffff",
-          borderColorLight: "transparent",
-          borderColor: "transparent",
-          shadowSize: 0,
+          useCustomWidth: false,
+          blockWidth: null,
+          blockWidthColumns: null,
         },
       },
     },
     {
       id: makeBlockId(),
-      type: "reviews",
+      type: "aisha",
       variant: "v1",
       data: {
-        title: "Отзывы",
-        subtitle: "Что говорят клиенты",
-        limit: 6,
-      },
-    },
-    {
-      id: makeBlockId(),
-      type: "contacts",
-      variant: "v1",
-      data: {
-        title: "Контакты",
-        subtitle: "Свяжитесь с нами",
-        locationId: null,
-        showMap: false,
-      },
-    },
-  ];
-
-  const detailBlocks = (type: BlockType, title: string): SiteBlock[] => [
-    {
-      id: makeBlockId(),
-      type,
-      variant: "v1",
-      data: {
-        title,
-        subtitle: "",
-        mode: "selected",
-        ids: [],
-        useCurrent: true,
-        showButton: true,
-        buttonText: "Записаться",
+        title: "AI-ассистент записи",
+        assistantName: "Ассистент",
+        enabled: true,
+        label: "AI Ассистент",
+        offsetBottomPx: 16,
+        offsetRightPx: 16,
       },
     },
   ];
@@ -981,27 +887,11 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
           },
         },
       ],
-      client: [
-        {
-          id: makeBlockId(),
-          type: "client",
-          variant: "v1",
-          data: {
-            title: "Личный кабинет",
-            subtitle: "Ваши данные и история записей",
-            salonsTitle: "Ваши салоны",
-            emptyText: "Пока нет салонов, где вы записывались.",
-            style: {
-              useCustomWidth: false,
-              blockWidth: null,
-            },
-          },
-        },
-      ],
-      locations: detailBlocks("locations", "Локации"),
-      services: detailBlocks("services", "Услуги"),
-      specialists: detailBlocks("specialists", "Специалисты"),
-      promos: detailBlocks("promos", "Промо / скидки"),
+      client: [],
+      locations: [],
+      services: [],
+      specialists: [],
+      promos: [],
     },
     entityPages: {},
   };
@@ -1108,7 +998,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           };
           const menuItems = Array.isArray(safeData.menuItems)
             ? (safeData.menuItems as SitePageKey[]).filter((item) =>
-                ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
+                ["home", "booking"].includes(item)
               )
             : [];
           const presetVersionRaw = Number(safeData.presetVersion);
@@ -1157,12 +1047,9 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           if (!hasMenuPreset || !Number.isFinite(menuHeightRaw) || menuHeightRaw < 56) {
             safeData.menuHeight = block.variant === "v1" ? 64 : 56;
           }
-          if (!menuItems.includes("client")) {
-            menuItems.splice(2, 0, "client");
-          }
           safeData.menuItems = menuItems.length
             ? menuItems
-            : ["home", "booking", "client", "locations", "services", "specialists", "promos"];
+            : ["home", "booking"];
           const socialIconSizeRaw = Number(safeData.socialIconSize);
           safeData.socialIconSize =
             Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
@@ -1432,42 +1319,6 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
       ...pages.booking,
     ];
   }
-  if (!pages.client.some((block) => block.type === "client")) {
-    pages.client = [
-      {
-        id: makeBlockId(),
-        type: "client",
-        variant: "v1",
-        data: {
-          title: "Личный кабинет",
-          subtitle: "Ваши данные и история записей",
-          salonsTitle: "Ваши салоны",
-          emptyText: "Пока нет салонов, где вы записывались.",
-          style: {
-            useCustomWidth: false,
-            blockWidth: null,
-          },
-        },
-      },
-      ...pages.client,
-    ];
-  }
-
-  pages.client = pages.client.map((block) => {
-    if (block.type !== "client") return block;
-    const data = (block.data ?? {}) as Record<string, unknown>;
-    const style =
-      data.style && typeof data.style === "object"
-        ? ({ ...(data.style as Record<string, unknown>) } as Record<string, unknown>)
-        : {};
-    if (style.useCustomWidth === true && Number(style.blockWidth) === 980) {
-      style.useCustomWidth = false;
-      style.blockWidth = null;
-      return { ...block, data: { ...data, style } };
-    }
-    return block;
-  });
-
   const normalizeTheme = (
     source: Partial<SiteTheme> | undefined,
     fallback: SiteTheme

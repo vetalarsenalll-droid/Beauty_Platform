@@ -8,19 +8,10 @@ export type BlockRegistryItem = {
 
 export const BLOCK_REGISTRY: BlockRegistryItem[] = [
   { type: "cover", quickAdd: true, availableInLibrary: true },
-  { type: "about", quickAdd: true, availableInLibrary: true },
-  { type: "locations", quickAdd: true, availableInLibrary: true },
-  { type: "services", quickAdd: true, availableInLibrary: true },
-  { type: "specialists", quickAdd: true, availableInLibrary: true },
-  { type: "works", quickAdd: true, availableInLibrary: true },
-  { type: "promos", quickAdd: true, availableInLibrary: true },
-  { type: "contacts", quickAdd: true, availableInLibrary: true },
   { type: "menu", quickAdd: false, availableInLibrary: true },
   { type: "loader", quickAdd: false, availableInLibrary: true },
-  { type: "reviews", quickAdd: false, availableInLibrary: true },
   { type: "aisha", quickAdd: false, availableInLibrary: true },
   { type: "booking", quickAdd: false, availableInLibrary: false },
-  { type: "client", quickAdd: false, availableInLibrary: false },
 ];
 
 const BLOCK_REGISTRY_BY_TYPE = new Map<BlockType, BlockRegistryItem>(

@@ -43,12 +43,10 @@ import {
   variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type {
-  CurrentEntity,
   EditorSection,
   MobileViewportKey,
   SiteClientProps,
 } from "@/features/site-builder/crm/site-client-core";
-import { resolveEntityPageKey } from "@/features/site-builder/crm/editor-draft-helpers";
 import {
   BlockPreview,
   CoverImageEditor,
@@ -60,10 +58,6 @@ import {
   TildaInlineNumberField,
   normalizeBlockStyle,
 } from "@/features/site-builder/crm/site-renderer";
-import {
-  BlockEditor,
-  BlockStyleEditor,
-} from "@/features/site-builder/crm/site-editor-panels";
 import { useDraftHistory } from "@/features/site-builder/crm/use-draft-history";
 import { buildEditorActions } from "@/features/site-builder/crm/editor-actions";
 import { usePagesMenu } from "@/features/site-builder/crm/use-pages-menu";
@@ -71,18 +65,12 @@ import { useRightPanel } from "@/features/site-builder/crm/use-right-panel";
 import { buildThemeStyle, resolvePanelTheme } from "@/features/site-builder/crm/site-shell-theme";
 import { SiteRightPanelOverlays } from "@/features/site-builder/crm/site-right-panel-overlays";
 import { SiteRightPanelFrame } from "@/features/site-builder/crm/site-right-panel-frame";
-import { SiteCoverSettingsPrimary } from "@/features/site-builder/crm/site-cover-settings-primary";
-import { SiteMenuSettingsPrimary } from "@/features/site-builder/crm/site-menu-settings-primary";
-import { SiteMenuButtonDrawer } from "@/features/site-builder/crm/site-menu-button-drawer";
-import { SiteCoverDrawerSections } from "@/features/site-builder/crm/site-cover-drawer-sections";
 import {
   QUICK_ADD_BLOCK_TYPES,
   LIBRARY_BLOCK_TYPES,
   getBlockVariants,
 } from "@/features/site-builder/blocks/block-registry";
-import {
-  resolveCoverSettings,
-} from "@/features/site-builder/crm/cover-settings";
+import { resolveBlockVersion } from "@/features/site-builder/blocks/runtime/resolve-block-version";
 
 export default function SiteClient({
   initialActivePage = "home",
@@ -108,19 +96,19 @@ export default function SiteClient({
     canRedo,
   } = useDraftHistory(normalizeDraft(initialPublicPage.draftJson, account.name));
   const [activePage, setActivePage] = useState<SitePageKey>(initialActivePage);
-  const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
 
-  const homeBlocks = draft.pages?.home ?? draft.blocks;
-  const entityPageKey = resolveEntityPageKey(currentEntity);
-  const entityId = currentEntity ? String(currentEntity.id) : null;
-  const entityBlocks =
-    entityPageKey && entityId ? draft.entityPages?.[entityPageKey]?.[entityId] : null;
-  const activePageKey: SitePageKey = entityPageKey ?? activePage;
-  const isSystemPage =
-    !entityPageKey && (activePageKey === "client" || activePageKey === "booking");
-  const pageBlocks: SiteBlock[] = entityPageKey
-    ? entityBlocks ?? []
-    : draft.pages?.[activePageKey] ?? draft.blocks;
+  const activeBlockTypes = useMemo(
+    () => new Set<BlockType>(["menu", "cover", "loader", "booking", "aisha"]),
+    []
+  );
+  const homeBlocks = (draft.pages?.home ?? draft.blocks).filter((block) =>
+    activeBlockTypes.has(block.type)
+  );
+  const activePageKey: SitePageKey = activePage;
+  const isSystemPage = activePageKey === "booking";
+  const pageBlocks: SiteBlock[] = (draft.pages?.[activePageKey] ?? draft.blocks).filter((block) =>
+    activeBlockTypes.has(block.type)
+  );
   const homeMenuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const shouldShareMenu =
     homeMenuBlock && (homeMenuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
@@ -331,12 +319,10 @@ export default function SiteClient({
   } = buildEditorActions({
     accountName: account.name,
     activePage,
-    currentEntity,
     homeBlocks,
     pageBlocks,
     displayBlocks,
     sharedMenuBlock,
-    entityPageKey,
     activeTheme,
     activeBlockId,
     selectedId,
@@ -383,19 +369,10 @@ export default function SiteClient({
     availablePageKeys,
     currentPageTitle,
     filteredPageKeys,
-    filteredLocationItems,
-    filteredServiceItems,
-    filteredSpecialistItems,
-    filteredPromoItems,
     hasFilteredPagesMenuItems,
   } = usePagesMenu({
     pages: draft.pages,
     activePageKey,
-    currentEntity,
-    locations,
-    services,
-    specialists,
-    promos,
   });
 
   const themeStyle = buildThemeStyle(activeTheme);
@@ -404,45 +381,7 @@ export default function SiteClient({
   const handleThemeToggle = () =>
     setThemeMode(activeTheme.mode === "dark" ? "light" : "dark");
   const panelTheme = resolvePanelTheme(activeTheme.mode);
-  const {
-    isCoverSettingsPanel,
-    coverStyle,
-    coverData,
-    coverGridStart,
-    coverGridEnd,
-    coverGridSpan,
-    coverMarginTopLines,
-    coverMarginBottomLines,
-    coverBackgroundMode,
-    coverScrollEffect,
-    coverScrollHeightPx,
-    coverFilterStartColor,
-    coverFilterEndColor,
-    coverFilterStartOpacity,
-    coverFilterEndOpacity,
-    coverArrow,
-    coverArrowColor,
-    coverArrowAnimated,
-    coverBackgroundPosition,
-    coverBackgroundTo,
-    coverBackgroundAngle,
-    coverBackgroundStopA,
-    coverBackgroundStopB,
-    coverShowSecondaryButton,
-    coverPrimaryButtonBorderColor,
-    coverSecondaryButtonColor,
-    coverSecondaryButtonTextColor,
-    coverSecondaryButtonBorderColor,
-    coverSecondaryButtonRadius,
-    updateSelectedCoverStyle,
-    updateSelectedCoverData,
-    applySelectedCoverGridRange,
-  } = resolveCoverSettings({
-    rightPanel,
-    selectedBlock,
-    activeTheme,
-    updateBlock,
-  });
+  const selectedBlockVersion = selectedBlock ? resolveBlockVersion({ block: selectedBlock }) : null;
   const floatingPanelsTop = rightPanel ? 0 : 56;
 
   return (
@@ -513,7 +452,6 @@ export default function SiteClient({
                         type="button"
                         onClick={() => {
                           setActivePage(pageKey);
-                          setCurrentEntity(null);
                           setPagesMenuOpen(false);
                           setPagesSearch("");
                         }}
@@ -526,118 +464,6 @@ export default function SiteClient({
                         {PAGE_LABELS[pageKey]}
                       </button>
                     ))}
-                    {filteredLocationItems.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
-                          Локации
-                        </div>
-                        <div className="space-y-1">
-                          {filteredLocationItems.map((item) => (
-                            <button
-                              key={`location-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("locations");
-                                setCurrentEntity({ type: "location", id: item.id });
-                                setPagesMenuOpen(false);
-                                setPagesSearch("");
-                              }}
-                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "location" && currentEntity.id === item.id
-                                  ? "bg-[color:var(--bp-surface)] font-semibold"
-                                  : "hover:bg-[color:var(--bp-surface)]/70"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {filteredServiceItems.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
-                          Услуги
-                        </div>
-                        <div className="space-y-1">
-                          {filteredServiceItems.map((item) => (
-                            <button
-                              key={`service-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("services");
-                                setCurrentEntity({ type: "service", id: item.id });
-                                setPagesMenuOpen(false);
-                                setPagesSearch("");
-                              }}
-                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "service" && currentEntity.id === item.id
-                                  ? "bg-[color:var(--bp-surface)] font-semibold"
-                                  : "hover:bg-[color:var(--bp-surface)]/70"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {filteredSpecialistItems.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
-                          Специалисты
-                        </div>
-                        <div className="space-y-1">
-                          {filteredSpecialistItems.map((item) => (
-                            <button
-                              key={`specialist-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("specialists");
-                                setCurrentEntity({ type: "specialist", id: item.id });
-                                setPagesMenuOpen(false);
-                                setPagesSearch("");
-                              }}
-                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "specialist" && currentEntity.id === item.id
-                                  ? "bg-[color:var(--bp-surface)] font-semibold"
-                                  : "hover:bg-[color:var(--bp-surface)]/70"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {filteredPromoItems.length > 0 && (
-                      <div>
-                        <div className="px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
-                          Промо
-                        </div>
-                        <div className="space-y-1">
-                          {filteredPromoItems.map((item) => (
-                            <button
-                              key={`promo-${item.id}`}
-                              type="button"
-                              onClick={() => {
-                                setActivePage("promos");
-                                setCurrentEntity({ type: "promo", id: item.id });
-                                setPagesMenuOpen(false);
-                                setPagesSearch("");
-                              }}
-                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                                currentEntity?.type === "promo" && currentEntity.id === item.id
-                                  ? "bg-[color:var(--bp-surface)] font-semibold"
-                                  : "hover:bg-[color:var(--bp-surface)]/70"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     {!hasFilteredPagesMenuItems && (
                       <div className="rounded-md px-3 py-2 text-sm text-[color:var(--bp-muted)]">
                         Ничего не найдено
@@ -918,7 +744,7 @@ export default function SiteClient({
                   workPhotos={workPhotos}
                   theme={activeTheme}
                   loaderConfig={loaderConfig}
-                  currentEntity={currentEntity}
+                  currentEntity={null}
                   previewMode={previewMode}
                   onThemeToggle={handleThemeToggle}
                   onSelect={() => {
@@ -1118,101 +944,61 @@ export default function SiteClient({
             }
           }}
         >
-                {rightPanel === "content" && selectedBlock ? (
-                  <div className="px-1 pb-8 pt-1">
-                    <BlockEditor
-                      block={selectedBlock}
-                      accountName={account.name}
-                      branding={branding}
-                      accountProfile={accountProfile}
-                      locations={locations}
-                      services={services}
-                      specialists={specialists}
-                      promos={promos}
-                      activeSectionId="main"
-                      onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                    />
-                  </div>
-                                ) : isCoverSettingsPanel ? (
-                  <SiteCoverSettingsPrimary
-                    panelTheme={panelTheme}
-                    coverWidthButtonRef={coverWidthButtonRef}
-                    coverWidthPopoverRef={coverWidthPopoverRef}
-                    coverWidthModalOpen={coverWidthModalOpen}
-                    setCoverWidthModalOpen={setCoverWidthModalOpen}
-                    coverGridSpan={coverGridSpan}
-                    coverGridStart={coverGridStart}
-                    coverGridEnd={coverGridEnd}
-                    applySelectedCoverGridRange={applySelectedCoverGridRange}
-                    coverStyle={coverStyle}
-                    updateSelectedCoverStyle={updateSelectedCoverStyle}
-                    coverScrollEffect={coverScrollEffect as "none" | "fixed" | "parallax"}
-                    updateSelectedCoverData={updateSelectedCoverData}
-                    coverScrollHeightPx={coverScrollHeightPx}
-                    coverFilterStartColor={coverFilterStartColor}
-                    coverFilterStartOpacity={coverFilterStartOpacity}
-                    coverFilterEndColor={coverFilterEndColor}
-                    coverFilterEndOpacity={coverFilterEndOpacity}
-                    coverArrow={coverArrow as "none" | "down"}
-                    coverArrowColor={coverArrowColor}
-                    coverArrowAnimated={coverArrowAnimated}
-                    isCoverVariantV2={selectedBlock?.variant === "v2"}
-                    coverDrawerKey={coverDrawerKey}
-                    setCoverDrawerKey={setCoverDrawerKey}
-                    coverBackgroundPosition={coverBackgroundPosition}
-                    coverMarginTopLines={coverMarginTopLines}
-                    coverMarginBottomLines={coverMarginBottomLines}
-                    coverBackgroundMode={coverBackgroundMode}
-                    coverBackgroundTo={coverBackgroundTo}
-                    coverBackgroundAngle={coverBackgroundAngle}
-                    coverBackgroundStopA={coverBackgroundStopA}
-                    coverBackgroundStopB={coverBackgroundStopB}
-                  />
-                                ) : selectedBlock?.type === "menu" ? (
-                  <SiteMenuSettingsPrimary
-                    selectedBlock={selectedBlock}
-                    activeTheme={activeTheme}
-                    panelTheme={panelTheme}
-                    currentPanelSections={currentPanelSections}
-                    activePanelSectionId={activePanelSectionId}
-                    setActivePanelSectionId={setActivePanelSectionId}
-                    updateBlock={updateBlock}
-                  />
-                ) : (
-                  currentPanelSections.map((section) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setActivePanelSectionId((prev) =>
-                          prev === section.id ? null : section.id
-                        );
-                      }}
-                      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
-                      style={{
-                        borderColor:
-                          activePanelSectionId === section.id
-                            ? panelTheme.accent
-                            : panelTheme.border,
-                        backgroundColor: panelTheme.panel,
-                        color:
-                          activePanelSectionId === section.id
-                            ? panelTheme.text
-                            : panelTheme.muted,
-                      }}
-                    >
-                      <span>{section.label}</span>
-                      <span className="text-xs">›</span>
-                    </button>
-                  ))
-                )}
+                {selectedBlock && selectedBlockVersion ? (
+                  rightPanel === "content" ? (
+                    selectedBlockVersion.contentPanel({
+                      rightPanel,
+                      block: selectedBlock,
+                      accountName: account.name,
+                      branding,
+                      accountProfile,
+                      locations,
+                      services,
+                      specialists,
+                      promos,
+                      activeTheme,
+                      panelTheme,
+                      currentPanelSections,
+                      activePanelSectionId,
+                      setActivePanelSectionId,
+                      coverDrawerKey,
+                      setCoverDrawerKey,
+                      coverWidthButtonRef,
+                      coverWidthPopoverRef,
+                      coverWidthModalOpen,
+                      setCoverWidthModalOpen,
+                      updateBlock,
+                    })
+                  ) : (
+                    selectedBlockVersion.settingsPanel({
+                      rightPanel,
+                      block: selectedBlock,
+                      accountName: account.name,
+                      branding,
+                      accountProfile,
+                      locations,
+                      services,
+                      specialists,
+                      promos,
+                      activeTheme,
+                      panelTheme,
+                      currentPanelSections,
+                      activePanelSectionId,
+                      setActivePanelSectionId,
+                      coverDrawerKey,
+                      setCoverDrawerKey,
+                      coverWidthButtonRef,
+                      coverWidthPopoverRef,
+                      coverWidthModalOpen,
+                      setCoverWidthModalOpen,
+                      updateBlock,
+                    })
+                  )
+                ) : null}
 
         </SiteRightPanelFrame>
 
-        {(rightPanel === "settings" &&
-          ((!isCoverSettingsPanel && activePanelSectionId && selectedBlock) ||
-            (isCoverSettingsPanel && coverDrawerKey && selectedBlock))) && (
+        {(rightPanel === "settings" && selectedBlock && (activePanelSectionId || coverDrawerKey)) && (
           <aside
             className={`fixed z-[221] w-[440px] max-w-[calc(100vw-372px)] overflow-y-auto border-l border-r shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
               isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
@@ -1238,21 +1024,21 @@ export default function SiteClient({
             >
               <div className="w-8" />
                   <div className="text-sm font-semibold">
-                    {isCoverSettingsPanel
-                      ? (coverDrawerKey === "slider"
-                          ? "Стиль слайдера"
-                          : coverDrawerKey === "typography"
-                            ? "Типографика"
-                            : coverDrawerKey === "button"
-                              ? "Кнопка"
-                              : "Анимация")
+                    {coverDrawerKey
+                      ? coverDrawerKey === "slider"
+                        ? "Стиль слайдера"
+                        : coverDrawerKey === "typography"
+                          ? "Типографика"
+                          : coverDrawerKey === "button"
+                            ? "Кнопка"
+                            : "Анимация"
                       : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
                   </div>
               <div className="w-8" />
             </div>
             <div
               className={`h-full p-4 ${
-                rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography"
+                rightPanel === "settings" && coverDrawerKey === "typography"
                   ? "pb-20"
                   : ""
               }`}
@@ -1261,55 +1047,31 @@ export default function SiteClient({
                 color: panelTheme.text,
               }}
             >
-              {rightPanel === "settings" &&
-                !isCoverSettingsPanel &&
-                selectedBlock?.type === "menu" &&
-                activePanelSectionId === "button" && (
-                  <SiteMenuButtonDrawer
-                    selectedBlock={selectedBlock}
-                    activeTheme={activeTheme}
-                    accountProfile={accountProfile}
-                    updateBlock={updateBlock}
-                  />
-                )}
-              {rightPanel === "settings" &&
-                !isCoverSettingsPanel &&
-                !(selectedBlock?.type === "menu" && activePanelSectionId === "button") && (
-                  <BlockStyleEditor
-                    block={selectedBlock}
-                    theme={activeTheme}
-                    activeSectionId={activePanelSectionId ?? ""}
-                    onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                  />
-                )}
-              {rightPanel === "settings" && isCoverSettingsPanel && coverDrawerKey === "typography" && (
-                <BlockStyleEditor
-                  block={selectedBlock}
-                  theme={activeTheme}
-                  activeSectionId="typography"
-                  onChange={(next) => updateBlock(selectedBlock.id, () => next)}
-                />
-              )}
-              {rightPanel === "settings" &&
-                isCoverSettingsPanel &&
-                (coverDrawerKey === "slider" ||
-                  coverDrawerKey === "button" ||
-                  coverDrawerKey === "animation") && (
-                  <SiteCoverDrawerSections
-                    coverDrawerKey={coverDrawerKey}
-                    selectedBlock={selectedBlock}
-                    activeTheme={activeTheme}
-                    coverStyle={coverStyle}
-                    coverShowSecondaryButton={coverShowSecondaryButton}
-                    coverPrimaryButtonBorderColor={coverPrimaryButtonBorderColor}
-                    coverSecondaryButtonColor={coverSecondaryButtonColor}
-                    coverSecondaryButtonTextColor={coverSecondaryButtonTextColor}
-                    coverSecondaryButtonBorderColor={coverSecondaryButtonBorderColor}
-                    coverSecondaryButtonRadius={coverSecondaryButtonRadius}
-                    updateSelectedCoverStyle={updateSelectedCoverStyle}
-                    updateSelectedCoverData={updateSelectedCoverData}
-                  />
-                )}
+              {selectedBlock && selectedBlockVersion
+                ? selectedBlockVersion.drawers({
+                    rightPanel,
+                    block: selectedBlock,
+                    accountName: account.name,
+                    branding,
+                    accountProfile,
+                    locations,
+                    services,
+                    specialists,
+                    promos,
+                    activeTheme,
+                    panelTheme,
+                    currentPanelSections,
+                    activePanelSectionId,
+                    setActivePanelSectionId,
+                    coverDrawerKey,
+                    setCoverDrawerKey,
+                    coverWidthButtonRef,
+                    coverWidthPopoverRef,
+                    coverWidthModalOpen,
+                    setCoverWidthModalOpen,
+                    updateBlock,
+                  })
+                : null}
             </div>
           </aside>
         )}

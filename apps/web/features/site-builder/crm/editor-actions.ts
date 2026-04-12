@@ -7,9 +7,8 @@ import type {
   SiteTheme,
 } from "@/lib/site-builder";
 import { isSystemBlockType, createBlock, defaultBlockStyle } from "./site-client-core";
-import { ensureEntityPages, ensurePages, resolveEntityPageKey } from "./editor-draft-helpers";
+import { ensurePages } from "./editor-draft-helpers";
 import { normalizeBlockStyle, updateBlockStyle } from "./site-renderer";
-import type { CurrentEntity } from "./site-client-core";
 
 type SetDraftTracked = (
   updater: (prev: SiteDraft) => SiteDraft,
@@ -19,12 +18,10 @@ type SetDraftTracked = (
 type BuildEditorActionsArgs = {
   accountName: string;
   activePage: SitePageKey;
-  currentEntity: CurrentEntity;
   homeBlocks: SiteBlock[];
   pageBlocks: SiteBlock[];
   displayBlocks: SiteBlock[];
   sharedMenuBlock: SiteBlock | null;
-  entityPageKey: ReturnType<typeof resolveEntityPageKey>;
   activeTheme: SiteTheme;
   activeBlockId: string | null;
   selectedId: string | null;
@@ -54,15 +51,9 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
   ) => {
     args.setDraftTracked((prev) => {
       const pages = { ...ensurePages(prev) };
-      const entityPages = { ...ensureEntityPages(prev) };
-      const entityPageKey = resolveEntityPageKey(args.currentEntity);
-      const pageKey: SitePageKey = entityPageKey ?? args.activePage;
-      const entityId = args.currentEntity ? String(args.currentEntity.id) : null;
       const prevHome = pages.home ?? prev.blocks;
-      const prevPage =
-        entityId && entityPageKey && entityPages[entityPageKey]?.[entityId]
-          ? entityPages[entityPageKey][entityId]
-          : pages[pageKey] ?? prev.blocks;
+      const pageKey: SitePageKey = args.activePage;
+      const prevPage = pages[pageKey] ?? prev.blocks;
 
       const updateList = (blocks: SiteBlock[]) =>
         blocks.map((block) => (block.id === id ? updater(block) : block));
@@ -75,15 +66,9 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
         : prevPage;
 
       pages.home = nextHome;
-      if (entityId && entityPageKey) {
-        const nextEntityForKey = { ...(entityPages[entityPageKey] ?? {}) };
-        nextEntityForKey[entityId] = nextPage;
-        entityPages[entityPageKey] = nextEntityForKey;
-      } else {
-        pages[pageKey] = pageKey === "home" ? nextHome : nextPage;
-      }
+      pages[pageKey] = pageKey === "home" ? nextHome : nextPage;
 
-      return { ...prev, pages, entityPages, blocks: pages.home ?? prev.blocks };
+      return { ...prev, pages, blocks: pages.home ?? prev.blocks };
     }, { ...options, groupKey: `block:${id}` });
   };
 
@@ -124,26 +109,15 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
   };
 
   const updateBlocks = (nextBlocks: SiteBlock[], options?: { recordHistory?: boolean }) => {
-    const entityId = args.currentEntity ? String(args.currentEntity.id) : null;
-    const groupKey = `blocks:${args.entityPageKey ?? args.activePage}:${entityId ?? "root"}`;
+    const groupKey = `blocks:${args.activePage}`;
     args.setDraftTracked((prev) => {
       const pages = { ...ensurePages(prev) };
-      const entityPages = { ...ensureEntityPages(prev) };
-      const entityPageKey = resolveEntityPageKey(args.currentEntity);
-      const pageKey: SitePageKey = entityPageKey ?? args.activePage;
-      const entityId = args.currentEntity ? String(args.currentEntity.id) : null;
-
-      if (entityId && entityPageKey) {
-        const nextEntityForKey = { ...(entityPages[entityPageKey] ?? {}) };
-        nextEntityForKey[entityId] = nextBlocks;
-        entityPages[entityPageKey] = nextEntityForKey;
-      } else {
-        pages[pageKey] = nextBlocks;
-      }
+      const pageKey: SitePageKey = args.activePage;
+      pages[pageKey] = nextBlocks;
 
       if (pageKey === "home") pages.home = nextBlocks;
       const home = pages.home ?? prev.blocks;
-      return { ...prev, pages, entityPages, blocks: home };
+      return { ...prev, pages, blocks: home };
     }, { ...options, groupKey });
   };
 
@@ -221,7 +195,6 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
   const removeBlock = (id: string) => {
     if (args.sharedMenuBlock && args.sharedMenuBlock.id === id && args.activePage !== "home") return;
     if (
-      !args.entityPageKey &&
       args.activePage === "booking" &&
       args.pageBlocks.some((block) => block.id === id && isSystemBlockType(block.type))
     ) {
@@ -237,7 +210,6 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
   const moveBlock = (id: string, dir: "up" | "down") => {
     if (args.sharedMenuBlock && args.sharedMenuBlock.id === id && args.activePage !== "home") return;
     if (
-      !args.entityPageKey &&
       args.activePage === "booking" &&
       args.pageBlocks.some((block) => block.id === id && isSystemBlockType(block.type))
     ) {

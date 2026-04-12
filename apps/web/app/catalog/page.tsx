@@ -91,8 +91,8 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     "--bp-muted": "#6b7280",
     "--bp-paper": "#ffffff",
     "--bp-stroke": "rgba(17, 24, 39, 0.08)",
-    "--bp-accent": "#ff6a3d",
-    "--bp-accent-strong": "#e3562d",
+    "--bp-accent": "#ff5a5f",
+    "--bp-accent-strong": "#e14b50",
     "--bp-shadow": "0 24px 50px rgba(17, 24, 39, 0.12)",
   } as CSSProperties;
 
@@ -108,31 +108,31 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
               <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-white p-4 shadow-[var(--bp-shadow)]">
                 <form className="space-y-4">
                   <div>
-                    <div className="text-xs font-semibold text-[color:var(--bp-muted)]">Поиск</div>
+                    <div className="text-xs font-semibold text-[color:var(--bp-muted)]">РџРѕРёСЃРє</div>
                     <input
                       name="q"
                       defaultValue={q}
-                      placeholder="Студия, адрес, услуга"
+                      placeholder="РЎС‚СѓРґРёСЏ, Р°РґСЂРµСЃ, СѓСЃР»СѓРіР°"
                       className="mt-2 h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm outline-none"
                     />
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-[color:var(--bp-muted)]">Город</div>
+                    <div className="text-xs font-semibold text-[color:var(--bp-muted)]">Р“РѕСЂРѕРґ</div>
                     <input
                       name="city"
                       defaultValue={city}
-                      placeholder="Например, ваш город"
+                      placeholder="РќР°РїСЂРёРјРµСЂ, РІР°С€ РіРѕСЂРѕРґ"
                       className="mt-2 h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm outline-none"
                     />
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-[color:var(--bp-muted)]">Категория</div>
+                    <div className="text-xs font-semibold text-[color:var(--bp-muted)]">РљР°С‚РµРіРѕСЂРёСЏ</div>
                     <select
                       name="category"
                       defaultValue={category}
                       className="mt-2 h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm"
                     >
-                      <option value="">Все категории</option>
+                      <option value="">Р’СЃРµ РєР°С‚РµРіРѕСЂРёРё</option>
                       {categoryList.map((item) => (
                         <option key={item.id} value={item.slug}>
                           {item.name}
@@ -142,20 +142,20 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-[color:var(--bp-muted)]">
-                      Сортировка
+                      РЎРѕСЂС‚РёСЂРѕРІРєР°
                     </div>
                     <select
                       name="sort"
                       defaultValue={sort}
                       className="mt-2 h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm"
                     >
-                      <option value="">По умолчанию</option>
-                      <option value="services">По количеству услуг</option>
-                      <option value="locations">По локациям</option>
+                      <option value="">РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ</option>
+                      <option value="services">РџРѕ РєРѕР»РёС‡РµСЃС‚РІСѓ СѓСЃР»СѓРі</option>
+                      <option value="locations">РџРѕ Р»РѕРєР°С†РёСЏРј</option>
                     </select>
                   </div>
                   <button className="w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-white">
-                    Показать
+                    РџРѕРєР°Р·Р°С‚СЊ
                   </button>
                 </form>
               </div>
@@ -164,7 +164,7 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
             <section className="space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm text-[color:var(--bp-muted)]">
-                  Найдено: {accounts.length}
+                  РќР°Р№РґРµРЅРѕ: {accounts.length}
                 </div>
               </div>
 
@@ -183,25 +183,25 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                           <div className="text-xs text-[color:var(--bp-muted)]">
                             {firstLocation?.address ??
                               account.profile?.address ??
-                              "Адрес не указан"}
+                              "РђРґСЂРµСЃ РЅРµ СѓРєР°Р·Р°РЅ"}
                           </div>
                         </div>
                         <span className="rounded-full bg-[color:var(--bp-accent)]/10 px-3 py-1 text-xs font-semibold text-[color:var(--bp-accent)]">
-                          Витрина
+                          Р’РёС‚СЂРёРЅР°
                         </span>
                       </div>
 
                       <div className="text-sm text-[color:var(--bp-muted)]">
                         {account.profile?.description ??
-                          "Премиальные услуги и проверенные специалисты."}
+                          "РџСЂРµРјРёР°Р»СЊРЅС‹Рµ СѓСЃР»СѓРіРё Рё РїСЂРѕРІРµСЂРµРЅРЅС‹Рµ СЃРїРµС†РёР°Р»РёСЃС‚С‹."}
                       </div>
 
                       <div className="flex flex-wrap gap-2 text-xs text-[color:var(--bp-muted)]">
                         <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1">
-                          Услуг: {account._count.services}
+                          РЈСЃР»СѓРі: {account._count.services}
                         </span>
                         <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1">
-                          Локаций: {account._count.locations}
+                          Р›РѕРєР°С†РёР№: {account._count.locations}
                         </span>
                       </div>
 
@@ -210,13 +210,13 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
                           href={`/${publicSlug}/booking`}
                           className="flex-1 rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-center text-xs font-semibold text-white"
                         >
-                          Записаться
+                          Р—Р°РїРёСЃР°С‚СЊСЃСЏ
                         </a>
                         <a
                           href={`/${publicSlug}`}
                           className="flex-1 rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-center text-xs font-semibold"
                         >
-                          Открыть
+                          РћС‚РєСЂС‹С‚СЊ
                         </a>
                       </div>
                     </div>
