@@ -13,12 +13,16 @@ type SiteCoverDrawerSectionsProps = {
   coverShowSecondaryButton: boolean;
   coverPrimaryButtonBorderColor: string;
   coverPrimaryButtonBorderColorDark: string;
+  coverPrimaryButtonHoverBgColor: string;
+  coverPrimaryButtonHoverBgColorDark: string;
   coverSecondaryButtonColor: string;
   coverSecondaryButtonColorDark: string;
   coverSecondaryButtonTextColor: string;
   coverSecondaryButtonTextColorDark: string;
   coverSecondaryButtonBorderColor: string;
   coverSecondaryButtonBorderColorDark: string;
+  coverSecondaryButtonHoverBgColor: string;
+  coverSecondaryButtonHoverBgColorDark: string;
   coverSecondaryButtonRadius: number;
   updateSelectedCoverStyle: (patch: Partial<BlockStyle>) => void;
   updateSelectedCoverData: (patch: Record<string, unknown>) => void;
@@ -32,12 +36,16 @@ export function SiteCoverDrawerSections({
   coverShowSecondaryButton,
   coverPrimaryButtonBorderColor,
   coverPrimaryButtonBorderColorDark,
+  coverPrimaryButtonHoverBgColor,
+  coverPrimaryButtonHoverBgColorDark,
   coverSecondaryButtonColor,
   coverSecondaryButtonColorDark,
   coverSecondaryButtonTextColor,
   coverSecondaryButtonTextColorDark,
   coverSecondaryButtonBorderColor,
   coverSecondaryButtonBorderColorDark,
+  coverSecondaryButtonHoverBgColor,
+  coverSecondaryButtonHoverBgColorDark,
   coverSecondaryButtonRadius,
   updateSelectedCoverStyle,
   updateSelectedCoverData,
@@ -379,7 +387,7 @@ export function SiteCoverDrawerSections({
         <TildaInlineColorField
           compact
           label="Цвет кнопки"
-          value={coverStyle?.buttonColorLight || activeTheme.lightPalette.buttonColor}
+          value={coverStyle?.buttonColorLight || coverStyle?.buttonColorLightResolved || "#000000"}
           onChange={(value) => updateSelectedCoverStyle({ buttonColor: value, buttonColorLight: value })}
           onClear={() => updateSelectedCoverStyle({ buttonColor: "", buttonColorLight: "" })}
           placeholder="#000000"
@@ -407,6 +415,14 @@ export function SiteCoverDrawerSections({
           80,
           (value) => updateSelectedCoverStyle({ buttonRadius: value })
         )}
+        <TildaInlineColorField
+          compact
+          label="Цвет фона при наведении"
+          value={coverPrimaryButtonHoverBgColor}
+          onChange={(value) => updateSelectedCoverData({ coverPrimaryButtonHoverBgColor: value })}
+          onClear={() => updateSelectedCoverData({ coverPrimaryButtonHoverBgColor: "transparent" })}
+          placeholder="#000000"
+        />
         {coverShowSecondaryButton && (
           <>
             <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -448,6 +464,14 @@ export function SiteCoverDrawerSections({
               80,
               (value) => updateSelectedCoverData({ coverSecondaryButtonRadius: value })
             )}
+            <TildaInlineColorField
+              compact
+              label="Цвет фона второй кнопки при наведении"
+              value={coverSecondaryButtonHoverBgColor}
+              onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonHoverBgColor: value })}
+              onClear={() => updateSelectedCoverData({ coverSecondaryButtonHoverBgColor: "transparent" })}
+              placeholder="#ffffff"
+            />
           </>
         )}
         <button
@@ -507,6 +531,14 @@ export function SiteCoverDrawerSections({
               onClear={() => updateSelectedCoverData({ coverPrimaryButtonBorderColorDark: "transparent" })}
               placeholder="#ffffff"
             />
+            <TildaInlineColorField
+              compact
+              label="Цвет фона при наведении"
+              value={coverPrimaryButtonHoverBgColorDark}
+              onChange={(value) => updateSelectedCoverData({ coverPrimaryButtonHoverBgColorDark: value })}
+              onClear={() => updateSelectedCoverData({ coverPrimaryButtonHoverBgColorDark: "transparent" })}
+              placeholder="#000000"
+            />
             {coverShowSecondaryButton && (
               <>
                 <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -534,6 +566,18 @@ export function SiteCoverDrawerSections({
                   value={coverSecondaryButtonBorderColorDark}
                   onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonBorderColorDark: value })}
                   onClear={() => updateSelectedCoverData({ coverSecondaryButtonBorderColorDark: "transparent" })}
+                  placeholder="#ffffff"
+                />
+                <TildaInlineColorField
+                  compact
+                  label="Цвет фона второй кнопки при наведении"
+                  value={coverSecondaryButtonHoverBgColorDark}
+                  onChange={(value) =>
+                    updateSelectedCoverData({ coverSecondaryButtonHoverBgColorDark: value })
+                  }
+                  onClear={() =>
+                    updateSelectedCoverData({ coverSecondaryButtonHoverBgColorDark: "transparent" })
+                  }
                   placeholder="#ffffff"
                 />
               </>

@@ -418,7 +418,10 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   );
   const isCoverBlock = block.type === "cover";
   const buttonPairResolved = {
-    lightResolved: buttonPair.lightResolved,
+    lightResolved:
+      isCoverBlock && buttonPair.lightResolved.trim().toLowerCase() === "#111827"
+        ? "#000000"
+        : buttonPair.lightResolved,
     darkResolved:
       isCoverBlock && buttonPair.darkResolved.trim().toLowerCase() === "#d3d6db"
         ? "#000000"
@@ -834,6 +837,37 @@ function renderCover(
     primaryButtonBorderColorRaw && isValidColorValue(primaryButtonBorderColorRaw)
       ? primaryButtonBorderColorRaw
       : "transparent";
+  const primaryButtonHoverBgColorLightRaw =
+    typeof data.coverPrimaryButtonHoverBgColor === "string"
+      ? data.coverPrimaryButtonHoverBgColor.trim()
+      : "";
+  const primaryButtonHoverBgColorDarkRaw =
+    typeof data.coverPrimaryButtonHoverBgColorDark === "string"
+      ? data.coverPrimaryButtonHoverBgColorDark.trim()
+      : "";
+  const primaryButtonHoverBgColorRaw = pickCoverButtonModeValue(
+    primaryButtonHoverBgColorLightRaw,
+    primaryButtonHoverBgColorDarkRaw,
+    "transparent"
+  );
+  const primaryButtonHoverBgColorLight =
+    primaryButtonHoverBgColorLightRaw &&
+    primaryButtonHoverBgColorLightRaw.toLowerCase() !== "transparent" &&
+    isValidColorValue(primaryButtonHoverBgColorLightRaw)
+      ? primaryButtonHoverBgColorLightRaw
+      : "transparent";
+  const primaryButtonHoverBgColorDark =
+    primaryButtonHoverBgColorDarkRaw &&
+    primaryButtonHoverBgColorDarkRaw.toLowerCase() !== "transparent" &&
+    isValidColorValue(primaryButtonHoverBgColorDarkRaw)
+      ? primaryButtonHoverBgColorDarkRaw
+      : primaryButtonHoverBgColorLight;
+  const primaryButtonHoverBgColor =
+    primaryButtonHoverBgColorRaw &&
+    primaryButtonHoverBgColorRaw.toLowerCase() !== "transparent" &&
+    isValidColorValue(primaryButtonHoverBgColorRaw)
+      ? primaryButtonHoverBgColorRaw
+      : "";
   const secondaryButtonColorLightRaw =
     typeof data.coverSecondaryButtonColor === "string"
       ? data.coverSecondaryButtonColor.trim()
@@ -885,6 +919,37 @@ function renderCover(
     secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
       ? secondaryButtonBorderColorRaw
       : "#ffffff";
+  const secondaryButtonHoverBgColorLightRaw =
+    typeof data.coverSecondaryButtonHoverBgColor === "string"
+      ? data.coverSecondaryButtonHoverBgColor.trim()
+      : "";
+  const secondaryButtonHoverBgColorDarkRaw =
+    typeof data.coverSecondaryButtonHoverBgColorDark === "string"
+      ? data.coverSecondaryButtonHoverBgColorDark.trim()
+      : "";
+  const secondaryButtonHoverBgColorRaw = pickCoverButtonModeValue(
+    secondaryButtonHoverBgColorLightRaw,
+    secondaryButtonHoverBgColorDarkRaw,
+    "transparent"
+  );
+  const secondaryButtonHoverBgColorLight =
+    secondaryButtonHoverBgColorLightRaw &&
+    secondaryButtonHoverBgColorLightRaw.toLowerCase() !== "transparent" &&
+    isValidColorValue(secondaryButtonHoverBgColorLightRaw)
+      ? secondaryButtonHoverBgColorLightRaw
+      : "transparent";
+  const secondaryButtonHoverBgColorDark =
+    secondaryButtonHoverBgColorDarkRaw &&
+    secondaryButtonHoverBgColorDarkRaw.toLowerCase() !== "transparent" &&
+    isValidColorValue(secondaryButtonHoverBgColorDarkRaw)
+      ? secondaryButtonHoverBgColorDarkRaw
+      : secondaryButtonHoverBgColorLight;
+  const secondaryButtonHoverBgColor =
+    secondaryButtonHoverBgColorRaw &&
+    secondaryButtonHoverBgColorRaw.toLowerCase() !== "transparent" &&
+    isValidColorValue(secondaryButtonHoverBgColorRaw)
+      ? secondaryButtonHoverBgColorRaw
+      : "";
   const secondaryButtonRadius = Number.isFinite(Number(data.coverSecondaryButtonRadius))
     ? Math.max(0, Math.min(80, Math.round(Number(data.coverSecondaryButtonRadius))))
     : (style.buttonRadius ?? theme.buttonRadius);
@@ -1267,6 +1332,8 @@ function renderCover(
         dotBorderColorLight={sliderDotBorderColorLight}
         dotBorderColorDark={sliderDotBorderColorDark}
         primaryButtonBorderColor={primaryButtonBorderColor}
+        primaryButtonHoverBgColorLight={primaryButtonHoverBgColorLightRaw}
+        primaryButtonHoverBgColorDark={primaryButtonHoverBgColorDarkRaw}
         themeMode={theme.mode}
         headingCss={headingStyle(style)}
         textCss={textStyle(style)}
@@ -1384,9 +1451,15 @@ function renderCover(
             {showButton && publicSlug && (
               <Link
                 href={buildBookingLink({ publicSlug })}
-                className={`inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
+                className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold transition ${resolveAnimClass(animButton)}`}
                 style={{
                   ...buttonStyle(style),
+                  ["--cover-primary-hover-bg" as string]:
+                    primaryButtonHoverBgColor || "transparent",
+                  ["--cover-primary-hover-bg-light" as string]:
+                    primaryButtonHoverBgColorLight,
+                  ["--cover-primary-hover-bg-dark" as string]:
+                    primaryButtonHoverBgColorDark,
                   borderStyle: "solid",
                   borderWidth:
                     primaryButtonBorderColor !== "transparent" &&
@@ -1402,6 +1475,7 @@ function renderCover(
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                   fontSize: "clamp(14px, 2cqw, 16px)",
+                  transition: "background-color 180ms ease",
                   ...(resolveAnimStyle(animButton, 320) ?? {}),
                 }}
               >
@@ -1413,8 +1487,14 @@ function renderCover(
                 href={socialHref}
                 target="_blank"
                 rel="noreferrer"
-                className={`inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10 ${resolveAnimClass(animButton)}`}
+                className={`bp-cover-secondary-hover inline-flex items-center whitespace-nowrap border font-semibold text-white transition ${resolveAnimClass(animButton)}`}
                 style={{
+                  ["--cover-secondary-hover-bg" as string]:
+                    secondaryButtonHoverBgColor || "rgba(255,255,255,0.1)",
+                  ["--cover-secondary-hover-bg-light" as string]:
+                    secondaryButtonHoverBgColorLight,
+                  ["--cover-secondary-hover-bg-dark" as string]:
+                    secondaryButtonHoverBgColorDark,
                   backgroundColor:
                     secondaryButtonColor !== "transparent" &&
                     secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
@@ -1440,6 +1520,7 @@ function renderCover(
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                   fontSize: "clamp(14px, 2cqw, 16px)",
+                  transition: "background-color 180ms ease",
                   ...(resolveAnimStyle(animButton, 380) ?? {}),
                 }}
               >

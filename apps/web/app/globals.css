@@ -462,6 +462,42 @@ textarea::placeholder {
   }
 }
 
+.bp-cover-primary-hover:hover {
+  background-color: var(--cover-primary-hover-bg, transparent) !important;
+}
+
+.bp-cover-secondary-hover:hover {
+  background-color: var(--cover-secondary-hover-bg, rgba(255, 255, 255, 0.1)) !important;
+}
+
+[data-site-theme="light"] .bp-cover-primary-hover:hover {
+  background-color: var(
+    --cover-primary-hover-bg-light,
+    var(--cover-primary-hover-bg, transparent)
+  ) !important;
+}
+
+[data-site-theme="dark"] .bp-cover-primary-hover:hover {
+  background-color: var(
+    --cover-primary-hover-bg-dark,
+    var(--cover-primary-hover-bg, transparent)
+  ) !important;
+}
+
+[data-site-theme="light"] .bp-cover-secondary-hover:hover {
+  background-color: var(
+    --cover-secondary-hover-bg-light,
+    var(--cover-secondary-hover-bg, rgba(255, 255, 255, 0.1))
+  ) !important;
+}
+
+[data-site-theme="dark"] .bp-cover-secondary-hover:hover {
+  background-color: var(
+    --cover-secondary-hover-bg-dark,
+    var(--cover-secondary-hover-bg, rgba(255, 255, 255, 0.1))
+  ) !important;
+}
+
 .bp-anim {
   animation-duration: 700ms;
   animation-fill-mode: both;

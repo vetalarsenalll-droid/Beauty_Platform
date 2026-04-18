@@ -423,9 +423,13 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     coverArrowDark: "none",
     coverArrowColorDark: "#ffffff",
     coverPrimaryButtonBorderColorDark: "transparent",
+    coverPrimaryButtonHoverBgColor: "transparent",
+    coverPrimaryButtonHoverBgColorDark: "transparent",
     coverSecondaryButtonColorDark: "transparent",
     coverSecondaryButtonTextColorDark: "#ffffff",
     coverSecondaryButtonBorderColorDark: "#ffffff",
+    coverSecondaryButtonHoverBgColor: "transparent",
+    coverSecondaryButtonHoverBgColorDark: "transparent",
     coverHeight: 100,
     coverSlides: [
       {

@@ -47,6 +47,8 @@ type PublicCoverV2HeroProps = {
   dotBorderColorLight: string;
   dotBorderColorDark: string;
   primaryButtonBorderColor: string;
+  primaryButtonHoverBgColorLight: string;
+  primaryButtonHoverBgColorDark: string;
   themeMode: "light" | "dark";
   headingCss: CSSProperties;
   textCss: CSSProperties;
@@ -94,6 +96,8 @@ export default function PublicCoverV2Hero({
   dotBorderColorLight,
   dotBorderColorDark,
   primaryButtonBorderColor,
+  primaryButtonHoverBgColorLight,
+  primaryButtonHoverBgColorDark,
   themeMode,
   headingCss,
   textCss,
@@ -107,6 +111,7 @@ export default function PublicCoverV2Hero({
   const [index, setIndex] = useState(0);
   const canSlide = slides.length > 1;
   const [hoveredArrow, setHoveredArrow] = useState<"prev" | "next" | null>(null);
+  const [hoveredPrimaryButton, setHoveredPrimaryButton] = useState(false);
   const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">(
     themeMode === "dark" ? "dark" : "light"
   );
@@ -203,6 +208,15 @@ export default function PublicCoverV2Hero({
   const hasPrimaryButtonBorder =
     primaryButtonBorderColor !== "transparent" &&
     primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)";
+  const primaryButtonHoverBgColorRaw = pickModeColor(
+    primaryButtonHoverBgColorLight,
+    primaryButtonHoverBgColorDark
+  );
+  const primaryButtonHoverBgColor =
+    primaryButtonHoverBgColorRaw &&
+    primaryButtonHoverBgColorRaw.toLowerCase() !== "transparent"
+      ? primaryButtonHoverBgColorRaw
+      : "";
 
   return (
     <section
@@ -282,8 +296,13 @@ export default function PublicCoverV2Hero({
               <a
                 href={current.buttonHref}
                 className="inline-flex items-center whitespace-nowrap font-semibold"
+                onMouseEnter={() => setHoveredPrimaryButton(true)}
+                onMouseLeave={() => setHoveredPrimaryButton(false)}
                 style={{
                   ...buttonCss,
+                  ...(hoveredPrimaryButton && primaryButtonHoverBgColor
+                    ? { backgroundColor: primaryButtonHoverBgColor }
+                    : {}),
                   borderStyle: "solid",
                   borderWidth: hasPrimaryButtonBorder ? 1 : 0,
                   borderColor: hasPrimaryButtonBorder ? primaryButtonBorderColor : "transparent",
@@ -291,6 +310,7 @@ export default function PublicCoverV2Hero({
                   paddingInline: "clamp(18px, 3cqw, 30px)",
                   paddingBlock: "clamp(8px, 1.1cqw, 11px)",
                   fontSize: "clamp(14px, 2cqw, 16px)",
+                  transition: "background-color 180ms ease",
                 }}
               >
                 {current.buttonText}

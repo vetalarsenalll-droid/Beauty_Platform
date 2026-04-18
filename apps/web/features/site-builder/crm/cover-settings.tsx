@@ -214,6 +214,26 @@ export function resolveCoverSettings({
       : coverPrimaryButtonBorderColorDarkRaw && isValidColorValue(coverPrimaryButtonBorderColorDarkRaw)
         ? coverPrimaryButtonBorderColorDarkRaw
         : coverPrimaryButtonBorderColor;
+  const coverPrimaryButtonHoverBgColorRaw =
+    typeof coverData?.coverPrimaryButtonHoverBgColor === "string"
+      ? coverData.coverPrimaryButtonHoverBgColor.trim()
+      : "";
+  const coverPrimaryButtonHoverBgColor =
+    coverPrimaryButtonHoverBgColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverPrimaryButtonHoverBgColorRaw && isValidColorValue(coverPrimaryButtonHoverBgColorRaw)
+        ? coverPrimaryButtonHoverBgColorRaw
+        : "transparent";
+  const coverPrimaryButtonHoverBgColorDarkRaw =
+    typeof coverData?.coverPrimaryButtonHoverBgColorDark === "string"
+      ? coverData.coverPrimaryButtonHoverBgColorDark.trim()
+      : "";
+  const coverPrimaryButtonHoverBgColorDark =
+    coverPrimaryButtonHoverBgColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverPrimaryButtonHoverBgColorDarkRaw && isValidColorValue(coverPrimaryButtonHoverBgColorDarkRaw)
+        ? coverPrimaryButtonHoverBgColorDarkRaw
+        : coverPrimaryButtonHoverBgColor;
   const coverSecondaryButtonColorRaw =
     typeof coverData?.coverSecondaryButtonColor === "string"
       ? coverData.coverSecondaryButtonColor.trim()
@@ -274,6 +294,28 @@ export function resolveCoverSettings({
       : coverSecondaryButtonBorderColorDarkRaw && isValidColorValue(coverSecondaryButtonBorderColorDarkRaw)
         ? coverSecondaryButtonBorderColorDarkRaw
         : coverSecondaryButtonBorderColor;
+  const coverSecondaryButtonHoverBgColorRaw =
+    typeof coverData?.coverSecondaryButtonHoverBgColor === "string"
+      ? coverData.coverSecondaryButtonHoverBgColor.trim()
+      : "";
+  const coverSecondaryButtonHoverBgColor =
+    coverSecondaryButtonHoverBgColorRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonHoverBgColorRaw &&
+          isValidColorValue(coverSecondaryButtonHoverBgColorRaw)
+        ? coverSecondaryButtonHoverBgColorRaw
+        : "transparent";
+  const coverSecondaryButtonHoverBgColorDarkRaw =
+    typeof coverData?.coverSecondaryButtonHoverBgColorDark === "string"
+      ? coverData.coverSecondaryButtonHoverBgColorDark.trim()
+      : "";
+  const coverSecondaryButtonHoverBgColorDark =
+    coverSecondaryButtonHoverBgColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonHoverBgColorDarkRaw &&
+          isValidColorValue(coverSecondaryButtonHoverBgColorDarkRaw)
+        ? coverSecondaryButtonHoverBgColorDarkRaw
+        : coverSecondaryButtonHoverBgColor;
   const coverSecondaryButtonRadius = Number.isFinite(Number(coverData?.coverSecondaryButtonRadius))
     ? Math.max(0, Math.min(80, Math.round(Number(coverData?.coverSecondaryButtonRadius))))
     : (coverStyle?.buttonRadius ?? activeTheme.buttonRadius);
@@ -342,12 +384,16 @@ export function resolveCoverSettings({
     coverShowSecondaryButton,
     coverPrimaryButtonBorderColor,
     coverPrimaryButtonBorderColorDark,
+    coverPrimaryButtonHoverBgColor,
+    coverPrimaryButtonHoverBgColorDark,
     coverSecondaryButtonColor,
     coverSecondaryButtonColorDark,
     coverSecondaryButtonTextColor,
     coverSecondaryButtonTextColorDark,
     coverSecondaryButtonBorderColor,
     coverSecondaryButtonBorderColorDark,
+    coverSecondaryButtonHoverBgColor,
+    coverSecondaryButtonHoverBgColorDark,
     coverSecondaryButtonRadius,
     updateSelectedCoverStyle,
     updateSelectedCoverData,
