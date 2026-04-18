@@ -43,6 +43,7 @@ import {
   variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type {
+  CurrentEntity,
   CssVars,
   EditorSection,
   MobileViewportKey,
@@ -97,6 +98,7 @@ export default function SiteClient({
     canRedo,
   } = useDraftHistory(normalizeDraft(initialPublicPage.draftJson, account.name));
   const [activePage, setActivePage] = useState<SitePageKey>(initialActivePage);
+  const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
 
   const activeBlockTypes = useMemo(
     () => new Set<BlockType>(["menu", "cover", "loader", "booking", "aisha"]),
@@ -176,6 +178,31 @@ export default function SiteClient({
     const timer = setTimeout(() => setMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [message]);
+  useEffect(() => {
+    if (!currentEntity) return;
+    if (currentEntity.type === "location" && !locations.some((item) => item.id === currentEntity.id)) {
+      setCurrentEntity(null);
+      return;
+    }
+    if (currentEntity.type === "service" && !services.some((item) => item.id === currentEntity.id)) {
+      setCurrentEntity(null);
+      return;
+    }
+    if (
+      currentEntity.type === "specialist" &&
+      !specialists.some((item) => item.id === currentEntity.id)
+    ) {
+      setCurrentEntity(null);
+      return;
+    }
+    if (
+      (currentEntity.type === "location" && activePage !== "locations") ||
+      (currentEntity.type === "service" && activePage !== "services") ||
+      (currentEntity.type === "specialist" && activePage !== "specialists")
+    ) {
+      setCurrentEntity(null);
+    }
+  }, [activePage, currentEntity, locations, services, specialists]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
   const pendingDeleteBlock = pendingDeleteBlockId
@@ -367,14 +394,30 @@ export default function SiteClient({
     pagesSearch,
     setPagesSearch,
     pagesMenuRef,
-    availablePageKeys,
     currentPageTitle,
-    filteredPageKeys,
+    filteredMenuItems,
     hasFilteredPagesMenuItems,
   } = usePagesMenu({
     pages: draft.pages,
     activePageKey,
+    activeEntity: currentEntity,
+    locationsCount: locations.length,
+    servicesCount: services.length,
+    specialistsCount: specialists.length,
+    locationProfiles: locations.map((item) => ({ id: item.id, name: item.name })),
+    serviceProfiles: services.map((item) => ({ id: item.id, name: item.name })),
+    specialistProfiles: specialists.map((item) => ({ id: item.id, name: item.name })),
   });
+  const filteredPageItems = filteredMenuItems.filter((item) => item.kind === "page");
+  const filteredLocationProfileItems = filteredMenuItems.filter(
+    (item) => item.kind === "entity-profile" && item.entityType === "location"
+  );
+  const filteredSpecialistProfileItems = filteredMenuItems.filter(
+    (item) => item.kind === "entity-profile" && item.entityType === "specialist"
+  );
+  const filteredServiceProfileItems = filteredMenuItems.filter(
+    (item) => item.kind === "entity-profile" && item.entityType === "service"
+  );
 
   const themeStyle = buildThemeStyle(activeTheme);
   const previewCanvasWidth =
@@ -432,7 +475,8 @@ export default function SiteClient({
                       value={pagesSearch}
                       onChange={(event) => setPagesSearch(event.target.value)}
                       placeholder="Поиск страницы"
-                      className="h-10 w-full rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-3 pr-9 text-sm outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--ring)]"
+                      className="h-10 w-full !rounded-none border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] px-3 pr-9 text-sm outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--ring)]"
+                      style={{ borderRadius: 2 }}
                     />
                     {pagesSearch.length > 0 && (
                       <button
@@ -447,24 +491,137 @@ export default function SiteClient({
                     )}
                   </div>
                   <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
-                    {filteredPageKeys.map((pageKey) => (
-                      <button
-                        key={pageKey}
-                        type="button"
-                        onClick={() => {
-                          setActivePage(pageKey);
-                          setPagesMenuOpen(false);
-                          setPagesSearch("");
-                        }}
-                        className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
-                          pageKey === activePage
-                            ? "bg-[color:var(--bp-surface)] font-semibold"
-                            : "hover:bg-[color:var(--bp-surface)]/70"
-                        }`}
-                      >
-                        {PAGE_LABELS[pageKey]}
-                      </button>
-                    ))}
+                    {[...filteredPageItems].map((item) => {
+                      const isActive =
+                        item.kind === "page"
+                          ? item.key === activePage && currentEntity === null
+                          : item.key === activePage &&
+                            currentEntity?.type === item.entityType &&
+                            currentEntity?.id === item.entityId;
+                      return (
+                        <button
+                          key={
+                            item.kind === "page"
+                              ? `page:${item.key}`
+                              : `entity:${item.entityType}:${item.entityId}`
+                          }
+                          type="button"
+                          onClick={() => {
+                            setActivePage(item.key);
+                            if (item.kind === "entity-profile") {
+                              setCurrentEntity({ type: item.entityType, id: item.entityId });
+                            } else {
+                              setCurrentEntity(null);
+                            }
+                            setPagesMenuOpen(false);
+                            setPagesSearch("");
+                          }}
+                          className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                            isActive
+                              ? "bg-[color:var(--bp-surface)] font-semibold"
+                              : "hover:bg-[color:var(--bp-surface)]/70"
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                    {filteredLocationProfileItems.length > 0 && (
+                      <>
+                        <div className="px-3 pt-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
+                          Локации
+                        </div>
+                        {filteredLocationProfileItems.map((item) => {
+                          const isActive =
+                            item.key === activePage &&
+                            currentEntity?.type === item.entityType &&
+                            currentEntity?.id === item.entityId;
+                          return (
+                            <button
+                              key={`entity:${item.entityType}:${item.entityId}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage(item.key);
+                                setCurrentEntity({ type: item.entityType, id: item.entityId });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                isActive
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                    {filteredSpecialistProfileItems.length > 0 && (
+                      <>
+                        <div className="px-3 pt-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
+                          Специалисты
+                        </div>
+                        {filteredSpecialistProfileItems.map((item) => {
+                          const isActive =
+                            item.key === activePage &&
+                            currentEntity?.type === item.entityType &&
+                            currentEntity?.id === item.entityId;
+                          return (
+                            <button
+                              key={`entity:${item.entityType}:${item.entityId}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage(item.key);
+                                setCurrentEntity({ type: item.entityType, id: item.entityId });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                isActive
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                    {filteredServiceProfileItems.length > 0 && (
+                      <>
+                        <div className="px-3 pt-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
+                          Услуги
+                        </div>
+                        {filteredServiceProfileItems.map((item) => {
+                          const isActive =
+                            item.key === activePage &&
+                            currentEntity?.type === item.entityType &&
+                            currentEntity?.id === item.entityId;
+                          return (
+                            <button
+                              key={`entity:${item.entityType}:${item.entityId}`}
+                              type="button"
+                              onClick={() => {
+                                setActivePage(item.key);
+                                setCurrentEntity({ type: item.entityType, id: item.entityId });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                isActive
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
                     {!hasFilteredPagesMenuItems && (
                       <div className="rounded-md px-3 py-2 text-sm text-[color:var(--bp-muted)]">
                         Ничего не найдено
@@ -745,7 +902,7 @@ export default function SiteClient({
                   workPhotos={workPhotos}
                   theme={activeTheme}
                   loaderConfig={loaderConfig}
-                  currentEntity={null}
+                  currentEntity={currentEntity}
                   previewMode={previewMode}
                   onThemeToggle={handleThemeToggle}
                   onSelect={() => {

@@ -390,9 +390,10 @@ export function SiteCoverDrawerSections({
         <button
           type="button"
           onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
-          className="mt-2 flex w-full items-center justify-between rounded-md border border-[color:var(--bp-stroke)] px-3 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
+          className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
           style={{
-            borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+            borderColor: "var(--bp-stroke)",
+            backgroundColor: "transparent",
             color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
           }}
         >
