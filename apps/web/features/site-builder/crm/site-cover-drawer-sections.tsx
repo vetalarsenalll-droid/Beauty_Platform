@@ -382,7 +382,7 @@ export function SiteCoverDrawerSections({
           value={coverStyle?.buttonColorLight || activeTheme.lightPalette.buttonColor}
           onChange={(value) => updateSelectedCoverStyle({ buttonColor: value, buttonColorLight: value })}
           onClear={() => updateSelectedCoverStyle({ buttonColor: "", buttonColorLight: "" })}
-          placeholder="#111827"
+          placeholder="#000000"
         />
         <TildaInlineColorField
           compact
@@ -485,7 +485,7 @@ export function SiteCoverDrawerSections({
               }
               onChange={(value) => updateSelectedCoverStyle({ buttonColorDark: value })}
               onClear={() => updateSelectedCoverStyle({ buttonColorDark: "" })}
-              placeholder="#111827"
+              placeholder="#000000"
             />
             <TildaInlineColorField
               compact

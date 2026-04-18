@@ -563,7 +563,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
       textColorDark: "#f2f3f5",
       mutedColorLight: "#4b5563",
       mutedColorDark: "#a1a5ad",
-      buttonColorLight: "#111827",
+      buttonColorLight: "#000000",
       buttonColorDark: "#000000",
       buttonTextColorLight: "#ffffff",
       buttonTextColorDark: "#ffffff",
