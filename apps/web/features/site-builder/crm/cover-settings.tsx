@@ -99,7 +99,38 @@ export function resolveCoverSettings({
   const coverFilterEndOpacity = Number.isFinite(Number(coverData?.coverFilterEndOpacity))
     ? Math.max(0, Math.min(100, Number(coverData?.coverFilterEndOpacity)))
     : 60;
+  const coverFilterStartColorDarkRaw =
+    typeof coverData?.coverFilterStartColorDark === "string"
+      ? coverData.coverFilterStartColorDark.trim()
+      : "";
+  const coverFilterStartColorDark =
+    coverFilterStartColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterStartColorDarkRaw)
+        ? coverFilterStartColorDarkRaw
+        : coverFilterStartColor;
+  const coverFilterEndColorDarkRaw =
+    typeof coverData?.coverFilterEndColorDark === "string"
+      ? coverData.coverFilterEndColorDark.trim()
+      : "";
+  const coverFilterEndColorDark =
+    coverFilterEndColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverFilterEndColorDarkRaw)
+        ? coverFilterEndColorDarkRaw
+        : coverFilterEndColor;
+  const coverFilterStartOpacityDark = Number.isFinite(Number(coverData?.coverFilterStartOpacityDark))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverFilterStartOpacityDark)))
+    : coverFilterStartOpacity;
+  const coverFilterEndOpacityDark = Number.isFinite(Number(coverData?.coverFilterEndOpacityDark))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverFilterEndOpacityDark)))
+    : coverFilterEndOpacity;
   const coverArrow = coverData?.coverArrow === "down" ? "down" : "none";
+  const coverArrowDark = coverData?.coverArrowDark === "down"
+    ? "down"
+    : coverData?.coverArrowDark === "none"
+      ? "none"
+      : coverArrow;
   const coverArrowColorRaw =
     typeof coverData?.coverArrowColor === "string"
       ? coverData.coverArrowColor.trim()
@@ -110,6 +141,16 @@ export function resolveCoverSettings({
       : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverArrowColorRaw)
         ? coverArrowColorRaw
         : "#ffffff";
+  const coverArrowColorDarkRaw =
+    typeof coverData?.coverArrowColorDark === "string"
+      ? coverData.coverArrowColorDark.trim()
+      : "";
+  const coverArrowColorDark =
+    coverArrowColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(coverArrowColorDarkRaw)
+        ? coverArrowColorDarkRaw
+        : coverArrowColor;
   const coverArrowAnimated = Boolean(coverData?.coverArrowAnimated);
   const coverBackgroundPositionRaw =
     typeof coverData?.coverBackgroundPosition === "string"
@@ -139,6 +180,16 @@ export function resolveCoverSettings({
       : coverPrimaryButtonBorderColorRaw && isValidColorValue(coverPrimaryButtonBorderColorRaw)
         ? coverPrimaryButtonBorderColorRaw
         : "transparent";
+  const coverPrimaryButtonBorderColorDarkRaw =
+    typeof coverData?.coverPrimaryButtonBorderColorDark === "string"
+      ? coverData.coverPrimaryButtonBorderColorDark.trim()
+      : "";
+  const coverPrimaryButtonBorderColorDark =
+    coverPrimaryButtonBorderColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverPrimaryButtonBorderColorDarkRaw && isValidColorValue(coverPrimaryButtonBorderColorDarkRaw)
+        ? coverPrimaryButtonBorderColorDarkRaw
+        : coverPrimaryButtonBorderColor;
   const coverSecondaryButtonColorRaw =
     typeof coverData?.coverSecondaryButtonColor === "string"
       ? coverData.coverSecondaryButtonColor.trim()
@@ -149,6 +200,16 @@ export function resolveCoverSettings({
       : coverSecondaryButtonColorRaw && isValidColorValue(coverSecondaryButtonColorRaw)
         ? coverSecondaryButtonColorRaw
         : "transparent";
+  const coverSecondaryButtonColorDarkRaw =
+    typeof coverData?.coverSecondaryButtonColorDark === "string"
+      ? coverData.coverSecondaryButtonColorDark.trim()
+      : "";
+  const coverSecondaryButtonColorDark =
+    coverSecondaryButtonColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonColorDarkRaw && isValidColorValue(coverSecondaryButtonColorDarkRaw)
+        ? coverSecondaryButtonColorDarkRaw
+        : coverSecondaryButtonColor;
   const coverSecondaryButtonTextColorRaw =
     typeof coverData?.coverSecondaryButtonTextColor === "string"
       ? coverData.coverSecondaryButtonTextColor.trim()
@@ -159,6 +220,16 @@ export function resolveCoverSettings({
       : coverSecondaryButtonTextColorRaw && isValidColorValue(coverSecondaryButtonTextColorRaw)
         ? coverSecondaryButtonTextColorRaw
         : "#ffffff";
+  const coverSecondaryButtonTextColorDarkRaw =
+    typeof coverData?.coverSecondaryButtonTextColorDark === "string"
+      ? coverData.coverSecondaryButtonTextColorDark.trim()
+      : "";
+  const coverSecondaryButtonTextColorDark =
+    coverSecondaryButtonTextColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonTextColorDarkRaw && isValidColorValue(coverSecondaryButtonTextColorDarkRaw)
+        ? coverSecondaryButtonTextColorDarkRaw
+        : coverSecondaryButtonTextColor;
   const coverSecondaryButtonBorderColorRaw =
     typeof coverData?.coverSecondaryButtonBorderColor === "string"
       ? coverData.coverSecondaryButtonBorderColor.trim()
@@ -169,6 +240,16 @@ export function resolveCoverSettings({
       : coverSecondaryButtonBorderColorRaw && isValidColorValue(coverSecondaryButtonBorderColorRaw)
         ? coverSecondaryButtonBorderColorRaw
         : "#ffffff";
+  const coverSecondaryButtonBorderColorDarkRaw =
+    typeof coverData?.coverSecondaryButtonBorderColorDark === "string"
+      ? coverData.coverSecondaryButtonBorderColorDark.trim()
+      : "";
+  const coverSecondaryButtonBorderColorDark =
+    coverSecondaryButtonBorderColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : coverSecondaryButtonBorderColorDarkRaw && isValidColorValue(coverSecondaryButtonBorderColorDarkRaw)
+        ? coverSecondaryButtonBorderColorDarkRaw
+        : coverSecondaryButtonBorderColor;
   const coverSecondaryButtonRadius = Number.isFinite(Number(coverData?.coverSecondaryButtonRadius))
     ? Math.max(0, Math.min(80, Math.round(Number(coverData?.coverSecondaryButtonRadius))))
     : (coverStyle?.buttonRadius ?? activeTheme.buttonRadius);
@@ -213,8 +294,14 @@ export function resolveCoverSettings({
     coverFilterEndColor,
     coverFilterStartOpacity,
     coverFilterEndOpacity,
+    coverFilterStartColorDark,
+    coverFilterEndColorDark,
+    coverFilterStartOpacityDark,
+    coverFilterEndOpacityDark,
     coverArrow,
+    coverArrowDark,
     coverArrowColor,
+    coverArrowColorDark,
     coverArrowAnimated,
     coverBackgroundPosition,
     coverBackgroundTo,
@@ -223,9 +310,13 @@ export function resolveCoverSettings({
     coverBackgroundStopB,
     coverShowSecondaryButton,
     coverPrimaryButtonBorderColor,
+    coverPrimaryButtonBorderColorDark,
     coverSecondaryButtonColor,
+    coverSecondaryButtonColorDark,
     coverSecondaryButtonTextColor,
+    coverSecondaryButtonTextColorDark,
     coverSecondaryButtonBorderColor,
+    coverSecondaryButtonBorderColorDark,
     coverSecondaryButtonRadius,
     updateSelectedCoverStyle,
     updateSelectedCoverData,

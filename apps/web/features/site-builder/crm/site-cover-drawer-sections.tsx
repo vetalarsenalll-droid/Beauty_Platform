@@ -1,4 +1,5 @@
-﻿import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
+import { useState } from "react";
+import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type { BlockStyle } from "./site-renderer";
 import { TildaInlineColorField } from "./site-editor-panels";
 import { SliderTrack } from "./site-renderer";
@@ -11,9 +12,13 @@ type SiteCoverDrawerSectionsProps = {
   coverStyle: BlockStyle | null;
   coverShowSecondaryButton: boolean;
   coverPrimaryButtonBorderColor: string;
+  coverPrimaryButtonBorderColorDark: string;
   coverSecondaryButtonColor: string;
+  coverSecondaryButtonColorDark: string;
   coverSecondaryButtonTextColor: string;
+  coverSecondaryButtonTextColorDark: string;
   coverSecondaryButtonBorderColor: string;
+  coverSecondaryButtonBorderColorDark: string;
   coverSecondaryButtonRadius: number;
   updateSelectedCoverStyle: (patch: Partial<BlockStyle>) => void;
   updateSelectedCoverData: (patch: Record<string, unknown>) => void;
@@ -26,13 +31,18 @@ export function SiteCoverDrawerSections({
   coverStyle,
   coverShowSecondaryButton,
   coverPrimaryButtonBorderColor,
+  coverPrimaryButtonBorderColorDark,
   coverSecondaryButtonColor,
+  coverSecondaryButtonColorDark,
   coverSecondaryButtonTextColor,
+  coverSecondaryButtonTextColorDark,
   coverSecondaryButtonBorderColor,
+  coverSecondaryButtonBorderColorDark,
   coverSecondaryButtonRadius,
   updateSelectedCoverStyle,
   updateSelectedCoverData,
 }: SiteCoverDrawerSectionsProps) {
+  const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const AccentCheckbox = ({
     checked,
     label,
@@ -374,6 +384,80 @@ export function SiteCoverDrawerSections({
               0,
               80,
               (value) => updateSelectedCoverData({ coverSecondaryButtonRadius: value })
+            )}
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+          className="mt-2 flex w-full items-center justify-between rounded-md border border-[color:var(--bp-stroke)] px-3 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
+          style={{
+            borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+            color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+          }}
+        >
+          <span>Темная тема</span>
+          <span className="text-xs">{showDarkThemeAdvanced ? "‹" : "›"}</span>
+        </button>
+        {showDarkThemeAdvanced && (
+          <>
+            <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+              Первая кнопка
+            </div>
+            <TildaInlineColorField
+              compact
+              label="Цвет кнопки"
+              value={coverStyle?.buttonColorDark || coverStyle?.buttonColorLight || coverStyle?.buttonColor || activeTheme.darkPalette.buttonColor}
+              onChange={(value) => updateSelectedCoverStyle({ buttonColorDark: value })}
+              onClear={() => updateSelectedCoverStyle({ buttonColorDark: "" })}
+              placeholder="#111827"
+            />
+            <TildaInlineColorField
+              compact
+              label="Текст кнопки"
+              value={coverStyle?.buttonTextColorDark || coverStyle?.buttonTextColorLight || coverStyle?.buttonTextColor || activeTheme.darkPalette.buttonTextColor}
+              onChange={(value) => updateSelectedCoverStyle({ buttonTextColorDark: value })}
+              onClear={() => updateSelectedCoverStyle({ buttonTextColorDark: "" })}
+              placeholder="#ffffff"
+            />
+            <TildaInlineColorField
+              compact
+              label="Контур кнопки"
+              value={coverPrimaryButtonBorderColorDark}
+              onChange={(value) => updateSelectedCoverData({ coverPrimaryButtonBorderColorDark: value })}
+              onClear={() => updateSelectedCoverData({ coverPrimaryButtonBorderColorDark: "transparent" })}
+              placeholder="#ffffff"
+            />
+            {coverShowSecondaryButton && (
+              <>
+                <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  Вторая кнопка
+                </div>
+                <TildaInlineColorField
+                  compact
+                  label="Цвет второй кнопки"
+                  value={coverSecondaryButtonColorDark}
+                  onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonColorDark: value })}
+                  onClear={() => updateSelectedCoverData({ coverSecondaryButtonColorDark: "transparent" })}
+                  placeholder="#ffffff"
+                />
+                <TildaInlineColorField
+                  compact
+                  label="Текст второй кнопки"
+                  value={coverSecondaryButtonTextColorDark}
+                  onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonTextColorDark: value })}
+                  onClear={() => updateSelectedCoverData({ coverSecondaryButtonTextColorDark: "transparent" })}
+                  placeholder="#ffffff"
+                />
+                <TildaInlineColorField
+                  compact
+                  label="Контур второй кнопки"
+                  value={coverSecondaryButtonBorderColorDark}
+                  onChange={(value) => updateSelectedCoverData({ coverSecondaryButtonBorderColorDark: value })}
+                  onClear={() => updateSelectedCoverData({ coverSecondaryButtonBorderColorDark: "transparent" })}
+                  placeholder="#ffffff"
+                />
+              </>
             )}
           </>
         )}

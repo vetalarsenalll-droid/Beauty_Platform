@@ -2403,34 +2403,68 @@ export function renderCover(
     typeof data.secondaryButtonHref === "string" ? data.secondaryButtonHref.trim() : "";
   const socialHref = resolvePrimarySocialHref(accountProfile, secondaryButtonSource);
   const secondaryButtonHref = secondaryButtonHrefRaw || socialHref;
-  const primaryButtonBorderColorRaw =
+  const pickCoverModeValue = (lightRaw: string, darkRaw: string) =>
+    theme.mode === "dark" ? darkRaw || lightRaw : lightRaw || darkRaw;
+  const primaryButtonBorderColorLightRaw =
     typeof data.coverPrimaryButtonBorderColor === "string"
       ? data.coverPrimaryButtonBorderColor.trim()
       : "";
+  const primaryButtonBorderColorDarkRaw =
+    typeof data.coverPrimaryButtonBorderColorDark === "string"
+      ? data.coverPrimaryButtonBorderColorDark.trim()
+      : "";
+  const primaryButtonBorderColorRaw = pickCoverModeValue(
+    primaryButtonBorderColorLightRaw,
+    primaryButtonBorderColorDarkRaw
+  );
   const primaryButtonBorderColor =
     primaryButtonBorderColorRaw && isValidColorValue(primaryButtonBorderColorRaw)
       ? primaryButtonBorderColorRaw
       : "transparent";
-  const secondaryButtonColorRaw =
+  const secondaryButtonColorLightRaw =
     typeof data.coverSecondaryButtonColor === "string"
       ? data.coverSecondaryButtonColor.trim()
       : "";
+  const secondaryButtonColorDarkRaw =
+    typeof data.coverSecondaryButtonColorDark === "string"
+      ? data.coverSecondaryButtonColorDark.trim()
+      : "";
+  const secondaryButtonColorRaw = pickCoverModeValue(
+    secondaryButtonColorLightRaw,
+    secondaryButtonColorDarkRaw
+  );
   const secondaryButtonColor =
     secondaryButtonColorRaw && isValidColorValue(secondaryButtonColorRaw)
       ? secondaryButtonColorRaw
       : "transparent";
-  const secondaryButtonTextColorRaw =
+  const secondaryButtonTextColorLightRaw =
     typeof data.coverSecondaryButtonTextColor === "string"
       ? data.coverSecondaryButtonTextColor.trim()
       : "";
+  const secondaryButtonTextColorDarkRaw =
+    typeof data.coverSecondaryButtonTextColorDark === "string"
+      ? data.coverSecondaryButtonTextColorDark.trim()
+      : "";
+  const secondaryButtonTextColorRaw = pickCoverModeValue(
+    secondaryButtonTextColorLightRaw,
+    secondaryButtonTextColorDarkRaw
+  );
   const secondaryButtonTextColor =
     secondaryButtonTextColorRaw && isValidColorValue(secondaryButtonTextColorRaw)
       ? secondaryButtonTextColorRaw
       : "#ffffff";
-  const secondaryButtonBorderColorRaw =
+  const secondaryButtonBorderColorLightRaw =
     typeof data.coverSecondaryButtonBorderColor === "string"
       ? data.coverSecondaryButtonBorderColor.trim()
       : "";
+  const secondaryButtonBorderColorDarkRaw =
+    typeof data.coverSecondaryButtonBorderColorDark === "string"
+      ? data.coverSecondaryButtonBorderColorDark.trim()
+      : "";
+  const secondaryButtonBorderColorRaw = pickCoverModeValue(
+    secondaryButtonBorderColorLightRaw,
+    secondaryButtonBorderColorDarkRaw
+  );
   const secondaryButtonBorderColor =
     secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
       ? secondaryButtonBorderColorRaw
@@ -2458,28 +2492,42 @@ export function renderCover(
   const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
     ? coverHeightRawValue
     : "700px";
-  const filterStartColorRaw =
+  const filterStartColorLightRaw =
     typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
+  const filterStartColorDarkRaw =
+    typeof data.coverFilterStartColorDark === "string" ? data.coverFilterStartColorDark.trim() : "";
+  const filterStartColorRaw = pickCoverModeValue(filterStartColorLightRaw, filterStartColorDarkRaw);
   const filterStartColor =
     filterStartColorRaw.toLowerCase() === "transparent"
       ? "transparent"
       : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
         ? filterStartColorRaw
         : "#000000";
-  const filterEndColorRaw =
+  const filterEndColorLightRaw =
     typeof data.coverFilterEndColor === "string" ? data.coverFilterEndColor.trim() : "";
+  const filterEndColorDarkRaw =
+    typeof data.coverFilterEndColorDark === "string" ? data.coverFilterEndColorDark.trim() : "";
+  const filterEndColorRaw = pickCoverModeValue(filterEndColorLightRaw, filterEndColorDarkRaw);
   const filterEndColor =
     filterEndColorRaw.toLowerCase() === "transparent"
       ? "transparent"
       : /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterEndColorRaw)
         ? filterEndColorRaw
         : "#0f0f0f";
-  const filterStartOpacity = Number.isFinite(Number(data.coverFilterStartOpacity))
+  const filterStartOpacityLight = Number.isFinite(Number(data.coverFilterStartOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacity)))
     : 10;
-  const filterEndOpacity = Number.isFinite(Number(data.coverFilterEndOpacity))
+  const filterStartOpacityDark = Number.isFinite(Number(data.coverFilterStartOpacityDark))
+    ? Math.max(0, Math.min(100, Number(data.coverFilterStartOpacityDark)))
+    : filterStartOpacityLight;
+  const filterStartOpacity = theme.mode === "dark" ? filterStartOpacityDark : filterStartOpacityLight;
+  const filterEndOpacityLight = Number.isFinite(Number(data.coverFilterEndOpacity))
     ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacity)))
     : 60;
+  const filterEndOpacityDark = Number.isFinite(Number(data.coverFilterEndOpacityDark))
+    ? Math.max(0, Math.min(100, Number(data.coverFilterEndOpacityDark)))
+    : filterEndOpacityLight;
+  const filterEndOpacity = theme.mode === "dark" ? filterEndOpacityDark : filterEndOpacityLight;
   const toOverlayRgba = (color: string, opacity: number, fallbackHex: string) => {
     if (color === "transparent") return "rgba(0, 0, 0, 0)";
     const safeHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color) ? color : fallbackHex;
@@ -2490,8 +2538,13 @@ export function renderCover(
     filterStartOpacity,
     "#000000"
   )}, ${toOverlayRgba(filterEndColor, filterEndOpacity, "#0f0f0f")})`;
-  const arrowMode = data.coverArrow === "down" ? "down" : "none";
-  const arrowColorRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
+  const arrowModeLight = data.coverArrow === "down" ? "down" : "none";
+  const arrowModeDarkRaw =
+    data.coverArrowDark === "down" ? "down" : data.coverArrowDark === "none" ? "none" : "";
+  const arrowMode = theme.mode === "dark" ? arrowModeDarkRaw || arrowModeLight : arrowModeLight;
+  const arrowColorLightRaw = typeof data.coverArrowColor === "string" ? data.coverArrowColor.trim() : "";
+  const arrowColorDarkRaw = typeof data.coverArrowColorDark === "string" ? data.coverArrowColorDark.trim() : "";
+  const arrowColorRaw = pickCoverModeValue(arrowColorLightRaw, arrowColorDarkRaw);
   const arrowColor =
     arrowColorRaw.toLowerCase() === "transparent"
       ? "transparent"
@@ -2499,12 +2552,18 @@ export function renderCover(
         ? arrowColorRaw
         : "#ffffff";
   const animateArrow = Boolean(data.coverArrowAnimated);
-  const subtitleColorRaw =
+  const subtitleColorLightRaw =
     typeof data.coverSubtitleColor === "string" ? data.coverSubtitleColor.trim() : "";
+  const subtitleColorDarkRaw =
+    typeof data.coverSubtitleColorDark === "string" ? data.coverSubtitleColorDark.trim() : "";
+  const subtitleColorRaw = pickCoverModeValue(subtitleColorLightRaw, subtitleColorDarkRaw);
   const subtitleColor =
     subtitleColorRaw && isValidColorValue(subtitleColorRaw) ? subtitleColorRaw : "#ffffff";
-  const descriptionColorRaw =
+  const descriptionColorLightRaw =
     typeof data.coverDescriptionColor === "string" ? data.coverDescriptionColor.trim() : "";
+  const descriptionColorDarkRaw =
+    typeof data.coverDescriptionColorDark === "string" ? data.coverDescriptionColorDark.trim() : "";
+  const descriptionColorRaw = pickCoverModeValue(descriptionColorLightRaw, descriptionColorDarkRaw);
   const descriptionColor =
     descriptionColorRaw && isValidColorValue(descriptionColorRaw)
       ? descriptionColorRaw
@@ -2866,7 +2925,6 @@ export function renderCover(
                   className={`inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
                   style={{
                     ...buttonStyle(style, theme),
-                    color: "#ffffff",
                     borderStyle: "solid",
                   borderWidth:
                     primaryButtonBorderColor !== "transparent" &&

@@ -1505,10 +1505,19 @@ export function BlockStyleEditor({
     coverData.coverSubtitleColor,
     "#ffffff"
   );
+  const coverSubtitleColorDarkInput = resolveCoverTextColorInput(
+    coverData.coverSubtitleColorDark,
+    coverSubtitleColorInput || "#ffffff"
+  );
   const coverDescriptionColorInput = resolveCoverTextColorInput(
     coverData.coverDescriptionColor,
     "#ffffff"
   );
+  const coverDescriptionColorDarkInput = resolveCoverTextColorInput(
+    coverData.coverDescriptionColorDark,
+    coverDescriptionColorInput || "#ffffff"
+  );
+  const [coverTypographyDarkOpen, setCoverTypographyDarkOpen] = useState(false);
   const renderFlatSelect = (
     label: string,
     value: string,
@@ -2824,13 +2833,10 @@ export function BlockStyleEditor({
           <TildaInlineColorField
             label="Цвет"
             value={style.textColorLight || style.textColor || theme.textColor}
-            onChange={(value) =>
-              update({ textColorLight: value, textColorDark: value, textColor: value })
-            }
+            onChange={(value) => update({ textColorLight: value, textColor: value })}
             onClear={() =>
               update({
                 textColorLight: "transparent",
-                textColorDark: "transparent",
                 textColor: "transparent",
               })
             }
@@ -2923,6 +2929,53 @@ export function BlockStyleEditor({
             style.fontWeightBody?.toString() || "",
             (value) => update({ fontWeightBody: value ? Number(value) : null }),
             [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
+          )}
+          <button
+            type="button"
+            onClick={() => setCoverTypographyDarkOpen((prev) => !prev)}
+            className="mt-2 flex w-full items-center justify-between rounded-md border border-[color:var(--bp-stroke)] px-3 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
+            style={{
+              borderColor: coverTypographyDarkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+              color: coverTypographyDarkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span>Темная тема</span>
+            <span className="text-xs">{coverTypographyDarkOpen ? "‹" : "›"}</span>
+          </button>
+          {coverTypographyDarkOpen && (
+            <>
+              <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Заголовок</div>
+              <TildaInlineColorField
+                label="Цвет"
+                value={style.textColorDark || style.textColorLight || style.textColor || theme.darkPalette.textColor}
+                onChange={(value) => update({ textColorDark: value })}
+                onClear={() => update({ textColorDark: "transparent" })}
+                placeholder="#ffffff"
+                compact
+              />
+              {block.variant !== "v2" && (
+                <>
+                  <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Подзаголовок</div>
+                  <TildaInlineColorField
+                    label="Цвет"
+                    value={coverSubtitleColorDarkInput}
+                    onChange={(value) => updateCoverData({ coverSubtitleColorDark: value })}
+                    onClear={() => updateCoverData({ coverSubtitleColorDark: "transparent" })}
+                    placeholder="#ffffff"
+                    compact
+                  />
+                </>
+              )}
+              <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">Описание</div>
+              <TildaInlineColorField
+                label="Цвет"
+                value={coverDescriptionColorDarkInput}
+                onChange={(value) => updateCoverData({ coverDescriptionColorDark: value })}
+                onClear={() => updateCoverData({ coverDescriptionColorDark: "transparent" })}
+                placeholder="#ffffff"
+                compact
+              />
+            </>
           )}
           <div className="h-6" />
         </>
