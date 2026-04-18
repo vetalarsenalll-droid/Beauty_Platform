@@ -23,7 +23,7 @@ export const ME001: BlockVersion = {
       data: {
         ...base,
         accountTitle: accountName,
-        menuItems: ["home", "booking"],
+        menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
         menuHeight: 64,
         style: { ...defaultBlockStyle, ...baseStyle },
       },

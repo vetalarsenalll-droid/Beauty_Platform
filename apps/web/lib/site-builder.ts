@@ -638,7 +638,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
   variant: "v1",
   data: {
     title: "Меню",
-    menuItems: ["home", "booking"],
+    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,
@@ -1016,7 +1016,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           };
           const menuItems = Array.isArray(safeData.menuItems)
             ? (safeData.menuItems as SitePageKey[]).filter((item) =>
-                ["home", "booking"].includes(item)
+                ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
               )
             : [];
           const presetVersionRaw = Number(safeData.presetVersion);
@@ -1067,7 +1067,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           }
           safeData.menuItems = menuItems.length
             ? menuItems
-            : ["home", "booking"];
+            : ["home", "booking", "client", "locations", "services", "specialists", "promos"];
           const socialIconSizeRaw = Number(safeData.socialIconSize);
           safeData.socialIconSize =
             Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72

@@ -80,7 +80,15 @@ export const PAGE_LABELS: Record<SitePageKey, string> = {
   promos: "Промо/скидки",
 };
 
-export const PAGE_KEYS: SitePageKey[] = ["home", "booking"];
+export const PAGE_KEYS: SitePageKey[] = [
+  "home",
+  "booking",
+  "client",
+  "locations",
+  "services",
+  "specialists",
+  "promos",
+];
 export const isSystemBlockType = (type: unknown): type is "booking" => type === "booking";
 export const QUICK_BLOCK_TYPES: BlockType[] = ["cover"];
 
@@ -491,7 +499,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
   },
   menu: {
     title: "Меню",
-    menuItems: ["home", "booking"],
+    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,
