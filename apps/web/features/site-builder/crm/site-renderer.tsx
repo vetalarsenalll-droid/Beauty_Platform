@@ -684,7 +684,7 @@ export function FlatCheckbox({
         aria-hidden
         className={`flex h-4 w-4 items-center justify-center border text-[10px] leading-none transition ${
           checked
-            ? "border-[#ff5a5f] bg-[#ff5a5f] text-white"
+            ? "border-[#ff5a5f] bg-transparent text-[#ff5a5f]"
             : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
         }`}
       >

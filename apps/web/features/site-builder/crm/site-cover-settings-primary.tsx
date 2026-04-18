@@ -329,14 +329,25 @@ export function SiteCoverSettingsPrimary({
             />
           </div>
 
-          <label className="mb-3 mt-2 flex items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
+          <label className="mb-3 mt-2 inline-flex cursor-pointer items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
             <input
               type="checkbox"
               checked={coverArrowAnimated}
               onChange={(event) =>
                 updateSelectedCoverData({ coverArrowAnimated: event.target.checked })
               }
+              className="sr-only"
             />
+            <span
+              aria-hidden
+              className={`flex h-4 w-4 items-center justify-center border text-[10px] leading-none transition ${
+                coverArrowAnimated
+                  ? "border-[#ff5a5f] bg-transparent text-[#ff5a5f]"
+                  : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
+              }`}
+            >
+              ✓
+            </span>
             Анимировать стрелку
           </label>
         </>
