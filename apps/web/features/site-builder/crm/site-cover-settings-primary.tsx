@@ -43,6 +43,8 @@ type SiteCoverSettingsPrimaryProps = {
     SetStateAction<"slider" | "typography" | "button" | "animation" | null>
   >;
   coverBackgroundPosition: string;
+  coverBackgroundFrom: string;
+  coverBackgroundFromDark: string;
   coverMarginTopLines: number;
   coverMarginBottomLines: number;
   coverBackgroundMode: "solid" | "linear" | "radial";
@@ -89,6 +91,8 @@ export function SiteCoverSettingsPrimary({
   coverDrawerKey,
   setCoverDrawerKey,
   coverBackgroundPosition,
+  coverBackgroundFrom,
+  coverBackgroundFromDark,
   coverMarginTopLines,
   coverMarginBottomLines,
   coverBackgroundMode,
@@ -507,7 +511,7 @@ export function SiteCoverSettingsPrimary({
 
       <TildaBackgroundColorField
         label="Цвет фона для всего блока"
-        value={String(coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "")}
+        value={coverBackgroundFrom}
         mode={coverBackgroundMode}
         secondValue={coverBackgroundTo}
         angle={coverBackgroundAngle}
@@ -685,7 +689,7 @@ export function SiteCoverSettingsPrimary({
 
               <TildaBackgroundColorField
                 label="Цвет фона для всего блока"
-                value={String(coverStyle?.sectionBgDark ?? coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "")}
+                value={coverBackgroundFromDark}
                 mode={coverBackgroundModeDark}
                 secondValue={coverBackgroundToDark}
                 angle={coverBackgroundAngleDark}

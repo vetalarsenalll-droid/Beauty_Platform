@@ -163,6 +163,16 @@ export function resolveCoverSettings({
   const coverBackgroundPosition = COVER_BACKGROUND_POSITION_VALUES.has(coverBackgroundPositionRaw)
     ? coverBackgroundPositionRaw
     : "center center";
+  const coverBackgroundFromRaw =
+    typeof coverData?.coverBackgroundFrom === "string" ? coverData.coverBackgroundFrom.trim() : "";
+  const coverBackgroundFrom = coverBackgroundFromRaw || String(coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "#ffffff");
+  const coverBackgroundFromDarkRaw =
+    typeof coverData?.coverBackgroundFromDark === "string"
+      ? coverData.coverBackgroundFromDark.trim()
+      : "";
+  const coverBackgroundFromDark =
+    coverBackgroundFromDarkRaw ||
+    String(coverStyle?.sectionBgDark ?? coverBackgroundFrom ?? coverStyle?.sectionBgLight ?? "#ffffff");
   const coverBackgroundTo = String(coverData?.coverBackgroundTo ?? "");
   const coverBackgroundToDark = String(coverData?.coverBackgroundToDark ?? coverBackgroundTo);
   const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
@@ -319,6 +329,8 @@ export function resolveCoverSettings({
     coverArrowColorDark,
     coverArrowAnimated,
     coverBackgroundPosition,
+    coverBackgroundFrom,
+    coverBackgroundFromDark,
     coverBackgroundTo,
     coverBackgroundToDark,
     coverBackgroundAngle,
