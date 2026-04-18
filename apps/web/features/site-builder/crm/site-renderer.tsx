@@ -2376,6 +2376,7 @@ export function renderCover(
 ) {
   const data = block.data as Record<string, unknown>;
   const animHeading = String(data.animHeading ?? "none");
+  const animSubtitle = String(data.animSubtitle ?? "none");
   const animDescription = String(data.animDescription ?? "none");
   const animButton = String(data.animButton ?? "none");
   const resolveAnimClass = (value: string) => (value && value !== "none" ? `bp-anim bp-anim-${value}` : "");
@@ -2884,7 +2885,7 @@ export function renderCover(
           </h2>
           {subtitle && (
             <p
-              className={`mt-6 text-white/90 leading-[1.25] ${resolveAnimClass(animDescription)}`}
+              className={`mt-6 text-white/90 leading-[1.25] ${resolveAnimClass(animSubtitle)}`}
               style={{
                 ...subheadingStyle(style, theme),
                 textAlign: contentAlign,
@@ -2893,7 +2894,7 @@ export function renderCover(
                   subheadingMobileSize,
                   subheadingDesktopSize
                 )}px)`,
-                ...(resolveAnimStyle(animDescription, 120) ?? {}),
+                ...(resolveAnimStyle(animSubtitle, 120) ?? {}),
               }}
             >
               {subtitle}
