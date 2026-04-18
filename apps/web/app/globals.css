@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 :root {
   --bg: #f6f6f8;
@@ -459,5 +459,46 @@ textarea::placeholder {
     max-width: 100% !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
+  }
+}
+
+.bp-anim {
+  animation-duration: 700ms;
+  animation-fill-mode: both;
+  animation-timing-function: ease;
+  will-change: transform, opacity;
+}
+.bp-anim-fade-up { animation-name: bp-fade-up; }
+.bp-anim-fade-down { animation-name: bp-fade-down; }
+.bp-anim-fade-left { animation-name: bp-fade-left; }
+.bp-anim-fade-right { animation-name: bp-fade-right; }
+.bp-anim-zoom-in { animation-name: bp-zoom-in; }
+
+@keyframes bp-fade-up {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes bp-fade-down {
+  from { opacity: 0; transform: translate3d(0, -18px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes bp-fade-left {
+  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes bp-fade-right {
+  from { opacity: 0; transform: translate3d(18px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes bp-zoom-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-anim {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
   }
 }

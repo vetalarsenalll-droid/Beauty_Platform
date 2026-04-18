@@ -2363,6 +2363,12 @@ export function renderCover(
   parallaxOffset = 0
 ) {
   const data = block.data as Record<string, unknown>;
+  const animHeading = String(data.animHeading ?? "none");
+  const animDescription = String(data.animDescription ?? "none");
+  const animButton = String(data.animButton ?? "none");
+  const resolveAnimClass = (value: string) => (value && value !== "none" ? `bp-anim bp-anim-${value}` : "");
+  const resolveAnimStyle = (value: string, delayMs: number) =>
+    value && value !== "none" ? ({ animationDelay: `${delayMs}ms` } as CSSProperties) : undefined;
   const title = (data.title as string) || account.name;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
@@ -2792,7 +2798,7 @@ export function renderCover(
           }}
         >
           <h2
-            className="text-white leading-[1.08] tracking-[-0.01em]"
+            className={`text-white leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
             style={{
               ...headingStyle(style, theme),
               textAlign: contentAlign,
@@ -2800,13 +2806,14 @@ export function renderCover(
                 headingMobileSize,
                 headingDesktopSize
               )}px)`,
+              ...(resolveAnimStyle(animHeading, 0) ?? {}),
             }}
           >
             {title}
           </h2>
           {subtitle && (
             <p
-              className="mt-6 text-white/90 leading-[1.25]"
+              className={`mt-6 text-white/90 leading-[1.25] ${resolveAnimClass(animDescription)}`}
               style={{
                 ...subheadingStyle(style, theme),
                 textAlign: contentAlign,
@@ -2815,6 +2822,7 @@ export function renderCover(
                   subheadingMobileSize,
                   subheadingDesktopSize
                 )}px)`,
+                ...(resolveAnimStyle(animDescription, 120) ?? {}),
               }}
             >
               {subtitle}
@@ -2822,7 +2830,7 @@ export function renderCover(
           )}
           {description && (
             <p
-              className="mt-5 max-w-[720px] text-white/80 leading-[1.45]"
+              className={`mt-5 max-w-[720px] text-white/80 leading-[1.45] ${resolveAnimClass(animDescription)}`}
               style={{
                 ...textStyle(style, theme),
                 textAlign: contentAlign,
@@ -2834,13 +2842,14 @@ export function renderCover(
                   textMobileSize,
                   textDesktopSize
                 )}px)`,
+                ...(resolveAnimStyle(animDescription, subtitle ? 220 : 120) ?? {}),
               }}
             >
               {description}
             </p>
           )}
           <div
-            className="mt-7 flex flex-wrap items-center gap-3"
+            className={`mt-7 flex flex-wrap items-center gap-3 ${resolveAnimClass(animButton)}`}
             style={{
               flexWrap: forceMobileLayout ? "nowrap" : "wrap",
               justifyContent:
@@ -2849,6 +2858,7 @@ export function renderCover(
                   : contentAlign === "right"
                     ? "flex-end"
                     : "flex-start",
+              ...(resolveAnimStyle(animButton, 320) ?? {}),
             }}
           >
             {showButton && account.publicSlug && (

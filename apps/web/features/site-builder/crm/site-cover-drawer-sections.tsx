@@ -383,52 +383,103 @@ export function SiteCoverDrawerSections({
 
   if (coverDrawerKey === "animation") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 pb-10">
         <div className="text-xs text-[color:var(--bp-muted)]">Работает на опубликованных страницах или в режиме предпросмотра.</div>
-        <label className="text-sm">
-          Анимация: заголовок
-          <select
-            value={String((selectedBlock.data as Record<string, unknown>).animHeading ?? "none")}
-            onChange={(event) => updateSelectedCoverData({ animHeading: event.target.value })}
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="none">Нет</option>
-            <option value="fade-up">Прозрачность (снизу)</option>
-            <option value="fade-down">Прозрачность (сверху)</option>
-            <option value="fade-left">Прозрачность (слева)</option>
-            <option value="fade-right">Прозрачность (справа)</option>
-            <option value="zoom-in">Прозрачность (увеличение)</option>
-          </select>
+        <label className="block">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+            Анимация: заголовок
+          </div>
+          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <select
+              value={String((selectedBlock.data as Record<string, unknown>).animHeading ?? "none")}
+              onChange={(event) => updateSelectedCoverData({ animHeading: event.target.value })}
+              className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              style={{
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                borderBottom: 0,
+                borderRadius: 0,
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              <option value="none">Нет</option>
+              <option value="fade-up">Прозрачность (снизу)</option>
+              <option value="fade-down">Прозрачность (сверху)</option>
+              <option value="fade-left">Прозрачность (слева)</option>
+              <option value="fade-right">Прозрачность (справа)</option>
+              <option value="zoom-in">Прозрачность (увеличение)</option>
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+          </div>
         </label>
-        <label className="text-sm">
-          Анимация: описание
-          <select
-            value={String((selectedBlock.data as Record<string, unknown>).animDescription ?? "none")}
-            onChange={(event) => updateSelectedCoverData({ animDescription: event.target.value })}
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="none">Нет</option>
-            <option value="fade-up">Прозрачность (снизу)</option>
-            <option value="fade-down">Прозрачность (сверху)</option>
-            <option value="fade-left">Прозрачность (слева)</option>
-            <option value="fade-right">Прозрачность (справа)</option>
-            <option value="zoom-in">Прозрачность (увеличение)</option>
-          </select>
+        <label className="block">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+            Анимация: описание
+          </div>
+          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <select
+              value={String((selectedBlock.data as Record<string, unknown>).animDescription ?? "none")}
+              onChange={(event) => updateSelectedCoverData({ animDescription: event.target.value })}
+              className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              style={{
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                borderBottom: 0,
+                borderRadius: 0,
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              <option value="none">Нет</option>
+              <option value="fade-up">Прозрачность (снизу)</option>
+              <option value="fade-down">Прозрачность (сверху)</option>
+              <option value="fade-left">Прозрачность (слева)</option>
+              <option value="fade-right">Прозрачность (справа)</option>
+              <option value="zoom-in">Прозрачность (увеличение)</option>
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+          </div>
         </label>
-        <label className="text-sm">
-          Анимация: кнопка
-          <select
-            value={String((selectedBlock.data as Record<string, unknown>).animButton ?? "none")}
-            onChange={(event) => updateSelectedCoverData({ animButton: event.target.value })}
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="none">Нет</option>
-            <option value="fade-up">Прозрачность (снизу)</option>
-            <option value="fade-down">Прозрачность (сверху)</option>
-            <option value="fade-left">Прозрачность (слева)</option>
-            <option value="fade-right">Прозрачность (справа)</option>
-            <option value="zoom-in">Прозрачность (увеличение)</option>
-          </select>
+        <label className="block">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+            Анимация: кнопка
+          </div>
+          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <select
+              value={String((selectedBlock.data as Record<string, unknown>).animButton ?? "none")}
+              onChange={(event) => updateSelectedCoverData({ animButton: event.target.value })}
+              className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+              style={{
+                borderTop: 0,
+                borderLeft: 0,
+                borderRight: 0,
+                borderBottom: 0,
+                borderRadius: 0,
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              <option value="none">Нет</option>
+              <option value="fade-up">Прозрачность (снизу)</option>
+              <option value="fade-down">Прозрачность (сверху)</option>
+              <option value="fade-left">Прозрачность (слева)</option>
+              <option value="fade-right">Прозрачность (справа)</option>
+              <option value="zoom-in">Прозрачность (увеличение)</option>
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+          </div>
         </label>
       </div>
     );
