@@ -1005,7 +1005,7 @@ export default function SiteClient({
               isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
             } ${
               activeTheme.mode === "dark"
-                ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_input]:opacity-100 [&_input]:[color-scheme:dark] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_select]:opacity-100 [&_select]:[color-scheme:dark] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_textarea]:opacity-100 [&_textarea]:[color-scheme:dark] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+                ? "[&_input:not([type='color'])]:border-[#2b2b2b] [&_input:not([type='color'])]:bg-[#121212] [&_input:not([type='color'])]:text-[#f3f4f6] [&_input:not([type='color'])]:opacity-100 [&_input:not([type='color'])]:[color-scheme:dark] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_select]:opacity-100 [&_select]:[color-scheme:dark] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_textarea]:opacity-100 [&_textarea]:[color-scheme:dark] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                 : ""
             }`}
             style={{
