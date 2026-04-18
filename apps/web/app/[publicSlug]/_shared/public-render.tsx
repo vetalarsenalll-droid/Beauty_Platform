@@ -1358,6 +1358,7 @@ function renderCover(
   }
 
   if (block.variant === "v3") {
+    const imageColumnHeight = `calc(${coverHeightCss} + var(--he003-bleed-y, 160px))`;
     const textHorizontalJustify =
       contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start";
     const textVerticalAlignItems =
@@ -1377,7 +1378,7 @@ function renderCover(
 
     return (
       <section
-        className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+        className="relative overflow-hidden py-14 [--he003-bleed-y:112px] sm:py-20 sm:[--he003-bleed-y:160px]"
         style={{
           minHeight: coverHeightCss,
           backgroundColor: splitBackground,
@@ -1393,10 +1394,10 @@ function renderCover(
           }}
         >
           <div
-            className="w-full md:w-1/2"
+            className="w-full -my-14 sm:-my-20 md:w-1/2"
             style={{
-              height: "100%",
-              minHeight: coverHeightCss,
+              height: imageColumnHeight,
+              minHeight: imageColumnHeight,
               padding: coverImageInsetPx,
               boxSizing: "border-box",
             }}
@@ -1404,8 +1405,8 @@ function renderCover(
             <div
               className="relative h-full w-full overflow-hidden"
               style={{
-                height: "100%",
-                minHeight: coverHeightCss,
+                height: imageColumnHeight,
+                minHeight: imageColumnHeight,
                 borderRadius: coverImageRadiusPx,
                 backgroundImage: imageUrl ? `url(${imageUrl})` : "none",
                 backgroundColor: imageUrl ? "transparent" : "var(--block-sub-bg, var(--block-bg))",

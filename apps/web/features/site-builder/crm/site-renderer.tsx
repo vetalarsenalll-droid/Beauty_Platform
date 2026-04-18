@@ -3131,6 +3131,10 @@ export function renderCover(
   }
 
   if (block.variant === "v3") {
+    const imageBleedY = forceMobileLayout ? 112 : 160;
+    const imageColumnHeight = forceMobileLayout
+      ? `calc(320px + ${imageBleedY}px)`
+      : `calc(${coverHeightCss} + ${imageBleedY}px)`;
     const textHorizontalJustify =
       contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start";
     const textVerticalAlignItems =
@@ -3152,8 +3156,8 @@ export function renderCover(
       <section
         className={
           forceMobileLayout
-            ? "relative overflow-hidden px-4 py-14"
-            : "relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+            ? "relative overflow-hidden py-14"
+            : "relative overflow-hidden py-14 sm:py-20"
         }
         style={{
           minHeight: coverHeightCss,
@@ -3170,10 +3174,10 @@ export function renderCover(
           }}
         >
           <div
-            className="w-full md:w-1/2"
+            className="w-full -my-14 sm:-my-20 md:w-1/2"
             style={{
-              height: forceMobileLayout ? "320px" : coverHeightCss,
-              minHeight: forceMobileLayout ? "320px" : coverHeightCss,
+              height: imageColumnHeight,
+              minHeight: imageColumnHeight,
               padding: coverImageInsetPx,
               boxSizing: "border-box",
             }}
@@ -3181,8 +3185,8 @@ export function renderCover(
             <div
               className="relative h-full w-full overflow-hidden"
               style={{
-                height: forceMobileLayout ? "320px" : coverHeightCss,
-                minHeight: forceMobileLayout ? "320px" : coverHeightCss,
+                height: imageColumnHeight,
+                minHeight: imageColumnHeight,
                 borderRadius: coverImageRadiusPx,
                 backgroundImage: imageUrl ? `url(${imageUrl})` : "none",
                 backgroundColor: imageUrl ? "transparent" : "var(--block-sub-bg, var(--block-bg))",
@@ -3205,7 +3209,7 @@ export function renderCover(
               alignItems: textVerticalAlignItems,
               height: forceMobileLayout ? "auto" : coverHeightCss,
               minHeight: forceMobileLayout ? "auto" : coverHeightCss,
-              padding: forceMobileLayout ? "40px 20px" : "56px 64px",
+              padding: forceMobileLayout ? "40px 20px" : "56px 64px 56px 56px",
               boxSizing: "border-box",
             }}
           >
