@@ -413,7 +413,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                       fileInputRef.current?.click();
                     }}
                     disabled={uploading}
-                    className="inline-flex h-9 items-center justify-center rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+                    className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
                   >
                     {uploading ? "Загрузка..." : "Загрузить файл"}
                   </button>
@@ -422,7 +422,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     onClick={() =>
                       setOpenLibraryForSlideId((prev) => (prev === slide.id ? null : slide.id))
                     }
-                    className="inline-flex h-9 items-center justify-center rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
+                    className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
                   >
                     Выбрать из загруженных
                   </button>
@@ -430,7 +430,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     type="button"
                     onClick={() => updateSlide({ imageUrl: "" })}
                     disabled={!slide.imageUrl}
-                    className="inline-flex h-9 items-center justify-center rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+                    className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
                   >
                     Убрать
                   </button>

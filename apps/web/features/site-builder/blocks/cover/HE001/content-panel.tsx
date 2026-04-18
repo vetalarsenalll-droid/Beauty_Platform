@@ -369,14 +369,14 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex h-9 items-center justify-center rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
           >
             {uploading ? "Загрузка..." : "Загрузить файл"}
           </button>
           <button
             type="button"
             onClick={() => setOpenLibrary((prev) => !prev)}
-            className="inline-flex h-9 items-center justify-center rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
+            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
           >
             Выбрать из загруженных
           </button>
@@ -384,7 +384,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
             type="button"
             onClick={() => setSource({ type: "none" })}
             disabled={!previewUrl}
-            className="inline-flex h-9 items-center justify-center rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
           >
             Убрать
           </button>
