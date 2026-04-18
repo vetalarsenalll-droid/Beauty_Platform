@@ -2849,7 +2849,7 @@ export function renderCover(
             </p>
           )}
           <div
-            className={`mt-7 flex flex-wrap items-center gap-3 ${resolveAnimClass(animButton)}`}
+            className="mt-7 flex flex-wrap items-center gap-3"
             style={{
               flexWrap: forceMobileLayout ? "nowrap" : "wrap",
               justifyContent:
@@ -2858,17 +2858,16 @@ export function renderCover(
                   : contentAlign === "right"
                     ? "flex-end"
                     : "flex-start",
-              ...(resolveAnimStyle(animButton, 320) ?? {}),
             }}
           >
             {showButton && account.publicSlug && (
-              <a
-                href={buildBookingLink({ publicSlug: account.publicSlug })}
-                className="inline-flex items-center whitespace-nowrap font-semibold"
-                style={{
-                  ...buttonStyle(style, theme),
-                  color: "#ffffff",
-                  borderStyle: "solid",
+                <a
+                  href={buildBookingLink({ publicSlug: account.publicSlug })}
+                  className={`inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
+                  style={{
+                    ...buttonStyle(style, theme),
+                    color: "#ffffff",
+                    borderStyle: "solid",
                   borderWidth:
                     primaryButtonBorderColor !== "transparent" &&
                     primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
@@ -2879,24 +2878,25 @@ export function renderCover(
                     primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
                       ? primaryButtonBorderColor
                       : "transparent",
-                  minHeight: "clamp(46px, 6cqw, 54px)",
-                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
-                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                  fontSize: "clamp(14px, 2cqw, 16px)",
-                }}
-              >
-                {buttonText}
-              </a>
-            )}
+                    minHeight: "clamp(46px, 6cqw, 54px)",
+                    paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                    paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                    fontSize: "clamp(14px, 2cqw, 16px)",
+                    ...(resolveAnimStyle(animButton, 320) ?? {}),
+                  }}
+                >
+                  {buttonText}
+                </a>
+              )}
             {showSecondaryButton && secondaryButtonHref && (
-              <a
-                href={secondaryButtonHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
-                style={{
-                  backgroundColor:
-                    secondaryButtonColor !== "transparent" &&
+                <a
+                  href={secondaryButtonHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10 ${resolveAnimClass(animButton)}`}
+                  style={{
+                    backgroundColor:
+                      secondaryButtonColor !== "transparent" &&
                     secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
                       ? secondaryButtonColor
                       : "transparent",
@@ -2915,15 +2915,16 @@ export function renderCover(
                     secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
                       ? 1
                       : 0,
-                  borderRadius: secondaryButtonRadius,
-                  minHeight: "clamp(46px, 6cqw, 54px)",
-                  paddingInline: "clamp(24px, 3.2cqw, 40px)",
-                  paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                  fontSize: "clamp(14px, 2cqw, 16px)",
-                }}
-              >
-                {secondaryButtonText}
-              </a>
+                    borderRadius: secondaryButtonRadius,
+                    minHeight: "clamp(46px, 6cqw, 54px)",
+                    paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                    paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                    fontSize: "clamp(14px, 2cqw, 16px)",
+                    ...(resolveAnimStyle(animButton, 380) ?? {}),
+                  }}
+                >
+                  {secondaryButtonText}
+                </a>
             )}
           </div>
         </div>

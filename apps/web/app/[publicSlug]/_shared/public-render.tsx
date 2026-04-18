@@ -1236,7 +1236,7 @@ function renderCover(
             </p>
           )}
           <div
-            className={`mt-7 flex flex-wrap items-center gap-3 ${resolveAnimClass(animButton)}`}
+            className="mt-7 flex flex-wrap items-center gap-3"
             style={{
               justifyContent:
                 contentAlign === "center"
@@ -1244,13 +1244,12 @@ function renderCover(
                   : contentAlign === "right"
                     ? "flex-end"
                     : "flex-start",
-              ...(resolveAnimStyle(animButton, 320) ?? {}),
             }}
           >
             {showButton && publicSlug && (
               <Link
                 href={buildBookingLink({ publicSlug })}
-                className="inline-flex items-center whitespace-nowrap font-semibold"
+                className={`inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
                 style={{
                   ...buttonStyle(style),
                   color: "#ffffff",
@@ -1269,6 +1268,7 @@ function renderCover(
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                   fontSize: "clamp(14px, 2cqw, 16px)",
+                  ...(resolveAnimStyle(animButton, 320) ?? {}),
                 }}
               >
                 {buttonText}
@@ -1279,7 +1279,7 @@ function renderCover(
                 href={socialHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10"
+                className={`inline-flex items-center whitespace-nowrap border font-semibold text-white transition hover:bg-white/10 ${resolveAnimClass(animButton)}`}
                 style={{
                   backgroundColor:
                     secondaryButtonColor !== "transparent" &&
@@ -1306,6 +1306,7 @@ function renderCover(
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                   fontSize: "clamp(14px, 2cqw, 16px)",
+                  ...(resolveAnimStyle(animButton, 380) ?? {}),
                 }}
               >
                 {secondaryButtonText}
