@@ -12,7 +12,13 @@ type CrmSession = NonNullable<
 >;
 
 type CrmAuthResult =
-  | { session: CrmSession; accessToken?: string; accessExpiresAt?: Date }
+  | {
+      session: CrmSession;
+      accessToken?: string;
+      accessExpiresAt?: Date;
+      refreshToken?: string;
+      refreshExpiresAt?: Date;
+    }
   | { response: NextResponse };
 
 export async function requireCrmApiPermission(
@@ -51,6 +57,8 @@ export async function requireCrmApiPermission(
             session,
             accessToken: refreshed.accessToken,
             accessExpiresAt: refreshed.accessExpiresAt,
+            refreshToken: refreshed.refreshToken,
+            refreshExpiresAt: refreshed.refreshExpiresAt,
           };
         }
       }
@@ -83,16 +91,31 @@ export async function requireCrmApiPermission(
 
 export function applyCrmAccessCookie(
   response: NextResponse,
-  auth: { accessToken?: string; accessExpiresAt?: Date }
+  auth: {
+    accessToken?: string;
+    accessExpiresAt?: Date;
+    refreshToken?: string;
+    refreshExpiresAt?: Date;
+  }
 ) {
-  if (!auth.accessToken || !auth.accessExpiresAt) return response;
-  const { ACCESS_COOKIE } = getCrmAuthCookies();
-  response.cookies.set(ACCESS_COOKIE, auth.accessToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    expires: auth.accessExpiresAt,
-  });
+  const { ACCESS_COOKIE, REFRESH_COOKIE } = getCrmAuthCookies();
+  if (auth.accessToken && auth.accessExpiresAt) {
+    response.cookies.set(ACCESS_COOKIE, auth.accessToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires: auth.accessExpiresAt,
+    });
+  }
+  if (auth.refreshToken && auth.refreshExpiresAt) {
+    response.cookies.set(REFRESH_COOKIE, auth.refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      expires: auth.refreshExpiresAt,
+    });
+  }
   return response;
 }

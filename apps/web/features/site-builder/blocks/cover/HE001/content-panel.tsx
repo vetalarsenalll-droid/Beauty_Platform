@@ -77,11 +77,22 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
 
   useEffect(() => {
     let active = true;
+    const fetchLibrary = async (retry401 = true) => {
+      const response = await fetch("/api/v1/crm/account/media?type=siteCover", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (response.status === 401 && retry401) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        return fetchLibrary(false);
+      }
+      return response;
+    };
     const load = async () => {
       setLibraryLoading(true);
       setLibraryError(null);
       try {
-        const response = await fetch("/api/v1/crm/account/media?type=siteCover");
+        const response = await fetchLibrary();
         const payload = await response.json().catch(() => null);
         if (!response.ok) {
           if (active) setLibraryError("Не удалось загрузить изображения.");
