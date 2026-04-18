@@ -383,7 +383,7 @@ export function SiteCoverSettingsPrimary({
         ...(isCoverVariantV2 ? [{ id: "slider", label: "Стиль слайдера" }] : []),
         { id: "typography", label: "Типографика" },
         { id: "button", label: "Кнопка" },
-        { id: "animation", label: "Анимация" },
+        ...(!isCoverVariantV2 ? [{ id: "animation", label: "Анимация" }] : []),
       ].map((item) => (
         <button
           key={item.id}

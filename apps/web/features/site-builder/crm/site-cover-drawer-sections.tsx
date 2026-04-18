@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type { BlockStyle } from "./site-renderer";
 import { TildaInlineColorField } from "./site-editor-panels";
-import { SliderTrack } from "./site-renderer";
+import { FlatCheckbox, SliderTrack } from "./site-renderer";
 import { renderCoverFlatNumberInput, renderCoverFlatTextInput } from "./cover-settings";
 
 type SiteCoverDrawerSectionsProps = {
@@ -43,39 +43,6 @@ export function SiteCoverDrawerSections({
   updateSelectedCoverData,
 }: SiteCoverDrawerSectionsProps) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
-  const AccentCheckbox = ({
-    checked,
-    label,
-    onChange,
-  }: {
-    checked: boolean;
-    label: string;
-    onChange: (next: boolean) => void;
-  }) => (
-    <label className="inline-flex items-center gap-2 text-sm">
-      <span
-        className="relative inline-flex h-4 w-4 items-center justify-center rounded-sm border"
-        style={{
-          borderColor: "#ff5a5f",
-          backgroundColor: checked ? "#ff5a5f" : "transparent",
-        }}
-      >
-        {checked && (
-          <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" stroke="#ffffff" strokeWidth="2">
-            <path d="M4 10l3 3 9-9" />
-          </svg>
-        )}
-      </span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="sr-only"
-      />
-      {label}
-    </label>
-  );
-
   const data = (selectedBlock.data as Record<string, unknown>) ?? {};
   if (coverDrawerKey === "slider") {
     const sliderInfinite = data.coverSliderInfinite !== false;
@@ -111,18 +78,18 @@ export function SiteCoverDrawerSections({
     return (
       <div className="space-y-4 pb-10">
         <div className="grid grid-cols-2 gap-4">
-          <AccentCheckbox
+          <FlatCheckbox
             checked={sliderInfinite}
             onChange={(next) => updateSelectedCoverData({ coverSliderInfinite: next })}
             label="Бесконечная галерея"
           />
-          <AccentCheckbox
+          <FlatCheckbox
             checked={sliderShowArrows}
             onChange={(next) => updateSelectedCoverData({ coverSliderShowArrows: next })}
             label="Показывать стрелки"
           />
         </div>
-        <AccentCheckbox
+        <FlatCheckbox
           checked={sliderShowDots}
           onChange={(next) => updateSelectedCoverData({ coverSliderShowDots: next })}
           label="Показывать точки"
