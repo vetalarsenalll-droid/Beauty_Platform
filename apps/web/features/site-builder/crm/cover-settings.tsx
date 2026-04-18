@@ -168,7 +168,7 @@ export function resolveCoverSettings({
       ? "transparent"
       : coverSecondaryButtonBorderColorRaw && isValidColorValue(coverSecondaryButtonBorderColorRaw)
         ? coverSecondaryButtonBorderColorRaw
-        : "rgba(255,255,255,0.45)";
+        : "#ffffff";
   const coverSecondaryButtonRadius = Number.isFinite(Number(coverData?.coverSecondaryButtonRadius))
     ? Math.max(0, Math.min(80, Math.round(Number(coverData?.coverSecondaryButtonRadius))))
     : (coverStyle?.buttonRadius ?? activeTheme.buttonRadius);

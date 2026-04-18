@@ -822,7 +822,7 @@ function renderCover(
   const secondaryButtonBorderColor =
     secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
       ? secondaryButtonBorderColorRaw
-      : "rgba(255,255,255,0.45)";
+      : "#ffffff";
   const secondaryButtonRadius = Number.isFinite(Number(data.coverSecondaryButtonRadius))
     ? Math.max(0, Math.min(80, Math.round(Number(data.coverSecondaryButtonRadius))))
     : (style.buttonRadius ?? theme.buttonRadius);
