@@ -26,18 +26,27 @@ type PublicCoverV2HeroProps = {
   autoplayMs: number;
   arrowSize: "sm" | "md" | "lg" | "xl";
   arrowThickness: number;
-  arrowColor: string;
-  arrowHoverColor: string;
-  arrowBgColor: string;
-  arrowHoverBgColor: string;
+  arrowColorLight: string;
+  arrowColorDark: string;
+  arrowHoverColorLight: string;
+  arrowHoverColorDark: string;
+  arrowBgColorLight: string;
+  arrowBgColorDark: string;
+  arrowHoverBgColorLight: string;
+  arrowHoverBgColorDark: string;
   arrowShowOutline: boolean;
-  arrowOutlineColor: string;
+  arrowOutlineColorLight: string;
+  arrowOutlineColorDark: string;
   arrowOutlineThickness: number;
   dotSize: number;
-  dotColor: string;
-  dotActiveColor: string;
+  dotColorLight: string;
+  dotColorDark: string;
+  dotActiveColorLight: string;
+  dotActiveColorDark: string;
   dotBorderWidth: number;
-  dotBorderColor: string;
+  dotBorderColorLight: string;
+  dotBorderColorDark: string;
+  themeMode: "light" | "dark";
   headingCss: CSSProperties;
   textCss: CSSProperties;
   buttonCss: CSSProperties;
@@ -63,18 +72,27 @@ export default function PublicCoverV2Hero({
   autoplayMs,
   arrowSize,
   arrowThickness,
-  arrowColor,
-  arrowHoverColor,
-  arrowBgColor,
-  arrowHoverBgColor,
+  arrowColorLight,
+  arrowColorDark,
+  arrowHoverColorLight,
+  arrowHoverColorDark,
+  arrowBgColorLight,
+  arrowBgColorDark,
+  arrowHoverBgColorLight,
+  arrowHoverBgColorDark,
   arrowShowOutline,
-  arrowOutlineColor,
+  arrowOutlineColorLight,
+  arrowOutlineColorDark,
   arrowOutlineThickness,
   dotSize,
-  dotColor,
-  dotActiveColor,
+  dotColorLight,
+  dotColorDark,
+  dotActiveColorLight,
+  dotActiveColorDark,
   dotBorderWidth,
-  dotBorderColor,
+  dotBorderColorLight,
+  dotBorderColorDark,
+  themeMode,
   headingCss,
   textCss,
   buttonCss,
@@ -87,6 +105,42 @@ export default function PublicCoverV2Hero({
   const [index, setIndex] = useState(0);
   const canSlide = slides.length > 1;
   const [hoveredArrow, setHoveredArrow] = useState<"prev" | "next" | null>(null);
+  const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">(
+    themeMode === "dark" ? "dark" : "light"
+  );
+
+  useEffect(() => {
+    setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
+  }, [themeMode]);
+
+  useEffect(() => {
+    const resolveModeFromDom = () => {
+      const root = document.getElementById("public-site-root");
+      const mode = root?.getAttribute("data-site-theme");
+      if (mode === "light" || mode === "dark") setActiveThemeMode(mode);
+    };
+    resolveModeFromDom();
+    const onThemeChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: string }>).detail;
+      const mode = detail?.mode;
+      if (mode === "light" || mode === "dark") {
+        setActiveThemeMode(mode);
+        return;
+      }
+      resolveModeFromDom();
+    };
+    window.addEventListener("site-theme-change", onThemeChange as EventListener);
+    const root = document.getElementById("public-site-root");
+    let observer: MutationObserver | null = null;
+    if (root) {
+      observer = new MutationObserver(() => resolveModeFromDom());
+      observer.observe(root, { attributes: true, attributeFilter: ["data-site-theme"] });
+    }
+    return () => {
+      window.removeEventListener("site-theme-change", onThemeChange as EventListener);
+      observer?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (slides.length === 0) {
@@ -132,12 +186,18 @@ export default function PublicCoverV2Hero({
     });
   };
 
-  const baseArrowBg = arrowBgColor;
-  const hoverArrowBg = arrowHoverBgColor || arrowBgColor;
-  const baseArrowColor = arrowColor;
-  const hoverArrowColor = arrowHoverColor || arrowColor;
+  const pickModeColor = (light: string, dark: string) =>
+    activeThemeMode === "dark" ? dark || light : light || dark;
+  const baseArrowBg = pickModeColor(arrowBgColorLight, arrowBgColorDark);
+  const hoverArrowBg = pickModeColor(arrowHoverBgColorLight, arrowHoverBgColorDark) || baseArrowBg;
+  const baseArrowColor = pickModeColor(arrowColorLight, arrowColorDark);
+  const hoverArrowColor = pickModeColor(arrowHoverColorLight, arrowHoverColorDark) || baseArrowColor;
+  const outlineColor = pickModeColor(arrowOutlineColorLight, arrowOutlineColorDark);
   const effectiveOutlineColor =
-    arrowOutlineColor && arrowOutlineColor !== "transparent" ? arrowOutlineColor : baseArrowColor;
+    outlineColor && outlineColor !== "transparent" ? outlineColor : baseArrowColor;
+  const dotColor = pickModeColor(dotColorLight, dotColorDark);
+  const dotActiveColor = pickModeColor(dotActiveColorLight, dotActiveColorDark);
+  const dotBorderColor = pickModeColor(dotBorderColorLight, dotBorderColorDark);
 
   return (
     <section

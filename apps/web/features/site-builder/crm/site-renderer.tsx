@@ -2044,18 +2044,27 @@ function CoverVariantV2Hero({
   autoplayMs,
   arrowSize,
   arrowThickness,
-  arrowColor,
-  arrowHoverColor,
-  arrowBgColor,
-  arrowHoverBgColor,
+  arrowColorLight,
+  arrowColorDark,
+  arrowHoverColorLight,
+  arrowHoverColorDark,
+  arrowBgColorLight,
+  arrowBgColorDark,
+  arrowHoverBgColorLight,
+  arrowHoverBgColorDark,
   arrowShowOutline,
-  arrowOutlineColor,
+  arrowOutlineColorLight,
+  arrowOutlineColorDark,
   arrowOutlineThickness,
   dotSize,
-  dotColor,
-  dotActiveColor,
+  dotColorLight,
+  dotColorDark,
+  dotActiveColorLight,
+  dotActiveColorDark,
   dotBorderWidth,
-  dotBorderColor,
+  dotBorderColorLight,
+  dotBorderColorDark,
+  themeMode,
   subtitleColor,
   descriptionColor,
   headingDesktopSize,
@@ -2081,18 +2090,27 @@ function CoverVariantV2Hero({
   autoplayMs: number;
   arrowSize: "sm" | "md" | "lg" | "xl";
   arrowThickness: number;
-  arrowColor: string;
-  arrowHoverColor: string;
-  arrowBgColor: string;
-  arrowHoverBgColor: string;
+  arrowColorLight: string;
+  arrowColorDark: string;
+  arrowHoverColorLight: string;
+  arrowHoverColorDark: string;
+  arrowBgColorLight: string;
+  arrowBgColorDark: string;
+  arrowHoverBgColorLight: string;
+  arrowHoverBgColorDark: string;
   arrowShowOutline: boolean;
-  arrowOutlineColor: string;
+  arrowOutlineColorLight: string;
+  arrowOutlineColorDark: string;
   arrowOutlineThickness: number;
   dotSize: number;
-  dotColor: string;
-  dotActiveColor: string;
+  dotColorLight: string;
+  dotColorDark: string;
+  dotActiveColorLight: string;
+  dotActiveColorDark: string;
   dotBorderWidth: number;
-  dotBorderColor: string;
+  dotBorderColorLight: string;
+  dotBorderColorDark: string;
+  themeMode: "light" | "dark";
   subtitleColor: string;
   descriptionColor: string;
   headingDesktopSize: number;
@@ -2105,6 +2123,45 @@ function CoverVariantV2Hero({
   const [index, setIndex] = useState(0);
   const canSlide = slides.length > 1;
   const [hoveredArrow, setHoveredArrow] = useState<"prev" | "next" | null>(null);
+  const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">(
+    themeMode === "dark" ? "dark" : "light"
+  );
+
+  useEffect(() => {
+    setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
+  }, [themeMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const resolveModeFromDom = () => {
+      const root = document.getElementById("public-site-root");
+      const mode = root?.getAttribute("data-site-theme");
+      if (mode === "light" || mode === "dark") {
+        setActiveThemeMode(mode);
+      }
+    };
+    resolveModeFromDom();
+    const onThemeChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: string }>).detail;
+      const mode = detail?.mode;
+      if (mode === "light" || mode === "dark") {
+        setActiveThemeMode(mode);
+        return;
+      }
+      resolveModeFromDom();
+    };
+    window.addEventListener("site-theme-change", onThemeChange as EventListener);
+    const root = document.getElementById("public-site-root");
+    let observer: MutationObserver | null = null;
+    if (root) {
+      observer = new MutationObserver(() => resolveModeFromDom());
+      observer.observe(root, { attributes: true, attributeFilter: ["data-site-theme"] });
+    }
+    return () => {
+      window.removeEventListener("site-theme-change", onThemeChange as EventListener);
+      observer?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (slides.length === 0) {
@@ -2163,12 +2220,18 @@ function CoverVariantV2Hero({
         ? normalizeExternalHref(buttonHref)
         : "";
 
-  const baseArrowBg = arrowBgColor;
-  const hoverArrowBg = arrowHoverBgColor || arrowBgColor;
-  const baseArrowColor = arrowColor;
-  const hoverArrowColor = arrowHoverColor || arrowColor;
+  const pickModeColor = (light: string, dark: string) =>
+    activeThemeMode === "dark" ? dark || light : light || dark;
+  const baseArrowBg = pickModeColor(arrowBgColorLight, arrowBgColorDark);
+  const hoverArrowBg = pickModeColor(arrowHoverBgColorLight, arrowHoverBgColorDark) || baseArrowBg;
+  const baseArrowColor = pickModeColor(arrowColorLight, arrowColorDark);
+  const hoverArrowColor = pickModeColor(arrowHoverColorLight, arrowHoverColorDark) || baseArrowColor;
+  const outlineColor = pickModeColor(arrowOutlineColorLight, arrowOutlineColorDark);
   const effectiveOutlineColor =
-    arrowOutlineColor && arrowOutlineColor !== "transparent" ? arrowOutlineColor : baseArrowColor;
+    outlineColor && outlineColor !== "transparent" ? outlineColor : baseArrowColor;
+  const dotColor = pickModeColor(dotColorLight, dotColorDark);
+  const dotActiveColor = pickModeColor(dotActiveColorLight, dotActiveColorDark);
+  const dotBorderColor = pickModeColor(dotBorderColorLight, dotBorderColorDark);
 
   return (
     <section
@@ -2613,51 +2676,107 @@ export function renderCover(
     Number.isFinite(sliderArrowThicknessRaw) && sliderArrowThicknessRaw > 0
       ? Math.max(1, Math.min(8, Math.round(sliderArrowThicknessRaw)))
       : 3;
-  const sliderArrowColorRaw =
+  const sliderArrowColorLightRaw =
     typeof data.coverSliderArrowColor === "string" ? data.coverSliderArrowColor.trim() : "";
-  const sliderArrowColor =
-    sliderArrowColorRaw && isValidColorValue(sliderArrowColorRaw)
-      ? sliderArrowColorRaw
+  const sliderArrowColorDarkRaw =
+    typeof data.coverSliderArrowColorDark === "string" ? data.coverSliderArrowColorDark.trim() : "";
+  const sliderArrowColorLight =
+    sliderArrowColorLightRaw && isValidColorValue(sliderArrowColorLightRaw)
+      ? sliderArrowColorLightRaw
       : "#222222";
-  const sliderArrowHoverColorRaw =
+  const sliderArrowColorDark =
+    sliderArrowColorDarkRaw && isValidColorValue(sliderArrowColorDarkRaw)
+      ? sliderArrowColorDarkRaw
+      : sliderArrowColorLight;
+  const sliderArrowColor =
+    theme.mode === "dark" ? sliderArrowColorDark || sliderArrowColorLight : sliderArrowColorLight || sliderArrowColorDark;
+  const sliderArrowHoverColorLightRaw =
     typeof data.coverSliderArrowHoverColor === "string"
       ? data.coverSliderArrowHoverColor.trim()
       : "";
-  const sliderArrowHoverColor =
-    sliderArrowHoverColorRaw && isValidColorValue(sliderArrowHoverColorRaw)
-      ? sliderArrowHoverColorRaw
+  const sliderArrowHoverColorDarkRaw =
+    typeof data.coverSliderArrowHoverColorDark === "string"
+      ? data.coverSliderArrowHoverColorDark.trim()
       : "";
-  const sliderArrowBgColorRaw =
+  const sliderArrowHoverColorLight =
+    sliderArrowHoverColorLightRaw && isValidColorValue(sliderArrowHoverColorLightRaw)
+      ? sliderArrowHoverColorLightRaw
+      : "";
+  const sliderArrowHoverColorDark =
+    sliderArrowHoverColorDarkRaw && isValidColorValue(sliderArrowHoverColorDarkRaw)
+      ? sliderArrowHoverColorDarkRaw
+      : sliderArrowHoverColorLight;
+  const sliderArrowHoverColor =
+    theme.mode === "dark"
+      ? sliderArrowHoverColorDark || sliderArrowHoverColorLight
+      : sliderArrowHoverColorLight || sliderArrowHoverColorDark;
+  const sliderArrowBgColorLightRaw =
     typeof data.coverSliderArrowBgColor === "string" ? data.coverSliderArrowBgColor.trim() : "";
-  const sliderArrowBgColor =
-    sliderArrowBgColorRaw && isValidColorValue(sliderArrowBgColorRaw)
-      ? sliderArrowBgColorRaw
+  const sliderArrowBgColorDarkRaw =
+    typeof data.coverSliderArrowBgColorDark === "string" ? data.coverSliderArrowBgColorDark.trim() : "";
+  const sliderArrowBgColorLight =
+    sliderArrowBgColorLightRaw && isValidColorValue(sliderArrowBgColorLightRaw)
+      ? sliderArrowBgColorLightRaw
       : "#ffffff";
-  const sliderArrowHoverBgColorRaw =
+  const sliderArrowBgColorDark =
+    sliderArrowBgColorDarkRaw && isValidColorValue(sliderArrowBgColorDarkRaw)
+      ? sliderArrowBgColorDarkRaw
+      : sliderArrowBgColorLight;
+  const sliderArrowBgColor =
+    theme.mode === "dark" ? sliderArrowBgColorDark || sliderArrowBgColorLight : sliderArrowBgColorLight || sliderArrowBgColorDark;
+  const sliderArrowHoverBgColorLightRaw =
     typeof data.coverSliderArrowHoverBgColor === "string"
       ? data.coverSliderArrowHoverBgColor.trim()
       : "";
-  const sliderArrowHoverBgColor =
-    sliderArrowHoverBgColorRaw && isValidColorValue(sliderArrowHoverBgColorRaw)
-      ? sliderArrowHoverBgColorRaw
+  const sliderArrowHoverBgColorDarkRaw =
+    typeof data.coverSliderArrowHoverBgColorDark === "string"
+      ? data.coverSliderArrowHoverBgColorDark.trim()
       : "";
-  const sliderArrowOutlineColorRaw =
+  const sliderArrowHoverBgColorLight =
+    sliderArrowHoverBgColorLightRaw && isValidColorValue(sliderArrowHoverBgColorLightRaw)
+      ? sliderArrowHoverBgColorLightRaw
+      : "";
+  const sliderArrowHoverBgColorDark =
+    sliderArrowHoverBgColorDarkRaw && isValidColorValue(sliderArrowHoverBgColorDarkRaw)
+      ? sliderArrowHoverBgColorDarkRaw
+      : sliderArrowHoverBgColorLight;
+  const sliderArrowHoverBgColor =
+    theme.mode === "dark"
+      ? sliderArrowHoverBgColorDark || sliderArrowHoverBgColorLight
+      : sliderArrowHoverBgColorLight || sliderArrowHoverBgColorDark;
+  const sliderArrowOutlineColorLightRaw =
     typeof data.coverSliderArrowOutlineColor === "string"
       ? data.coverSliderArrowOutlineColor.trim()
       : "";
-  const sliderArrowOutlineColorCandidate =
-    sliderArrowOutlineColorRaw && isValidColorValue(sliderArrowOutlineColorRaw)
-      ? sliderArrowOutlineColorRaw
+  const sliderArrowOutlineColorDarkRaw =
+    typeof data.coverSliderArrowOutlineColorDark === "string"
+      ? data.coverSliderArrowOutlineColorDark.trim()
+      : "";
+  const sliderArrowOutlineColorLightCandidate =
+    sliderArrowOutlineColorLightRaw && isValidColorValue(sliderArrowOutlineColorLightRaw)
+      ? sliderArrowOutlineColorLightRaw
       : "";
   const sliderArrowOutlineThicknessRaw = Number(data.coverSliderArrowOutlineThickness);
   const sliderArrowOutlineThickness =
     Number.isFinite(sliderArrowOutlineThicknessRaw) && sliderArrowOutlineThicknessRaw > 0
       ? Math.max(1, Math.min(8, Math.round(sliderArrowOutlineThicknessRaw)))
       : 1;
-  const sliderArrowOutlineColor =
-    sliderArrowOutlineColorRaw.toLowerCase() === "transparent"
+  const sliderArrowOutlineColorLight =
+    sliderArrowOutlineColorLightRaw.toLowerCase() === "transparent"
       ? "transparent"
-      : sliderArrowOutlineColorCandidate || sliderArrowColor;
+      : sliderArrowOutlineColorLightCandidate || sliderArrowColorLight;
+  const sliderArrowOutlineColorDarkCandidate =
+    sliderArrowOutlineColorDarkRaw && isValidColorValue(sliderArrowOutlineColorDarkRaw)
+      ? sliderArrowOutlineColorDarkRaw
+      : "";
+  const sliderArrowOutlineColorDark =
+    sliderArrowOutlineColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : sliderArrowOutlineColorDarkCandidate || sliderArrowOutlineColorLight || sliderArrowColorDark;
+  const sliderArrowOutlineColor =
+    theme.mode === "dark"
+      ? sliderArrowOutlineColorDark || sliderArrowOutlineColorLight
+      : sliderArrowOutlineColorLight || sliderArrowOutlineColorDark;
   const sliderArrowShowOutline =
     sliderArrowOutlineColor !== "transparent" ||
     sliderArrowOutlineThickness !== 1;
@@ -2666,33 +2785,65 @@ export function renderCover(
     Number.isFinite(sliderDotSizeRaw) && sliderDotSizeRaw > 0
       ? Math.max(6, Math.min(24, Math.round(sliderDotSizeRaw)))
       : 10;
-  const sliderDotColorRaw =
+  const sliderDotColorLightRaw =
     typeof data.coverSliderDotColor === "string" ? data.coverSliderDotColor.trim() : "";
-  const sliderDotColor =
-    sliderDotColorRaw && isValidColorValue(sliderDotColorRaw)
-      ? sliderDotColorRaw
+  const sliderDotColorDarkRaw =
+    typeof data.coverSliderDotColorDark === "string" ? data.coverSliderDotColorDark.trim() : "";
+  const sliderDotColorLight =
+    sliderDotColorLightRaw && isValidColorValue(sliderDotColorLightRaw)
+      ? sliderDotColorLightRaw
       : "#000000";
-  const sliderDotActiveColorRaw =
+  const sliderDotColorDark =
+    sliderDotColorDarkRaw && isValidColorValue(sliderDotColorDarkRaw)
+      ? sliderDotColorDarkRaw
+      : sliderDotColorLight;
+  const sliderDotColor =
+    theme.mode === "dark" ? sliderDotColorDark || sliderDotColorLight : sliderDotColorLight || sliderDotColorDark;
+  const sliderDotActiveColorLightRaw =
     typeof data.coverSliderDotActiveColor === "string"
       ? data.coverSliderDotActiveColor.trim()
       : "";
-  const sliderDotActiveColor =
-    sliderDotActiveColorRaw && isValidColorValue(sliderDotActiveColorRaw)
-      ? sliderDotActiveColorRaw
+  const sliderDotActiveColorDarkRaw =
+    typeof data.coverSliderDotActiveColorDark === "string"
+      ? data.coverSliderDotActiveColorDark.trim()
+      : "";
+  const sliderDotActiveColorLight =
+    sliderDotActiveColorLightRaw && isValidColorValue(sliderDotActiveColorLightRaw)
+      ? sliderDotActiveColorLightRaw
       : "#ffffff";
+  const sliderDotActiveColorDark =
+    sliderDotActiveColorDarkRaw && isValidColorValue(sliderDotActiveColorDarkRaw)
+      ? sliderDotActiveColorDarkRaw
+      : sliderDotActiveColorLight;
+  const sliderDotActiveColor =
+    theme.mode === "dark"
+      ? sliderDotActiveColorDark || sliderDotActiveColorLight
+      : sliderDotActiveColorLight || sliderDotActiveColorDark;
   const sliderDotBorderWidthRaw = Number(data.coverSliderDotBorderWidth);
   const sliderDotBorderWidth =
     Number.isFinite(sliderDotBorderWidthRaw) && sliderDotBorderWidthRaw >= 0
       ? Math.max(0, Math.min(6, Math.round(sliderDotBorderWidthRaw)))
       : 2;
-  const sliderDotBorderColorRaw =
+  const sliderDotBorderColorLightRaw =
     typeof data.coverSliderDotBorderColor === "string"
       ? data.coverSliderDotBorderColor.trim()
       : "";
-  const sliderDotBorderColor =
-    sliderDotBorderColorRaw && isValidColorValue(sliderDotBorderColorRaw)
-      ? sliderDotBorderColorRaw
+  const sliderDotBorderColorDarkRaw =
+    typeof data.coverSliderDotBorderColorDark === "string"
+      ? data.coverSliderDotBorderColorDark.trim()
+      : "";
+  const sliderDotBorderColorLight =
+    sliderDotBorderColorLightRaw && isValidColorValue(sliderDotBorderColorLightRaw)
+      ? sliderDotBorderColorLightRaw
       : "#ffffff";
+  const sliderDotBorderColorDark =
+    sliderDotBorderColorDarkRaw && isValidColorValue(sliderDotBorderColorDarkRaw)
+      ? sliderDotBorderColorDarkRaw
+      : sliderDotBorderColorLight;
+  const sliderDotBorderColor =
+    theme.mode === "dark"
+      ? sliderDotBorderColorDark || sliderDotBorderColorLight
+      : sliderDotBorderColorLight || sliderDotBorderColorDark;
   const rawSlides = Array.isArray(data.coverSlides)
     ? (data.coverSlides as Array<Record<string, unknown>>)
     : [];
@@ -2790,18 +2941,27 @@ export function renderCover(
         autoplayMs={sliderAutoplayMs}
         arrowSize={sliderArrowSize}
         arrowThickness={sliderArrowThickness}
-        arrowColor={sliderArrowColor}
-        arrowHoverColor={sliderArrowHoverColor}
-        arrowBgColor={sliderArrowBgColor}
-        arrowHoverBgColor={sliderArrowHoverBgColor}
+        arrowColorLight={sliderArrowColorLight}
+        arrowColorDark={sliderArrowColorDark}
+        arrowHoverColorLight={sliderArrowHoverColorLight}
+        arrowHoverColorDark={sliderArrowHoverColorDark}
+        arrowBgColorLight={sliderArrowBgColorLight}
+        arrowBgColorDark={sliderArrowBgColorDark}
+        arrowHoverBgColorLight={sliderArrowHoverBgColorLight}
+        arrowHoverBgColorDark={sliderArrowHoverBgColorDark}
         arrowShowOutline={sliderArrowShowOutline}
-        arrowOutlineColor={sliderArrowOutlineColor}
+        arrowOutlineColorLight={sliderArrowOutlineColorLight}
+        arrowOutlineColorDark={sliderArrowOutlineColorDark}
         arrowOutlineThickness={sliderArrowOutlineThickness}
         dotSize={sliderDotSize}
-        dotColor={sliderDotColor}
-        dotActiveColor={sliderDotActiveColor}
+        dotColorLight={sliderDotColorLight}
+        dotColorDark={sliderDotColorDark}
+        dotActiveColorLight={sliderDotActiveColorLight}
+        dotActiveColorDark={sliderDotActiveColorDark}
         dotBorderWidth={sliderDotBorderWidth}
-        dotBorderColor={sliderDotBorderColor}
+        dotBorderColorLight={sliderDotBorderColorLight}
+        dotBorderColorDark={sliderDotBorderColorDark}
+        themeMode={theme.mode}
         subtitleColor={subtitleColor}
         descriptionColor={descriptionColor}
         headingDesktopSize={headingDesktopSize}

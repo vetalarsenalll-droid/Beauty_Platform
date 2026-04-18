@@ -541,8 +541,7 @@ export function SiteCoverSettingsPrimary({
           updateSelectedCoverData({ coverBackgroundFrom: value });
         }}
       />
-      {!isCoverVariantV2 && (
-        <>
+      <>
           <button
             type="button"
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
@@ -724,8 +723,7 @@ export function SiteCoverSettingsPrimary({
               />
             </>
           )}
-        </>
-      )}
+      </>
     </>
   );
 }

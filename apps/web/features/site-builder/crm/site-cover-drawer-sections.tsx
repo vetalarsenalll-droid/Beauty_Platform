@@ -42,7 +42,8 @@ export function SiteCoverDrawerSections({
   updateSelectedCoverStyle,
   updateSelectedCoverData,
 }: SiteCoverDrawerSectionsProps) {
-  const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
+  const [showSliderDarkThemeAdvanced, setShowSliderDarkThemeAdvanced] = useState(false);
+  const [showButtonDarkThemeAdvanced, setShowButtonDarkThemeAdvanced] = useState(false);
   const data = (selectedBlock.data as Record<string, unknown>) ?? {};
   if (coverDrawerKey === "slider") {
     const sliderInfinite = data.coverSliderInfinite !== false;
@@ -72,6 +73,20 @@ export function SiteCoverDrawerSections({
     const sliderDotColor = String(data.coverSliderDotColor ?? "#000000");
     const sliderDotActiveColor = String(data.coverSliderDotActiveColor ?? "#ffffff");
     const sliderDotBorderColor = String(data.coverSliderDotBorderColor ?? "#ffffff");
+    const sliderArrowColorDark = String(data.coverSliderArrowColorDark ?? sliderArrowColor);
+    const sliderArrowHoverColorDark = String(
+      data.coverSliderArrowHoverColorDark ?? sliderArrowHoverColor
+    );
+    const sliderArrowBgColorDark = String(data.coverSliderArrowBgColorDark ?? sliderArrowBgColor);
+    const sliderArrowHoverBgColorDark = String(
+      data.coverSliderArrowHoverBgColorDark ?? sliderArrowHoverBgColor
+    );
+    const sliderArrowOutlineColorDark = String(
+      data.coverSliderArrowOutlineColorDark ?? sliderArrowOutlineColor
+    );
+    const sliderDotColorDark = String(data.coverSliderDotColorDark ?? sliderDotColor);
+    const sliderDotActiveColorDark = String(data.coverSliderDotActiveColorDark ?? sliderDotActiveColor);
+    const sliderDotBorderColorDark = String(data.coverSliderDotBorderColorDark ?? sliderDotBorderColor);
 
     const opacityOptions = ["", ...Array.from({ length: 11 }, (_, i) => String(i * 10))];
 
@@ -263,6 +278,87 @@ export function SiteCoverDrawerSections({
             onChange={(value) => updateSelectedCoverData({ coverSliderDotBorderColor: value })}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowSliderDarkThemeAdvanced((prev) => !prev)}
+          className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
+          style={{
+            borderColor: showSliderDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+            backgroundColor: "transparent",
+            color: showSliderDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+          }}
+        >
+          <span className="inline-flex items-center gap-2">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+            </svg>
+            <span>Темная тема</span>
+          </span>
+          <span className="text-xs">{showSliderDarkThemeAdvanced ? "▴" : "▾"}</span>
+        </button>
+        {showSliderDarkThemeAdvanced && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <TildaInlineColorField
+                compact
+                label="Стрелка: цвет"
+                value={sliderArrowColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderArrowColorDark: value })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Цвет при наведении"
+                value={sliderArrowHoverColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderArrowHoverColorDark: value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <TildaInlineColorField
+                compact
+                label="Стрелка: цвет фона"
+                value={sliderArrowBgColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderArrowBgColorDark: value })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Цвет фона при наведении"
+                value={sliderArrowHoverBgColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderArrowHoverBgColorDark: value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <TildaInlineColorField
+                compact
+                label="Стрелка: обводка"
+                value={sliderArrowOutlineColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderArrowOutlineColorDark: value })}
+                onClear={() => updateSelectedCoverData({ coverSliderArrowOutlineColorDark: "transparent" })}
+                placeholder="#ff5a5f"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <TildaInlineColorField
+                compact
+                label="Точка: цвет"
+                value={sliderDotColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderDotColorDark: value })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Точка: активная"
+                value={sliderDotActiveColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderDotActiveColorDark: value })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Точка: обводка"
+                value={sliderDotBorderColorDark}
+                onChange={(value) => updateSelectedCoverData({ coverSliderDotBorderColorDark: value })}
+              />
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -356,12 +452,12 @@ export function SiteCoverDrawerSections({
         )}
         <button
           type="button"
-          onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+          onClick={() => setShowButtonDarkThemeAdvanced((prev) => !prev)}
           className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
           style={{
-            borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+            borderColor: showButtonDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
             backgroundColor: "transparent",
-            color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            color: showButtonDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
           }}
         >
           <span className="inline-flex items-center gap-2">
@@ -370,9 +466,9 @@ export function SiteCoverDrawerSections({
             </svg>
             <span>Темная тема</span>
           </span>
-          <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          <span className="text-xs">{showButtonDarkThemeAdvanced ? "▴" : "▾"}</span>
         </button>
-        {showDarkThemeAdvanced && (
+        {showButtonDarkThemeAdvanced && (
           <>
             <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
               Первая кнопка
