@@ -3,6 +3,7 @@ import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type SocialKey = keyof typeof SOCIAL_LABELS;
 
@@ -400,10 +401,11 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2">
             {libraryImages.map((image) => {
               const isSelected = imageSource.type === "custom" && imageSource.url === image.url;
+              const isPendingDelete = pendingDeleteImage?.id === image.id;
               return (
                 <div
                   key={image.id}
-                  className={`relative overflow-hidden rounded-lg border bg-[color:var(--bp-paper)] ${
+                  className={`relative rounded-lg border bg-[color:var(--bp-paper)] ${
                     isSelected
                       ? "border-[color:var(--bp-save-close,var(--bp-accent))]"
                       : "border-[color:var(--bp-stroke)]"
@@ -413,10 +415,10 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                     type="button"
                     onClick={() => selectCustomImage(image)}
                     className="block w-full"
-                    disabled={removingImageId === image.id}
+                    disabled={removingImageId === image.id || isPendingDelete}
                     aria-label="Выбрать изображение"
                   >
-                    <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
+                    <div className="flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[inherit] bg-[color:var(--bp-base)]">
                       <img src={image.url} alt="" className="h-full w-full object-cover" />
                     </div>
                   </button>
@@ -424,7 +426,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setPendingDeleteImage(image);
+                      setPendingDeleteImage((prev) => (prev?.id === image.id ? null : image));
                     }}
                     disabled={removingImageId === image.id}
                     className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
@@ -438,36 +440,52 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                       <path d="M14 11v6" />
                     </svg>
                   </button>
+
                 </div>
               );
             })}
           </div>
         ) : null}
-
-        {openLibrary && pendingDeleteImage ? (
-          <div className="mt-3 rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-            <div className="text-sm font-semibold">Вы уверены, что хотите удалить изображение?</div>
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingDeleteImage(null)}
-                className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
-                disabled={removingImageId !== null}
-              >
-                Отмена
-              </button>
-              <button
-                type="button"
-                onClick={() => void removeLibraryImage(pendingDeleteImage)}
-                className="rounded-md bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
-                disabled={removingImageId !== null}
-              >
-                {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
+      {pendingDeleteImage && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 p-4"
+              onClick={() => {
+                if (removingImageId !== null) return;
+                setPendingDeleteImage(null);
+              }}
+            >
+              <div
+                className="w-full max-w-[460px] rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="text-base font-semibold leading-5">
+                  Вы уверены, что хотите удалить изображение?
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeleteImage(null)}
+                    className="inline-flex h-8 items-center justify-center rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs"
+                    disabled={removingImageId !== null}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeLibraryImage(pendingDeleteImage)}
+                    className="inline-flex h-8 items-center justify-center rounded-md bg-[#dc2626] px-3 text-xs font-medium text-white disabled:opacity-60"
+                    disabled={removingImageId !== null}
+                  >
+                    {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

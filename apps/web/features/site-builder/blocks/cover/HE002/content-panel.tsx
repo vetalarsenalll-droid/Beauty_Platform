@@ -4,6 +4,7 @@ import {
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Slide = {
   id: string;
@@ -446,6 +447,8 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2">
                     {libraryImages.map((image) => {
                       const isSelected = slide.imageUrl === image.url;
+                      const isPendingDelete =
+                        pendingDeleteImage?.id === image.id && pendingDeleteImageSlideId === slide.id;
                       return (
                         <div
                           key={image.id}
@@ -462,7 +465,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                               setOpenLibraryForSlideId(null);
                             }}
                             className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)]"
-                            disabled={removingImageId === image.id}
+                            disabled={removingImageId === image.id || isPendingDelete}
                             aria-label="Выбрать изображение"
                           >
                             <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
@@ -473,6 +476,11 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
+                              if (isPendingDelete) {
+                                setPendingDeleteImage(null);
+                                setPendingDeleteImageSlideId(null);
+                                return;
+                              }
                               setPendingDeleteImage(image);
                               setPendingDeleteImageSlideId(slide.id);
                             }}
@@ -494,34 +502,6 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   </div>
                 ) : null}
 
-                {pendingDeleteImage && pendingDeleteImageSlideId === slide.id ? (
-                  <div className="mt-3 rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-                    <div className="text-sm font-semibold">
-                      Вы уверены, что хотите удалить изображение?
-                    </div>
-                    <div className="mt-3 flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingDeleteImage(null);
-                          setPendingDeleteImageSlideId(null);
-                        }}
-                        className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
-                        disabled={removingImageId !== null}
-                      >
-                        Отмена
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void removeLibraryImage(pendingDeleteImage)}
-                        className="rounded-md bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
-                        disabled={removingImageId !== null}
-                      >
-                        {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
             ) : null}
@@ -550,6 +530,49 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
       >
         Добавить слайд
       </button>
+      {pendingDeleteImage && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 p-4"
+              onClick={() => {
+                if (removingImageId !== null) return;
+                setPendingDeleteImage(null);
+                setPendingDeleteImageSlideId(null);
+              }}
+            >
+              <div
+                className="w-full max-w-[460px] rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="text-base font-semibold">
+                  Вы уверены, что хотите удалить изображение?
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingDeleteImage(null);
+                      setPendingDeleteImageSlideId(null);
+                    }}
+                    className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
+                    disabled={removingImageId !== null}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeLibraryImage(pendingDeleteImage)}
+                    className="rounded-md bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+                    disabled={removingImageId !== null}
+                  >
+                    {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
