@@ -46,6 +46,7 @@ type PublicCoverV2HeroProps = {
   dotBorderWidth: number;
   dotBorderColorLight: string;
   dotBorderColorDark: string;
+  primaryButtonBorderColor: string;
   themeMode: "light" | "dark";
   headingCss: CSSProperties;
   textCss: CSSProperties;
@@ -92,6 +93,7 @@ export default function PublicCoverV2Hero({
   dotBorderWidth,
   dotBorderColorLight,
   dotBorderColorDark,
+  primaryButtonBorderColor,
   themeMode,
   headingCss,
   textCss,
@@ -198,6 +200,9 @@ export default function PublicCoverV2Hero({
   const dotColor = pickModeColor(dotColorLight, dotColorDark);
   const dotActiveColor = pickModeColor(dotActiveColorLight, dotActiveColorDark);
   const dotBorderColor = pickModeColor(dotBorderColorLight, dotBorderColorDark);
+  const hasPrimaryButtonBorder =
+    primaryButtonBorderColor !== "transparent" &&
+    primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)";
 
   return (
     <section
@@ -279,6 +284,9 @@ export default function PublicCoverV2Hero({
                 className="inline-flex items-center whitespace-nowrap font-semibold"
                 style={{
                   ...buttonCss,
+                  borderStyle: "solid",
+                  borderWidth: hasPrimaryButtonBorder ? 1 : 0,
+                  borderColor: hasPrimaryButtonBorder ? primaryButtonBorderColor : "transparent",
                   minHeight: "clamp(40px, 5.2cqw, 48px)",
                   paddingInline: "clamp(18px, 3cqw, 30px)",
                   paddingBlock: "clamp(8px, 1.1cqw, 11px)",

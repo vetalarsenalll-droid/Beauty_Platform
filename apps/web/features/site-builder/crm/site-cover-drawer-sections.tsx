@@ -44,6 +44,7 @@ export function SiteCoverDrawerSections({
 }: SiteCoverDrawerSectionsProps) {
   const [showSliderDarkThemeAdvanced, setShowSliderDarkThemeAdvanced] = useState(false);
   const [showButtonDarkThemeAdvanced, setShowButtonDarkThemeAdvanced] = useState(false);
+  const isDarkThemeMode = activeTheme.mode === "dark";
   const data = (selectedBlock.data as Record<string, unknown>) ?? {};
   if (coverDrawerKey === "slider") {
     const sliderInfinite = data.coverSliderInfinite !== false;
@@ -379,25 +380,61 @@ export function SiteCoverDrawerSections({
         <TildaInlineColorField
           compact
           label="Цвет кнопки"
-          value={coverStyle?.buttonColorLight || coverStyle?.buttonColor || activeTheme.buttonColor}
-          onChange={(value) => updateSelectedCoverStyle({ buttonColor: value, buttonColorLight: value })}
-          onClear={() => updateSelectedCoverStyle({ buttonColor: "", buttonColorLight: "" })}
+          value={
+            isDarkThemeMode
+              ? coverStyle?.buttonColorDark || coverStyle?.buttonColorDarkResolved || "#000000"
+              : coverStyle?.buttonColorLight || coverStyle?.buttonColor || activeTheme.buttonColor
+          }
+          onChange={(value) =>
+            isDarkThemeMode
+              ? updateSelectedCoverStyle({ buttonColorDark: value })
+              : updateSelectedCoverStyle({ buttonColor: value, buttonColorLight: value })
+          }
+          onClear={() =>
+            isDarkThemeMode
+              ? updateSelectedCoverStyle({ buttonColorDark: "" })
+              : updateSelectedCoverStyle({ buttonColor: "", buttonColorLight: "" })
+          }
           placeholder="#111827"
         />
         <TildaInlineColorField
           compact
           label="Текст кнопки"
-          value={coverStyle?.buttonTextColorLight || coverStyle?.buttonTextColor || activeTheme.buttonTextColor}
-          onChange={(value) => updateSelectedCoverStyle({ buttonTextColor: value, buttonTextColorLight: value })}
-          onClear={() => updateSelectedCoverStyle({ buttonTextColor: "", buttonTextColorLight: "" })}
+          value={
+            isDarkThemeMode
+              ? coverStyle?.buttonTextColorDark || coverStyle?.buttonTextColorDarkResolved || "#ffffff"
+              : coverStyle?.buttonTextColorLight || coverStyle?.buttonTextColor || activeTheme.buttonTextColor
+          }
+          onChange={(value) =>
+            isDarkThemeMode
+              ? updateSelectedCoverStyle({ buttonTextColorDark: value })
+              : updateSelectedCoverStyle({ buttonTextColor: value, buttonTextColorLight: value })
+          }
+          onClear={() =>
+            isDarkThemeMode
+              ? updateSelectedCoverStyle({ buttonTextColorDark: "" })
+              : updateSelectedCoverStyle({ buttonTextColor: "", buttonTextColorLight: "" })
+          }
           placeholder="#ffffff"
         />
         <TildaInlineColorField
           compact
           label="Контур кнопки"
-          value={coverPrimaryButtonBorderColor}
-          onChange={(value) => updateSelectedCoverData({ coverPrimaryButtonBorderColor: value })}
-          onClear={() => updateSelectedCoverData({ coverPrimaryButtonBorderColor: "transparent" })}
+          value={isDarkThemeMode ? coverPrimaryButtonBorderColorDark : coverPrimaryButtonBorderColor}
+          onChange={(value) =>
+            updateSelectedCoverData(
+              isDarkThemeMode
+                ? { coverPrimaryButtonBorderColorDark: value }
+                : { coverPrimaryButtonBorderColor: value }
+            )
+          }
+          onClear={() =>
+            updateSelectedCoverData(
+              isDarkThemeMode
+                ? { coverPrimaryButtonBorderColorDark: "transparent" }
+                : { coverPrimaryButtonBorderColor: "transparent" }
+            )
+          }
           placeholder="#ffffff"
         />
         {renderCoverFlatNumberInput(
@@ -470,13 +507,19 @@ export function SiteCoverDrawerSections({
         </button>
         {showButtonDarkThemeAdvanced && (
           <>
-            <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-              Первая кнопка
-            </div>
+            {selectedBlock.variant !== "v2" ? (
+              <div className="pt-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                Первая кнопка
+              </div>
+            ) : null}
             <TildaInlineColorField
               compact
               label="Цвет кнопки"
-              value={coverStyle?.buttonColorDark || coverStyle?.buttonColorLight || coverStyle?.buttonColor || activeTheme.darkPalette.buttonColor}
+              value={
+                coverStyle?.buttonColorDark ||
+                coverStyle?.buttonColorDarkResolved ||
+                "#000000"
+              }
               onChange={(value) => updateSelectedCoverStyle({ buttonColorDark: value })}
               onClear={() => updateSelectedCoverStyle({ buttonColorDark: "" })}
               placeholder="#111827"
@@ -484,7 +527,11 @@ export function SiteCoverDrawerSections({
             <TildaInlineColorField
               compact
               label="Текст кнопки"
-              value={coverStyle?.buttonTextColorDark || coverStyle?.buttonTextColorLight || coverStyle?.buttonTextColor || activeTheme.darkPalette.buttonTextColor}
+              value={
+                coverStyle?.buttonTextColorDark ||
+                coverStyle?.buttonTextColorDarkResolved ||
+                "#ffffff"
+              }
               onChange={(value) => updateSelectedCoverStyle({ buttonTextColorDark: value })}
               onClear={() => updateSelectedCoverStyle({ buttonTextColorDark: "" })}
               placeholder="#ffffff"

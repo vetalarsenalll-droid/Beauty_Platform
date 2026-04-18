@@ -416,6 +416,21 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.buttonTextColor,
     theme.darkPalette.buttonTextColor
   );
+  const isCoverBlock = block.type === "cover";
+  const buttonPairResolved = {
+    lightResolved: buttonPair.lightResolved,
+    darkResolved:
+      isCoverBlock && buttonPair.darkResolved.trim().toLowerCase() === "#d3d6db"
+        ? "#000000"
+        : buttonPair.darkResolved,
+  };
+  const buttonTextPairResolved = {
+    lightResolved: buttonTextPair.lightResolved,
+    darkResolved:
+      isCoverBlock && buttonTextPair.darkResolved.trim().toLowerCase() === "#0f1012"
+        ? "#ffffff"
+        : buttonTextPair.darkResolved,
+  };
   const textPair = resolvePair(
     "textColorLight",
     "textColorDark",
@@ -494,12 +509,14 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     sectionBg: resolveColor("sectionBgLight", "sectionBgDark", "sectionBg"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
     borderColor: resolvedBorder,
-    buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
-    buttonTextColor: resolveColor(
-      "buttonTextColorLight",
-      "buttonTextColorDark",
-      "buttonTextColor"
-    ),
+    buttonColor:
+      theme.mode === "dark"
+        ? buttonPairResolved.darkResolved || buttonPairResolved.lightResolved
+        : buttonPairResolved.lightResolved || buttonPairResolved.darkResolved,
+    buttonTextColor:
+      theme.mode === "dark"
+        ? buttonTextPairResolved.darkResolved || buttonTextPairResolved.lightResolved
+        : buttonTextPairResolved.lightResolved || buttonTextPairResolved.darkResolved,
     textColor: resolveColor("textColorLight", "textColorDark", "textColor"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
     subBlockBgLightResolved: subBlockBgPair.lightResolved,
@@ -510,10 +527,10 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     blockBgDarkResolved: blockBgPair.darkResolved,
     borderColorLightResolved: resolvedBorderPair.lightResolved,
     borderColorDarkResolved: resolvedBorderPair.darkResolved,
-    buttonColorLightResolved: buttonPair.lightResolved,
-    buttonColorDarkResolved: buttonPair.darkResolved,
-    buttonTextColorLightResolved: buttonTextPair.lightResolved,
-    buttonTextColorDarkResolved: buttonTextPair.darkResolved,
+    buttonColorLightResolved: buttonPairResolved.lightResolved,
+    buttonColorDarkResolved: buttonPairResolved.darkResolved,
+    buttonTextColorLightResolved: buttonTextPairResolved.lightResolved,
+    buttonTextColorDarkResolved: buttonTextPairResolved.darkResolved,
     textColorLightResolved: textPair.lightResolved,
     textColorDarkResolved: textPair.darkResolved,
     mutedColorLightResolved: mutedPair.lightResolved,
@@ -791,34 +808,79 @@ function renderCover(
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
   const socialHref = resolvePrimarySocialHref(profile, secondaryButtonSource);
-  const primaryButtonBorderColorRaw =
+  const pickCoverButtonModeValue = (
+    lightRaw: string,
+    darkRaw: string,
+    lightFallback: string,
+    darkFallback: string = lightFallback
+  ) =>
+    theme.mode === "dark"
+      ? darkRaw || lightRaw || darkFallback
+      : lightRaw || lightFallback;
+  const primaryButtonBorderColorLightRaw =
     typeof data.coverPrimaryButtonBorderColor === "string"
       ? data.coverPrimaryButtonBorderColor.trim()
       : "";
+  const primaryButtonBorderColorDarkRaw =
+    typeof data.coverPrimaryButtonBorderColorDark === "string"
+      ? data.coverPrimaryButtonBorderColorDark.trim()
+      : "";
+  const primaryButtonBorderColorRaw = pickCoverButtonModeValue(
+    primaryButtonBorderColorLightRaw,
+    primaryButtonBorderColorDarkRaw,
+    "transparent"
+  );
   const primaryButtonBorderColor =
     primaryButtonBorderColorRaw && isValidColorValue(primaryButtonBorderColorRaw)
       ? primaryButtonBorderColorRaw
       : "transparent";
-  const secondaryButtonColorRaw =
+  const secondaryButtonColorLightRaw =
     typeof data.coverSecondaryButtonColor === "string"
       ? data.coverSecondaryButtonColor.trim()
       : "";
+  const secondaryButtonColorDarkRaw =
+    typeof data.coverSecondaryButtonColorDark === "string"
+      ? data.coverSecondaryButtonColorDark.trim()
+      : "";
+  const secondaryButtonColorRaw = pickCoverButtonModeValue(
+    secondaryButtonColorLightRaw,
+    secondaryButtonColorDarkRaw,
+    "transparent"
+  );
   const secondaryButtonColor =
     secondaryButtonColorRaw && isValidColorValue(secondaryButtonColorRaw)
       ? secondaryButtonColorRaw
       : "transparent";
-  const secondaryButtonTextColorRaw =
+  const secondaryButtonTextColorLightRaw =
     typeof data.coverSecondaryButtonTextColor === "string"
       ? data.coverSecondaryButtonTextColor.trim()
       : "";
+  const secondaryButtonTextColorDarkRaw =
+    typeof data.coverSecondaryButtonTextColorDark === "string"
+      ? data.coverSecondaryButtonTextColorDark.trim()
+      : "";
+  const secondaryButtonTextColorRaw = pickCoverButtonModeValue(
+    secondaryButtonTextColorLightRaw,
+    secondaryButtonTextColorDarkRaw,
+    "#ffffff"
+  );
   const secondaryButtonTextColor =
     secondaryButtonTextColorRaw && isValidColorValue(secondaryButtonTextColorRaw)
       ? secondaryButtonTextColorRaw
       : "#ffffff";
-  const secondaryButtonBorderColorRaw =
+  const secondaryButtonBorderColorLightRaw =
     typeof data.coverSecondaryButtonBorderColor === "string"
       ? data.coverSecondaryButtonBorderColor.trim()
       : "";
+  const secondaryButtonBorderColorDarkRaw =
+    typeof data.coverSecondaryButtonBorderColorDark === "string"
+      ? data.coverSecondaryButtonBorderColorDark.trim()
+      : "";
+  const secondaryButtonBorderColorRaw = pickCoverButtonModeValue(
+    secondaryButtonBorderColorLightRaw,
+    secondaryButtonBorderColorDarkRaw,
+    "#ffffff"
+  );
   const secondaryButtonBorderColor =
     secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
       ? secondaryButtonBorderColorRaw
@@ -1204,6 +1266,7 @@ function renderCover(
         dotBorderWidth={sliderDotBorderWidth}
         dotBorderColorLight={sliderDotBorderColorLight}
         dotBorderColorDark={sliderDotBorderColorDark}
+        primaryButtonBorderColor={primaryButtonBorderColor}
         themeMode={theme.mode}
         headingCss={headingStyle(style)}
         textCss={textStyle(style)}
@@ -1324,7 +1387,6 @@ function renderCover(
                 className={`inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
                 style={{
                   ...buttonStyle(style),
-                  color: "#ffffff",
                   borderStyle: "solid",
                   borderWidth:
                     primaryButtonBorderColor !== "transparent" &&

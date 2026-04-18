@@ -305,6 +305,31 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     theme.lightPalette.buttonTextColor,
     theme.darkPalette.buttonTextColor
   );
+  const isCoverBlock = block.type === "cover";
+  const buttonColorDarkRaw = readColor("buttonColorDark");
+  const buttonTextColorDarkRaw = readColor("buttonTextColorDark");
+  const normalizedButtonColorDarkRaw =
+    isCoverBlock && buttonColorDarkRaw.trim().toLowerCase() === "#d3d6db"
+      ? "#000000"
+      : buttonColorDarkRaw;
+  const normalizedButtonTextColorDarkRaw =
+    isCoverBlock && buttonTextColorDarkRaw.trim().toLowerCase() === "#0f1012"
+      ? "#ffffff"
+      : buttonTextColorDarkRaw;
+  const buttonPairResolved = {
+    lightResolved: buttonPair.lightResolved,
+    darkResolved:
+      isCoverBlock && buttonPair.darkResolved.trim().toLowerCase() === "#d3d6db"
+        ? "#000000"
+        : buttonPair.darkResolved,
+  };
+  const buttonTextPairResolved = {
+    lightResolved: buttonTextPair.lightResolved,
+    darkResolved:
+      isCoverBlock && buttonTextPair.darkResolved.trim().toLowerCase() === "#0f1012"
+        ? "#ffffff"
+        : buttonTextPair.darkResolved,
+  };
   const textPair = resolvePair(
     "textColorLight",
     "textColorDark",
@@ -495,16 +520,18 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     borderColorDark: readColor("borderColorDark"),
     borderColor: resolvedBorder,
     buttonColorLight: readColor("buttonColorLight") || readColor("buttonColor"),
-    buttonColorDark: readColor("buttonColorDark"),
-    buttonColor: resolveColor("buttonColorLight", "buttonColorDark", "buttonColor"),
+    buttonColorDark: normalizedButtonColorDarkRaw,
+    buttonColor:
+      theme.mode === "dark"
+        ? buttonPairResolved.darkResolved || buttonPairResolved.lightResolved
+        : buttonPairResolved.lightResolved || buttonPairResolved.darkResolved,
     buttonTextColorLight:
       readColor("buttonTextColorLight") || readColor("buttonTextColor"),
-    buttonTextColorDark: readColor("buttonTextColorDark"),
-    buttonTextColor: resolveColor(
-      "buttonTextColorLight",
-      "buttonTextColorDark",
-      "buttonTextColor"
-    ),
+    buttonTextColorDark: normalizedButtonTextColorDarkRaw,
+    buttonTextColor:
+      theme.mode === "dark"
+        ? buttonTextPairResolved.darkResolved || buttonTextPairResolved.lightResolved
+        : buttonTextPairResolved.lightResolved || buttonTextPairResolved.darkResolved,
     textColorLight: readColor("textColorLight") || readColor("textColor"),
     textColorDark: readColor("textColorDark"),
     textColor: resolveColor("textColorLight", "textColorDark", "textColor"),
@@ -579,10 +606,10 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     subBlockBgDarkResolved: subBlockBgPair.darkResolved,
     borderColorLightResolved: resolvedBorderPair.lightResolved,
     borderColorDarkResolved: resolvedBorderPair.darkResolved,
-    buttonColorLightResolved: buttonPair.lightResolved,
-    buttonColorDarkResolved: buttonPair.darkResolved,
-    buttonTextColorLightResolved: buttonTextPair.lightResolved,
-    buttonTextColorDarkResolved: buttonTextPair.darkResolved,
+    buttonColorLightResolved: buttonPairResolved.lightResolved,
+    buttonColorDarkResolved: buttonPairResolved.darkResolved,
+    buttonTextColorLightResolved: buttonTextPairResolved.lightResolved,
+    buttonTextColorDarkResolved: buttonTextPairResolved.darkResolved,
     textColorLightResolved: textPair.lightResolved,
     textColorDarkResolved: textPair.darkResolved,
     mutedColorLightResolved: mutedPair.lightResolved,
@@ -2064,6 +2091,7 @@ function CoverVariantV2Hero({
   dotBorderWidth,
   dotBorderColorLight,
   dotBorderColorDark,
+  primaryButtonBorderColor,
   themeMode,
   subtitleColor,
   descriptionColor,
@@ -2110,6 +2138,7 @@ function CoverVariantV2Hero({
   dotBorderWidth: number;
   dotBorderColorLight: string;
   dotBorderColorDark: string;
+  primaryButtonBorderColor: string;
   themeMode: "light" | "dark";
   subtitleColor: string;
   descriptionColor: string;
@@ -2232,6 +2261,9 @@ function CoverVariantV2Hero({
   const dotColor = pickModeColor(dotColorLight, dotColorDark);
   const dotActiveColor = pickModeColor(dotActiveColorLight, dotActiveColorDark);
   const dotBorderColor = pickModeColor(dotBorderColorLight, dotBorderColorDark);
+  const hasPrimaryButtonBorder =
+    primaryButtonBorderColor !== "transparent" &&
+    primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)";
 
   return (
     <section
@@ -2313,7 +2345,9 @@ function CoverVariantV2Hero({
                 className="inline-flex items-center whitespace-nowrap font-semibold"
                 style={{
                   ...buttonStyle(style, theme),
-                  color: "#ffffff",
+                  borderStyle: "solid",
+                  borderWidth: hasPrimaryButtonBorder ? 1 : 0,
+                  borderColor: hasPrimaryButtonBorder ? primaryButtonBorderColor : "transparent",
                   minHeight: "clamp(40px, 5.2cqw, 48px)",
                   paddingInline: "clamp(18px, 3cqw, 30px)",
                   paddingBlock: "clamp(8px, 1.1cqw, 11px)",
@@ -2481,6 +2515,15 @@ export function renderCover(
   const secondaryButtonHref = secondaryButtonHrefRaw || socialHref;
   const pickCoverModeValue = (lightRaw: string, darkRaw: string) =>
     theme.mode === "dark" ? darkRaw || lightRaw : lightRaw || darkRaw;
+  const pickCoverButtonModeValue = (
+    lightRaw: string,
+    darkRaw: string,
+    lightFallback: string,
+    darkFallback: string = lightFallback
+  ) =>
+    theme.mode === "dark"
+      ? darkRaw || lightRaw || darkFallback
+      : lightRaw || lightFallback;
   const primaryButtonBorderColorLightRaw =
     typeof data.coverPrimaryButtonBorderColor === "string"
       ? data.coverPrimaryButtonBorderColor.trim()
@@ -2489,9 +2532,10 @@ export function renderCover(
     typeof data.coverPrimaryButtonBorderColorDark === "string"
       ? data.coverPrimaryButtonBorderColorDark.trim()
       : "";
-  const primaryButtonBorderColorRaw = pickCoverModeValue(
+  const primaryButtonBorderColorRaw = pickCoverButtonModeValue(
     primaryButtonBorderColorLightRaw,
-    primaryButtonBorderColorDarkRaw
+    primaryButtonBorderColorDarkRaw,
+    "transparent"
   );
   const primaryButtonBorderColor =
     primaryButtonBorderColorRaw && isValidColorValue(primaryButtonBorderColorRaw)
@@ -2505,9 +2549,10 @@ export function renderCover(
     typeof data.coverSecondaryButtonColorDark === "string"
       ? data.coverSecondaryButtonColorDark.trim()
       : "";
-  const secondaryButtonColorRaw = pickCoverModeValue(
+  const secondaryButtonColorRaw = pickCoverButtonModeValue(
     secondaryButtonColorLightRaw,
-    secondaryButtonColorDarkRaw
+    secondaryButtonColorDarkRaw,
+    "transparent"
   );
   const secondaryButtonColor =
     secondaryButtonColorRaw && isValidColorValue(secondaryButtonColorRaw)
@@ -2521,9 +2566,10 @@ export function renderCover(
     typeof data.coverSecondaryButtonTextColorDark === "string"
       ? data.coverSecondaryButtonTextColorDark.trim()
       : "";
-  const secondaryButtonTextColorRaw = pickCoverModeValue(
+  const secondaryButtonTextColorRaw = pickCoverButtonModeValue(
     secondaryButtonTextColorLightRaw,
-    secondaryButtonTextColorDarkRaw
+    secondaryButtonTextColorDarkRaw,
+    "#ffffff"
   );
   const secondaryButtonTextColor =
     secondaryButtonTextColorRaw && isValidColorValue(secondaryButtonTextColorRaw)
@@ -2537,9 +2583,10 @@ export function renderCover(
     typeof data.coverSecondaryButtonBorderColorDark === "string"
       ? data.coverSecondaryButtonBorderColorDark.trim()
       : "";
-  const secondaryButtonBorderColorRaw = pickCoverModeValue(
+  const secondaryButtonBorderColorRaw = pickCoverButtonModeValue(
     secondaryButtonBorderColorLightRaw,
-    secondaryButtonBorderColorDarkRaw
+    secondaryButtonBorderColorDarkRaw,
+    "#ffffff"
   );
   const secondaryButtonBorderColor =
     secondaryButtonBorderColorRaw && isValidColorValue(secondaryButtonBorderColorRaw)
@@ -2961,6 +3008,7 @@ export function renderCover(
         dotBorderWidth={sliderDotBorderWidth}
         dotBorderColorLight={sliderDotBorderColorLight}
         dotBorderColorDark={sliderDotBorderColorDark}
+        primaryButtonBorderColor={primaryButtonBorderColor}
         themeMode={theme.mode}
         subtitleColor={subtitleColor}
         descriptionColor={descriptionColor}
