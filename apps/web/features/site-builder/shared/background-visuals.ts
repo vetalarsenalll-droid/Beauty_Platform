@@ -51,8 +51,51 @@ const resolveBackgroundVisual = (
 
 export function resolveCoverBackgroundVisual(
   data: Record<string, unknown> | null,
-  fallbackColor: string
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
 ) {
+  if (mode === "dark") {
+    const source = data
+      ? {
+          ...data,
+          coverBackgroundModeDark:
+            typeof data.coverBackgroundModeDark === "string" &&
+            data.coverBackgroundModeDark
+              ? data.coverBackgroundModeDark
+              : data.coverBackgroundMode,
+          coverBackgroundFromDark:
+            typeof data.coverBackgroundFromDark === "string" &&
+            data.coverBackgroundFromDark
+              ? data.coverBackgroundFromDark
+              : data.coverBackgroundFrom,
+          coverBackgroundToDark:
+            typeof data.coverBackgroundToDark === "string" &&
+            data.coverBackgroundToDark
+              ? data.coverBackgroundToDark
+              : data.coverBackgroundTo,
+          coverBackgroundAngleDark:
+            typeof data.coverBackgroundAngleDark === "number"
+              ? data.coverBackgroundAngleDark
+              : data.coverBackgroundAngle,
+          coverBackgroundStopADark:
+            typeof data.coverBackgroundStopADark === "number"
+              ? data.coverBackgroundStopADark
+              : data.coverBackgroundStopA,
+          coverBackgroundStopBDark:
+            typeof data.coverBackgroundStopBDark === "number"
+              ? data.coverBackgroundStopBDark
+              : data.coverBackgroundStopB,
+        }
+      : null;
+    return resolveBackgroundVisual(source, fallbackColor, {
+      mode: "coverBackgroundModeDark",
+      from: "coverBackgroundFromDark",
+      to: "coverBackgroundToDark",
+      angle: "coverBackgroundAngleDark",
+      stopA: "coverBackgroundStopADark",
+      stopB: "coverBackgroundStopBDark",
+    });
+  }
   return resolveBackgroundVisual(data, fallbackColor, {
     mode: "coverBackgroundMode",
     from: "coverBackgroundFrom",

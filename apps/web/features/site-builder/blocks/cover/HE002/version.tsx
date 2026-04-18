@@ -89,10 +89,15 @@ export const HE002: BlockVersion = {
         coverMarginTopLines={cover.coverMarginTopLines}
         coverMarginBottomLines={cover.coverMarginBottomLines}
         coverBackgroundMode={cover.coverBackgroundMode}
+        coverBackgroundModeDark={cover.coverBackgroundModeDark}
         coverBackgroundTo={cover.coverBackgroundTo}
+        coverBackgroundToDark={cover.coverBackgroundToDark}
         coverBackgroundAngle={cover.coverBackgroundAngle}
+        coverBackgroundAngleDark={cover.coverBackgroundAngleDark}
         coverBackgroundStopA={cover.coverBackgroundStopA}
+        coverBackgroundStopADark={cover.coverBackgroundStopADark}
         coverBackgroundStopB={cover.coverBackgroundStopB}
+        coverBackgroundStopBDark={cover.coverBackgroundStopBDark}
       />
     );
   },

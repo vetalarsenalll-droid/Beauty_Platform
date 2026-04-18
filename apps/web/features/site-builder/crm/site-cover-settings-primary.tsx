@@ -46,10 +46,15 @@ type SiteCoverSettingsPrimaryProps = {
   coverMarginTopLines: number;
   coverMarginBottomLines: number;
   coverBackgroundMode: "solid" | "linear" | "radial";
+  coverBackgroundModeDark: "solid" | "linear" | "radial";
   coverBackgroundTo: string;
+  coverBackgroundToDark: string;
   coverBackgroundAngle: number;
+  coverBackgroundAngleDark: number;
   coverBackgroundStopA: number;
+  coverBackgroundStopADark: number;
   coverBackgroundStopB: number;
+  coverBackgroundStopBDark: number;
 };
 
 export function SiteCoverSettingsPrimary({
@@ -87,10 +92,15 @@ export function SiteCoverSettingsPrimary({
   coverMarginTopLines,
   coverMarginBottomLines,
   coverBackgroundMode,
+  coverBackgroundModeDark,
   coverBackgroundTo,
+  coverBackgroundToDark,
   coverBackgroundAngle,
+  coverBackgroundAngleDark,
   coverBackgroundStopA,
+  coverBackgroundStopADark,
   coverBackgroundStopB,
+  coverBackgroundStopBDark,
 }: SiteCoverSettingsPrimaryProps) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   return (
@@ -341,152 +351,6 @@ export function SiteCoverSettingsPrimary({
               placeholder="#ffffff"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
-            className="mb-3 flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
-            style={{
-              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : panelTheme.border,
-              backgroundColor: panelTheme.panel,
-              color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
-            }}
-          >
-            <span>Темная тема</span>
-            <span className="text-xs">{showDarkThemeAdvanced ? "‹" : "›"}</span>
-          </button>
-          {showDarkThemeAdvanced && (
-            <>
-              <div className="mb-3 grid grid-cols-2 gap-4">
-                <TildaInlineColorField
-                  compact
-                  label="Цвет фильтра в начале"
-                  value={coverFilterStartColorDark}
-                  onChange={(value) => updateSelectedCoverData({ coverFilterStartColorDark: value })}
-                  onClear={() => updateSelectedCoverData({ coverFilterStartColorDark: "transparent" })}
-                  placeholder="#000000"
-                />
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                  <div className="min-h-[32px] leading-4">Непрозрачность</div>
-                  <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-                    <select
-                      value={String(Math.round(coverFilterStartOpacityDark))}
-                      onChange={(event) =>
-                        updateSelectedCoverData({
-                          coverFilterStartOpacityDark: Number(event.target.value),
-                        })
-                      }
-                      className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
-                      style={{
-                        borderTop: 0,
-                        borderLeft: 0,
-                        borderRight: 0,
-                        borderBottom: 0,
-                        borderRadius: 0,
-                        boxShadow: "none",
-                        backgroundColor: "transparent",
-                        WebkitAppearance: "none",
-                        MozAppearance: "none",
-                        appearance: "none",
-                      }}
-                    >
-                      {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
-                        <option key={`start-dark-opacity-${value}`} value={value}>
-                          {value}%
-                        </option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
-                  </div>
-                </label>
-              </div>
-
-              <div className="mb-3 grid grid-cols-2 gap-4">
-                <TildaInlineColorField
-                  compact
-                  label="Цвет фильтра в конце"
-                  value={coverFilterEndColorDark}
-                  onChange={(value) => updateSelectedCoverData({ coverFilterEndColorDark: value })}
-                  onClear={() => updateSelectedCoverData({ coverFilterEndColorDark: "transparent" })}
-                  placeholder="#0f0f0f"
-                />
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                  <div className="min-h-[32px] leading-4">Непрозрачность</div>
-                  <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-                    <select
-                      value={String(Math.round(coverFilterEndOpacityDark))}
-                      onChange={(event) =>
-                        updateSelectedCoverData({
-                          coverFilterEndOpacityDark: Number(event.target.value),
-                        })
-                      }
-                      className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
-                      style={{
-                        borderTop: 0,
-                        borderLeft: 0,
-                        borderRight: 0,
-                        borderBottom: 0,
-                        borderRadius: 0,
-                        boxShadow: "none",
-                        backgroundColor: "transparent",
-                        WebkitAppearance: "none",
-                        MozAppearance: "none",
-                        appearance: "none",
-                      }}
-                    >
-                      {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
-                        <option key={`end-dark-opacity-${value}`} value={value}>
-                          {value}%
-                        </option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
-                  </div>
-                </label>
-              </div>
-
-              <div className="mb-3 grid grid-cols-2 gap-4">
-                <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                  <div className="min-h-[32px] leading-4">Стрелка</div>
-                  <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-                    <select
-                      value={coverArrowDark}
-                      onChange={(event) =>
-                        updateSelectedCoverData({
-                          coverArrowDark: event.target.value as "none" | "down",
-                        })
-                      }
-                      className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
-                      style={{
-                        borderTop: 0,
-                        borderLeft: 0,
-                        borderRight: 0,
-                        borderBottom: 0,
-                        borderRadius: 0,
-                        boxShadow: "none",
-                        backgroundColor: "transparent",
-                        WebkitAppearance: "none",
-                        MozAppearance: "none",
-                        appearance: "none",
-                      }}
-                    >
-                      <option value="none">Нет</option>
-                      <option value="down">Вниз</option>
-                    </select>
-                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
-                  </div>
-                </label>
-                <TildaInlineColorField
-                  compact
-                  label="Цвет стрелки"
-                  value={coverArrowColorDark}
-                  onChange={(value) => updateSelectedCoverData({ coverArrowColorDark: value })}
-                  onClear={() => updateSelectedCoverData({ coverArrowColorDark: "transparent" })}
-                  placeholder="#ffffff"
-                />
-              </div>
-            </>
-          )}
-
           <label className="mb-3 mt-2 inline-flex cursor-pointer items-center gap-2 text-sm font-normal normal-case tracking-normal text-[color:var(--bp-ink)]">
             <input
               type="checkbox"
@@ -666,15 +530,193 @@ export function SiteCoverSettingsPrimary({
         onChange={(value) => {
           updateSelectedCoverStyle({
             sectionBgLight: value,
-            sectionBgDark: value,
             sectionBg: value,
             blockBgLight: value,
-            blockBgDark: value,
             blockBg: value,
           });
           updateSelectedCoverData({ coverBackgroundFrom: value });
         }}
       />
+      {!isCoverVariantV2 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mt-3 mb-1 flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : panelTheme.border,
+              backgroundColor: panelTheme.panel,
+              color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
+            }}
+          >
+            <span>Темная тема</span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "‹" : "›"}</span>
+          </button>
+          {showDarkThemeAdvanced && (
+            <>
+              <div className="mb-3 grid grid-cols-2 gap-4">
+                <TildaInlineColorField
+                  compact
+                  label="Цвет фильтра в начале"
+                  value={coverFilterStartColorDark}
+                  onChange={(value) => updateSelectedCoverData({ coverFilterStartColorDark: value })}
+                  onClear={() => updateSelectedCoverData({ coverFilterStartColorDark: "transparent" })}
+                  placeholder="#000000"
+                />
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  <div className="min-h-[32px] leading-4">Непрозрачность</div>
+                  <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                    <select
+                      value={String(Math.round(coverFilterStartOpacityDark))}
+                      onChange={(event) =>
+                        updateSelectedCoverData({
+                          coverFilterStartOpacityDark: Number(event.target.value),
+                        })
+                      }
+                      className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                      style={{
+                        borderTop: 0,
+                        borderLeft: 0,
+                        borderRight: 0,
+                        borderBottom: 0,
+                        borderRadius: 0,
+                        boxShadow: "none",
+                        backgroundColor: "transparent",
+                        WebkitAppearance: "none",
+                        MozAppearance: "none",
+                        appearance: "none",
+                      }}
+                    >
+                      {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
+                        <option key={`start-dark-opacity-${value}`} value={value}>
+                          {value}%
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">{"\u25BE"}</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="mb-3 grid grid-cols-2 gap-4">
+                <TildaInlineColorField
+                  compact
+                  label="Цвет фильтра в конце"
+                  value={coverFilterEndColorDark}
+                  onChange={(value) => updateSelectedCoverData({ coverFilterEndColorDark: value })}
+                  onClear={() => updateSelectedCoverData({ coverFilterEndColorDark: "transparent" })}
+                  placeholder="#0f0f0f"
+                />
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  <div className="min-h-[32px] leading-4">Непрозрачность</div>
+                  <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                    <select
+                      value={String(Math.round(coverFilterEndOpacityDark))}
+                      onChange={(event) =>
+                        updateSelectedCoverData({
+                          coverFilterEndOpacityDark: Number(event.target.value),
+                        })
+                      }
+                      className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                      style={{
+                        borderTop: 0,
+                        borderLeft: 0,
+                        borderRight: 0,
+                        borderBottom: 0,
+                        borderRadius: 0,
+                        boxShadow: "none",
+                        backgroundColor: "transparent",
+                        WebkitAppearance: "none",
+                        MozAppearance: "none",
+                        appearance: "none",
+                      }}
+                    >
+                      {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
+                        <option key={`end-dark-opacity-${value}`} value={value}>
+                          {value}%
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">{"\u25BE"}</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="mb-3 grid grid-cols-2 gap-4">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                  <div className="min-h-[32px] leading-4">Стрелка</div>
+                  <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+                    <select
+                      value={coverArrowDark}
+                      onChange={(event) =>
+                        updateSelectedCoverData({
+                          coverArrowDark: event.target.value as "none" | "down",
+                        })
+                      }
+                      className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                      style={{
+                        borderTop: 0,
+                        borderLeft: 0,
+                        borderRight: 0,
+                        borderBottom: 0,
+                        borderRadius: 0,
+                        boxShadow: "none",
+                        backgroundColor: "transparent",
+                        WebkitAppearance: "none",
+                        MozAppearance: "none",
+                        appearance: "none",
+                      }}
+                    >
+                      <option value="none">Нет</option>
+                      <option value="down">Вниз</option>
+                    </select>
+                    <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">{"\u25BE"}</span>
+                  </div>
+                </label>
+                <TildaInlineColorField
+                  compact
+                  label="Цвет стрелки"
+                  value={coverArrowColorDark}
+                  onChange={(value) => updateSelectedCoverData({ coverArrowColorDark: value })}
+                  onClear={() => updateSelectedCoverData({ coverArrowColorDark: "transparent" })}
+                  placeholder="#ffffff"
+                />
+              </div>
+
+              <TildaBackgroundColorField
+                label="Цвет фона для всего блока"
+                value={String(coverStyle?.sectionBgDark ?? coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "")}
+                mode={coverBackgroundModeDark}
+                secondValue={coverBackgroundToDark}
+                angle={coverBackgroundAngleDark}
+                radialStopA={coverBackgroundStopADark}
+                radialStopB={coverBackgroundStopBDark}
+                placeholder="#ffffff"
+                onModeChange={(mode) => updateSelectedCoverData({ coverBackgroundModeDark: mode })}
+                onSecondChange={(value) =>
+                  updateSelectedCoverData({ coverBackgroundToDark: value })
+                }
+                onAngleChange={(value) =>
+                  updateSelectedCoverData({ coverBackgroundAngleDark: value })
+                }
+                onRadialStopAChange={(value) =>
+                  updateSelectedCoverData({ coverBackgroundStopADark: value })
+                }
+                onRadialStopBChange={(value) =>
+                  updateSelectedCoverData({ coverBackgroundStopBDark: value })
+                }
+                onChange={(value) => {
+                  updateSelectedCoverStyle({
+                    sectionBgDark: value,
+                    blockBgDark: value,
+                  });
+                  updateSelectedCoverData({ coverBackgroundFromDark: value });
+                }}
+              />
+            </>
+          )}
+        </>
+      )}
     </>
   );
 }

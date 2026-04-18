@@ -62,6 +62,10 @@ export function resolveCoverSettings({
     coverData?.coverBackgroundMode === "linear" || coverData?.coverBackgroundMode === "radial"
       ? (coverData.coverBackgroundMode as CoverBackgroundMode)
       : "solid";
+  const coverBackgroundModeDark: CoverBackgroundMode =
+    coverData?.coverBackgroundModeDark === "linear" || coverData?.coverBackgroundModeDark === "radial"
+      ? (coverData.coverBackgroundModeDark as CoverBackgroundMode)
+      : coverBackgroundMode;
   const coverScrollEffect =
     coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
       ? (coverData.coverScrollEffect as "fixed" | "parallax")
@@ -160,15 +164,25 @@ export function resolveCoverSettings({
     ? coverBackgroundPositionRaw
     : "center center";
   const coverBackgroundTo = String(coverData?.coverBackgroundTo ?? "");
+  const coverBackgroundToDark = String(coverData?.coverBackgroundToDark ?? coverBackgroundTo);
   const coverBackgroundAngle = Number.isFinite(Number(coverData?.coverBackgroundAngle))
     ? Math.max(0, Math.min(360, Number(coverData?.coverBackgroundAngle)))
     : 135;
+  const coverBackgroundAngleDark = Number.isFinite(Number(coverData?.coverBackgroundAngleDark))
+    ? Math.max(0, Math.min(360, Number(coverData?.coverBackgroundAngleDark)))
+    : coverBackgroundAngle;
   const coverBackgroundStopA = Number.isFinite(Number(coverData?.coverBackgroundStopA))
     ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopA)))
     : 0;
+  const coverBackgroundStopADark = Number.isFinite(Number(coverData?.coverBackgroundStopADark))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopADark)))
+    : coverBackgroundStopA;
   const coverBackgroundStopB = Number.isFinite(Number(coverData?.coverBackgroundStopB))
     ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopB)))
     : 100;
+  const coverBackgroundStopBDark = Number.isFinite(Number(coverData?.coverBackgroundStopBDark))
+    ? Math.max(0, Math.min(100, Number(coverData?.coverBackgroundStopBDark)))
+    : coverBackgroundStopB;
   const coverShowSecondaryButton = Boolean(coverData?.showSecondaryButton);
   const coverPrimaryButtonBorderColorRaw =
     typeof coverData?.coverPrimaryButtonBorderColor === "string"
@@ -288,6 +302,7 @@ export function resolveCoverSettings({
     coverMarginTopLines,
     coverMarginBottomLines,
     coverBackgroundMode,
+    coverBackgroundModeDark,
     coverScrollEffect,
     coverScrollHeightPx,
     coverFilterStartColor,
@@ -305,9 +320,13 @@ export function resolveCoverSettings({
     coverArrowAnimated,
     coverBackgroundPosition,
     coverBackgroundTo,
+    coverBackgroundToDark,
     coverBackgroundAngle,
+    coverBackgroundAngleDark,
     coverBackgroundStopA,
+    coverBackgroundStopADark,
     coverBackgroundStopB,
+    coverBackgroundStopBDark,
     coverShowSecondaryButton,
     coverPrimaryButtonBorderColor,
     coverPrimaryButtonBorderColorDark,

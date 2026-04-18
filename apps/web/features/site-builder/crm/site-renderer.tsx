@@ -1443,7 +1443,8 @@ export function BlockPreview({
   );
   const coverBackground = resolveCoverBackgroundVisual(
     isCover ? (block.data as Record<string, unknown>) : null,
-    sectionBg || theme.panelColor
+    sectionBg || theme.panelColor,
+    theme.mode
   );
   const menuSectionBackground = resolveMenuSectionBackgroundVisual(
     isMenu ? (block.data as Record<string, unknown>) : null,
