@@ -163,6 +163,49 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
         },
       };
     }
+    if (type === "cover" && targetVariant === "v3") {
+      const currentStyle =
+        typeof (block.data as Record<string, unknown>).style === "object" &&
+        (block.data as Record<string, unknown>).style
+          ? { ...((block.data as Record<string, unknown>).style as Record<string, unknown>) }
+          : { ...defaultBlockStyle };
+      block.data = {
+        ...block.data,
+        title: "Северная Орхидея — пространство красоты и ухода",
+        subtitle: "Быстрая онлайн-запись к мастерам, которым доверяют",
+        description: "Выберите услугу, специалиста и удобное время за пару кликов.",
+        showButton: true,
+        buttonText: "Записаться",
+        align: "left",
+        coverImageInsetPx: 0,
+        coverImageRadiusPx: 0,
+        coverFlipHorizontal: false,
+        coverContentVerticalAlign: "center",
+        coverSubtitleColor: "#000000",
+        coverDescriptionColor: "#000000",
+        style: {
+          ...currentStyle,
+          textAlign: "left",
+          textAlignHeading: "left",
+          textAlignSubheading: "left",
+          headingSize: 48,
+          subheadingSize: 35,
+          textSize: 28,
+          textColor: "#000000",
+          textColorLight: "#000000",
+          textColorDark: "#000000",
+          mutedColor: "#000000",
+          mutedColorLight: "#000000",
+          mutedColorDark: "#000000",
+          sectionBg: "#ffffff",
+          sectionBgLight: "#ffffff",
+          sectionBgDark: "#ffffff",
+          blockBg: "#ffffff",
+          blockBgLight: "#ffffff",
+          blockBgDark: "#ffffff",
+        },
+      };
+    }
     if (variant) block.variant = variant;
 
     if (type === "menu" && args.activePage !== "home") {
@@ -354,3 +397,4 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     saveDraftSilently,
   };
 }
+

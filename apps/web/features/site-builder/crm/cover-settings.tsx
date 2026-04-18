@@ -163,6 +163,24 @@ export function resolveCoverSettings({
   const coverBackgroundPosition = COVER_BACKGROUND_POSITION_VALUES.has(coverBackgroundPositionRaw)
     ? coverBackgroundPositionRaw
     : "center center";
+  const legacyInset20 = Boolean(coverData?.coverImageInset20);
+  const coverImageInsetPx = Number.isFinite(Number(coverData?.coverImageInsetPx))
+    ? Math.max(0, Math.min(120, Math.round(Number(coverData?.coverImageInsetPx))))
+    : legacyInset20
+      ? 20
+      : 0;
+  const coverImageRadiusPx = Number.isFinite(Number(coverData?.coverImageRadiusPx))
+    ? Math.max(0, Math.min(120, Math.round(Number(coverData?.coverImageRadiusPx))))
+    : 0;
+  const coverFlipHorizontal = Boolean(coverData?.coverFlipHorizontal);
+  const coverTextVerticalAlignRaw =
+    typeof coverData?.coverContentVerticalAlign === "string"
+      ? coverData.coverContentVerticalAlign.trim().toLowerCase()
+      : "";
+  const coverTextVerticalAlign: "top" | "center" | "bottom" =
+    coverTextVerticalAlignRaw === "top" || coverTextVerticalAlignRaw === "bottom"
+      ? coverTextVerticalAlignRaw
+      : "center";
   const coverBackgroundFromRaw =
     typeof coverData?.coverBackgroundFrom === "string" ? coverData.coverBackgroundFrom.trim() : "";
   const coverBackgroundFrom = coverBackgroundFromRaw || String(coverStyle?.sectionBgLight ?? coverStyle?.sectionBg ?? "#ffffff");
@@ -371,6 +389,10 @@ export function resolveCoverSettings({
     coverArrowColorDark,
     coverArrowAnimated,
     coverBackgroundPosition,
+    coverImageInsetPx,
+    coverImageRadiusPx,
+    coverFlipHorizontal,
+    coverTextVerticalAlign,
     coverBackgroundFrom,
     coverBackgroundFromDark,
     coverBackgroundTo,

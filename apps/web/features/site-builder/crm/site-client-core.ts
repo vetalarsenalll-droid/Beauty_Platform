@@ -478,6 +478,10 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     coverSliderDotBorderWidth: 2,
     coverSliderDotBorderColor: "#ffffff",
     align: "left",
+    coverContentVerticalAlign: "center",
+    coverImageInsetPx: 0,
+    coverImageRadiusPx: 0,
+    coverFlipHorizontal: false,
     imageSource: { type: "none" },
     style: {
       ...defaultBlockStyle,

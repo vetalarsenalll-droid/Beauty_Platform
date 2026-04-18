@@ -117,7 +117,7 @@ export const BLOCK_VARIANTS: Record<
   BlockType,
   Array<"v1" | "v2" | "v3" | "v4" | "v5">
 > = {
-  cover: ["v1", "v2"],
+  cover: ["v1", "v2", "v3"],
   menu: ["v1", "v2", "v3"],
   loader: ["v1", "v2", "v3"],
   about: ["v1", "v2"],
@@ -775,6 +775,10 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         coverSecondaryButtonHoverBgColorDark: "transparent",
         coverHeight: 100,
         align: "left",
+        coverContentVerticalAlign: "center",
+        coverImageInsetPx: 0,
+        coverImageRadiusPx: 0,
+        coverFlipHorizontal: false,
         imageSource: { type: "account" } as CoverImageSource,
         style: {
           useCustomWidth: true,

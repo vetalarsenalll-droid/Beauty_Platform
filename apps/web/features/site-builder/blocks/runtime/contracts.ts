@@ -17,6 +17,7 @@ export type BlockCode =
   | "ME003"
   | "HE001"
   | "HE002"
+  | "HE003"
   | "LO001"
   | "LO002"
   | "LO003"

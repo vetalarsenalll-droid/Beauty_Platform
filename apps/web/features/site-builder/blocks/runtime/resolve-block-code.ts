@@ -8,6 +8,7 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
     return "ME001";
   }
   if (block.type === "cover") {
+    if (block.variant === "v3") return "HE003";
     if (block.variant === "v2") return "HE002";
     return "HE001";
   }

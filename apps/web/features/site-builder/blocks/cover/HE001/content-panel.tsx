@@ -48,6 +48,7 @@ function resolveSocialHrefByKey(accountProfile: CrmPanelCtx["accountProfile"], k
 
 export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
   const block = ctx.block;
+  const isHe003 = block.variant === "v3";
   const updateData = (patch: Record<string, unknown>) =>
     ctx.updateBlock(block.id, (prev) => ({
       ...prev,
@@ -193,7 +194,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
     Boolean(resolveSocialHrefByKey(ctx.accountProfile, key))
   );
   const showSecondaryButton =
-    block.data.showSecondaryButton === true || block.data.showSecondaryButton === "true";
+    !isHe003 && (block.data.showSecondaryButton === true || block.data.showSecondaryButton === "true");
   const secondaryButtonSource = (block.data.secondaryButtonSource as string) ?? "";
   const effectiveSecondaryButtonSource = secondaryButtonSource === "auto" ? "" : secondaryButtonSource;
   const selectedSecondarySourceMissing =
@@ -241,12 +242,14 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
         )}
       </div>
 
-      <FlatCheckbox
-        checked={showSecondaryButton}
-        onChange={(checked) => updateData({ showSecondaryButton: checked })}
-        label="Показывать вторую кнопку (соцсети)"
-      />
-      {showSecondaryButton && (
+      {!isHe003 && (
+        <FlatCheckbox
+          checked={showSecondaryButton}
+          onChange={(checked) => updateData({ showSecondaryButton: checked })}
+          label="Показывать вторую кнопку (соцсети)"
+        />
+      )}
+      {!isHe003 && showSecondaryButton && (
         <>
           {renderCoverFlatTextInput(
             "Текст второй кнопки",

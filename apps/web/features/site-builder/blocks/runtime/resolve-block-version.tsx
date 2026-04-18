@@ -6,6 +6,7 @@ import { ME002 } from "../menu/ME002/version";
 import { ME003 } from "../menu/ME003/version";
 import { HE001 } from "../cover/HE001/version";
 import { HE002 } from "../cover/HE002/version";
+import { HE003 } from "../cover/HE003/version";
 import { LO001 } from "../loader/LO001/version";
 import { LO002 } from "../loader/LO002/version";
 import { LO003 } from "../loader/LO003/version";
@@ -25,6 +26,8 @@ export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersi
       return HE001;
     case "HE002":
       return HE002;
+    case "HE003":
+      return HE003;
     case "LO001":
       return LO001;
     case "LO002":

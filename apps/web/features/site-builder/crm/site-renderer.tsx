@@ -3064,6 +3064,16 @@ export function renderCover(
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const contentMaxWidth = forceMobileLayout ? "100%" : gridWidthPercent;
   const contentMarginLeft = forceMobileLayout ? 0 : gridLeftPercent;
+  const legacyInset20 = Boolean(data.coverImageInset20);
+  const coverImageInsetPx = Number.isFinite(Number(data.coverImageInsetPx))
+    ? Math.max(0, Math.min(120, Math.round(Number(data.coverImageInsetPx))))
+    : legacyInset20
+      ? 20
+      : 0;
+  const coverImageRadiusPx = Number.isFinite(Number(data.coverImageRadiusPx))
+    ? Math.max(0, Math.min(120, Math.round(Number(data.coverImageRadiusPx))))
+    : 0;
+  const coverFlipHorizontal = Boolean(data.coverFlipHorizontal);
 
   if (block.variant === "v2") {
     return (
@@ -3117,6 +3127,235 @@ export function renderCover(
         subheadingMobileSize={subheadingMobileSize}
         textMobileSize={textMobileSize}
       />
+    );
+  }
+
+  if (block.variant === "v3") {
+    const textHorizontalJustify =
+      contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start";
+    const textVerticalAlignItems =
+      contentVerticalAlign === "top"
+        ? "flex-start"
+        : contentVerticalAlign === "bottom"
+          ? "flex-end"
+          : "center";
+    const splitBackgroundLight =
+      style.sectionBgLightResolved || style.sectionBgLight || style.blockBgLightResolved || "#f3f4f6";
+    const splitBackgroundDark =
+      style.sectionBgDarkResolved || style.sectionBgDark || style.blockBgDarkResolved || "#14161a";
+    const splitBackground =
+      theme.mode === "dark"
+        ? splitBackgroundDark || splitBackgroundLight
+        : splitBackgroundLight || splitBackgroundDark;
+
+    return (
+      <section
+        className={
+          forceMobileLayout
+            ? "relative overflow-hidden px-4 py-14"
+            : "relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+        }
+        style={{
+          minHeight: coverHeightCss,
+          backgroundColor: splitBackground,
+        }}
+      >
+        <div
+          className={`mx-auto flex w-full flex-col ${
+            coverFlipHorizontal ? "md:flex-row-reverse" : "md:flex-row"
+          }`}
+          style={{
+            minHeight: coverHeightCss,
+            width: "100%",
+          }}
+        >
+          <div
+            className="w-full md:w-1/2"
+            style={{
+              height: forceMobileLayout ? "320px" : coverHeightCss,
+              minHeight: forceMobileLayout ? "320px" : coverHeightCss,
+              padding: coverImageInsetPx,
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              className="relative h-full w-full overflow-hidden"
+              style={{
+                height: forceMobileLayout ? "320px" : coverHeightCss,
+                minHeight: forceMobileLayout ? "320px" : coverHeightCss,
+                borderRadius: coverImageRadiusPx,
+                backgroundImage: imageUrl ? `url(${imageUrl})` : "none",
+                backgroundColor: imageUrl ? "transparent" : "var(--block-sub-bg, var(--block-bg))",
+                backgroundSize: "cover",
+                backgroundPosition: coverBackgroundPosition,
+              }}
+            >
+              <div
+                className="pointer-events-none absolute inset-0"
+                style={{ backgroundImage: filterOverlay }}
+              />
+            </div>
+          </div>
+
+          <div
+            className="w-full md:w-1/2"
+            style={{
+              display: "flex",
+              justifyContent: textHorizontalJustify,
+              alignItems: textVerticalAlignItems,
+              height: forceMobileLayout ? "auto" : coverHeightCss,
+              minHeight: forceMobileLayout ? "auto" : coverHeightCss,
+              padding: forceMobileLayout ? "40px 20px" : "56px 64px",
+              boxSizing: "border-box",
+            }}
+          >
+            <div style={{ width: "min(100%, 640px)" }}>
+              <h2
+                className={`leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
+                style={{
+                  ...headingStyle(style, theme),
+                  textAlign: contentAlign,
+                  fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+                    headingMobileSize,
+                    headingDesktopSize
+                  )}px)`,
+                  ...(resolveAnimStyle(animHeading, 0) ?? {}),
+                }}
+              >
+                {title}
+              </h2>
+              {subtitle && (
+                <p
+                  className={`mt-6 leading-[1.25] ${resolveAnimClass(animSubtitle)}`}
+                  style={{
+                    ...subheadingStyle(style, theme),
+                    color: subtitleColor,
+                    textAlign: contentAlign,
+                    fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
+                      subheadingMobileSize,
+                      subheadingDesktopSize
+                    )}px)`,
+                    ...(resolveAnimStyle(animSubtitle, 120) ?? {}),
+                  }}
+                >
+                  {subtitle}
+                </p>
+              )}
+              {description && (
+                <p
+                  className={`mt-5 max-w-[720px] leading-[1.45] ${resolveAnimClass(animDescription)}`}
+                  style={{
+                    ...textStyle(style, theme),
+                    color: descriptionColor,
+                    textAlign: contentAlign,
+                    marginLeft:
+                      contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
+                    marginRight: contentAlign === "center" ? "auto" : 0,
+                    fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+                      textMobileSize,
+                      textDesktopSize
+                    )}px)`,
+                    ...(resolveAnimStyle(animDescription, subtitle ? 220 : 120) ?? {}),
+                  }}
+                >
+                  {description}
+                </p>
+              )}
+              <div
+                className="mt-7 flex flex-wrap items-center gap-3"
+                style={{
+                  justifyContent:
+                    contentAlign === "center"
+                      ? "center"
+                      : contentAlign === "right"
+                        ? "flex-end"
+                        : "flex-start",
+                }}
+              >
+                {showButton && account.publicSlug && (
+                  <a
+                    href={buildBookingLink({ publicSlug: account.publicSlug })}
+                    className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
+                    style={{
+                      ...buttonStyle(style, theme),
+                      ["--cover-primary-hover-bg" as string]:
+                        primaryButtonHoverBgColor || "transparent",
+                      ["--cover-primary-hover-bg-light" as string]:
+                        primaryButtonHoverBgColorLight,
+                      ["--cover-primary-hover-bg-dark" as string]:
+                        primaryButtonHoverBgColorDark,
+                      borderStyle: "solid",
+                      borderWidth:
+                        primaryButtonBorderColor !== "transparent" &&
+                        primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                          ? 1
+                          : 0,
+                      borderColor:
+                        primaryButtonBorderColor !== "transparent" &&
+                        primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                          ? primaryButtonBorderColor
+                          : "transparent",
+                      minHeight: "clamp(46px, 6cqw, 54px)",
+                      paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                      paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                      fontSize: "clamp(14px, 2cqw, 16px)",
+                      transition: "background-color 180ms ease",
+                      ...(resolveAnimStyle(animButton, 320) ?? {}),
+                    }}
+                  >
+                    {buttonText}
+                  </a>
+                )}
+                {showSecondaryButton && secondaryButtonHref && (
+                  <a
+                    href={secondaryButtonHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`bp-cover-secondary-hover inline-flex items-center whitespace-nowrap border font-semibold transition ${resolveAnimClass(animButton)}`}
+                    style={{
+                      ["--cover-secondary-hover-bg" as string]:
+                        secondaryButtonHoverBgColor || "rgba(255,255,255,0.1)",
+                      ["--cover-secondary-hover-bg-light" as string]:
+                        secondaryButtonHoverBgColorLight,
+                      ["--cover-secondary-hover-bg-dark" as string]:
+                        secondaryButtonHoverBgColorDark,
+                      backgroundColor:
+                        secondaryButtonColor !== "transparent" &&
+                        secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
+                          ? secondaryButtonColor
+                          : "transparent",
+                      color:
+                        secondaryButtonTextColor !== "transparent" &&
+                        secondaryButtonTextColor.toLowerCase() !== "rgba(0,0,0,0)"
+                          ? secondaryButtonTextColor
+                          : buttonStyle(style, theme).color,
+                      borderColor:
+                        secondaryButtonBorderColor !== "transparent" &&
+                        secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                          ? secondaryButtonBorderColor
+                          : "transparent",
+                      borderWidth:
+                        secondaryButtonBorderColor !== "transparent" &&
+                        secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                          ? 1
+                          : 0,
+                      borderRadius: secondaryButtonRadius,
+                      minHeight: "clamp(46px, 6cqw, 54px)",
+                      paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                      paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                      fontSize: "clamp(14px, 2cqw, 16px)",
+                      transition: "background-color 180ms ease",
+                      ...(resolveAnimStyle(animButton, 380) ?? {}),
+                    }}
+                  >
+                    {secondaryButtonText}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     );
   }
 
