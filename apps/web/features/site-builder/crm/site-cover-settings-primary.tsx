@@ -559,7 +559,7 @@ export function SiteCoverSettingsPrimary({
               </svg>
               <span>Темная тема</span>
             </span>
-            <span className="text-xs">▾</span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
           </button>
           {showDarkThemeAdvanced && (
             <>
@@ -729,6 +729,7 @@ export function SiteCoverSettingsPrimary({
     </>
   );
 }
+
 
 
 

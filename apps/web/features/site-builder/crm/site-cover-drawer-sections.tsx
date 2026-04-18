@@ -392,13 +392,18 @@ export function SiteCoverDrawerSections({
           onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
           className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
           style={{
-            borderColor: "var(--bp-stroke)",
+            borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
             backgroundColor: "transparent",
             color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
           }}
         >
-          <span>Темная тема</span>
-          <span className="text-xs">{showDarkThemeAdvanced ? "‹" : "›"}</span>
+          <span className="inline-flex items-center gap-2">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+            </svg>
+            <span>Темная тема</span>
+          </span>
+          <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
         </button>
         {showDarkThemeAdvanced && (
           <>
