@@ -362,6 +362,9 @@ export function SiteCoverSettingsPrimary({
         <button
           key={item.id}
           type="button"
+          onMouseDown={(event) => {
+            event.stopPropagation();
+          }}
           onClick={(event) => {
             event.stopPropagation();
             setCoverDrawerKey((prev) =>
@@ -372,7 +375,7 @@ export function SiteCoverSettingsPrimary({
           }}
           className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
           style={{
-            borderColor: coverDrawerKey === item.id ? "#f29a75" : panelTheme.border,
+            borderColor: coverDrawerKey === item.id ? "#ff5a5f" : panelTheme.border,
             backgroundColor: panelTheme.panel,
             color: coverDrawerKey === item.id ? panelTheme.text : panelTheme.muted,
           }}

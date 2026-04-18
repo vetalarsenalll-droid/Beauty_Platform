@@ -34,11 +34,12 @@ export function SiteRightPanelFrame({
 
   return (
     <aside
+      onMouseDown={() => onSurfaceClick()}
       className={`fixed z-[220] overflow-y-auto overflow-x-visible border shadow-[var(--bp-shadow)] transition-all duration-[220ms] ease-out [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
         isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
       } ${
         activeThemeMode === "dark"
-          ? "[&_input]:border-[#2b2b2b] [&_input]:bg-transparent [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-transparent [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-transparent [&_textarea]:text-[#f3f4f6] [&_option]:bg-[color:var(--bp-paper)] [&_option]:text-[#f3f4f6]"
+          ? "[&_input]:border-[#2b2b2b] [&_input]:bg-transparent [&_input]:text-[#f3f4f6] [&_input]:[color-scheme:dark] [&_select]:border-[#2b2b2b] [&_select]:bg-transparent [&_select]:text-[#f3f4f6] [&_select]:[color-scheme:dark] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-transparent [&_textarea]:text-[#f3f4f6] [&_textarea]:[color-scheme:dark] [&_option]:bg-[color:var(--bp-paper)] [&_option]:text-[#f3f4f6]"
           : ""
       }`}
       style={{
@@ -88,7 +89,11 @@ export function SiteRightPanelFrame({
             Сохранить и закрыть
           </button>
         </div>
-        <div className="border-t px-4 py-3" style={{ borderColor: panelTheme.border }}>
+        <div
+          className="cursor-pointer border-t px-4 py-3"
+          style={{ borderColor: panelTheme.border }}
+          onClick={onSurfaceClick}
+        >
           <div className="text-sm font-semibold" style={{ color: panelTheme.text }}>
             {panelTitle}
           </div>

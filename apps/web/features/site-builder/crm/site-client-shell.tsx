@@ -43,6 +43,7 @@ import {
   variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type {
+  CssVars,
   EditorSection,
   MobileViewportKey,
   SiteClientProps,
@@ -1004,7 +1005,7 @@ export default function SiteClient({
               isRightPanelVisible ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
             } ${
               activeTheme.mode === "dark"
-                ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
+                ? "[&_input]:border-[#2b2b2b] [&_input]:bg-[#121212] [&_input]:text-[#f3f4f6] [&_input]:opacity-100 [&_input]:[color-scheme:dark] [&_select]:border-[#2b2b2b] [&_select]:bg-[#121212] [&_select]:text-[#f3f4f6] [&_select]:opacity-100 [&_select]:[color-scheme:dark] [&_textarea]:border-[#2b2b2b] [&_textarea]:bg-[#121212] [&_textarea]:text-[#f3f4f6] [&_textarea]:opacity-100 [&_textarea]:[color-scheme:dark] [&_option]:bg-[#121212] [&_option]:text-[#f3f4f6]"
                 : ""
             }`}
             style={{
@@ -1016,7 +1017,18 @@ export default function SiteClient({
               color: panelTheme.text,
               accentColor: panelTheme.accent,
               colorScheme: activeTheme.mode,
-            }}
+              "--bp-paper": panelTheme.panel,
+              "--bp-surface": panelTheme.surface,
+              "--bp-stroke": panelTheme.border,
+              "--bp-ink": panelTheme.text,
+              "--bp-muted": panelTheme.muted,
+              "--bp-accent": panelTheme.accent,
+              "--bp-save-close": panelTheme.saveClose,
+              "--input-bg": activeTheme.mode === "dark" ? "#0f131a" : "#ffffff",
+              "--text": panelTheme.text,
+              "--border": panelTheme.border,
+              "--muted": panelTheme.muted,
+            } as CssVars}
           >
             <div
               className="sticky top-0 z-20 flex h-12 items-center justify-between border-b px-4"

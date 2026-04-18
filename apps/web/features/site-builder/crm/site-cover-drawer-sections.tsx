@@ -384,7 +384,6 @@ export function SiteCoverDrawerSections({
   if (coverDrawerKey === "animation") {
     return (
       <div className="space-y-4 pb-10">
-        <div className="text-xs text-[color:var(--bp-muted)]">Работает на опубликованных страницах или в режиме предпросмотра.</div>
         <label className="block">
           <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
             Анимация: заголовок
