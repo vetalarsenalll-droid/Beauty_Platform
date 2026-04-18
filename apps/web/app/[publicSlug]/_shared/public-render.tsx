@@ -22,6 +22,7 @@ import type {
   SiteSpecialistItem as SpecialistItem,
   SiteWorkPhotos as WorkPhotos,
 } from "@/features/site-builder/shared/site-data";
+import { resolveCoverBackgroundVisual } from "@/features/site-builder/shared/background-visuals";
 
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -1358,7 +1359,6 @@ function renderCover(
   }
 
   if (block.variant === "v3") {
-    const imageColumnHeight = `calc(${coverHeightCss} + var(--he003-bleed-y, 160px))`;
     const textHorizontalJustify =
       contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start";
     const textVerticalAlignItems =
@@ -1375,13 +1375,21 @@ function renderCover(
       theme.mode === "dark"
         ? splitBackgroundDark || splitBackgroundLight
         : splitBackgroundLight || splitBackgroundDark;
+    const textPanelBackground = resolveCoverBackgroundVisual(
+      data,
+      splitBackground,
+      theme.mode === "dark" ? "dark" : "light"
+    );
+    const imagePanelBackground =
+      coverImageInsetPx > 0
+        ? textPanelBackground
+        : { backgroundColor: "transparent", backgroundImage: "none" };
 
     return (
       <section
-        className="relative overflow-hidden py-14 [--he003-bleed-y:112px] sm:py-20 sm:[--he003-bleed-y:160px]"
+        className="relative overflow-hidden"
         style={{
           minHeight: coverHeightCss,
-          backgroundColor: splitBackground,
         }}
       >
         <div
@@ -1394,19 +1402,21 @@ function renderCover(
           }}
         >
           <div
-            className="w-full -my-14 sm:-my-20 md:w-1/2"
+            className="w-full md:w-1/2"
             style={{
-              height: imageColumnHeight,
-              minHeight: imageColumnHeight,
+              height: coverHeightCss,
+              minHeight: coverHeightCss,
               padding: coverImageInsetPx,
+              backgroundColor: imagePanelBackground.backgroundColor,
+              backgroundImage: imagePanelBackground.backgroundImage,
               boxSizing: "border-box",
             }}
           >
             <div
               className="relative h-full w-full overflow-hidden"
               style={{
-                height: imageColumnHeight,
-                minHeight: imageColumnHeight,
+                height: "100%",
+                minHeight: "100%",
                 borderRadius: coverImageRadiusPx,
                 backgroundImage: imageUrl ? `url(${imageUrl})` : "none",
                 backgroundColor: imageUrl ? "transparent" : "var(--block-sub-bg, var(--block-bg))",
@@ -1429,6 +1439,8 @@ function renderCover(
               alignItems: textVerticalAlignItems,
               height: "100%",
               minHeight: coverHeightCss,
+              backgroundColor: textPanelBackground.backgroundColor,
+              backgroundImage: textPanelBackground.backgroundImage,
               boxSizing: "border-box",
             }}
           >
@@ -1911,6 +1923,7 @@ export function buildBlockWrapperStyle(
   options: {
     isMenuSticky: boolean;
     blockType?: SiteBlock["type"];
+    coverVariant?: SiteBlock["variant"];
     coverBackground?: { backgroundColor: string; backgroundImage: string };
     menuSectionBackground?: { backgroundColor: string; backgroundImage: string };
   }
@@ -1946,6 +1959,7 @@ export function buildBlockWrapperStyle(
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
     const isCoverBlock = options.blockType === "cover";
+    const isCoverV3 = isCoverBlock && options.coverVariant === "v3";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
@@ -1984,7 +1998,9 @@ export function buildBlockWrapperStyle(
         borderRadius: isMenu || isBookingBlock || isCoverBlock ? 0 : radius,
         backgroundColor:
           isCoverBlock
-            ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
+            ? isCoverV3
+              ? "transparent"
+              : (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
               : isGallery || isBookingBlock
@@ -1992,7 +2008,9 @@ export function buildBlockWrapperStyle(
               : "var(--block-bg)",
         backgroundImage:
           isCoverBlock
-            ? (options.coverBackground?.backgroundImage ?? "none")
+            ? isCoverV3
+              ? "none"
+              : (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
               : isGallery || isBookingBlock

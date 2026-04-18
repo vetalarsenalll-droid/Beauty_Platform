@@ -177,6 +177,7 @@ export function renderPublicPageShell({
     const wrapper = buildBlockWrapperStyle(style, themeForRender, blockWidth, {
       isMenuSticky,
       blockType: block.type,
+      coverVariant: block.type === "cover" ? block.variant : undefined,
       coverBackground:
         includeCoverBackground && block.type === "cover"
           ? resolveCoverBackgroundVisual(

@@ -1391,6 +1391,7 @@ export function BlockPreview({
   const isMenu = block.type === "menu";
   const isGallery = block.type === "works";
   const isCover = block.type === "cover";
+  const isCoverV3 = isCover && block.variant === "v3";
   const isAisha = block.type === "aisha";
   const coverData = isCover ? (block.data as Record<string, unknown>) : null;
   const coverScrollEffect =
@@ -1529,10 +1530,14 @@ export function BlockPreview({
           : isAisha
           ? "transparent"
           : isCover
-            ? coverBackground.backgroundColor
+            ? isCoverV3
+              ? "transparent"
+              : coverBackground.backgroundColor
             : sectionBg,
         backgroundImage: isCover
-          ? coverBackground.backgroundImage
+          ? isCoverV3
+            ? "none"
+            : coverBackground.backgroundImage
           : isMenu
             ? menuSectionBackground.backgroundImage
             : "none",
@@ -3131,10 +3136,6 @@ export function renderCover(
   }
 
   if (block.variant === "v3") {
-    const imageBleedY = forceMobileLayout ? 112 : 160;
-    const imageColumnHeight = forceMobileLayout
-      ? `calc(320px + ${imageBleedY}px)`
-      : `calc(${coverHeightCss} + ${imageBleedY}px)`;
     const textHorizontalJustify =
       contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start";
     const textVerticalAlignItems =
@@ -3151,17 +3152,21 @@ export function renderCover(
       theme.mode === "dark"
         ? splitBackgroundDark || splitBackgroundLight
         : splitBackgroundLight || splitBackgroundDark;
+    const textPanelBackground = resolveCoverBackgroundVisual(
+      data,
+      splitBackground,
+      theme.mode === "dark" ? "dark" : "light"
+    );
+    const imagePanelBackground =
+      coverImageInsetPx > 0
+        ? textPanelBackground
+        : { backgroundColor: "transparent", backgroundImage: "none" };
 
     return (
       <section
-        className={
-          forceMobileLayout
-            ? "relative overflow-hidden py-14"
-            : "relative overflow-hidden py-14 sm:py-20"
-        }
+        className="relative overflow-hidden"
         style={{
           minHeight: coverHeightCss,
-          backgroundColor: splitBackground,
         }}
       >
         <div
@@ -3174,19 +3179,21 @@ export function renderCover(
           }}
         >
           <div
-            className="w-full -my-14 sm:-my-20 md:w-1/2"
+            className="w-full md:w-1/2"
             style={{
-              height: imageColumnHeight,
-              minHeight: imageColumnHeight,
+              height: coverHeightCss,
+              minHeight: coverHeightCss,
               padding: coverImageInsetPx,
+              backgroundColor: imagePanelBackground.backgroundColor,
+              backgroundImage: imagePanelBackground.backgroundImage,
               boxSizing: "border-box",
             }}
           >
             <div
               className="relative h-full w-full overflow-hidden"
               style={{
-                height: imageColumnHeight,
-                minHeight: imageColumnHeight,
+                height: "100%",
+                minHeight: "100%",
                 borderRadius: coverImageRadiusPx,
                 backgroundImage: imageUrl ? `url(${imageUrl})` : "none",
                 backgroundColor: imageUrl ? "transparent" : "var(--block-sub-bg, var(--block-bg))",
@@ -3207,9 +3214,11 @@ export function renderCover(
               display: "flex",
               justifyContent: textHorizontalJustify,
               alignItems: textVerticalAlignItems,
-              height: forceMobileLayout ? "auto" : coverHeightCss,
-              minHeight: forceMobileLayout ? "auto" : coverHeightCss,
+              height: coverHeightCss,
+              minHeight: coverHeightCss,
               padding: forceMobileLayout ? "40px 20px" : "56px 64px 56px 56px",
+              backgroundColor: textPanelBackground.backgroundColor,
+              backgroundImage: textPanelBackground.backgroundImage,
               boxSizing: "border-box",
             }}
           >
