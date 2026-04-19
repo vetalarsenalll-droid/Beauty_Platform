@@ -1,4 +1,4 @@
-import { AccountStatus, Prisma } from "@prisma/client";
+import { AccountOnboardingStatus, AccountStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
@@ -12,6 +12,7 @@ type DbAccount = {
   name: string;
   slug: string;
   status: string;
+  onboardingStatus: string;
   timeZone: string;
   planId: number | null;
   createdAt: Date;
@@ -25,6 +26,7 @@ function mapAccount(account: DbAccount) {
     name: account.name,
     slug: account.slug,
     status: account.status,
+    onboardingStatus: account.onboardingStatus,
     timeZone: account.timeZone,
     plan: account.plan ? { id: account.plan.id, name: account.plan.name } : null,
     createdAt: account.createdAt.toISOString(),
@@ -34,6 +36,10 @@ function mapAccount(account: DbAccount) {
 
 function isAccountStatus(value: string): value is AccountStatus {
   return value === "ACTIVE" || value === "SUSPENDED" || value === "ARCHIVED";
+}
+
+function isOnboardingStatus(value: string): value is AccountOnboardingStatus {
+  return value === "DRAFT" || value === "INVITED" || value === "ACTIVE";
 }
 
 export async function GET(
@@ -96,6 +102,15 @@ export async function PATCH(
     }
     data.status = parsedStatus;
   }
+  if (body.onboardingStatus !== undefined) {
+    const parsedOnboardingStatus = String(body.onboardingStatus).trim();
+    if (!isOnboardingStatus(parsedOnboardingStatus)) {
+      return jsonError("VALIDATION_FAILED", "Некорректный onboarding-статус", {
+        fields: [{ path: "onboardingStatus", issue: "invalid" }],
+      });
+    }
+    data.onboardingStatus = parsedOnboardingStatus;
+  }
   if (body.timeZone !== undefined) data.timeZone = String(body.timeZone).trim();
   if (body.planId !== undefined) {
     if (body.planId === null || body.planId === "") {
@@ -128,11 +143,15 @@ export async function PATCH(
 
     const response = jsonOk(mapAccount(updated as DbAccount));
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2002") {
-      const target = Array.isArray(error?.meta?.target)
-        ? error.meta.target[0]
-        : error?.meta?.target;
+  } catch (error: unknown) {
+    const prismaError = error as {
+      code?: string;
+      meta?: { target?: string | string[] };
+    };
+    if (prismaError?.code === "P2002") {
+      const target = Array.isArray(prismaError?.meta?.target)
+        ? prismaError.meta.target[0]
+        : prismaError?.meta?.target;
       const field = target === "slug" ? "slug" : "name";
       const message =
         field === "slug"
@@ -140,12 +159,12 @@ export async function PATCH(
           : "Название уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
-    if (error?.code === "P2003") {
+    if (prismaError?.code === "P2003") {
       return jsonError("VALIDATION_FAILED", "Тариф не найден", {
         fields: [{ path: "planId", issue: "not_found" }],
       });
     }
-    if (error?.code === "P2025") {
+    if (prismaError?.code === "P2025") {
       return jsonError("NOT_FOUND", "Аккаунт не найден", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось обновить аккаунт", null, 500);
@@ -183,8 +202,9 @@ export async function DELETE(
 
     const response = jsonOk({ id: accountId, status: "ARCHIVED" });
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2025") {
+  } catch (error: unknown) {
+    const prismaError = error as { code?: string };
+    if (prismaError?.code === "P2025") {
       return jsonError("NOT_FOUND", "Аккаунт не найден", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось архивировать аккаунт", null, 500);

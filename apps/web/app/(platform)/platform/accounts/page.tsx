@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
 import AccountCreateForm from "./account-create-form";
@@ -8,6 +8,12 @@ const statusLabels: Record<string, string> = {
   ACTIVE: "Активен",
   SUSPENDED: "Приостановлен",
   ARCHIVED: "Архив",
+};
+
+const onboardingLabels: Record<string, string> = {
+  DRAFT: "Черновик",
+  INVITED: "Приглашен",
+  ACTIVE: "Завершил регистрацию",
 };
 
 export default async function PlatformAccountsPage() {
@@ -31,18 +37,16 @@ export default async function PlatformAccountsPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
           Аккаунты
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Управление бизнес-аккаунтами
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Управление бизнес-аккаунтами</h1>
         <p className="text-[color:var(--bp-muted)]">
-          Статусы, лимиты, тарифы и подключенные модули.
+          Статусы, lifecycle регистрации, тарифы и приглашения владельцев.
         </p>
       </header>
 
       <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Новый аккаунт</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Создайте новый бизнес-аккаунт и привяжите тариф.
+          Админ создает черновик аккаунта. Завершение регистрации выполняет владелец по приглашению.
         </p>
         <div className="mt-4">
           <AccountCreateForm plans={plans} />
@@ -68,12 +72,15 @@ export default async function PlatformAccountsPage() {
                     <span className="rounded-full bg-[color:var(--bp-chip)] px-2 py-0.5 text-xs">
                       {statusLabels[account.status] ?? account.status}
                     </span>
+                    <span className="rounded-full bg-[color:var(--bp-chip)] px-2 py-0.5 text-xs">
+                      {onboardingLabels[account.onboardingStatus] ?? account.onboardingStatus}
+                    </span>
                     <span className="text-xs text-[color:var(--bp-muted)]">
                       {account.plan?.name ?? "Без тарифа"}
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                    {account.slug} · {account.timeZone}
+                    {account.slug} • {account.timeZone}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -86,6 +93,7 @@ export default async function PlatformAccountsPage() {
                   <AccountRowActions
                     accountId={account.id}
                     status={account.status}
+                    onboardingStatus={account.onboardingStatus}
                     planId={account.planId}
                     plans={plans}
                   />

@@ -13,6 +13,7 @@ type DbAccount = {
   name: string;
   slug: string;
   status: string;
+  onboardingStatus: string;
   timeZone: string;
   planId: number | null;
   createdAt: Date;
@@ -26,6 +27,7 @@ function mapAccount(account: DbAccount) {
     name: account.name,
     slug: account.slug,
     status: account.status,
+    onboardingStatus: account.onboardingStatus,
     timeZone: account.timeZone,
     plan: account.plan ? { id: account.plan.id, name: account.plan.name } : null,
     createdAt: account.createdAt.toISOString(),
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
         data: {
           name,
           slug,
+          onboardingStatus: "DRAFT",
           timeZone,
           planId: planId ?? undefined,
         },

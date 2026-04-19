@@ -15,6 +15,12 @@ enum AccountStatus {
   ARCHIVED
 }
 
+enum AccountOnboardingStatus {
+  DRAFT
+  INVITED
+  ACTIVE
+}
+
 enum UserStatus {
   ACTIVE
   INVITED
@@ -24,6 +30,71 @@ enum UserStatus {
 enum UserType {
   STAFF
   CLIENT
+}
+
+enum LegalType {
+  PRIVATE_SPECIALIST
+  SELF_EMPLOYED
+  IP
+  OOO
+}
+
+enum BusinessType {
+  BEAUTY_SALON
+  HAIR_SALON
+  BARBERSHOP
+  NAIL_STUDIO
+  BROW_STUDIO
+  LASH_STUDIO
+  MAKEUP_STUDIO
+  COSMETOLOGY_ESTHETIC
+  COSMETOLOGY_MEDICAL
+  MASSAGE
+  SPA_CENTER
+  TATTOO_STUDIO
+  PIERCING_STUDIO
+  PMU_STUDIO
+  EPILATION_STUDIO
+  BATH_WELLNESS
+  DENTISTRY
+  MEDICAL_CLINIC
+  PRIVATE_MEDICAL_PRACTICE
+  LAB_DIAGNOSTICS
+  ULTRASOUND_DIAGNOSTICS
+  PSYCHOLOGIST
+  PSYCHOTHERAPIST
+  SPEECH_THERAPIST
+  NUTRITIONIST
+  REHAB_LFK
+  FITNESS_CLUB
+  GYM
+  YOGA_STUDIO
+  PILATES_STUDIO
+  STRETCHING_STUDIO
+  DANCE_STUDIO
+  MARTIAL_ARTS_STUDIO
+  SWIMMING_POOL
+  PERSONAL_TRAINER
+  EDUCATION_CENTER
+  LANGUAGE_SCHOOL
+  TUTORING
+  CHILD_CENTER
+  EXAM_PREP_CENTER
+  CREATIVE_EDU_STUDIO
+  LEGAL_CONSULTING
+  ACCOUNTING_CONSULTING
+  FINANCE_CONSULTING
+  BUSINESS_CONSULTING
+  COACHING_MENTORING
+  VET_CLINIC
+  PET_GROOMING
+  DOG_TRAINING
+  PHOTO_STUDIO_RENT
+  REHEARSAL_STUDIO_RENT
+  COWORKING_SLOTS
+  SPORTS_COURT_BOOKING
+  PODCAST_STUDIO
+  COMPUTER_CLUB
 }
 
 enum RoleName {
@@ -212,8 +283,9 @@ enum OutboxScope {
   ACCOUNT
   USER
 }
+
 model PlatformPlan {
-  id Int @id @default(autoincrement())
+  id            Int                    @id @default(autoincrement())
   name          String
   code          String                 @unique
   description   String?
@@ -228,8 +300,8 @@ model PlatformPlan {
 }
 
 model PlatformPlanFeature {
-  id Int @id @default(autoincrement())
-  planId Int
+  id        Int      @id @default(autoincrement())
+  planId    Int
   key       String
   value     String?
   createdAt DateTime @default(now())
@@ -240,9 +312,9 @@ model PlatformPlanFeature {
 }
 
 model PlatformSubscription {
-  id Int @id @default(autoincrement())
-  accountId Int
-  planId Int
+  id            Int                @id @default(autoincrement())
+  accountId     Int
+  planId        Int
   status        SubscriptionStatus @default(ACTIVE)
   startedAt     DateTime           @default(now())
   endsAt        DateTime?
@@ -250,16 +322,16 @@ model PlatformSubscription {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  account Account      @relation(fields: [accountId], references: [id])
-  plan    PlatformPlan @relation(fields: [planId], references: [id])
+  account  Account           @relation(fields: [accountId], references: [id])
+  plan     PlatformPlan      @relation(fields: [planId], references: [id])
   invoices PlatformInvoice[]
 
   @@index([accountId, status])
 }
 
 model PlatformInvoice {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id             Int           @id @default(autoincrement())
+  accountId      Int
   subscriptionId Int?
   status         InvoiceStatus @default(DRAFT)
   amount         Decimal       @db.Decimal(12, 2)
@@ -278,8 +350,8 @@ model PlatformInvoice {
 }
 
 model PlatformPayment {
-  id Int @id @default(autoincrement())
-  invoiceId Int?
+  id          Int           @id @default(autoincrement())
+  invoiceId   Int?
   amount      Decimal       @db.Decimal(12, 2)
   currency    String        @default("RUB")
   status      PaymentStatus @default(PENDING)
@@ -291,7 +363,7 @@ model PlatformPayment {
 }
 
 model PlatformLimit {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
   key       String
   valueInt  Int?
@@ -304,8 +376,8 @@ model PlatformLimit {
 }
 
 model PlatformAdmin {
-  id Int @id @default(autoincrement())
-  userId Int     @unique
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now())
 
@@ -315,7 +387,7 @@ model PlatformAdmin {
 }
 
 model PlatformPermission {
-  id Int @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   key         String   @unique
   description String?
   createdAt   DateTime @default(now())
@@ -324,8 +396,8 @@ model PlatformPermission {
 }
 
 model PlatformAdminPermissionAssignment {
-  id Int @id @default(autoincrement())
-  adminId Int
+  id           Int      @id @default(autoincrement())
+  adminId      Int
   permissionId Int
   createdAt    DateTime @default(now())
 
@@ -336,8 +408,8 @@ model PlatformAdminPermissionAssignment {
 }
 
 model PlatformAuditLog {
-  id Int @id @default(autoincrement())
-  adminId Int
+  id         Int      @id @default(autoincrement())
+  adminId    Int
   action     String
   targetType String
   targetId   String?
@@ -351,9 +423,9 @@ model PlatformAuditLog {
 }
 
 model AccountAuditLog {
-  id Int @id @default(autoincrement())
-  accountId Int
-  userId Int
+  id         Int      @id @default(autoincrement())
+  accountId  Int
+  userId     Int
   action     String
   targetType String
   targetId   String?
@@ -369,21 +441,21 @@ model AccountAuditLog {
 }
 
 model PlatformSetting {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   key       String   @unique
   valueJson Json
   updatedAt DateTime @updatedAt
 }
 
 model PlatformLegalDocument {
-  id Int @id @default(autoincrement())
-  key String @unique
-  title String
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  title       String
   description String?
-  isRequired Boolean @default(false)
-  sortOrder Int @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isRequired  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   versions PlatformLegalDocumentVersion[]
 
@@ -391,13 +463,13 @@ model PlatformLegalDocument {
 }
 
 model PlatformLegalDocumentVersion {
-  id Int @id @default(autoincrement())
-  documentId Int
-  version Int
-  content String
+  id          Int      @id @default(autoincrement())
+  documentId  Int
+  version     Int
+  content     String
   publishedAt DateTime @default(now())
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   document PlatformLegalDocument @relation(fields: [documentId], references: [id])
 
@@ -406,21 +478,21 @@ model PlatformLegalDocumentVersion {
 }
 
 model TemplateLibrary {
-  id Int @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   type        TemplateType
   name        String
   description String?
   contentJson Json
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   versions TemplateVersion[]
 }
 
 model TemplateVersion {
-  id Int @id @default(autoincrement())
-  templateId Int
+  id          Int      @id @default(autoincrement())
+  templateId  Int
   version     Int
   contentJson Json
   createdAt   DateTime @default(now())
@@ -431,7 +503,7 @@ model TemplateVersion {
 }
 
 model HealthCheck {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
   status    String
   checkedAt DateTime @default(now())
@@ -439,91 +511,115 @@ model HealthCheck {
 }
 
 model MonitoringMetric {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
   value     Float
   createdAt DateTime @default(now())
 }
 
 model SystemAlert {
-  id Int @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   level      String
   message    String
   details    Json?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 }
-model Account {
-  id Int @id @default(autoincrement())
-  name      String
-  slug      String        @unique
-  status    AccountStatus @default(ACTIVE)
-  timeZone  String
-  planId Int?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
 
-  plan              PlatformPlan?        @relation(fields: [planId], references: [id])
-  platformSubscriptions PlatformSubscription[]
-  platformInvoices PlatformInvoice[]
-  platformLimits   PlatformLimit[]
-  settings          AccountSetting?
-  branding          AccountBranding?
-  profile           AccountProfile?
-  domains           AccountDomain[]
-  publicPages       PublicPage[]
-  seoSettings       SeoSetting?
-  mediaCollections  MediaCollection[]
-  locations         Location[]
-  locationManagers  LocationManager[]
-  services          Service[]
-  serviceCategories ServiceCategory[]
-  specialistCategories SpecialistCategory[]
-  roles             Role[]
-  users             RoleAssignment[]
-  clients           Client[]
-  clientTags        ClientTag[]
-  specialistProfiles SpecialistProfile[]
-    appointments      Appointment[]
-    appointmentHolds  AppointmentHold[]
-    groupSessions     GroupSession[]
-    scheduleTemplates ScheduleTemplate[]
-    scheduleEntries   ScheduleEntry[]
-    scheduleNonWorkingTypes ScheduleNonWorkingType[]
-    blockedSlots      BlockedSlot[]
-  userSessions      UserSession[]
-  paymentIntents    PaymentIntent[]
-  transactions      Transaction[]
-  refunds           Refund[]
-  receipts          Receipt[]
-  paymentMethods    PaymentMethod[]
-  promotions        Promotion[]
-  promoCodes        PromoCode[]
-  referrals         Referral[]
-  giftCards         GiftCard[]
-  memberships       Membership[]
-  loyaltyRules      LoyaltyRule[]
-  loyaltyWallets    LoyaltyWallet[]
-  reviews           Review[]
-  ratingAggregates  RatingAggregate[]
-  notifications     Notification[]
-  notificationTemplates NotificationTemplate[]
+model Account {
+  id                    Int                     @id @default(autoincrement())
+  name                  String
+  slug                  String                  @unique
+  status                AccountStatus           @default(ACTIVE)
+  onboardingStatus      AccountOnboardingStatus @default(ACTIVE)
+  legalType             LegalType?
+  businessType          BusinessType?
+  timeZone              String
+  onboardingCompletedAt DateTime?
+  planId                Int?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  plan                    PlatformPlan?            @relation(fields: [planId], references: [id])
+  platformSubscriptions   PlatformSubscription[]
+  platformInvoices        PlatformInvoice[]
+  platformLimits          PlatformLimit[]
+  settings                AccountSetting?
+  branding                AccountBranding?
+  profile                 AccountProfile?
+  domains                 AccountDomain[]
+  publicPages             PublicPage[]
+  seoSettings             SeoSetting?
+  mediaCollections        MediaCollection[]
+  locations               Location[]
+  locationManagers        LocationManager[]
+  services                Service[]
+  serviceCategories       ServiceCategory[]
+  specialistCategories    SpecialistCategory[]
+  roles                   Role[]
+  users                   RoleAssignment[]
+  clients                 Client[]
+  clientTags              ClientTag[]
+  specialistProfiles      SpecialistProfile[]
+  appointments            Appointment[]
+  appointmentHolds        AppointmentHold[]
+  groupSessions           GroupSession[]
+  scheduleTemplates       ScheduleTemplate[]
+  scheduleEntries         ScheduleEntry[]
+  scheduleNonWorkingTypes ScheduleNonWorkingType[]
+  blockedSlots            BlockedSlot[]
+  userSessions            UserSession[]
+  paymentIntents          PaymentIntent[]
+  transactions            Transaction[]
+  refunds                 Refund[]
+  receipts                Receipt[]
+  paymentMethods          PaymentMethod[]
+  promotions              Promotion[]
+  promoCodes              PromoCode[]
+  referrals               Referral[]
+  giftCards               GiftCard[]
+  memberships             Membership[]
+  loyaltyRules            LoyaltyRule[]
+  loyaltyWallets          LoyaltyWallet[]
+  reviews                 Review[]
+  ratingAggregates        RatingAggregate[]
+  notifications           Notification[]
+  notificationTemplates   NotificationTemplate[]
   notificationPreferences NotificationPreference[]
-  outboxItems       OutboxItem[]
-  idempotencyKeys   IdempotencyKey[]
-  legalDocuments    LegalDocument[]
-  legalAcceptances  LegalAcceptance[]
-  onlineBookingSessions OnlineBookingSession[]
-  onlineBookingSteps OnlineBookingStep[]
-  webhookEndpoints  WebhookEndpoint[]
-  audits            AccountAuditLog[]
+  outboxItems             OutboxItem[]
+  idempotencyKeys         IdempotencyKey[]
+  legalDocuments          LegalDocument[]
+  legalAcceptances        LegalAcceptance[]
+  onlineBookingSessions   OnlineBookingSession[]
+  onlineBookingSteps      OnlineBookingStep[]
+  webhookEndpoints        WebhookEndpoint[]
+  audits                  AccountAuditLog[]
+  invites                 AccountInvite[]
 
   @@index([status, createdAt])
 }
 
+model AccountInvite {
+  id               Int       @id @default(autoincrement())
+  accountId        Int
+  email            String
+  tokenHash        String    @unique
+  invitedByAdminId Int?
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  acceptedByUserId Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, email])
+  @@index([expiresAt])
+}
+
 model AccountSetting {
-  id Int @id @default(autoincrement())
-  accountId Int   @unique
+  id                      Int      @id @default(autoincrement())
+  accountId               Int      @unique
   slotStepMinutes         Int      @default(15)
   requireDeposit          Boolean  @default(false)
   requirePaymentToConfirm Boolean  @default(false)
@@ -539,8 +635,8 @@ model AccountSetting {
 }
 
 model AccountBranding {
-  id Int @id @default(autoincrement())
-  accountId Int   @unique
+  id             Int      @id @default(autoincrement())
+  accountId      Int      @unique
   logoUrl        String?
   coverUrl       String?
   accentColor    String?
@@ -553,13 +649,13 @@ model AccountBranding {
 }
 
 model AccountProfile {
-  id Int @id @default(autoincrement())
-  accountId Int @unique
-  description String?
-  phone       String?
-  email       String?
-  address     String?
-  websiteUrl  String?
+  id           Int      @id @default(autoincrement())
+  accountId    Int      @unique
+  description  String?
+  phone        String?
+  email        String?
+  address      String?
+  websiteUrl   String?
   instagramUrl String?
   whatsappUrl  String?
   telegramUrl  String?
@@ -567,29 +663,29 @@ model AccountProfile {
   vkUrl        String?
   viberUrl     String?
   pinterestUrl String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
 }
 
 model AccountDomain {
-  id Int @id @default(autoincrement())
-  accountId Int
-  domain     String   @unique
-  isPrimary  Boolean  @default(false)
+  id         Int       @id @default(autoincrement())
+  accountId  Int
+  domain     String    @unique
+  isPrimary  Boolean   @default(false)
   verifiedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   account Account @relation(fields: [accountId], references: [id])
 }
 
 model PublicPage {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id                 Int              @id @default(autoincrement())
+  accountId          Int
   status             PublicPageStatus @default(DRAFT)
   draftJson          Json?
-  publishedVersionId Int? @unique
+  publishedVersionId Int?             @unique
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -603,43 +699,43 @@ model PublicPage {
 }
 
 model PublicPageVersion {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   publicPageId Int
   version      Int
   contentJson  Json
   createdAt    DateTime @default(now())
 
-  publicPage  PublicPage  @relation(fields: [publicPageId], references: [id])
+  publicPage   PublicPage  @relation(fields: [publicPageId], references: [id])
   publishedFor PublicPage? @relation("PublishedVersion")
 
   @@unique([publicPageId, version])
 }
 
 model PublicPageSection {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   publicPageId Int
-  key         String
-  title       String?
-  sortOrder   Int
-  isVisible   Boolean  @default(true)
+  key          String
+  title        String?
+  sortOrder    Int
+  isVisible    Boolean  @default(true)
   layoutPreset String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  publicPage PublicPage @relation(fields: [publicPageId], references: [id])
+  publicPage PublicPage        @relation(fields: [publicPageId], references: [id])
   blocks     PublicPageBlock[]
 
   @@index([publicPageId, sortOrder])
 }
 
 model PublicPageBlock {
-  id Int @id @default(autoincrement())
-  sectionId Int
-  type      String
+  id          Int      @id @default(autoincrement())
+  sectionId   Int
+  type        String
   contentJson Json
-  sortOrder Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   section PublicPageSection @relation(fields: [sectionId], references: [id])
 
@@ -647,11 +743,11 @@ model PublicPageBlock {
 }
 
 model PublicPageMedia {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   publicPageId Int
-  assetId Int
-  sortOrder   Int
-  createdAt   DateTime @default(now())
+  assetId      Int
+  sortOrder    Int
+  createdAt    DateTime @default(now())
 
   publicPage PublicPage @relation(fields: [publicPageId], references: [id])
   asset      MediaAsset @relation(fields: [assetId], references: [id])
@@ -660,8 +756,8 @@ model PublicPageMedia {
 }
 
 model SeoSetting {
-  id Int @id @default(autoincrement())
-  accountId Int   @unique
+  id             Int      @id @default(autoincrement())
+  accountId      Int      @unique
   title          String?
   description    String?
   ogImageUrl     String?
@@ -674,17 +770,17 @@ model SeoSetting {
 }
 
 model LegalDocument {
-  id Int @id @default(autoincrement())
-  accountId Int
-  key String
-  title String
+  id          Int      @id @default(autoincrement())
+  accountId   Int
+  key         String
+  title       String
   description String?
-  isRequired Boolean @default(true)
-  sortOrder Int @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isRequired  Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id])
+  account  Account                @relation(fields: [accountId], references: [id])
   versions LegalDocumentVersion[]
 
   @@unique([accountId, key])
@@ -692,15 +788,15 @@ model LegalDocument {
 }
 
 model LegalDocumentVersion {
-  id Int @id @default(autoincrement())
-  documentId Int
-  version Int
-  content String
+  id          Int      @id @default(autoincrement())
+  documentId  Int
+  version     Int
+  content     String
   publishedAt DateTime @default(now())
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
-  document LegalDocument @relation(fields: [documentId], references: [id])
+  document    LegalDocument     @relation(fields: [documentId], references: [id])
   acceptances LegalAcceptance[]
 
   @@unique([documentId, version])
@@ -708,27 +804,27 @@ model LegalDocumentVersion {
 }
 
 model LegalAcceptance {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id                Int      @id @default(autoincrement())
+  accountId         Int
   documentVersionId Int
-  appointmentId Int?
-  clientId Int?
-  source String
-  ip String?
-  userAgent String?
-  acceptedAt DateTime @default(now())
+  appointmentId     Int?
+  clientId          Int?
+  source            String
+  ip                String?
+  userAgent         String?
+  acceptedAt        DateTime @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
+  account         Account              @relation(fields: [accountId], references: [id])
   documentVersion LegalDocumentVersion @relation(fields: [documentVersionId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
-  client Client? @relation(fields: [clientId], references: [id])
+  appointment     Appointment?         @relation(fields: [appointmentId], references: [id])
+  client          Client?              @relation(fields: [clientId], references: [id])
 
   @@index([accountId, acceptedAt])
   @@index([appointmentId])
 }
 
 model Category {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   name      String
   slug      String
@@ -738,7 +834,7 @@ model Category {
 }
 
 model Tag {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   name      String
   slug      String
@@ -748,7 +844,7 @@ model Tag {
 }
 
 model MediaAsset {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   url       String
   type      String
@@ -762,23 +858,23 @@ model MediaAsset {
 }
 
 model MediaCollection {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
   name      String
   createdAt DateTime @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
+  account Account     @relation(fields: [accountId], references: [id])
   links   MediaLink[]
 }
 
 model MediaLink {
-  id Int @id @default(autoincrement())
-  assetId Int
+  id           Int      @id @default(autoincrement())
+  assetId      Int
   collectionId Int?
   entityType   String
   entityId     String
-  sortOrder    Int     @default(0)
-  isCover      Boolean @default(false)
+  sortOrder    Int      @default(0)
+  isCover      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   asset      MediaAsset       @relation(fields: [assetId], references: [id])
@@ -789,22 +885,22 @@ model MediaLink {
 }
 
 model Review {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
-  clientId Int
+  clientId  Int
   rating    Int
   comment   String?
   createdAt DateTime @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
-  client  Client  @relation(fields: [clientId], references: [id])
+  account Account      @relation(fields: [accountId], references: [id])
+  client  Client       @relation(fields: [clientId], references: [id])
   votes   ReviewVote[]
 }
 
 model ReviewVote {
-  id Int @id @default(autoincrement())
-  reviewId Int
-  userId Int?
+  id        Int      @id @default(autoincrement())
+  reviewId  Int
+  userId    Int?
   value     Int
   createdAt DateTime @default(now())
 
@@ -813,8 +909,8 @@ model ReviewVote {
 }
 
 model RatingAggregate {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id          Int      @id @default(autoincrement())
+  accountId   Int
   entityType  String
   entityId    String
   ratingAvg   Float
@@ -827,8 +923,8 @@ model RatingAggregate {
 }
 
 model Favorite {
-  id Int @id @default(autoincrement())
-  clientId Int
+  id         Int      @id @default(autoincrement())
+  clientId   Int
   entityType String
   entityId   String
   createdAt  DateTime @default(now())
@@ -839,8 +935,8 @@ model Favorite {
 }
 
 model SearchIndex {
-  id Int @id @default(autoincrement())
-  accountId Int?
+  id         Int      @id @default(autoincrement())
+  accountId  Int?
   entityType String
   entityId   String
   payload    Json
@@ -850,7 +946,7 @@ model SearchIndex {
 }
 
 model GeoPoint {
-  id Int @id @default(autoincrement())
+  id         Int   @id @default(autoincrement())
   locationId Int   @unique
   lat        Float
   lng        Float
@@ -859,14 +955,14 @@ model GeoPoint {
 }
 
 model Location {
-  id Int @id @default(autoincrement())
-  accountId Int
-  name        String
-  address     String
-  description String?
-  phone       String?
-  status      String @default("ACTIVE")
-  websiteUrl  String?
+  id           Int      @id @default(autoincrement())
+  accountId    Int
+  name         String
+  address      String
+  description  String?
+  phone        String?
+  status       String   @default("ACTIVE")
+  websiteUrl   String?
   instagramUrl String?
   whatsappUrl  String?
   telegramUrl  String?
@@ -874,29 +970,29 @@ model Location {
   vkUrl        String?
   viberUrl     String?
   pinterestUrl String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-    account     Account            @relation(fields: [accountId], references: [id])
-    geoPoint    GeoPoint?
-    hours       LocationHour[]
-    scheduleEntries ScheduleEntry[]
-  exceptions  LocationException[]
-  services    ServiceLocation[]
-  specialists SpecialistLocation[]
-  managers    LocationManager[]
-  appointments Appointment[]
-  groupSessions GroupSession[]
-  workingHours WorkingHour[]
-  breaks       Break[]
-  vacations    Vacation[]
-  blockedSlots BlockedSlot[]
+  account         Account              @relation(fields: [accountId], references: [id])
+  geoPoint        GeoPoint?
+  hours           LocationHour[]
+  scheduleEntries ScheduleEntry[]
+  exceptions      LocationException[]
+  services        ServiceLocation[]
+  specialists     SpecialistLocation[]
+  managers        LocationManager[]
+  appointments    Appointment[]
+  groupSessions   GroupSession[]
+  workingHours    WorkingHour[]
+  breaks          Break[]
+  vacations       Vacation[]
+  blockedSlots    BlockedSlot[]
 
   @@index([accountId, createdAt])
 }
 
 model LocationHour {
-  id Int @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   locationId Int
   dayOfWeek  Int
   startTime  String
@@ -908,10 +1004,10 @@ model LocationHour {
 }
 
 model LocationException {
-  id Int @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   locationId Int
   date       DateTime
-  isClosed   Boolean @default(false)
+  isClosed   Boolean  @default(false)
   startTime  String?
   endTime    String?
 
@@ -919,37 +1015,52 @@ model LocationException {
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  email     String?   @unique
-  phone     String?
+  id        Int        @id @default(autoincrement())
+  email     String?    @unique
+  phone     String?    @unique
   status    UserStatus @default(ACTIVE)
   type      UserType   @default(STAFF)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  profile          UserProfile?
-  identities       UserIdentity[]
-  sessions         UserSession[]
-  roleAssignments  RoleAssignment[]
-  specialistProfiles SpecialistProfile[]
-  clientProfiles     Client[]
-  notifications    Notification[]
-  channelPreferences UserNotificationChannelPreference[]
-  deviceTokens       DeviceToken[]
-  reviewVotes        ReviewVote[]
+  profile                 UserProfile?
+  identities              UserIdentity[]
+  sessions                UserSession[]
+  roleAssignments         RoleAssignment[]
+  specialistProfiles      SpecialistProfile[]
+  clientProfiles          Client[]
+  notifications           Notification[]
+  channelPreferences      UserNotificationChannelPreference[]
+  deviceTokens            DeviceToken[]
+  reviewVotes             ReviewVote[]
   notificationPreferences NotificationPreference[]
-  outboxItems         OutboxItem[]
-  aiThreads           AiThread[]
-  platformAdmin    PlatformAdmin?
-  accountAudits    AccountAuditLog[]
-  locationManagers LocationManager[]
+  outboxItems             OutboxItem[]
+  aiThreads               AiThread[]
+  platformAdmin           PlatformAdmin?
+  accountAudits           AccountAuditLog[]
+  locationManagers        LocationManager[]
 
   @@index([email])
 }
 
+model EmailVerificationToken {
+  id         Int       @id @default(autoincrement())
+  email      String
+  codeHash   String
+  purpose    String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+}
+
 model UserProfile {
-  id Int @id @default(autoincrement())
-  userId Int   @unique
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
   firstName String?
   lastName  String?
   avatarUrl String?
@@ -960,17 +1071,17 @@ model UserProfile {
 }
 
 model UserIdentity {
-  id Int @id @default(autoincrement())
-  userId Int
-  provider       IdentityProvider
-  providerUserId String?
-  email          String?
-  phone          String?
-  passwordHash   String?
-  passwordSalt   String?
-  passwordAlgo   String?
+  id                Int              @id @default(autoincrement())
+  userId            Int
+  provider          IdentityProvider
+  providerUserId    String?
+  email             String?
+  phone             String?
+  passwordHash      String?
+  passwordSalt      String?
+  passwordAlgo      String?
   passwordUpdatedAt DateTime?
-  createdAt      DateTime @default(now())
+  createdAt         DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
@@ -979,15 +1090,15 @@ model UserIdentity {
 }
 
 model UserSession {
-  id Int @id @default(autoincrement())
-  userId Int
-  sessionType SessionType @default(PLATFORM)
-  accountId Int?
-  accessTokenHash  String   @unique
+  id               Int         @id @default(autoincrement())
+  userId           Int
+  sessionType      SessionType @default(PLATFORM)
+  accountId        Int?
+  accessTokenHash  String      @unique
   accessExpiresAt  DateTime
-  refreshTokenHash String   @unique
+  refreshTokenHash String      @unique
   refreshExpiresAt DateTime
-  createdAt        DateTime @default(now())
+  createdAt        DateTime    @default(now())
 
   user    User     @relation(fields: [userId], references: [id])
   account Account? @relation(fields: [accountId], references: [id])
@@ -996,8 +1107,8 @@ model UserSession {
 }
 
 model UserNotificationChannelPreference {
-  id Int @id @default(autoincrement())
-  userId Int
+  id        Int                 @id @default(autoincrement())
+  userId    Int
   channel   NotificationChannel
   enabled   Boolean             @default(true)
   createdAt DateTime            @default(now())
@@ -1009,11 +1120,11 @@ model UserNotificationChannelPreference {
 }
 
 model DeviceToken {
-  id Int @id @default(autoincrement())
-  userId Int
-  platform  String
-  token     String
-  createdAt DateTime @default(now())
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  platform   String
+  token      String
+  createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
 
   user User @relation(fields: [userId], references: [id])
@@ -1022,7 +1133,7 @@ model DeviceToken {
 }
 
 model Role {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
   name      RoleName
   createdAt DateTime @default(now())
@@ -1035,7 +1146,7 @@ model Role {
 }
 
 model Permission {
-  id Int @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   key         String   @unique
   description String?
   createdAt   DateTime @default(now())
@@ -1044,8 +1155,8 @@ model Permission {
 }
 
 model RolePermission {
-  id Int @id @default(autoincrement())
-  roleId Int
+  id           Int @id @default(autoincrement())
+  roleId       Int
   permissionId Int
 
   role       Role       @relation(fields: [roleId], references: [id])
@@ -1055,10 +1166,10 @@ model RolePermission {
 }
 
 model RoleAssignment {
-  id Int @id @default(autoincrement())
-  userId Int
+  id        Int      @id @default(autoincrement())
+  userId    Int
   accountId Int
-  roleId Int
+  roleId    Int
   createdAt DateTime @default(now())
 
   user    User    @relation(fields: [userId], references: [id])
@@ -1069,51 +1180,51 @@ model RoleAssignment {
 }
 
 model SpecialistLevel {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   name      String
   rank      Int
   createdAt DateTime @default(now())
 
-  specialists SpecialistProfile[]
-  levelHistory SpecialistLevelHistory[]
+  specialists         SpecialistProfile[]
+  levelHistory        SpecialistLevelHistory[]
   serviceLevelConfigs ServiceLevelConfig[]
 }
 
 model SpecialistProfile {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
-  userId Int
-  levelId Int?
+  userId    Int
+  levelId   Int?
   bio       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  account     Account          @relation(fields: [accountId], references: [id])
-  user        User             @relation(fields: [userId], references: [id])
-  level       SpecialistLevel? @relation(fields: [levelId], references: [id])
-  services    SpecialistService[]
-  locations   SpecialistLocation[]
-  categories  SpecialistCategoryLink[]
-  appointments Appointment[]
-  appointmentHolds AppointmentHold[]
-  appointmentServices AppointmentService[]
-  appointmentServicesSecondary AppointmentService[] @relation("AppointmentServiceSecondarySpecialist")
-  groupSessions GroupSession[]
-  workingHours WorkingHour[]
-  breaks      Break[]
-  vacations   Vacation[]
-  scheduleEntries ScheduleEntry[]
-  blockedSlots BlockedSlot[]
-  levelHistory SpecialistLevelHistory[]
+  account                      Account                  @relation(fields: [accountId], references: [id])
+  user                         User                     @relation(fields: [userId], references: [id])
+  level                        SpecialistLevel?         @relation(fields: [levelId], references: [id])
+  services                     SpecialistService[]
+  locations                    SpecialistLocation[]
+  categories                   SpecialistCategoryLink[]
+  appointments                 Appointment[]
+  appointmentHolds             AppointmentHold[]
+  appointmentServices          AppointmentService[]
+  appointmentServicesSecondary AppointmentService[]     @relation("AppointmentServiceSecondarySpecialist")
+  groupSessions                GroupSession[]
+  workingHours                 WorkingHour[]
+  breaks                       Break[]
+  vacations                    Vacation[]
+  scheduleEntries              ScheduleEntry[]
+  blockedSlots                 BlockedSlot[]
+  levelHistory                 SpecialistLevelHistory[]
 
   @@unique([accountId, userId])
 }
 
 model SpecialistLevelHistory {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   specialistId Int
-  levelId Int
+  levelId      Int
   assignedAt   DateTime @default(now())
 
   specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
@@ -1121,20 +1232,20 @@ model SpecialistLevelHistory {
 }
 
 model SpecialistCategory {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   name      String
   slug      String
   createdAt DateTime @default(now())
 
-  account Account? @relation(fields: [accountId], references: [id])
+  account     Account?                 @relation(fields: [accountId], references: [id])
   specialists SpecialistCategoryLink[]
 }
 
 model SpecialistCategoryLink {
-  id Int @id @default(autoincrement())
+  id           Int @id @default(autoincrement())
   specialistId Int
-  categoryId Int
+  categoryId   Int
 
   specialist SpecialistProfile  @relation(fields: [specialistId], references: [id])
   category   SpecialistCategory @relation(fields: [categoryId], references: [id])
@@ -1143,44 +1254,44 @@ model SpecialistCategoryLink {
 }
 
 model ServiceCategory {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   name      String
   slug      String
   createdAt DateTime @default(now())
 
-  account  Account? @relation(fields: [accountId], references: [id])
+  account  Account?  @relation(fields: [accountId], references: [id])
   services Service[]
 }
 
 model Service {
-  id Int @id @default(autoincrement())
-  accountId Int
-  categoryId Int?
-  name            String
-  description     String?
-  baseDurationMin Int
-  basePrice       Decimal  @db.Decimal(12, 2)
-  isActive        Boolean  @default(true)
-  allowMultiServiceBooking Boolean @default(false)
-  bookingType     ServiceBookingType @default(SINGLE)
-  groupCapacityDefault Int?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                       Int                @id @default(autoincrement())
+  accountId                Int
+  categoryId               Int?
+  name                     String
+  description              String?
+  baseDurationMin          Int
+  basePrice                Decimal            @db.Decimal(12, 2)
+  isActive                 Boolean            @default(true)
+  allowMultiServiceBooking Boolean            @default(false)
+  bookingType              ServiceBookingType @default(SINGLE)
+  groupCapacityDefault     Int?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
-  account          Account          @relation(fields: [accountId], references: [id])
-  category         ServiceCategory? @relation(fields: [categoryId], references: [id])
-  variants         ServiceVariant[]
-  levelConfigs     ServiceLevelConfig[]
-  specialists      SpecialistService[]
-  locations        ServiceLocation[]
+  account             Account              @relation(fields: [accountId], references: [id])
+  category            ServiceCategory?     @relation(fields: [categoryId], references: [id])
+  variants            ServiceVariant[]
+  levelConfigs        ServiceLevelConfig[]
+  specialists         SpecialistService[]
+  locations           ServiceLocation[]
   appointmentServices AppointmentService[]
-  groupSessions    GroupSession[]
+  groupSessions       GroupSession[]
 }
 
 model ServiceVariant {
-  id Int @id @default(autoincrement())
-  serviceId Int
+  id          Int      @id @default(autoincrement())
+  serviceId   Int
   name        String
   durationMin Int?
   price       Decimal? @db.Decimal(12, 2)
@@ -1190,9 +1301,9 @@ model ServiceVariant {
 }
 
 model ServiceLevelConfig {
-  id Int @id @default(autoincrement())
-  serviceId Int
-  levelId Int
+  id          Int      @id @default(autoincrement())
+  serviceId   Int
+  levelId     Int
   durationMin Int?
   price       Decimal? @db.Decimal(12, 2)
   createdAt   DateTime @default(now())
@@ -1204,9 +1315,9 @@ model ServiceLevelConfig {
 }
 
 model SpecialistService {
-  id Int @id @default(autoincrement())
-  specialistId Int
-  serviceId Int
+  id                  Int      @id @default(autoincrement())
+  specialistId        Int
+  serviceId           Int
   priceOverride       Decimal? @db.Decimal(12, 2)
   durationOverrideMin Int?
   createdAt           DateTime @default(now())
@@ -1218,8 +1329,8 @@ model SpecialistService {
 }
 
 model ServiceLocation {
-  id Int @id @default(autoincrement())
-  serviceId Int
+  id         Int @id @default(autoincrement())
+  serviceId  Int
   locationId Int
 
   service  Service  @relation(fields: [serviceId], references: [id])
@@ -1229,9 +1340,9 @@ model ServiceLocation {
 }
 
 model SpecialistLocation {
-  id Int @id @default(autoincrement())
+  id           Int @id @default(autoincrement())
   specialistId Int
-  locationId Int
+  locationId   Int
 
   specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
   location   Location          @relation(fields: [locationId], references: [id])
@@ -1240,11 +1351,11 @@ model SpecialistLocation {
 }
 
 model LocationManager {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id         Int      @id @default(autoincrement())
+  accountId  Int
   locationId Int
-  userId Int
-  createdAt DateTime @default(now())
+  userId     Int
+  createdAt  DateTime @default(now())
 
   account  Account  @relation(fields: [accountId], references: [id])
   location Location @relation(fields: [locationId], references: [id])
@@ -1256,9 +1367,9 @@ model LocationManager {
 }
 
 model Client {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
-  userId Int?
+  userId    Int?
   firstName String?
   lastName  String?
   phone     String?
@@ -1266,43 +1377,43 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id])
-  user    User?   @relation(fields: [userId], references: [id])
-  contacts ClientContact[]
-  notes    ClientNote[]
-  tags     ClientTagAssignment[]
-  consents ClientConsent[]
-  appointments Appointment[]
-  onlineBookingSessions OnlineBookingSession[]
+  account                  Account                   @relation(fields: [accountId], references: [id])
+  user                     User?                     @relation(fields: [userId], references: [id])
+  contacts                 ClientContact[]
+  notes                    ClientNote[]
+  tags                     ClientTagAssignment[]
+  consents                 ClientConsent[]
+  appointments             Appointment[]
+  onlineBookingSessions    OnlineBookingSession[]
   groupSessionParticipants GroupSessionParticipant[]
-  favorites Favorite[]
-  reviews   Review[]
-  loyaltyWallet LoyaltyWallet?
-  referralsMade Referral[] @relation("ReferralReferrer")
-  referralsReceived Referral[] @relation("ReferralReferred")
-  promoRedemptions PromoRedemption[]
-  paymentIntents   PaymentIntent[]
-  paymentMethods   PaymentMethod[]
-  membershipRedemptions MembershipRedemption[]
-  aiThreads        AiThread[]
-  legalAcceptances LegalAcceptance[]
+  favorites                Favorite[]
+  reviews                  Review[]
+  loyaltyWallet            LoyaltyWallet?
+  referralsMade            Referral[]                @relation("ReferralReferrer")
+  referralsReceived        Referral[]                @relation("ReferralReferred")
+  promoRedemptions         PromoRedemption[]
+  paymentIntents           PaymentIntent[]
+  paymentMethods           PaymentMethod[]
+  membershipRedemptions    MembershipRedemption[]
+  aiThreads                AiThread[]
+  legalAcceptances         LegalAcceptance[]
 
   @@index([accountId, createdAt])
 }
 
 model ClientContact {
-  id Int @id @default(autoincrement())
-  clientId Int
-  type      String
-  value     String
+  id         Int       @id @default(autoincrement())
+  clientId   Int
+  type       String
+  value      String
   verifiedAt DateTime?
 
   client Client @relation(fields: [clientId], references: [id])
 }
 
 model ClientNote {
-  id Int @id @default(autoincrement())
-  clientId Int
+  id        Int      @id @default(autoincrement())
+  clientId  Int
   note      String
   createdAt DateTime @default(now())
 
@@ -1310,29 +1421,29 @@ model ClientNote {
 }
 
 model ClientTag {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
   name      String
   createdAt DateTime @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
+  account     Account               @relation(fields: [accountId], references: [id])
   assignments ClientTagAssignment[]
 }
 
 model ClientTagAssignment {
-  id Int @id @default(autoincrement())
+  id       Int @id @default(autoincrement())
   clientId Int
-  tagId Int
+  tagId    Int
 
-  client Client   @relation(fields: [clientId], references: [id])
+  client Client    @relation(fields: [clientId], references: [id])
   tag    ClientTag @relation(fields: [tagId], references: [id])
 
   @@unique([clientId, tagId])
 }
 
 model ClientConsent {
-  id Int @id @default(autoincrement())
-  clientId Int
+  id        Int       @id @default(autoincrement())
+  clientId  Int
   type      String
   grantedAt DateTime?
   revokedAt DateTime?
@@ -1341,12 +1452,12 @@ model ClientConsent {
 }
 
 model Appointment {
-  id Int @id @default(autoincrement())
-  accountId Int
-  locationId Int
-  specialistId Int
-  clientId Int
-  groupBookingId String? @db.Uuid
+  id               Int               @id @default(autoincrement())
+  accountId        Int
+  locationId       Int
+  specialistId     Int
+  clientId         Int
+  groupBookingId   String?           @db.Uuid
   startAt          DateTime
   endAt            DateTime
   status           AppointmentStatus @default(NEW)
@@ -1357,14 +1468,14 @@ model Appointment {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
-  account    Account           @relation(fields: [accountId], references: [id])
-  location   Location          @relation(fields: [locationId], references: [id])
-  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
-  client     Client            @relation(fields: [clientId], references: [id])
-  services   AppointmentService[]
-  statusHistory AppointmentStatusHistory[]
-  paymentIntents PaymentIntent[]
-  legalAcceptances LegalAcceptance[]
+  account               Account                    @relation(fields: [accountId], references: [id])
+  location              Location                   @relation(fields: [locationId], references: [id])
+  specialist            SpecialistProfile          @relation(fields: [specialistId], references: [id])
+  client                Client                     @relation(fields: [clientId], references: [id])
+  services              AppointmentService[]
+  statusHistory         AppointmentStatusHistory[]
+  paymentIntents        PaymentIntent[]
+  legalAcceptances      LegalAcceptance[]
   onlineBookingSessions OnlineBookingSession[]
 
   @@index([accountId, startAt])
@@ -1375,43 +1486,43 @@ model Appointment {
 }
 
 model AppointmentService {
-  id Int @id @default(autoincrement())
-  appointmentId Int
-  serviceId Int
-  variantId     String?
-  price         Decimal  @db.Decimal(12, 2)
-  durationMin   Int
-  orderIndex    Int      @default(0)
-  specialistId  Int?
+  id                    Int     @id @default(autoincrement())
+  appointmentId         Int
+  serviceId             Int
+  variantId             String?
+  price                 Decimal @db.Decimal(12, 2)
+  durationMin           Int
+  orderIndex            Int     @default(0)
+  specialistId          Int?
   secondarySpecialistId Int?
 
-  appointment Appointment @relation(fields: [appointmentId], references: [id])
-  service     Service     @relation(fields: [serviceId], references: [id])
-  specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
+  appointment         Appointment        @relation(fields: [appointmentId], references: [id])
+  service             Service            @relation(fields: [serviceId], references: [id])
+  specialist          SpecialistProfile? @relation(fields: [specialistId], references: [id])
   secondarySpecialist SpecialistProfile? @relation("AppointmentServiceSecondarySpecialist", fields: [secondarySpecialistId], references: [id])
 }
 
 model GroupSession {
-  id Int @id @default(autoincrement())
-  accountId Int
-  locationId Int
-  specialistId Int
-  serviceId Int
-  startAt DateTime
-  endAt DateTime
-  status GroupSessionStatus @default(NEW)
-  capacity Int
-  bookedCount Int @default(0)
-  pricePerClient Decimal? @db.Decimal(12, 2)
-  source String?
-  comment String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int                @id @default(autoincrement())
+  accountId      Int
+  locationId     Int
+  specialistId   Int
+  serviceId      Int
+  startAt        DateTime
+  endAt          DateTime
+  status         GroupSessionStatus @default(NEW)
+  capacity       Int
+  bookedCount    Int                @default(0)
+  pricePerClient Decimal?           @db.Decimal(12, 2)
+  source         String?
+  comment        String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  account    Account           @relation(fields: [accountId], references: [id])
-  location   Location          @relation(fields: [locationId], references: [id])
-  specialist SpecialistProfile @relation(fields: [specialistId], references: [id])
-  service    Service           @relation(fields: [serviceId], references: [id])
+  account      Account                   @relation(fields: [accountId], references: [id])
+  location     Location                  @relation(fields: [locationId], references: [id])
+  specialist   SpecialistProfile         @relation(fields: [specialistId], references: [id])
+  service      Service                   @relation(fields: [serviceId], references: [id])
   participants GroupSessionParticipant[]
 
   @@index([accountId, startAt])
@@ -1421,52 +1532,52 @@ model GroupSession {
 }
 
 model GroupSessionParticipant {
-  id Int @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   groupSessionId Int
-  clientId Int
-  status AppointmentStatus @default(NEW)
-  price Decimal? @db.Decimal(12, 2)
-  createdAt DateTime @default(now())
+  clientId       Int
+  status         AppointmentStatus @default(NEW)
+  price          Decimal?          @db.Decimal(12, 2)
+  createdAt      DateTime          @default(now())
 
   groupSession GroupSession @relation(fields: [groupSessionId], references: [id], onDelete: Cascade)
-  client Client @relation(fields: [clientId], references: [id])
+  client       Client       @relation(fields: [clientId], references: [id])
 
   @@unique([groupSessionId, clientId])
   @@index([clientId, createdAt])
 }
 
 model AppointmentStatusHistory {
-  id Int @id @default(autoincrement())
+  id            Int                @id @default(autoincrement())
   appointmentId Int
   actorType     String
   actorId       String?
   fromStatus    AppointmentStatus?
   toStatus      AppointmentStatus
-  reasonId Int?
+  reasonId      Int?
   comment       String?
-  createdAt     DateTime          @default(now())
+  createdAt     DateTime           @default(now())
 
-  appointment Appointment      @relation(fields: [appointmentId], references: [id])
+  appointment Appointment         @relation(fields: [appointmentId], references: [id])
   reason      CancellationReason? @relation(fields: [reasonId], references: [id])
 
   @@index([appointmentId, createdAt])
 }
 
 model CancellationReason {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   name      String
-  isActive  Boolean @default(true)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   statusHistory AppointmentStatusHistory[]
 }
 
 model AppointmentHold {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id           Int      @id @default(autoincrement())
+  accountId    Int
   specialistId Int
-  clientId Int?
+  clientId     Int?
   startAt      DateTime
   endAt        DateTime
   expiresAt    DateTime
@@ -1479,48 +1590,48 @@ model AppointmentHold {
 }
 
 model ScheduleTemplate {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
   name      String
   createdAt DateTime @default(now())
 
-  account      Account      @relation(fields: [accountId], references: [id])
+  account      Account       @relation(fields: [accountId], references: [id])
   workingHours WorkingHour[]
   breaks       Break[]
 }
 
 model WorkingHour {
-  id Int @id @default(autoincrement())
+  id                 Int    @id @default(autoincrement())
   scheduleTemplateId Int?
-  locationId Int?
-  specialistId Int?
+  locationId         Int?
+  specialistId       Int?
   dayOfWeek          Int
   startTime          String
   endTime            String
 
-  scheduleTemplate ScheduleTemplate? @relation(fields: [scheduleTemplateId], references: [id])
-  location         Location?         @relation(fields: [locationId], references: [id])
+  scheduleTemplate ScheduleTemplate?  @relation(fields: [scheduleTemplateId], references: [id])
+  location         Location?          @relation(fields: [locationId], references: [id])
   specialist       SpecialistProfile? @relation(fields: [specialistId], references: [id])
 }
 
 model Break {
-  id Int @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   scheduleTemplateId Int?
-  locationId Int?
-  specialistId Int?
+  locationId         Int?
+  specialistId       Int?
   startAt            DateTime
   endAt              DateTime
   createdAt          DateTime @default(now())
 
-  scheduleTemplate ScheduleTemplate? @relation(fields: [scheduleTemplateId], references: [id])
-  location         Location?         @relation(fields: [locationId], references: [id])
+  scheduleTemplate ScheduleTemplate?  @relation(fields: [scheduleTemplateId], references: [id])
+  location         Location?          @relation(fields: [locationId], references: [id])
   specialist       SpecialistProfile? @relation(fields: [specialistId], references: [id])
 }
 
 model Vacation {
-  id Int @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   specialistId Int?
-  locationId Int?
+  locationId   Int?
   startAt      DateTime
   endAt        DateTime
   createdAt    DateTime @default(now())
@@ -1530,15 +1641,15 @@ model Vacation {
 }
 
 model ScheduleNonWorkingType {
-  id Int @id @default(autoincrement())
-  accountId Int
-  name   String
-  color  String
-  isArchived Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  accountId  Int
+  name       String
+  color      String
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id])
+  account Account         @relation(fields: [accountId], references: [id])
   entries ScheduleEntry[]
 
   @@unique([accountId, name])
@@ -1546,22 +1657,22 @@ model ScheduleNonWorkingType {
 }
 
 model ScheduleEntry {
-  id Int @id @default(autoincrement())
-  accountId Int
-  locationId Int?
+  id           Int               @id @default(autoincrement())
+  accountId    Int
+  locationId   Int?
   specialistId Int
-  date DateTime
-  type ScheduleEntryType
+  date         DateTime
+  type         ScheduleEntryType
   customTypeId Int?
-  startTime String?
-  endTime   String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  startTime    String?
+  endTime      String?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
-  account    Account            @relation(fields: [accountId], references: [id])
-  location   Location?          @relation(fields: [locationId], references: [id])
-  specialist SpecialistProfile  @relation(fields: [specialistId], references: [id])
+  account    Account                 @relation(fields: [accountId], references: [id])
+  location   Location?               @relation(fields: [locationId], references: [id])
+  specialist SpecialistProfile       @relation(fields: [specialistId], references: [id])
   customType ScheduleNonWorkingType? @relation(fields: [customTypeId], references: [id])
   breaks     ScheduleEntryBreak[]
 
@@ -1571,8 +1682,8 @@ model ScheduleEntry {
 }
 
 model ScheduleEntryBreak {
-  id Int @id @default(autoincrement())
-  entryId Int
+  id        Int    @id @default(autoincrement())
+  entryId   Int
   startTime String
   endTime   String
 
@@ -1582,26 +1693,27 @@ model ScheduleEntryBreak {
 }
 
 model BlockedSlot {
-  id Int @id @default(autoincrement())
-  accountId Int
-  locationId Int?
+  id           Int      @id @default(autoincrement())
+  accountId    Int
+  locationId   Int?
   specialistId Int?
   startAt      DateTime
   endAt        DateTime
   reason       String?
   createdAt    DateTime @default(now())
 
-  account    Account           @relation(fields: [accountId], references: [id])
-  location   Location?         @relation(fields: [locationId], references: [id])
+  account    Account            @relation(fields: [accountId], references: [id])
+  location   Location?          @relation(fields: [locationId], references: [id])
   specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
 
   @@index([accountId, startAt])
 }
+
 model PaymentIntent {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id            Int                 @id @default(autoincrement())
+  accountId     Int
   appointmentId Int?
-  clientId Int?
+  clientId      Int?
   amount        Decimal             @db.Decimal(12, 2)
   currency      String              @default("RUB")
   status        PaymentIntentStatus @default(CREATED)
@@ -1611,9 +1723,9 @@ model PaymentIntent {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  account     Account       @relation(fields: [accountId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
-  client      Client?       @relation(fields: [clientId], references: [id])
+  account      Account       @relation(fields: [accountId], references: [id])
+  appointment  Appointment?  @relation(fields: [appointmentId], references: [id])
+  client       Client?       @relation(fields: [clientId], references: [id])
   transactions Transaction[]
   refunds      Refund[]
 
@@ -1621,28 +1733,28 @@ model PaymentIntent {
 }
 
 model Transaction {
-  id Int @id @default(autoincrement())
-  accountId Int
-  intentId Int?
+  id          Int             @id @default(autoincrement())
+  accountId   Int
+  intentId    Int?
   type        TransactionType
   amount      Decimal         @db.Decimal(12, 2)
   currency    String          @default("RUB")
   providerRef String?
   createdAt   DateTime        @default(now())
 
-  account Account        @relation(fields: [accountId], references: [id])
-  intent  PaymentIntent? @relation(fields: [intentId], references: [id])
-  refunds Refund[]
+  account  Account        @relation(fields: [accountId], references: [id])
+  intent   PaymentIntent? @relation(fields: [intentId], references: [id])
+  refunds  Refund[]
   receipts Receipt[]
 
   @@index([accountId, createdAt])
 }
 
 model Refund {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id            Int          @id @default(autoincrement())
+  accountId     Int
   transactionId Int?
-  intentId Int?
+  intentId      Int?
   amount        Decimal      @db.Decimal(12, 2)
   status        RefundStatus @default(PENDING)
   reason        String?
@@ -1654,34 +1766,34 @@ model Refund {
 }
 
 model Receipt {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id            Int      @id @default(autoincrement())
+  accountId     Int
   transactionId Int?
   provider      String
   receiptUrl    String?
   payload       Json?
   createdAt     DateTime @default(now())
 
-  account     Account       @relation(fields: [accountId], references: [id])
-  transaction Transaction?  @relation(fields: [transactionId], references: [id])
+  account     Account      @relation(fields: [accountId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
 }
 
 model PaymentMethod {
-  id Int @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   accountId Int
-  clientId Int?
+  clientId  Int?
   provider  String
   token     String
   last4     String?
   expiresAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   account Account @relation(fields: [accountId], references: [id])
   client  Client? @relation(fields: [clientId], references: [id])
 }
 
 model PaymentWebhookEvent {
-  id Int @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   provider        String
   providerEventId String   @unique
   payload         Json
@@ -1689,7 +1801,7 @@ model PaymentWebhookEvent {
 }
 
 model Promotion {
-  id Int @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   accountId Int
   name      String
   type      PromotionType
@@ -1699,32 +1811,32 @@ model Promotion {
   isActive  Boolean       @default(true)
   createdAt DateTime      @default(now())
 
-  account    Account   @relation(fields: [accountId], references: [id])
+  account    Account     @relation(fields: [accountId], references: [id])
   promoCodes PromoCode[]
 }
 
 model PromoCode {
-  id Int @id @default(autoincrement())
-  accountId Int
-  promotionId Int
-  code              String
-  startsAt          DateTime?
-  endsAt            DateTime?
-  maxUses           Int?
-  maxUsesPerClient  Int?
-  createdAt         DateTime @default(now())
+  id               Int       @id @default(autoincrement())
+  accountId        Int
+  promotionId      Int
+  code             String
+  startsAt         DateTime?
+  endsAt           DateTime?
+  maxUses          Int?
+  maxUsesPerClient Int?
+  createdAt        DateTime  @default(now())
 
-  account    Account   @relation(fields: [accountId], references: [id])
-  promotion Promotion @relation(fields: [promotionId], references: [id])
+  account     Account           @relation(fields: [accountId], references: [id])
+  promotion   Promotion         @relation(fields: [promotionId], references: [id])
   redemptions PromoRedemption[]
 
   @@unique([accountId, code])
 }
 
 model PromoRedemption {
-  id Int @id @default(autoincrement())
+  id          Int                   @id @default(autoincrement())
   promoCodeId Int
-  clientId Int?
+  clientId    Int?
   status      PromoRedemptionStatus @default(APPLIED)
   redeemedAt  DateTime?
   createdAt   DateTime              @default(now())
@@ -1734,22 +1846,22 @@ model PromoRedemption {
 }
 
 model LoyaltyWallet {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
-  clientId Int   @unique
-  balance   Decimal  @db.Decimal(12, 2) @default(0)
+  clientId  Int      @unique
+  balance   Decimal  @default(0) @db.Decimal(12, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id])
-  client  Client  @relation(fields: [clientId], references: [id])
+  account      Account              @relation(fields: [accountId], references: [id])
+  client       Client               @relation(fields: [clientId], references: [id])
   transactions LoyaltyTransaction[]
 
   @@index([accountId])
 }
 
 model LoyaltyRule {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int
   name      String
   type      String
@@ -1761,15 +1873,15 @@ model LoyaltyRule {
 }
 
 model LoyaltyTransaction {
-  id Int @id @default(autoincrement())
-  walletId Int
-  type      LoyaltyTransactionType
-  amount    Decimal                @db.Decimal(12, 2)
-  reason    String?
+  id         Int                    @id @default(autoincrement())
+  walletId   Int
+  type       LoyaltyTransactionType
+  amount     Decimal                @db.Decimal(12, 2)
+  reason     String?
   sourceType String?
-  sourceId  String?
-  expiresAt DateTime?
-  createdAt DateTime @default(now())
+  sourceId   String?
+  expiresAt  DateTime?
+  createdAt  DateTime               @default(now())
 
   wallet LoyaltyWallet @relation(fields: [walletId], references: [id])
 
@@ -1777,8 +1889,8 @@ model LoyaltyTransaction {
 }
 
 model Referral {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id               Int      @id @default(autoincrement())
+  accountId        Int
   referrerClientId Int
   referredClientId Int?
   code             String
@@ -1790,14 +1902,14 @@ model Referral {
 }
 
 model GiftCard {
-  id Int @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   accountId Int
   code      String
   amount    Decimal        @db.Decimal(12, 2)
   balance   Decimal        @db.Decimal(12, 2)
   status    GiftCardStatus @default(ACTIVE)
   expiresAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime       @default(now())
 
   account Account @relation(fields: [accountId], references: [id])
 
@@ -1805,31 +1917,32 @@ model GiftCard {
 }
 
 model Membership {
-  id Int @id @default(autoincrement())
+  id        Int            @id @default(autoincrement())
   accountId Int
   name      String
   type      MembershipType
   totalUses Int?
   validFrom DateTime?
   validTo   DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime       @default(now())
 
-  account Account @relation(fields: [accountId], references: [id])
+  account     Account                @relation(fields: [accountId], references: [id])
   redemptions MembershipRedemption[]
 }
 
 model MembershipRedemption {
-  id Int @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   membershipId Int
-  clientId Int
+  clientId     Int
   usedAt       DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   membership Membership @relation(fields: [membershipId], references: [id])
   client     Client     @relation(fields: [clientId], references: [id])
 }
+
 model NotificationTemplate {
-  id Int @id @default(autoincrement())
+  id        Int                 @id @default(autoincrement())
   accountId Int?
   name      String
   channel   NotificationChannel
@@ -1843,24 +1956,24 @@ model NotificationTemplate {
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
-  account     Account?               @relation(fields: [accountId], references: [id])
+  account     Account?                 @relation(fields: [accountId], references: [id])
   preferences NotificationPreference[]
 
   @@index([accountId])
 }
 
 model NotificationPreference {
-  id Int @id @default(autoincrement())
-  scope      NotificationScope
-  accountId Int?
-  userId Int?
-  eventName  String
-  audience   AudienceType
-  channel    NotificationChannel
-  enabled    Boolean           @default(true)
+  id                    Int                 @id @default(autoincrement())
+  scope                 NotificationScope
+  accountId             Int?
+  userId                Int?
+  eventName             String
+  audience              AudienceType
+  channel               NotificationChannel
+  enabled               Boolean             @default(true)
   reminderOffsetMinutes Int?
-  templateId Int?
-  createdAt  DateTime @default(now())
+  templateId            Int?
+  createdAt             DateTime            @default(now())
 
   account  Account?              @relation(fields: [accountId], references: [id])
   user     User?                 @relation(fields: [userId], references: [id])
@@ -1870,24 +1983,24 @@ model NotificationPreference {
 }
 
 model Notification {
-  id Int @id @default(autoincrement())
-  userId Int
+  id        Int       @id @default(autoincrement())
+  userId    Int
   accountId Int?
   title     String?
   body      String
   data      Json?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user    User     @relation(fields: [userId], references: [id])
   account Account? @relation(fields: [accountId], references: [id])
 }
 
 model OutboxItem {
-  id Int @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   scope       OutboxScope
-  accountId Int?
-  userId Int?
+  accountId   Int?
+  userId      Int?
   eventName   String
   payload     Json
   status      OutboxStatus @default(PENDING)
@@ -1896,22 +2009,22 @@ model OutboxItem {
   createdAt   DateTime     @default(now())
   processedAt DateTime?
 
-  account   Account?    @relation(fields: [accountId], references: [id])
-  user      User?       @relation(fields: [userId], references: [id])
+  account    Account?      @relation(fields: [accountId], references: [id])
+  user       User?         @relation(fields: [userId], references: [id])
   deliveries DeliveryLog[]
 
   @@index([status, availableAt])
 }
 
 model IdempotencyKey {
-  id Int @id @default(autoincrement())
-  accountId Int
-  key String
+  id          Int      @id @default(autoincrement())
+  accountId   Int
+  key         String
   requestHash String
-  status String @default("PROCESSING")
-  response Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status      String   @default("PROCESSING")
+  response    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
 
@@ -1920,8 +2033,8 @@ model IdempotencyKey {
 }
 
 model DeliveryLog {
-  id Int @id @default(autoincrement())
-  outboxItemId Int
+  id                Int                 @id @default(autoincrement())
+  outboxItemId      Int
   channel           NotificationChannel
   target            String
   status            DeliveryStatus
@@ -1930,7 +2043,7 @@ model DeliveryLog {
   errorMessage      String?
   providerMessageId String?
   sentAt            DateTime?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime            @default(now())
 
   outboxItem OutboxItem @relation(fields: [outboxItemId], references: [id])
 
@@ -1938,8 +2051,8 @@ model DeliveryLog {
 }
 
 model WebhookEndpoint {
-  id Int @id @default(autoincrement())
-  accountId Int
+  id          Int           @id @default(autoincrement())
+  accountId   Int
   url         String
   secret      String
   events      String[]
@@ -1949,22 +2062,22 @@ model WebhookEndpoint {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  account    Account          @relation(fields: [accountId], references: [id])
+  account    Account           @relation(fields: [accountId], references: [id])
   deliveries WebhookDelivery[]
 
   @@index([accountId, status])
 }
 
 model WebhookEvent {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   eventName String
   payload   Json
   createdAt DateTime @default(now())
 }
 
 model WebhookDelivery {
-  id Int @id @default(autoincrement())
-  endpointId Int
+  id          Int            @id @default(autoincrement())
+  endpointId  Int
   eventName   String
   payload     Json
   signature   String
@@ -1980,23 +2093,23 @@ model WebhookDelivery {
 }
 
 model AiThread {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
-  clientId Int?
-  userId Int?
+  clientId  Int?
+  userId    Int?
   title     String?
   createdAt DateTime @default(now())
 
-  client      Client?        @relation(fields: [clientId], references: [id])
-  user        User?          @relation(fields: [userId], references: [id])
-  messages    AiMessage[]
-  actions     AiAction[]
+  client       Client?         @relation(fields: [clientId], references: [id])
+  user         User?           @relation(fields: [userId], references: [id])
+  messages     AiMessage[]
+  actions      AiAction[]
   bookingDraft AiBookingDraft?
 }
 
 model AiMessage {
-  id Int @id @default(autoincrement())
-  threadId Int
+  id        Int      @id @default(autoincrement())
+  threadId  Int
   role      String
   content   String
   createdAt DateTime @default(now())
@@ -2005,8 +2118,8 @@ model AiMessage {
 }
 
 model AiAction {
-  id Int @id @default(autoincrement())
-  threadId Int?
+  id         Int      @id @default(autoincrement())
+  threadId   Int?
   actionType String
   payload    Json
   status     String
@@ -2017,8 +2130,8 @@ model AiAction {
 }
 
 model AiLog {
-  id Int @id @default(autoincrement())
-  actionId Int?
+  id        Int      @id @default(autoincrement())
+  actionId  Int?
   level     String
   message   String
   data      Json?
@@ -2028,7 +2141,7 @@ model AiLog {
 }
 
 model AiLimit {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   key       String
   valueInt  Int
@@ -2036,7 +2149,7 @@ model AiLimit {
 }
 
 model AiSetting {
-  id Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   accountId Int?
   key       String
   value     Json
@@ -2044,41 +2157,41 @@ model AiSetting {
 }
 
 model AiBookingDraft {
-  id Int @id @default(autoincrement())
-  threadId Int @unique
-  locationId Int?
-  serviceId Int?
-  serviceIds Int[] @default([])
-  specialistId Int?
-  bookingMode String?
-  planJson Json?
-  date String?
-  time String?
-  clientName String?
-  clientPhone String?
-  clientEmail String?
-  mode String?
-  status String @default("COLLECTING")
+  id                 Int       @id @default(autoincrement())
+  threadId           Int       @unique
+  locationId         Int?
+  serviceId          Int?
+  serviceIds         Int[]     @default([])
+  specialistId       Int?
+  bookingMode        String?
+  planJson           Json?
+  date               String?
+  time               String?
+  clientName         String?
+  clientPhone        String?
+  clientEmail        String?
+  mode               String?
+  status             String    @default("COLLECTING")
   consentConfirmedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 }
 
 model OnlineBookingSession {
-  id Int @id @default(autoincrement())
-  accountId Int
-  sessionKey String
-  startedAt DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-  clientId Int?
+  id            Int      @id @default(autoincrement())
+  accountId     Int
+  sessionKey    String
+  startedAt     DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  clientId      Int?
   appointmentId Int?
 
-  account Account @relation(fields: [accountId], references: [id])
-  client Client? @relation(fields: [clientId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
-  steps OnlineBookingStep[]
+  account     Account             @relation(fields: [accountId], references: [id])
+  client      Client?             @relation(fields: [clientId], references: [id])
+  appointment Appointment?        @relation(fields: [appointmentId], references: [id])
+  steps       OnlineBookingStep[]
 
   @@unique([accountId, sessionKey])
   @@index([accountId, startedAt])
@@ -2087,30 +2200,25 @@ model OnlineBookingSession {
 }
 
 model OnlineBookingStep {
-  id Int @id @default(autoincrement())
-  sessionId Int
-  accountId Int
-  stepKey String
-  stepIndex Int
-  stepTitle String?
-  scenario String?
-  locationId Int?
-  serviceId Int?
+  id           Int      @id @default(autoincrement())
+  sessionId    Int
+  accountId    Int
+  stepKey      String
+  stepIndex    Int
+  stepTitle    String?
+  scenario     String?
+  locationId   Int?
+  serviceId    Int?
   specialistId Int?
-  date String?
-  time String?
-  payload Json?
-  createdAt DateTime @default(now())
+  date         String?
+  time         String?
+  payload      Json?
+  createdAt    DateTime @default(now())
 
   session OnlineBookingSession @relation(fields: [sessionId], references: [id])
-  account Account @relation(fields: [accountId], references: [id])
+  account Account              @relation(fields: [accountId], references: [id])
 
   @@index([accountId, createdAt])
   @@index([sessionId, createdAt])
   @@index([accountId, stepKey])
 }
-
-
-
-
-

@@ -8,26 +8,28 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as {
     email?: string;
     password?: string;
+    accountId?: number;
   } | null;
 
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
+  const accountId = Number(body?.accountId ?? 0);
 
-  if (!email || !password) {
+  if (!email || !password || !Number.isInteger(accountId) || accountId <= 0) {
     return jsonError(
       "VALIDATION_FAILED",
-      "Email и пароль обязательны",
-      { fields: ["email", "password"] },
+      "Email, пароль и аккаунт обязательны",
+      { fields: ["email", "password", "accountId"] },
       400
     );
   }
 
   const limited = enforceRateLimit({
     request,
-    scope: "auth:crm-login",
+    scope: "auth:crm-select-account",
     limit: 12,
     windowMs: 10 * 60 * 1000,
-    identity: email,
+    identity: `${email.toLowerCase()}:${accountId}`,
   });
   if (limited) return limited;
 
@@ -53,7 +55,12 @@ export async function POST(request: Request) {
     },
   });
 
-  if (!identity || !identity.passwordHash || !identity.passwordSalt || !identity.user) {
+  if (
+    !identity ||
+    !identity.passwordHash ||
+    !identity.passwordSalt ||
+    !identity.user
+  ) {
     return jsonError("INVALID_CREDENTIALS", "Неверный email или пароль", {}, 401);
   }
 
@@ -71,41 +78,19 @@ export async function POST(request: Request) {
     return jsonError("INVALID_CREDENTIALS", "Неверный email или пароль", {}, 401);
   }
 
-  const assignments = identity.user.roleAssignments.filter(
-    (item) => item.account.status === "ACTIVE"
+  const assignment = identity.user.roleAssignments.find(
+    (item) => item.accountId === accountId && item.account.status === "ACTIVE"
   );
 
-  if (assignments.length === 0) {
+  if (!assignment) {
     return jsonError("FORBIDDEN", "Нет доступа к аккаунту", {}, 403);
   }
-
-  const accountOptions = assignments.map((assignment) => ({
-    account: {
-      id: assignment.account.id,
-      name: assignment.account.name,
-      slug: assignment.account.slug,
-    },
-    role: assignment.role.name,
-    permissions:
-      assignment.role.permissions.map(
-        (rolePermission) => rolePermission.permission.key
-      ) ?? [],
-  }));
-
-  if (accountOptions.length > 1) {
-    return jsonOk({
-      requiresAccountSelection: true,
-      accounts: accountOptions.map((item) => item.account),
-    });
-  }
-
-  const selected = accountOptions[0]!;
 
   await prisma.userSession.deleteMany({
     where: {
       userId: identity.userId,
       sessionType: "CRM",
-      accountId: selected.account.id,
+      accountId,
     },
   });
 
@@ -113,7 +98,7 @@ export async function POST(request: Request) {
     await createSession({
       userId: identity.userId,
       sessionType: "CRM",
-      accountId: selected.account.id,
+      accountId,
     });
 
   const cookieStore = await cookies();
@@ -134,15 +119,21 @@ export async function POST(request: Request) {
     expires: refreshExpiresAt,
   });
 
+  const permissions =
+    assignment.role.permissions.map((rolePermission) => rolePermission.permission.key) ?? [];
+
   return jsonOk({
-    requiresAccountSelection: false,
     user: {
       id: identity.userId,
       email: identity.user.email ?? identity.email,
     },
-    account: selected.account,
-    role: selected.role,
-    permissions: selected.permissions,
+    account: {
+      id: assignment.account.id,
+      name: assignment.account.name,
+      slug: assignment.account.slug,
+    },
+    role: assignment.role.name,
+    permissions,
     accessExpiresAt: accessExpiresAt.toISOString(),
     refreshExpiresAt: refreshExpiresAt.toISOString(),
   });

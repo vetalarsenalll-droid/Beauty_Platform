@@ -13,7 +13,11 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  if (pathname.startsWith("/crm") && pathname !== "/crm/login") {
+  if (
+    pathname.startsWith("/crm") &&
+    pathname !== "/crm/login" &&
+    pathname !== "/crm/register"
+  ) {
     const access = request.cookies.get("bp_crm_access");
     const refresh = request.cookies.get("bp_crm_refresh");
     if (!access && !refresh) {

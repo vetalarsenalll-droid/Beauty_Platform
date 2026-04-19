@@ -18,6 +18,8 @@
     "test:aisha-dialogs:super": "node scripts/aisha-dialog-regression.mjs --suite=super",
     "test:aisha-dialogs:matrix": "node scripts/aisha-dialog-matrix.mjs",
     "test:aisha-dialogs:max": "npm run test:aisha-dialogs && npm run test:aisha-dialogs:super && npm run test:aisha-dialogs:matrix",
+    "test:business-registration-plan": "node scripts/business-registration-plan-tests.mjs",
+    "check:business-catalog-compat": "node scripts/check-business-catalog-compatibility.mjs",
     "seed:ru": "node scripts/reseed-russian-salon.js",
     "seed:ru:full": "node scripts/reseed-russian-salon-full.js"
   },

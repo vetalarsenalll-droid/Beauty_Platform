@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ type PlanOption = {
 type AccountRowActionsProps = {
   accountId: number;
   status: string;
+  onboardingStatus: string;
   planId: number | null;
   plans: PlanOption[];
 };
@@ -24,15 +25,16 @@ const statusLabels: Record<string, string> = {
 export default function AccountRowActions({
   accountId,
   status,
+  onboardingStatus,
   planId,
   plans,
 }: AccountRowActionsProps) {
   const router = useRouter();
   const [currentStatus, setCurrentStatus] = useState(status);
-  const [currentPlan, setCurrentPlan] = useState(
-    planId !== null ? String(planId) : ""
-  );
+  const [currentPlan, setCurrentPlan] = useState(planId !== null ? String(planId) : "");
   const [saving, setSaving] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
 
   const save = async () => {
     setSaving(true);
@@ -47,21 +49,51 @@ export default function AccountRowActions({
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        const message =
-          payload?.error?.message ??
-          "Не удалось обновить данные аккаунта.";
+        const message = payload?.error?.message ?? "Не удалось обновить данные аккаунта.";
         alert(message);
         return;
       }
       if (payload?.data?.status) {
         setCurrentStatus(payload.data.status);
       }
-      const nextPlanId =
-        payload?.data?.plan?.id ?? payload?.data?.planId ?? null;
+      const nextPlanId = payload?.data?.plan?.id ?? payload?.data?.planId ?? null;
       setCurrentPlan(nextPlanId !== null ? String(nextPlanId) : "");
       router.refresh();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const invite = async () => {
+    if (!inviteEmail.trim()) {
+      alert("Укажите email для приглашения");
+      return;
+    }
+
+    setInviting(true);
+    try {
+      const response = await fetch(`/api/v1/platform/accounts/${accountId}/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload?.error?.message ?? "Не удалось отправить приглашение.";
+        alert(message);
+        return;
+      }
+
+      const inviteUrl = payload?.data?.inviteUrl;
+      if (inviteUrl) {
+        alert(`Приглашение сформировано.\n${inviteUrl}`);
+      } else {
+        alert("Приглашение отправлено.");
+      }
+      setInviteEmail("");
+      router.refresh();
+    } finally {
+      setInviting(false);
     }
   };
 
@@ -78,6 +110,7 @@ export default function AccountRowActions({
           </option>
         ))}
       </select>
+
       <select
         value={currentPlan}
         onChange={(event) => setCurrentPlan(event.target.value)}
@@ -90,6 +123,7 @@ export default function AccountRowActions({
           </option>
         ))}
       </select>
+
       <button
         type="button"
         onClick={save}
@@ -98,6 +132,26 @@ export default function AccountRowActions({
       >
         {saving ? "..." : "Сохранить"}
       </button>
+
+      {onboardingStatus !== "ACTIVE" ? (
+        <>
+          <input
+            type="email"
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            placeholder="email приглашения"
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs text-[color:var(--bp-ink)]"
+          />
+          <button
+            type="button"
+            onClick={invite}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-1 text-xs"
+            disabled={inviting}
+          >
+            {inviting ? "..." : "Пригласить"}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }
