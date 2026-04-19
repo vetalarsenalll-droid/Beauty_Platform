@@ -1,52 +1,15 @@
-﻿import { SOCIAL_LABELS } from "@/features/site-builder/crm/site-client-core";
-import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
+﻿import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-
-type SocialKey = keyof typeof SOCIAL_LABELS;
 
 type ImageSource = {
   type?: string;
   url?: string;
 };
 
-function resolveSocialHrefByKey(accountProfile: CrmPanelCtx["accountProfile"], key: SocialKey): string | null {
-  const rawValue =
-    key === "website"
-      ? accountProfile.websiteUrl
-      : key === "instagram"
-        ? accountProfile.instagramUrl
-        : key === "whatsapp"
-          ? accountProfile.whatsappUrl
-          : key === "telegram"
-            ? accountProfile.telegramUrl
-            : key === "max"
-              ? accountProfile.maxUrl
-              : key === "vk"
-                ? accountProfile.vkUrl
-                : key === "viber"
-                  ? accountProfile.viberUrl
-                  : key === "pinterest"
-                    ? accountProfile.pinterestUrl
-                    : key === "facebook"
-                      ? accountProfile.facebookUrl
-                      : key === "tiktok"
-                        ? accountProfile.tiktokUrl
-                        : key === "youtube"
-                          ? accountProfile.youtubeUrl
-                          : key === "twitter"
-                            ? accountProfile.twitterUrl
-                            : key === "dzen"
-                              ? accountProfile.dzenUrl
-                              : accountProfile.okUrl;
-  const trimmed = typeof rawValue === "string" ? rawValue.trim() : "";
-  if (!trimmed) return null;
-  return trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`;
-}
-
-export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
+export function CoverV3ContentPanel(ctx: CrmPanelCtx) {
   const block = ctx.block;
   const updateData = (patch: Record<string, unknown>) =>
     ctx.updateBlock(block.id, (prev) => ({
@@ -67,7 +30,9 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
   const imageSource: ImageSource = (block.data.imageSource as ImageSource) ?? { type: "none" };
   const previewUrl =
     imageSource.type === "custom"
-      ? (imageSource.url && imageSource.url.trim().length > 0 ? imageSource.url : "")
+      ? imageSource.url && imageSource.url.trim().length > 0
+        ? imageSource.url
+        : ""
       : imageSource.type === "account"
         ? (ctx.branding.coverUrl ?? "")
         : "";
@@ -189,22 +154,6 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
     }
   };
 
-  const availableSecondarySources = (Object.keys(SOCIAL_LABELS) as SocialKey[]).filter((key) =>
-    Boolean(resolveSocialHrefByKey(ctx.accountProfile, key))
-  );
-  const showSecondaryButton = block.data.showSecondaryButton === true || block.data.showSecondaryButton === "true";
-  const secondaryButtonSource = (block.data.secondaryButtonSource as string) ?? "";
-  const effectiveSecondaryButtonSource = secondaryButtonSource === "auto" ? "" : secondaryButtonSource;
-  const selectedSecondarySourceMissing =
-    effectiveSecondaryButtonSource !== "" &&
-    !(availableSecondarySources as string[]).includes(effectiveSecondaryButtonSource);
-
-  useEffect(() => {
-    if (secondaryButtonSource === "auto") {
-      updateData({ secondaryButtonSource: "" });
-    }
-  }, [secondaryButtonSource]);
-
   return (
     <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
       {renderCoverFlatTextInput(
@@ -239,67 +188,6 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
           (value) => updateData({ buttonText: value })
         )}
       </div>
-
-      <FlatCheckbox
-        checked={showSecondaryButton}
-        onChange={(checked) => updateData({ showSecondaryButton: checked })}
-        label="Показывать вторую кнопку (соцсети)"
-      />
-      {showSecondaryButton && (
-        <>
-          {renderCoverFlatTextInput(
-            "Текст второй кнопки",
-            (block.data.secondaryButtonText as string) ?? "Наши соцсети",
-            (value) => updateData({ secondaryButtonText: value })
-          )}
-          {renderCoverFlatTextInput(
-            "Ссылка кнопки (внешняя)",
-            (block.data.secondaryButtonHref as string) ?? "",
-            (value) => updateData({ secondaryButtonHref: value })
-          )}
-          <label className="block">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-              Ссылка второй кнопки
-            </div>
-            <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-              <select
-                value={effectiveSecondaryButtonSource}
-                onChange={(event) => updateData({ secondaryButtonSource: event.target.value })}
-                className="w-full appearance-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
-                style={{
-                  border: 0,
-                  borderRadius: 0,
-                  backgroundColor: "transparent",
-                  boxShadow: "none",
-                  WebkitAppearance: "none",
-                  MozAppearance: "none",
-                  appearance: "none",
-                }}
-              >
-                <option value="">Не выбрано</option>
-                {selectedSecondarySourceMissing && (
-                  <option value={effectiveSecondaryButtonSource}>
-                    {effectiveSecondaryButtonSource} (не заполнено в профиле)
-                  </option>
-                )}
-                {availableSecondarySources.map((key) => (
-                  <option key={key} value={key}>
-                    {SOCIAL_LABELS[key]}
-                  </option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-                ▾
-              </span>
-            </div>
-          </label>
-          {availableSecondarySources.length === 0 && (
-            <div className="text-xs text-[color:var(--bp-muted)]">
-              В профиле аккаунта нет заполненных ссылок для второй кнопки.
-            </div>
-          )}
-        </>
-      )}
 
       <div className="space-y-2">
         <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -439,7 +327,6 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                       <path d="M14 11v6" />
                     </svg>
                   </button>
-
                 </div>
               );
             })}
@@ -459,9 +346,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                 className="w-full max-w-[460px] rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="text-base font-semibold leading-5">
-                  Вы уверены, что хотите удалить изображение?
-                </div>
+                <div className="text-base font-semibold leading-5">Вы уверены, что хотите удалить изображение?</div>
                 <div className="mt-3 flex items-center justify-end gap-2">
                   <button
                     type="button"

@@ -6,7 +6,7 @@ import { resolveCoverSettings } from "@/features/site-builder/crm/cover-settings
 import { SiteCoverSettingsPrimary } from "@/features/site-builder/crm/site-cover-settings-primary";
 import { SiteCoverDrawerSections } from "@/features/site-builder/crm/site-cover-drawer-sections";
 import { renderGenericSettingsPanel } from "../../runtime/ui/generic-settings-panel";
-import { CoverV1ContentPanel } from "../HE001/content-panel";
+import { CoverV3ContentPanel } from "./content-panel";
 
 function updateSelected(ctx: CrmPanelCtx, next: unknown) {
   ctx.updateBlock(ctx.block.id, () => next as typeof ctx.block);
@@ -82,7 +82,7 @@ export const HE003: BlockVersion = {
   renderPublic: () => "",
   contentPanel: (ctx) => (
     <div className="px-1 pb-8 pt-1">
-      <CoverV1ContentPanel {...ctx} />
+      <CoverV3ContentPanel {...ctx} />
     </div>
   ),
   settingsPanel: (ctx) => {

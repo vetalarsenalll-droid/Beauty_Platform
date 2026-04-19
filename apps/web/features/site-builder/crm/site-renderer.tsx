@@ -3157,16 +3157,38 @@ export function renderCover(
       splitBackground,
       theme.mode === "dark" ? "dark" : "light"
     );
+    const backgroundModeRaw =
+      theme.mode === "dark"
+        ? typeof data.coverBackgroundModeDark === "string"
+          ? data.coverBackgroundModeDark
+          : data.coverBackgroundMode
+        : typeof data.coverBackgroundMode === "string"
+          ? data.coverBackgroundMode
+          : data.coverBackgroundModeDark;
+    const isGradientMode = backgroundModeRaw === "linear" || backgroundModeRaw === "radial";
+    const hasGradientBackground =
+      isGradientMode && typeof textPanelBackground.backgroundImage === "string";
+    const sectionBackground = hasGradientBackground
+      ? textPanelBackground
+      : { backgroundColor: "transparent", backgroundImage: "none" };
     const imagePanelBackground =
       coverImageInsetPx > 0
-        ? textPanelBackground
+        ? hasGradientBackground
+          ? { backgroundColor: "transparent", backgroundImage: "none" }
+          : textPanelBackground
         : { backgroundColor: "transparent", backgroundImage: "none" };
+    const textColumnBackground = hasGradientBackground
+      ? { backgroundColor: "transparent", backgroundImage: "none" }
+      : textPanelBackground;
 
     return (
       <section
         className="relative overflow-hidden"
         style={{
+          height: coverHeightCss,
           minHeight: coverHeightCss,
+          backgroundColor: sectionBackground.backgroundColor,
+          backgroundImage: sectionBackground.backgroundImage,
         }}
       >
         <div
@@ -3174,6 +3196,7 @@ export function renderCover(
             coverFlipHorizontal ? "md:flex-row-reverse" : "md:flex-row"
           }`}
           style={{
+            height: coverHeightCss,
             minHeight: coverHeightCss,
             width: "100%",
           }}
@@ -3217,8 +3240,8 @@ export function renderCover(
               height: coverHeightCss,
               minHeight: coverHeightCss,
               padding: forceMobileLayout ? "40px 20px" : "56px 64px 56px 56px",
-              backgroundColor: textPanelBackground.backgroundColor,
-              backgroundImage: textPanelBackground.backgroundImage,
+              backgroundColor: textColumnBackground.backgroundColor,
+              backgroundImage: textColumnBackground.backgroundImage,
               boxSizing: "border-box",
             }}
           >

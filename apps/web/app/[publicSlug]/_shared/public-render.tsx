@@ -1380,16 +1380,28 @@ function renderCover(
       splitBackground,
       theme.mode === "dark" ? "dark" : "light"
     );
+    const hasGradientBackground = textPanelBackground.backgroundImage !== "none";
+    const sectionBackground = hasGradientBackground
+      ? textPanelBackground
+      : { backgroundColor: "transparent", backgroundImage: "none" };
     const imagePanelBackground =
       coverImageInsetPx > 0
-        ? textPanelBackground
+        ? hasGradientBackground
+          ? { backgroundColor: "transparent", backgroundImage: "none" }
+          : textPanelBackground
         : { backgroundColor: "transparent", backgroundImage: "none" };
+    const textColumnBackground = hasGradientBackground
+      ? { backgroundColor: "transparent", backgroundImage: "none" }
+      : textPanelBackground;
 
     return (
       <section
         className="relative overflow-hidden"
         style={{
+          height: coverHeightCss,
           minHeight: coverHeightCss,
+          backgroundColor: sectionBackground.backgroundColor,
+          backgroundImage: sectionBackground.backgroundImage,
         }}
       >
         <div
@@ -1397,6 +1409,7 @@ function renderCover(
             coverFlipHorizontal ? "md:flex-row-reverse" : "md:flex-row"
           }`}
           style={{
+            height: coverHeightCss,
             minHeight: coverHeightCss,
             width: "100%",
           }}
@@ -1439,8 +1452,8 @@ function renderCover(
               alignItems: textVerticalAlignItems,
               height: "100%",
               minHeight: coverHeightCss,
-              backgroundColor: textPanelBackground.backgroundColor,
-              backgroundImage: textPanelBackground.backgroundImage,
+              backgroundColor: textColumnBackground.backgroundColor,
+              backgroundImage: textColumnBackground.backgroundImage,
               boxSizing: "border-box",
             }}
           >
