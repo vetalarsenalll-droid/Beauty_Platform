@@ -171,11 +171,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
           : { ...defaultBlockStyle };
       block.data = {
         ...block.data,
-        title: "Удобная онлайн-запись",
-        subtitle: "Выберите услугу и удобное время",
-        description: "Записывайтесь к специалистам онлайн без звонков и ожидания.",
-        showButton: true,
-        buttonText: "Записаться онлайн",
+        secondaryButtonSource: "",
         align: "left",
         coverImageInsetPx: 0,
         coverImageRadiusPx: 0,

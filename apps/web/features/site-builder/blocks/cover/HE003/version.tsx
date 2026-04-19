@@ -42,8 +42,6 @@ export const HE003: BlockVersion = {
       data: {
         ...base,
         title: "Онлайн-запись",
-        subtitle: "Выберите услугу и удобное время",
-        description: "Записывайтесь к специалистам онлайн без звонков и ожидания.",
         showButton: true,
         buttonText: "Записаться онлайн",
         secondaryButtonSource: "",
@@ -53,6 +51,7 @@ export const HE003: BlockVersion = {
         coverImageRadiusPx: 0,
         coverFlipHorizontal: false,
         coverContentVerticalAlign: "center",
+        align: "left",
         style: {
           ...defaultBlockStyle,
           ...baseStyle,
