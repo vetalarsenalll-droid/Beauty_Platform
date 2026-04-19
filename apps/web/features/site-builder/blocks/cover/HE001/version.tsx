@@ -23,7 +23,7 @@ export const HE001: BlockVersion = {
     }
     return data;
   },
-  createDefault: ({ accountName }) => {
+  createDefault: () => {
     const base = (defaultBlockData.cover ?? {}) as Record<string, unknown>;
     const baseStyle =
       typeof base.style === "object" && base.style ? (base.style as Record<string, unknown>) : {};
@@ -33,7 +33,7 @@ export const HE001: BlockVersion = {
       variant: "v1",
       data: {
         ...base,
-        title: accountName,
+        title: "Онлайн-запись",
         secondaryButtonSource: "",
         style: { ...defaultBlockStyle, ...baseStyle },
       },

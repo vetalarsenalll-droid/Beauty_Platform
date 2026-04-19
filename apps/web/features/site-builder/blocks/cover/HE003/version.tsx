@@ -41,11 +41,11 @@ export const HE003: BlockVersion = {
       variant: "v3",
       data: {
         ...base,
-        title: "Северная Орхидея — пространство красоты и ухода",
-        subtitle: "Быстрая онлайн-запись к мастерам, которым доверяют",
-        description: "Выберите услугу, специалиста и удобное время за пару кликов.",
+        title: "Онлайн-запись",
+        subtitle: "Выберите услугу и удобное время",
+        description: "Записывайтесь к специалистам онлайн без звонков и ожидания.",
         showButton: true,
-        buttonText: "Записаться",
+        buttonText: "Записаться онлайн",
         secondaryButtonSource: "",
         coverSubtitleColor: "#000000",
         coverDescriptionColor: "#000000",
@@ -194,4 +194,3 @@ export const HE003: BlockVersion = {
   },
   actions: () => {},
 };
-

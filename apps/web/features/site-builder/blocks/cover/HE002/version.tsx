@@ -16,7 +16,7 @@ export const HE002: BlockVersion = {
   blockCode: "HE002",
   normalizeData: (input) =>
     typeof input === "object" && input ? (input as Record<string, unknown>) : {},
-  createDefault: ({ accountName }) => {
+  createDefault: () => {
     const base = (defaultBlockData.cover ?? {}) as Record<string, unknown>;
     const baseStyle =
       typeof base.style === "object" && base.style ? (base.style as Record<string, unknown>) : {};
@@ -26,7 +26,7 @@ export const HE002: BlockVersion = {
       variant: "v2",
       data: {
         ...base,
-        title: accountName,
+        title: "Онлайн-запись",
         align: "center",
         style: {
           ...defaultBlockStyle,

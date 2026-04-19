@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+﻿import type { Dispatch, SetStateAction } from "react";
 import type {
   BlockType,
   SiteBlock,
@@ -171,11 +171,11 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
           : { ...defaultBlockStyle };
       block.data = {
         ...block.data,
-        title: "Северная Орхидея — пространство красоты и ухода",
-        subtitle: "Быстрая онлайн-запись к мастерам, которым доверяют",
-        description: "Выберите услугу, специалиста и удобное время за пару кликов.",
+        title: "Удобная онлайн-запись",
+        subtitle: "Выберите услугу и удобное время",
+        description: "Записывайтесь к специалистам онлайн без звонков и ожидания.",
         showButton: true,
-        buttonText: "Записаться",
+        buttonText: "Записаться онлайн",
         align: "left",
         coverImageInsetPx: 0,
         coverImageRadiusPx: 0,
@@ -397,4 +397,5 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     saveDraftSilently,
   };
 }
+
 

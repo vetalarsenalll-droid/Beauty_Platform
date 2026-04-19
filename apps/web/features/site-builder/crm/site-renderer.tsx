@@ -2521,7 +2521,7 @@ export function renderCover(
   const resolveAnimClass = (value: string) => (value && value !== "none" ? `bp-anim bp-anim-${value}` : "");
   const resolveAnimStyle = (value: string, delayMs: number) =>
     value && value !== "none" ? ({ animationDelay: `${delayMs}ms` } as CSSProperties) : undefined;
-  const title = (data.title as string) || account.name;
+  const title = (data.title as string) || "Онлайн-запись";
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
   const align = (data.align as "left" | "center" | "right") ?? style.textAlign;
@@ -3009,23 +3009,8 @@ export function renderCover(
       const slideButtonHref =
         typeof slide.buttonHref === "string" ? slide.buttonHref.trim() : "";
       const slideImage = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
-      const localizedTitle =
-        slideTitle === "A TRUE NORTHERN PLAYA"
-          ? "Красота без компромиссов"
-          : slideTitle === "GETTING HERE AND AROUND"
-            ? "Услуги для вашего образа"
-            : slideTitle === "LAKELAND ROUTES"
-              ? "Сильная команда мастеров"
-              : slideTitle;
-      const localizedDescription =
-        slideDescription ===
-        "Get around by train, bus, car, ferry, cruise ship, bicycle, skis, or sleigh."
-          ? "Запишитесь на любимую услугу в удобное время и доверяйте себя профессионалам."
-          : slideDescription === "Relax and enjoy yourself!"
-            ? "Стрижки, окрашивание, уход и макияж в одном салоне с персональным подходом."
-            : slideDescription === "Explore nearby locations with comfort and style."
-              ? "Выберите специалиста по рейтингу, портфолио и свободному времени."
-              : slideDescription;
+      const localizedTitle = slideTitle;
+      const localizedDescription = slideDescription;
       const localizedButtonText = slideButtonText === "Read more" ? "Подробнее" : slideButtonText;
       const resolvedPageHref = resolveCoverSlideTargetHref(
         slideButtonPageRaw,
@@ -3056,7 +3041,7 @@ export function renderCover(
       : [
           {
             id: "slide-fallback",
-            title: title || account.name,
+            title: title || "Онлайн-запись",
             description: description || subtitle,
             buttonText: buttonText || "Подробнее",
             buttonHref: account.publicSlug ? buildBookingLink({ publicSlug: account.publicSlug }) : "#",

@@ -392,9 +392,9 @@ export const defaultBlockStyle = {
 export const defaultBlockData: Record<string, Record<string, unknown>> = {
   cover: {
     title: "",
-    subtitle: "Онлайн-запись и лучшие специалисты рядом",
-    description: "Выберите услугу, специалиста и удобное время.",
-    buttonText: "Записаться",
+    subtitle: "Онлайн-запись по услугам, специалистам и слотам",
+    description: "Выберите услугу, специалиста или группу и удобное время.",
+    buttonText: "Записаться онлайн",
     showButton: true,
     secondaryButtonText: "Наши соцсети",
     showSecondaryButton: false,
@@ -434,8 +434,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     coverSlides: [
       {
         id: "slide-1",
-        title: "Красота без компромиссов",
-        description: "Запишитесь на любимую услугу в удобное время и доверяйте себя профессионалам.",
+        title: "Удобная онлайн-запись",
+        description: "Клиенты выбирают услугу и время, а заявки сразу попадают в расписание.",
         buttonText: "Подробнее",
         buttonPage: "",
         buttonHref: "",
@@ -443,8 +443,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
       },
       {
         id: "slide-2",
-        title: "Услуги для вашего образа",
-        description: "Стрижки, окрашивание, уход и макияж в одном салоне с персональным подходом.",
+        title: "Услуги и специалисты",
+        description: "Покажите направления, специалистов и свободные слоты в одном интерфейсе.",
         buttonText: "Подробнее",
         buttonPage: "",
         buttonHref: "",
@@ -452,8 +452,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
       },
       {
         id: "slide-3",
-        title: "Сильная команда мастеров",
-        description: "Выберите специалиста по рейтингу, портфолио и свободному времени.",
+        title: "Группы и индивидуально",
+        description: "Поддерживайте как индивидуальные записи, так и групповые занятия.",
         buttonText: "Подробнее",
         buttonPage: "",
         buttonHref: "",

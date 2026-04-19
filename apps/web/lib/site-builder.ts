@@ -735,10 +735,10 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       type: "cover",
       variant: "v1",
       data: {
-        title: safeAccountName,
-        subtitle: "Онлайн-запись и лучшие специалисты рядом",
-        description: "Выберите услугу, специалиста и удобное время.",
-        buttonText: "Записаться",
+        title: "Онлайн-запись",
+        subtitle: "Онлайн-запись по услугам, специалистам и слотам",
+        description: "Выберите услугу, специалиста или группу и удобное время.",
+        buttonText: "Записаться онлайн",
         showButton: true,
         secondaryButtonText: "Наши соцсети",
         showSecondaryButton: false,
@@ -1002,7 +1002,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
         if (block.type === "cover") {
           const rawTitle = typeof safeData.title === "string" ? safeData.title.trim() : "";
           if (!rawTitle || rawTitle.toLowerCase() === DEFAULT_ACCOUNT_NAME.toLowerCase()) {
-            safeData.title = safeAccountName;
+            safeData.title = "Онлайн-запись";
           }
         }
         if (safeData.style && typeof safeData.style === "object") {
