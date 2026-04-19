@@ -74,9 +74,9 @@ export function resolveCoverSettings({
     typeof coverData?.coverScrollHeight === "string" ? coverData.coverScrollHeight.trim() : "";
   const coverScrollHeight = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverScrollHeightRaw)
     ? coverScrollHeightRaw
-    : "700px";
+    : "900px";
   const pxMatch = coverScrollHeight.match(/^(\d+(?:\.\d+)?)px$/i);
-  const coverScrollHeightPx = pxMatch ? Math.max(0, Math.round(Number(pxMatch[1]))) : 700;
+  const coverScrollHeightPx = pxMatch ? Math.max(0, Math.round(Number(pxMatch[1]))) : 900;
   const coverFilterStartColorRaw =
     typeof coverData?.coverFilterStartColor === "string"
       ? coverData.coverFilterStartColor.trim()

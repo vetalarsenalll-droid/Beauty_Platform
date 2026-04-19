@@ -973,7 +973,7 @@ function renderCover(
     typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
   const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
     ? coverHeightRawValue
-    : "700px";
+    : "900px";
   const filterStartColorRaw =
     typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
   const filterStartColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(filterStartColorRaw)
@@ -1380,7 +1380,17 @@ function renderCover(
       splitBackground,
       theme.mode === "dark" ? "dark" : "light"
     );
-    const hasGradientBackground = textPanelBackground.backgroundImage !== "none";
+    const backgroundModeRaw =
+      theme.mode === "dark"
+        ? typeof data.coverBackgroundModeDark === "string"
+          ? data.coverBackgroundModeDark
+          : data.coverBackgroundMode
+        : typeof data.coverBackgroundMode === "string"
+          ? data.coverBackgroundMode
+          : data.coverBackgroundModeDark;
+    const isGradientMode = backgroundModeRaw === "linear" || backgroundModeRaw === "radial";
+    const hasGradientBackground =
+      isGradientMode && typeof textPanelBackground.backgroundImage === "string";
     const sectionBackground = hasGradientBackground
       ? textPanelBackground
       : { backgroundColor: "transparent", backgroundImage: "none" };
@@ -1627,8 +1637,10 @@ function renderCover(
         ...(showMotionLayer
           ? { backgroundColor: "transparent", backgroundImage: "none" }
           : backgroundStyle),
+        height: coverHeightCss,
         minHeight: coverHeightCss,
         containerType: "inline-size",
+        boxSizing: "border-box",
       }}
     >
       {showMotionLayer && (
@@ -1638,7 +1650,7 @@ function renderCover(
         />
       )}
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: overlayGradient }} />
-      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: coverHeightCss }}>
+      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ height: "100%", minHeight: "100%" }}>
         <div
           className="bp-cover-content w-full"
           style={{

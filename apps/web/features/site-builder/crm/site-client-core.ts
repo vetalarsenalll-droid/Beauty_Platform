@@ -401,7 +401,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     secondaryButtonSource: "auto",
     secondaryButtonHref: "",
     coverScrollEffect: "none",
-    coverScrollHeight: "700px",
+    coverScrollHeight: "900px",
     coverFilterStartColor: "#000000",
     coverFilterStartOpacity: 10,
     coverFilterStartColorDark: "#000000",

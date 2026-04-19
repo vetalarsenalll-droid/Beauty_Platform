@@ -2302,17 +2302,20 @@ function CoverVariantV2Hero({
     <section
       className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
       style={{
+        height: coverHeightCss,
         minHeight: coverHeightCss,
         backgroundImage: current.imageUrl ? `url(${current.imageUrl})` : "none",
         backgroundSize: "cover",
         backgroundPosition: coverBackgroundPosition,
+        boxSizing: "border-box",
       }}
     >
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
       <div
         className="relative z-[1] mx-auto flex w-full"
         style={{
-          minHeight: coverHeightCss,
+          height: "100%",
+          minHeight: "100%",
           alignItems:
             contentVerticalAlign === "top"
               ? "flex-start"
@@ -2715,7 +2718,7 @@ export function renderCover(
     typeof data.coverScrollHeight === "string" ? data.coverScrollHeight.trim() : "";
   const coverHeightCss = /^(?:\d+(?:\.\d+)?)(?:px|vh)$/i.test(coverHeightRawValue)
     ? coverHeightRawValue
-    : "700px";
+    : "900px";
   const filterStartColorLightRaw =
     typeof data.coverFilterStartColor === "string" ? data.coverFilterStartColor.trim() : "";
   const filterStartColorDarkRaw =
@@ -3423,8 +3426,10 @@ export function renderCover(
         ...(showMotionLayer
           ? { backgroundColor: "transparent", backgroundImage: "none" }
           : backgroundStyle),
+        height: coverHeightCss,
         minHeight: coverHeightCss,
         containerType: "inline-size",
+        boxSizing: "border-box",
       }}
     >
       {showMotionLayer && (
@@ -3441,7 +3446,7 @@ export function renderCover(
         />
       )}
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
-      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ minHeight: coverHeightCss }}>
+      <div className="relative z-[1] mx-auto flex w-full items-center" style={{ height: "100%", minHeight: "100%" }}>
         <div
           className="bp-cover-content w-full"
           style={{

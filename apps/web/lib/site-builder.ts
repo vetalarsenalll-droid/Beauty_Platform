@@ -744,7 +744,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         showSecondaryButton: false,
         secondaryButtonSource: "auto",
         coverScrollEffect: "none",
-        coverScrollHeight: "700px",
+        coverScrollHeight: "900px",
         coverFilterStartColor: "#000000",
         coverFilterStartOpacity: 10,
         coverFilterStartColorDark: "#000000",
