@@ -1518,6 +1518,7 @@ export function BlockStyleEditor({
     coverDescriptionColorInput || "#ffffff"
   );
   const [coverTypographyDarkOpen, setCoverTypographyDarkOpen] = useState(false);
+  const [menuColorsDarkOpen, setMenuColorsDarkOpen] = useState(false);
   const renderFlatSelect = (
     label: string,
     value: string,
@@ -2423,11 +2424,33 @@ export function BlockStyleEditor({
         </div>
       )}
       {inSection("colors") && (
-      <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Темная тема
-        </div>
+      <div className={block.type === "menu" ? "mt-4" : "mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3"}>
+        {block.type !== "menu" && (
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+            Темная тема
+          </div>
+        )}
         {block.type === "menu" ? (
+          <>
+          <button
+            type="button"
+            onClick={() => setMenuColorsDarkOpen((prev) => !prev)}
+            className="mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: menuColorsDarkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: menuColorsDarkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{menuColorsDarkOpen ? "▴" : "▾"}</span>
+          </button>
+          {menuColorsDarkOpen && (
           <div className="mt-3 space-y-3">
             {(() => {
               const data = block.data as Record<string, unknown>;
@@ -2559,6 +2582,8 @@ export function BlockStyleEditor({
               onChange={(value) => update({ shadowSize: value })}
             />
           </div>
+          )}
+          </>
         ) : (
         <div className="mt-3 grid grid-cols-2 gap-3">
               <ColorField

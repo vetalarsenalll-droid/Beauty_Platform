@@ -3,10 +3,8 @@ import {
   PAGE_KEYS,
   PAGE_LABELS,
   SOCIAL_LABELS,
-  type EditorSection,
 } from "@/features/site-builder/crm/site-client-core";
 import {
-  FieldText,
   FlatCheckbox,
 } from "@/features/site-builder/crm/site-renderer";
 import type { CrmPanelCtx } from "../../runtime/contracts";
@@ -35,6 +33,64 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
       data: { ...(prev.data as Record<string, unknown>), ...patch },
     }));
   };
+  const renderFlatTextInput = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    placeholder?: string
+  ) => (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <input
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+          }}
+        />
+      </div>
+    </label>
+  );
+  const renderFlatSelect = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void,
+    options: Array<{ value: string; label: string }>
+  ) => (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full appearance-none rounded-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">▾</span>
+      </div>
+    </label>
+  );
 
   return (
     <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
@@ -55,11 +111,11 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
         </div>
       </div>
 
-      <FieldText
-        label="Название компании"
-        value={(block.data.accountTitle as string) ?? ctx.accountName}
-        onChange={(value) => updateData({ accountTitle: value })}
-      />
+      {renderFlatTextInput(
+        "Название компании",
+        (block.data.accountTitle as string) ?? ctx.accountName,
+        (value) => updateData({ accountTitle: value })
+      )}
 
       <div>
         <FlatCheckbox
@@ -69,19 +125,15 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
         />
       </div>
 
-      <label className="block">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Позиция меню
-        </div>
-        <select
-          value={(block.data.position as string) ?? "static"}
-          onChange={(event) => updateData({ position: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="static">Статика</option>
-          <option value="sticky">Фиксация при скролле</option>
-        </select>
-      </label>
+      {renderFlatSelect(
+        "Позиция меню",
+        (block.data.position as string) ?? "static",
+        (value) => updateData({ position: value }),
+        [
+          { value: "static", label: "Статика" },
+          { value: "sticky", label: "Фиксация при скролле" },
+        ]
+      )}
 
       <div className="space-y-2">
         <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
@@ -117,30 +169,26 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
         />
       </div>
 
-      <label className="block">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Действие кнопки
-        </div>
-        <select
-          value={(block.data.ctaMode as string) ?? "booking"}
-          onChange={(event) => updateData({ ctaMode: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="booking">Запись</option>
-          <option value="phone">Телефон</option>
-        </select>
-      </label>
+      {renderFlatSelect(
+        "Действие кнопки",
+        (block.data.ctaMode as string) ?? "booking",
+        (value) => updateData({ ctaMode: value }),
+        [
+          { value: "booking", label: "Запись" },
+          { value: "phone", label: "Телефон" },
+        ]
+      )}
 
-      <FieldText
-        label="Телефон для кнопки"
-        value={(block.data.phoneOverride as string) ?? ""}
-        onChange={(value) => updateData({ phoneOverride: value })}
-      />
-      <FieldText
-        label="Текст кнопки"
-        value={(block.data.buttonText as string) ?? "Записаться"}
-        onChange={(value) => updateData({ buttonText: value })}
-      />
+      {renderFlatTextInput(
+        "Телефон для кнопки",
+        (block.data.phoneOverride as string) ?? "",
+        (value) => updateData({ phoneOverride: value })
+      )}
+      {renderFlatTextInput(
+        "Текст кнопки",
+        (block.data.buttonText as string) ?? "Записаться",
+        (value) => updateData({ buttonText: value })
+      )}
 
       <div className="space-y-2">
         <div>
@@ -173,19 +221,15 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
         </div>
       </div>
 
-      <label className="block">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Соцсети
-        </div>
-        <select
-          value={(block.data.socialsMode as string) ?? "auto"}
-          onChange={(event) => updateData({ socialsMode: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="auto">Из профиля аккаунта</option>
-          <option value="custom">Ввести вручную</option>
-        </select>
-      </label>
+      {renderFlatSelect(
+        "Соцсети",
+        (block.data.socialsMode as string) ?? "auto",
+        (value) => updateData({ socialsMode: value }),
+        [
+          { value: "auto", label: "Из профиля аккаунта" },
+          { value: "custom", label: "Ввести вручную" },
+        ]
+      )}
 
       {Boolean(block.data.showSocials) && (
         <label className="block">
@@ -244,19 +288,16 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
           {(Object.keys(SOCIAL_LABELS) as SocialKey[]).map((key) => {
             const socials = (block.data.socialsCustom as Record<string, string>) ?? {};
             return (
-              <FieldText
-                key={key}
-                label={SOCIAL_LABELS[key]}
-                value={socials[key] ?? ""}
-                onChange={(value) =>
+              <div key={key}>
+                {renderFlatTextInput(SOCIAL_LABELS[key], socials[key] ?? "", (value) =>
                   updateData({
                     socialsCustom: {
                       ...socials,
                       [key]: value,
                     },
                   })
-                }
-              />
+                )}
+              </div>
             );
           })}
         </div>

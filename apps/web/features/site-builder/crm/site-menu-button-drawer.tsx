@@ -1,4 +1,5 @@
-﻿import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
+﻿import { useState } from "react";
+import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type { SiteEditorAccountProfile } from "@/features/site-builder/shared/site-data";
 import type { BlockStyle } from "./site-renderer";
 import { isValidColorValue, normalizeBlockStyle, updateBlockStyle } from "./site-renderer";
@@ -24,6 +25,7 @@ export function SiteMenuButtonDrawer({
   accountProfile,
   updateBlock,
 }: SiteMenuButtonDrawerProps) {
+  const [darkOpen, setDarkOpen] = useState(false);
   const menuData = (selectedBlock.data as Record<string, unknown>) ?? {};
   const ctaMode = (menuData.ctaMode as string) === "phone" ? "phone" : "booking";
   const phoneOverrideRaw =
@@ -42,6 +44,16 @@ export function SiteMenuButtonDrawer({
       : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
         ? menuButtonBorderColorRaw
         : "transparent";
+  const menuButtonBorderColorDarkRaw =
+    typeof menuData.menuButtonBorderColorDark === "string"
+      ? menuData.menuButtonBorderColorDark.trim()
+      : "";
+  const menuButtonBorderColorDark =
+    menuButtonBorderColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : menuButtonBorderColorDarkRaw && isValidColorValue(menuButtonBorderColorDarkRaw)
+        ? menuButtonBorderColorDarkRaw
+        : menuButtonBorderColor;
   const menuButtonRadiusRaw = Number(menuData.menuButtonRadius);
   const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
@@ -187,8 +199,62 @@ export function SiteMenuButtonDrawer({
       {renderCoverFlatNumberInput("Скругление", menuButtonRadius, 0, 80, (value) =>
         updateMenuData({ menuButtonRadius: value })
       )}
+
+      <button
+        type="button"
+        onClick={() => setDarkOpen((prev) => !prev)}
+        className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
+        style={{
+          borderColor: darkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+          backgroundColor: "transparent",
+          color: darkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
+        }}
+      >
+        <span className="inline-flex items-center gap-2">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+          </svg>
+          <span>Темная тема</span>
+        </span>
+        <span className="text-xs">{darkOpen ? "▴" : "▾"}</span>
+      </button>
+
+      {darkOpen && (
+        <>
+          <TildaInlineColorField
+            compact
+            label="Цвет кнопки"
+            value={
+              menuStyle.buttonColorDark ||
+              menuStyle.buttonColor ||
+              activeTheme.darkPalette.buttonColor
+            }
+            onChange={(value) => updateMenuStyle({ buttonColorDark: value })}
+            onClear={() => updateMenuStyle({ buttonColorDark: "" })}
+            placeholder={activeTheme.darkPalette.buttonColor}
+          />
+          <TildaInlineColorField
+            compact
+            label="Текст кнопки"
+            value={
+              menuStyle.buttonTextColorDark ||
+              menuStyle.buttonTextColor ||
+              activeTheme.darkPalette.buttonTextColor
+            }
+            onChange={(value) => updateMenuStyle({ buttonTextColorDark: value })}
+            onClear={() => updateMenuStyle({ buttonTextColorDark: "" })}
+            placeholder={activeTheme.darkPalette.buttonTextColor}
+          />
+          <TildaInlineColorField
+            compact
+            label="Контур кнопки"
+            value={menuButtonBorderColorDark}
+            onChange={(value) => updateMenuData({ menuButtonBorderColorDark: value })}
+            onClear={() => updateMenuData({ menuButtonBorderColorDark: "transparent" })}
+            placeholder="transparent"
+          />
+        </>
+      )}
     </div>
   );
 }
-
-

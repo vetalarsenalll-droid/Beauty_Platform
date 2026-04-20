@@ -1,7 +1,18 @@
-import type { CrmPanelCtx } from "../../runtime/contracts";
-import { MenuSettingsPanel } from "../ME001/settings-panel";
+﻿import type { CrmPanelCtx } from "../../runtime/contracts";
+import { SiteMenuSettingsPrimary } from "@/features/site-builder/crm/site-menu-settings-primary";
 
 export function MenuV3SettingsPanel(ctx: CrmPanelCtx) {
-  return <MenuSettingsPanel {...ctx} />;
+  return (
+    <SiteMenuSettingsPrimary
+      selectedBlock={ctx.block}
+      activeTheme={ctx.activeTheme}
+      panelTheme={ctx.panelTheme}
+      currentPanelSections={ctx.currentPanelSections}
+      activePanelSectionId={ctx.activePanelSectionId}
+      setActivePanelSectionId={ctx.setActivePanelSectionId}
+      updateBlock={ctx.updateBlock}
+    />
+  );
 }
+
 

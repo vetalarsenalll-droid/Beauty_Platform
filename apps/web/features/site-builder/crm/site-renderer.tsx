@@ -2544,6 +2544,16 @@ export function renderCover(
       : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
         ? menuButtonBorderColorRaw
         : "transparent";
+  const menuButtonBorderColorDarkRaw =
+    typeof data.menuButtonBorderColorDark === "string" ? data.menuButtonBorderColorDark.trim() : "";
+  const menuButtonBorderColorDark =
+    menuButtonBorderColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : menuButtonBorderColorDarkRaw && isValidColorValue(menuButtonBorderColorDarkRaw)
+        ? menuButtonBorderColorDarkRaw
+        : menuButtonBorderColor;
+  const menuButtonBorderColorByMode =
+    theme.mode === "dark" ? menuButtonBorderColorDark : menuButtonBorderColor;
   const menuButtonRadiusRaw = Number(data.menuButtonRadius);
   const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
@@ -3778,6 +3788,16 @@ export function renderMenuBlock(
       : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
         ? menuButtonBorderColorRaw
         : "transparent";
+  const menuButtonBorderColorDarkRaw =
+    typeof data.menuButtonBorderColorDark === "string" ? data.menuButtonBorderColorDark.trim() : "";
+  const menuButtonBorderColorDark =
+    menuButtonBorderColorDarkRaw.toLowerCase() === "transparent"
+      ? "transparent"
+      : menuButtonBorderColorDarkRaw && isValidColorValue(menuButtonBorderColorDarkRaw)
+        ? menuButtonBorderColorDarkRaw
+        : menuButtonBorderColor;
+  const menuButtonBorderColorByMode =
+    theme.mode === "dark" ? menuButtonBorderColorDark : menuButtonBorderColor;
   const menuButtonRadiusRaw = Number(data.menuButtonRadius);
   const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
@@ -4031,8 +4051,8 @@ export function renderMenuBlock(
           ...ctaTypographyStyle,
           borderRadius: `${menuButtonRadius}px`,
           borderStyle: "solid",
-          borderWidth: menuButtonBorderColor === "transparent" ? 0 : 1,
-          borderColor: menuButtonBorderColor,
+          borderWidth: menuButtonBorderColorByMode === "transparent" ? 0 : 1,
+          borderColor: menuButtonBorderColorByMode,
         }}
       >
         {ctaMode === "phone" && phoneValue ? phoneValue : buttonText}
