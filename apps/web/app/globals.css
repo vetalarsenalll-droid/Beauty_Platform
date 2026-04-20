@@ -352,21 +352,21 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
 .dark {
   --bg: #0f1012;
   --surface: #14161a;
-  --card: rgba(22, 24, 29, 0.9);
-  --card-2: rgba(26, 28, 34, 0.92);
+  --card: #16181de6;
+  --card-2: #1a1c22eb;
   --text: #f2f3f5;
   --muted: #a1a5ad;
-  --border: rgba(255, 255, 255, 0.08);
+  --border: #ffffff14;
   --shadow: 0 20px 44px rgba(0, 0, 0, 0.5);
   --accent: #d3d6db;
   --accent-2: #e6e8ec;
   --ring: rgba(211, 214, 219, 0.3);
-  --sidebar-bg: rgba(18, 20, 24, 0.9);
-  --sidebar-item: rgba(255, 255, 255, 0.06);
-  --sidebar-item-active: rgba(255, 255, 255, 0.12);
-  --input-bg: rgba(255, 255, 255, 0.12);
-  --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.14);
+  --sidebar-bg: #121418e6;
+  --sidebar-item: #ffffff0f;
+  --sidebar-item-active: #ffffff1f;
+  --input-bg: #ffffff1f;
+  --glass-bg: #ffffff14;
+  --glass-border: #ffffff24;
   --glass-blur: 16px;
 
   --bp-ink: var(--text);

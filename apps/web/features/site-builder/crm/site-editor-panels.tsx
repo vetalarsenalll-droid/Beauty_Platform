@@ -64,6 +64,41 @@ import {
   normalizeBlockStyle,
   updateBlockStyle,
 } from "./site-renderer";
+
+const convertRgbaLikeToHex = (input: string): string => {
+  const raw = input.trim().replace(/;$/, "");
+  const lowered = raw.toLowerCase();
+  if (!lowered.includes("rgb")) return raw;
+  const match = lowered.match(/^rgba?\((.+)\)$/i);
+  if (!match) return raw;
+  const parts = match[1]
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 3) return raw;
+  const r = Number(parts[0]);
+  const g = Number(parts[1]);
+  const b = Number(parts[2]);
+  const alphaRaw = parts[3];
+  if (![r, g, b].every((n) => Number.isFinite(n))) return raw;
+  const rr = Math.max(0, Math.min(255, Math.round(r)));
+  const gg = Math.max(0, Math.min(255, Math.round(g)));
+  const bb = Math.max(0, Math.min(255, Math.round(b)));
+  const alpha =
+    typeof alphaRaw === "undefined" ? 1 : Math.max(0, Math.min(1, Number(alphaRaw)));
+
+  if (rr === 22 && gg === 24 && bb === 29) return "#16181d";
+  if (rr === 26 && gg === 28 && bb === 34) return "#1a1c22";
+  if (rr === 17 && gg === 24 && bb === 39) return "#111827";
+  if (rr === 255 && gg === 255 && bb === 255 && alpha <= 0.12) return "#ffffff14";
+
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  const hex = `#${toHex(rr)}${toHex(gg)}${toHex(bb)}`;
+  if (typeof alphaRaw === "undefined" || !Number.isFinite(alpha) || alpha >= 0.999) {
+    return hex;
+  }
+  return `${hex}${toHex(Math.round(alpha * 255))}`;
+};
 export function ColorField({
   label,
   value,
@@ -146,15 +181,13 @@ export function TildaInlineColorField({
   compact?: boolean;
 }) {
   const normalizeLegacyColor = (rawValue: string) => {
-    const raw = rawValue.trim().toLowerCase();
-    if (raw === "rgba(22, 24, 29, 0.9)" || raw === "rgba(22,24,29,0.9)") return "#16181d";
-    if (raw === "rgba(26, 28, 34, 0.92)" || raw === "rgba(26,28,34,0.92)") return "#1a1c22";
-    if (raw === "rgba(255, 255, 255, 0.08)" || raw === "rgba(255,255,255,0.08)") return "#ffffff14";
-    if (raw === "rgba(17, 24, 39, 0.12)" || raw === "rgba(17,24,39,0.12)") return "#111827";
-    if (raw === "#16181de6") return "#16181d";
-    if (raw === "#1a1c22eb") return "#1a1c22";
-    if (raw === "#1118271f") return "#111827";
-    return rawValue.trim();
+    const raw = rawValue.trim().replace(/;$/, "");
+    const lowered = raw.toLowerCase();
+    if (lowered === "") return raw;
+    if (lowered === "#16181de6") return "#16181d";
+    if (lowered === "#1a1c22eb") return "#1a1c22";
+    if (lowered === "#1118271f") return "#111827";
+    return convertRgbaLikeToHex(raw);
   };
   const HEX_ANY_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
   const toColorInputHex = (raw: string, fallback: string) => {
@@ -272,15 +305,13 @@ export function TildaBackgroundColorField({
   placeholder?: string;
 }) {
   const normalizeLegacyColor = (rawValue: string) => {
-    const raw = rawValue.trim().toLowerCase();
-    if (raw === "rgba(22, 24, 29, 0.9)" || raw === "rgba(22,24,29,0.9)") return "#16181d";
-    if (raw === "rgba(26, 28, 34, 0.92)" || raw === "rgba(26,28,34,0.92)") return "#1a1c22";
-    if (raw === "rgba(255, 255, 255, 0.08)" || raw === "rgba(255,255,255,0.08)") return "#ffffff14";
-    if (raw === "rgba(17, 24, 39, 0.12)" || raw === "rgba(17,24,39,0.12)") return "#111827";
-    if (raw === "#16181de6") return "#16181d";
-    if (raw === "#1a1c22eb") return "#1a1c22";
-    if (raw === "#1118271f") return "#111827";
-    return rawValue.trim();
+    const raw = rawValue.trim().replace(/;$/, "");
+    const lowered = raw.toLowerCase();
+    if (lowered === "") return raw;
+    if (lowered === "#16181de6") return "#16181d";
+    if (lowered === "#1a1c22eb") return "#1a1c22";
+    if (lowered === "#1118271f") return "#111827";
+    return convertRgbaLikeToHex(raw);
   };
   const HEX_ANY_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
   const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -1385,29 +1416,11 @@ export function BlockStyleEditor({
   const toDisplay = (value: string) =>
     value.trim().toLowerCase() === "transparent" ? "transparent" : rgbaToHex(value);
   const rgbaToHex = (value: string) => {
-    const match = value
-      .trim()
-      .match(
-        /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*((?:\d+|\d*\.\d+)))?\s*\)$/i
-      );
-    if (!match) return value.trim();
-    const r = Math.max(0, Math.min(255, Number(match[1])));
-    const g = Math.max(0, Math.min(255, Number(match[2])));
-    const b = Math.max(0, Math.min(255, Number(match[3])));
-    const aRaw = match[4];
-    const toHex = (n: number) => n.toString(16).padStart(2, "0");
-    if (r === 22 && g === 24 && b === 29) return "#16181d";
-    if (r === 26 && g === 28 && b === 34) return "#1a1c22";
-    if (r === 17 && g === 24 && b === 39) return "#111827";
-    if (r === 255 && g === 255 && b === 255 && Number(aRaw) <= 0.12) return "#ffffff14";
-    if (typeof aRaw === "undefined") {
-      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-    }
-    const alpha = Math.max(0, Math.min(1, Number(aRaw)));
-    if (!Number.isFinite(alpha) || alpha >= 0.999) {
-      return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-    }
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(Math.round(alpha * 255))}`;
+    const trimmed = value.trim().replace(/;$/, "");
+    if (trimmed.toLowerCase() === "#16181de6") return "#16181d";
+    if (trimmed.toLowerCase() === "#1a1c22eb") return "#1a1c22";
+    if (trimmed.toLowerCase() === "#1118271f") return "#111827";
+    return convertRgbaLikeToHex(trimmed);
   };
   const toStore = (value: string) =>
     value.trim() === "" || value.trim().toLowerCase() === "transparent"

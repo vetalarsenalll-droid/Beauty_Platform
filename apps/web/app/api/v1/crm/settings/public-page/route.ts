@@ -1,7 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
-import { createDefaultDraft, DEFAULT_ACCOUNT_NAME } from "@/lib/site-builder";
+import { createDefaultDraft, DEFAULT_ACCOUNT_NAME, normalizeDraft, type SiteDraft } from "@/lib/site-builder";
 import { Prisma } from "@prisma/client";
 
 const parseJson = (value: unknown) => {
@@ -89,11 +89,23 @@ async function publishPage(pageId: number, draftJson: object) {
 export async function GET() {
   const session = await requireCrmPermission("crm.settings.read");
   const page = await ensurePage(session.accountId);
+  const account = await prisma.account.findUnique({
+    where: { id: session.accountId },
+    select: { name: true },
+  });
+  const accountName = account?.name?.trim() || DEFAULT_ACCOUNT_NAME;
+  const normalizedDraft = normalizeDraft((page.draftJson ?? {}) as SiteDraft, accountName);
+  if (JSON.stringify(normalizedDraft) !== JSON.stringify(page.draftJson ?? {})) {
+    await prisma.publicPage.update({
+      where: { id: page.id },
+      data: { draftJson: normalizedDraft as Prisma.InputJsonValue },
+    });
+  }
   return NextResponse.json({
     data: {
       id: page.id,
       status: page.status,
-      draftJson: page.draftJson ?? {},
+      draftJson: normalizedDraft,
       publishedVersionId: page.publishedVersionId,
     },
   });
@@ -107,7 +119,13 @@ export async function PATCH(request: Request) {
   }
 
   const page = await ensurePage(session.accountId);
-  const draftJson = parseJson(body.draftJson) ?? parseJson(page.draftJson) ?? {};
+  const account = await prisma.account.findUnique({
+    where: { id: session.accountId },
+    select: { name: true },
+  });
+  const accountName = account?.name?.trim() || DEFAULT_ACCOUNT_NAME;
+  const rawDraftJson = parseJson(body.draftJson) ?? parseJson(page.draftJson) ?? {};
+  const draftJson = normalizeDraft(rawDraftJson as SiteDraft, accountName);
   const publish = body.publish === true;
 
   const updated = publish

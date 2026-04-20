@@ -21,7 +21,13 @@ export const ME002: BlockVersion = {
         accountTitle: accountName,
         menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
         menuHeight: 56,
-        style: { ...defaultBlockStyle, ...baseStyle },
+        style: {
+          ...defaultBlockStyle,
+          ...baseStyle,
+          borderColorLight: "transparent",
+          borderColorDark: "transparent",
+          borderColor: "transparent",
+        },
       },
     };
   },

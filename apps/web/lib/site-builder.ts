@@ -702,8 +702,9 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
       sectionBgDark: "#16181d",
       subBlockBgLight: "#ffffff",
       subBlockBgDark: "#1a1c22",
-      borderColorLight: "#e5e7eb",
-      borderColorDark: "#ffffff14",
+      borderColorLight: "transparent",
+      borderColorDark: "transparent",
+      borderColor: "transparent",
       textColorLight: "#111827",
       textColorDark: "#f2f3f5",
       mutedColorLight: "#4b5563",
@@ -1014,12 +1015,32 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
         }
         if (block.type === "menu") {
           const normalizeMenuColor = (value: unknown) => {
-            const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
+            const raw = typeof value === "string" ? value.trim().replace(/;$/, "").toLowerCase() : "";
             if (!raw) return value;
             if (/^rgba\(\s*22\s*,\s*24\s*,\s*29\s*,\s*0?\.?9\s*\)$/.test(raw)) return "#16181d";
             if (/^rgba\(\s*26\s*,\s*28\s*,\s*34\s*,\s*0?\.?92\s*\)$/.test(raw)) return "#1a1c22";
             if (/^rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0?\.?08\s*\)$/.test(raw)) return "#ffffff14";
             if (/^rgba\(\s*17\s*,\s*24\s*,\s*39\s*,\s*0?\.?12\s*\)$/.test(raw)) return "#111827";
+            const rgba = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([01]?(?:\.\d+)?))?\s*\)$/i.exec(raw);
+            if (rgba) {
+              const r = Number(rgba[1]);
+              const g = Number(rgba[2]);
+              const b = Number(rgba[3]);
+              if (r === 22 && g === 24 && b === 29) return "#16181d";
+              if (r === 26 && g === 28 && b === 34) return "#1a1c22";
+              if (r === 17 && g === 24 && b === 39) return "#111827";
+              if (r === 255 && g === 255 && b === 255) return "#ffffff14";
+              const toHex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+              const alphaRaw = rgba[4];
+              if (typeof alphaRaw === "undefined") {
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+              }
+              const alpha = Math.max(0, Math.min(1, Number(alphaRaw)));
+              if (!Number.isFinite(alpha) || alpha >= 0.999) {
+                return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+              }
+              return `#${toHex(r)}${toHex(g)}${toHex(b)}${toHex(Math.round(alpha * 255))}`;
+            }
             return value;
           };
           const menuItems = Array.isArray(safeData.menuItems)
@@ -1139,10 +1160,10 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             menuStyle.subBlockBgDark = "#1a1c22";
           }
           if (!hasMenuPreset || typeof menuStyle.borderColorLight !== "string" || !menuStyle.borderColorLight.trim()) {
-            menuStyle.borderColorLight = "#e5e7eb";
+            menuStyle.borderColorLight = "transparent";
           }
           if (!hasMenuPreset || typeof menuStyle.borderColorDark !== "string" || !menuStyle.borderColorDark.trim()) {
-            menuStyle.borderColorDark = "#ffffff14";
+            menuStyle.borderColorDark = "transparent";
           }
           if (!hasMenuPreset || typeof menuStyle.textColorLight !== "string" || !menuStyle.textColorLight.trim()) {
             menuStyle.textColorLight = "#111827";
@@ -1177,8 +1198,19 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           menuStyle.blockBgDark = normalizeMenuColor(menuStyle.blockBgDark);
           menuStyle.sectionBgDark = normalizeMenuColor(menuStyle.sectionBgDark);
           menuStyle.subBlockBgDark = normalizeMenuColor(menuStyle.subBlockBgDark);
+          menuStyle.borderColorLight = normalizeMenuColor(menuStyle.borderColorLight);
           menuStyle.borderColorDark = normalizeMenuColor(menuStyle.borderColorDark);
+          menuStyle.borderColor = normalizeMenuColor(menuStyle.borderColor);
           menuStyle.shadowColor = normalizeMenuColor(menuStyle.shadowColor);
+          if (String(menuStyle.borderColorLight).trim().toLowerCase() === "#e5e7eb") {
+            menuStyle.borderColorLight = "transparent";
+          }
+          if (String(menuStyle.borderColorDark).trim().toLowerCase() === "#ffffff14") {
+            menuStyle.borderColorDark = "transparent";
+          }
+          if (String(menuStyle.borderColor).trim().toLowerCase() === "#e5e7eb") {
+            menuStyle.borderColor = "transparent";
+          }
           if (!hasMenuPreset || typeof menuStyle.gradientEnabledLight !== "boolean") {
             menuStyle.gradientEnabledLight = false;
           }
