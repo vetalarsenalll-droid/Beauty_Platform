@@ -1,10 +1,9 @@
-import type { SiteBlock, SitePageKey } from "@/lib/site-builder";
+import type { SitePageKey } from "@/lib/site-builder";
 import {
   PAGE_KEYS,
   PAGE_LABELS,
   SOCIAL_LABELS,
   type EditorSection,
-  variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import {
   FieldText,
@@ -39,35 +38,6 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
 
   return (
     <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
-      <label className="block">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Вариант
-        </div>
-        <select
-          value={block.variant}
-          onChange={(event) => {
-            const nextVariant = event.target.value as "v1" | "v2" | "v3";
-            ctx.updateBlock(block.id, (prev) => {
-              const next: SiteBlock = { ...prev, variant: nextVariant };
-              const nextData = { ...(next.data as Record<string, unknown>) };
-              const height = Number(nextData.menuHeight);
-              if (!Number.isFinite(height)) {
-                nextData.menuHeight = nextVariant === "v1" ? 64 : 56;
-              }
-              next.data = nextData;
-              return next;
-            });
-          }}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          {(["v1", "v2", "v3"] as const).map((v) => (
-            <option key={v} value={v}>
-              {variantsLabel[v]}
-            </option>
-          ))}
-        </select>
-      </label>
-
       <div className="space-y-2">
         <div>
           <FlatCheckbox

@@ -1,11 +1,13 @@
 import type { BlockVersion } from "../../runtime/contracts";
-import { ME001 } from "../ME001/version";
 import { makeBlockId } from "@/lib/site-builder";
 import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
+import { MenuV3ContentPanel } from "./content-panel";
+import { MenuV3SettingsPanel } from "./settings-panel";
+import { MenuV3Drawers } from "./drawers";
 
 export const ME003: BlockVersion = {
-  ...ME001,
   blockCode: "ME003",
+  normalizeData: (input) => (typeof input === "object" && input ? (input as Record<string, unknown>) : {}),
   createDefault: ({ accountName }) => {
     const base = (defaultBlockData.menu ?? {}) as Record<string, unknown>;
     const baseStyle =
@@ -23,4 +25,10 @@ export const ME003: BlockVersion = {
       },
     };
   },
+  renderCRM: () => "",
+  renderPublic: () => "",
+  contentPanel: (ctx) => <MenuV3ContentPanel {...ctx} />,
+  settingsPanel: (ctx) => <MenuV3SettingsPanel {...ctx} />,
+  drawers: (ctx) => <MenuV3Drawers {...ctx} />,
+  actions: () => {},
 };
