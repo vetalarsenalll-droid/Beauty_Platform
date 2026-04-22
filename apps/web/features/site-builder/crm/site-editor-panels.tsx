@@ -862,23 +862,6 @@ export function BlockEditor({
 
             return (
               <>
-          <label className="text-sm">
-            Вид лоадера
-            <select
-              value={block.variant}
-              onChange={(event) =>
-                onChange({
-                  ...block,
-                  variant: event.target.value as "v1" | "v2" | "v3" | "v4" | "v5",
-                })
-              }
-              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-            >
-              <option value="v1">Вращающийся круг</option>
-              <option value="v2">Точки (волна)</option>
-              <option value="v3">Пульсирующий круг</option>
-            </select>
-          </label>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"

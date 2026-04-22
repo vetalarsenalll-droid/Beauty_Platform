@@ -229,7 +229,7 @@ const DEFAULT_LOADER_CONFIG: SiteLoaderConfig = {
   size: 36,
   color: "#111827",
   speedMs: 900,
-  thickness: 3,
+  thickness: 1,
   showPageOverlay: true,
   showBookingInline: true,
   backdropEnabled: false,
@@ -272,6 +272,7 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
   const homeBlocks = draft.pages?.home ?? draft.blocks;
   const loaderBlock = homeBlocks.find((block) => block.type === "loader");
   if (!loaderBlock) return null;
+  const isDark = draft.theme.mode === "dark";
   const data =
     loaderBlock.data && typeof loaderBlock.data === "object"
       ? (loaderBlock.data as Record<string, unknown>)
@@ -279,18 +280,25 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
   const enabled = data.enabled !== false;
   if (!enabled) return null;
 
+  const colorCandidate = isDark ? data.colorDark : data.color;
   const color =
-    typeof data.color === "string" && data.color.trim()
-      ? data.color.trim()
-      : DEFAULT_LOADER_CONFIG.color;
-  const backdropAlpha = clamp(data.backdropOpacity, 0, 1, 0.16);
+    typeof colorCandidate === "string" && colorCandidate.trim()
+      ? colorCandidate.trim()
+      : typeof data.color === "string" && data.color.trim()
+        ? data.color.trim()
+        : DEFAULT_LOADER_CONFIG.color;
+  const backdropAlpha = clamp(isDark ? data.backdropOpacityDark : data.backdropOpacity, 0, 1, 0.16);
+  const backdropHexCandidate = isDark ? data.backdropHexDark : data.backdropHex;
   const backdropHex =
-    typeof data.backdropHex === "string" && data.backdropHex.trim()
-      ? data.backdropHex.trim()
+    typeof backdropHexCandidate === "string" && backdropHexCandidate.trim()
+      ? backdropHexCandidate.trim()
+      : typeof data.backdropHex === "string" && data.backdropHex.trim()
+        ? data.backdropHex.trim()
       : "#111827";
   const backdropColor =
-    typeof data.backdropColor === "string" && data.backdropColor.trim()
-      ? data.backdropColor.trim()
+    typeof (isDark ? data.backdropColorDark : data.backdropColor) === "string" &&
+      String(isDark ? data.backdropColorDark : data.backdropColor).trim()
+      ? String(isDark ? data.backdropColorDark : data.backdropColor).trim()
       : hexToRgba(backdropHex, backdropAlpha);
 
   return {
@@ -815,10 +823,14 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         backdropColor: "rgba(17,24,39,0.16)",
         backdropHex: "#111827",
         backdropOpacity: 0.16,
+        backdropColorDark: "rgba(17,24,39,0.16)",
+        backdropHexDark: "#111827",
+        backdropOpacityDark: 0.16,
         color: "#111827",
+        colorDark: "#111827",
         size: 36,
         speedMs: 900,
-        thickness: 3,
+        thickness: 1,
         fixedDurationEnabled: false,
         fixedDurationSec: 1,
         style: {

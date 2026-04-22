@@ -1393,6 +1393,7 @@ export function BlockPreview({
   const isCover = block.type === "cover";
   const isCoverV3 = isCover && block.variant === "v3";
   const isAisha = block.type === "aisha";
+  const isLoader = block.type === "loader";
   const coverData = isCover ? (block.data as Record<string, unknown>) : null;
   const coverScrollEffect =
     coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
@@ -1471,7 +1472,8 @@ export function BlockPreview({
     : "none";
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
-  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha
+  const loaderUsesCustomWidth = isLoader && Boolean(style.useCustomWidth) && Boolean(style.blockWidthColumns);
+  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -1517,15 +1519,23 @@ export function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: isGallery || isBooking || isMenu || isCover || isAisha ? "100%" : gridWidthPercent,
+        width: isGallery || isBooking || isMenu || isCover || isAisha || (isLoader && !loaderUsesCustomWidth)
+          ? "100%"
+          : gridWidthPercent,
         maxWidth: "100%",
-        marginLeft: isGallery || isBooking || isMenu || isCover || isAisha ? "auto" : gridLeftPercent,
-        marginRight: isGallery || isBooking || isMenu || isCover || isAisha ? "auto" : 0,
-        marginTop: isGallery || isBooking || isMenu || isCover || isAisha ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha ? style.marginBottom : undefined,
-        backgroundColor: isMenu
+        marginLeft: isGallery || isBooking || isMenu || isCover || isAisha || (isLoader && !loaderUsesCustomWidth)
+          ? "auto"
+          : gridLeftPercent,
+        marginRight: isGallery || isBooking || isMenu || isCover || isAisha || (isLoader && !loaderUsesCustomWidth)
+          ? "auto"
+          : 0,
+        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? style.marginBottom : undefined,
+        backgroundColor: isLoader
+          ? "transparent"
+          : isMenu
           ? menuSectionBackground.backgroundColor
           : isAisha
           ? "transparent"
@@ -1534,7 +1544,9 @@ export function BlockPreview({
               ? "transparent"
               : coverBackground.backgroundColor
             : sectionBg,
-        backgroundImage: isCover
+        backgroundImage: isLoader
+          ? "none"
+          : isCover
           ? isCoverV3
             ? "none"
             : coverBackground.backgroundImage
@@ -1558,23 +1570,23 @@ export function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isMenu || isCover || isAisha ? 0 : blockRadius,
-            backgroundColor: isBooking || isMenu || isCover || isAisha
+            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader ? 0 : blockRadius,
+            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isMenu || isCover || isAisha
+            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery || isCover || isAisha ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isGallery || isCover || isAisha || shadowSize <= 0
+              isBooking || isGallery || isCover || isAisha || isLoader || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-ink" as string]: textColor,
@@ -1906,10 +1918,14 @@ export function renderBooking(
 
 export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
   const data = (block.data ?? {}) as Record<string, unknown>;
+  const isDark = theme.mode === "dark";
   const enabled = data.enabled !== false;
+  const resolvedColorCandidate = isDark ? data.colorDark : data.color;
   const color =
-    typeof data.color === "string" && data.color.trim()
-      ? data.color.trim()
+    typeof resolvedColorCandidate === "string" && resolvedColorCandidate.trim()
+      ? resolvedColorCandidate.trim()
+      : typeof data.color === "string" && data.color.trim()
+        ? data.color.trim()
       : style.buttonColor || theme.buttonColor;
   const size =
     Number.isFinite(Number(data.size)) && Number(data.size) > 0 ? Number(data.size) : 36;
@@ -1927,14 +1943,15 @@ export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: B
       ? Number(data.fixedDurationSec)
       : 1;
   const backdropEnabled = Boolean(data.backdropEnabled);
-  const parsedBackdrop = parseBackdropColor(data.backdropColor);
+  const parsedBackdrop = parseBackdropColor(isDark ? data.backdropColorDark : data.backdropColor);
   const backdropHex =
-    typeof data.backdropHex === "string" && data.backdropHex.trim()
-      ? data.backdropHex.trim()
+    typeof (isDark ? data.backdropHexDark : data.backdropHex) === "string" &&
+    String(isDark ? data.backdropHexDark : data.backdropHex).trim()
+      ? String(isDark ? data.backdropHexDark : data.backdropHex).trim()
       : parsedBackdrop.hex;
   const backdropOpacity =
-    Number.isFinite(Number(data.backdropOpacity))
-      ? clamp01(Number(data.backdropOpacity))
+    Number.isFinite(Number(isDark ? data.backdropOpacityDark : data.backdropOpacity))
+      ? clamp01(Number(isDark ? data.backdropOpacityDark : data.backdropOpacity))
       : parsedBackdrop.alpha;
   const backdropColor = hexToRgbaString(backdropHex, backdropOpacity);
 
@@ -1942,52 +1959,36 @@ export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: B
     block.variant === "v2" ? "dots" : block.variant === "v3" ? "pulse" : "spinner";
 
   return (
-    <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
-      <div className="text-sm font-semibold">Лоадер сайта</div>
-      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-        {enabled ? "Активен" : "Отключен"}
-      </div>
-      <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-        <div
-          className="relative h-24 overflow-hidden rounded-lg border border-[color:var(--bp-stroke)]"
-          style={{ backgroundColor: "transparent" }}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={
-              backdropEnabled && backdropOpacity > 0
-                ? { backgroundColor: backdropColor }
-                : undefined
-            }
-          >
-            {enabled ? (
-              <SiteLoader
-                config={{
-                  visual,
-                  size,
-                  color,
-                  speedMs,
-                  thickness,
-                  showPageOverlay: true,
-                  showBookingInline: true,
-                  backdropEnabled,
-                  backdropColor,
-                  fixedDurationEnabled,
-                  fixedDurationSec,
-                }}
-              />
-            ) : (
-              <span className="text-xs text-[color:var(--bp-muted)]">Включите блок в настройках</span>
-            )}
-          </div>
-        </div>
-        <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-          Затемнение: {backdropHex} · {Math.round(backdropOpacity * 100)}%
-        </div>
-        <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-          Время: {fixedDurationEnabled ? `${fixedDurationSec} сек` : "авто"}
-        </div>
-      </div>
+    <div className="relative flex min-h-[180px] w-full items-center justify-center">
+      <div
+        className="absolute inset-0"
+        style={
+          backdropEnabled && backdropOpacity > 0
+            ? { backgroundColor: backdropColor }
+            : undefined
+        }
+      />
+      {enabled ? (
+        <SiteLoader
+          config={{
+            visual,
+            size,
+            color,
+            speedMs,
+            thickness,
+            showPageOverlay: true,
+            showBookingInline: true,
+            backdropEnabled,
+            backdropColor,
+            fixedDurationEnabled,
+            fixedDurationSec,
+          }}
+        />
+      ) : (
+        <span className="relative z-[1] text-xs text-[color:var(--bp-muted)]">
+          Включите блок в настройках
+        </span>
+      )}
     </div>
   );
 }

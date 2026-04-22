@@ -838,18 +838,18 @@ export default function SiteClient({
                             setSelectedId(block.id);
                             setRightPanel("content");
                           }}
-                          className={leftBtnClass}
+                          className={`${leftBtnClass} w-28`}
                         >
                           Контент
                         </button>
                       )}
                       <button
                         type="button"
-                          onClick={() => {
-                            setSelectedId(block.id);
-                            setRightPanel("settings");
-                          }}
-                        className={leftBtnClass}
+                        onClick={() => {
+                          setSelectedId(block.id);
+                          setRightPanel("settings");
+                        }}
+                        className={`${leftBtnClass} w-28`}
                       >
                         Настройки
                       </button>

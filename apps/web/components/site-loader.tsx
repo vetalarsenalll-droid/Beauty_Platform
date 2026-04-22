@@ -19,9 +19,10 @@ export default function SiteLoader({
   const duration = `${speedMs}ms`;
 
   if (config.visual === "dots") {
-    const dotSize = Math.max(4, Math.round(size / 4));
+    const dotSize = Math.max(4, Math.round(size / 4 + config.thickness / 2));
+    const dotGap = Math.max(2, Math.round(config.thickness / 2));
     return (
-      <div className={`inline-flex items-center justify-center gap-1.5 ${className}`}>
+      <div className={`inline-flex items-center justify-center ${className}`} style={{ gap: dotGap }}>
         {dotDelays.map((_, idx) => (
           <span
             key={idx}
@@ -82,15 +83,17 @@ export default function SiteLoader({
 
   return (
     <span
-      className={`inline-block rounded-full animate-spin ${className}`}
+      className={`inline-block rounded-full ${className}`}
       style={{
         width: size,
         height: size,
         borderWidth: thickness,
         borderStyle: "solid",
-        borderColor: config.color,
         borderTopColor: "transparent",
-        animationDuration: duration,
+        borderRightColor: config.color,
+        borderBottomColor: config.color,
+        borderLeftColor: config.color,
+        animation: `spin ${duration} linear infinite`,
       }}
     />
   );
