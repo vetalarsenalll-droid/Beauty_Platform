@@ -616,14 +616,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     thickness: 3,
     fixedDurationEnabled: false,
     fixedDurationSec: 1,
-    style: {
-      ...defaultBlockStyle,
-      useCustomWidth: true,
-      blockWidth: LEGACY_WIDTH_REFERENCE,
-      blockWidthColumns: MAX_BLOCK_COLUMNS,
-      gridStartColumn: 1,
-      gridEndColumn: MAX_BLOCK_COLUMNS,
-    },
+    style: defaultBlockStyle,
   },
   about: {
     title: "О нас",

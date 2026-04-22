@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { clamp01, hexToRgbaString, parseBackdropColor } from "@/features/site-builder/crm/site-client-core";
 import { FlatCheckbox, SliderTrack } from "@/features/site-builder/crm/site-renderer";
-import { TildaInlineColorField } from "@/features/site-builder/crm/site-editor-panels";
+import { LoaderColorField } from "../color-field";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 
 function readLoaderPalette(blockData: Record<string, unknown>) {
@@ -111,8 +111,7 @@ export function LoaderContentPanel(ctx: CrmPanelCtx) {
       </div>
 
       <div className="space-y-4">
-        <TildaInlineColorField
-          compact
+        <LoaderColorField
           label="Цвет затемнения"
           value={backdropHexLight}
           placeholder="#111827"
@@ -128,8 +127,7 @@ export function LoaderContentPanel(ctx: CrmPanelCtx) {
           accentColor="#ff5a5f"
           railColor="var(--bp-stroke)"
         />
-        <TildaInlineColorField
-          compact
+        <LoaderColorField
           label="Цвет лоадера"
           value={loaderColorLight}
           placeholder="#111827"
@@ -149,8 +147,7 @@ export function LoaderContentPanel(ctx: CrmPanelCtx) {
 
       {darkOpen && (
         <div className="space-y-4">
-          <TildaInlineColorField
-          compact
+          <LoaderColorField
           label="Цвет затемнения"
             value={backdropHexDark}
             placeholder="#111827"
@@ -166,8 +163,7 @@ export function LoaderContentPanel(ctx: CrmPanelCtx) {
             accentColor="#ff5a5f"
             railColor="var(--bp-stroke)"
           />
-          <TildaInlineColorField
-          compact
+          <LoaderColorField
           label="Цвет лоадера"
             value={loaderColorDark}
             placeholder="#111827"
@@ -253,6 +249,7 @@ export function LoaderContentPanel(ctx: CrmPanelCtx) {
     </div>
   );
 }
+
 
 
 

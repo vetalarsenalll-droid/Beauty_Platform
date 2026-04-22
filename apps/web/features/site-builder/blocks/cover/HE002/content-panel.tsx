@@ -1,6 +1,4 @@
 ﻿import { PAGE_KEYS, PAGE_LABELS } from "@/features/site-builder/crm/site-client-core";
-import {
-} from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useEffect, useRef, useState } from "react";
@@ -88,7 +86,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
         const response = await fetchLibrary();
         const payload = await response.json().catch(() => null);
         if (!response.ok) {
-          if (active) setLibraryError("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ.");
+          if (active) setLibraryError("Не удалось загрузить изображения.");
           return;
         }
         const itemsRaw = payload?.data?.items;
@@ -108,7 +106,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
         if (!active) return;
         setLibraryImages(items);
       } catch {
-        if (active) setLibraryError("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ.");
+        if (active) setLibraryError("Не удалось загрузить изображения.");
       } finally {
         if (active) setLibraryLoading(false);
       }
@@ -124,7 +122,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
     const ids = new Set(slides.map((s) => s.id));
     setExpandedSlideIds((prev) => {
       // Important: `slides` is a freshly normalized array each render, so this effect
-      // can run very С‡Р°СЃС‚Рѕ. Avoid state updates when nothing actually changed.
+      // can run very часто. Avoid state updates when nothing actually changed.
       let changed = false;
       const next: string[] = [];
       for (const id of prev) {
@@ -158,14 +156,14 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || typeof payload?.data?.url !== "string" || typeof payload?.data?.id !== "number") {
-        setLibraryError("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ.");
+        setLibraryError("Не удалось загрузить изображение.");
         return null;
       }
       const next = { id: payload.data.id as number, url: String(payload.data.url) };
       setLibraryImages((prev) => [next, ...prev.filter((img) => img.id !== next.id && img.url !== next.url)]);
       return next;
     } catch {
-      setLibraryError("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ.");
+      setLibraryError("Не удалось загрузить изображение.");
       return null;
     } finally {
       setUploading(false);
@@ -192,7 +190,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
     try {
       const response = await fetch(`/api/v1/crm/account/media/${image.id}`, { method: "DELETE" });
       if (!response.ok) {
-        setLibraryError("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ.");
+        setLibraryError("Не удалось удалить изображение.");
         return;
       }
       setLibraryImages((prev) => prev.filter((item) => item.id !== image.id));
@@ -200,7 +198,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
       setPendingDeleteImage(null);
       setPendingDeleteImageSlideId(null);
     } catch {
-      setLibraryError("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ.");
+      setLibraryError("Не удалось удалить изображение.");
     } finally {
       setRemovingImageId(null);
     }
@@ -233,15 +231,15 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
 
       <div className="flex items-center justify-between gap-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          РЎР»Р°Р№РґС‹
+          Слайды
         </div>
         <button
           type="button"
           onClick={toggleAllSlides}
           className="inline-flex items-center gap-2 px-0 py-2 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
         >
-          <span className="text-sm leading-none">{isAllExpanded ? "в–ґ" : "в–ѕ"}</span>
-          {isAllExpanded ? "РЎРІРµСЂРЅСѓС‚СЊ РІСЃРµ" : "Р Р°Р·РІРµСЂРЅСѓС‚СЊ РІСЃРµ"}
+          <span className="text-sm leading-none">{isAllExpanded ? "▴" : "▾"}</span>
+          {isAllExpanded ? "Свернуть все" : "Развернуть все"}
         </button>
       </div>
 
@@ -284,12 +282,12 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                 type="button"
                 onClick={toggleExpanded}
                 className="flex min-w-0 items-center gap-2 text-left"
-                aria-label={isExpanded ? "РЎРІРµСЂРЅСѓС‚СЊ СЃР»Р°Р№Рґ" : "Р Р°Р·РІРµСЂРЅСѓС‚СЊ СЃР»Р°Р№Рґ"}
+                aria-label={isExpanded ? "Свернуть слайд" : "Развернуть слайд"}
               >
                 <span className="text-sm leading-none text-[color:var(--bp-muted)]">
-                  {isExpanded ? "в–ґ" : "в–ѕ"}
+                  {isExpanded ? "▴" : "▾"}
                 </span>
-                <span className="text-sm font-semibold">РЎР»Р°Р№Рґ {index + 1}</span>
+                <span className="text-sm font-semibold">Слайд {index + 1}</span>
                 {slide.title.trim() ? (
                   <span className="truncate text-sm text-[color:var(--bp-muted)]">
                     {slide.title.trim()}
@@ -306,7 +304,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
                   disabled={index === 0}
                 >
-                  в†‘
+                  ↑
                 </button>
                 <button
                   type="button"
@@ -317,7 +315,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
                   disabled={index === slides.length - 1}
                 >
-                  в†“
+                  ↓
                 </button>
                 <button
                   type="button"
@@ -328,16 +326,16 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
                   disabled={slides.length <= 1}
                 >
-                  РЈРґР°Р»РёС‚СЊ
+                  Удалить
                 </button>
               </div>
             </div>
 
             {isExpanded ? (
             <div className="space-y-3 px-4 pb-4">
-              {renderCoverFlatTextInput("Р—Р°РіРѕР»РѕРІРѕРє", slide.title, (value) => updateSlide({ title: value }))}
+              {renderCoverFlatTextInput("Заголовок", slide.title, (value) => updateSlide({ title: value }))}
               <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                <div className="min-h-[32px] leading-4">РћРїРёСЃР°РЅРёРµ</div>
+                <div className="min-h-[32px] leading-4">Описание</div>
                 <textarea
                   value={slide.description}
                   onChange={(event) => updateSlide({ description: event.target.value })}
@@ -345,11 +343,11 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   className="mt-2 w-full rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
                 />
               </label>
-              {renderCoverFlatTextInput("РўРµРєСЃС‚ РєРЅРѕРїРєРё", slide.buttonText, (value) => updateSlide({ buttonText: value }))}
+              {renderCoverFlatTextInput("Текст кнопки", slide.buttonText, (value) => updateSlide({ buttonText: value }))}
 
               <label className="block">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                  РЎС‚СЂР°РЅРёС†Р° РєРЅРѕРїРєРё
+                  Страница кнопки
                 </div>
                 <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
                   <select
@@ -368,7 +366,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                       appearance: "none",
                     }}
                   >
-                    <option value="">РќРµ РІС‹Р±СЂР°РЅРѕ</option>
+                    <option value="">Не выбрано</option>
                     {PAGE_KEYS.map((key) => (
                       <option key={key} value={key}>
                         {PAGE_LABELS[key]}
@@ -376,18 +374,18 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     ))}
                   </select>
                   <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-                    в–ѕ
+                    ▾
                   </span>
                 </div>
               </label>
 
-              {renderCoverFlatTextInput("РЎСЃС‹Р»РєР° РєРЅРѕРїРєРё (РІРЅРµС€РЅСЏСЏ)", slide.buttonHref, (value) =>
+              {renderCoverFlatTextInput("Ссылка кнопки (внешняя)", slide.buttonHref, (value) =>
                 updateSlide({ buttonHref: value, buttonPage: null })
               )}
 
               <div className="space-y-2">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                  РР·РѕР±СЂР°Р¶РµРЅРёРµ СЃР»Р°Р№РґР°
+                  Изображение слайда
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -396,12 +394,12 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                       <img src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-[color:var(--bp-muted)]">
-                        РќРµС‚
+                        Нет
                       </div>
                     )}
                   </div>
                   <div className="text-xs text-[color:var(--bp-muted)]">
-                    {slide.imageUrl ? "РР·РѕР±СЂР°Р¶РµРЅРёРµ РІС‹Р±СЂР°РЅРѕ" : "РР·РѕР±СЂР°Р¶РµРЅРёРµ РЅРµ РІС‹Р±СЂР°РЅРѕ"}
+                    {slide.imageUrl ? "Изображение выбрано" : "Изображение не выбрано"}
                   </div>
                 </div>
 
@@ -415,7 +413,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     disabled={uploading}
                     className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
                   >
-                    {uploading ? "Р—Р°РіСЂСѓР·РєР°..." : "Р—Р°РіСЂСѓР·РёС‚СЊ С„Р°Р№Р»"}
+                    {uploading ? "Загрузка..." : "Загрузить файл"}
                   </button>
                   <button
                     type="button"
@@ -424,7 +422,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     }
                     className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
                   >
-                    Р’С‹Р±СЂР°С‚СЊ РёР· Р·Р°РіСЂСѓР¶РµРЅРЅС‹С…
+                    Выбрать из загруженных
                   </button>
                   <button
                     type="button"
@@ -432,7 +430,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     disabled={!slide.imageUrl}
                     className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
                   >
-                    РЈР±СЂР°С‚СЊ
+                    Убрать
                   </button>
                 </div>
 
@@ -440,7 +438,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   <div className="text-xs text-[#c2410c]">{libraryError}</div>
                 ) : null}
                 {openLibraryForSlideId === slide.id && libraryLoading ? (
-                  <div className="text-xs text-[color:var(--bp-muted)]">Р—Р°РіСЂСѓР·РєР° РёР·РѕР±СЂР°Р¶РµРЅРёР№...</div>
+                  <div className="text-xs text-[color:var(--bp-muted)]">Загрузка изображений...</div>
                 ) : null}
 
                 {openLibraryForSlideId === slide.id && libraryImages.length > 0 ? (
@@ -466,7 +464,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                             }}
                             className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)]"
                             disabled={removingImageId === image.id || isPendingDelete}
-                            aria-label="Р’С‹Р±СЂР°С‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ"
+                            aria-label="Выбрать изображение"
                           >
                             <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
                               <img src={image.url} alt="" className="h-full w-full object-cover" />
@@ -486,7 +484,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                             }}
                             disabled={removingImageId === image.id}
                             className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
-                            aria-label="РЈРґР°Р»РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ"
+                            aria-label="Удалить изображение"
                           >
                             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M3 6h18" />
@@ -517,9 +515,9 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
             ...slides,
             {
               id: slideId,
-              title: "РќРѕРІС‹Р№ СЃР»Р°Р№Рґ",
-              description: "Р”РѕР±Р°РІСЊС‚Рµ РѕРїРёСЃР°РЅРёРµ СЃР»Р°Р№РґР°",
-              buttonText: "РџРѕРґСЂРѕР±РЅРµРµ",
+              title: "Новый слайд",
+              description: "Добавьте описание слайда",
+              buttonText: "Подробнее",
               buttonPage: "booking",
               buttonHref: "",
               imageUrl: "",
@@ -528,7 +526,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
         }}
         className="w-full rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm font-semibold"
       >
-        Р”РѕР±Р°РІРёС‚СЊ СЃР»Р°Р№Рґ
+        Добавить слайд
       </button>
       {pendingDeleteImage && typeof document !== "undefined"
         ? createPortal(
@@ -545,7 +543,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="text-base font-semibold">
-                  Р’С‹ СѓРІРµСЂРµРЅС‹, С‡С‚Рѕ С…РѕС‚РёС‚Рµ СѓРґР°Р»РёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ?
+                  Вы уверены, что хотите удалить изображение?
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-2">
                   <button
@@ -557,7 +555,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
                     disabled={removingImageId !== null}
                   >
-                    РћС‚РјРµРЅР°
+                    Отмена
                   </button>
                   <button
                     type="button"
@@ -565,7 +563,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     className="rounded-md bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                     disabled={removingImageId !== null}
                   >
-                    {removingImageId === pendingDeleteImage.id ? "РЈРґР°Р»РµРЅРёРµ..." : "РЈРґР°Р»РёС‚СЊ"}
+                    {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}
                   </button>
                 </div>
               </div>
