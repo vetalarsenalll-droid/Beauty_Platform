@@ -1986,6 +1986,7 @@ export function buildBlockWrapperStyle(
     const isBookingBlock = options.blockType === "booking";
     const isCoverBlock = options.blockType === "cover";
     const isCoverV3 = isCoverBlock && options.coverVariant === "v3";
+    const isServicesBlock = options.blockType === "services";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
@@ -2011,17 +2012,17 @@ export function buildBlockWrapperStyle(
       blockOuterColumns >= MAX_BLOCK_COLUMNS
         ? "100%"
         : responsiveBlockWidthCss(blockOuterColumns, true);
-    return {
-      className: isMenu
-        ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
-        : isGallery || isBookingBlock || isCoverBlock
+      return {
+        className: isMenu
+          ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
+          : isGallery || isBookingBlock || isCoverBlock || isServicesBlock
           ? "site-block p-0"
         : "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isMenu || isBookingBlock || isCoverBlock ? 0 : radius,
+        borderRadius: isMenu || isBookingBlock || isCoverBlock || isServicesBlock ? 0 : radius,
         backgroundColor:
           isCoverBlock
             ? isCoverV3
@@ -2029,6 +2030,8 @@ export function buildBlockWrapperStyle(
               : (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
+              : isServicesBlock
+              ? "transparent"
               : isGallery || isBookingBlock
               ? "var(--block-section-bg, var(--block-bg))"
               : "var(--block-bg)",
@@ -2039,13 +2042,13 @@ export function buildBlockWrapperStyle(
               : (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
-              : isGallery || isBookingBlock
+              : isGallery || isBookingBlock || isServicesBlock
               ? "none"
               : "var(--block-gradient)",
-        borderColor: isGallery || isBookingBlock || isCoverBlock ? "transparent" : "var(--block-border)",
-        borderWidth: isGallery || isBookingBlock || isCoverBlock ? 0 : hasVisibleBorder ? 1 : 0,
+        borderColor: isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "transparent" : "var(--block-border)",
+        borderWidth: isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:
-          isGallery || isBookingBlock || isCoverBlock
+          isGallery || isBookingBlock || isCoverBlock || isServicesBlock
             ? "none"
             : blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor}`
@@ -2082,12 +2085,12 @@ export function buildBlockWrapperStyle(
         ["--works-content-left" as string]: gridLeftCss,
         ["--bp-ink" as string]: "var(--block-text)",
         ["--bp-muted" as string]: "var(--block-muted)",
-        ["--block-bg-light" as string]: style.blockBgLightResolved,
-        ["--block-bg-dark" as string]: style.blockBgDarkResolved,
-        ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
-        ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
-        ["--block-sub-bg-light" as string]: style.subBlockBgLightResolved,
-        ["--block-sub-bg-dark" as string]: style.subBlockBgDarkResolved,
+        ["--block-bg-light" as string]: isServicesBlock ? "transparent" : style.blockBgLightResolved,
+        ["--block-bg-dark" as string]: isServicesBlock ? "transparent" : style.blockBgDarkResolved,
+        ["--block-section-bg-light" as string]: isServicesBlock ? "transparent" : style.sectionBgLightResolved,
+        ["--block-section-bg-dark" as string]: isServicesBlock ? "transparent" : style.sectionBgDarkResolved,
+        ["--block-sub-bg-light" as string]: isServicesBlock ? "transparent" : style.subBlockBgLightResolved,
+        ["--block-sub-bg-dark" as string]: isServicesBlock ? "transparent" : style.subBlockBgDarkResolved,
         ["--block-border-light" as string]: style.borderColorLightResolved,
         ["--block-border-dark" as string]: style.borderColorDarkResolved,
         ["--block-text-light" as string]: style.textColorLightResolved,

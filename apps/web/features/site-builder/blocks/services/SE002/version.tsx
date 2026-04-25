@@ -5,6 +5,35 @@ import { SiteServicesSettingsPrimary } from "@/features/site-builder/crm/site-se
 import { SE002ContentPanel } from "./content-panel";
 import { SE002Drawers } from "./drawers";
 
+function normalizeStyleColor(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function isTransparentColor(value: unknown) {
+  const normalized = normalizeStyleColor(value);
+  return normalized === "" || normalized === "transparent" || normalized === "#e5e7eb";
+}
+
+function isLegacyWhiteServiceSurface(style: Record<string, unknown>) {
+  const blockLight = normalizeStyleColor(style.blockBgLight ?? style.blockBg);
+  const sectionLight = normalizeStyleColor(style.sectionBgLight ?? style.sectionBg);
+  const subBlockLight = normalizeStyleColor(style.subBlockBgLight ?? style.subBlockBg);
+  const blockDark = normalizeStyleColor(style.blockBgDark);
+  const sectionDark = normalizeStyleColor(style.sectionBgDark);
+  const subBlockDark = normalizeStyleColor(style.subBlockBgDark);
+
+  return (
+    (blockLight === "" || blockLight === "transparent" || blockLight === "#ffffff" || blockLight === "#fff") &&
+    (sectionLight === "#ffffff" || sectionLight === "#fff") &&
+    (subBlockLight === "#ffffff" || subBlockLight === "#fff") &&
+    isTransparentColor(style.borderColorLight) &&
+    isTransparentColor(style.borderColor) &&
+    (blockDark === "" || blockDark === "transparent") &&
+    (sectionDark === "" || sectionDark === "transparent") &&
+    (subBlockDark === "" || subBlockDark === "transparent")
+  );
+}
+
 export const SE002: BlockVersion = {
   blockCode: "SE002",
   normalizeData: (input) => {
@@ -12,16 +41,20 @@ export const SE002: BlockVersion = {
     const data = input as Record<string, unknown>;
     const style =
       typeof data.style === "object" && data.style ? (data.style as Record<string, unknown>) : {};
+    const shouldResetLegacySurface = isLegacyWhiteServiceSurface(style);
     return {
       ...data,
       style: {
         ...style,
-        sectionBgLight: style.sectionBgLight ?? "transparent",
+        blockBgLight: shouldResetLegacySurface ? "transparent" : (style.blockBgLight ?? "transparent"),
+        blockBgDark: style.blockBgDark ?? "transparent",
+        blockBg: shouldResetLegacySurface ? "transparent" : (style.blockBg ?? "transparent"),
+        sectionBgLight: shouldResetLegacySurface ? "transparent" : (style.sectionBgLight ?? "transparent"),
         sectionBgDark: style.sectionBgDark ?? "transparent",
-        sectionBg: style.sectionBg ?? "transparent",
-        subBlockBgLight: style.subBlockBgLight ?? "transparent",
+        sectionBg: shouldResetLegacySurface ? "transparent" : (style.sectionBg ?? "transparent"),
+        subBlockBgLight: shouldResetLegacySurface ? "transparent" : (style.subBlockBgLight ?? "transparent"),
         subBlockBgDark: style.subBlockBgDark ?? "transparent",
-        subBlockBg: style.subBlockBg ?? "transparent",
+        subBlockBg: shouldResetLegacySurface ? "transparent" : (style.subBlockBg ?? "transparent"),
         borderColorLight: style.borderColorLight ?? "transparent",
         borderColorDark: style.borderColorDark ?? "transparent",
         borderColor: style.borderColor ?? "transparent",

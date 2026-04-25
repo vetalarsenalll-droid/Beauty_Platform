@@ -1395,6 +1395,7 @@ export function BlockPreview({
   const isCoverV3 = isCover && block.variant === "v3";
   const isAisha = block.type === "aisha";
   const isLoader = block.type === "loader";
+  const isServices = block.type === "services";
   const coverData = isCover ? (block.data as Record<string, unknown>) : null;
   const coverScrollEffect =
     coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
@@ -1474,7 +1475,7 @@ export function BlockPreview({
   const blockFont = style.fontBody || theme.fontBody;
   const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
   const loaderUsesCustomWidth = isLoader && Boolean(style.useCustomWidth) && Boolean(style.blockWidthColumns);
-  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader
+  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -1540,6 +1541,8 @@ export function BlockPreview({
           ? menuSectionBackground.backgroundColor
           : isAisha
           ? "transparent"
+          : isServices
+          ? "transparent"
           : isCover
             ? isCoverV3
               ? "transparent"
@@ -1553,6 +1556,8 @@ export function BlockPreview({
             : coverBackground.backgroundImage
           : isMenu
             ? menuSectionBackground.backgroundImage
+            : isServices
+              ? "none"
             : "none",
       }}
     >
@@ -1571,34 +1576,34 @@ export function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader ? 0 : blockRadius,
-            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader
+            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader || isServices ? 0 : blockRadius,
+            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader || isServices
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader
+            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader || isServices
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isGallery || isCover || isAisha || isLoader || shadowSize <= 0
+              isBooking || isGallery || isCover || isAisha || isLoader || isServices || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-ink" as string]: textColor,
             ["--bp-muted" as string]: mutedColor,
             ["--bp-stroke" as string]: borderColor,
-            ["--block-bg-light" as string]: menuBlockBgLight,
-            ["--block-bg-dark" as string]: menuBlockBgDark,
-            ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
-            ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
-            ["--block-sub-bg-light" as string]: style.subBlockBgLightResolved,
-            ["--block-sub-bg-dark" as string]: style.subBlockBgDarkResolved,
+            ["--block-bg-light" as string]: isServices ? "transparent" : menuBlockBgLight,
+            ["--block-bg-dark" as string]: isServices ? "transparent" : menuBlockBgDark,
+            ["--block-section-bg-light" as string]: isServices ? "transparent" : style.sectionBgLightResolved,
+            ["--block-section-bg-dark" as string]: isServices ? "transparent" : style.sectionBgDarkResolved,
+            ["--block-sub-bg-light" as string]: isServices ? "transparent" : style.subBlockBgLightResolved,
+            ["--block-sub-bg-dark" as string]: isServices ? "transparent" : style.subBlockBgDarkResolved,
             ["--block-border-light" as string]: style.borderColorLightResolved,
             ["--block-border-dark" as string]: style.borderColorDarkResolved,
             ["--block-text-light" as string]: style.textColorLightResolved,

@@ -151,9 +151,6 @@ export function ServicesCatalog({
         className={`flex flex-col gap-6 ${variant === "v2" ? "xl:flex-row xl:items-end xl:justify-between" : ""}`}
       >
         <div className="max-w-3xl">
-          <div className="mb-3 text-[11px] uppercase tracking-[0.24em] text-[color:var(--block-muted,var(--bp-muted))]">
-            Beauty Platform
-          </div>
           <h3 className={`${isEditorial ? "max-w-2xl" : ""} font-semibold`} style={headingStyle}>
             {title}
           </h3>
