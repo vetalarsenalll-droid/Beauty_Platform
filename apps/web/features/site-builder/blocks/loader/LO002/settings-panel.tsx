@@ -1,6 +1,6 @@
 import { LEGACY_WIDTH_REFERENCE, MAX_BLOCK_COLUMNS } from "@/features/site-builder/crm/site-client-core";
-import { CoverGridWidthControl } from "@/features/site-builder/crm/site-editor-panels";
 import type { CrmPanelCtx } from "../../runtime/contracts";
+import { LoaderGridWidthControl } from "../grid-width-control";
 
 export function LoaderSettingsPanel(ctx: CrmPanelCtx) {
   const block = ctx.block;
@@ -27,8 +27,8 @@ export function LoaderSettingsPanel(ctx: CrmPanelCtx) {
   };
 
   return (
-    <div className="space-y-4" onClick={(event) => event.stopPropagation()}>
-      <CoverGridWidthControl start={start} end={end} onChange={applyRange} />
+    <div onClick={(event) => event.stopPropagation()}>
+      <LoaderGridWidthControl start={start} end={end} onChange={applyRange} />
     </div>
   );
 }
