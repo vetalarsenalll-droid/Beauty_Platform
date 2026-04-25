@@ -10,7 +10,7 @@ function updateSelected(ctx: CrmPanelCtx, next: unknown) {
 
 export function makeGenericVersion(
   blockCode: BlockVersion["blockCode"],
-  type: "loader" | "booking" | "aisha",
+  type: "loader" | "booking" | "aisha" | "services",
   variant: "v1" | "v2" | "v3"
 ): BlockVersion {
   return {

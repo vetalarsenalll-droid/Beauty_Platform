@@ -18,6 +18,7 @@ import {
   resolveMenuBlockBackgroundVisual,
   resolveMenuSectionBackgroundVisual,
 } from "@/features/site-builder/shared/background-visuals";
+import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import type {
   SiteAccountInfoWithPublicSlug as AccountInfo,
   SiteBranding as Branding,
@@ -4738,6 +4739,22 @@ export function renderServices(
         : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
+  const showCategoryTabs = data.showCategoryTabs !== false;
+  const categoryAllLabel =
+    typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
+      ? data.categoryAllLabel.trim()
+      : "Все услуги";
+  const showSearch = data.showSearch !== false;
+  const searchPlaceholder =
+    typeof data.searchPlaceholder === "string" && data.searchPlaceholder.trim()
+      ? data.searchPlaceholder.trim()
+      : "Поиск услуги";
+  const showSort = data.showSort !== false;
+  const defaultSort =
+    typeof data.defaultSort === "string" && data.defaultSort.trim()
+      ? data.defaultSort.trim()
+      : "default";
+  const showDescription = data.showDescription !== false;
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
   const cardsPerRowRaw = Number(data.cardsPerRow);
@@ -4745,14 +4762,6 @@ export function renderServices(
     Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 4
       ? Math.round(cardsPerRowRaw)
       : 3;
-  const gridClassName =
-    cardsPerRow === 1
-      ? "grid-cols-1"
-      : cardsPerRow === 2
-        ? "grid-cols-1 md:grid-cols-2"
-        : cardsPerRow === 3
-          ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-          : "grid-cols-1 md:grid-cols-2 xl:grid-cols-4";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const specialistId = typeof data.specialistId === "number" ? data.specialistId : null;
   const currentLocationId = currentEntity?.type === "location" ? currentEntity.id : null;
@@ -4766,132 +4775,32 @@ export function renderServices(
         : "";
 
   return (
-    <div>
-      <h3
-        className="font-semibold"
-        style={headingStyle(style, theme)}
-      >
-        {(data.title as string) || "Услуги"}
-      </h3>
-      {subtitle && (
-        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
-          {subtitle}
-        </p>
-      )}
-      <div className={`mt-4 grid gap-4 ${gridClassName}`}>
-        {items.map((service) => {
-          const serviceHref = account.publicSlug ? `/${account.publicSlug}/services/${service.id}` : "#";
-          return (
-            <article key={service.id} className="relative" style={{ textAlign: style.textAlign }}>
-              {service.coverUrl ? (
-                <div className="group relative min-h-[300px] overflow-hidden rounded-2xl">
-                  <img
-                    src={service.coverUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
-                  <div className="absolute inset-0 bg-black/45" />
-                  <div className="relative z-[1] flex h-full min-h-[300px] flex-col p-5 text-white">
-                    <div className="mb-auto flex items-start justify-between gap-3">
-                      <a href={serviceHref} className="text-lg font-semibold leading-tight hover:underline">
-                        {service.name}
-                      </a>
-                      <a
-                        href={serviceHref}
-                        aria-label={`Открыть услугу ${service.name}`}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/60 text-xl leading-none"
-                      >
-                        ›
-                      </a>
-                    </div>
-                    <div className="mt-4">
-                      {service.description && <div className="text-sm text-white/90">{service.description}</div>}
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/90">
-                        {showDuration && <span>{service.baseDurationMin} мин</span>}
-                        {showPrice && <span>{service.basePrice} ?</span>}
-                      </div>
-                      {showButton && account.publicSlug && (
-                        <a
-                          href={buildBookingLink({
-                            publicSlug: account.publicSlug,
-                            locationId:
-                              currentLocationId ??
-                              locationId ??
-                              (service.locationIds.length === 1 ? service.locationIds[0] : null),
-                            specialistId: effectiveSpecialistId,
-                            serviceId: service.id,
-                            scenario: "serviceFirst",
-                          })}
-                          className="mt-4 inline-flex px-3 py-2 text-xs"
-                          style={buttonStyle(style, theme)}
-                        >
-                          {buttonText}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 py-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <a
-                      href={serviceHref}
-                      className="text-lg font-semibold leading-tight hover:underline"
-                      style={{ color: "var(--block-text, var(--bp-ink))" }}
-                    >
-                      {service.name}
-                    </a>
-                    <a
-                      href={serviceHref}
-                      aria-label={`Открыть услугу ${service.name}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-xl leading-none"
-                      style={{
-                        color: "var(--block-text, var(--bp-ink))",
-                        borderColor: "var(--block-border, var(--site-border))",
-                      }}
-                    >
-                      ›
-                    </a>
-                  </div>
-                  {service.description && (
-                    <div className="text-sm text-[color:var(--block-muted,var(--bp-muted))]">
-                      {service.description}
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-2 text-xs text-[color:var(--block-muted,var(--bp-muted))]">
-                    {showDuration && <span>{service.baseDurationMin} мин</span>}
-                    {showPrice && <span>{service.basePrice} ?</span>}
-                  </div>
-                  {showButton && account.publicSlug && (
-                    <a
-                      href={buildBookingLink({
-                        publicSlug: account.publicSlug,
-                        locationId:
-                          currentLocationId ??
-                          locationId ??
-                          (service.locationIds.length === 1 ? service.locationIds[0] : null),
-                        specialistId: effectiveSpecialistId,
-                        serviceId: service.id,
-                        scenario: "serviceFirst",
-                      })}
-                      className="inline-flex px-3 py-2 text-xs"
-                      style={buttonStyle(style, theme)}
-                    >
-                      {buttonText}
-                    </a>
-                  )}
-                </div>
-              )}
-            </article>
-          );
-        })}
-        {items.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет услуг для отображения.
-          </div>
-        )}
-      </div>
-    </div>
+    <ServicesCatalog
+      variant={block.variant === "v2" ? "v2" : "v1"}
+      title={(data.title as string) || "Услуги"}
+      subtitle={subtitle}
+      items={items}
+      publicSlug={account.publicSlug}
+      currentLocationId={currentLocationId}
+      locationId={locationId}
+      effectiveSpecialistId={effectiveSpecialistId}
+      cardsPerRow={cardsPerRow}
+      showCategoryTabs={showCategoryTabs}
+      categoryAllLabel={categoryAllLabel}
+      showSearch={showSearch}
+      searchPlaceholder={searchPlaceholder}
+      showSort={showSort}
+      defaultSort={defaultSort}
+      showDescription={showDescription}
+      showPrice={showPrice}
+      showDuration={showDuration}
+      showButton={showButton}
+      buttonText={buttonText}
+      headingStyle={headingStyle(style, theme)}
+      subheadingStyle={subheadingStyle(style, theme)}
+      buttonStyle={buttonStyle(style, theme)}
+      textAlign={style.textAlign}
+    />
   );
 }
 

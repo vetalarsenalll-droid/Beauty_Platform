@@ -101,7 +101,23 @@ export default function SiteClient({
   const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
 
   const activeBlockTypes = useMemo(
-    () => new Set<BlockType>(["menu", "cover", "loader", "booking", "aisha"]),
+    () =>
+      new Set<BlockType>([
+        "menu",
+        "cover",
+        "loader",
+        "booking",
+        "aisha",
+        "about",
+        "client",
+        "locations",
+        "services",
+        "specialists",
+        "works",
+        "reviews",
+        "contacts",
+        "promos",
+      ]),
     []
   );
   const homeBlocks = (draft.pages?.home ?? draft.blocks).filter((block) =>

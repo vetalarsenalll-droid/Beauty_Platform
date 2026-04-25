@@ -54,7 +54,10 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     prisma.service.findMany({
       where: { accountId: account.id },
       orderBy: { name: "asc" },
-      include: { locations: { select: { locationId: true } } },
+      include: {
+        category: { select: { name: true } },
+        locations: { select: { locationId: true } },
+      },
     }),
     prisma.specialistProfile.findMany({
       where: { accountId: account.id },
@@ -199,6 +202,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     id: service.id,
     name: service.name,
     description: service.description,
+    categoryName: service.category?.name ?? null,
     baseDurationMin: service.baseDurationMin,
     basePrice: Number(service.basePrice),
     coverUrl: serviceCoverMap.get(String(service.id)) ?? null,

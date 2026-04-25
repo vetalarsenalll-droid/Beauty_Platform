@@ -10,6 +10,7 @@ export const BLOCK_REGISTRY: BlockRegistryItem[] = [
   { type: "cover", quickAdd: true, availableInLibrary: true },
   { type: "menu", quickAdd: false, availableInLibrary: true },
   { type: "loader", quickAdd: false, availableInLibrary: true },
+  { type: "services", quickAdd: false, availableInLibrary: true },
   { type: "aisha", quickAdd: false, availableInLibrary: true },
   { type: "booking", quickAdd: false, availableInLibrary: false },
 ];

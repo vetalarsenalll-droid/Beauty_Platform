@@ -71,6 +71,7 @@ export type SiteServiceItem = {
   id: number;
   name: string;
   description: string | null;
+  categoryName?: string | null;
   baseDurationMin: number;
   basePrice: number;
   coverUrl: string | null;

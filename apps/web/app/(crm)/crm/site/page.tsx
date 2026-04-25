@@ -72,7 +72,10 @@ export default async function CrmSitePage({
     prisma.service.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
-      include: { locations: { select: { locationId: true } } },
+      include: {
+        category: { select: { name: true } },
+        locations: { select: { locationId: true } },
+      },
     }),
     prisma.specialistProfile.findMany({
       where: { accountId: session.accountId },
@@ -247,10 +250,11 @@ export default async function CrmSitePage({
             : null,
           coverUrl: locationCoverMap.get(String(location.id)) ?? null,
         }))}
-        services={services.map((service: { id: number; name: string; description: string | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
+        services={services.map((service: { id: number; name: string; description: string | null; category: { name: string } | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
           id: service.id,
           name: service.name,
           description: service.description,
+          categoryName: service.category?.name ?? null,
           baseDurationMin: service.baseDurationMin,
           basePrice: Number(service.basePrice),
           coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
