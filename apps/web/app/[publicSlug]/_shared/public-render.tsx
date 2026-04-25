@@ -3009,6 +3009,12 @@ function renderServices(
       : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
+  const detailsButtonText =
+    typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
+      ? data.detailsButtonText.trim()
+      : "Подробнее";
+  const servicePageButtonMode =
+    data.servicePageButtonMode === "booking" ? "booking" : "entityPage";
   const showCategoryTabs = data.showCategoryTabs !== false;
   const categoryAllLabel =
     typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
@@ -3066,6 +3072,8 @@ function renderServices(
       showDuration={showDuration}
       showButton={showButton}
       buttonText={buttonText}
+      detailsButtonText={detailsButtonText}
+      servicePageButtonMode={servicePageButtonMode}
       headingStyle={headingStyle(style)}
       subheadingStyle={subheadingStyle(style)}
       buttonStyle={buttonStyle(style)}

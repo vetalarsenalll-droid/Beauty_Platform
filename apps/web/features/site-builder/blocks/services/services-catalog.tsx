@@ -25,6 +25,8 @@ type ServiceCatalogProps = {
   showDuration: boolean;
   showButton: boolean;
   buttonText: string;
+  detailsButtonText: string;
+  servicePageButtonMode: "entityPage" | "booking";
   headingStyle: CSSProperties;
   subheadingStyle: CSSProperties;
   buttonStyle: CSSProperties;
@@ -77,6 +79,8 @@ export function ServicesCatalog({
   showDuration,
   showButton,
   buttonText,
+  detailsButtonText,
+  servicePageButtonMode,
   headingStyle,
   subheadingStyle,
   buttonStyle,
@@ -117,8 +121,9 @@ export function ServicesCatalog({
     .filter((item) => {
       const query = normalizeText(searchQuery);
       if (!query) return true;
-      return [item.name, item.description ?? "", item.categoryName ?? ""]
-        .some((value) => normalizeText(value).includes(query));
+      return [item.name, item.description ?? "", item.categoryName ?? ""].some((value) =>
+        normalizeText(value).includes(query)
+      );
     })
     .slice()
     .sort((left, right) => {
@@ -161,14 +166,11 @@ export function ServicesCatalog({
             </p>
           ) : null}
         </div>
+
         {(showSearch || showSort) && (
           <div className="flex w-full flex-col gap-3 sm:flex-row xl:max-w-[580px] xl:justify-end">
             {showSearch ? (
-              <label
-                className={`flex min-w-0 flex-1 items-center gap-3 border border-[color:var(--block-border,var(--bp-stroke))] bg-[color:var(--block-sub-block-bg,var(--bp-paper))] px-4 py-3 text-sm ${
-                  isEditorial ? "rounded-[20px]" : "rounded-full"
-                }`}
-              >
+              <label className="flex min-w-0 flex-1 items-center gap-3 border-b border-[color:var(--block-border,transparent)] bg-transparent px-0 py-2 text-sm">
                 <span className="text-[color:var(--block-muted,var(--bp-muted))]">⌕</span>
                 <input
                   type="search"
@@ -179,12 +181,9 @@ export function ServicesCatalog({
                 />
               </label>
             ) : null}
+
             {showSort ? (
-              <label
-                className={`flex min-w-0 items-center border border-[color:var(--block-border,var(--bp-stroke))] bg-[color:var(--block-sub-block-bg,var(--bp-paper))] px-4 py-3 text-sm text-[color:var(--block-text,var(--bp-ink))] sm:w-[260px] ${
-                  isEditorial ? "rounded-[20px]" : "rounded-full"
-                }`}
-              >
+              <label className="flex min-w-0 items-center border-b border-[color:var(--block-border,transparent)] bg-transparent px-0 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))] sm:w-[260px]">
                 <select
                   value={sortMode}
                   onChange={(event) => setSortMode(event.target.value)}
@@ -208,16 +207,14 @@ export function ServicesCatalog({
           <button
             type="button"
             onClick={() => setActiveCategory("__all__")}
-            className={`border px-4 py-2 text-sm transition ${isEditorial ? "rounded-[18px]" : "rounded-full"}`}
+            className="rounded-[12px] border px-4 py-2 text-sm transition"
             style={{
               borderColor:
                 activeCategory === "__all__"
                   ? "var(--block-text,var(--bp-ink))"
-                  : "var(--block-border,var(--bp-stroke))",
+                  : "var(--block-border,transparent)",
               backgroundColor:
-                activeCategory === "__all__"
-                  ? "var(--block-text,var(--bp-ink))"
-                  : "var(--block-sub-block-bg,var(--bp-paper))",
+                activeCategory === "__all__" ? "var(--block-text,var(--bp-ink))" : "transparent",
               color:
                 activeCategory === "__all__"
                   ? "var(--block-button-text,var(--bp-paper))"
@@ -233,14 +230,12 @@ export function ServicesCatalog({
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className={`border px-4 py-2 text-sm transition ${isEditorial ? "rounded-[18px]" : "rounded-full"}`}
+                className="rounded-[12px] border px-4 py-2 text-sm transition"
                 style={{
                   borderColor: isActive
                     ? "var(--block-text,var(--bp-ink))"
-                    : "var(--block-border,var(--bp-stroke))",
-                  backgroundColor: isActive
-                    ? "var(--block-text,var(--bp-ink))"
-                    : "var(--block-sub-block-bg,var(--bp-paper))",
+                    : "var(--block-border,transparent)",
+                  backgroundColor: isActive ? "var(--block-text,var(--bp-ink))" : "transparent",
                   color: isActive
                     ? "var(--block-button-text,var(--bp-paper))"
                     : "var(--block-text,var(--bp-ink))",
@@ -269,25 +264,19 @@ export function ServicesCatalog({
                   scenario: "serviceFirst",
                 })
               : null;
+          const detailsHref =
+            servicePageButtonMode === "booking" && bookingHref ? bookingHref : serviceHref;
           const hasImage = Boolean(service.coverUrl);
 
           return (
             <article
               key={service.id}
-              className={`overflow-hidden border border-[color:var(--block-border,var(--bp-stroke))] bg-[color:var(--block-sub-block-bg,var(--bp-paper))] ${
-                isEditorial
-                  ? "flex h-full flex-col rounded-[32px] shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
-                  : "flex h-full flex-col rounded-[24px]"
-              }`}
+              className="overflow-hidden border border-[color:var(--block-border,transparent)] bg-[color:var(--block-sub-block-bg,transparent)] rounded-[18px]"
               style={{ textAlign }}
             >
               {hasImage ? (
                 <a href={serviceHref} className="block">
-                  <div
-                    className={`overflow-hidden ${
-                      variant === "v2" ? "aspect-[4/3]" : "aspect-[5/6]"
-                    }`}
-                  >
+                  <div className={`overflow-hidden ${variant === "v2" ? "aspect-[4/3]" : "aspect-[5/6]"}`}>
                     <img
                       src={service.coverUrl ?? ""}
                       alt=""
@@ -297,13 +286,9 @@ export function ServicesCatalog({
                 </a>
               ) : null}
 
-              <div className={`flex flex-1 flex-col ${variant === "v2" ? "p-6" : "p-6"}`}>
+              <div className="flex flex-1 flex-col px-0 pb-0 pt-5">
                 {service.categoryName ? (
-                  <div
-                    className={`mb-3 text-[11px] uppercase tracking-[0.18em] text-[color:var(--block-muted,var(--bp-muted))] ${
-                      isEditorial ? "" : ""
-                    }`}
-                  >
+                  <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[color:var(--block-muted,var(--bp-muted))]">
                     {service.categoryName}
                   </div>
                 ) : null}
@@ -330,20 +315,12 @@ export function ServicesCatalog({
                 {(showDuration || showPrice) && (
                   <div className="mt-5 flex flex-wrap gap-2 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                     {showDuration ? (
-                      <span
-                        className={`border border-[color:var(--block-border,var(--bp-stroke))] px-3 py-1 ${
-                          isEditorial ? "rounded-[16px]" : "rounded-full"
-                        }`}
-                      >
+                      <span className="rounded-[10px] border border-[color:var(--block-border,transparent)] px-3 py-1">
                         {service.baseDurationMin} мин
                       </span>
                     ) : null}
                     {showPrice ? (
-                      <span
-                        className={`border border-[color:var(--block-border,var(--bp-stroke))] px-3 py-1 ${
-                          isEditorial ? "rounded-[16px]" : "rounded-full"
-                        }`}
-                      >
+                      <span className="rounded-[10px] border border-[color:var(--block-border,transparent)] px-3 py-1">
                         {formatPrice(service.basePrice)}
                       </span>
                     ) : null}
@@ -353,19 +330,15 @@ export function ServicesCatalog({
                 <div className="mt-auto pt-5">
                   <div className="flex flex-wrap gap-3">
                     <a
-                      href={serviceHref}
-                      className={`inline-flex items-center justify-center border border-[color:var(--block-border,var(--bp-stroke))] px-4 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))] ${
-                        isEditorial ? "rounded-[16px]" : "rounded-full"
-                      }`}
+                      href={detailsHref}
+                      className="inline-flex items-center justify-center rounded-[12px] border border-[color:var(--block-border,transparent)] px-4 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))]"
                     >
-                      Подробнее
+                      {detailsButtonText}
                     </a>
                     {showButton && bookingHref ? (
                       <a
                         href={bookingHref}
-                        className={`inline-flex items-center justify-center px-4 py-2 text-sm ${
-                          isEditorial ? "rounded-[16px]" : "rounded-full"
-                        }`}
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
                         style={buttonStyle}
                       >
                         {buttonText}
@@ -379,11 +352,7 @@ export function ServicesCatalog({
         })}
 
         {filteredItems.length === 0 ? (
-          <div
-            className={`border border-dashed border-[color:var(--block-border,var(--bp-stroke))] p-6 text-sm text-[color:var(--block-muted,var(--bp-muted))] ${
-              isEditorial ? "rounded-[32px]" : "rounded-[24px]"
-            }`}
-          >
+          <div className="rounded-[24px] border border-dashed border-[color:var(--block-border,transparent)] p-6 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
             Услуги по выбранным параметрам не найдены.
           </div>
         ) : null}

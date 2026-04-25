@@ -1,13 +1,33 @@
 import type { BlockVersion } from "../../runtime/contracts";
 import { makeBlockId } from "@/lib/site-builder";
 import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
+import { SiteServicesSettingsPrimary } from "@/features/site-builder/crm/site-services-settings-primary";
 import { SE002ContentPanel } from "./content-panel";
-import { SE002SettingsPanel } from "./settings-panel";
 import { SE002Drawers } from "./drawers";
 
 export const SE002: BlockVersion = {
   blockCode: "SE002",
-  normalizeData: (input) => (typeof input === "object" && input ? (input as Record<string, unknown>) : {}),
+  normalizeData: (input) => {
+    if (typeof input !== "object" || !input) return {};
+    const data = input as Record<string, unknown>;
+    const style =
+      typeof data.style === "object" && data.style ? (data.style as Record<string, unknown>) : {};
+    return {
+      ...data,
+      style: {
+        ...style,
+        sectionBgLight: style.sectionBgLight ?? "transparent",
+        sectionBgDark: style.sectionBgDark ?? "transparent",
+        sectionBg: style.sectionBg ?? "transparent",
+        subBlockBgLight: style.subBlockBgLight ?? "transparent",
+        subBlockBgDark: style.subBlockBgDark ?? "transparent",
+        subBlockBg: style.subBlockBg ?? "transparent",
+        borderColorLight: style.borderColorLight ?? "transparent",
+        borderColorDark: style.borderColorDark ?? "transparent",
+        borderColor: style.borderColor ?? "transparent",
+      },
+    };
+  },
   createDefault: () => {
     const base = (defaultBlockData.services ?? {}) as Record<string, unknown>;
     const baseStyle =
@@ -30,7 +50,20 @@ export const SE002: BlockVersion = {
   renderCRM: () => "",
   renderPublic: () => "",
   contentPanel: (ctx) => <SE002ContentPanel {...ctx} />,
-  settingsPanel: (ctx) => <SE002SettingsPanel {...ctx} />,
+  settingsPanel: (ctx) => (
+    <SiteServicesSettingsPrimary
+      block={ctx.block}
+      activeTheme={ctx.activeTheme}
+      panelTheme={ctx.panelTheme}
+      activePanelSectionId={ctx.activePanelSectionId}
+      coverWidthButtonRef={ctx.coverWidthButtonRef}
+      coverWidthPopoverRef={ctx.coverWidthPopoverRef}
+      coverWidthModalOpen={ctx.coverWidthModalOpen}
+      setCoverWidthModalOpen={ctx.setCoverWidthModalOpen}
+      setActivePanelSectionId={ctx.setActivePanelSectionId}
+      updateBlock={ctx.updateBlock}
+    />
+  ),
   drawers: (ctx) => <SE002Drawers {...ctx} />,
   actions: () => {},
 };

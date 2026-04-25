@@ -3099,135 +3099,87 @@ export function BlockStyleEditor({
         </>
       )}
       {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
-      <label className="text-sm">
-        Шрифт заголовка
-        <select
-          value={style.fontHeading || ""}
-          onChange={(event) => update({ fontHeading: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="">По умолчанию</option>
-          {THEME_FONTS.map((font) => (
-            <option key={font.label} value={font.heading}>
-              {font.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      )}
-      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
-      <label className="text-sm">
-        Шрифт подзаголовка
-        <select
-          value={style.fontSubheading || ""}
-          onChange={(event) => update({ fontSubheading: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="">По умолчанию</option>
-          {THEME_FONTS.map((font) => (
-            <option key={font.label} value={font.body}>
-              {font.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      )}
-      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
-      <label className="text-sm">
-        Шрифт текста
-        <select
-          value={style.fontBody || ""}
-          onChange={(event) => update({ fontBody: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-        >
-          <option value="">По умолчанию</option>
-          {THEME_FONTS.map((font) => (
-            <option key={font.label} value={font.body}>
-              {font.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      )}
-      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="text-sm">
-          Жирность заголовка
-          <select
-            value={style.fontWeightHeading?.toString() || ""}
-            onChange={(event) =>
-              update({ fontWeightHeading: event.target.value ? Number(event.target.value) : null })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="">По умолчанию</option>
-            {FONT_WEIGHTS.map((weight) => (
-              <option key={weight.value} value={weight.value}>
-                {weight.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Жирность подзаголовка
-          <select
-            value={style.fontWeightSubheading?.toString() || ""}
-            onChange={(event) =>
-              update({ fontWeightSubheading: event.target.value ? Number(event.target.value) : null })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="">По умолчанию</option>
-            {FONT_WEIGHTS.map((weight) => (
-              <option key={weight.value} value={weight.value}>
-                {weight.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Жирность текста
-          <select
-            value={style.fontWeightBody?.toString() || ""}
-            onChange={(event) =>
-              update({ fontWeightBody: event.target.value ? Number(event.target.value) : null })
-            }
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            <option value="">По умолчанию</option>
-            {FONT_WEIGHTS.map((weight) => (
-              <option key={weight.value} value={weight.value}>
-                {weight.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      )}
-      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
-      <div className="grid grid-cols-3 gap-3">
-        <NumberField
-          label="Заголовок"
-          value={style.headingSize ?? theme.headingSize}
-          min={0}
-          max={140}
-          onChange={(value) => update({ headingSize: value })}
-        />
-        <NumberField
-          label="Подзаголовок"
-          value={style.subheadingSize ?? theme.subheadingSize}
-          min={0}
-          max={100}
-          onChange={(value) => update({ subheadingSize: value })}
-        />
-        <NumberField
-          label="Текст"
-          value={style.textSize ?? theme.textSize}
-          min={0}
-          max={72}
-          onChange={(value) => update({ textSize: value })}
-        />
-      </div>
+        <>
+          {renderFlatSelect(
+            "Шрифт заголовка",
+            style.fontHeading || "",
+            (value) => update({ fontHeading: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.heading, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Шрифт подзаголовка",
+            style.fontSubheading || "",
+            (value) => update({ fontSubheading: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Шрифт текста",
+            style.fontBody || "",
+            (value) => update({ fontBody: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label })),
+            ]
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {renderFlatSelect(
+              "Жирность заголовка",
+              style.fontWeightHeading?.toString() || "",
+              (value) => update({ fontWeightHeading: value ? Number(value) : null }),
+              [
+                { value: "", label: "По умолчанию" },
+                ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+              ]
+            )}
+            {renderFlatSelect(
+              "Жирность подзаголовка",
+              style.fontWeightSubheading?.toString() || "",
+              (value) => update({ fontWeightSubheading: value ? Number(value) : null }),
+              [
+                { value: "", label: "По умолчанию" },
+                ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+              ]
+            )}
+            {renderFlatSelect(
+              "Жирность текста",
+              style.fontWeightBody?.toString() || "",
+              (value) => update({ fontWeightBody: value ? Number(value) : null }),
+              [
+                { value: "", label: "По умолчанию" },
+                ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label })),
+              ]
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {renderFlatNumber(
+              "Заголовок",
+              style.headingSize ?? theme.headingSize,
+              0,
+              140,
+              (value) => update({ headingSize: value })
+            )}
+            {renderFlatNumber(
+              "Подзаголовок",
+              style.subheadingSize ?? theme.subheadingSize,
+              0,
+              100,
+              (value) => update({ subheadingSize: value })
+            )}
+            {renderFlatNumber(
+              "Текст",
+              style.textSize ?? theme.textSize,
+              0,
+              72,
+              (value) => update({ textSize: value })
+            )}
+          </div>
+        </>
       )}
     </div>
   );
