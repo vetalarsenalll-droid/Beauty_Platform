@@ -25,6 +25,15 @@ function renderFlatTextInput(
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
         />
       </div>
     </label>
