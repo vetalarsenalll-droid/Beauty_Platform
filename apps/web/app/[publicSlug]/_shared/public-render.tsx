@@ -2030,9 +2030,7 @@ export function buildBlockWrapperStyle(
               : (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
-              : isServicesBlock
-              ? "transparent"
-              : isGallery || isBookingBlock
+              : isGallery || isBookingBlock || isServicesBlock
               ? "var(--block-section-bg, var(--block-bg))"
               : "var(--block-bg)",
         backgroundImage:
@@ -2075,22 +2073,22 @@ export function buildBlockWrapperStyle(
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu || isGallery || isBookingBlock || isCoverBlock ? "100%" : gridWidthCss,
+        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
-        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock ? "auto" : gridLeftCss,
-        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock ? "auto" : 0,
+        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : gridLeftCss,
+        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : 0,
         boxSizing: "border-box",
         color: "var(--block-text)",
         ["--works-content-width" as string]: gridWidthCss,
         ["--works-content-left" as string]: gridLeftCss,
         ["--bp-ink" as string]: "var(--block-text)",
         ["--bp-muted" as string]: "var(--block-muted)",
-        ["--block-bg-light" as string]: isServicesBlock ? "transparent" : style.blockBgLightResolved,
-        ["--block-bg-dark" as string]: isServicesBlock ? "transparent" : style.blockBgDarkResolved,
-        ["--block-section-bg-light" as string]: isServicesBlock ? "transparent" : style.sectionBgLightResolved,
-        ["--block-section-bg-dark" as string]: isServicesBlock ? "transparent" : style.sectionBgDarkResolved,
-        ["--block-sub-bg-light" as string]: isServicesBlock ? "transparent" : style.subBlockBgLightResolved,
-        ["--block-sub-bg-dark" as string]: isServicesBlock ? "transparent" : style.subBlockBgDarkResolved,
+        ["--block-bg-light" as string]: style.blockBgLightResolved,
+        ["--block-bg-dark" as string]: style.blockBgDarkResolved,
+        ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
+        ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
+        ["--block-sub-bg-light" as string]: style.subBlockBgLightResolved,
+        ["--block-sub-bg-dark" as string]: style.subBlockBgDarkResolved,
         ["--block-border-light" as string]: style.borderColorLightResolved,
         ["--block-border-dark" as string]: style.borderColorDarkResolved,
         ["--block-text-light" as string]: style.textColorLightResolved,
@@ -3054,34 +3052,44 @@ function renderServices(
         : "";
 
   return (
-    <ServicesCatalog
-      variant={block.variant === "v2" ? "v2" : "v1"}
-      title={(data.title as string) || "Услуги"}
-      subtitle={subtitle}
-      items={items}
-      publicSlug={publicSlug}
-      currentLocationId={currentLocationId}
-      locationId={locationId}
-      effectiveSpecialistId={effectiveSpecialistId}
-      cardsPerRow={cardsPerRow}
-      showCategoryTabs={showCategoryTabs}
-      categoryAllLabel={categoryAllLabel}
-      showSearch={showSearch}
-      searchPlaceholder={searchPlaceholder}
-      showSort={showSort}
-      defaultSort={defaultSort}
-      showDescription={showDescription}
-      showPrice={showPrice}
-      showDuration={showDuration}
-      showButton={showButton}
-      buttonText={buttonText}
-      detailsButtonText={detailsButtonText}
-      servicePageButtonMode={servicePageButtonMode}
-      headingStyle={headingStyle(style)}
-      subheadingStyle={subheadingStyle(style)}
-      buttonStyle={buttonStyle(style)}
-      textAlign={style.textAlign}
-    />
+    <div
+      className="mx-auto w-full"
+      style={{
+        width: "var(--works-content-width, 100%)",
+        maxWidth: "100%",
+        marginLeft: "var(--works-content-left, auto)",
+        marginRight: 0,
+      }}
+    >
+      <ServicesCatalog
+        variant={block.variant === "v2" ? "v2" : "v1"}
+        title={(data.title as string) || "Услуги"}
+        subtitle={subtitle}
+        items={items}
+        publicSlug={publicSlug}
+        currentLocationId={currentLocationId}
+        locationId={locationId}
+        effectiveSpecialistId={effectiveSpecialistId}
+        cardsPerRow={cardsPerRow}
+        showCategoryTabs={showCategoryTabs}
+        categoryAllLabel={categoryAllLabel}
+        showSearch={showSearch}
+        searchPlaceholder={searchPlaceholder}
+        showSort={showSort}
+        defaultSort={defaultSort}
+        showDescription={showDescription}
+        showPrice={showPrice}
+        showDuration={showDuration}
+        showButton={showButton}
+        buttonText={buttonText}
+        detailsButtonText={detailsButtonText}
+        servicePageButtonMode={servicePageButtonMode}
+        headingStyle={headingStyle(style)}
+        subheadingStyle={subheadingStyle(style)}
+        buttonStyle={buttonStyle(style)}
+        textAlign={style.textAlign}
+      />
+    </div>
   );
 }
 
