@@ -124,7 +124,7 @@ export const BLOCK_VARIANTS: Record<
   client: ["v1"],
   booking: ["v1"],
   locations: ["v1", "v2"],
-  services: ["v1", "v2"],
+  services: ["v1"],
   specialists: ["v1", "v2"],
   works: ["v1", "v2"],
   reviews: ["v1", "v2"],

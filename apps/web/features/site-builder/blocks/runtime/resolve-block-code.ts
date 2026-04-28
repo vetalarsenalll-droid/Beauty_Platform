@@ -18,7 +18,6 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
     return "LO001";
   }
   if (block.type === "services") {
-    if (block.variant === "v2") return "SE002";
     return "SE001";
   }
   if (block.type === "booking") return "BO001";
