@@ -200,7 +200,7 @@ function ServiceModal({
   const [activeImageIndex, setActiveImageIndex] = useState(
     Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
   );
-  const [zoomed, setZoomed] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<0 | 1 | 2>(0);
   const canNavigate = images.length > 1;
   const showArrows = controls === "arrows" || controls === "arrowsAndDots" || controls === "thumbnails";
   const showDots = controls === "dots" || controls === "arrowsAndDots";
@@ -208,7 +208,7 @@ function ServiceModal({
 
   useEffect(() => {
     setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
-    setZoomed(false);
+    setZoomLevel(0);
   }, [imageIndex, images.length]);
 
   useEffect(() => {
@@ -248,6 +248,7 @@ function ServiceModal({
     });
 
   const currentImage = images[activeImageIndex] ?? null;
+  const isImageFocusMode = zoomLevel > 0;
   const arrowPx = resolveArrowSize(arrowSize);
   const arrowButtonBaseStyle: CSSProperties = {
     width: arrowPx,
@@ -260,21 +261,58 @@ function ServiceModal({
 
   return (
     <div
-      className="fixed inset-0 z-[300] overflow-y-auto bg-[#f3f3f3]"
-      onClick={onClose}
+      className="fixed inset-0 z-[300] overflow-hidden bg-[#f3f3f3]"
+      onClick={() => {
+        if (isImageFocusMode) {
+          setZoomLevel(0);
+          return;
+        }
+        onClose();
+      }}
     >
       <div
-        className="relative mx-auto flex min-h-screen w-full max-w-[1600px] items-center px-6 py-10 lg:px-10"
+        className={`relative mx-auto flex min-h-screen w-full max-w-[1600px] items-center ${
+          isImageFocusMode ? "px-2 py-2 lg:px-3 lg:py-3" : "px-6 py-10 lg:px-10"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            if (isImageFocusMode) {
+              setZoomLevel(0);
+              return;
+            }
+            onClose();
+          }}
           className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none text-black/80 hover:text-black"
           aria-label="Закрыть"
         >
           ×
         </button>
+
+        {imageZoomOnClick && isImageFocusMode ? (
+          <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setZoomLevel((current) => (current === 0 ? 0 : current === 2 ? 1 : 0))}
+              className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
+              aria-label="Уменьшить"
+              disabled={zoomLevel === 0}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoomLevel((current) => (current === 2 ? 2 : current === 1 ? 2 : 1))}
+              className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
+              aria-label="Увеличить"
+              disabled={zoomLevel === 2}
+            >
+              +
+            </button>
+          </div>
+        ) : null}
 
         <div className="relative flex min-h-[70vh] flex-1 items-center justify-center p-8">
           {showArrows && canNavigate ? (
@@ -316,8 +354,18 @@ function ServiceModal({
           <div
             className="relative overflow-hidden rounded-[8px]"
             style={{
-              width: "min(62vw, 820px)",
-              height: "min(72vh, 820px)",
+              width:
+                zoomLevel === 0
+                  ? "min(62vw, 820px)"
+                  : zoomLevel === 1
+                    ? "min(94vw, 1400px)"
+                    : "min(98vw, 1600px)",
+              height:
+                zoomLevel === 0
+                  ? "min(72vh, 820px)"
+                  : zoomLevel === 1
+                    ? "calc(100vh - 48px)"
+                    : "calc(100vh - 24px)",
             }}
           >
             {currentImage ? (
@@ -329,12 +377,16 @@ function ServiceModal({
                 }`}
                 style={{
                   objectFit: imageFit || "contain",
-                  transform: zoomed ? "scale(1.35)" : undefined,
-                  cursor: imageZoomOnClick ? (zoomed ? "zoom-out" : "zoom-in") : "default",
+                  cursor:
+                    imageZoomOnClick
+                      ? zoomLevel === 0
+                        ? "zoom-in"
+                        : "zoom-out"
+                      : "default",
                 }}
                 onClick={() => {
                   if (!imageZoomOnClick) return;
-                  setZoomed((current) => !current);
+                  if (zoomLevel === 0) setZoomLevel(1);
                 }}
               />
             ) : (
@@ -381,6 +433,7 @@ function ServiceModal({
           ) : null}
         </div>
 
+        {zoomLevel === 0 ? (
         <div className="flex w-full max-w-[520px] flex-col py-2">
           <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">
             {service.categoryName || "Услуга"}
@@ -412,7 +465,7 @@ function ServiceModal({
                   type="button"
                   onClick={() => {
                     setActiveImageIndex(idx);
-                    setZoomed(false);
+                    setZoomLevel(0);
                   }}
                   className="overflow-hidden rounded-[12px] border"
                   style={{
@@ -435,7 +488,7 @@ function ServiceModal({
                   type="button"
                   onClick={() => {
                     setActiveImageIndex(idx);
-                    setZoomed(false);
+                    setZoomLevel(0);
                   }}
                   className="rounded-full transition"
                   style={{
@@ -450,6 +503,7 @@ function ServiceModal({
             </div>
           ) : null}
         </div>
+        ) : null}
       </div>
     </div>
   );
