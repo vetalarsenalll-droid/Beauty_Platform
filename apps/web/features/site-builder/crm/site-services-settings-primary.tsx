@@ -1,4 +1,4 @@
-﻿import { type RefObject } from "react";
+﻿import { useState, type RefObject } from "react";
 import {
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
@@ -78,6 +78,7 @@ export function SiteServicesSettingsPrimary({
   setActivePanelSectionId,
   updateBlock,
 }: SiteServicesSettingsPrimaryProps) {
+  const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const style = normalizeBlockStyle(block, activeTheme);
 
   const updateStyle = (patch: Partial<BlockStyle>) => {
@@ -313,28 +314,49 @@ export function SiteServicesSettingsPrimary({
         }}
       />
 
-      <TildaBackgroundColorField
-        label="Цвет фона для всего блока (темная тема)"
-        value={darkSectionBg || "#16181d"}
-        mode={darkBackgroundMode}
-        secondValue={darkBackgroundTo}
-        angle={darkBackgroundAngle}
-        radialStopA={darkBackgroundStopA}
-        radialStopB={darkBackgroundStopB}
-        placeholder="#16181d"
-        onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeDark: mode })}
-        onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToDark: value })}
-        onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleDark: value })}
-        onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopADark: value })}
-        onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBDark: value })}
-        onChange={(value) => {
-          updateStyle({
-            sectionBgDark: value,
-            blockBgDark: value,
-            servicesSectionBackgroundFromDark: value,
-          });
+      <button
+        type="button"
+        onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+        className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+        style={{
+          borderColor: showDarkThemeAdvanced ? "#ff5a5f" : panelTheme.border,
+          backgroundColor: "transparent",
+          color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
         }}
-      />
+      >
+        <span className="inline-flex items-center gap-2">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+          </svg>
+          <span>Темная тема</span>
+        </span>
+        <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+      </button>
+
+      {showDarkThemeAdvanced ? (
+        <TildaBackgroundColorField
+          label="Цвет фона для всего блока"
+          value={darkSectionBg || "#16181d"}
+          mode={darkBackgroundMode}
+          secondValue={darkBackgroundTo}
+          angle={darkBackgroundAngle}
+          radialStopA={darkBackgroundStopA}
+          radialStopB={darkBackgroundStopB}
+          placeholder="#16181d"
+          onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeDark: mode })}
+          onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToDark: value })}
+          onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleDark: value })}
+          onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopADark: value })}
+          onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBDark: value })}
+          onChange={(value) => {
+            updateStyle({
+              sectionBgDark: value,
+              blockBgDark: value,
+              servicesSectionBackgroundFromDark: value,
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

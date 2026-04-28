@@ -3142,6 +3142,7 @@ function renderServices(
     >
       <ServicesCatalog
         variant={block.variant === "v2" ? "v2" : "v1"}
+        listView={data.listView === "list" ? "list" : "tile"}
         title={(data.title as string) || "Услуги"}
         subtitle={subtitle}
         items={items}

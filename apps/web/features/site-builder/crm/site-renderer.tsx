@@ -4945,6 +4945,7 @@ export function renderServices(
   const modalInfiniteGallery = data.modalInfiniteGallery !== false;
   const modalImageZoomOnClick = data.modalImageZoomOnClick !== false;
   const modalImageZoomOnHover = data.modalImageZoomOnHover === true;
+  const listView = data.listView === "list" ? "list" : "tile";
   const maxVisibleItems = Number(data.maxVisibleItems);
   const usePagination = data.usePagination === true;
   const showCategoryTabs = data.showCategoryTabs !== false;
@@ -4994,6 +4995,7 @@ export function renderServices(
     >
       <ServicesCatalog
         variant={block.variant === "v2" ? "v2" : "v1"}
+        listView={listView}
         title={(data.title as string) || "Услуги"}
         subtitle={subtitle}
         items={items}

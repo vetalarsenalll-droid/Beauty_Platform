@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TildaInlineColorField } from "@/features/site-builder/crm/site-editor-panels";
 import { FlatCheckbox, updateBlockStyle } from "@/features/site-builder/crm/site-renderer";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
@@ -82,6 +83,7 @@ export function SiteServicesSettingsDrawer({
   activeSectionId: string;
   updateBlock: (blockId: string, updater: (block: SiteBlock) => SiteBlock) => void;
 }) {
+  const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const data = (block.data as Record<string, unknown>) ?? {};
   const rawStyle = ((block.data as Record<string, unknown>).style as Record<string, unknown>) ?? {};
   const updateData = (patch: Record<string, unknown>) => {
@@ -195,9 +197,12 @@ export function SiteServicesSettingsDrawer({
       <div className="space-y-6 px-1 pb-8 pt-1">
         {renderFlatSelect(
           "Вид списка товаров",
-          "tile",
-          () => {},
-          [{ value: "tile", label: "Плитка" }]
+          String(data.listView ?? "tile"),
+          (value) => updateData({ listView: value }),
+          [
+            { value: "tile", label: "Плитка" },
+            { value: "list", label: "Список" },
+          ]
         )}
         {renderFlatSelect(
           "Стиль карточек",
@@ -313,76 +318,95 @@ export function SiteServicesSettingsDrawer({
           label="Показывать пагинацию (вместо кнопки «Загрузить ещё»)"
         />
 
-        <div className="border-t border-[color:var(--bp-stroke)] pt-4">
-          <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-            Цвета и темная тема
-          </div>
-          <div className="space-y-4">
-            <TildaInlineColorField
-              compact
-              label="Фон карточек"
-              value={readStyle("subBlockBgLight", readStyle("subBlockBg", "transparent"))}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ subBlockBgLight: value, subBlockBg: value })}
-              onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Обводка"
-              value={readStyle("borderColorLight", readStyle("borderColor", "transparent"))}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ borderColorLight: value, borderColor: value })}
-              onClear={() => updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Заголовок"
-              value={readStyle("textColorLight", readStyle("textColor", activeTheme.textColor))}
-              placeholder={activeTheme.textColor}
-              onChange={(value) => updateStyle({ textColorLight: value, textColor: value })}
-              onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Текст"
-              value={readStyle("mutedColorLight", readStyle("mutedColor", activeTheme.mutedColor))}
-              placeholder={activeTheme.mutedColor}
-              onChange={(value) => updateStyle({ mutedColorLight: value, mutedColor: value })}
-              onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Фон карточек (темная)"
-              value={readStyle("subBlockBgDark", "transparent")}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ subBlockBgDark: value })}
-              onClear={() => updateStyle({ subBlockBgDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Обводка (темная)"
-              value={readStyle("borderColorDark", "transparent")}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ borderColorDark: value })}
-              onClear={() => updateStyle({ borderColorDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Заголовок (темная)"
-              value={readStyle("textColorDark", activeTheme.darkPalette.textColor)}
-              placeholder={activeTheme.darkPalette.textColor}
-              onChange={(value) => updateStyle({ textColorDark: value })}
-              onClear={() => updateStyle({ textColorDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Текст (темная)"
-              value={readStyle("mutedColorDark", activeTheme.darkPalette.mutedColor)}
-              placeholder={activeTheme.darkPalette.mutedColor}
-              onChange={(value) => updateStyle({ mutedColorDark: value })}
-              onClear={() => updateStyle({ mutedColorDark: "transparent" })}
-            />
-          </div>
+        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+          <TildaInlineColorField
+            compact
+            label="Фон карточек"
+            value={readStyle("subBlockBgLight", readStyle("subBlockBg", "transparent"))}
+            placeholder="transparent"
+            onChange={(value) => updateStyle({ subBlockBgLight: value, subBlockBg: value })}
+            onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Обводка"
+            value={readStyle("borderColorLight", readStyle("borderColor", "transparent"))}
+            placeholder="transparent"
+            onChange={(value) => updateStyle({ borderColorLight: value, borderColor: value })}
+            onClear={() => updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Заголовок"
+            value={readStyle("textColorLight", readStyle("textColor", activeTheme.textColor))}
+            placeholder={activeTheme.textColor}
+            onChange={(value) => updateStyle({ textColorLight: value, textColor: value })}
+            onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Текст"
+            value={readStyle("mutedColorLight", readStyle("mutedColor", activeTheme.mutedColor))}
+            placeholder={activeTheme.mutedColor}
+            onChange={(value) => updateStyle({ mutedColorLight: value, mutedColor: value })}
+            onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
+          />
+
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaInlineColorField
+                compact
+                label="Фон карточек"
+                value={readStyle("subBlockBgDark", "transparent")}
+                placeholder="transparent"
+                onChange={(value) => updateStyle({ subBlockBgDark: value })}
+                onClear={() => updateStyle({ subBlockBgDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Обводка"
+                value={readStyle("borderColorDark", "transparent")}
+                placeholder="transparent"
+                onChange={(value) => updateStyle({ borderColorDark: value })}
+                onClear={() => updateStyle({ borderColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Заголовок"
+                value={readStyle("textColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateStyle({ textColorDark: value })}
+                onClear={() => updateStyle({ textColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Текст"
+                value={readStyle("mutedColorDark", activeTheme.darkPalette.mutedColor)}
+                placeholder={activeTheme.darkPalette.mutedColor}
+                onChange={(value) => updateStyle({ mutedColorDark: value })}
+                onClear={() => updateStyle({ mutedColorDark: "transparent" })}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     );

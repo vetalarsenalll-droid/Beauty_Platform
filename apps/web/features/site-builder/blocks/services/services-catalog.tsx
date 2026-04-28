@@ -6,6 +6,7 @@ import type { SiteServiceItem as ServiceItem } from "@/features/site-builder/sha
 
 type ServiceCatalogProps = {
   variant: "v1" | "v2";
+  listView: "tile" | "list";
   title: string;
   subtitle: string;
   items: ServiceItem[];
@@ -453,6 +454,7 @@ function ServiceModal({
 
 export function ServicesCatalog({
   variant,
+  listView,
   title,
   subtitle,
   items,
@@ -519,6 +521,7 @@ export function ServicesCatalog({
   textAlign = "left",
 }: ServiceCatalogProps) {
   const isEditorial = variant === "v1";
+  const isListView = listView === "list";
   const scopedItems = currentLocationId
     ? items.filter((item) => item.locationIds.includes(currentLocationId))
     : locationId
@@ -717,8 +720,11 @@ export function ServicesCatalog({
       ) : null}
 
       <div
-        className={`mt-8 grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow)}`}
-        style={{ columnGap: clamp(cardGapX, 0, 80, 20), rowGap: clamp(cardGapY, 0, 120, 40) }}
+        className={`mt-8 ${isListView ? "flex flex-col" : `grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow)}`}`}
+        style={{
+          columnGap: isListView ? undefined : clamp(cardGapX, 0, 80, 20),
+          rowGap: clamp(cardGapY, 0, 120, 40),
+        }}
       >
         {displayItems.map((service) => {
           const serviceHref = publicSlug ? `/${publicSlug}/services/${service.id}` : "#";
@@ -741,17 +747,21 @@ export function ServicesCatalog({
           const primaryImage = images[0] ?? null;
           const secondaryImage = showSecondImageOnHover ? images[1] ?? null : null;
           const hasImage = Boolean(primaryImage);
-          const articleBackground = "var(--block-sub-bg,transparent)";
-          const articleBorderColor = "var(--block-border,transparent)";
+          const articleBackground =
+            cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
+          const articleBorderColor =
+            cardStyle === "filled" ? "var(--block-border,transparent)" : "transparent";
 
           return (
             <article
               key={service.id}
-              className="group overflow-hidden rounded-[18px]"
+              className={`group overflow-hidden rounded-[18px] ${isListView ? "flex items-stretch gap-5 border-b pb-6" : ""}`}
               style={{
                 textAlign,
                 backgroundColor: articleBackground,
-                border: `1px solid ${articleBorderColor}`,
+                borderWidth: isListView ? 0 : 1,
+                borderStyle: "solid",
+                borderColor: isListView ? "transparent" : articleBorderColor,
               }}
             >
               {hasImage ? (
@@ -759,7 +769,7 @@ export function ServicesCatalog({
                   <button
                     type="button"
                     onClick={() => setActiveModal({ serviceId: service.id, imageIndex: 0 })}
-                    className="block w-full text-left"
+                    className={`block ${isListView ? "w-[220px] shrink-0 text-left" : "w-full text-left"}`}
                   >
                     <div
                       className="relative overflow-hidden"
@@ -790,7 +800,7 @@ export function ServicesCatalog({
                     </div>
                   </button>
                 ) : (
-                  <a href={serviceHref} className="block">
+                  <a href={serviceHref} className={`block ${isListView ? "w-[220px] shrink-0" : ""}`}>
                     <div
                       className="relative overflow-hidden"
                       style={{
@@ -863,7 +873,8 @@ export function ServicesCatalog({
                         className="rounded-[10px] px-3 py-1"
                         style={{
                           border: "1px solid var(--block-border,transparent)",
-                          backgroundColor: "var(--block-sub-bg,transparent)",
+                          backgroundColor:
+                            cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
                         }}
                       >
                         {service.baseDurationMin} мин
@@ -874,7 +885,8 @@ export function ServicesCatalog({
                         className="rounded-[10px] px-3 py-1"
                         style={{
                           border: "1px solid var(--block-border,transparent)",
-                          backgroundColor: "var(--block-sub-bg,transparent)",
+                          backgroundColor:
+                            cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
                         }}
                       >
                         {formatPrice(service.basePrice)}
