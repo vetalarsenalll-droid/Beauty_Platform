@@ -1713,6 +1713,25 @@ export function BlockPreview({
             ["--block-button-text-dark" as string]: style.buttonTextColorDarkResolved,
             ["--block-gradient-light" as string]: lightGradient,
             ["--block-gradient-dark" as string]: darkGradient,
+            ["--block-bg" as string]:
+              theme.mode === "dark" ? menuBlockBgDark : menuBlockBgLight,
+            ["--block-section-bg" as string]:
+              theme.mode === "dark" ? style.sectionBgDarkResolved : style.sectionBgLightResolved,
+            ["--block-sub-bg" as string]:
+              theme.mode === "dark" ? style.subBlockBgDarkResolved : style.subBlockBgLightResolved,
+            ["--block-border" as string]:
+              theme.mode === "dark" ? style.borderColorDarkResolved : style.borderColorLightResolved,
+            ["--block-text" as string]:
+              theme.mode === "dark" ? style.textColorDarkResolved : style.textColorLightResolved,
+            ["--block-muted" as string]:
+              theme.mode === "dark" ? style.mutedColorDarkResolved : style.mutedColorLightResolved,
+            ["--block-button" as string]:
+              theme.mode === "dark" ? style.buttonColorDarkResolved : style.buttonColorLightResolved,
+            ["--block-button-text" as string]:
+              theme.mode === "dark"
+                ? style.buttonTextColorDarkResolved
+                : style.buttonTextColorLightResolved,
+            ["--block-gradient" as string]: theme.mode === "dark" ? darkGradient : lightGradient,
             ["--works-content-width" as string]: gridWidthPercent,
             ["--works-content-left" as string]: gridLeftPercent,
           }}
