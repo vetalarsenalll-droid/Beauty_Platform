@@ -751,6 +751,7 @@ export function ServicesCatalog({
             cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
           const articleBorderColor =
             cardStyle === "filled" ? "var(--block-border,transparent)" : "transparent";
+          const listImageSize = 220;
           const imageRadiusValue = clamp(imageRadius, 0, 40, 10);
           const imageBorderRadius =
             isListView
@@ -759,6 +760,12 @@ export function ServicesCatalog({
               ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
               : imageRadiusValue;
           const listImageOffsetLeft = isListView ? clamp(cardPaddingX, 0, 80, 30) : 0;
+          const contentAlignItems =
+            textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
+          const contentJustify =
+            textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
+          const contentPaddingX = isListView ? 24 : clamp(cardPaddingX, 0, 80, 30);
+          const contentPaddingY = isListView ? 18 : clamp(cardPaddingY, 0, 80, 30);
 
           return (
             <article
@@ -772,7 +779,7 @@ export function ServicesCatalog({
               }`}
               style={{
                 textAlign,
-                backgroundColor: articleBackground,
+                backgroundColor: isListView ? "transparent" : articleBackground,
                 borderWidth: isListView ? 0 : 1,
                 borderStyle: "solid",
                 borderColor: isListView ? "transparent" : articleBorderColor,
@@ -789,10 +796,13 @@ export function ServicesCatalog({
                     <div
                       className="relative overflow-hidden"
                       style={{
+                        height: isListView ? listImageSize : undefined,
                         aspectRatio:
-                          imageAspectRatio === "original"
+                          isListView
                             ? undefined
-                            : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
+                            : imageAspectRatio === "original"
+                              ? undefined
+                              : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
                         borderRadius: imageBorderRadius,
                       }}
                     >
@@ -823,10 +833,13 @@ export function ServicesCatalog({
                     <div
                       className="relative overflow-hidden"
                       style={{
+                        height: isListView ? listImageSize : undefined,
                         aspectRatio:
-                          imageAspectRatio === "original"
+                          isListView
                             ? undefined
-                            : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
+                            : imageAspectRatio === "original"
+                              ? undefined
+                              : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
                         borderRadius: imageBorderRadius,
                       }}
                     >
@@ -852,16 +865,28 @@ export function ServicesCatalog({
               ) : null}
 
               <div
-                className="flex flex-1 flex-col"
+                className={`flex flex-1 flex-col ${isListView ? "justify-between" : ""}`}
                 style={{
-                  paddingLeft: clamp(cardPaddingX, 0, 80, 30),
-                  paddingRight: clamp(cardPaddingX, 0, 80, 30),
-                  paddingTop: clamp(cardPaddingY, 0, 80, 30),
-                  paddingBottom: clamp(cardPaddingY, 0, 80, 30),
+                  paddingLeft: contentPaddingX,
+                  paddingRight: contentPaddingX,
+                  paddingTop: contentPaddingY,
+                  paddingBottom: contentPaddingY,
+                  height: isListView ? listImageSize : undefined,
+                  boxSizing: "border-box",
+                  backgroundColor:
+                    isListView && cardStyle === "filled"
+                      ? "var(--block-sub-bg,transparent)"
+                      : "transparent",
+                  border:
+                    isListView && cardStyle === "filled"
+                      ? "1px solid var(--block-border,transparent)"
+                      : undefined,
+                  borderRadius: isListView && cardStyle === "filled" ? 18 : undefined,
+                  alignItems: isListView ? contentAlignItems : undefined,
                 }}
               >
                 {service.categoryName ? (
-                  <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[color:var(--block-muted,var(--bp-muted))]">
+                  <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-[color:var(--block-muted,var(--bp-muted))]">
                     {service.categoryName}
                   </div>
                 ) : null}
@@ -877,16 +902,29 @@ export function ServicesCatalog({
 
                 {showDescription && service.description ? (
                   <p
-                    className={`mt-3 text-[color:var(--block-muted,var(--bp-muted))] ${
+                    className={`mt-4 max-w-3xl text-[color:var(--block-muted,var(--bp-muted))] ${
                       isEditorial ? "text-[15px] leading-7" : "text-sm leading-6"
                     }`}
+                    style={
+                      isListView
+                        ? {
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }
+                        : undefined
+                    }
                   >
                     {service.description}
                   </p>
                 ) : null}
 
                 {(showDuration || showPrice) && (
-                  <div className="mt-5 flex flex-wrap gap-2 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                  <div
+                    className="mt-6 flex flex-wrap gap-2 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
+                    style={{ justifyContent: isListView ? contentJustify : undefined }}
+                  >
                     {showDuration ? (
                       <span
                         className="rounded-[10px] px-3 py-1"
@@ -914,8 +952,19 @@ export function ServicesCatalog({
                   </div>
                 )}
 
-                <div className={alignButtonsBottom ? "mt-auto pt-5" : "pt-5"}>
-                  <div className="flex flex-wrap gap-3">
+                <div
+                  className={
+                    isListView
+                      ? "pt-3"
+                      : alignButtonsBottom
+                        ? "mt-auto pt-6"
+                        : "pt-6"
+                  }
+                >
+                  <div
+                    className="flex flex-wrap gap-3"
+                    style={{ justifyContent: isListView ? contentJustify : undefined }}
+                  >
                     <a
                       href={detailsHref}
                       className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
