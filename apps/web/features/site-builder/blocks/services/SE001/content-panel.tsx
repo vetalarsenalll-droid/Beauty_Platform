@@ -264,11 +264,6 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
           )}
           <div>
             {renderCheckboxRow(
-              block.data.showSecondImageOnHover === true,
-              (checked) => updateData({ showSecondImageOnHover: checked }),
-              "Показывать второе изображение при наведении"
-            )}
-            {renderCheckboxRow(
               block.data.alignButtonsBottom !== false,
               (checked) => updateData({ alignButtonsBottom: checked }),
               "Выравнивать кнопки по низу"

@@ -751,11 +751,25 @@ export function ServicesCatalog({
             cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
           const articleBorderColor =
             cardStyle === "filled" ? "var(--block-border,transparent)" : "transparent";
+          const imageRadiusValue = clamp(imageRadius, 0, 40, 10);
+          const imageBorderRadius =
+            isListView
+              ? imageRadiusValue
+              : cardStyle === "filled"
+              ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
+              : imageRadiusValue;
+          const listImageOffsetLeft = isListView ? clamp(cardPaddingX, 0, 80, 30) : 0;
 
           return (
             <article
               key={service.id}
-              className={`group overflow-hidden rounded-[18px] ${isListView ? "flex items-stretch gap-5 border-b pb-6" : ""}`}
+              className={`group overflow-hidden rounded-[18px] ${
+                isListView
+                  ? "flex items-stretch gap-5 border-b pb-6"
+                  : alignButtonsBottom
+                    ? "flex h-full flex-col"
+                    : ""
+              }`}
               style={{
                 textAlign,
                 backgroundColor: articleBackground,
@@ -770,6 +784,7 @@ export function ServicesCatalog({
                     type="button"
                     onClick={() => setActiveModal({ serviceId: service.id, imageIndex: 0 })}
                     className={`block ${isListView ? "w-[220px] shrink-0 text-left" : "w-full text-left"}`}
+                    style={isListView ? { marginLeft: listImageOffsetLeft } : undefined}
                   >
                     <div
                       className="relative overflow-hidden"
@@ -778,7 +793,7 @@ export function ServicesCatalog({
                           imageAspectRatio === "original"
                             ? undefined
                             : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
-                        borderRadius: clamp(imageRadius, 0, 40, 10),
+                        borderRadius: imageBorderRadius,
                       }}
                     >
                       <img
@@ -800,7 +815,11 @@ export function ServicesCatalog({
                     </div>
                   </button>
                 ) : (
-                  <a href={serviceHref} className={`block ${isListView ? "w-[220px] shrink-0" : ""}`}>
+                  <a
+                    href={serviceHref}
+                    className={`block ${isListView ? "w-[220px] shrink-0" : ""}`}
+                    style={isListView ? { marginLeft: listImageOffsetLeft } : undefined}
+                  >
                     <div
                       className="relative overflow-hidden"
                       style={{
@@ -808,7 +827,7 @@ export function ServicesCatalog({
                           imageAspectRatio === "original"
                             ? undefined
                             : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
-                        borderRadius: clamp(imageRadius, 0, 40, 10),
+                        borderRadius: imageBorderRadius,
                       }}
                     >
                       <img
@@ -833,7 +852,7 @@ export function ServicesCatalog({
               ) : null}
 
               <div
-                className={`flex flex-1 flex-col ${alignButtonsBottom ? "h-full" : ""}`}
+                className="flex flex-1 flex-col"
                 style={{
                   paddingLeft: clamp(cardPaddingX, 0, 80, 30),
                   paddingRight: clamp(cardPaddingX, 0, 80, 30),

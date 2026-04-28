@@ -196,7 +196,7 @@ export function SiteServicesSettingsDrawer({
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         {renderFlatSelect(
-          "Вид списка товаров",
+          "Вид списка услуг",
           String(data.listView ?? "tile"),
           (value) => updateData({ listView: value }),
           [
@@ -284,7 +284,7 @@ export function SiteServicesSettingsDrawer({
         <FlatCheckbox
           checked={data.showDescription !== false}
           onChange={(checked) => updateData({ showDescription: checked })}
-          label="Показывать описание товара"
+          label="Показывать описание услуги"
         />
         <FlatCheckbox
           checked={Number(data.mobileCardsPerRow ?? 2) === 1}
@@ -294,12 +294,7 @@ export function SiteServicesSettingsDrawer({
         <FlatCheckbox
           checked={Number(data.mobileCardsPerRow ?? 2) === 2}
           onChange={(checked) => updateData({ mobileCardsPerRow: checked ? 2 : 1 })}
-          label="Два товара в ряд на мобильных устройствах"
-        />
-        <FlatCheckbox
-          checked={data.showSecondImageOnHover === true}
-          onChange={(checked) => updateData({ showSecondImageOnHover: checked })}
-          label="Показывать второе изображение при наведении"
+          label="Две услуги в ряд на мобильных устройствах"
         />
         <FlatCheckbox
           checked={data.alignButtonsBottom !== false}
@@ -307,7 +302,7 @@ export function SiteServicesSettingsDrawer({
           label="Выравнивать кнопки в карточках по низу"
         />
         {renderFlatTextInput(
-          "Количество видимых товаров до кнопки «Загрузить ещё»",
+          "Количество видимых услуг до кнопки «Загрузить ещё»",
           String(data.maxVisibleItems ?? 36),
           (value) => updateData({ maxVisibleItems: Math.max(1, Math.min(100, Number(value) || 36)) }),
           "36"
