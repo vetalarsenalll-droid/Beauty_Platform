@@ -21,7 +21,7 @@ export function SE002Drawers(ctx: CrmPanelCtx) {
     return (
       <SiteServicesSettingsDrawer
         block={ctx.block}
-        _activeTheme={ctx.activeTheme}
+        activeTheme={ctx.activeTheme}
         activeSectionId={ctx.activePanelSectionId}
         updateBlock={ctx.updateBlock}
       />

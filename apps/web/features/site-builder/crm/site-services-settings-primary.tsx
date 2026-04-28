@@ -1,14 +1,18 @@
 import { useState, type RefObject } from "react";
 import {
+  COVER_LINE_OPTIONS,
+  COVER_LINE_STEP_PX,
   DEFAULT_BLOCK_COLUMNS,
   LEGACY_WIDTH_REFERENCE,
   MAX_BLOCK_COLUMNS,
   centeredGridRange,
   clampBlockColumns,
+  formatCoverLineLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type { PanelTheme } from "@/features/site-builder/crm/site-shell-theme";
 import {
   CoverGridWidthControl,
+  TildaBackgroundColorField,
   TildaInlineColorField,
 } from "@/features/site-builder/crm/site-editor-panels";
 import {
@@ -112,21 +116,50 @@ export function SiteServicesSettingsPrimary({
   );
   const resolvedWidthPx = Math.round((resolvedColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
   const range = centeredGridRange(resolvedColumns);
+  const coverMarginTopLines = Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2;
+  const coverMarginBottomLines = Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2;
+
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");
   const lightSubBlockBg = readRaw("subBlockBgLight") || readRaw("subBlockBg");
   const darkSubBlockBg = readRaw("subBlockBgDark");
   const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
   const darkBorderColor = readRaw("borderColorDark");
-  const lightButtonColor = readRaw("buttonColorLight") || readRaw("buttonColor");
-  const darkButtonColor = readRaw("buttonColorDark");
-  const lightButtonTextColor =
-    readRaw("buttonTextColorLight") || readRaw("buttonTextColor");
-  const darkButtonTextColor = readRaw("buttonTextColorDark");
   const lightTextColor = readRaw("textColorLight") || readRaw("textColor");
   const darkTextColor = readRaw("textColorDark");
   const lightMutedColor = readRaw("mutedColorLight") || readRaw("mutedColor");
   const darkMutedColor = readRaw("mutedColorDark");
+
+  const lightBackgroundMode =
+    style.servicesSectionBackgroundModeLight === "linear" ||
+    style.servicesSectionBackgroundModeLight === "radial"
+      ? style.servicesSectionBackgroundModeLight
+      : "solid";
+  const darkBackgroundMode =
+    style.servicesSectionBackgroundModeDark === "linear" ||
+    style.servicesSectionBackgroundModeDark === "radial"
+      ? style.servicesSectionBackgroundModeDark
+      : lightBackgroundMode;
+  const lightBackgroundTo = style.servicesSectionBackgroundToLight || lightSectionBg || "#ffffff";
+  const darkBackgroundTo = style.servicesSectionBackgroundToDark || darkSectionBg || "#16181d";
+  const lightBackgroundAngle = Number.isFinite(style.servicesSectionBackgroundAngleLight)
+    ? Number(style.servicesSectionBackgroundAngleLight)
+    : 135;
+  const darkBackgroundAngle = Number.isFinite(style.servicesSectionBackgroundAngleDark)
+    ? Number(style.servicesSectionBackgroundAngleDark)
+    : lightBackgroundAngle;
+  const lightBackgroundStopA = Number.isFinite(style.servicesSectionBackgroundStopALight)
+    ? Number(style.servicesSectionBackgroundStopALight)
+    : 0;
+  const lightBackgroundStopB = Number.isFinite(style.servicesSectionBackgroundStopBLight)
+    ? Number(style.servicesSectionBackgroundStopBLight)
+    : 100;
+  const darkBackgroundStopA = Number.isFinite(style.servicesSectionBackgroundStopADark)
+    ? Number(style.servicesSectionBackgroundStopADark)
+    : lightBackgroundStopA;
+  const darkBackgroundStopB = Number.isFinite(style.servicesSectionBackgroundStopBDark)
+    ? Number(style.servicesSectionBackgroundStopBDark)
+    : lightBackgroundStopB;
 
   return (
     <div className="space-y-6 px-1 pb-8 pt-1">
@@ -207,117 +240,191 @@ export function SiteServicesSettingsPrimary({
         </label>
       </div>
 
-      <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Светлая тема
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <TildaInlineColorField
-            compact
-            label="Фон блока"
-            value={toDisplay(lightSectionBg, "transparent")}
-            placeholder="transparent"
-            onChange={(value) =>
-              updateStyle({ sectionBgLight: toStore(value), sectionBg: toStore(value) })
-            }
-            onClear={() => updateStyle({ sectionBgLight: "transparent", sectionBg: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Фон карточек"
-            value={toDisplay(lightSubBlockBg, "transparent")}
-            placeholder="transparent"
-            onChange={(value) =>
-              updateStyle({ subBlockBgLight: toStore(value), subBlockBg: toStore(value) })
-            }
-            onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Обводка"
-            value={toDisplay(lightBorderColor, "transparent")}
-            placeholder="transparent"
-            onChange={(value) =>
-              updateStyle({ borderColorLight: toStore(value), borderColor: toStore(value) })
-            }
-            onClear={() => updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Заголовок"
-            value={toDisplay(lightTextColor, activeTheme.textColor)}
-            placeholder={activeTheme.textColor}
-            onChange={(value) =>
-              updateStyle({ textColorLight: toStore(value), textColor: toStore(value) })
-            }
-            onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Текст"
-            value={toDisplay(lightMutedColor, activeTheme.mutedColor)}
-            placeholder={activeTheme.mutedColor}
-            onChange={(value) =>
-              updateStyle({ mutedColorLight: toStore(value), mutedColor: toStore(value) })
-            }
-            onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Кнопка"
-            value={toDisplay(lightButtonColor, activeTheme.buttonColor)}
-            placeholder={activeTheme.buttonColor}
-            onChange={(value) =>
-              updateStyle({ buttonColorLight: toStore(value), buttonColor: toStore(value) })
-            }
-            onClear={() => updateStyle({ buttonColorLight: "transparent", buttonColor: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Текст кнопки"
-            value={toDisplay(lightButtonTextColor, activeTheme.buttonTextColor)}
-            placeholder={activeTheme.buttonTextColor}
-            onChange={(value) =>
-              updateStyle({
-                buttonTextColorLight: toStore(value),
-                buttonTextColor: toStore(value),
-              })
-            }
-            onClear={() =>
-              updateStyle({
-                buttonTextColorLight: "transparent",
-                buttonTextColor: "transparent",
-              })
-            }
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <TildaInlineColorField
+          compact
+          label="Фон карточек"
+          value={toDisplay(lightSubBlockBg, "transparent")}
+          placeholder="transparent"
+          onChange={(value) =>
+            updateStyle({ subBlockBgLight: toStore(value), subBlockBg: toStore(value) })
+          }
+          onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
+        />
+        <TildaInlineColorField
+          compact
+          label="Обводка"
+          value={toDisplay(lightBorderColor, "transparent")}
+          placeholder="transparent"
+          onChange={(value) =>
+            updateStyle({ borderColorLight: toStore(value), borderColor: toStore(value) })
+          }
+          onClear={() =>
+            updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })
+          }
+        />
+        <TildaInlineColorField
+          compact
+          label="Заголовок"
+          value={toDisplay(lightTextColor, activeTheme.textColor)}
+          placeholder={activeTheme.textColor}
+          onChange={(value) =>
+            updateStyle({ textColorLight: toStore(value), textColor: toStore(value) })
+          }
+          onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
+        />
+        <TildaInlineColorField
+          compact
+          label="Текст"
+          value={toDisplay(lightMutedColor, activeTheme.mutedColor)}
+          placeholder={activeTheme.mutedColor}
+          onChange={(value) =>
+            updateStyle({ mutedColorLight: toStore(value), mutedColor: toStore(value) })
+          }
+          onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
+        />
       </div>
 
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
-          className="flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition"
-          style={{
-            borderColor: showDarkThemeAdvanced ? panelTheme.accent : panelTheme.border,
-            color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
-            backgroundColor: "transparent",
-          }}
-        >
-          <span>Темная тема</span>
-          <span className="text-sm leading-none">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
-        </button>
+      <div className="space-y-3">
+        {renderSectionButton(
+          "Типографика",
+          "typography",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
+        {renderSectionButton(
+          "Кнопка",
+          "button",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
+        {renderSectionButton(
+          "Страница услуги",
+          "servicePage",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
+      </div>
 
-        {showDarkThemeAdvanced && (
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Отступ сверху
+          <div className="relative mt-2">
+            <select
+              value={String(coverMarginTopLines)}
+              onChange={(event) =>
+                updateStyle({
+                  marginTop: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
+                })
+              }
+              className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+              style={{
+                borderTop: "0",
+                borderLeft: "0",
+                borderRight: "0",
+                borderRadius: "0",
+                boxShadow: "none",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              {COVER_LINE_OPTIONS.map((lineValue) => (
+                <option key={`top-${lineValue}`} value={lineValue}>
+                  {formatCoverLineLabel(lineValue)}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+              ▾
+            </span>
+          </div>
+        </label>
+        <label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Отступ снизу
+          <div className="relative mt-2">
+            <select
+              value={String(coverMarginBottomLines)}
+              onChange={(event) =>
+                updateStyle({
+                  marginBottom: Math.round(Number(event.target.value) * COVER_LINE_STEP_PX),
+                })
+              }
+              className="w-full appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-1 pr-5 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+              style={{
+                borderTop: "0",
+                borderLeft: "0",
+                borderRight: "0",
+                borderRadius: "0",
+                boxShadow: "none",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                appearance: "none",
+              }}
+            >
+              {COVER_LINE_OPTIONS.map((lineValue) => (
+                <option key={`bottom-${lineValue}`} value={lineValue}>
+                  {formatCoverLineLabel(lineValue)}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+              ▾
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <TildaBackgroundColorField
+        label="Цвет фона для всего блока"
+        value={lightSectionBg || "#ffffff"}
+        mode={lightBackgroundMode}
+        secondValue={lightBackgroundTo}
+        angle={lightBackgroundAngle}
+        radialStopA={lightBackgroundStopA}
+        radialStopB={lightBackgroundStopB}
+        placeholder="#ffffff"
+        onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeLight: mode })}
+        onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToLight: value })}
+        onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleLight: value })}
+        onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopALight: value })}
+        onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBLight: value })}
+        onChange={(value) => {
+          updateStyle({
+            sectionBgLight: value,
+            sectionBg: value,
+            blockBgLight: value,
+            blockBg: value,
+            servicesSectionBackgroundFromLight: value,
+          });
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+        className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+        style={{
+          borderColor: showDarkThemeAdvanced ? "#ff5a5f" : panelTheme.border,
+          backgroundColor: "transparent",
+          color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
+        }}
+      >
+        <span className="inline-flex items-center gap-2">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+          </svg>
+          <span>Темная тема</span>
+        </span>
+        <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+      </button>
+
+      {showDarkThemeAdvanced && (
+        <>
           <div className="mt-4 grid grid-cols-2 gap-4">
-            <TildaInlineColorField
-              compact
-              label="Фон блока"
-              value={toDisplay(darkSectionBg, "transparent")}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ sectionBgDark: toStore(value) })}
-              onClear={() => updateStyle({ sectionBgDark: "transparent" })}
-            />
             <TildaInlineColorField
               compact
               label="Фон карточек"
@@ -350,49 +457,33 @@ export function SiteServicesSettingsPrimary({
               onChange={(value) => updateStyle({ mutedColorDark: toStore(value) })}
               onClear={() => updateStyle({ mutedColorDark: "transparent" })}
             />
-            <TildaInlineColorField
-              compact
-              label="Кнопка"
-              value={toDisplay(darkButtonColor, activeTheme.darkPalette.buttonColor)}
-              placeholder={activeTheme.darkPalette.buttonColor}
-              onChange={(value) => updateStyle({ buttonColorDark: toStore(value) })}
-              onClear={() => updateStyle({ buttonColorDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Текст кнопки"
-              value={toDisplay(darkButtonTextColor, activeTheme.darkPalette.buttonTextColor)}
-              placeholder={activeTheme.darkPalette.buttonTextColor}
-              onChange={(value) => updateStyle({ buttonTextColorDark: toStore(value) })}
-              onClear={() => updateStyle({ buttonTextColorDark: "transparent" })}
-            />
           </div>
-        )}
-      </div>
 
-      <div className="space-y-3">
-        {renderSectionButton(
-          "Типографика",
-          "typography",
-          activePanelSectionId,
-          panelTheme,
-          setActivePanelSectionId
-        )}
-        {renderSectionButton(
-          "Кнопка",
-          "button",
-          activePanelSectionId,
-          panelTheme,
-          setActivePanelSectionId
-        )}
-        {renderSectionButton(
-          "Страница услуги",
-          "servicePage",
-          activePanelSectionId,
-          panelTheme,
-          setActivePanelSectionId
-        )}
-      </div>
+          <TildaBackgroundColorField
+            label="Цвет фона для всего блока"
+            value={darkSectionBg || "#16181d"}
+            mode={darkBackgroundMode}
+            secondValue={darkBackgroundTo}
+            angle={darkBackgroundAngle}
+            radialStopA={darkBackgroundStopA}
+            radialStopB={darkBackgroundStopB}
+            placeholder="#16181d"
+            onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeDark: mode })}
+            onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToDark: value })}
+            onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleDark: value })}
+            onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopADark: value })}
+            onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBDark: value })}
+            onChange={(value) => {
+              updateStyle({
+                sectionBgDark: value,
+                blockBgDark: value,
+                servicesSectionBackgroundFromDark: value,
+              });
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
+

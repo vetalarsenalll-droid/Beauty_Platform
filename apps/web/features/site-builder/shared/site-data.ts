@@ -75,6 +75,7 @@ export type SiteServiceItem = {
   baseDurationMin: number;
   basePrice: number;
   coverUrl: string | null;
+  photoUrls: string[];
   locationIds: number[];
 };
 

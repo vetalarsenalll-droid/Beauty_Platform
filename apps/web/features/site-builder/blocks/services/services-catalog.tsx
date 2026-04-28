@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 import type { SiteServiceItem as ServiceItem } from "@/features/site-builder/shared/site-data";
 
@@ -26,12 +26,54 @@ type ServiceCatalogProps = {
   showButton: boolean;
   buttonText: string;
   detailsButtonText: string;
+  detailsButtonColor?: string;
+  detailsButtonTextColor?: string;
+  detailsButtonBorderColor?: string;
   servicePageButtonMode: "entityPage" | "booking";
+  cardStyle: "plain" | "filled";
+  cardGapX: number;
+  cardGapY: number;
+  imageAspectRatio: string;
+  imageRadius: number;
+  cardPaddingX: number;
+  cardPaddingY: number;
+  mobileCardsPerRow: 1 | 2;
+  showSecondImageOnHover: boolean;
+  alignButtonsBottom: boolean;
+  modalImageClickEnabled: boolean;
+  serviceModalShowDescription: boolean;
+  serviceModalShowMeta: boolean;
+  modalGalleryBgColor: string;
+  modalImageFit: "contain" | "cover";
+  modalImageAspectRatio: string;
+  modalControls: "arrowsAndDots" | "arrows" | "dots" | "thumbnails";
+  modalArrowSize: "sm" | "md" | "lg";
+  modalArrowThickness: number;
+  modalArrowColor: string;
+  modalArrowHoverColor: string;
+  modalArrowBgColor: string;
+  modalArrowHoverBgColor: string;
+  modalArrowBgOpacity: number;
+  modalArrowHoverBgOpacity: number;
+  modalArrowBorderEnabled: boolean;
+  modalDotsSize: number;
+  modalDotsColor: string;
+  modalDotsActiveColor: string;
+  modalDotsBorderWidth: number;
+  modalThumbnailsPosition: "bottom";
+  modalInfiniteGallery: boolean;
+  modalImageZoomOnClick: boolean;
+  modalImageZoomOnHover: boolean;
   headingStyle: CSSProperties;
   subheadingStyle: CSSProperties;
   buttonStyle: CSSProperties;
   textAlign?: "left" | "center" | "right";
 };
+
+type ActiveModalState = {
+  serviceId: number;
+  imageIndex: number;
+} | null;
 
 const SORT_OPTIONS = [
   { value: "default", label: "По умолчанию" },
@@ -51,11 +93,360 @@ function formatPrice(value: number) {
   return `${Number.isFinite(value) ? Math.round(value) : 0} ₽`;
 }
 
-function resolveGridClassName(cardsPerRow: number) {
-  if (cardsPerRow <= 1) return "grid-cols-1";
-  if (cardsPerRow === 2) return "grid-cols-1 md:grid-cols-2";
-  if (cardsPerRow === 4) return "grid-cols-1 md:grid-cols-2 xl:grid-cols-4";
-  return "grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
+function clamp(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: 1 | 2) {
+  const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
+  if (cardsPerRow <= 1) return `${mobile}`;
+  if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
+  if (cardsPerRow === 4) return `${mobile} md:grid-cols-2 xl:grid-cols-4`;
+  return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
+}
+
+function resolveArrowSize(size: "sm" | "md" | "lg") {
+  if (size === "sm") return 34;
+  if (size === "lg") return 52;
+  return 42;
+}
+
+function rgbaFromHex(hex: string, opacity: number) {
+  const normalized = hex.trim().replace("#", "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return hex;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${clamp(opacity, 0, 1, 1)})`;
+}
+
+function uniqueImageUrls(service: ServiceItem) {
+  return Array.from(new Set([...(service.photoUrls ?? []), service.coverUrl ?? ""].filter(Boolean)));
+}
+
+function ServiceModal({
+  service,
+  imageIndex,
+  onClose,
+  bookingHref,
+  buttonStyle,
+  buttonText,
+  showDescription,
+  showMeta,
+  galleryBgColor,
+  imageFit,
+  imageAspectRatio,
+  controls,
+  arrowSize,
+  arrowThickness,
+  arrowColor,
+  arrowHoverColor,
+  arrowBgColor,
+  arrowHoverBgColor,
+  arrowBgOpacity,
+  arrowHoverBgOpacity,
+  arrowBorderEnabled,
+  dotsSize,
+  dotsColor,
+  dotsActiveColor,
+  dotsBorderWidth,
+  thumbnailsPosition,
+  infiniteGallery,
+  imageZoomOnClick,
+  imageZoomOnHover,
+}: {
+  service: ServiceItem;
+  imageIndex: number;
+  onClose: () => void;
+  bookingHref: string | null;
+  buttonStyle: CSSProperties;
+  buttonText: string;
+  showDescription: boolean;
+  showMeta: boolean;
+  galleryBgColor: string;
+  imageFit: "contain" | "cover";
+  imageAspectRatio: string;
+  controls: "arrowsAndDots" | "arrows" | "dots" | "thumbnails";
+  arrowSize: "sm" | "md" | "lg";
+  arrowThickness: number;
+  arrowColor: string;
+  arrowHoverColor: string;
+  arrowBgColor: string;
+  arrowHoverBgColor: string;
+  arrowBgOpacity: number;
+  arrowHoverBgOpacity: number;
+  arrowBorderEnabled: boolean;
+  dotsSize: number;
+  dotsColor: string;
+  dotsActiveColor: string;
+  dotsBorderWidth: number;
+  thumbnailsPosition: "bottom";
+  infiniteGallery: boolean;
+  imageZoomOnClick: boolean;
+  imageZoomOnHover: boolean;
+}) {
+  const images = useMemo(() => uniqueImageUrls(service), [service]);
+  const [activeImageIndex, setActiveImageIndex] = useState(
+    Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
+  );
+  const [zoomed, setZoomed] = useState(false);
+  const canNavigate = images.length > 1;
+  const showArrows = controls === "arrows" || controls === "arrowsAndDots" || controls === "thumbnails";
+  const showDots = controls === "dots" || controls === "arrowsAndDots";
+  const showThumbnails = controls === "thumbnails" && images.length > 1 && thumbnailsPosition === "bottom";
+
+  useEffect(() => {
+    setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
+    setZoomed(false);
+  }, [imageIndex, images.length]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowRight" && canNavigate) {
+        setActiveImageIndex((current) => {
+          if (current >= images.length - 1) return infiniteGallery ? 0 : current;
+          return current + 1;
+        });
+      }
+      if (event.key === "ArrowLeft" && canNavigate) {
+        setActiveImageIndex((current) => {
+          if (current <= 0) return infiniteGallery ? images.length - 1 : current;
+          return current - 1;
+        });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canNavigate, images.length, infiniteGallery, onClose]);
+
+  const goPrev = () =>
+    setActiveImageIndex((current) => {
+      if (current <= 0) return infiniteGallery ? images.length - 1 : current;
+      return current - 1;
+    });
+  const goNext = () =>
+    setActiveImageIndex((current) => {
+      if (current >= images.length - 1) return infiniteGallery ? 0 : current;
+      return current + 1;
+    });
+
+  const currentImage = images[activeImageIndex] ?? null;
+  const arrowPx = resolveArrowSize(arrowSize);
+  const arrowButtonBaseStyle: CSSProperties = {
+    width: arrowPx,
+    height: arrowPx,
+    borderRadius: 999,
+    border: arrowBorderEnabled ? `1px solid ${arrowColor}` : "1px solid transparent",
+    color: arrowColor,
+    backgroundColor: rgbaFromHex(arrowBgColor, arrowBgOpacity),
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 px-4 py-6"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] bg-[color:var(--bp-paper)] shadow-2xl lg:flex-row"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white/90 text-2xl text-black shadow-sm"
+          aria-label="Закрыть"
+        >
+          ×
+        </button>
+
+        <div className="relative flex min-h-[320px] flex-1 items-center justify-center p-6" style={{ backgroundColor: galleryBgColor }}>
+          {showArrows && canNavigate ? (
+            <button
+              type="button"
+              onClick={goPrev}
+              className="group absolute left-4 top-1/2 z-10 -translate-y-1/2 transition"
+              style={arrowButtonBaseStyle}
+              aria-label="Предыдущее изображение"
+            >
+              <span
+                className="block transition group-hover:scale-105"
+                style={{
+                  color: arrowColor,
+                  lineHeight: 1,
+                  fontSize: Math.round(arrowPx * 0.52),
+                  fontWeight: 500,
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.color = arrowHoverColor || arrowColor;
+                  event.currentTarget.parentElement!.style.backgroundColor = rgbaFromHex(
+                    arrowHoverBgColor || arrowBgColor,
+                    arrowHoverBgOpacity
+                  );
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.color = arrowColor;
+                  event.currentTarget.parentElement!.style.backgroundColor = rgbaFromHex(
+                    arrowBgColor,
+                    arrowBgOpacity
+                  );
+                }}
+              >
+                ‹
+              </span>
+            </button>
+          ) : null}
+
+          <div
+            className="relative flex w-full items-center justify-center overflow-hidden rounded-[18px]"
+            style={{ aspectRatio: imageAspectRatio || "1 / 1" }}
+          >
+            {currentImage ? (
+              <img
+                src={currentImage}
+                alt={service.name}
+                className={`h-full w-full transition duration-300 ${
+                  imageZoomOnHover ? "hover:scale-[1.08]" : ""
+                }`}
+                style={{
+                  objectFit: imageFit,
+                  transform: zoomed ? "scale(1.7)" : undefined,
+                  cursor: imageZoomOnClick ? (zoomed ? "zoom-out" : "zoom-in") : "default",
+                }}
+                onClick={() => {
+                  if (!imageZoomOnClick) return;
+                  setZoomed((current) => !current);
+                }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--bp-muted)]">
+                Нет изображения
+              </div>
+            )}
+          </div>
+
+          {showArrows && canNavigate ? (
+            <button
+              type="button"
+              onClick={goNext}
+              className="group absolute right-4 top-1/2 z-10 -translate-y-1/2 transition"
+              style={arrowButtonBaseStyle}
+              aria-label="Следующее изображение"
+            >
+              <span
+                className="block transition group-hover:scale-105"
+                style={{
+                  color: arrowColor,
+                  lineHeight: 1,
+                  fontSize: Math.round(arrowPx * 0.52),
+                  fontWeight: 500,
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.color = arrowHoverColor || arrowColor;
+                  event.currentTarget.parentElement!.style.backgroundColor = rgbaFromHex(
+                    arrowHoverBgColor || arrowBgColor,
+                    arrowHoverBgOpacity
+                  );
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.color = arrowColor;
+                  event.currentTarget.parentElement!.style.backgroundColor = rgbaFromHex(
+                    arrowBgColor,
+                    arrowBgOpacity
+                  );
+                }}
+              >
+                ›
+              </span>
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex w-full max-w-[520px] flex-col overflow-y-auto px-6 py-8 lg:px-8">
+          <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">
+            {service.categoryName || "Услуга"}
+          </div>
+          <h3 className="mt-3 text-3xl font-semibold text-[color:var(--bp-ink)]">{service.name}</h3>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-base">
+            <span className="font-semibold text-[color:var(--bp-ink)]">{formatPrice(service.basePrice)}</span>
+            {showMeta ? (
+              <span className="text-[color:var(--bp-muted)]">{service.baseDurationMin} мин</span>
+            ) : null}
+          </div>
+
+          {bookingHref ? (
+            <a href={bookingHref} className="mt-6 inline-flex w-fit items-center justify-center px-5 py-3 text-sm" style={buttonStyle}>
+              {buttonText}
+            </a>
+          ) : null}
+
+          {showDescription && service.description ? (
+            <p className="mt-8 text-[15px] leading-7 text-[color:var(--bp-muted)]">{service.description}</p>
+          ) : null}
+
+          {showThumbnails ? (
+            <div className="mt-8 grid grid-cols-5 gap-3">
+              {images.map((url, idx) => (
+                <button
+                  key={`${service.id}-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    setActiveImageIndex(idx);
+                    setZoomed(false);
+                  }}
+                  className="overflow-hidden rounded-[12px] border"
+                  style={{
+                    borderColor: idx === activeImageIndex ? "var(--bp-ink)" : "rgba(15,16,18,0.12)",
+                  }}
+                >
+                  <div className="aspect-square">
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {showDots && images.length > 1 ? (
+            <div className="mt-8 flex flex-wrap items-center gap-2">
+              {images.map((_, idx) => (
+                <button
+                  key={`${service.id}-dot-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    setActiveImageIndex(idx);
+                    setZoomed(false);
+                  }}
+                  className="rounded-full transition"
+                  style={{
+                    width: dotsSize * 2,
+                    height: dotsSize * 2,
+                    backgroundColor: idx === activeImageIndex ? dotsActiveColor : dotsColor,
+                    border: `${Math.max(0, dotsBorderWidth)}px solid ${dotsColor}`,
+                  }}
+                  aria-label={`Изображение ${idx + 1}`}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ServicesCatalog({
@@ -80,7 +471,44 @@ export function ServicesCatalog({
   showButton,
   buttonText,
   detailsButtonText,
+  detailsButtonColor,
+  detailsButtonTextColor,
+  detailsButtonBorderColor,
   servicePageButtonMode,
+  cardStyle,
+  cardGapX,
+  cardGapY,
+  imageAspectRatio,
+  imageRadius,
+  cardPaddingX,
+  cardPaddingY,
+  mobileCardsPerRow,
+  showSecondImageOnHover,
+  alignButtonsBottom,
+  modalImageClickEnabled,
+  serviceModalShowDescription,
+  serviceModalShowMeta,
+  modalGalleryBgColor,
+  modalImageFit,
+  modalImageAspectRatio,
+  modalControls,
+  modalArrowSize,
+  modalArrowThickness,
+  modalArrowColor,
+  modalArrowHoverColor,
+  modalArrowBgColor,
+  modalArrowHoverBgColor,
+  modalArrowBgOpacity,
+  modalArrowHoverBgOpacity,
+  modalArrowBorderEnabled,
+  modalDotsSize,
+  modalDotsColor,
+  modalDotsActiveColor,
+  modalDotsBorderWidth,
+  modalThumbnailsPosition,
+  modalInfiniteGallery,
+  modalImageZoomOnClick,
+  modalImageZoomOnHover,
   headingStyle,
   subheadingStyle,
   buttonStyle,
@@ -102,6 +530,7 @@ export function ServicesCatalog({
   const [activeCategory, setActiveCategory] = useState<string>("__all__");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState(defaultSort);
+  const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
 
   useEffect(() => {
     setSortMode(defaultSort);
@@ -145,6 +574,25 @@ export function ServicesCatalog({
       }
     });
 
+  const activeModalService = activeModal
+    ? filteredItems.find((item) => item.id === activeModal.serviceId) ??
+      scopedItems.find((item) => item.id === activeModal.serviceId) ??
+      null
+    : null;
+  const activeModalBookingHref =
+    activeModalService && publicSlug
+      ? buildBookingLink({
+          publicSlug,
+          locationId:
+            currentLocationId ??
+            locationId ??
+            (activeModalService.locationIds.length === 1 ? activeModalService.locationIds[0] : null),
+          specialistId: effectiveSpecialistId,
+          serviceId: activeModalService.id,
+          scenario: "serviceFirst",
+        })
+      : null;
+
   return (
     <div>
       <div
@@ -167,7 +615,10 @@ export function ServicesCatalog({
         {(showSearch || showSort) && (
           <div className="flex w-full flex-col gap-3 sm:flex-row xl:max-w-[580px] xl:justify-end">
             {showSearch ? (
-              <label className="flex min-w-0 flex-1 items-center gap-3 border-b border-[color:var(--block-border,transparent)] bg-transparent px-0 py-2 text-sm">
+              <label
+                className="flex min-w-0 flex-1 items-center gap-3 border-b px-0 py-2 text-sm"
+                style={{ borderColor: "var(--block-border,transparent)" }}
+              >
                 <span className="text-[color:var(--block-muted,var(--bp-muted))]">⌕</span>
                 <input
                   type="search"
@@ -180,7 +631,10 @@ export function ServicesCatalog({
             ) : null}
 
             {showSort ? (
-              <label className="flex min-w-0 items-center border-b border-[color:var(--block-border,transparent)] bg-transparent px-0 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))] sm:w-[260px]">
+              <label
+                className="flex min-w-0 items-center border-b px-0 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))] sm:w-[260px]"
+                style={{ borderColor: "var(--block-border,transparent)" }}
+              >
                 <select
                   value={sortMode}
                   onChange={(event) => setSortMode(event.target.value)}
@@ -245,7 +699,10 @@ export function ServicesCatalog({
         </div>
       ) : null}
 
-      <div className={`mt-8 grid ${isEditorial ? "gap-6" : "gap-5"} ${resolveGridClassName(cardsPerRow)}`}>
+      <div
+        className={`mt-8 grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow)}`}
+        style={{ columnGap: clamp(cardGapX, 0, 80, 20), rowGap: clamp(cardGapY, 0, 120, 40) }}
+      >
         {filteredItems.map((service) => {
           const serviceHref = publicSlug ? `/${publicSlug}/services/${service.id}` : "#";
           const bookingHref =
@@ -263,27 +720,94 @@ export function ServicesCatalog({
               : null;
           const detailsHref =
             servicePageButtonMode === "booking" && bookingHref ? bookingHref : serviceHref;
-          const hasImage = Boolean(service.coverUrl);
+          const images = uniqueImageUrls(service);
+          const primaryImage = images[0] ?? null;
+          const secondaryImage = showSecondImageOnHover ? images[1] ?? null : null;
+          const hasImage = Boolean(primaryImage);
+          const articleBackground = "var(--block-sub-bg,transparent)";
+          const articleBorderColor = "var(--block-border,transparent)";
 
           return (
             <article
               key={service.id}
-              className="overflow-hidden border border-[color:var(--block-border,transparent)] bg-[color:var(--block-sub-block-bg,transparent)] rounded-[18px]"
-              style={{ textAlign }}
+              className="group overflow-hidden rounded-[18px]"
+              style={{
+                textAlign,
+                backgroundColor: articleBackground,
+                border: `1px solid ${articleBorderColor}`,
+              }}
             >
               {hasImage ? (
-                <a href={serviceHref} className="block">
-                  <div className={`overflow-hidden ${variant === "v2" ? "aspect-[4/3]" : "aspect-[5/6]"}`}>
-                    <img
-                      src={service.coverUrl ?? ""}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
-                    />
-                  </div>
-                </a>
+                modalImageClickEnabled ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal({ serviceId: service.id, imageIndex: 0 })}
+                    className="block w-full text-left"
+                  >
+                    <div
+                      className="relative overflow-hidden"
+                      style={{
+                        aspectRatio: imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
+                        borderRadius: clamp(imageRadius, 0, 40, 10),
+                      }}
+                    >
+                      <img
+                        src={primaryImage ?? ""}
+                        alt={service.name}
+                        className={`h-full w-full transition duration-300 ${
+                          secondaryImage ? "group-hover:opacity-0" : "group-hover:scale-[1.03]"
+                        }`}
+                        style={{ objectFit: "cover" }}
+                      />
+                      {secondaryImage ? (
+                        <img
+                          src={secondaryImage}
+                          alt=""
+                          className="absolute inset-0 h-full w-full opacity-0 transition duration-300 group-hover:opacity-100"
+                          style={{ objectFit: "cover" }}
+                        />
+                      ) : null}
+                    </div>
+                  </button>
+                ) : (
+                  <a href={serviceHref} className="block">
+                    <div
+                      className="relative overflow-hidden"
+                      style={{
+                        aspectRatio: imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
+                        borderRadius: clamp(imageRadius, 0, 40, 10),
+                      }}
+                    >
+                      <img
+                        src={primaryImage ?? ""}
+                        alt={service.name}
+                        className={`h-full w-full transition duration-300 ${
+                          secondaryImage ? "group-hover:opacity-0" : "group-hover:scale-[1.03]"
+                        }`}
+                        style={{ objectFit: "cover" }}
+                      />
+                      {secondaryImage ? (
+                        <img
+                          src={secondaryImage}
+                          alt=""
+                          className="absolute inset-0 h-full w-full opacity-0 transition duration-300 group-hover:opacity-100"
+                          style={{ objectFit: "cover" }}
+                        />
+                      ) : null}
+                    </div>
+                  </a>
+                )
               ) : null}
 
-              <div className="flex flex-1 flex-col px-0 pb-0 pt-5">
+              <div
+                className={`flex flex-1 flex-col ${alignButtonsBottom ? "h-full" : ""}`}
+                style={{
+                  paddingLeft: clamp(cardPaddingX, 0, 80, 30),
+                  paddingRight: clamp(cardPaddingX, 0, 80, 30),
+                  paddingTop: clamp(cardPaddingY, 0, 80, 30),
+                  paddingBottom: clamp(cardPaddingY, 0, 80, 30),
+                }}
+              >
                 {service.categoryName ? (
                   <div className="mb-3 text-[11px] uppercase tracking-[0.18em] text-[color:var(--block-muted,var(--bp-muted))]">
                     {service.categoryName}
@@ -312,23 +836,40 @@ export function ServicesCatalog({
                 {(showDuration || showPrice) && (
                   <div className="mt-5 flex flex-wrap gap-2 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                     {showDuration ? (
-                      <span className="rounded-[10px] border border-[color:var(--block-border,transparent)] px-3 py-1">
+                      <span
+                        className="rounded-[10px] px-3 py-1"
+                        style={{
+                          border: "1px solid var(--block-border,transparent)",
+                          backgroundColor: "var(--block-sub-bg,transparent)",
+                        }}
+                      >
                         {service.baseDurationMin} мин
                       </span>
                     ) : null}
                     {showPrice ? (
-                      <span className="rounded-[10px] border border-[color:var(--block-border,transparent)] px-3 py-1">
+                      <span
+                        className="rounded-[10px] px-3 py-1"
+                        style={{
+                          border: "1px solid var(--block-border,transparent)",
+                          backgroundColor: "var(--block-sub-bg,transparent)",
+                        }}
+                      >
                         {formatPrice(service.basePrice)}
                       </span>
                     ) : null}
                   </div>
                 )}
 
-                <div className="mt-auto pt-5">
+                <div className={alignButtonsBottom ? "mt-auto pt-5" : "pt-5"}>
                   <div className="flex flex-wrap gap-3">
                     <a
                       href={detailsHref}
-                      className="inline-flex items-center justify-center rounded-[12px] border border-[color:var(--block-border,transparent)] px-4 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))]"
+                      className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
+                      style={{
+                        backgroundColor: detailsButtonColor || "transparent",
+                        color: detailsButtonTextColor || "var(--block-text,var(--bp-ink))",
+                        border: `1px solid ${detailsButtonBorderColor || "var(--block-border,transparent)"}`,
+                      }}
                     >
                       {detailsButtonText}
                     </a>
@@ -354,6 +895,40 @@ export function ServicesCatalog({
           </div>
         ) : null}
       </div>
+
+      {activeModalService ? (
+        <ServiceModal
+          service={activeModalService}
+          imageIndex={activeModal?.imageIndex ?? 0}
+          onClose={() => setActiveModal(null)}
+          bookingHref={activeModalBookingHref}
+          buttonStyle={buttonStyle}
+          buttonText={buttonText}
+          showDescription={serviceModalShowDescription}
+          showMeta={serviceModalShowMeta}
+          galleryBgColor={modalGalleryBgColor}
+          imageFit={modalImageFit}
+          imageAspectRatio={modalImageAspectRatio}
+          controls={modalControls}
+          arrowSize={modalArrowSize}
+          arrowThickness={modalArrowThickness}
+          arrowColor={modalArrowColor}
+          arrowHoverColor={modalArrowHoverColor}
+          arrowBgColor={modalArrowBgColor}
+          arrowHoverBgColor={modalArrowHoverBgColor}
+          arrowBgOpacity={modalArrowBgOpacity}
+          arrowHoverBgOpacity={modalArrowHoverBgOpacity}
+          arrowBorderEnabled={modalArrowBorderEnabled}
+          dotsSize={modalDotsSize}
+          dotsColor={modalDotsColor}
+          dotsActiveColor={modalDotsActiveColor}
+          dotsBorderWidth={modalDotsBorderWidth}
+          thumbnailsPosition={modalThumbnailsPosition}
+          infiniteGallery={modalInfiniteGallery}
+          imageZoomOnClick={modalImageZoomOnClick}
+          imageZoomOnHover={modalImageZoomOnHover}
+        />
+      ) : null}
     </div>
   );
 }

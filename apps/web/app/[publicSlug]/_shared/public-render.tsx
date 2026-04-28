@@ -3014,8 +3014,87 @@ function renderServices(
     typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
       ? data.detailsButtonText.trim()
       : "Подробнее";
+  const detailsButtonColor =
+    typeof data.detailsButtonColor === "string" && data.detailsButtonColor.trim()
+      ? data.detailsButtonColor.trim()
+      : "";
+  const detailsButtonTextColor =
+    typeof data.detailsButtonTextColor === "string" && data.detailsButtonTextColor.trim()
+      ? data.detailsButtonTextColor.trim()
+      : "";
+  const detailsButtonBorderColor =
+    typeof data.detailsButtonBorderColor === "string" && data.detailsButtonBorderColor.trim()
+      ? data.detailsButtonBorderColor.trim()
+      : "";
   const servicePageButtonMode =
     data.servicePageButtonMode === "booking" ? "booking" : "entityPage";
+  const cardStyle = data.cardStyle === "plain" ? "plain" : "filled";
+  const cardGapX = Number(data.cardGapX);
+  const cardGapY = Number(data.cardGapY);
+  const imageAspectRatio =
+    typeof data.imageAspectRatio === "string" && data.imageAspectRatio.trim()
+      ? data.imageAspectRatio.trim()
+      : "1 / 1";
+  const imageRadius = Number(data.imageRadius);
+  const cardPaddingX = Number(data.cardPaddingX);
+  const cardPaddingY = Number(data.cardPaddingY);
+  const mobileCardsPerRow = Number(data.mobileCardsPerRow) === 1 ? 1 : 2;
+  const showSecondImageOnHover = data.showSecondImageOnHover === true;
+  const alignButtonsBottom = data.alignButtonsBottom !== false;
+  const modalImageClickEnabled = data.modalImageClickEnabled !== false;
+  const serviceModalShowDescription = data.serviceModalShowDescription !== false;
+  const serviceModalShowMeta = data.serviceModalShowMeta !== false;
+  const modalGalleryBgColor =
+    typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
+      ? data.modalGalleryBgColor.trim()
+      : "#ebebeb";
+  const modalImageFit = data.modalImageFit === "cover" ? "cover" : "contain";
+  const modalImageAspectRatio =
+    typeof data.modalImageAspectRatio === "string" && data.modalImageAspectRatio.trim()
+      ? data.modalImageAspectRatio.trim()
+      : "1 / 1";
+  const modalControls =
+    data.modalControls === "arrows" ||
+    data.modalControls === "dots" ||
+    data.modalControls === "thumbnails"
+      ? data.modalControls
+      : "arrowsAndDots";
+  const modalArrowSize =
+    data.modalArrowSize === "sm" || data.modalArrowSize === "lg" ? data.modalArrowSize : "md";
+  const modalArrowThickness = Number(data.modalArrowThickness);
+  const modalArrowColor =
+    typeof data.modalArrowColor === "string" && data.modalArrowColor.trim()
+      ? data.modalArrowColor.trim()
+      : "#000000";
+  const modalArrowHoverColor =
+    typeof data.modalArrowHoverColor === "string" && data.modalArrowHoverColor.trim()
+      ? data.modalArrowHoverColor.trim()
+      : modalArrowColor;
+  const modalArrowBgColor =
+    typeof data.modalArrowBgColor === "string" && data.modalArrowBgColor.trim()
+      ? data.modalArrowBgColor.trim()
+      : "#ffffff";
+  const modalArrowHoverBgColor =
+    typeof data.modalArrowHoverBgColor === "string" && data.modalArrowHoverBgColor.trim()
+      ? data.modalArrowHoverBgColor.trim()
+      : "#000000";
+  const modalArrowBgOpacity = Number(data.modalArrowBgOpacity);
+  const modalArrowHoverBgOpacity = Number(data.modalArrowHoverBgOpacity);
+  const modalArrowBorderEnabled = data.modalArrowBorderEnabled === true;
+  const modalDotsSize = Number(data.modalDotsSize);
+  const modalDotsColor =
+    typeof data.modalDotsColor === "string" && data.modalDotsColor.trim()
+      ? data.modalDotsColor.trim()
+      : "#000000";
+  const modalDotsActiveColor =
+    typeof data.modalDotsActiveColor === "string" && data.modalDotsActiveColor.trim()
+      ? data.modalDotsActiveColor.trim()
+      : "#cccccc";
+  const modalDotsBorderWidth = Number(data.modalDotsBorderWidth);
+  const modalThumbnailsPosition = "bottom" as const;
+  const modalInfiniteGallery = data.modalInfiniteGallery !== false;
+  const modalImageZoomOnClick = data.modalImageZoomOnClick !== false;
+  const modalImageZoomOnHover = data.modalImageZoomOnHover === true;
   const showCategoryTabs = data.showCategoryTabs !== false;
   const categoryAllLabel =
     typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
@@ -3083,7 +3162,44 @@ function renderServices(
         showButton={showButton}
         buttonText={buttonText}
         detailsButtonText={detailsButtonText}
+        detailsButtonColor={detailsButtonColor}
+        detailsButtonTextColor={detailsButtonTextColor}
+        detailsButtonBorderColor={detailsButtonBorderColor}
         servicePageButtonMode={servicePageButtonMode}
+        cardStyle={cardStyle}
+        cardGapX={cardGapX}
+        cardGapY={cardGapY}
+        imageAspectRatio={imageAspectRatio}
+        imageRadius={imageRadius}
+        cardPaddingX={cardPaddingX}
+        cardPaddingY={cardPaddingY}
+        mobileCardsPerRow={mobileCardsPerRow}
+        showSecondImageOnHover={showSecondImageOnHover}
+        alignButtonsBottom={alignButtonsBottom}
+        modalImageClickEnabled={modalImageClickEnabled}
+        serviceModalShowDescription={serviceModalShowDescription}
+        serviceModalShowMeta={serviceModalShowMeta}
+        modalGalleryBgColor={modalGalleryBgColor}
+        modalImageFit={modalImageFit}
+        modalImageAspectRatio={modalImageAspectRatio}
+        modalControls={modalControls}
+        modalArrowSize={modalArrowSize}
+        modalArrowThickness={modalArrowThickness}
+        modalArrowColor={modalArrowColor}
+        modalArrowHoverColor={modalArrowHoverColor}
+        modalArrowBgColor={modalArrowBgColor}
+        modalArrowHoverBgColor={modalArrowHoverBgColor}
+        modalArrowBgOpacity={modalArrowBgOpacity}
+        modalArrowHoverBgOpacity={modalArrowHoverBgOpacity}
+        modalArrowBorderEnabled={modalArrowBorderEnabled}
+        modalDotsSize={modalDotsSize}
+        modalDotsColor={modalDotsColor}
+        modalDotsActiveColor={modalDotsActiveColor}
+        modalDotsBorderWidth={modalDotsBorderWidth}
+        modalThumbnailsPosition={modalThumbnailsPosition}
+        modalInfiniteGallery={modalInfiniteGallery}
+        modalImageZoomOnClick={modalImageZoomOnClick}
+        modalImageZoomOnHover={modalImageZoomOnHover}
         headingStyle={headingStyle(style)}
         subheadingStyle={subheadingStyle(style)}
         buttonStyle={buttonStyle(style)}

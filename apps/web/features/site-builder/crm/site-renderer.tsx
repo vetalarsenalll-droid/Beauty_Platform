@@ -17,6 +17,7 @@ import {
   resolveCoverBackgroundVisual,
   resolveMenuBlockBackgroundVisual,
   resolveMenuSectionBackgroundVisual,
+  resolveServicesSectionBackgroundVisual,
 } from "@/features/site-builder/shared/background-visuals";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import type {
@@ -130,6 +131,18 @@ export type BlockStyle = {
   gradientToLightResolved: string;
   gradientFromDarkResolved: string;
   gradientToDarkResolved: string;
+  servicesSectionBackgroundModeLight: "solid" | "linear" | "radial";
+  servicesSectionBackgroundModeDark: "solid" | "linear" | "radial";
+  servicesSectionBackgroundFromLight: string;
+  servicesSectionBackgroundFromDark: string;
+  servicesSectionBackgroundToLight: string;
+  servicesSectionBackgroundToDark: string;
+  servicesSectionBackgroundAngleLight: number;
+  servicesSectionBackgroundAngleDark: number;
+  servicesSectionBackgroundStopALight: number;
+  servicesSectionBackgroundStopADark: number;
+  servicesSectionBackgroundStopBLight: number;
+  servicesSectionBackgroundStopBDark: number;
   textAlign: "left" | "center" | "right";
   textAlignHeading: "left" | "center" | "right";
   textAlignSubheading: "left" | "center" | "right";
@@ -446,6 +459,58 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
   const gradientDirection = theme.mode === "dark" ? gradientDirectionDark : gradientDirectionLight;
   const gradientFrom = theme.mode === "dark" ? gradientFromDarkResolved : gradientFromLightResolved;
   const gradientTo = theme.mode === "dark" ? gradientToDarkResolved : gradientToLightResolved;
+  const servicesSectionBackgroundModeLight =
+    style.servicesSectionBackgroundModeLight === "linear" ||
+    style.servicesSectionBackgroundModeLight === "radial"
+      ? (style.servicesSectionBackgroundModeLight as "linear" | "radial")
+      : "solid";
+  const servicesSectionBackgroundModeDark =
+    style.servicesSectionBackgroundModeDark === "linear" ||
+    style.servicesSectionBackgroundModeDark === "radial"
+      ? (style.servicesSectionBackgroundModeDark as "linear" | "radial")
+      : servicesSectionBackgroundModeLight;
+  const servicesSectionBackgroundFromLightRaw =
+    readColor("servicesSectionBackgroundFromLight") || readColor("sectionBgLight") || readColor("sectionBg");
+  const servicesSectionBackgroundFromDarkRaw =
+    readColor("servicesSectionBackgroundFromDark") || readColor("sectionBgDark");
+  const servicesSectionBackgroundToLightRaw =
+    readColor("servicesSectionBackgroundToLight") || readColor("gradientToLight") || readColor("gradientTo");
+  const servicesSectionBackgroundToDarkRaw =
+    readColor("servicesSectionBackgroundToDark") || readColor("gradientToDark");
+  const servicesSectionBackgroundFromLight = servicesSectionBackgroundFromLightRaw || theme.lightPalette.panelColor;
+  const servicesSectionBackgroundFromDark = servicesSectionBackgroundFromDarkRaw || theme.darkPalette.panelColor;
+  const servicesSectionBackgroundToLight = servicesSectionBackgroundToLightRaw || servicesSectionBackgroundFromLight;
+  const servicesSectionBackgroundToDark = servicesSectionBackgroundToDarkRaw || servicesSectionBackgroundFromDark;
+  const servicesSectionBackgroundAngleLightRaw = toNumber(style.servicesSectionBackgroundAngleLight);
+  const servicesSectionBackgroundAngleDarkRaw = toNumber(style.servicesSectionBackgroundAngleDark);
+  const servicesSectionBackgroundStopALightRaw = toNumber(style.servicesSectionBackgroundStopALight);
+  const servicesSectionBackgroundStopADarkRaw = toNumber(style.servicesSectionBackgroundStopADark);
+  const servicesSectionBackgroundStopBLightRaw = toNumber(style.servicesSectionBackgroundStopBLight);
+  const servicesSectionBackgroundStopBDarkRaw = toNumber(style.servicesSectionBackgroundStopBDark);
+  const servicesSectionBackgroundAngleLight =
+    servicesSectionBackgroundAngleLightRaw === null
+      ? 135
+      : Math.max(0, Math.min(360, servicesSectionBackgroundAngleLightRaw));
+  const servicesSectionBackgroundAngleDark =
+    servicesSectionBackgroundAngleDarkRaw === null
+      ? servicesSectionBackgroundAngleLight
+      : Math.max(0, Math.min(360, servicesSectionBackgroundAngleDarkRaw));
+  const servicesSectionBackgroundStopALight =
+    servicesSectionBackgroundStopALightRaw === null
+      ? 0
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopALightRaw));
+  const servicesSectionBackgroundStopADark =
+    servicesSectionBackgroundStopADarkRaw === null
+      ? servicesSectionBackgroundStopALight
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopADarkRaw));
+  const servicesSectionBackgroundStopBLight =
+    servicesSectionBackgroundStopBLightRaw === null
+      ? 100
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopBLightRaw));
+  const servicesSectionBackgroundStopBDark =
+    servicesSectionBackgroundStopBDarkRaw === null
+      ? servicesSectionBackgroundStopBLight
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopBDarkRaw));
   const rawBlockWidth = toNumber(style.blockWidth);
   const rawBlockWidthColumns = toNumber(style.blockWidthColumns);
   const rawGridStartColumn = toNumber(style.gridStartColumn);
@@ -662,6 +727,18 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     gradientToLightResolved,
     gradientFromDarkResolved,
     gradientToDarkResolved,
+    servicesSectionBackgroundModeLight,
+    servicesSectionBackgroundModeDark,
+    servicesSectionBackgroundFromLight,
+    servicesSectionBackgroundFromDark,
+    servicesSectionBackgroundToLight,
+    servicesSectionBackgroundToDark,
+    servicesSectionBackgroundAngleLight,
+    servicesSectionBackgroundAngleDark,
+    servicesSectionBackgroundStopALight,
+    servicesSectionBackgroundStopADark,
+    servicesSectionBackgroundStopBLight,
+    servicesSectionBackgroundStopBDark,
     textAlign:
       style.textAlign === "center" || style.textAlign === "right"
         ? style.textAlign
@@ -1507,6 +1584,26 @@ export function BlockPreview({
     sectionBg || theme.panelColor,
     theme.mode
   );
+  const servicesSectionBackground = resolveServicesSectionBackgroundVisual(
+    isServices
+      ? {
+          servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
+          servicesSectionBackgroundFromLight: style.servicesSectionBackgroundFromLight,
+          servicesSectionBackgroundToLight: style.servicesSectionBackgroundToLight,
+          servicesSectionBackgroundAngleLight: style.servicesSectionBackgroundAngleLight,
+          servicesSectionBackgroundStopALight: style.servicesSectionBackgroundStopALight,
+          servicesSectionBackgroundStopBLight: style.servicesSectionBackgroundStopBLight,
+          servicesSectionBackgroundModeDark: style.servicesSectionBackgroundModeDark,
+          servicesSectionBackgroundFromDark: style.servicesSectionBackgroundFromDark,
+          servicesSectionBackgroundToDark: style.servicesSectionBackgroundToDark,
+          servicesSectionBackgroundAngleDark: style.servicesSectionBackgroundAngleDark,
+          servicesSectionBackgroundStopADark: style.servicesSectionBackgroundStopADark,
+          servicesSectionBackgroundStopBDark: style.servicesSectionBackgroundStopBDark,
+        }
+      : null,
+    sectionBg || theme.panelColor,
+    theme.mode
+  );
   return (
     <div
       ref={previewRootRef}
@@ -1531,10 +1628,10 @@ export function BlockPreview({
         marginRight: isGallery || isBooking || isMenu || isCover || isAisha || isServices || (isLoader && !loaderUsesCustomWidth)
           ? "auto"
           : 0,
-        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader ? style.marginBottom : undefined,
+        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? style.marginBottom : undefined,
         backgroundColor: isLoader
           ? "transparent"
           : isMenu
@@ -1545,6 +1642,8 @@ export function BlockPreview({
             ? isCoverV3
               ? "transparent"
               : coverBackground.backgroundColor
+            : isServices
+              ? servicesSectionBackground.backgroundColor
             : sectionBg,
         backgroundImage: isLoader
           ? "none"
@@ -1555,7 +1654,7 @@ export function BlockPreview({
           : isMenu
             ? menuSectionBackground.backgroundImage
             : isServices
-              ? "none"
+              ? servicesSectionBackground.backgroundImage
             : "none",
       }}
     >
@@ -4746,8 +4845,87 @@ export function renderServices(
     typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
       ? data.detailsButtonText.trim()
       : "Подробнее";
+  const detailsButtonColor =
+    typeof data.detailsButtonColor === "string" && data.detailsButtonColor.trim()
+      ? data.detailsButtonColor.trim()
+      : "";
+  const detailsButtonTextColor =
+    typeof data.detailsButtonTextColor === "string" && data.detailsButtonTextColor.trim()
+      ? data.detailsButtonTextColor.trim()
+      : "";
+  const detailsButtonBorderColor =
+    typeof data.detailsButtonBorderColor === "string" && data.detailsButtonBorderColor.trim()
+      ? data.detailsButtonBorderColor.trim()
+      : "";
   const servicePageButtonMode =
     data.servicePageButtonMode === "booking" ? "booking" : "entityPage";
+  const cardStyle = data.cardStyle === "plain" ? "plain" : "filled";
+  const cardGapX = Number(data.cardGapX);
+  const cardGapY = Number(data.cardGapY);
+  const imageAspectRatio =
+    typeof data.imageAspectRatio === "string" && data.imageAspectRatio.trim()
+      ? data.imageAspectRatio.trim()
+      : "1 / 1";
+  const imageRadius = Number(data.imageRadius);
+  const cardPaddingX = Number(data.cardPaddingX);
+  const cardPaddingY = Number(data.cardPaddingY);
+  const mobileCardsPerRow = Number(data.mobileCardsPerRow) === 1 ? 1 : 2;
+  const showSecondImageOnHover = data.showSecondImageOnHover === true;
+  const alignButtonsBottom = data.alignButtonsBottom !== false;
+  const modalImageClickEnabled = data.modalImageClickEnabled !== false;
+  const serviceModalShowDescription = data.serviceModalShowDescription !== false;
+  const serviceModalShowMeta = data.serviceModalShowMeta !== false;
+  const modalGalleryBgColor =
+    typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
+      ? data.modalGalleryBgColor.trim()
+      : "#ebebeb";
+  const modalImageFit = data.modalImageFit === "cover" ? "cover" : "contain";
+  const modalImageAspectRatio =
+    typeof data.modalImageAspectRatio === "string" && data.modalImageAspectRatio.trim()
+      ? data.modalImageAspectRatio.trim()
+      : "1 / 1";
+  const modalControls =
+    data.modalControls === "arrows" ||
+    data.modalControls === "dots" ||
+    data.modalControls === "thumbnails"
+      ? data.modalControls
+      : "arrowsAndDots";
+  const modalArrowSize =
+    data.modalArrowSize === "sm" || data.modalArrowSize === "lg" ? data.modalArrowSize : "md";
+  const modalArrowThickness = Number(data.modalArrowThickness);
+  const modalArrowColor =
+    typeof data.modalArrowColor === "string" && data.modalArrowColor.trim()
+      ? data.modalArrowColor.trim()
+      : "#000000";
+  const modalArrowHoverColor =
+    typeof data.modalArrowHoverColor === "string" && data.modalArrowHoverColor.trim()
+      ? data.modalArrowHoverColor.trim()
+      : modalArrowColor;
+  const modalArrowBgColor =
+    typeof data.modalArrowBgColor === "string" && data.modalArrowBgColor.trim()
+      ? data.modalArrowBgColor.trim()
+      : "#ffffff";
+  const modalArrowHoverBgColor =
+    typeof data.modalArrowHoverBgColor === "string" && data.modalArrowHoverBgColor.trim()
+      ? data.modalArrowHoverBgColor.trim()
+      : "#000000";
+  const modalArrowBgOpacity = Number(data.modalArrowBgOpacity);
+  const modalArrowHoverBgOpacity = Number(data.modalArrowHoverBgOpacity);
+  const modalArrowBorderEnabled = data.modalArrowBorderEnabled === true;
+  const modalDotsSize = Number(data.modalDotsSize);
+  const modalDotsColor =
+    typeof data.modalDotsColor === "string" && data.modalDotsColor.trim()
+      ? data.modalDotsColor.trim()
+      : "#000000";
+  const modalDotsActiveColor =
+    typeof data.modalDotsActiveColor === "string" && data.modalDotsActiveColor.trim()
+      ? data.modalDotsActiveColor.trim()
+      : "#cccccc";
+  const modalDotsBorderWidth = Number(data.modalDotsBorderWidth);
+  const modalThumbnailsPosition = "bottom" as const;
+  const modalInfiniteGallery = data.modalInfiniteGallery !== false;
+  const modalImageZoomOnClick = data.modalImageZoomOnClick !== false;
+  const modalImageZoomOnHover = data.modalImageZoomOnHover === true;
   const showCategoryTabs = data.showCategoryTabs !== false;
   const categoryAllLabel =
     typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
@@ -4815,7 +4993,44 @@ export function renderServices(
         showButton={showButton}
         buttonText={buttonText}
         detailsButtonText={detailsButtonText}
+        detailsButtonColor={detailsButtonColor}
+        detailsButtonTextColor={detailsButtonTextColor}
+        detailsButtonBorderColor={detailsButtonBorderColor}
         servicePageButtonMode={servicePageButtonMode}
+        cardStyle={cardStyle}
+        cardGapX={cardGapX}
+        cardGapY={cardGapY}
+        imageAspectRatio={imageAspectRatio}
+        imageRadius={imageRadius}
+        cardPaddingX={cardPaddingX}
+        cardPaddingY={cardPaddingY}
+        mobileCardsPerRow={mobileCardsPerRow}
+        showSecondImageOnHover={showSecondImageOnHover}
+        alignButtonsBottom={alignButtonsBottom}
+        modalImageClickEnabled={modalImageClickEnabled}
+        serviceModalShowDescription={serviceModalShowDescription}
+        serviceModalShowMeta={serviceModalShowMeta}
+        modalGalleryBgColor={modalGalleryBgColor}
+        modalImageFit={modalImageFit}
+        modalImageAspectRatio={modalImageAspectRatio}
+        modalControls={modalControls}
+        modalArrowSize={modalArrowSize}
+        modalArrowThickness={modalArrowThickness}
+        modalArrowColor={modalArrowColor}
+        modalArrowHoverColor={modalArrowHoverColor}
+        modalArrowBgColor={modalArrowBgColor}
+        modalArrowHoverBgColor={modalArrowHoverBgColor}
+        modalArrowBgOpacity={modalArrowBgOpacity}
+        modalArrowHoverBgOpacity={modalArrowHoverBgOpacity}
+        modalArrowBorderEnabled={modalArrowBorderEnabled}
+        modalDotsSize={modalDotsSize}
+        modalDotsColor={modalDotsColor}
+        modalDotsActiveColor={modalDotsActiveColor}
+        modalDotsBorderWidth={modalDotsBorderWidth}
+        modalThumbnailsPosition={modalThumbnailsPosition}
+        modalInfiniteGallery={modalInfiniteGallery}
+        modalImageZoomOnClick={modalImageZoomOnClick}
+        modalImageZoomOnHover={modalImageZoomOnHover}
         headingStyle={headingStyle(style, theme)}
         subheadingStyle={subheadingStyle(style, theme)}
         buttonStyle={buttonStyle(style, theme)}

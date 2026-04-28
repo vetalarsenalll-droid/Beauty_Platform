@@ -193,6 +193,15 @@ export function SE002ContentPanel(ctx: CrmPanelCtx) {
           {renderSectionTitle("Список услуг")}
           {renderFlatEntityListEditor(ctx, updateData)}
           {renderFlatSelect(
+            "Вид списка",
+            String(block.data.cardStyle ?? "filled"),
+            (value) => updateData({ cardStyle: value }),
+            [
+              { value: "filled", label: "Плитка" },
+              { value: "plain", label: "Без фона" },
+            ]
+          )}
+          {renderFlatSelect(
             "Карточек в ряд",
             String(block.data.cardsPerRow ?? 4),
             (value) => updateData({ cardsPerRow: Number(value) }),
@@ -203,6 +212,68 @@ export function SE002ContentPanel(ctx: CrmPanelCtx) {
               { value: "4", label: "4 карточки" },
             ]
           )}
+          {renderFlatSelect(
+            "Карточек на мобильном",
+            String(block.data.mobileCardsPerRow ?? 2),
+            (value) => updateData({ mobileCardsPerRow: Number(value) }),
+            [
+              { value: "1", label: "Одна в ряд" },
+              { value: "2", label: "Две в ряд" },
+            ]
+          )}
+          {renderFlatSelect(
+            "Соотношение сторон изображения",
+            String(block.data.imageAspectRatio ?? "1 / 1"),
+            (value) => updateData({ imageAspectRatio: value }),
+            [
+              { value: "1 / 1", label: "1:1 Квадрат" },
+              { value: "4 / 3", label: "4:3 Горизонтально" },
+              { value: "3 / 4", label: "3:4 Вертикально" },
+              { value: "16 / 9", label: "16:9 Широкое" },
+            ]
+          )}
+          {renderFlatTextInput(
+            "Отступ между колонками",
+            String(block.data.cardGapX ?? 20),
+            (value) => updateData({ cardGapX: Number(value) || 0 }),
+            "20"
+          )}
+          {renderFlatTextInput(
+            "Вертикальный отступ",
+            String(block.data.cardGapY ?? 40),
+            (value) => updateData({ cardGapY: Number(value) || 0 }),
+            "40"
+          )}
+          {renderFlatTextInput(
+            "Скругление изображения",
+            String(block.data.imageRadius ?? 10),
+            (value) => updateData({ imageRadius: Number(value) || 0 }),
+            "10"
+          )}
+          {renderFlatTextInput(
+            "Внутренний отступ X",
+            String(block.data.cardPaddingX ?? 30),
+            (value) => updateData({ cardPaddingX: Number(value) || 0 }),
+            "30"
+          )}
+          {renderFlatTextInput(
+            "Внутренний отступ Y",
+            String(block.data.cardPaddingY ?? 30),
+            (value) => updateData({ cardPaddingY: Number(value) || 0 }),
+            "30"
+          )}
+          <div>
+            {renderCheckboxRow(
+              block.data.showSecondImageOnHover === true,
+              (checked) => updateData({ showSecondImageOnHover: checked }),
+              "Показывать второе изображение при наведении"
+            )}
+            {renderCheckboxRow(
+              block.data.alignButtonsBottom !== false,
+              (checked) => updateData({ alignButtonsBottom: checked }),
+              "Выравнивать кнопки по низу"
+            )}
+          </div>
           {renderFlatSelect(
             "Фильтр по локации",
             String(block.data.locationId ?? ""),
@@ -227,6 +298,29 @@ export function SE002ContentPanel(ctx: CrmPanelCtx) {
               })),
             ]
           )}
+        </div>
+      )}
+
+      {inSection("filters") && (
+        <div className="space-y-5">
+          {renderSectionTitle("Фильтры, поиск и сортировка")}
+          <div>
+            {renderCheckboxRow(
+              block.data.showCategoryTabs !== false,
+              (checked) => updateData({ showCategoryTabs: checked }),
+              "Показывать категории услуг"
+            )}
+            {renderCheckboxRow(
+              block.data.showSearch !== false,
+              (checked) => updateData({ showSearch: checked }),
+              "Показывать поиск"
+            )}
+            {renderCheckboxRow(
+              block.data.showSort !== false,
+              (checked) => updateData({ showSort: checked }),
+              "Показывать сортировку"
+            )}
+          </div>
           {renderFlatSelect(
             "Сортировка по умолчанию",
             String(block.data.defaultSort ?? "default"),
@@ -256,7 +350,7 @@ export function SE002ContentPanel(ctx: CrmPanelCtx) {
 
       {inSection("servicePage") && (
         <div className="space-y-5">
-          {renderSectionTitle("Страница услуги")}
+          {renderSectionTitle("Страница услуги / модалка")}
           {renderFlatTextInput(
             "Текст кнопки подробностей",
             String(block.data.detailsButtonText ?? "Подробнее"),
@@ -272,28 +366,111 @@ export function SE002ContentPanel(ctx: CrmPanelCtx) {
               { value: "booking", label: "Сразу к записи" },
             ]
           )}
+          <div>
+            {renderCheckboxRow(
+              block.data.modalImageClickEnabled !== false,
+              (checked) => updateData({ modalImageClickEnabled: checked }),
+              "Открывать модалку по клику на изображение"
+            )}
+            {renderCheckboxRow(
+              block.data.serviceModalShowDescription !== false,
+              (checked) => updateData({ serviceModalShowDescription: checked }),
+              "Показывать описание в модалке"
+            )}
+            {renderCheckboxRow(
+              block.data.serviceModalShowMeta !== false,
+              (checked) => updateData({ serviceModalShowMeta: checked }),
+              "Показывать цену и длительность в модалке"
+            )}
+          </div>
+          {renderFlatTextInput(
+            "Фон галереи",
+            String(block.data.modalGalleryBgColor ?? "#ebebeb"),
+            (value) => updateData({ modalGalleryBgColor: value || "#ebebeb" }),
+            "#ebebeb"
+          )}
+          {renderFlatSelect(
+            "Масштабирование изображения",
+            String(block.data.modalImageFit ?? "contain"),
+            (value) => updateData({ modalImageFit: value }),
+            [
+              { value: "contain", label: "Вписывать в область" },
+              { value: "cover", label: "Заполнять область" },
+            ]
+          )}
+          {renderFlatSelect(
+            "Соотношение сторон модалки",
+            String(block.data.modalImageAspectRatio ?? "1 / 1"),
+            (value) => updateData({ modalImageAspectRatio: value }),
+            [
+              { value: "1 / 1", label: "1:1 Квадрат" },
+              { value: "4 / 3", label: "4:3 Горизонтально" },
+              { value: "16 / 9", label: "16:9 Широкое" },
+            ]
+          )}
+          {renderFlatSelect(
+            "Управляющие элементы",
+            String(block.data.modalControls ?? "arrowsAndDots"),
+            (value) => updateData({ modalControls: value }),
+            [
+              { value: "arrowsAndDots", label: "Стрелки и точки" },
+              { value: "arrows", label: "Только стрелки" },
+              { value: "dots", label: "Только точки" },
+              { value: "thumbnails", label: "Стрелки и миниатюры" },
+            ]
+          )}
+          {renderFlatSelect(
+            "Размер стрелки",
+            String(block.data.modalArrowSize ?? "md"),
+            (value) => updateData({ modalArrowSize: value }),
+            [
+              { value: "sm", label: "Малый" },
+              { value: "md", label: "Средний" },
+              { value: "lg", label: "Большой" },
+            ]
+          )}
+          {renderFlatTextInput(
+            "Толщина стрелки",
+            String(block.data.modalArrowThickness ?? 3),
+            (value) => updateData({ modalArrowThickness: Number(value) || 1 }),
+            "3"
+          )}
+          {renderFlatTextInput(
+            "Размер точек",
+            String(block.data.modalDotsSize ?? 4),
+            (value) => updateData({ modalDotsSize: Number(value) || 1 }),
+            "4"
+          )}
+          {renderFlatTextInput(
+            "Толщина обводки точек",
+            String(block.data.modalDotsBorderWidth ?? 1),
+            (value) => updateData({ modalDotsBorderWidth: Number(value) || 0 }),
+            "1"
+          )}
+          <div>
+            {renderCheckboxRow(
+              block.data.modalInfiniteGallery !== false,
+              (checked) => updateData({ modalInfiniteGallery: checked }),
+              "Бесконечная галерея"
+            )}
+            {renderCheckboxRow(
+              block.data.modalImageZoomOnClick !== false,
+              (checked) => updateData({ modalImageZoomOnClick: checked }),
+              "Увеличение изображения по клику"
+            )}
+            {renderCheckboxRow(
+              block.data.modalImageZoomOnHover === true,
+              (checked) => updateData({ modalImageZoomOnHover: checked }),
+              "Увеличение изображения по наведению"
+            )}
+          </div>
         </div>
       )}
 
-      {inSection("controls") && (
+      {inSection("button") && (
         <div className="space-y-5">
-          {renderSectionTitle("Элементы")}
+          {renderSectionTitle("Кнопка")}
           <div>
-            {renderCheckboxRow(
-              block.data.showCategoryTabs !== false,
-              (checked) => updateData({ showCategoryTabs: checked }),
-              "Показывать категории услуг"
-            )}
-            {renderCheckboxRow(
-              block.data.showSearch !== false,
-              (checked) => updateData({ showSearch: checked }),
-              "Показывать поиск"
-            )}
-            {renderCheckboxRow(
-              block.data.showSort !== false,
-              (checked) => updateData({ showSort: checked }),
-              "Показывать сортировку"
-            )}
             {renderCheckboxRow(
               block.data.showDescription !== false,
               (checked) => updateData({ showDescription: checked }),

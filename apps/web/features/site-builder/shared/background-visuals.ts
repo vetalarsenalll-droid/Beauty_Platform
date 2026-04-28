@@ -137,3 +137,19 @@ export function resolveMenuSectionBackgroundVisual(
     stopB: `menuSectionBackgroundStopB${suffix}`,
   });
 }
+
+export function resolveServicesSectionBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
+) {
+  const suffix = mode === "dark" ? "Dark" : "Light";
+  return resolveBackgroundVisual(data, fallbackColor, {
+    mode: `servicesSectionBackgroundMode${suffix}`,
+    from: `servicesSectionBackgroundFrom${suffix}`,
+    to: `servicesSectionBackgroundTo${suffix}`,
+    angle: `servicesSectionBackgroundAngle${suffix}`,
+    stopA: `servicesSectionBackgroundStopA${suffix}`,
+    stopB: `servicesSectionBackgroundStopB${suffix}`,
+  });
+}

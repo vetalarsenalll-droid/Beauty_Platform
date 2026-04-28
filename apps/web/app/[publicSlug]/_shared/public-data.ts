@@ -133,10 +133,14 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
   });
 
   const serviceCoverMap = new Map<string, string>();
+  const servicePhotoMap = new Map<string, string[]>();
   servicePhotos.forEach((item) => {
     if (!serviceCoverMap.has(item.entityId)) {
       serviceCoverMap.set(item.entityId, item.asset.url);
     }
+    const current = servicePhotoMap.get(item.entityId) ?? [];
+    current.push(item.asset.url);
+    servicePhotoMap.set(item.entityId, current);
   });
 
   const specialistCoverMap = new Map<string, string>();
@@ -206,6 +210,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     baseDurationMin: service.baseDurationMin,
     basePrice: Number(service.basePrice),
     coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
+    photoUrls: servicePhotoMap.get(String(service.id)) ?? [],
     locationIds: service.locations.map((item) => item.locationId),
   }));
 
