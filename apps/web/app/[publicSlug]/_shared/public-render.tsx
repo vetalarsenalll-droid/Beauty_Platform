@@ -3200,6 +3200,8 @@ function renderServices(
         modalInfiniteGallery={modalInfiniteGallery}
         modalImageZoomOnClick={modalImageZoomOnClick}
         modalImageZoomOnHover={modalImageZoomOnHover}
+        maxVisibleItems={Number.isFinite(Number(data.maxVisibleItems)) ? Number(data.maxVisibleItems) : 36}
+        usePagination={data.usePagination === true}
         headingStyle={headingStyle(style)}
         subheadingStyle={subheadingStyle(style)}
         buttonStyle={buttonStyle(style)}

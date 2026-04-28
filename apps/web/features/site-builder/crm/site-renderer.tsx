@@ -4945,6 +4945,8 @@ export function renderServices(
   const modalInfiniteGallery = data.modalInfiniteGallery !== false;
   const modalImageZoomOnClick = data.modalImageZoomOnClick !== false;
   const modalImageZoomOnHover = data.modalImageZoomOnHover === true;
+  const maxVisibleItems = Number(data.maxVisibleItems);
+  const usePagination = data.usePagination === true;
   const showCategoryTabs = data.showCategoryTabs !== false;
   const categoryAllLabel =
     typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
@@ -5050,6 +5052,8 @@ export function renderServices(
         modalInfiniteGallery={modalInfiniteGallery}
         modalImageZoomOnClick={modalImageZoomOnClick}
         modalImageZoomOnHover={modalImageZoomOnHover}
+        maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 36}
+        usePagination={usePagination}
         headingStyle={headingStyle(style, theme)}
         subheadingStyle={subheadingStyle(style, theme)}
         buttonStyle={buttonStyle(style, theme)}

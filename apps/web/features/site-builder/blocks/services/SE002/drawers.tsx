@@ -17,7 +17,11 @@ export function SE002Drawers(ctx: CrmPanelCtx) {
     );
   }
 
-  if (ctx.activePanelSectionId === "button" || ctx.activePanelSectionId === "servicePage") {
+  if (
+    ctx.activePanelSectionId === "button" ||
+    ctx.activePanelSectionId === "servicePage" ||
+    ctx.activePanelSectionId === "servicesList"
+  ) {
     return (
       <SiteServicesSettingsDrawer
         block={ctx.block}

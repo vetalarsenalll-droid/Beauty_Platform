@@ -190,6 +190,204 @@ export function SiteServicesSettingsDrawer({
     );
   }
 
+  if (activeSectionId === "servicesList") {
+    return (
+      <div className="space-y-6 px-1 pb-8 pt-1">
+        {renderFlatSelect(
+          "Вид списка товаров",
+          "tile",
+          () => {},
+          [{ value: "tile", label: "Плитка" }]
+        )}
+        {renderFlatSelect(
+          "Стиль карточек",
+          String(data.cardStyle ?? "filled"),
+          (value) => updateData({ cardStyle: value }),
+          [
+            { value: "plain", label: "Без фона" },
+            { value: "filled", label: "С фоном" },
+          ]
+        )}
+        {renderFlatTextInput(
+          "Отступ между колонками",
+          String(data.cardGapX ?? 20),
+          (value) => updateData({ cardGapX: Number(value) || 0 }),
+          "20"
+        )}
+        {renderFlatSelect(
+          "Кол-во карточек в ряду",
+          String(data.cardsPerRow ?? 4),
+          (value) => updateData({ cardsPerRow: Number(value) }),
+          [
+            { value: "1", label: "1" },
+            { value: "2", label: "2" },
+            { value: "3", label: "3" },
+            { value: "4", label: "4" },
+          ]
+        )}
+        {renderFlatSelect(
+          "Выравнивание",
+          String(rawStyle.textAlign ?? "left"),
+          (value) =>
+            updateStyle({
+              textAlign: value,
+              textAlignHeading: value,
+              textAlignSubheading: value,
+            }),
+          [
+            { value: "left", label: "По левому краю" },
+            { value: "center", label: "По центру" },
+            { value: "right", label: "По правому краю" },
+          ]
+        )}
+        {renderFlatSelect(
+          "Соотношение сторон изображения",
+          String(data.imageAspectRatio ?? "1 / 1"),
+          (value) => updateData({ imageAspectRatio: value }),
+          [
+            { value: "1 / 1", label: "1:1 Квадрат" },
+            { value: "4 / 3", label: "4:3 Горизонтально" },
+            { value: "3 / 4", label: "3:4 Вертикально" },
+            { value: "16 / 9", label: "16:9 Широкое" },
+            { value: "original", label: "Оригинальное" },
+          ]
+        )}
+        {renderFlatTextInput(
+          "Вертикальный отступ между карточками",
+          String(data.cardGapY ?? 40),
+          (value) => updateData({ cardGapY: Number(value) || 0 }),
+          "40"
+        )}
+        {renderFlatTextInput(
+          "Скругление изображения",
+          String(data.imageRadius ?? 10),
+          (value) => updateData({ imageRadius: Number(value) || 0 }),
+          "10"
+        )}
+        {renderFlatTextInput(
+          "Внутренний отступ X",
+          String(data.cardPaddingX ?? 30),
+          (value) => updateData({ cardPaddingX: Number(value) || 0 }),
+          "30"
+        )}
+        {renderFlatTextInput(
+          "Внутренний отступ Y",
+          String(data.cardPaddingY ?? 30),
+          (value) => updateData({ cardPaddingY: Number(value) || 0 }),
+          "30"
+        )}
+        <FlatCheckbox
+          checked={data.showDescription !== false}
+          onChange={(checked) => updateData({ showDescription: checked })}
+          label="Показывать описание товара"
+        />
+        <FlatCheckbox
+          checked={Number(data.mobileCardsPerRow ?? 2) === 1}
+          onChange={(checked) => updateData({ mobileCardsPerRow: checked ? 1 : 2 })}
+          label="Показывать карточки в один ряд на мобильных устройствах"
+        />
+        <FlatCheckbox
+          checked={Number(data.mobileCardsPerRow ?? 2) === 2}
+          onChange={(checked) => updateData({ mobileCardsPerRow: checked ? 2 : 1 })}
+          label="Два товара в ряд на мобильных устройствах"
+        />
+        <FlatCheckbox
+          checked={data.showSecondImageOnHover === true}
+          onChange={(checked) => updateData({ showSecondImageOnHover: checked })}
+          label="Показывать второе изображение при наведении"
+        />
+        <FlatCheckbox
+          checked={data.alignButtonsBottom !== false}
+          onChange={(checked) => updateData({ alignButtonsBottom: checked })}
+          label="Выравнивать кнопки в карточках по низу"
+        />
+        {renderFlatTextInput(
+          "Количество видимых товаров до кнопки «Загрузить ещё»",
+          String(data.maxVisibleItems ?? 36),
+          (value) => updateData({ maxVisibleItems: Math.max(1, Math.min(100, Number(value) || 36)) }),
+          "36"
+        )}
+        <FlatCheckbox
+          checked={data.usePagination === true}
+          onChange={(checked) => updateData({ usePagination: checked })}
+          label="Показывать пагинацию (вместо кнопки «Загрузить ещё»)"
+        />
+
+        <div className="border-t border-[color:var(--bp-stroke)] pt-4">
+          <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+            Цвета и темная тема
+          </div>
+          <div className="space-y-4">
+            <TildaInlineColorField
+              compact
+              label="Фон карточек"
+              value={readStyle("subBlockBgLight", readStyle("subBlockBg", "transparent"))}
+              placeholder="transparent"
+              onChange={(value) => updateStyle({ subBlockBgLight: value, subBlockBg: value })}
+              onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Обводка"
+              value={readStyle("borderColorLight", readStyle("borderColor", "transparent"))}
+              placeholder="transparent"
+              onChange={(value) => updateStyle({ borderColorLight: value, borderColor: value })}
+              onClear={() => updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Заголовок"
+              value={readStyle("textColorLight", readStyle("textColor", activeTheme.textColor))}
+              placeholder={activeTheme.textColor}
+              onChange={(value) => updateStyle({ textColorLight: value, textColor: value })}
+              onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Текст"
+              value={readStyle("mutedColorLight", readStyle("mutedColor", activeTheme.mutedColor))}
+              placeholder={activeTheme.mutedColor}
+              onChange={(value) => updateStyle({ mutedColorLight: value, mutedColor: value })}
+              onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Фон карточек (темная)"
+              value={readStyle("subBlockBgDark", "transparent")}
+              placeholder="transparent"
+              onChange={(value) => updateStyle({ subBlockBgDark: value })}
+              onClear={() => updateStyle({ subBlockBgDark: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Обводка (темная)"
+              value={readStyle("borderColorDark", "transparent")}
+              placeholder="transparent"
+              onChange={(value) => updateStyle({ borderColorDark: value })}
+              onClear={() => updateStyle({ borderColorDark: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Заголовок (темная)"
+              value={readStyle("textColorDark", activeTheme.darkPalette.textColor)}
+              placeholder={activeTheme.darkPalette.textColor}
+              onChange={(value) => updateStyle({ textColorDark: value })}
+              onClear={() => updateStyle({ textColorDark: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Текст (темная)"
+              value={readStyle("mutedColorDark", activeTheme.darkPalette.mutedColor)}
+              placeholder={activeTheme.darkPalette.mutedColor}
+              onChange={(value) => updateStyle({ mutedColorDark: value })}
+              onClear={() => updateStyle({ mutedColorDark: "transparent" })}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (activeSectionId === "servicePage") {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">

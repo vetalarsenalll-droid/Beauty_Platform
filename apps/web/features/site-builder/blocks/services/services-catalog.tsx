@@ -64,6 +64,8 @@ type ServiceCatalogProps = {
   modalInfiniteGallery: boolean;
   modalImageZoomOnClick: boolean;
   modalImageZoomOnHover: boolean;
+  maxVisibleItems: number;
+  usePagination: boolean;
   headingStyle: CSSProperties;
   subheadingStyle: CSSProperties;
   buttonStyle: CSSProperties;
@@ -509,6 +511,8 @@ export function ServicesCatalog({
   modalInfiniteGallery,
   modalImageZoomOnClick,
   modalImageZoomOnHover,
+  maxVisibleItems,
+  usePagination,
   headingStyle,
   subheadingStyle,
   buttonStyle,
@@ -531,10 +535,18 @@ export function ServicesCatalog({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState(defaultSort);
   const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
+  const pageSize = clamp(maxVisibleItems, 1, 100, 36);
+  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
 
   useEffect(() => {
     setSortMode(defaultSort);
   }, [defaultSort]);
+
+  useEffect(() => {
+    setPage(1);
+    setVisibleCount(pageSize);
+  }, [activeCategory, searchQuery, sortMode, pageSize, usePagination]);
 
   useEffect(() => {
     if (activeCategory === "__all__") return;
@@ -573,9 +585,14 @@ export function ServicesCatalog({
           return 0;
       }
     });
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const displayItems = usePagination
+    ? filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : filteredItems.slice(0, visibleCount);
 
   const activeModalService = activeModal
-    ? filteredItems.find((item) => item.id === activeModal.serviceId) ??
+    ? displayItems.find((item) => item.id === activeModal.serviceId) ??
       scopedItems.find((item) => item.id === activeModal.serviceId) ??
       null
     : null;
@@ -703,7 +720,7 @@ export function ServicesCatalog({
         className={`mt-8 grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow)}`}
         style={{ columnGap: clamp(cardGapX, 0, 80, 20), rowGap: clamp(cardGapY, 0, 120, 40) }}
       >
-        {filteredItems.map((service) => {
+        {displayItems.map((service) => {
           const serviceHref = publicSlug ? `/${publicSlug}/services/${service.id}` : "#";
           const bookingHref =
             showButton && publicSlug
@@ -747,7 +764,10 @@ export function ServicesCatalog({
                     <div
                       className="relative overflow-hidden"
                       style={{
-                        aspectRatio: imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
+                        aspectRatio:
+                          imageAspectRatio === "original"
+                            ? undefined
+                            : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
                         borderRadius: clamp(imageRadius, 0, 40, 10),
                       }}
                     >
@@ -774,7 +794,10 @@ export function ServicesCatalog({
                     <div
                       className="relative overflow-hidden"
                       style={{
-                        aspectRatio: imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
+                        aspectRatio:
+                          imageAspectRatio === "original"
+                            ? undefined
+                            : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
                         borderRadius: clamp(imageRadius, 0, 40, 10),
                       }}
                     >
@@ -889,12 +912,54 @@ export function ServicesCatalog({
           );
         })}
 
-        {filteredItems.length === 0 ? (
+        {displayItems.length === 0 ? (
           <div className="rounded-[24px] border border-dashed border-[color:var(--block-border,transparent)] p-6 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
             Услуги по выбранным параметрам не найдены.
           </div>
         ) : null}
       </div>
+
+      {!usePagination && filteredItems.length > visibleCount ? (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((current) => Math.min(current + pageSize, filteredItems.length))
+            }
+            className="inline-flex items-center justify-center rounded-[12px] border px-5 py-2 text-sm"
+            style={{
+              borderColor: "var(--block-border,transparent)",
+              color: "var(--block-text,var(--bp-ink))",
+            }}
+          >
+            Загрузить ещё
+          </button>
+        </div>
+      ) : null}
+
+      {usePagination && filteredItems.length > pageSize ? (
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNumber) => (
+            <button
+              key={pageNumber}
+              type="button"
+              onClick={() => setPage(pageNumber)}
+              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] border px-3 text-sm"
+              style={{
+                borderColor:
+                  pageNumber === currentPage
+                    ? "var(--block-text,var(--bp-ink))"
+                    : "var(--block-border,transparent)",
+                color: "var(--block-text,var(--bp-ink))",
+                backgroundColor:
+                  pageNumber === currentPage ? "var(--block-sub-bg,transparent)" : "transparent",
+              }}
+            >
+              {pageNumber}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {activeModalService ? (
         <ServiceModal

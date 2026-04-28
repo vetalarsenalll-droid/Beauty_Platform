@@ -147,6 +147,7 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "colors", label: "Цвета" },
     { id: "typography", label: "Типографика" },
     { id: "button", label: "Кнопка" },
+    { id: "servicesList", label: "Список услуг" },
     { id: "servicePage", label: "Страница услуги" },
   ],
   loader: [
@@ -692,6 +693,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     mobileCardsPerRow: 2,
     showSecondImageOnHover: false,
     alignButtonsBottom: true,
+    maxVisibleItems: 36,
+    usePagination: false,
     modalGalleryBgColor: "#ebebeb",
     modalImageFit: "contain",
     modalImageAspectRatio: "1 / 1",

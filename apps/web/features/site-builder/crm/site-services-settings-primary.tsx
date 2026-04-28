@@ -1,4 +1,4 @@
-import { useState, type RefObject } from "react";
+﻿import { type RefObject } from "react";
 import {
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
@@ -13,7 +13,6 @@ import type { PanelTheme } from "@/features/site-builder/crm/site-shell-theme";
 import {
   CoverGridWidthControl,
   TildaBackgroundColorField,
-  TildaInlineColorField,
 } from "@/features/site-builder/crm/site-editor-panels";
 import {
   normalizeBlockStyle,
@@ -79,7 +78,6 @@ export function SiteServicesSettingsPrimary({
   setActivePanelSectionId,
   updateBlock,
 }: SiteServicesSettingsPrimaryProps) {
-  const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const style = normalizeBlockStyle(block, activeTheme);
 
   const updateStyle = (patch: Partial<BlockStyle>) => {
@@ -104,12 +102,6 @@ export function SiteServicesSettingsPrimary({
     return typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
   };
 
-  const toDisplay = (value: string, fallback: string) => value || fallback;
-  const toStore = (value: string) =>
-    value.trim() === "" || value.trim().toLowerCase() === "transparent"
-      ? "transparent"
-      : value.trim();
-
   const resolvedColumns = clampBlockColumns(
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     block.type
@@ -121,14 +113,6 @@ export function SiteServicesSettingsPrimary({
 
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");
-  const lightSubBlockBg = readRaw("subBlockBgLight") || readRaw("subBlockBg");
-  const darkSubBlockBg = readRaw("subBlockBgDark");
-  const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
-  const darkBorderColor = readRaw("borderColorDark");
-  const lightTextColor = readRaw("textColorLight") || readRaw("textColor");
-  const darkTextColor = readRaw("textColorDark");
-  const lightMutedColor = readRaw("mutedColorLight") || readRaw("mutedColor");
-  const darkMutedColor = readRaw("mutedColorDark");
 
   const lightBackgroundMode =
     style.servicesSectionBackgroundModeLight === "linear" ||
@@ -179,7 +163,7 @@ export function SiteServicesSettingsPrimary({
             style={{ borderColor: panelTheme.border }}
           >
             <span>{resolvedColumns} колонок</span>
-            <span className="text-sm leading-none">{coverWidthModalOpen ? "▴" : "▾"}</span>
+            <span className="text-sm leading-none">{coverWidthModalOpen ? "\u25B4" : "\u25BE"}</span>
           </button>
           {coverWidthModalOpen && (
             <div
@@ -202,87 +186,6 @@ export function SiteServicesSettingsPrimary({
             </div>
           )}
         </div>
-
-        <label className="mt-4 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Выравнивание
-          <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
-            <select
-              value={style.textAlign ?? "left"}
-              onChange={(event) =>
-                updateStyle({
-                  textAlign: event.target.value as BlockStyle["textAlign"],
-                  textAlignHeading: event.target.value as BlockStyle["textAlign"],
-                  textAlignSubheading: event.target.value as BlockStyle["textAlign"],
-                })
-              }
-              className="w-full appearance-none rounded-none border-0 bg-transparent py-1 pr-6 text-sm font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
-              style={{
-                borderTop: 0,
-                borderLeft: 0,
-                borderRight: 0,
-                borderBottom: 0,
-                borderRadius: 0,
-                boxShadow: "none",
-                backgroundColor: "transparent",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                appearance: "none",
-              }}
-            >
-              <option value="left">По левому краю</option>
-              <option value="center">По центру</option>
-              <option value="right">По правому краю</option>
-            </select>
-            <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-              ▾
-            </span>
-          </div>
-        </label>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <TildaInlineColorField
-          compact
-          label="Фон карточек"
-          value={toDisplay(lightSubBlockBg, "transparent")}
-          placeholder="transparent"
-          onChange={(value) =>
-            updateStyle({ subBlockBgLight: toStore(value), subBlockBg: toStore(value) })
-          }
-          onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Обводка"
-          value={toDisplay(lightBorderColor, "transparent")}
-          placeholder="transparent"
-          onChange={(value) =>
-            updateStyle({ borderColorLight: toStore(value), borderColor: toStore(value) })
-          }
-          onClear={() =>
-            updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })
-          }
-        />
-        <TildaInlineColorField
-          compact
-          label="Заголовок"
-          value={toDisplay(lightTextColor, activeTheme.textColor)}
-          placeholder={activeTheme.textColor}
-          onChange={(value) =>
-            updateStyle({ textColorLight: toStore(value), textColor: toStore(value) })
-          }
-          onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Текст"
-          value={toDisplay(lightMutedColor, activeTheme.mutedColor)}
-          placeholder={activeTheme.mutedColor}
-          onChange={(value) =>
-            updateStyle({ mutedColorLight: toStore(value), mutedColor: toStore(value) })
-          }
-          onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
-        />
       </div>
 
       <div className="space-y-3">
@@ -296,6 +199,13 @@ export function SiteServicesSettingsPrimary({
         {renderSectionButton(
           "Кнопка",
           "button",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
+        {renderSectionButton(
+          "Список услуг",
+          "servicesList",
           activePanelSectionId,
           panelTheme,
           setActivePanelSectionId
@@ -339,7 +249,7 @@ export function SiteServicesSettingsPrimary({
               ))}
             </select>
             <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-              ▾
+              {"\u25BE"}
             </span>
           </div>
         </label>
@@ -372,7 +282,7 @@ export function SiteServicesSettingsPrimary({
               ))}
             </select>
             <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-              ▾
+              {"\u25BE"}
             </span>
           </div>
         </label>
@@ -403,87 +313,28 @@ export function SiteServicesSettingsPrimary({
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
-        className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
-        style={{
-          borderColor: showDarkThemeAdvanced ? "#ff5a5f" : panelTheme.border,
-          backgroundColor: "transparent",
-          color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
+      <TildaBackgroundColorField
+        label="Цвет фона для всего блока (темная тема)"
+        value={darkSectionBg || "#16181d"}
+        mode={darkBackgroundMode}
+        secondValue={darkBackgroundTo}
+        angle={darkBackgroundAngle}
+        radialStopA={darkBackgroundStopA}
+        radialStopB={darkBackgroundStopB}
+        placeholder="#16181d"
+        onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeDark: mode })}
+        onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToDark: value })}
+        onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleDark: value })}
+        onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopADark: value })}
+        onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBDark: value })}
+        onChange={(value) => {
+          updateStyle({
+            sectionBgDark: value,
+            blockBgDark: value,
+            servicesSectionBackgroundFromDark: value,
+          });
         }}
-      >
-        <span className="inline-flex items-center gap-2">
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
-          </svg>
-          <span>Темная тема</span>
-        </span>
-        <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
-      </button>
-
-      {showDarkThemeAdvanced && (
-        <>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <TildaInlineColorField
-              compact
-              label="Фон карточек"
-              value={toDisplay(darkSubBlockBg, "transparent")}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ subBlockBgDark: toStore(value) })}
-              onClear={() => updateStyle({ subBlockBgDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Обводка"
-              value={toDisplay(darkBorderColor, "transparent")}
-              placeholder="transparent"
-              onChange={(value) => updateStyle({ borderColorDark: toStore(value) })}
-              onClear={() => updateStyle({ borderColorDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Заголовок"
-              value={toDisplay(darkTextColor, activeTheme.darkPalette.textColor)}
-              placeholder={activeTheme.darkPalette.textColor}
-              onChange={(value) => updateStyle({ textColorDark: toStore(value) })}
-              onClear={() => updateStyle({ textColorDark: "transparent" })}
-            />
-            <TildaInlineColorField
-              compact
-              label="Текст"
-              value={toDisplay(darkMutedColor, activeTheme.darkPalette.mutedColor)}
-              placeholder={activeTheme.darkPalette.mutedColor}
-              onChange={(value) => updateStyle({ mutedColorDark: toStore(value) })}
-              onClear={() => updateStyle({ mutedColorDark: "transparent" })}
-            />
-          </div>
-
-          <TildaBackgroundColorField
-            label="Цвет фона для всего блока"
-            value={darkSectionBg || "#16181d"}
-            mode={darkBackgroundMode}
-            secondValue={darkBackgroundTo}
-            angle={darkBackgroundAngle}
-            radialStopA={darkBackgroundStopA}
-            radialStopB={darkBackgroundStopB}
-            placeholder="#16181d"
-            onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeDark: mode })}
-            onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToDark: value })}
-            onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleDark: value })}
-            onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopADark: value })}
-            onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBDark: value })}
-            onChange={(value) => {
-              updateStyle({
-                sectionBgDark: value,
-                blockBgDark: value,
-                servicesSectionBackgroundFromDark: value,
-              });
-            }}
-          />
-        </>
-      )}
+      />
     </div>
   );
 }
-
