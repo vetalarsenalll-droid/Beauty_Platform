@@ -276,7 +276,7 @@ function ServiceModal({
           ×
         </button>
 
-        <div className="relative flex min-h-[70vh] flex-1 items-center justify-center rounded-[8px] p-8" style={{ backgroundColor: galleryBgColor || "#efefef" }}>
+        <div className="relative flex min-h-[70vh] flex-1 items-center justify-center p-8">
           {showArrows && canNavigate ? (
             <button
               type="button"
@@ -314,14 +314,17 @@ function ServiceModal({
           ) : null}
 
           <div
-            className="relative flex w-full items-center justify-center overflow-hidden rounded-[8px]"
-            style={{ aspectRatio: undefined }}
+            className="relative overflow-hidden rounded-[8px]"
+            style={{
+              width: "min(62vw, 820px)",
+              height: "min(72vh, 820px)",
+            }}
           >
             {currentImage ? (
               <img
                 src={currentImage}
                 alt={service.name}
-                className={`max-h-[calc(70vh-4rem)] w-auto max-w-full transition duration-300 ${
+                className={`h-full w-full transition duration-300 ${
                   imageZoomOnHover ? "hover:scale-[1.04]" : ""
                 }`}
                 style={{
