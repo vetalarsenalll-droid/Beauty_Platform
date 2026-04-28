@@ -467,11 +467,6 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
           {renderSectionTitle("Кнопка")}
           <div>
             {renderCheckboxRow(
-              block.data.showDescription !== false,
-              (checked) => updateData({ showDescription: checked }),
-              "Показывать описание услуги"
-            )}
-            {renderCheckboxRow(
               block.data.showDuration !== false,
               (checked) => updateData({ showDuration: checked }),
               "Показывать длительность"

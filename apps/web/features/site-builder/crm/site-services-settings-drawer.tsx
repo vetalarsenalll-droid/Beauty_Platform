@@ -282,11 +282,6 @@ export function SiteServicesSettingsDrawer({
           "30"
         )}
         <FlatCheckbox
-          checked={data.showDescription !== false}
-          onChange={(checked) => updateData({ showDescription: checked })}
-          label="Показывать описание услуги"
-        />
-        <FlatCheckbox
           checked={Number(data.mobileCardsPerRow ?? 2) === 1}
           onChange={(checked) => updateData({ mobileCardsPerRow: checked ? 1 : 2 })}
           label="Показывать карточки в один ряд на мобильных устройствах"

@@ -260,28 +260,28 @@ function ServiceModal({
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 px-4 py-6"
+      className="fixed inset-0 z-[300] overflow-y-auto bg-[#f3f3f3]"
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] bg-[color:var(--bp-paper)] shadow-2xl lg:flex-row"
+        className="relative mx-auto flex min-h-screen w-full max-w-[1600px] items-center px-6 py-10 lg:px-10"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white/90 text-2xl text-black shadow-sm"
+          className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none text-black/80 hover:text-black"
           aria-label="Закрыть"
         >
           ×
         </button>
 
-        <div className="relative flex min-h-[320px] flex-1 items-center justify-center p-6" style={{ backgroundColor: galleryBgColor }}>
+        <div className="relative flex min-h-[70vh] flex-1 items-center justify-center rounded-[8px] p-8" style={{ backgroundColor: galleryBgColor || "#efefef" }}>
           {showArrows && canNavigate ? (
             <button
               type="button"
               onClick={goPrev}
-              className="group absolute left-4 top-1/2 z-10 -translate-y-1/2 transition"
+              className="group absolute left-6 top-1/2 z-10 -translate-y-1/2 transition"
               style={arrowButtonBaseStyle}
               aria-label="Предыдущее изображение"
             >
@@ -314,19 +314,19 @@ function ServiceModal({
           ) : null}
 
           <div
-            className="relative flex w-full items-center justify-center overflow-hidden rounded-[18px]"
-            style={{ aspectRatio: imageAspectRatio || "1 / 1" }}
+            className="relative flex w-full items-center justify-center overflow-hidden rounded-[8px]"
+            style={{ aspectRatio: undefined }}
           >
             {currentImage ? (
               <img
                 src={currentImage}
                 alt={service.name}
-                className={`h-full w-full transition duration-300 ${
-                  imageZoomOnHover ? "hover:scale-[1.08]" : ""
+                className={`max-h-[calc(70vh-4rem)] w-auto max-w-full transition duration-300 ${
+                  imageZoomOnHover ? "hover:scale-[1.04]" : ""
                 }`}
                 style={{
-                  objectFit: imageFit,
-                  transform: zoomed ? "scale(1.7)" : undefined,
+                  objectFit: imageFit || "contain",
+                  transform: zoomed ? "scale(1.35)" : undefined,
                   cursor: imageZoomOnClick ? (zoomed ? "zoom-out" : "zoom-in") : "default",
                 }}
                 onClick={() => {
@@ -345,7 +345,7 @@ function ServiceModal({
             <button
               type="button"
               onClick={goNext}
-              className="group absolute right-4 top-1/2 z-10 -translate-y-1/2 transition"
+              className="group absolute right-6 top-1/2 z-10 -translate-y-1/2 transition"
               style={arrowButtonBaseStyle}
               aria-label="Следующее изображение"
             >
@@ -378,13 +378,13 @@ function ServiceModal({
           ) : null}
         </div>
 
-        <div className="flex w-full max-w-[520px] flex-col overflow-y-auto px-6 py-8 lg:px-8">
+        <div className="flex w-full max-w-[520px] flex-col py-2">
           <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">
             {service.categoryName || "Услуга"}
           </div>
-          <h3 className="mt-3 text-3xl font-semibold text-[color:var(--bp-ink)]">{service.name}</h3>
+          <h3 className="mt-3 text-5xl font-semibold leading-tight text-[color:var(--bp-ink)]">{service.name}</h3>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3 text-base">
+          <div className="mt-6 flex flex-wrap items-center gap-4 text-xl">
             <span className="font-semibold text-[color:var(--bp-ink)]">{formatPrice(service.basePrice)}</span>
             {showMeta ? (
               <span className="text-[color:var(--bp-muted)]">{service.baseDurationMin} мин</span>
@@ -392,13 +392,13 @@ function ServiceModal({
           </div>
 
           {bookingHref ? (
-            <a href={bookingHref} className="mt-6 inline-flex w-fit items-center justify-center px-5 py-3 text-sm" style={buttonStyle}>
+            <a href={bookingHref} className="mt-8 inline-flex w-fit items-center justify-center px-6 py-3 text-base" style={buttonStyle}>
               {buttonText}
             </a>
           ) : null}
 
           {showDescription && service.description ? (
-            <p className="mt-8 text-[15px] leading-7 text-[color:var(--bp-muted)]">{service.description}</p>
+            <p className="mt-10 text-[17px] leading-8 text-[color:var(--bp-muted)]">{service.description}</p>
           ) : null}
 
           {showThumbnails ? (
@@ -899,26 +899,6 @@ export function ServicesCatalog({
                 >
                   {service.name}
                 </a>
-
-                {showDescription && service.description ? (
-                  <p
-                    className={`mt-4 max-w-3xl text-[color:var(--block-muted,var(--bp-muted))] ${
-                      isEditorial ? "text-[15px] leading-7" : "text-sm leading-6"
-                    }`}
-                    style={
-                      isListView
-                        ? {
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            overflow: "hidden",
-                          }
-                        : undefined
-                    }
-                  >
-                    {service.description}
-                  </p>
-                ) : null}
 
                 {(showDuration || showPrice) && (
                   <div
