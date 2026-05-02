@@ -1134,10 +1134,13 @@ export function ServicesCatalog({
               className={mobileFiltersToggleClassName}
               style={{
                 border: "none",
+                borderBottom: `1px solid ${
+                  areMobileFiltersOpen ? "transparent" : controlBorderColor
+                }`,
                 borderRadius: 0,
                 backgroundColor: "transparent",
                 color: resolvedSortTextColor,
-                padding: 0,
+                padding: "0 0 10px",
                 boxShadow: "none",
                 fontSize: "var(--block-text-size)",
               }}
@@ -1421,6 +1424,7 @@ export function ServicesCatalog({
           const primaryImage = images[0] ?? null;
           const secondaryImage = showSecondImageOnHover ? images[1] ?? null : null;
           const hasImage = Boolean(primaryImage);
+          const hasServiceMeta = showDuration || showPrice;
           const articleBackground =
             cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
           const articleBorderColor =
@@ -1601,9 +1605,15 @@ export function ServicesCatalog({
                   </a>
                 )}
 
-                {(showDuration || showPrice) && (
+                {hasServiceMeta && (
                   <div
-                    className="mt-6 flex flex-wrap gap-2 text-[color:var(--block-muted,var(--bp-muted))]"
+                    className={`flex flex-wrap gap-2 text-[color:var(--block-muted,var(--bp-muted))] ${
+                      isListView
+                        ? "mt-6"
+                        : alignButtonsBottom
+                          ? "mt-auto pt-6"
+                          : "mt-6"
+                    }`}
                     style={{ ...serviceCardTextStyle, justifyContent: contentJustify }}
                   >
                     {showDuration ? (
@@ -1637,7 +1647,7 @@ export function ServicesCatalog({
                   className={
                     isListView
                       ? "pt-3"
-                      : alignButtonsBottom
+                      : alignButtonsBottom && !hasServiceMeta
                         ? "mt-auto pt-6"
                         : "pt-6"
                   }
