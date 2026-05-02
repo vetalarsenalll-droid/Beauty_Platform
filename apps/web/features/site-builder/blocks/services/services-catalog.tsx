@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 import type { SiteServiceItem as ServiceItem } from "@/features/site-builder/shared/site-data";
 
@@ -99,6 +99,11 @@ function formatPrice(value: number) {
 function clamp(value: number, min: number, max: number, fallback: number) {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(min, value));
+}
+
+function clampPanY(value: number, limit: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(limit) || limit <= 0) return 0;
+  return Math.max(-limit, Math.min(limit, value));
 }
 
 function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: 1 | 2) {
@@ -201,6 +206,13 @@ function ServiceModal({
     Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
   );
   const [zoomLevel, setZoomLevel] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
+  const [panY, setPanY] = useState(0);
+  const [isDraggingY, setIsDraggingY] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartPanY, setDragStartPanY] = useState(0);
+  const [layoutTick, setLayoutTick] = useState(0);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const canNavigate = images.length > 1;
   const showArrows = controls === "arrows" || controls === "arrowsAndDots" || controls === "thumbnails";
   const showDots = controls === "dots" || controls === "arrowsAndDots";
@@ -209,13 +221,50 @@ function ServiceModal({
   useEffect(() => {
     setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
     setZoomLevel(0);
+    setPanY(0);
+    setIsDraggingY(false);
   }, [imageIndex, images.length]);
 
   useEffect(() => {
+    if (!isDraggingY) return;
+    const stopDragging = () => setIsDraggingY(false);
+    window.addEventListener("mouseup", stopDragging);
+    window.addEventListener("blur", stopDragging);
+    return () => {
+      window.removeEventListener("mouseup", stopDragging);
+      window.removeEventListener("blur", stopDragging);
+    };
+  }, [isDraggingY]);
+
+  useEffect(() => {
+    if (zoomLevel !== 0) return;
+    setPanY(0);
+    setIsDraggingY(false);
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    setPanY(0);
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    const onResize = () => setLayoutTick((v) => v + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const previousPaddingLeft = document.body.style.paddingLeft;
+    const scrollbarCompensation = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
     document.body.style.overflow = "hidden";
+    if (scrollbarCompensation > 0) {
+      const right = parseFloat(previousPaddingRight || "0") || 0;
+      const left = parseFloat(previousPaddingLeft || "0") || 0;
+      document.body.style.paddingRight = `${right + scrollbarCompensation}px`;
+      document.body.style.paddingLeft = `${left + scrollbarCompensation}px`;
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
       if (event.key === "ArrowRight" && canNavigate) {
         setActiveImageIndex((current) => {
           if (current >= images.length - 1) return infiniteGallery ? 0 : current;
@@ -232,6 +281,8 @@ function ServiceModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+      document.body.style.paddingLeft = previousPaddingLeft;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [canNavigate, images.length, infiniteGallery, onClose]);
@@ -249,6 +300,25 @@ function ServiceModal({
 
   const currentImage = images[activeImageIndex] ?? null;
   const isImageFocusMode = zoomLevel > 0;
+  const zoomScale = zoomLevel === 0 ? 1 : zoomLevel === 1 ? 1.35 : zoomLevel === 2 ? 1.8 : zoomLevel === 3 ? 2.3 : zoomLevel === 4 ? 2.9 : 3.6;
+  const maxPanY = useMemo(() => {
+    const viewport = viewportRef.current;
+    const image = imageRef.current;
+    if (!viewport || !image) return 0;
+    const viewportW = viewport.clientWidth;
+    const viewportH = viewport.clientHeight;
+    const naturalW = image.naturalWidth;
+    const naturalH = image.naturalHeight;
+    if (viewportW <= 0 || viewportH <= 0 || naturalW <= 0 || naturalH <= 0) return 0;
+    const containRatio = Math.min(viewportW / naturalW, viewportH / naturalH);
+    const baseH = naturalH * containRatio;
+    const scaledH = baseH * zoomScale;
+    return Math.max(0, (scaledH - viewportH) / 2);
+  }, [zoomScale, activeImageIndex, currentImage, layoutTick]);
+
+  useEffect(() => {
+    setPanY((current) => clampPanY(current, maxPanY));
+  }, [maxPanY]);
   const arrowPx = resolveArrowSize(arrowSize);
   const arrowButtonBaseStyle: CSSProperties = {
     width: arrowPx,
@@ -260,29 +330,18 @@ function ServiceModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]"
-      onClick={() => {
-        if (isImageFocusMode) {
-          setZoomLevel(0);
-          return;
-        }
-        onClose();
-      }}
-    >
+    <div className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]">
       <div
-        className={`relative mx-auto flex min-h-screen w-full max-w-[1600px] items-center ${
+        className={`relative mx-auto flex min-h-screen w-full items-center ${
+          isImageFocusMode ? "max-w-none" : "max-w-[1600px]"
+        } ${
           isImageFocusMode ? "px-2 py-2 lg:px-3 lg:py-3" : "px-6 py-10 lg:px-10"
-        }`}
+        } ${isImageFocusMode ? "justify-center" : ""}`}
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={() => {
-            if (isImageFocusMode) {
-              setZoomLevel(0);
-              return;
-            }
             onClose();
           }}
           className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none text-black/80 hover:text-black"
@@ -295,7 +354,7 @@ function ServiceModal({
           <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
             <button
               type="button"
-              onClick={() => setZoomLevel((current) => (current === 0 ? 0 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5)))}
+              onClick={(event) => { event.stopPropagation(); setZoomLevel((current) => (current === 0 ? 0 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5))); }}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Уменьшить"
               disabled={zoomLevel === 0}
@@ -304,7 +363,7 @@ function ServiceModal({
             </button>
             <button
               type="button"
-              onClick={() => setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5)))}
+              onClick={(event) => { event.stopPropagation(); setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5))); }}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Увеличить"
               disabled={zoomLevel === 5}
@@ -352,54 +411,60 @@ function ServiceModal({
           ) : null}
 
           <div
+            ref={viewportRef}
             className="relative mx-auto overflow-hidden rounded-[8px]"
             style={{
-              width:
-                zoomLevel === 0
-                  ? "min(62vw, 820px)"
-                  : zoomLevel === 1
-                    ? "min(72vw, 980px)"
-                    : zoomLevel === 2
-                      ? "min(80vw, 1100px)"
-                      : zoomLevel === 3
-                        ? "min(88vw, 1250px)"
-                        : zoomLevel === 4
-                          ? "min(94vw, 1400px)"
-                          : "min(98vw, 1600px)",
-              height:
-                zoomLevel === 0
-                  ? "min(72vh, 820px)"
-                  : zoomLevel === 1
-                    ? "calc(100vh - 72px)"
-                    : zoomLevel === 2
-                      ? "calc(100vh - 56px)"
-                      : zoomLevel === 3
-                        ? "calc(100vh - 40px)"
-                        : zoomLevel === 4
-                          ? "calc(100vh - 28px)"
-                          : "calc(100vh - 16px)",
+              width: zoomLevel === 0 ? "min(62vw, 820px)" : "calc(100vw - 48px)",
+              height: zoomLevel === 0 ? "min(72vh, 820px)" : "calc(100vh - 48px)",
             }}
+            onMouseDown={(event) => {
+              if (zoomLevel === 0 || event.button !== 0) return;
+              setIsDraggingY(true);
+              setDragStartY(event.clientY);
+              setDragStartPanY(panY);
+            }}
+            onMouseMove={(event) => {
+              if (!isDraggingY) return;
+              if ((event.buttons & 1) !== 1) {
+                setIsDraggingY(false);
+                return;
+              }
+              const dy = event.clientY - dragStartY;
+              setPanY(clampPanY(dragStartPanY + dy, maxPanY));
+            }}
+            onMouseUp={() => setIsDraggingY(false)}
+            onMouseLeave={() => setIsDraggingY(false)}
           >
             {currentImage ? (
               <img
+                ref={imageRef}
                 src={currentImage}
                 alt={service.name}
+                draggable={false}
                 className={`h-full w-full transition duration-300 ${
-                  imageZoomOnHover ? "hover:scale-[1.04]" : ""
+                  imageZoomOnHover && zoomLevel === 0 ? "hover:scale-[1.04]" : ""
                 }`}
                 style={{
-                  objectFit: imageFit || "contain",
+                  objectFit: "contain",
+                  objectPosition: "center center",
+                  transform: `translateY(${panY}px) scale(${zoomScale})`,
+                  transformOrigin: "center center",
+                  transition: isDraggingY ? "none" : "transform 120ms ease-out",
                   cursor:
                     imageZoomOnClick
                       ? zoomLevel === 0
                         ? "zoom-in"
-                        : "zoom-out"
+                        : isDraggingY
+                          ? "grabbing"
+                          : "grab"
                       : "default",
                 }}
                 onClick={() => {
                   if (!imageZoomOnClick) return;
                   if (zoomLevel === 0) setZoomLevel(1);
                 }}
+                onDragStart={(event) => event.preventDefault()}
+                onLoad={() => setLayoutTick((v) => v + 1)}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--bp-muted)]">
