@@ -300,6 +300,7 @@ function ServiceModal({
 
   const currentImage = images[activeImageIndex] ?? null;
   const isImageFocusMode = zoomLevel > 0;
+  const zoomCenterOffsetX = isImageFocusMode ? 10 : 0;
   const zoomScale = zoomLevel === 0 ? 1 : zoomLevel === 1 ? 1.35 : zoomLevel === 2 ? 1.8 : zoomLevel === 3 ? 2.3 : zoomLevel === 4 ? 2.9 : 3.6;
   const maxPanY = useMemo(() => {
     const viewport = viewportRef.current;
@@ -448,7 +449,7 @@ function ServiceModal({
                 style={{
                   objectFit: "contain",
                   objectPosition: "center center",
-                  transform: `translateY(${panY}px) scale(${zoomScale})`,
+                  transform: `translate(${zoomCenterOffsetX}px, ${panY}px) scale(${zoomScale})`,
                   transformOrigin: "center center",
                   transition: isDraggingY ? "none" : "transform 120ms ease-out",
                   cursor:
