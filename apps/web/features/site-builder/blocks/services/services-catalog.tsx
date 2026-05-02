@@ -176,6 +176,12 @@ function alignmentToJustifyContent(alignment: "left" | "center" | "right") {
   return "flex-start";
 }
 
+function alignmentToSmJustifyClass(alignment: "left" | "center" | "right") {
+  if (alignment === "center") return "sm:justify-center";
+  if (alignment === "right") return "sm:justify-end";
+  return "sm:justify-start";
+}
+
 function textAlignToBlockMarginStyle(textAlign: CSSProperties["textAlign"]): CSSProperties {
   if (textAlign === "center") return { marginLeft: "auto", marginRight: "auto" };
   if (textAlign === "right") return { marginLeft: "auto", marginRight: 0 };
@@ -852,6 +858,7 @@ export function ServicesCatalog({
   const [sortMode, setSortMode] = useState(defaultSort);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [areMobileFiltersOpen, setAreMobileFiltersOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
   const pageSize = clamp(maxVisibleItems, 1, 100, 8);
   const [page, setPage] = useState(1);
@@ -861,6 +868,12 @@ export function ServicesCatalog({
     setSortMode(defaultSort);
     setIsSortOpen(false);
   }, [defaultSort]);
+
+  useEffect(() => {
+    if (areMobileFiltersOpen) return;
+    setIsSortOpen(false);
+    setIsLocationOpen(false);
+  }, [areMobileFiltersOpen]);
 
   useEffect(() => {
     setActiveCategory("__all__");
@@ -958,8 +971,27 @@ export function ServicesCatalog({
     typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
   const isNarrowPreviewViewport = hasPreviewViewport && previewViewportWidth < 640;
   const searchControlsClassName = hasPreviewViewport
-    ? `flex w-full gap-3 ${isNarrowPreviewViewport ? "flex-col" : "flex-row items-center"}`
-    : "flex w-full flex-col gap-3 sm:flex-row sm:items-center";
+    ? `${isNarrowPreviewViewport && !areMobileFiltersOpen ? "hidden" : "flex"} w-full gap-3 ${
+        isNarrowPreviewViewport ? "flex-col" : "flex-row items-center"
+      }`
+    : `${areMobileFiltersOpen ? "flex" : "hidden"} w-full flex-col gap-3 sm:flex sm:flex-row sm:items-center`;
+  const mobileFiltersToggleClassName = hasPreviewViewport
+    ? `${isNarrowPreviewViewport ? "flex" : "hidden"} h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition`
+    : "flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition sm:hidden";
+  const categoryTabsGapClassName = isEditorial ? "gap-3" : "gap-2";
+  const categoryTabsClassName = hasPreviewViewport
+    ? `mt-6 flex max-w-full ${categoryTabsGapClassName} ${
+        isNarrowPreviewViewport
+          ? "flex-nowrap justify-start overflow-x-auto overflow-y-hidden pb-1 [scrollbar-width:thin] [scrollbar-color:var(--block-border,var(--bp-stroke))_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--block-border,var(--bp-stroke))]"
+          : "flex-wrap"
+      }`
+    : `mt-6 flex max-w-full flex-nowrap justify-start overflow-x-auto overflow-y-hidden pb-1 ${categoryTabsGapClassName} ${alignmentToSmJustifyClass(
+        filtersAlignment
+      )} [scrollbar-width:thin] [scrollbar-color:var(--block-border,var(--bp-stroke))_transparent] sm:flex-wrap sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--block-border,var(--bp-stroke))]`;
+  const categoryTabsStyle: CSSProperties | undefined =
+    hasPreviewViewport && !isNarrowPreviewViewport
+      ? { justifyContent: filtersJustifyContent }
+      : undefined;
   const searchInputClassName = hasPreviewViewport
     ? `relative block h-[44px] min-w-0 text-sm transition ${
         isNarrowPreviewViewport ? "w-full" : "w-[320px]"
@@ -1095,207 +1127,227 @@ export function ServicesCatalog({
         ) : null}
 
         {(showSearch || showSort || showLocationFilter) && (
-          <div
-            className={searchControlsClassName}
-            style={{ justifyContent: searchSortJustifyContent }}
-          >
-            {showSearch ? (
-              <label
-                className={searchInputClassName}
-              >
-                <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[15px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
-                  ⌕
-                </span>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={searchPlaceholder}
-                  className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
-                  style={{
-                    appearance: "none",
-                    border: `1px solid ${controlBorderColor}`,
-                    borderRadius: 12,
-                    backgroundColor: controlBackgroundColor,
-                    boxShadow: controlShadow,
-                    fontSize: "var(--block-text-size)",
-                  }}
-                />
-              </label>
-            ) : null}
+          <div className="w-full">
+            <button
+              type="button"
+              onClick={() => setAreMobileFiltersOpen((open) => !open)}
+              className={mobileFiltersToggleClassName}
+              style={{
+                border: "none",
+                borderRadius: 0,
+                backgroundColor: "transparent",
+                color: resolvedSortTextColor,
+                padding: 0,
+                boxShadow: "none",
+                fontSize: "var(--block-text-size)",
+              }}
+              aria-expanded={areMobileFiltersOpen}
+            >
+              <span className="truncate">Поиск</span>
+              <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                {areMobileFiltersOpen ? "▴" : "▾"}
+              </span>
+            </button>
 
-            {showSort ? (
-              <div
-                className={selectControlClassName}
-                onBlur={(event) => {
-                  const nextFocusedElement = event.relatedTarget as Node | null;
-                  if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
-                    setIsSortOpen(false);
-                  }
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsSortOpen((open) => !open)}
-                  className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
-                  style={{
-                    border: `1px solid ${controlBorderColor}`,
-                    borderRadius: 12,
-                    backgroundColor: controlBackgroundColor,
-                    color: resolvedSortTextColor,
-                    padding: "0 12px 0 14px",
-                    boxShadow: controlShadow,
-                    fontSize: "var(--block-text-size)",
-                  }}
-                  aria-haspopup="listbox"
-                  aria-expanded={isSortOpen}
+            <div
+              className={`${searchControlsClassName} ${areMobileFiltersOpen ? "mt-3" : ""} sm:mt-0`}
+              style={{ justifyContent: searchSortJustifyContent }}
+            >
+              {showSearch ? (
+                <label
+                  className={searchInputClassName}
                 >
-                  <span className="truncate">{activeSortOption.label}</span>
-                  <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
-                    ▾
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[15px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                    ⌕
                   </span>
-                </button>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={searchPlaceholder}
+                    className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
+                    style={{
+                      appearance: "none",
+                      border: `1px solid ${controlBorderColor}`,
+                      borderRadius: 12,
+                      backgroundColor: controlBackgroundColor,
+                      boxShadow: controlShadow,
+                      fontSize: "var(--block-text-size)",
+                    }}
+                  />
+                </label>
+              ) : null}
 
-                {isSortOpen ? (
-                  <div
-                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+              {showSort ? (
+                <div
+                  className={selectControlClassName}
+                  onBlur={(event) => {
+                    const nextFocusedElement = event.relatedTarget as Node | null;
+                    if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                      setIsSortOpen(false);
+                    }
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsSortOpen((open) => !open)}
+                    className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
                     style={{
                       border: `1px solid ${controlBorderColor}`,
                       borderRadius: 12,
-                      backgroundColor: dropdownBackgroundColor,
+                      backgroundColor: controlBackgroundColor,
                       color: resolvedSortTextColor,
-                      boxShadow: dropdownShadow,
+                      padding: "0 12px 0 14px",
+                      boxShadow: controlShadow,
                       fontSize: "var(--block-text-size)",
                     }}
-                    role="listbox"
+                    aria-haspopup="listbox"
+                    aria-expanded={isSortOpen}
                   >
-                    {SORT_OPTIONS.map((option) => {
-                      const isSelected = option.value === sortMode;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          role="option"
-                          aria-selected={isSelected}
-                          onClick={() => {
-                            setSortMode(option.value);
-                            setIsSortOpen(false);
-                          }}
-                          className="block w-full px-3.5 py-2.5 text-left transition"
-                          onMouseEnter={(event) => {
-                            if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
-                          }}
-                          onMouseLeave={(event) => {
-                            if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
-                          }}
-                          style={{
-                            backgroundColor: isSelected
-                              ? resolvedSortActiveColor
-                              : "transparent",
-                            color: isSelected
-                              ? selectedSortTextColor
-                              : resolvedSortTextColor,
-                          }}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+                    <span className="truncate">{activeSortOption.label}</span>
+                    <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                      ▾
+                    </span>
+                  </button>
 
-            {showLocationFilter ? (
-              <div
-                className={selectControlClassName}
-                onBlur={(event) => {
-                  const nextFocusedElement = event.relatedTarget as Node | null;
-                  if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
-                    setIsLocationOpen(false);
-                  }
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setIsLocationOpen((open) => !open)}
-                  className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
-                  style={{
-                    border: `1px solid ${controlBorderColor}`,
-                    borderRadius: 12,
-                    backgroundColor: controlBackgroundColor,
-                    color: resolvedLocationTextColor,
-                    padding: "0 12px 0 14px",
-                    boxShadow: controlShadow,
-                    fontSize: "var(--block-text-size)",
+                  {isSortOpen ? (
+                    <div
+                      className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+                      style={{
+                        border: `1px solid ${controlBorderColor}`,
+                        borderRadius: 12,
+                        backgroundColor: dropdownBackgroundColor,
+                        color: resolvedSortTextColor,
+                        boxShadow: dropdownShadow,
+                        fontSize: "var(--block-text-size)",
+                      }}
+                      role="listbox"
+                    >
+                      {SORT_OPTIONS.map((option) => {
+                        const isSelected = option.value === sortMode;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              setSortMode(option.value);
+                              setIsSortOpen(false);
+                            }}
+                            className="block w-full px-3.5 py-2.5 text-left transition"
+                            onMouseEnter={(event) => {
+                              if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
+                            }}
+                            onMouseLeave={(event) => {
+                              if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
+                            }}
+                            style={{
+                              backgroundColor: isSelected
+                                ? resolvedSortActiveColor
+                                : "transparent",
+                              color: isSelected
+                                ? selectedSortTextColor
+                                : resolvedSortTextColor,
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {showLocationFilter ? (
+                <div
+                  className={selectControlClassName}
+                  onBlur={(event) => {
+                    const nextFocusedElement = event.relatedTarget as Node | null;
+                    if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                      setIsLocationOpen(false);
+                    }
                   }}
-                  aria-haspopup="listbox"
-                  aria-expanded={isLocationOpen}
                 >
-                  <span className="truncate">{activeLocationOption?.name ?? "Все локации"}</span>
-                  <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
-                    ▾
-                  </span>
-                </button>
-
-                {isLocationOpen ? (
-                  <div
-                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+                  <button
+                    type="button"
+                    onClick={() => setIsLocationOpen((open) => !open)}
+                    className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
                     style={{
                       border: `1px solid ${controlBorderColor}`,
                       borderRadius: 12,
-                      backgroundColor: dropdownBackgroundColor,
+                      backgroundColor: controlBackgroundColor,
                       color: resolvedLocationTextColor,
-                      boxShadow: dropdownShadow,
+                      padding: "0 12px 0 14px",
+                      boxShadow: controlShadow,
                       fontSize: "var(--block-text-size)",
                     }}
-                    role="listbox"
+                    aria-haspopup="listbox"
+                    aria-expanded={isLocationOpen}
                   >
-                    {[{ id: null, name: "Все локации" }, ...availableLocations].map((location) => {
-                      const isSelected = location.id === selectedLocationId;
-                      return (
-                        <button
-                          key={location.id ?? "all"}
-                          type="button"
-                          role="option"
-                          aria-selected={isSelected}
-                          onClick={() => {
-                            setSelectedLocationId(location.id);
-                            setIsLocationOpen(false);
-                          }}
-                          className="block w-full px-3.5 py-2.5 text-left transition"
-                          onMouseEnter={(event) => {
-                            if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
-                          }}
-                          onMouseLeave={(event) => {
-                            if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
-                          }}
-                          style={{
-                            backgroundColor: isSelected ? resolvedLocationActiveColor : "transparent",
-                            color: isSelected ? readableTextColor(resolvedLocationActiveColor) : resolvedLocationTextColor,
-                          }}
-                        >
-                          {location.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+                    <span className="truncate">{activeLocationOption?.name ?? "Все локации"}</span>
+                    <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                      ▾
+                    </span>
+                  </button>
+
+                  {isLocationOpen ? (
+                    <div
+                      className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+                      style={{
+                        border: `1px solid ${controlBorderColor}`,
+                        borderRadius: 12,
+                        backgroundColor: dropdownBackgroundColor,
+                        color: resolvedLocationTextColor,
+                        boxShadow: dropdownShadow,
+                        fontSize: "var(--block-text-size)",
+                      }}
+                      role="listbox"
+                    >
+                      {[{ id: null, name: "Все локации" }, ...availableLocations].map((location) => {
+                        const isSelected = location.id === selectedLocationId;
+                        return (
+                          <button
+                            key={location.id ?? "all"}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              setSelectedLocationId(location.id);
+                              setIsLocationOpen(false);
+                            }}
+                            className="block w-full px-3.5 py-2.5 text-left transition"
+                            onMouseEnter={(event) => {
+                              if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
+                            }}
+                            onMouseLeave={(event) => {
+                              if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
+                            }}
+                            style={{
+                              backgroundColor: isSelected ? resolvedLocationActiveColor : "transparent",
+                              color: isSelected ? readableTextColor(resolvedLocationActiveColor) : resolvedLocationTextColor,
+                            }}
+                          >
+                            {location.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         )}
       </div>
 
       {showCategoryTabs && categories.length > 0 ? (
-        <div
-          className={`mt-6 flex flex-wrap ${isEditorial ? "gap-3" : "gap-2"}`}
-          style={{ justifyContent: filtersJustifyContent }}
-        >
+        <div className={categoryTabsClassName} style={categoryTabsStyle}>
           <button
             type="button"
             onClick={() => setActiveCategory("__all__")}
-            className="rounded-[12px] border px-4 py-2 transition"
+            className="shrink-0 whitespace-nowrap rounded-[12px] border px-4 py-2 transition"
             style={{
               borderColor:
                 activeCategory === "__all__"
@@ -1319,7 +1371,7 @@ export function ServicesCatalog({
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className="rounded-[12px] border px-4 py-2 transition"
+                className="shrink-0 whitespace-nowrap rounded-[12px] border px-4 py-2 transition"
                 style={{
                   borderColor: isActive
                     ? resolvedCategoryActiveColor
