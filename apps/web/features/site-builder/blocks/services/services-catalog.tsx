@@ -354,10 +354,10 @@ function ServiceModal({
           <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
             <button
               type="button"
-              onClick={(event) => { event.stopPropagation(); setZoomLevel((current) => (current === 0 ? 0 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5))); }}
+              onClick={(event) => { event.stopPropagation(); setZoomLevel((current) => (current <= 1 ? 1 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5))); }}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Уменьшить"
-              disabled={zoomLevel === 0}
+              disabled={zoomLevel <= 1}
             >
               −
             </button>
@@ -416,6 +416,7 @@ function ServiceModal({
             style={{
               width: zoomLevel === 0 ? "min(62vw, 820px)" : "calc(100vw - 48px)",
               height: zoomLevel === 0 ? "min(72vh, 820px)" : "calc(100vh - 48px)",
+              paddingLeft: zoomLevel === 0 ? undefined : "12px",
             }}
             onMouseDown={(event) => {
               if (zoomLevel === 0 || event.button !== 0) return;
