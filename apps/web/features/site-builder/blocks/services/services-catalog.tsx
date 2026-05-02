@@ -103,6 +103,7 @@ type ServiceCatalogProps = {
   subheadingStyle: CSSProperties;
   buttonStyle: CSSProperties;
   textAlign?: "left" | "center" | "right";
+  previewViewportWidth?: number;
 };
 
 type ActiveModalState = {
@@ -138,7 +139,24 @@ function clampPan(value: number, limit: number) {
   return Math.max(-limit, Math.min(limit, value));
 }
 
-function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: 1 | 2) {
+function resolveGridClassName(
+  cardsPerRow: number,
+  mobileCardsPerRow: 1 | 2,
+  previewViewportWidth?: number
+) {
+  if (typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)) {
+    if (previewViewportWidth < 640) {
+      return mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
+    }
+    if (previewViewportWidth < 1280) {
+      return cardsPerRow <= 1 ? "grid-cols-1" : "grid-cols-2";
+    }
+    if (cardsPerRow <= 1) return "grid-cols-1";
+    if (cardsPerRow === 2) return "grid-cols-2";
+    if (cardsPerRow === 4) return "grid-cols-4";
+    return "grid-cols-3";
+  }
+
   const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
   if (cardsPerRow <= 1) return `${mobile}`;
   if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
@@ -805,6 +823,7 @@ export function ServicesCatalog({
   subheadingStyle,
   buttonStyle,
   textAlign = "left",
+  previewViewportWidth,
 }: ServiceCatalogProps) {
   const catalogRef = useRef<HTMLDivElement | null>(null);
   const isEditorial = variant === "v1";
@@ -923,6 +942,20 @@ export function ServicesCatalog({
   const filtersJustifyContent = alignmentToJustifyContent(filtersAlignment);
   const headingBlockMarginStyle = textAlignToBlockMarginStyle(headingStyle.textAlign);
   const subheadingBlockMarginStyle = textAlignToBlockMarginStyle(subheadingStyle.textAlign);
+  const hasPreviewViewport =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
+  const isNarrowPreviewViewport = hasPreviewViewport && previewViewportWidth < 640;
+  const searchControlsClassName = hasPreviewViewport
+    ? `flex w-full gap-3 ${isNarrowPreviewViewport ? "flex-col" : "flex-row items-center"}`
+    : "flex w-full flex-col gap-3 sm:flex-row sm:items-center";
+  const searchInputClassName = hasPreviewViewport
+    ? `relative block h-[44px] min-w-0 text-sm transition ${
+        isNarrowPreviewViewport ? "w-full" : "w-[320px]"
+      }`
+    : "relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]";
+  const selectControlClassName = hasPreviewViewport
+    ? `relative min-w-0 ${isNarrowPreviewViewport ? "w-full" : "w-[250px]"}`
+    : "relative min-w-0 sm:w-[250px]";
 
   useEffect(() => {
     setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
@@ -1051,12 +1084,12 @@ export function ServicesCatalog({
 
         {(showSearch || showSort || showLocationFilter) && (
           <div
-            className="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+            className={searchControlsClassName}
             style={{ justifyContent: searchSortJustifyContent }}
           >
             {showSearch ? (
               <label
-                className="relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]"
+                className={searchInputClassName}
               >
                 <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[15px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
                   ⌕
@@ -1080,7 +1113,7 @@ export function ServicesCatalog({
 
             {showSort ? (
               <div
-                className="relative min-w-0 sm:w-[250px]"
+                className={selectControlClassName}
                 onBlur={(event) => {
                   const nextFocusedElement = event.relatedTarget as Node | null;
                   if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
@@ -1160,7 +1193,7 @@ export function ServicesCatalog({
 
             {showLocationFilter ? (
               <div
-                className="relative min-w-0 sm:w-[250px]"
+                className={selectControlClassName}
                 onBlur={(event) => {
                   const nextFocusedElement = event.relatedTarget as Node | null;
                   if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
@@ -1287,7 +1320,11 @@ export function ServicesCatalog({
       ) : null}
 
       <div
-        className={`mt-8 ${isListView ? "flex flex-col" : `grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow)}`}`}
+        className={`mt-8 ${
+          isListView
+            ? "flex flex-col"
+            : `grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow, previewViewportWidth)}`
+        }`}
         style={{
           columnGap: isListView ? undefined : clamp(cardGapX, 0, 80, 20),
           rowGap: clamp(cardGapY, 0, 120, 40),

@@ -1468,6 +1468,7 @@ export function BlockPreview({
   loaderConfig,
   currentEntity,
   previewMode,
+  previewViewportWidth,
   onThemeToggle,
   onSelect,
   isSelected,
@@ -1485,6 +1486,7 @@ export function BlockPreview({
   loaderConfig: SiteLoaderConfig | null;
   currentEntity: CurrentEntity;
   previewMode: "desktop" | "mobile";
+  previewViewportWidth?: number;
   onThemeToggle: () => void;
   onSelect: () => void;
   isSelected: boolean;
@@ -1614,6 +1616,7 @@ export function BlockPreview({
     loaderConfig,
     currentEntity,
     previewMode,
+    previewViewportWidth,
     onThemeToggle,
     coverScrollEffect === "parallax" ? coverParallaxOffset : 0
   );
@@ -1921,6 +1924,7 @@ export function renderBlock(
   loaderConfig: SiteLoaderConfig | null,
   currentEntity: CurrentEntity,
   previewMode: "desktop" | "mobile",
+  previewViewportWidth: number | undefined,
   onThemeToggle: () => void,
   coverParallaxOffset = 0
 ) {
@@ -1953,7 +1957,8 @@ export function renderBlock(
         promos,
         theme,
         style,
-        onThemeToggle
+        onThemeToggle,
+        previewViewportWidth
       );
     case "about":
       return renderAbout(block, account, accountProfile, theme, style);
@@ -1971,20 +1976,21 @@ export function renderBlock(
         locations,
         theme,
         style,
-        currentEntity
+        currentEntity,
+        previewViewportWidth
       );
     case "services":
-      return renderServices(block, account, locations, services, theme, style, currentEntity);
+      return renderServices(block, account, locations, services, theme, style, currentEntity, previewViewportWidth);
     case "specialists":
-      return renderSpecialists(block, account, specialists, theme, style, currentEntity);
+      return renderSpecialists(block, account, specialists, theme, style, currentEntity, previewViewportWidth);
     case "promos":
-      return renderPromos(block, promos, theme, style, currentEntity);
+      return renderPromos(block, promos, theme, style, currentEntity, previewViewportWidth);
     case "works":
       return renderWorks(block, workPhotos, theme, style, currentEntity);
     case "reviews":
-      return renderReviews(block, theme, style);
+      return renderReviews(block, theme, style, previewViewportWidth);
     case "contacts":
-      return renderContacts(block, account, accountProfile, locations, theme, style);
+      return renderContacts(block, account, accountProfile, locations, theme, style, previewViewportWidth);
     case "aisha":
       return renderAisha(block, account, theme, style);
     default:
@@ -2212,6 +2218,22 @@ export function textStyle(style: BlockStyle, theme: SiteTheme) {
     textAlign: style.textAlign,
     color: style.mutedColor || theme.mutedColor,
   } as const;
+}
+
+function resolvePreviewGridClassName(
+  previewViewportWidth: number | undefined,
+  fallbackClassName: string,
+  desktopColumns: 2 | 3,
+  tabletColumns: 1 | 2 = 2
+) {
+  if (typeof previewViewportWidth !== "number" || !Number.isFinite(previewViewportWidth)) {
+    return fallbackClassName;
+  }
+  if (previewViewportWidth < 640) return "grid-cols-1";
+  if (previewViewportWidth < 960) {
+    return tabletColumns === 2 ? "grid-cols-2" : "grid-cols-1";
+  }
+  return desktopColumns === 3 ? "grid-cols-3" : "grid-cols-2";
 }
 
 export function buttonStyle(style: BlockStyle, theme: SiteTheme) {
@@ -3946,7 +3968,8 @@ export function renderMenuBlock(
   promos: PromoItem[],
   theme: SiteTheme,
   style: BlockStyle,
-  onThemeToggle: () => void
+  onThemeToggle: () => void,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const menuItems = Array.isArray(data.menuItems)
@@ -4257,6 +4280,10 @@ export function renderMenuBlock(
       : menuTopBg;
   const subBlockBorder =
     (style.borderColor || theme.borderColor || "").trim() || "transparent";
+  const forceMobileLayout =
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth < 960;
 
   return (
     <MenuPreview
@@ -4322,6 +4349,7 @@ export function renderMenuBlock(
       menuGradient={menuGradient}
       subBlockBg={subBlockBg}
       subBlockBorder={subBlockBorder}
+      forceMobileLayout={forceMobileLayout}
     />
   );
 }
@@ -4345,6 +4373,7 @@ export function MenuPreview({
   menuGradient,
   subBlockBg,
   subBlockBorder,
+  forceMobileLayout = false,
 }: {
   variant: "v1" | "v2" | "v3" | "v4" | "v5";
   alignClass: string;
@@ -4364,6 +4393,7 @@ export function MenuPreview({
   menuGradient: string;
   subBlockBg: string;
   subBlockBorder: string;
+  forceMobileLayout?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const subBlockStyle: React.CSSProperties = {
@@ -4431,7 +4461,13 @@ export function MenuPreview({
         >
           <div className="flex items-center gap-3">{logoNode}</div>
           {mobileOpen && searchNode ? (
-            <div className="absolute right-24 top-1/2 hidden -translate-y-1/2 md:flex">
+            <div
+              className={
+                forceMobileLayout
+                  ? "hidden"
+                  : "absolute right-24 top-1/2 hidden -translate-y-1/2 md:flex"
+              }
+            >
               {searchNode}
             </div>
           ) : null}
@@ -4472,7 +4508,7 @@ export function MenuPreview({
             <div className="flex flex-1 flex-col items-center justify-center py-6">
               {overlayNavNode}
             </div>
-            <div className="w-full md:hidden">
+            <div className={forceMobileLayout ? "w-full" : "w-full md:hidden"}>
               <div className="space-y-3 text-center">
                 {searchNode && <div className="flex justify-center">{searchNode}</div>}
                 {socialsNode && <div className="flex justify-center">{socialsNode}</div>}
@@ -4485,7 +4521,13 @@ export function MenuPreview({
                 {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
               </div>
             </div>
-            <div className="hidden flex-wrap items-center justify-center gap-3 md:flex">
+            <div
+              className={
+                forceMobileLayout
+                  ? "hidden"
+                  : "hidden flex-wrap items-center justify-center gap-3 md:flex"
+              }
+            >
               {socialsNode}
               {accountNode}
               {themeToggleNode}
@@ -4547,7 +4589,13 @@ export function MenuPreview({
               {logoNode}
             </div>
           ) : null}
-          <div className="ml-auto hidden items-center gap-2 md:flex [&_a]:!rounded-none [&_a]:!border-0 [&_a]:!bg-transparent">
+          <div
+            className={
+              forceMobileLayout
+                ? "hidden"
+                : "ml-auto hidden items-center gap-2 md:flex [&_a]:!rounded-none [&_a]:!border-0 [&_a]:!bg-transparent"
+            }
+          >
             {socialsNode}
           </div>
         </div>
@@ -4555,7 +4603,9 @@ export function MenuPreview({
           <div className="absolute inset-0 z-[160]">
             <div className="absolute inset-0 bg-[rgba(17,24,39,0.55)]" />
             <aside
-              className="relative z-10 flex h-full w-full flex-col border-r pb-5 pt-0 text-[color:var(--block-text,var(--bp-ink))] sm:w-[min(360px,78vw)]"
+              className={`relative z-10 flex h-full w-full flex-col border-r pb-5 pt-0 text-[color:var(--block-text,var(--bp-ink))] ${
+                forceMobileLayout ? "" : "sm:w-[min(360px,78vw)]"
+              }`}
               style={{
                 backgroundColor: "var(--block-sub-bg, var(--block-bg, var(--site-panel)))",
                 borderColor: "var(--block-border, var(--site-border))",
@@ -4581,7 +4631,11 @@ export function MenuPreview({
               </div>
               <div className="mt-auto space-y-4 px-6 pt-6">
                 {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
-                {socialsNode && <div className="flex justify-center md:hidden">{socialsNode}</div>}
+                {socialsNode && (
+                  <div className={forceMobileLayout ? "flex justify-center" : "flex justify-center md:hidden"}>
+                    {socialsNode}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {accountNode}
                   {themeToggleNode}
@@ -4612,7 +4666,7 @@ export function MenuPreview({
         }
       >
         <div
-          className="hidden px-4 2xl:block 2xl:px-8"
+          className={forceMobileLayout ? "hidden" : "hidden px-4 2xl:block 2xl:px-8"}
           style={{
             ...topBarStyle,
             height: menuHeight,
@@ -4620,7 +4674,7 @@ export function MenuPreview({
         >
           {desktopLayout}
         </div>
-        <div className="2xl:hidden">
+        <div className={forceMobileLayout ? "" : "2xl:hidden"}>
           <div className="flex items-center justify-between gap-3 px-4" style={topBarStyle}>
             {logoNode}
             <button
@@ -4699,8 +4753,8 @@ export function MenuPreview({
           : undefined
       }
     >
-      <div className="hidden md:block">{desktopLayout}</div>
-      <div className="md:hidden">
+      <div className={forceMobileLayout ? "hidden" : "hidden md:block"}>{desktopLayout}</div>
+      <div className={forceMobileLayout ? "" : "md:hidden"}>
         <div className="flex items-center justify-between gap-3">
           {logoNode}
           <div className="flex items-center gap-2">
@@ -4808,7 +4862,8 @@ export function renderLocations(
   locations: LocationItem[],
   theme: SiteTheme,
   style: BlockStyle,
-  currentEntity: CurrentEntity
+  currentEntity: CurrentEntity,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
@@ -4846,7 +4901,7 @@ export function renderLocations(
           {subtitle}
         </p>
       )}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className={`mt-4 grid gap-4 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-2", 2)}`}>
         {items.map((location) => (
           <div
             key={location.id}
@@ -4903,7 +4958,8 @@ export function renderServices(
   services: ServiceItem[],
   theme: SiteTheme,
   style: BlockStyle,
-  currentEntity: CurrentEntity
+  currentEntity: CurrentEntity,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
@@ -5259,6 +5315,7 @@ export function renderServices(
         subheadingStyle={servicesSubheadingStyle}
         buttonStyle={servicesButtonStyle}
         textAlign={style.textAlign}
+        previewViewportWidth={previewViewportWidth}
       />
     </div>
   );
@@ -5270,7 +5327,8 @@ export function renderSpecialists(
   specialists: SpecialistItem[],
   theme: SiteTheme,
   style: BlockStyle,
-  currentEntity: CurrentEntity
+  currentEntity: CurrentEntity,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
@@ -5310,7 +5368,7 @@ export function renderSpecialists(
           {subtitle}
         </p>
       )}
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
+      <div className={`mt-4 grid gap-4 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-3", 3)}`}>
         {visibleItems.map((specialist) => (
           <div
             key={specialist.id}
@@ -5358,7 +5416,8 @@ export function renderPromos(
   promos: PromoItem[],
   theme: SiteTheme,
   style: BlockStyle,
-  currentEntity: CurrentEntity
+  currentEntity: CurrentEntity,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
@@ -5391,7 +5450,7 @@ export function renderPromos(
           {subtitle}
         </p>
       )}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className={`mt-4 grid gap-4 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-2", 2)}`}>
         {items.map((promo) => (
           <div
             key={promo.id}
@@ -5629,7 +5688,12 @@ export function renderWorks(
   );
 }
 
-export function renderReviews(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+export function renderReviews(
+  block: SiteBlock,
+  theme: SiteTheme,
+  style: BlockStyle,
+  previewViewportWidth?: number
+) {
   const data = block.data as Record<string, unknown>;
   const subtitle =
     typeof data.subtitle === "string"
@@ -5650,7 +5714,7 @@ export function renderReviews(block: SiteBlock, theme: SiteTheme, style: BlockSt
           {subtitle}
         </p>
       )}
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className={`mt-4 grid gap-3 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-3", 3)}`}>
         {[1, 2, 3].map((idx) => (
           <div
             key={idx}
@@ -5872,7 +5936,8 @@ export function renderContacts(
   accountProfile: AccountProfile,
   locations: LocationItem[],
   theme: SiteTheme,
-  style: BlockStyle
+  style: BlockStyle,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
@@ -5886,8 +5951,15 @@ export function renderContacts(
         ? String(data.subtitle)
         : "";
 
+  const contactsGridClassName =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)
+      ? previewViewportWidth >= 960
+        ? "grid-cols-[1.2fr_1fr]"
+        : "grid-cols-1"
+      : "md:grid-cols-[1.2fr_1fr]";
+
   return (
-    <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+    <div className={`grid gap-4 ${contactsGridClassName}`}>
       <div>
         <h3
           className="font-semibold"

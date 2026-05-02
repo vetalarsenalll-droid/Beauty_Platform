@@ -920,6 +920,7 @@ export default function SiteClient({
                   loaderConfig={loaderConfig}
                   currentEntity={currentEntity}
                   previewMode={previewMode}
+                  previewViewportWidth={previewCanvasWidth}
                   onThemeToggle={handleThemeToggle}
                   onSelect={() => {
                     setSelectedId(block.id);
