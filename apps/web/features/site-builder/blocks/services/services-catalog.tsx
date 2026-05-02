@@ -1443,7 +1443,60 @@ export function ServicesCatalog({
           const contentJustify =
             textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
           const contentPaddingX = isListView ? 24 : 0;
-          const contentPaddingY = isListView ? 18 : clamp(cardPaddingY, 0, 80, 30);
+          const shouldCompactTileSpacing =
+            !isListView && hasPreviewViewport && isNarrowPreviewViewport;
+          const contentPaddingY = isListView
+            ? 18
+            : shouldCompactTileSpacing
+              ? 12
+              : clamp(cardPaddingY, 0, 80, 30);
+          const compactServiceTitleStyle: CSSProperties = shouldCompactTileSpacing
+            ? { ...serviceCardTitleStyle, fontSize: 15, lineHeight: 1.16, minHeight: 35 }
+            : serviceCardTitleStyle;
+          const compactServiceTextStyle: CSSProperties = shouldCompactTileSpacing
+            ? { ...serviceCardTextStyle, fontSize: 13, lineHeight: 1.2 }
+            : serviceCardTextStyle;
+          const compactServiceButtonTextStyle: CSSProperties = shouldCompactTileSpacing
+            ? { ...serviceCardButtonTextStyle, fontSize: 13, lineHeight: 1.1 }
+            : serviceCardButtonTextStyle;
+          const serviceMetaClassName = isListView
+            ? "mt-6"
+            : alignButtonsBottom
+              ? hasPreviewViewport
+                ? shouldCompactTileSpacing
+                  ? "mt-3"
+                  : "mt-auto pt-6"
+                : "mt-4 sm:mt-auto sm:pt-6"
+              : hasPreviewViewport
+                ? shouldCompactTileSpacing
+                  ? "mt-3"
+                  : "mt-6"
+                : "mt-4 sm:mt-6";
+          const serviceActionsClassName = isListView
+            ? "pt-3"
+            : alignButtonsBottom && !hasServiceMeta
+              ? hasPreviewViewport
+                ? shouldCompactTileSpacing
+                  ? "pt-3"
+                  : "mt-auto pt-6"
+                : "pt-4 sm:mt-auto sm:pt-6"
+              : hasPreviewViewport
+                ? shouldCompactTileSpacing
+                  ? "pt-3"
+                  : "pt-6"
+                : "pt-4 sm:pt-6";
+          const compactMetaPillStyle: CSSProperties = shouldCompactTileSpacing
+            ? {
+                border: "1px solid var(--block-border,transparent)",
+                backgroundColor:
+                  cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
+                padding: 0,
+              }
+            : {
+                border: "1px solid var(--block-border,transparent)",
+                backgroundColor:
+                  cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
+              };
           const openServiceModal = () => {
             setActiveModal({ serviceId: service.id, imageIndex: 0 });
           };
@@ -1457,7 +1510,11 @@ export function ServicesCatalog({
                 isListView
                   ? "flex items-stretch gap-5 border-b pb-6"
                   : alignButtonsBottom
-                    ? "flex h-full flex-col"
+                    ? hasPreviewViewport
+                      ? isNarrowPreviewViewport
+                        ? "flex flex-col"
+                        : "flex h-full flex-col"
+                      : "flex flex-col sm:h-full"
                     : ""
               } ${modalImageClickEnabled ? "cursor-pointer" : ""}`}
               role={modalImageClickEnabled ? "button" : undefined}
@@ -1568,7 +1625,7 @@ export function ServicesCatalog({
               ) : null}
 
               <div
-                className={`flex flex-1 flex-col ${isListView ? "justify-between" : ""}`}
+                className={`flex flex-1 flex-col max-sm:!pb-4 max-sm:!pt-3 ${isListView ? "justify-between" : ""}`}
                 style={{
                   paddingLeft: contentPaddingX,
                   paddingRight: contentPaddingX,
@@ -1590,16 +1647,16 @@ export function ServicesCatalog({
               >
                 {modalImageClickEnabled ? (
                   <span
-                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))]"
-                    style={serviceCardTitleStyle}
+                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
+                    style={compactServiceTitleStyle}
                   >
                     {service.name}
                   </span>
                 ) : (
                   <a
                     href={serviceHref}
-                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline"
-                    style={serviceCardTitleStyle}
+                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
+                    style={compactServiceTitleStyle}
                   >
                     {service.name}
                   </a>
@@ -1607,35 +1664,21 @@ export function ServicesCatalog({
 
                 {hasServiceMeta && (
                   <div
-                    className={`flex flex-wrap gap-2 text-[color:var(--block-muted,var(--bp-muted))] ${
-                      isListView
-                        ? "mt-6"
-                        : alignButtonsBottom
-                          ? "mt-auto pt-6"
-                          : "mt-6"
-                    }`}
-                    style={{ ...serviceCardTextStyle, justifyContent: contentJustify }}
+                    className={`flex flex-nowrap gap-1.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}
+                    style={{ ...compactServiceTextStyle, justifyContent: contentJustify }}
                   >
                     {showDuration ? (
                       <span
-                        className="rounded-[10px] px-3 py-1"
-                        style={{
-                          border: "1px solid var(--block-border,transparent)",
-                          backgroundColor:
-                            cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
-                        }}
+                        className="rounded-[10px] px-3 py-1 max-sm:!px-0 max-sm:!py-0"
+                        style={compactMetaPillStyle}
                       >
                         {service.baseDurationMin} мин
                       </span>
                     ) : null}
                     {showPrice ? (
                       <span
-                        className="rounded-[10px] px-3 py-1"
-                        style={{
-                          border: "1px solid var(--block-border,transparent)",
-                          backgroundColor:
-                            cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
-                        }}
+                        className="rounded-[10px] px-3 py-1 max-sm:!px-0 max-sm:!py-0"
+                        style={compactMetaPillStyle}
                       >
                         {formatPrice(service.basePrice)}
                       </span>
@@ -1644,30 +1687,24 @@ export function ServicesCatalog({
                 )}
 
                 <div
-                  className={
-                    isListView
-                      ? "pt-3"
-                      : alignButtonsBottom && !hasServiceMeta
-                        ? "mt-auto pt-6"
-                        : "pt-6"
-                  }
+                  className={`${serviceActionsClassName} max-sm:!pt-3`}
                   >
                     <div
-                      className="flex flex-wrap gap-3"
+                      className="flex flex-wrap gap-3 max-sm:gap-2"
                       style={{ justifyContent: "center" }}
                     >
                     {detailsButtonText ? (
                       <a
                         href={detailsHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2"
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 max-sm:!px-3 max-sm:!py-2 max-sm:!text-[13px] max-sm:!leading-[1.1]"
                         style={{
                           backgroundColor: resolvedDetailsButtonColor,
                           color: resolvedDetailsButtonTextColor,
                           border: "1px solid transparent",
                           borderRadius: buttonStyle.borderRadius ?? 0,
                           boxShadow: `inset 0 0 0 1px ${resolvedDetailsButtonBorderColor}`,
-                          ...serviceCardButtonTextStyle,
+                          ...compactServiceButtonTextStyle,
                         }}
                       >
                         {detailsButtonText}
@@ -1677,8 +1714,8 @@ export function ServicesCatalog({
                       <a
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2"
-                        style={{ ...buttonStyle, ...serviceCardButtonTextStyle }}
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 max-sm:!px-3 max-sm:!py-2 max-sm:!text-[13px] max-sm:!leading-[1.1]"
+                        style={{ ...buttonStyle, ...compactServiceButtonTextStyle }}
                       >
                         {buttonText}
                       </a>
