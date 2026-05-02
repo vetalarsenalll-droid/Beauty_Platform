@@ -482,16 +482,6 @@ export function SiteServicesSettingsDrawer({
             { value: "cover", label: "Заполнять область" },
           ]
         )}
-        {renderFlatSelect(
-          "Соотношение сторон",
-          String(data.modalImageAspectRatio ?? "1 / 1"),
-          (value) => updateData({ modalImageAspectRatio: value }),
-          [
-            { value: "1 / 1", label: "1:1 Квадрат" },
-            { value: "4 / 3", label: "4:3 Горизонтально" },
-            { value: "16 / 9", label: "16:9 Широкое" },
-          ]
-        )}
         <FlatCheckbox
           checked={data.modalImageZoomOnClick !== false}
           onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}

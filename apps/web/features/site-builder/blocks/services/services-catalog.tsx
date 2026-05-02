@@ -451,7 +451,7 @@ function ServiceModal({
                   imageZoomOnHover && zoomLevel === 0 ? "hover:scale-[1.04]" : ""
                 }`}
                 style={{
-                  objectFit: "contain",
+                  objectFit: imageFit,
                   objectPosition: "center center",
                   transform: `translate(${zoomCenterOffsetX}px, ${panY}px) scale(${zoomScale})`,
                   transformOrigin: "center center",
