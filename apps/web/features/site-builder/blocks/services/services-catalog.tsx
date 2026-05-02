@@ -13,6 +13,7 @@ type ServiceCatalogProps = {
   publicSlug: string | null;
   currentLocationId: number | null;
   locationId: number | null;
+  locations: Array<{ id: number; name: string }>;
   effectiveSpecialistId: number | null;
   cardsPerRow: number;
   showCategoryTabs: boolean;
@@ -710,6 +711,7 @@ export function ServicesCatalog({
   publicSlug,
   currentLocationId,
   locationId,
+  locations,
   effectiveSpecialistId,
   cardsPerRow,
   showCategoryTabs,
@@ -802,11 +804,15 @@ export function ServicesCatalog({
   const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">(
     themeMode === "dark" ? "dark" : "light"
   );
-  const scopedItems = currentLocationId
-    ? items.filter((item) => item.locationIds.includes(currentLocationId))
-    : locationId
-      ? items.filter((item) => item.locationIds.includes(locationId))
-      : items;
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
+  const availableLocations = locations.filter((location) =>
+    items.some((item) => item.locationIds.includes(location.id))
+  );
+  const showLocationFilter = !currentLocationId && !locationId && availableLocations.length > 0;
+  const effectiveLocationId = currentLocationId ?? locationId ?? selectedLocationId;
+  const scopedItems = effectiveLocationId
+    ? items.filter((item) => item.locationIds.includes(effectiveLocationId))
+    : items;
   const categories = Array.from(
     new Set(
       scopedItems
@@ -818,6 +824,7 @@ export function ServicesCatalog({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState(defaultSort);
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
   const pageSize = clamp(maxVisibleItems, 1, 100, 8);
   const [page, setPage] = useState(1);
@@ -829,12 +836,19 @@ export function ServicesCatalog({
   }, [defaultSort]);
 
   useEffect(() => {
+    setActiveCategory("__all__");
+  }, [selectedLocationId]);
+
+  useEffect(() => {
     setPage(1);
     setVisibleCount(pageSize);
-  }, [activeCategory, searchQuery, sortMode, pageSize, usePagination]);
+  }, [activeCategory, selectedLocationId, searchQuery, sortMode, pageSize, usePagination]);
 
   const activeSortOption =
     SORT_OPTIONS.find((option) => option.value === sortMode) ?? SORT_OPTIONS[0]!;
+  const activeLocationOption = selectedLocationId
+    ? availableLocations.find((location) => location.id === selectedLocationId)
+    : null;
   const pickThemeColor = (light?: string, dark?: string, fallback = "var(--block-text,var(--bp-ink))") =>
     activeThemeMode === "dark" ? dark || light || fallback : light || dark || fallback;
   const resolvedCategoryTextColor = pickThemeColor(categoryTextColor, categoryTextColorDark);
@@ -987,8 +1001,7 @@ export function ServicesCatalog({
       ? buildBookingLink({
           publicSlug,
           locationId:
-            currentLocationId ??
-            locationId ??
+            effectiveLocationId ??
             (activeModalService.locationIds.length === 1 ? activeModalService.locationIds[0] : null),
           specialistId: effectiveSpecialistId,
           serviceId: activeModalService.id,
@@ -1022,7 +1035,7 @@ export function ServicesCatalog({
           </div>
         ) : null}
 
-        {(showSearch || showSort) && (
+        {(showSearch || showSort || showLocationFilter) && (
           <div
             className="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
             style={{ justifyContent: searchSortJustifyContent }}
@@ -1130,6 +1143,82 @@ export function ServicesCatalog({
                 ) : null}
               </div>
             ) : null}
+
+            {showLocationFilter ? (
+              <div
+                className="relative min-w-0 sm:w-[250px]"
+                onBlur={(event) => {
+                  const nextFocusedElement = event.relatedTarget as Node | null;
+                  if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                    setIsLocationOpen(false);
+                  }
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsLocationOpen((open) => !open)}
+                  className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
+                  style={{
+                    border: `1px solid ${controlBorderColor}`,
+                    borderRadius: 12,
+                    backgroundColor: controlBackgroundColor,
+                    color: resolvedSortTextColor,
+                    padding: "0 12px 0 14px",
+                    boxShadow: controlShadow,
+                  }}
+                  aria-haspopup="listbox"
+                  aria-expanded={isLocationOpen}
+                >
+                  <span className="truncate">{activeLocationOption?.name ?? "Все локации"}</span>
+                  <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                    ▾
+                  </span>
+                </button>
+
+                {isLocationOpen ? (
+                  <div
+                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+                    style={{
+                      border: `1px solid ${controlBorderColor}`,
+                      borderRadius: 12,
+                      backgroundColor: dropdownBackgroundColor,
+                      color: resolvedSortTextColor,
+                      boxShadow: dropdownShadow,
+                    }}
+                    role="listbox"
+                  >
+                    {[{ id: null, name: "Все локации" }, ...availableLocations].map((location) => {
+                      const isSelected = location.id === selectedLocationId;
+                      return (
+                        <button
+                          key={location.id ?? "all"}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => {
+                            setSelectedLocationId(location.id);
+                            setIsLocationOpen(false);
+                          }}
+                          className="block w-full px-3.5 py-2.5 text-left transition"
+                          onMouseEnter={(event) => {
+                            if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
+                          }}
+                          onMouseLeave={(event) => {
+                            if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
+                          }}
+                          style={{
+                            backgroundColor: isSelected ? resolvedSortActiveColor : "transparent",
+                            color: isSelected ? selectedSortTextColor : resolvedSortTextColor,
+                          }}
+                        >
+                          {location.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -1197,8 +1286,7 @@ export function ServicesCatalog({
               ? buildBookingLink({
                   publicSlug,
                   locationId:
-                    currentLocationId ??
-                    locationId ??
+                    effectiveLocationId ??
                     (service.locationIds.length === 1 ? service.locationIds[0] : null),
                   specialistId: effectiveSpecialistId,
                   serviceId: service.id,

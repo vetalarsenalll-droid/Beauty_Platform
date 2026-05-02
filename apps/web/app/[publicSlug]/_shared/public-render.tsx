@@ -763,7 +763,7 @@ export function renderBlock(
     case "locations":
       return renderLocations(block, publicSlug, locations, current, theme);
     case "services":
-      return renderServices(block, publicSlug, services, current, theme);
+      return renderServices(block, publicSlug, locations, services, current, theme);
     case "specialists":
       return renderSpecialists(block, publicSlug, specialists, current, theme);
     case "promos":
@@ -3168,6 +3168,7 @@ function renderLocations(
 function renderServices(
   block: SiteBlock,
   publicSlug: string,
+  locations: LocationItem[],
   services: ServiceItem[],
   current: CurrentEntity,
   theme: SiteTheme
@@ -3425,6 +3426,7 @@ function renderServices(
         publicSlug={publicSlug}
         currentLocationId={currentLocationId}
         locationId={locationId}
+        locations={locations.map((location) => ({ id: location.id, name: location.name }))}
         effectiveSpecialistId={effectiveSpecialistId}
         cardsPerRow={cardsPerRow}
         showCategoryTabs={showCategoryTabs}
