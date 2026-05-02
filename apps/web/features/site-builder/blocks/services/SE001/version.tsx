@@ -72,6 +72,7 @@ export const SE001: BlockVersion = {
     const servicesDefaultGridRange = centeredGridRange(8);
     return {
       ...data,
+      useCurrent: false,
       showDetailsButton: data.showDetailsButton ?? true,
       detailsButtonColor: data.detailsButtonColor ?? "transparent",
       detailsButtonTextColor: data.detailsButtonTextColor ?? "#111111",

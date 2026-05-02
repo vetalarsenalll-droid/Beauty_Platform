@@ -664,6 +664,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     mode: "all",
     ids: [],
     cardsPerRow: 4,
+    useCurrent: false,
     showCategoryTabs: true,
     categoryAllLabel: "Все услуги",
     showSearch: true,

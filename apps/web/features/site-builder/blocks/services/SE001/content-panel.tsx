@@ -82,24 +82,37 @@ function renderFlatEntityListEditor(ctx: CrmPanelCtx, updateData: (patch: Record
   const block = ctx.block;
   const mode = (block.data.mode as string) ?? "all";
   const selected = new Set<number>(Array.isArray(block.data.ids) ? (block.data.ids as number[]) : []);
-  const useCurrent = Boolean(block.data.useCurrent);
+  const locationId = typeof block.data.locationId === "number" ? block.data.locationId : null;
+  const locationServices = locationId
+    ? ctx.services.filter((item) => item.locationIds.includes(locationId))
+    : ctx.services;
+  const locationServiceIds = new Set(locationServices.map((item) => item.id));
 
   return (
     <div className="space-y-5">
-      <div className="border-b border-[color:var(--bp-stroke)] py-3">
-        <FlatCheckbox
-          checked={useCurrent}
-          onChange={(checked) =>
-            updateData({
-              useCurrent: checked,
-              mode: checked ? "selected" : mode,
-              ids: checked ? [] : Array.from(selected),
-            })
-          }
-          label="Использовать текущую страницу"
-        />
-      </div>
-      {renderFlatSelect("Отображение", mode, (value) => updateData({ mode: value }), [
+      {renderFlatSelect(
+        "Список локаций",
+        String(locationId ?? ""),
+        (value) => {
+          const nextLocationId = value ? Number(value) : null;
+          const nextLocationServices = nextLocationId
+            ? ctx.services.filter((item) => item.locationIds.includes(nextLocationId))
+            : ctx.services;
+          const nextLocationServiceIds = new Set(nextLocationServices.map((item) => item.id));
+          updateData({
+            locationId: nextLocationId,
+            ids: Array.from(selected).filter((id) => nextLocationServiceIds.has(id)),
+          });
+        },
+        [
+          { value: "", label: "Все локации" },
+          ...ctx.locations.map((location) => ({
+            value: String(location.id),
+            label: location.name,
+          })),
+        ]
+      )}
+      {renderFlatSelect("Список услуг", mode, (value) => updateData({ mode: value }), [
         { value: "all", label: "Все" },
         { value: "selected", label: "Выбранные" },
       ])}
@@ -109,14 +122,16 @@ function renderFlatEntityListEditor(ctx: CrmPanelCtx, updateData: (patch: Record
             Выберите элементы
           </div>
           <div className="max-h-48 space-y-3 overflow-auto pr-2">
-            {ctx.services.map((item) => {
+            {locationServices.map((item) => {
               const checked = selected.has(item.id);
               return (
                 <div key={item.id} className="border-b border-[color:var(--bp-stroke)] pb-3">
                   <FlatCheckbox
                     checked={checked}
                     onChange={(nextChecked) => {
-                      const next = new Set(selected);
+                      const next = new Set(
+                        Array.from(selected).filter((id) => locationServiceIds.has(id))
+                      );
                       if (nextChecked) next.add(item.id);
                       else next.delete(item.id);
                       updateData({ ids: Array.from(next) });
@@ -126,6 +141,11 @@ function renderFlatEntityListEditor(ctx: CrmPanelCtx, updateData: (patch: Record
                 </div>
               );
             })}
+            {locationServices.length === 0 ? (
+              <div className="pb-3 text-sm text-[color:var(--bp-muted)]">
+                В выбранной локации нет услуг.
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -150,15 +170,14 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
     <div className="space-y-8 px-1 pb-8 pt-1" onClick={(event) => event.stopPropagation()}>
       {inSection("text") && (
         <div className="space-y-5">
-          {renderSectionTitle("Тексты")}
           {renderFlatTextInput(
-            "Заголовок блока",
+            "Заголовок",
             String(block.data.title ?? ""),
             (value) => updateData({ title: value }),
             "Список услуг"
           )}
           {renderFlatTextInput(
-            "Описание блока",
+            "Описание",
             String(block.data.subtitle ?? ""),
             (value) => updateData({ subtitle: value }),
             "Выберите подходящую услугу"
@@ -168,7 +187,6 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
 
       {inSection("catalog") && (
         <div className="space-y-5">
-          {renderSectionTitle("Список услуг")}
           {renderFlatEntityListEditor(ctx, updateData)}
         </div>
       )}
