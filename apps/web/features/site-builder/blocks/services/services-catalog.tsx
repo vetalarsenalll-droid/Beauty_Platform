@@ -676,6 +676,7 @@ export function ServicesCatalog({
   const [activeCategory, setActiveCategory] = useState<string>("__all__");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState(defaultSort);
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
   const pageSize = clamp(maxVisibleItems, 1, 100, 36);
   const [page, setPage] = useState(1);
@@ -683,12 +684,16 @@ export function ServicesCatalog({
 
   useEffect(() => {
     setSortMode(defaultSort);
+    setIsSortOpen(false);
   }, [defaultSort]);
 
   useEffect(() => {
     setPage(1);
     setVisibleCount(pageSize);
   }, [activeCategory, searchQuery, sortMode, pageSize, usePagination]);
+
+  const activeSortOption =
+    SORT_OPTIONS.find((option) => option.value === sortMode) ?? SORT_OPTIONS[0]!;
 
   useEffect(() => {
     if (activeCategory === "__all__") return;
@@ -772,41 +777,102 @@ export function ServicesCatalog({
         </div>
 
         {(showSearch || showSort) && (
-          <div className="flex w-full flex-col gap-3 sm:flex-row xl:max-w-[580px] xl:justify-end">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
             {showSearch ? (
               <label
-                className="flex min-w-0 flex-1 items-center gap-3 border-b px-0 py-2 text-sm"
-                style={{ borderColor: "var(--block-border,transparent)" }}
+                className="relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]"
               >
-                <span className="text-[color:var(--block-muted,var(--bp-muted))]">⌕</span>
+                <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[15px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                  ⌕
+                </span>
                 <input
-                  type="search"
+                  type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder={searchPlaceholder}
-                  className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
+                  className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
+                  style={{
+                    appearance: "none",
+                    border: "1px solid rgba(15,16,18,0.12)",
+                    borderRadius: 12,
+                    backgroundColor: "rgba(255,255,255,0.78)",
+                    boxShadow: "0 1px 2px rgba(15,16,18,0.04)",
+                  }}
                 />
               </label>
             ) : null}
 
             {showSort ? (
-              <label
-                className="flex min-w-0 items-center border-b px-0 py-2 text-sm text-[color:var(--block-text,var(--bp-ink))] sm:w-[260px]"
-                style={{ borderColor: "var(--block-border,transparent)" }}
+              <div
+                className="relative min-w-0 sm:w-[250px]"
+                onBlur={(event) => {
+                  const nextFocusedElement = event.relatedTarget as Node | null;
+                  if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                    setIsSortOpen(false);
+                  }
+                }}
               >
-                <select
-                  value={sortMode}
-                  onChange={(event) => setSortMode(event.target.value)}
-                  className="w-full appearance-none border-0 bg-transparent p-0 pr-6 text-sm outline-none"
+                <button
+                  type="button"
+                  onClick={() => setIsSortOpen((open) => !open)}
+                  className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
+                  style={{
+                    border: "1px solid rgba(15,16,18,0.12)",
+                    borderRadius: 12,
+                    backgroundColor: "rgba(255,255,255,0.78)",
+                    color: "var(--block-text,var(--bp-ink))",
+                    padding: "0 12px 0 14px",
+                    boxShadow: "0 1px 2px rgba(15,16,18,0.04)",
+                  }}
+                  aria-haspopup="listbox"
+                  aria-expanded={isSortOpen}
                 >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="-ml-5 text-xs text-[color:var(--block-muted,var(--bp-muted))]">▾</span>
-              </label>
+                  <span className="truncate">{activeSortOption.label}</span>
+                  <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                    ▾
+                  </span>
+                </button>
+
+                {isSortOpen ? (
+                  <div
+                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm shadow-[0_14px_34px_rgba(15,16,18,0.14)]"
+                    style={{
+                      border: "1px solid rgba(15,16,18,0.12)",
+                      borderRadius: 12,
+                      backgroundColor: "rgba(255,255,255,0.98)",
+                      color: "var(--block-text,var(--bp-ink))",
+                    }}
+                    role="listbox"
+                  >
+                    {SORT_OPTIONS.map((option) => {
+                      const isSelected = option.value === sortMode;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => {
+                            setSortMode(option.value);
+                            setIsSortOpen(false);
+                          }}
+                          className="block w-full px-3.5 py-2.5 text-left transition hover:bg-black/[0.04]"
+                          style={{
+                            backgroundColor: isSelected
+                              ? "var(--block-text,var(--bp-ink))"
+                              : "transparent",
+                            color: isSelected
+                              ? "var(--block-button-text,var(--bp-paper))"
+                              : "var(--block-text,var(--bp-ink))",
+                          }}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </div>
         )}
@@ -903,13 +969,15 @@ export function ServicesCatalog({
             textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
           const contentJustify =
             textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
-          const contentPaddingX = isListView ? 24 : clamp(cardPaddingX, 0, 80, 30);
+          const contentPaddingX = isListView ? 24 : 0;
           const contentPaddingY = isListView ? 18 : clamp(cardPaddingY, 0, 80, 30);
 
           return (
             <article
               key={service.id}
-              className={`group overflow-hidden rounded-[18px] ${
+              className={`group ${
+                cardStyle === "filled" ? "overflow-hidden" : ""
+              } ${
                 isListView
                   ? "flex items-stretch gap-5 border-b pb-6"
                   : alignButtonsBottom
@@ -922,6 +990,7 @@ export function ServicesCatalog({
                 borderWidth: isListView ? 0 : 1,
                 borderStyle: "solid",
                 borderColor: isListView ? "transparent" : articleBorderColor,
+                borderRadius: cardStyle === "filled" ? imageRadiusValue : 0,
               }}
             >
               {hasImage ? (
@@ -1024,12 +1093,6 @@ export function ServicesCatalog({
                   alignItems: isListView ? contentAlignItems : undefined,
                 }}
               >
-                {service.categoryName ? (
-                  <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-[color:var(--block-muted,var(--bp-muted))]">
-                    {service.categoryName}
-                  </div>
-                ) : null}
-
                 <a
                   href={serviceHref}
                   className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] hover:underline ${
@@ -1042,7 +1105,7 @@ export function ServicesCatalog({
                 {(showDuration || showPrice) && (
                   <div
                     className="mt-6 flex flex-wrap gap-2 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
-                    style={{ justifyContent: isListView ? contentJustify : undefined }}
+                    style={{ justifyContent: contentJustify }}
                   >
                     {showDuration ? (
                       <span
@@ -1079,11 +1142,11 @@ export function ServicesCatalog({
                         ? "mt-auto pt-6"
                         : "pt-6"
                   }
-                >
-                  <div
-                    className="flex flex-wrap gap-3"
-                    style={{ justifyContent: isListView ? contentJustify : undefined }}
                   >
+                    <div
+                      className="flex flex-wrap gap-3"
+                      style={{ justifyContent: "center" }}
+                    >
                     <a
                       href={detailsHref}
                       className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
