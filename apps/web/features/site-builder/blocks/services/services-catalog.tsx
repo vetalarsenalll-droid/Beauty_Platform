@@ -63,8 +63,11 @@ type ServiceCatalogProps = {
   serviceModalBgColorDark?: string;
   serviceModalBgImage?: string;
   serviceModalBgImageDark?: string;
+  serviceModalMediaColumns: number;
+  serviceModalInfoColumns: number;
   modalGalleryBgColor: string;
   modalImageFit: "contain" | "cover";
+  modalImageRadius: number;
   modalImageAspectRatio: string;
   modalControls: "arrowsAndDots" | "arrows" | "dots" | "thumbnails";
   modalArrowSize: "sm" | "md" | "lg";
@@ -120,7 +123,7 @@ function clamp(value: number, min: number, max: number, fallback: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function clampPanY(value: number, limit: number) {
+function clampPan(value: number, limit: number) {
   if (!Number.isFinite(value) || !Number.isFinite(limit) || limit <= 0) return 0;
   return Math.max(-limit, Math.min(limit, value));
 }
@@ -200,7 +203,10 @@ function ServiceModal({
   galleryBgColor,
   modalBackgroundColor,
   modalBackgroundImage,
+  mediaColumns,
+  infoColumns,
   imageFit,
+  imageRadius,
   imageAspectRatio,
   controls,
   arrowSize,
@@ -232,7 +238,10 @@ function ServiceModal({
   galleryBgColor: string;
   modalBackgroundColor: string;
   modalBackgroundImage: string;
+  mediaColumns: number;
+  infoColumns: number;
   imageFit: "contain" | "cover";
+  imageRadius: number;
   imageAspectRatio: string;
   controls: "arrowsAndDots" | "arrows" | "dots" | "thumbnails";
   arrowSize: "sm" | "md" | "lg";
@@ -258,11 +267,10 @@ function ServiceModal({
     Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
   );
   const [zoomLevel, setZoomLevel] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
-  const [panY, setPanY] = useState(0);
-  const [isDraggingY, setIsDraggingY] = useState(false);
-  const [dragStartY, setDragStartY] = useState(0);
-  const [dragStartPanY, setDragStartPanY] = useState(0);
-  const [layoutTick, setLayoutTick] = useState(0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragStartPan, setDragStartPan] = useState({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const canNavigate = images.length > 1;
@@ -273,36 +281,20 @@ function ServiceModal({
   useEffect(() => {
     setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
     setZoomLevel(0);
-    setPanY(0);
-    setIsDraggingY(false);
+    setPan({ x: 0, y: 0 });
+    setIsDraggingImage(false);
   }, [imageIndex, images.length]);
 
   useEffect(() => {
-    if (!isDraggingY) return;
-    const stopDragging = () => setIsDraggingY(false);
+    if (!isDraggingImage) return;
+    const stopDragging = () => setIsDraggingImage(false);
     window.addEventListener("mouseup", stopDragging);
     window.addEventListener("blur", stopDragging);
     return () => {
       window.removeEventListener("mouseup", stopDragging);
       window.removeEventListener("blur", stopDragging);
     };
-  }, [isDraggingY]);
-
-  useEffect(() => {
-    if (zoomLevel !== 0) return;
-    setPanY(0);
-    setIsDraggingY(false);
-  }, [zoomLevel]);
-
-  useEffect(() => {
-    setPanY(0);
-  }, [zoomLevel]);
-
-  useEffect(() => {
-    const onResize = () => setLayoutTick((v) => v + 1);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [isDraggingImage]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -339,39 +331,37 @@ function ServiceModal({
     };
   }, [canNavigate, images.length, infiniteGallery, onClose]);
 
-  const goPrev = () =>
+  const goPrev = () => {
+    setPan({ x: 0, y: 0 });
     setActiveImageIndex((current) => {
       if (current <= 0) return infiniteGallery ? images.length - 1 : current;
       return current - 1;
     });
-  const goNext = () =>
+  };
+  const goNext = () => {
+    setPan({ x: 0, y: 0 });
     setActiveImageIndex((current) => {
       if (current >= images.length - 1) return infiniteGallery ? 0 : current;
       return current + 1;
     });
+  };
 
   const currentImage = images[activeImageIndex] ?? null;
   const isImageFocusMode = zoomLevel > 0;
-  const zoomCenterOffsetX = 0;
-  const zoomScale = zoomLevel === 0 ? 1 : zoomLevel === 1 ? 1.35 : zoomLevel === 2 ? 1.8 : zoomLevel === 3 ? 2.3 : zoomLevel === 4 ? 2.9 : 3.6;
-  const maxPanY = useMemo(() => {
+  const modalImageRadiusValue = clamp(imageRadius, 0, 80, 8);
+  const zoomScale =
+    zoomLevel <= 1 ? 1 : zoomLevel === 2 ? 1.35 : zoomLevel === 3 ? 1.8 : zoomLevel === 4 ? 2.3 : 2.9;
+  const focusViewportWidth = "min(92vw, 1280px)";
+  const focusViewportHeight = "calc(100vh - 112px)";
+  const getPanBounds = () => {
     const viewport = viewportRef.current;
     const image = imageRef.current;
-    if (!viewport || !image) return 0;
-    const viewportW = viewport.clientWidth;
-    const viewportH = viewport.clientHeight;
-    const naturalW = image.naturalWidth;
-    const naturalH = image.naturalHeight;
-    if (viewportW <= 0 || viewportH <= 0 || naturalW <= 0 || naturalH <= 0) return 0;
-    const containRatio = Math.min(viewportW / naturalW, viewportH / naturalH);
-    const baseH = naturalH * containRatio;
-    const scaledH = baseH * zoomScale;
-    return Math.max(0, (scaledH - viewportH) / 2);
-  }, [zoomScale, activeImageIndex, currentImage, layoutTick]);
-
-  useEffect(() => {
-    setPanY((current) => clampPanY(current, maxPanY));
-  }, [maxPanY]);
+    if (!viewport || !image) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, (image.clientWidth * zoomScale - viewport.clientWidth) / 2),
+      y: Math.max(0, (image.clientHeight * zoomScale - viewport.clientHeight) / 2),
+    };
+  };
   const arrowPx = resolveArrowSize(arrowSize);
   const arrowButtonBaseStyle: CSSProperties = {
     width: arrowPx,
@@ -381,6 +371,11 @@ function ServiceModal({
     color: arrowColor,
     backgroundColor: rgbaFromHex(arrowBgColor, arrowBgOpacity),
   };
+  const clampedMediaColumns = clamp(mediaColumns, 1, 11, 6);
+  const clampedInfoColumns = clamp(infoColumns, 1, 11, 6);
+  const modalColumnsTotal = Math.max(2, clampedMediaColumns + clampedInfoColumns);
+  const mediaWidthPercent = (clampedMediaColumns / modalColumnsTotal) * 100;
+  const infoWidthPercent = (clampedInfoColumns / modalColumnsTotal) * 100;
 
   return (
     <div
@@ -398,6 +393,12 @@ function ServiceModal({
         <button
           type="button"
           onClick={() => {
+            if (zoomLevel > 0) {
+              setZoomLevel(0);
+              setPan({ x: 0, y: 0 });
+              setIsDraggingImage(false);
+              return;
+            }
             onClose();
           }}
           className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none text-black/80 hover:text-black"
@@ -406,11 +407,15 @@ function ServiceModal({
           ×
         </button>
 
-        {imageZoomOnClick && isImageFocusMode ? (
+        {imageZoomOnClick && zoomLevel > 0 ? (
           <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
             <button
               type="button"
-              onClick={(event) => { event.stopPropagation(); setZoomLevel((current) => (current <= 1 ? 1 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5))); }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setPan({ x: 0, y: 0 });
+                setZoomLevel((current) => (current <= 1 ? 1 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5)));
+              }}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Уменьшить"
               disabled={zoomLevel <= 1}
@@ -419,7 +424,11 @@ function ServiceModal({
             </button>
             <button
               type="button"
-              onClick={(event) => { event.stopPropagation(); setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5))); }}
+              onClick={(event) => {
+                event.stopPropagation();
+                setPan({ x: 0, y: 0 });
+                setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5)));
+              }}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Увеличить"
               disabled={zoomLevel === 5}
@@ -433,6 +442,11 @@ function ServiceModal({
           className={`relative flex flex-1 items-center justify-center ${
             isImageFocusMode ? "min-h-0 p-0" : "min-h-[70vh] p-8"
           }`}
+          style={
+            isImageFocusMode
+              ? undefined
+              : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` }
+          }
         >
           {showArrows && canNavigate ? (
             <button
@@ -472,28 +486,34 @@ function ServiceModal({
 
           <div
             ref={viewportRef}
-            className="relative mx-auto overflow-hidden rounded-[8px]"
+            className="relative mx-auto flex items-center justify-center overflow-hidden rounded-[8px]"
             style={{
-              width: zoomLevel === 0 ? "min(62vw, 820px)" : "calc(100vw - 24px)",
-              height: zoomLevel === 0 ? "min(72vh, 820px)" : "calc(100vh - 24px)",
+              width: isImageFocusMode ? focusViewportWidth : "min(62vw, 820px)",
+              height: isImageFocusMode ? focusViewportHeight : "min(72vh, 820px)",
+              borderRadius: zoomLevel > 1 ? 0 : modalImageRadiusValue,
             }}
             onMouseDown={(event) => {
-              if (zoomLevel === 0 || event.button !== 0) return;
-              setIsDraggingY(true);
-              setDragStartY(event.clientY);
-              setDragStartPanY(panY);
+              if (zoomLevel <= 1 || event.button !== 0) return;
+              setIsDraggingImage(true);
+              setDragStart({ x: event.clientX, y: event.clientY });
+              setDragStartPan(pan);
             }}
             onMouseMove={(event) => {
-              if (!isDraggingY) return;
+              if (!isDraggingImage) return;
               if ((event.buttons & 1) !== 1) {
-                setIsDraggingY(false);
+                setIsDraggingImage(false);
                 return;
               }
-              const dy = event.clientY - dragStartY;
-              setPanY(clampPanY(dragStartPanY + dy, maxPanY));
+              const dx = event.clientX - dragStart.x;
+              const dy = event.clientY - dragStart.y;
+              const panBounds = getPanBounds();
+              setPan({
+                x: clampPan(dragStartPan.x + dx, panBounds.x),
+                y: clampPan(dragStartPan.y + dy, panBounds.y),
+              });
             }}
-            onMouseUp={() => setIsDraggingY(false)}
-            onMouseLeave={() => setIsDraggingY(false)}
+            onMouseUp={() => setIsDraggingImage(false)}
+            onMouseLeave={() => setIsDraggingImage(false)}
           >
             {currentImage ? (
               <img
@@ -501,30 +521,35 @@ function ServiceModal({
                 src={currentImage}
                 alt={service.name}
                 draggable={false}
-                className={`h-full w-full transition duration-300 ${
+                className={`${isImageFocusMode ? "max-h-full max-w-full" : "h-full w-full"} transition duration-300 ${
                   imageZoomOnHover && zoomLevel === 0 ? "hover:scale-[1.04]" : ""
                 }`}
                 style={{
-                  objectFit: imageFit,
+                  objectFit: isImageFocusMode ? "contain" : imageFit,
                   objectPosition: "center center",
-                  transform: `translate(${zoomCenterOffsetX}px, ${panY}px) scale(${zoomScale})`,
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoomScale})`,
                   transformOrigin: "center center",
-                  transition: isDraggingY ? "none" : "transform 120ms ease-out",
+                  transition: isDraggingImage ? "none" : "transform 120ms ease-out",
                   cursor:
                     imageZoomOnClick
                       ? zoomLevel === 0
                         ? "zoom-in"
-                        : isDraggingY
-                          ? "grabbing"
-                          : "grab"
+                        : zoomLevel > 1
+                          ? isDraggingImage
+                            ? "grabbing"
+                            : "grab"
+                          : "default"
                       : "default",
                 }}
                 onClick={() => {
                   if (!imageZoomOnClick) return;
-                  if (zoomLevel === 0) setZoomLevel(1);
+                  if (zoomLevel === 0) {
+                    setPan({ x: 0, y: 0 });
+                    setZoomLevel(1);
+                  }
                 }}
                 onDragStart={(event) => event.preventDefault()}
-                onLoad={() => setLayoutTick((v) => v + 1)}
+                onLoad={() => setPan({ x: 0, y: 0 })}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--bp-muted)]">
@@ -570,8 +595,11 @@ function ServiceModal({
           ) : null}
         </div>
 
-        {zoomLevel === 0 ? (
-        <div className="flex w-full max-w-[520px] flex-col py-2">
+        {!isImageFocusMode ? (
+        <div
+          className="flex w-full flex-col py-2"
+          style={{ flex: `0 0 ${infoWidthPercent}%`, maxWidth: `${infoWidthPercent}%` }}
+        >
           <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">
             {service.categoryName || "Услуга"}
           </div>
@@ -705,8 +733,11 @@ export function ServicesCatalog({
   serviceModalBgColorDark,
   serviceModalBgImage,
   serviceModalBgImageDark,
+  serviceModalMediaColumns,
+  serviceModalInfoColumns,
   modalGalleryBgColor,
   modalImageFit,
+  modalImageRadius,
   modalImageAspectRatio,
   modalControls,
   modalArrowSize,
@@ -1453,8 +1484,11 @@ export function ServicesCatalog({
           showMeta={serviceModalShowMeta}
           modalBackgroundColor={resolvedServiceModalBgColor}
           modalBackgroundImage={resolvedServiceModalBgImage}
+          mediaColumns={serviceModalMediaColumns}
+          infoColumns={serviceModalInfoColumns}
           galleryBgColor={modalGalleryBgColor}
           imageFit={modalImageFit}
+          imageRadius={modalImageRadius}
           imageAspectRatio={modalImageAspectRatio}
           controls={modalControls}
           arrowSize={modalArrowSize}

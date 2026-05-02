@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   TildaBackgroundColorField,
   TildaInlineColorField,
@@ -33,6 +33,46 @@ function renderFlatTextInput(
             appearance: "none",
           }}
         />
+      </div>
+    </label>
+  );
+}
+
+function renderFlatNumberPxInput(
+  label: string,
+  value: number,
+  onChange: (value: number) => void,
+  min = 0,
+  max = 80
+) {
+  const normalizedValue = Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : min;
+
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={1}
+          value={normalizedValue}
+          onChange={(event) => {
+            const nextValue = Number(event.target.value);
+            onChange(Number.isFinite(nextValue) ? Math.max(min, Math.min(max, Math.round(nextValue))) : min);
+          }}
+          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "textfield",
+            appearance: "textfield",
+          }}
+        />
+        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
       </div>
     </label>
   );
@@ -84,6 +124,104 @@ const ALIGNMENT_OPTIONS = [
 
 function readAlignment(value: unknown, fallback: "left" | "center" | "right") {
   return value === "left" || value === "center" || value === "right" ? value : fallback;
+}
+
+function clampServiceModalColumns(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(11, Math.round(parsed))) : fallback;
+}
+
+function ServiceModalColumnsControl({
+  mediaColumns,
+  infoColumns,
+  onChange,
+}: {
+  mediaColumns: number;
+  infoColumns: number;
+  onChange: (mediaColumns: number, infoColumns: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const setMediaColumns = (nextMediaColumns: number) => {
+    const media = clampServiceModalColumns(nextMediaColumns, 6);
+    onChange(media, 12 - media);
+  };
+  const columnFromClientX = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return mediaColumns;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.max(1, Math.min(11, Math.round(ratio * 12)));
+  };
+  const startDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const apply = (clientX: number) => setMediaColumns(columnFromClientX(clientX));
+    apply(event.clientX);
+    const handleMove = (nextEvent: PointerEvent) => apply(nextEvent.clientX);
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  };
+  const dividerPercent = (mediaColumns / 12) * 100;
+
+  return (
+    <div className="relative">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+        Ширина блоков
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="mt-2 flex w-full items-center justify-between border-b border-[color:var(--bp-stroke)] pb-2 text-left text-sm"
+      >
+        <span>
+          {mediaColumns} колонок | {infoColumns} колонок
+        </span>
+        <span className="text-xs leading-none">{open ? "▴" : "▾"}</span>
+      </button>
+      {open ? (
+        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[160] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 shadow-2xl">
+          <div
+            ref={(node) => {
+              trackRef.current = node;
+            }}
+            className="relative"
+          >
+            <div className="grid grid-cols-12 gap-1">
+              {Array.from({ length: 12 }, (_, index) => {
+                const isMedia = index < mediaColumns;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setMediaColumns(index + 1)}
+                    className={`h-14 rounded-sm ${isMedia ? "bg-[#ff5a5f]" : "bg-[#c6cbd3]"}`}
+                    aria-label={`${index + 1} колонок`}
+                  />
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onPointerDown={startDrag}
+              className="absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+              style={{ left: `${dividerPercent}%` }}
+              aria-label="Изменить ширину блоков"
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-2 text-center text-sm text-[color:var(--bp-muted)]">
+            <span>{mediaColumns}</span>
+            <span>{infoColumns}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function SiteServicesSettingsDrawer({
@@ -657,9 +795,25 @@ export function SiteServicesSettingsDrawer({
     const modalLightStopB = readDataNumber("serviceModalBackgroundStopBLight", 100);
     const modalDarkStopA = readDataNumber("serviceModalBackgroundStopADark", modalLightStopA);
     const modalDarkStopB = readDataNumber("serviceModalBackgroundStopBDark", modalLightStopB);
+    const serviceModalMediaColumns = clampServiceModalColumns(data.serviceModalMediaColumns, 6);
+    const serviceModalInfoColumnsRaw = clampServiceModalColumns(
+      data.serviceModalInfoColumns,
+      12 - serviceModalMediaColumns
+    );
+    const serviceModalInfoColumns =
+      serviceModalMediaColumns + serviceModalInfoColumnsRaw === 12
+        ? serviceModalInfoColumnsRaw
+        : 12 - serviceModalMediaColumns;
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
+        <ServiceModalColumnsControl
+          mediaColumns={serviceModalMediaColumns}
+          infoColumns={serviceModalInfoColumns}
+          onChange={(mediaColumns, infoColumns) =>
+            updateData({ serviceModalMediaColumns: mediaColumns, serviceModalInfoColumns: infoColumns })
+          }
+        />
         <TildaBackgroundColorField
           label="Цвет фона карточки услуги"
           value={modalLightFrom}
@@ -700,8 +854,13 @@ export function SiteServicesSettingsDrawer({
             { value: "cover", label: "Заполнять область" },
           ]
         )}
+        {renderFlatNumberPxInput(
+          "Скругление",
+          Number(data.modalImageRadius ?? 8),
+          (value) => updateData({ modalImageRadius: value })
+        )}
         <FlatCheckbox
-          checked={data.modalImageZoomOnClick !== false}
+          checked={data.modalImageZoomOnClick === true}
           onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}
           label="Увеличение изображения по клику"
         />

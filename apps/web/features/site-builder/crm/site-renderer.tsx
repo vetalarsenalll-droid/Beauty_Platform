@@ -4973,11 +4973,25 @@ export function renderServices(
     serviceModalBackgroundLight.backgroundColor,
     "dark"
   );
+  const serviceModalMediaColumnsRaw = Number(data.serviceModalMediaColumns);
+  const serviceModalInfoColumnsRaw = Number(data.serviceModalInfoColumns);
+  const serviceModalMediaColumns =
+    Number.isFinite(serviceModalMediaColumnsRaw)
+      ? Math.max(1, Math.min(11, Math.round(serviceModalMediaColumnsRaw)))
+      : 6;
+  const serviceModalInfoColumns =
+    Number.isFinite(serviceModalInfoColumnsRaw)
+      ? Math.max(1, Math.min(11, Math.round(serviceModalInfoColumnsRaw)))
+      : 6;
   const modalGalleryBgColor =
     typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
       ? data.modalGalleryBgColor.trim()
       : "#ebebeb";
   const modalImageFit = data.modalImageFit === "cover" ? "cover" : "contain";
+  const modalImageRadiusRaw = Number(data.modalImageRadius);
+  const modalImageRadius = Number.isFinite(modalImageRadiusRaw)
+    ? Math.max(0, Math.min(80, Math.round(modalImageRadiusRaw)))
+    : 8;
   const modalImageAspectRatio =
     typeof data.modalImageAspectRatio === "string" && data.modalImageAspectRatio.trim()
       ? data.modalImageAspectRatio.trim()
@@ -5022,7 +5036,7 @@ export function renderServices(
   const modalDotsBorderWidth = Number(data.modalDotsBorderWidth);
   const modalThumbnailsPosition = "bottom" as const;
   const modalInfiniteGallery = data.modalInfiniteGallery !== false;
-  const modalImageZoomOnClick = data.modalImageZoomOnClick !== false;
+  const modalImageZoomOnClick = data.modalImageZoomOnClick === true;
   const modalImageZoomOnHover = data.modalImageZoomOnHover === true;
   const listView = data.listView === "list" ? "list" : "tile";
   const maxVisibleItems = Number(data.maxVisibleItems);
@@ -5157,8 +5171,11 @@ export function renderServices(
         serviceModalBgColorDark={serviceModalBackgroundDark.backgroundColor}
         serviceModalBgImage={serviceModalBackgroundLight.backgroundImage}
         serviceModalBgImageDark={serviceModalBackgroundDark.backgroundImage}
+        serviceModalMediaColumns={serviceModalMediaColumns}
+        serviceModalInfoColumns={serviceModalInfoColumns}
         modalGalleryBgColor={modalGalleryBgColor}
         modalImageFit={modalImageFit}
+        modalImageRadius={modalImageRadius}
         modalImageAspectRatio={modalImageAspectRatio}
         modalControls={modalControls}
         modalArrowSize={modalArrowSize}
