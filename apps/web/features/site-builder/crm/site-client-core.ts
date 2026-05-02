@@ -118,8 +118,6 @@ export const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[
   services: [
     { id: "text", label: "Тексты" },
     { id: "catalog", label: "Список услуг" },
-    { id: "button", label: "Кнопка" },
-    { id: "servicePage", label: "Страница услуги" },
   ],
   loader: [{ id: "main", label: "Контент блока" }],
   booking: [{ id: "main", label: "Контент блока" }],
