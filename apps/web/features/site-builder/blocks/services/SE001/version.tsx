@@ -60,6 +60,19 @@ function defaultServiceCardBackground(value: unknown, fallback: string) {
   return isTransparentColor(value) ? fallback : value;
 }
 
+function isLegacyDefaultServiceTypography(style: Record<string, unknown>) {
+  const headingSize = Number(style.headingSize);
+  const textColor = normalizeStyleColor(style.textColorLight ?? style.textColor);
+  const headingAlign = typeof style.textAlignHeading === "string" ? style.textAlignHeading : "";
+  const subheadingAlign = typeof style.textAlignSubheading === "string" ? style.textAlignSubheading : "";
+  return (
+    (!Number.isFinite(headingSize) || headingSize === 0) &&
+    (textColor === "" || textColor === "transparent") &&
+    (headingAlign === "" || headingAlign === "left") &&
+    (subheadingAlign === "" || subheadingAlign === "left")
+  );
+}
+
 export const SE001: BlockVersion = {
   blockCode: "SE001",
   normalizeData: (input) => {
@@ -69,6 +82,7 @@ export const SE001: BlockVersion = {
       typeof data.style === "object" && data.style ? (data.style as Record<string, unknown>) : {};
     const shouldResetLegacySurface = isLegacyWhiteServiceSurface(style);
     const shouldResetLegacyWidth = isLegacyDefaultServiceWidth(style);
+    const shouldResetLegacyTypography = isLegacyDefaultServiceTypography(style);
     const servicesDefaultGridRange = centeredGridRange(8);
     return {
       ...data,
@@ -109,6 +123,11 @@ export const SE001: BlockVersion = {
         borderColorLight: style.borderColorLight ?? "transparent",
         borderColorDark: style.borderColorDark ?? "transparent",
         borderColor: style.borderColor ?? "transparent",
+        textColorLight: shouldResetLegacyTypography ? "#111827" : (style.textColorLight ?? style.textColor),
+        textColor: shouldResetLegacyTypography ? "#111827" : (style.textColor ?? style.textColorLight),
+        textAlignHeading: shouldResetLegacyTypography ? "center" : (style.textAlignHeading ?? "center"),
+        textAlignSubheading: shouldResetLegacyTypography ? "left" : (style.textAlignSubheading ?? "left"),
+        headingSize: shouldResetLegacyTypography ? 46 : (style.headingSize ?? 46),
       },
     };
   },
@@ -150,6 +169,11 @@ export const SE001: BlockVersion = {
           blockBg: "#ffffff",
           servicesSectionBackgroundModeLight: "solid",
           servicesSectionBackgroundFromLight: "#ffffff",
+          textColorLight: "#111827",
+          textColor: "#111827",
+          textAlignHeading: "center",
+          textAlignSubheading: "left",
+          headingSize: 46,
           ...baseStyle,
         },
       },
