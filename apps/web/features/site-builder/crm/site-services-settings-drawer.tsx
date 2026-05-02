@@ -366,6 +366,11 @@ export function SiteServicesSettingsDrawer({
           onChange={(checked) => updateData({ imageZoomOnHover: checked })}
           label="Увеличивать изображение по наведению"
         />
+        <FlatCheckbox
+          checked={data.modalImageClickEnabled !== false}
+          onChange={(checked) => updateData({ modalImageClickEnabled: checked })}
+          label="Открывать карточку услуги по клику на карточку"
+        />
         {renderFlatTextInput(
           "Количество видимых услуг до кнопки «Загрузить ещё»",
           String(data.maxVisibleItems ?? 36),
@@ -621,11 +626,6 @@ export function SiteServicesSettingsDrawer({
   if (activeSectionId === "servicePage") {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
-        <FlatCheckbox
-          checked={data.modalImageClickEnabled !== false}
-          onChange={(checked) => updateData({ modalImageClickEnabled: checked })}
-          label="Открывать карточку по клику на изображение"
-        />
         <FlatCheckbox
           checked={data.serviceModalShowDescription !== false}
           onChange={(checked) => updateData({ serviceModalShowDescription: checked })}

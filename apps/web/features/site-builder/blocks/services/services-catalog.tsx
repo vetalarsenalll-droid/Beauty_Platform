@@ -1130,6 +1130,9 @@ export function ServicesCatalog({
             textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
           const contentPaddingX = isListView ? 24 : 0;
           const contentPaddingY = isListView ? 18 : clamp(cardPaddingY, 0, 80, 30);
+          const openServiceModal = () => {
+            setActiveModal({ serviceId: service.id, imageIndex: 0 });
+          };
 
           return (
             <article
@@ -1142,7 +1145,20 @@ export function ServicesCatalog({
                   : alignButtonsBottom
                     ? "flex h-full flex-col"
                     : ""
-              }`}
+              } ${modalImageClickEnabled ? "cursor-pointer" : ""}`}
+              role={modalImageClickEnabled ? "button" : undefined}
+              tabIndex={modalImageClickEnabled ? 0 : undefined}
+              onClick={modalImageClickEnabled ? openServiceModal : undefined}
+              onKeyDown={
+                modalImageClickEnabled
+                  ? (event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      openServiceModal();
+                    }
+                  : undefined
+              }
               style={{
                 textAlign,
                 backgroundColor: isListView ? "transparent" : articleBackground,
@@ -1154,9 +1170,7 @@ export function ServicesCatalog({
             >
               {hasImage ? (
                 modalImageClickEnabled ? (
-                  <button
-                    type="button"
-                    onClick={() => setActiveModal({ serviceId: service.id, imageIndex: 0 })}
+                  <div
                     className={`block ${isListView ? "w-[220px] shrink-0 text-left" : "w-full text-left"}`}
                     style={isListView ? { marginLeft: listImageOffsetLeft } : undefined}
                   >
@@ -1194,7 +1208,7 @@ export function ServicesCatalog({
                         />
                       ) : null}
                     </div>
-                  </button>
+                  </div>
                 ) : (
                   <a
                     href={serviceHref}
@@ -1260,14 +1274,24 @@ export function ServicesCatalog({
                   alignItems: isListView ? contentAlignItems : undefined,
                 }}
               >
-                <a
-                  href={serviceHref}
-                  className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline ${
-                    isEditorial ? "text-[22px]" : "text-[20px]"
-                  }`}
-                >
-                  {service.name}
-                </a>
+                {modalImageClickEnabled ? (
+                  <span
+                    className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] ${
+                      isEditorial ? "text-[22px]" : "text-[20px]"
+                    }`}
+                  >
+                    {service.name}
+                  </span>
+                ) : (
+                  <a
+                    href={serviceHref}
+                    className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline ${
+                      isEditorial ? "text-[22px]" : "text-[20px]"
+                    }`}
+                  >
+                    {service.name}
+                  </a>
+                )}
 
                 {(showDuration || showPrice) && (
                   <div
@@ -1317,6 +1341,7 @@ export function ServicesCatalog({
                     {detailsButtonText ? (
                       <a
                         href={detailsHref}
+                        onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
                         style={{
                           backgroundColor: resolvedDetailsButtonColor,
@@ -1330,6 +1355,7 @@ export function ServicesCatalog({
                     {showButton && bookingHref && buttonText ? (
                       <a
                         href={bookingHref}
+                        onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
                         style={buttonStyle}
                       >

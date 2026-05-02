@@ -277,7 +277,7 @@ export function SiteServicesSettingsPrimary({
           setActivePanelSectionId
         )}
         {renderSectionButton(
-          "Страница услуги",
+          "Карточка услуги",
           "servicePage",
           activePanelSectionId,
           panelTheme,

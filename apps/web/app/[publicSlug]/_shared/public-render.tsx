@@ -23,7 +23,10 @@ import type {
   SiteSpecialistItem as SpecialistItem,
   SiteWorkPhotos as WorkPhotos,
 } from "@/features/site-builder/shared/site-data";
-import { resolveCoverBackgroundVisual } from "@/features/site-builder/shared/background-visuals";
+import {
+  resolveCoverBackgroundVisual,
+  resolveServicesSectionBackgroundVisual,
+} from "@/features/site-builder/shared/background-visuals";
 
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
@@ -172,6 +175,18 @@ type BlockStyle = {
   gradientToDarkResolved?: string;
   gradientDirectionLight?: "vertical" | "horizontal";
   gradientDirectionDark?: "vertical" | "horizontal";
+  servicesSectionBackgroundModeLight?: "solid" | "linear" | "radial";
+  servicesSectionBackgroundModeDark?: "solid" | "linear" | "radial";
+  servicesSectionBackgroundFromLight?: string;
+  servicesSectionBackgroundFromDark?: string;
+  servicesSectionBackgroundToLight?: string;
+  servicesSectionBackgroundToDark?: string;
+  servicesSectionBackgroundAngleLight?: number;
+  servicesSectionBackgroundAngleDark?: number;
+  servicesSectionBackgroundStopALight?: number;
+  servicesSectionBackgroundStopADark?: number;
+  servicesSectionBackgroundStopBLight?: number;
+  servicesSectionBackgroundStopBDark?: number;
 };
 
 const DEFAULT_BLOCK_WIDTH = 1000;
@@ -506,6 +521,78 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     (style.gradientFromDark as string) || theme.darkPalette.gradientFrom;
   const gradientToDarkResolved =
     (style.gradientToDark as string) || theme.darkPalette.gradientTo;
+  const servicesSectionBackgroundModeLight =
+    style.servicesSectionBackgroundModeLight === "linear" ||
+    style.servicesSectionBackgroundModeLight === "radial"
+      ? (style.servicesSectionBackgroundModeLight as "linear" | "radial")
+      : "solid";
+  const servicesSectionBackgroundModeDark =
+    style.servicesSectionBackgroundModeDark === "linear" ||
+    style.servicesSectionBackgroundModeDark === "radial"
+      ? (style.servicesSectionBackgroundModeDark as "linear" | "radial")
+      : servicesSectionBackgroundModeLight;
+  const servicesSectionBackgroundFromLightRaw =
+    readColor("servicesSectionBackgroundFromLight") ||
+    readColor("sectionBgLight") ||
+    readColor("sectionBg");
+  const servicesSectionBackgroundFromDarkRaw =
+    readColor("servicesSectionBackgroundFromDark") || readColor("sectionBgDark");
+  const servicesSectionBackgroundToLightRaw =
+    readColor("servicesSectionBackgroundToLight") ||
+    readColor("gradientToLight") ||
+    readColor("gradientTo");
+  const servicesSectionBackgroundToDarkRaw =
+    readColor("servicesSectionBackgroundToDark") || readColor("gradientToDark");
+  const servicesSectionBackgroundFromLight =
+    servicesSectionBackgroundFromLightRaw || theme.lightPalette.panelColor;
+  const servicesSectionBackgroundFromDark =
+    servicesSectionBackgroundFromDarkRaw || theme.darkPalette.panelColor;
+  const servicesSectionBackgroundToLight =
+    servicesSectionBackgroundToLightRaw || servicesSectionBackgroundFromLight;
+  const servicesSectionBackgroundToDark =
+    servicesSectionBackgroundToDarkRaw || servicesSectionBackgroundFromDark;
+  const servicesSectionBackgroundAngleLightRaw = numOrNull(
+    style.servicesSectionBackgroundAngleLight as number | string | null
+  );
+  const servicesSectionBackgroundAngleDarkRaw = numOrNull(
+    style.servicesSectionBackgroundAngleDark as number | string | null
+  );
+  const servicesSectionBackgroundStopALightRaw = numOrNull(
+    style.servicesSectionBackgroundStopALight as number | string | null
+  );
+  const servicesSectionBackgroundStopADarkRaw = numOrNull(
+    style.servicesSectionBackgroundStopADark as number | string | null
+  );
+  const servicesSectionBackgroundStopBLightRaw = numOrNull(
+    style.servicesSectionBackgroundStopBLight as number | string | null
+  );
+  const servicesSectionBackgroundStopBDarkRaw = numOrNull(
+    style.servicesSectionBackgroundStopBDark as number | string | null
+  );
+  const servicesSectionBackgroundAngleLight =
+    servicesSectionBackgroundAngleLightRaw === null
+      ? 135
+      : Math.max(0, Math.min(360, servicesSectionBackgroundAngleLightRaw));
+  const servicesSectionBackgroundAngleDark =
+    servicesSectionBackgroundAngleDarkRaw === null
+      ? servicesSectionBackgroundAngleLight
+      : Math.max(0, Math.min(360, servicesSectionBackgroundAngleDarkRaw));
+  const servicesSectionBackgroundStopALight =
+    servicesSectionBackgroundStopALightRaw === null
+      ? 0
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopALightRaw));
+  const servicesSectionBackgroundStopADark =
+    servicesSectionBackgroundStopADarkRaw === null
+      ? servicesSectionBackgroundStopALight
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopADarkRaw));
+  const servicesSectionBackgroundStopBLight =
+    servicesSectionBackgroundStopBLightRaw === null
+      ? 100
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopBLightRaw));
+  const servicesSectionBackgroundStopBDark =
+    servicesSectionBackgroundStopBDarkRaw === null
+      ? servicesSectionBackgroundStopBLight
+      : Math.max(0, Math.min(100, servicesSectionBackgroundStopBDarkRaw));
   const resolvedBorderPair = borderClearedExplicitly
     ? { lightResolved: "transparent", darkResolved: "transparent" }
     : {
@@ -584,6 +671,18 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     gradientToDarkResolved,
     gradientDirectionLight,
     gradientDirectionDark,
+    servicesSectionBackgroundModeLight,
+    servicesSectionBackgroundModeDark,
+    servicesSectionBackgroundFromLight,
+    servicesSectionBackgroundFromDark,
+    servicesSectionBackgroundToLight,
+    servicesSectionBackgroundToDark,
+    servicesSectionBackgroundAngleLight,
+    servicesSectionBackgroundAngleDark,
+    servicesSectionBackgroundStopALight,
+    servicesSectionBackgroundStopADark,
+    servicesSectionBackgroundStopBLight,
+    servicesSectionBackgroundStopBDark,
     shadowColor: readColor("shadowColor"),
     shadowSize: numOrNull(style.shadowSize as number),
     gradientEnabled: Boolean(style.gradientEnabled),
@@ -2048,6 +2147,32 @@ export function buildBlockWrapperStyle(
       blockOuterColumns >= MAX_BLOCK_COLUMNS
         ? "100%"
         : responsiveBlockWidthCss(blockOuterColumns, true);
+    const servicesSectionBackgroundSource = isServicesBlock
+      ? {
+          servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
+          servicesSectionBackgroundFromLight: style.servicesSectionBackgroundFromLight,
+          servicesSectionBackgroundToLight: style.servicesSectionBackgroundToLight,
+          servicesSectionBackgroundAngleLight: style.servicesSectionBackgroundAngleLight,
+          servicesSectionBackgroundStopALight: style.servicesSectionBackgroundStopALight,
+          servicesSectionBackgroundStopBLight: style.servicesSectionBackgroundStopBLight,
+          servicesSectionBackgroundModeDark: style.servicesSectionBackgroundModeDark,
+          servicesSectionBackgroundFromDark: style.servicesSectionBackgroundFromDark,
+          servicesSectionBackgroundToDark: style.servicesSectionBackgroundToDark,
+          servicesSectionBackgroundAngleDark: style.servicesSectionBackgroundAngleDark,
+          servicesSectionBackgroundStopADark: style.servicesSectionBackgroundStopADark,
+          servicesSectionBackgroundStopBDark: style.servicesSectionBackgroundStopBDark,
+        }
+      : null;
+    const servicesSectionBackgroundLight = resolveServicesSectionBackgroundVisual(
+      servicesSectionBackgroundSource,
+      style.sectionBgLightResolved || theme.lightPalette.panelColor,
+      "light"
+    );
+    const servicesSectionBackgroundDark = resolveServicesSectionBackgroundVisual(
+      servicesSectionBackgroundSource,
+      style.sectionBgDarkResolved || theme.darkPalette.panelColor,
+      "dark"
+    );
       return {
         className: isMenu
           ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
@@ -2066,6 +2191,8 @@ export function buildBlockWrapperStyle(
               : (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
+              : isServicesBlock
+              ? "var(--services-section-bg, var(--block-section-bg, var(--block-bg)))"
               : isGallery || isBookingBlock || isServicesBlock
               ? "var(--block-section-bg, var(--block-bg))"
               : "var(--block-bg)",
@@ -2076,6 +2203,8 @@ export function buildBlockWrapperStyle(
               : (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
+              : isServicesBlock
+              ? "var(--services-section-image, none)"
               : isGallery || isBookingBlock || isServicesBlock
               ? "none"
               : "var(--block-gradient)",
@@ -2088,24 +2217,24 @@ export function buildBlockWrapperStyle(
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop:
-          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock
             ? 0
             : typeof style.marginTop === "number"
               ? style.marginTop
               : 0,
         marginBottom:
-          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock
             ? 0
             : typeof style.marginBottom === "number"
               ? style.marginBottom
               : 0,
         paddingTop:
-          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock) &&
+          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock) &&
           typeof style.marginTop === "number"
             ? style.marginTop
             : undefined,
         paddingBottom:
-          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock) &&
+          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock) &&
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
@@ -2135,6 +2264,10 @@ export function buildBlockWrapperStyle(
         ["--services-heading-color-dark" as string]: style.servicesHeadingColorDarkResolved,
         ["--services-description-color-light" as string]: style.servicesDescriptionColorLightResolved,
         ["--services-description-color-dark" as string]: style.servicesDescriptionColorDarkResolved,
+        ["--services-section-bg-light" as string]: servicesSectionBackgroundLight.backgroundColor,
+        ["--services-section-bg-dark" as string]: servicesSectionBackgroundDark.backgroundColor,
+        ["--services-section-image-light" as string]: servicesSectionBackgroundLight.backgroundImage,
+        ["--services-section-image-dark" as string]: servicesSectionBackgroundDark.backgroundImage,
         ["--block-button-light" as string]: style.buttonColorLightResolved,
         ["--block-button-dark" as string]: style.buttonColorDarkResolved,
         ["--block-button-text-light" as string]: style.buttonTextColorLightResolved,
