@@ -4955,6 +4955,8 @@ export function renderServices(
   const modalImageClickEnabled = data.modalImageClickEnabled !== false;
   const serviceModalShowDescription = data.serviceModalShowDescription !== false;
   const serviceModalShowMeta = data.serviceModalShowMeta !== false;
+  const serviceModalBgColor = readDataColor("serviceModalBgColor") || "var(--block-bg,var(--bp-paper))";
+  const serviceModalBgColorDark = readDataColor("serviceModalBgColorDark");
   const modalGalleryBgColor =
     typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
       ? data.modalGalleryBgColor.trim()
@@ -5135,6 +5137,8 @@ export function renderServices(
         modalImageClickEnabled={modalImageClickEnabled}
         serviceModalShowDescription={serviceModalShowDescription}
         serviceModalShowMeta={serviceModalShowMeta}
+        serviceModalBgColor={serviceModalBgColor}
+        serviceModalBgColorDark={serviceModalBgColorDark}
         modalGalleryBgColor={modalGalleryBgColor}
         modalImageFit={modalImageFit}
         modalImageAspectRatio={modalImageAspectRatio}

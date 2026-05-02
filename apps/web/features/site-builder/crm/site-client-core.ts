@@ -698,6 +698,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     specialistId: null,
     modalImageClickEnabled: true,
     servicePageButtonMode: "entityPage",
+    serviceModalBgColor: "#ffffff",
+    serviceModalBgColorDark: "#16181d",
     cardStyle: "plain",
     cardGapX: 20,
     cardGapY: 40,

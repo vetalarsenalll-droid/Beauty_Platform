@@ -59,6 +59,8 @@ type ServiceCatalogProps = {
   modalImageClickEnabled: boolean;
   serviceModalShowDescription: boolean;
   serviceModalShowMeta: boolean;
+  serviceModalBgColor?: string;
+  serviceModalBgColorDark?: string;
   modalGalleryBgColor: string;
   modalImageFit: "contain" | "cover";
   modalImageAspectRatio: string;
@@ -194,6 +196,7 @@ function ServiceModal({
   showDescription,
   showMeta,
   galleryBgColor,
+  modalBackgroundColor,
   imageFit,
   imageAspectRatio,
   controls,
@@ -224,6 +227,7 @@ function ServiceModal({
   showDescription: boolean;
   showMeta: boolean;
   galleryBgColor: string;
+  modalBackgroundColor: string;
   imageFit: "contain" | "cover";
   imageAspectRatio: string;
   controls: "arrowsAndDots" | "arrows" | "dots" | "thumbnails";
@@ -375,7 +379,10 @@ function ServiceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]">
+    <div
+      className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]"
+      style={{ backgroundColor: modalBackgroundColor }}
+    >
       <div
         className={`relative mx-auto flex min-h-screen w-full items-center ${
           isImageFocusMode ? "max-w-none" : "max-w-[1600px]"
@@ -690,6 +697,8 @@ export function ServicesCatalog({
   modalImageClickEnabled,
   serviceModalShowDescription,
   serviceModalShowMeta,
+  serviceModalBgColor,
+  serviceModalBgColorDark,
   modalGalleryBgColor,
   modalImageFit,
   modalImageAspectRatio,
@@ -779,6 +788,10 @@ export function ServicesCatalog({
     activeThemeMode === "dark"
       ? detailsButtonBorderColorDark || detailsButtonBorderColor || "var(--block-border,transparent)"
       : detailsButtonBorderColor || "var(--block-border,transparent)";
+  const resolvedServiceModalBgColor =
+    activeThemeMode === "dark"
+      ? serviceModalBgColorDark || serviceModalBgColor || "var(--block-bg,var(--bp-paper))"
+      : serviceModalBgColor || "var(--block-bg,var(--bp-paper))";
   const isDarkTheme = activeThemeMode === "dark";
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
@@ -1428,6 +1441,7 @@ export function ServicesCatalog({
           buttonText={buttonText}
           showDescription={serviceModalShowDescription}
           showMeta={serviceModalShowMeta}
+          modalBackgroundColor={resolvedServiceModalBgColor}
           galleryBgColor={modalGalleryBgColor}
           imageFit={modalImageFit}
           imageAspectRatio={modalImageAspectRatio}

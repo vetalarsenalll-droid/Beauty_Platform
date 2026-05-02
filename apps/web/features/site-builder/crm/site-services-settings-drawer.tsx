@@ -626,6 +626,14 @@ export function SiteServicesSettingsDrawer({
   if (activeSectionId === "servicePage") {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
+        <TildaInlineColorField
+          compact
+          label="Цвет фона карточки услуги"
+          value={readDataColor("serviceModalBgColor", "#ffffff")}
+          placeholder="#ffffff"
+          onChange={(value) => updateData({ serviceModalBgColor: value })}
+          onClear={() => updateData({ serviceModalBgColor: "transparent" })}
+        />
         <FlatCheckbox
           checked={data.serviceModalShowDescription !== false}
           onChange={(checked) => updateData({ serviceModalShowDescription: checked })}
@@ -650,6 +658,36 @@ export function SiteServicesSettingsDrawer({
           onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}
           label="Увеличение изображения по клику"
         />
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+          {showDarkThemeAdvanced ? (
+            <TildaInlineColorField
+              compact
+              label="Цвет фона карточки услуги"
+              value={readDataColor("serviceModalBgColorDark", "#16181d")}
+              placeholder="#16181d"
+              onChange={(value) => updateData({ serviceModalBgColorDark: value })}
+              onClear={() => updateData({ serviceModalBgColorDark: "transparent" })}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
