@@ -61,6 +61,8 @@ type ServiceCatalogProps = {
   serviceModalShowMeta: boolean;
   serviceModalBgColor?: string;
   serviceModalBgColorDark?: string;
+  serviceModalBgImage?: string;
+  serviceModalBgImageDark?: string;
   modalGalleryBgColor: string;
   modalImageFit: "contain" | "cover";
   modalImageAspectRatio: string;
@@ -197,6 +199,7 @@ function ServiceModal({
   showMeta,
   galleryBgColor,
   modalBackgroundColor,
+  modalBackgroundImage,
   imageFit,
   imageAspectRatio,
   controls,
@@ -228,6 +231,7 @@ function ServiceModal({
   showMeta: boolean;
   galleryBgColor: string;
   modalBackgroundColor: string;
+  modalBackgroundImage: string;
   imageFit: "contain" | "cover";
   imageAspectRatio: string;
   controls: "arrowsAndDots" | "arrows" | "dots" | "thumbnails";
@@ -381,7 +385,7 @@ function ServiceModal({
   return (
     <div
       className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]"
-      style={{ backgroundColor: modalBackgroundColor }}
+      style={{ backgroundColor: modalBackgroundColor, backgroundImage: modalBackgroundImage }}
     >
       <div
         className={`relative mx-auto flex min-h-screen w-full items-center ${
@@ -699,6 +703,8 @@ export function ServicesCatalog({
   serviceModalShowMeta,
   serviceModalBgColor,
   serviceModalBgColorDark,
+  serviceModalBgImage,
+  serviceModalBgImageDark,
   modalGalleryBgColor,
   modalImageFit,
   modalImageAspectRatio,
@@ -792,6 +798,10 @@ export function ServicesCatalog({
     activeThemeMode === "dark"
       ? serviceModalBgColorDark || serviceModalBgColor || "var(--block-bg,var(--bp-paper))"
       : serviceModalBgColor || "var(--block-bg,var(--bp-paper))";
+  const resolvedServiceModalBgImage =
+    activeThemeMode === "dark"
+      ? serviceModalBgImageDark || serviceModalBgImage || "none"
+      : serviceModalBgImage || "none";
   const isDarkTheme = activeThemeMode === "dark";
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
@@ -1442,6 +1452,7 @@ export function ServicesCatalog({
           showDescription={serviceModalShowDescription}
           showMeta={serviceModalShowMeta}
           modalBackgroundColor={resolvedServiceModalBgColor}
+          modalBackgroundImage={resolvedServiceModalBgImage}
           galleryBgColor={modalGalleryBgColor}
           imageFit={modalImageFit}
           imageAspectRatio={modalImageAspectRatio}

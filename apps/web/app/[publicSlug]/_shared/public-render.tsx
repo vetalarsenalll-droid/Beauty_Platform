@@ -25,6 +25,7 @@ import type {
 } from "@/features/site-builder/shared/site-data";
 import {
   resolveCoverBackgroundVisual,
+  resolveServiceModalBackgroundVisual,
   resolveServicesSectionBackgroundVisual,
 } from "@/features/site-builder/shared/background-visuals";
 
@@ -3219,8 +3220,23 @@ function renderServices(
   const modalImageClickEnabled = data.modalImageClickEnabled !== false;
   const serviceModalShowDescription = data.serviceModalShowDescription !== false;
   const serviceModalShowMeta = data.serviceModalShowMeta !== false;
-  const serviceModalBgColor = readDataColor("serviceModalBgColor") || "var(--block-bg,var(--bp-paper))";
-  const serviceModalBgColorDark = readDataColor("serviceModalBgColorDark");
+  const serviceModalBackgroundSource = {
+    ...data,
+    serviceModalBackgroundFromLight:
+      readDataColor("serviceModalBackgroundFromLight") || readDataColor("serviceModalBgColor"),
+    serviceModalBackgroundFromDark:
+      readDataColor("serviceModalBackgroundFromDark") || readDataColor("serviceModalBgColorDark"),
+  };
+  const serviceModalBackgroundLight = resolveServiceModalBackgroundVisual(
+    serviceModalBackgroundSource,
+    "var(--block-bg,var(--bp-paper))",
+    "light"
+  );
+  const serviceModalBackgroundDark = resolveServiceModalBackgroundVisual(
+    serviceModalBackgroundSource,
+    serviceModalBackgroundLight.backgroundColor,
+    "dark"
+  );
   const modalGalleryBgColor =
     typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
       ? data.modalGalleryBgColor.trim()
@@ -3398,8 +3414,10 @@ function renderServices(
         modalImageClickEnabled={modalImageClickEnabled}
         serviceModalShowDescription={serviceModalShowDescription}
         serviceModalShowMeta={serviceModalShowMeta}
-        serviceModalBgColor={serviceModalBgColor}
-        serviceModalBgColorDark={serviceModalBgColorDark}
+        serviceModalBgColor={serviceModalBackgroundLight.backgroundColor}
+        serviceModalBgColorDark={serviceModalBackgroundDark.backgroundColor}
+        serviceModalBgImage={serviceModalBackgroundLight.backgroundImage}
+        serviceModalBgImageDark={serviceModalBackgroundDark.backgroundImage}
         modalGalleryBgColor={modalGalleryBgColor}
         modalImageFit={modalImageFit}
         modalImageAspectRatio={modalImageAspectRatio}

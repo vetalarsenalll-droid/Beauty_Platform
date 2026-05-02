@@ -153,3 +153,19 @@ export function resolveServicesSectionBackgroundVisual(
     stopB: `servicesSectionBackgroundStopB${suffix}`,
   });
 }
+
+export function resolveServiceModalBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
+) {
+  const suffix = mode === "dark" ? "Dark" : "Light";
+  return resolveBackgroundVisual(data, fallbackColor, {
+    mode: `serviceModalBackgroundMode${suffix}`,
+    from: `serviceModalBackgroundFrom${suffix}`,
+    to: `serviceModalBackgroundTo${suffix}`,
+    angle: `serviceModalBackgroundAngle${suffix}`,
+    stopA: `serviceModalBackgroundStopA${suffix}`,
+    stopB: `serviceModalBackgroundStopB${suffix}`,
+  });
+}

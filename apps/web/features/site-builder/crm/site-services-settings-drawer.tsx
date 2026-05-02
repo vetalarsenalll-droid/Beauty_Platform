@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { TildaInlineColorField } from "@/features/site-builder/crm/site-editor-panels";
+import {
+  TildaBackgroundColorField,
+  TildaInlineColorField,
+} from "@/features/site-builder/crm/site-editor-panels";
 import { FlatCheckbox, updateBlockStyle } from "@/features/site-builder/crm/site-renderer";
 import type { SiteLocationItem } from "@/features/site-builder/shared/site-data";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
@@ -112,6 +115,10 @@ export function SiteServicesSettingsDrawer({
     typeof rawStyle[key] === "string" && String(rawStyle[key]).trim() ? String(rawStyle[key]) : fallback;
   const readDataColor = (key: string, fallback = "transparent") =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]) : fallback;
+  const readDataNumber = (key: string, fallback: number) => {
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? value : fallback;
+  };
   const readDefaultedDataColor = (key: string, fallback: string) => {
     const value = readDataColor(key);
     return value && value !== "transparent" ? value : fallback;
@@ -624,15 +631,55 @@ export function SiteServicesSettingsDrawer({
   }
 
   if (activeSectionId === "servicePage") {
+    const modalLightMode =
+      data.serviceModalBackgroundModeLight === "linear" ||
+      data.serviceModalBackgroundModeLight === "radial"
+        ? data.serviceModalBackgroundModeLight
+        : "solid";
+    const modalDarkMode =
+      data.serviceModalBackgroundModeDark === "linear" ||
+      data.serviceModalBackgroundModeDark === "radial"
+        ? data.serviceModalBackgroundModeDark
+        : modalLightMode;
+    const modalLightFrom =
+      readDataColor("serviceModalBackgroundFromLight", "") ||
+      readDataColor("serviceModalBgColor", "#ffffff");
+    const modalDarkFrom =
+      readDataColor("serviceModalBackgroundFromDark", "") ||
+      readDataColor("serviceModalBgColorDark", "#16181d");
+    const modalLightTo =
+      readDataColor("serviceModalBackgroundToLight", "") || modalLightFrom || "#ffffff";
+    const modalDarkTo =
+      readDataColor("serviceModalBackgroundToDark", "") || modalDarkFrom || "#16181d";
+    const modalLightAngle = readDataNumber("serviceModalBackgroundAngleLight", 135);
+    const modalDarkAngle = readDataNumber("serviceModalBackgroundAngleDark", modalLightAngle);
+    const modalLightStopA = readDataNumber("serviceModalBackgroundStopALight", 0);
+    const modalLightStopB = readDataNumber("serviceModalBackgroundStopBLight", 100);
+    const modalDarkStopA = readDataNumber("serviceModalBackgroundStopADark", modalLightStopA);
+    const modalDarkStopB = readDataNumber("serviceModalBackgroundStopBDark", modalLightStopB);
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
-        <TildaInlineColorField
-          compact
+        <TildaBackgroundColorField
           label="Цвет фона карточки услуги"
-          value={readDataColor("serviceModalBgColor", "#ffffff")}
+          value={modalLightFrom}
+          mode={modalLightMode}
+          secondValue={modalLightTo}
+          angle={modalLightAngle}
+          radialStopA={modalLightStopA}
+          radialStopB={modalLightStopB}
           placeholder="#ffffff"
-          onChange={(value) => updateData({ serviceModalBgColor: value })}
-          onClear={() => updateData({ serviceModalBgColor: "transparent" })}
+          onModeChange={(value) => updateData({ serviceModalBackgroundModeLight: value })}
+          onSecondChange={(value) => updateData({ serviceModalBackgroundToLight: value })}
+          onAngleChange={(value) => updateData({ serviceModalBackgroundAngleLight: value })}
+          onRadialStopAChange={(value) => updateData({ serviceModalBackgroundStopALight: value })}
+          onRadialStopBChange={(value) => updateData({ serviceModalBackgroundStopBLight: value })}
+          onChange={(value) =>
+            updateData({
+              serviceModalBgColor: value,
+              serviceModalBackgroundFromLight: value,
+            })
+          }
         />
         <FlatCheckbox
           checked={data.serviceModalShowDescription !== false}
@@ -678,13 +725,26 @@ export function SiteServicesSettingsDrawer({
             <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
           </button>
           {showDarkThemeAdvanced ? (
-            <TildaInlineColorField
-              compact
+            <TildaBackgroundColorField
               label="Цвет фона карточки услуги"
-              value={readDataColor("serviceModalBgColorDark", "#16181d")}
+              value={modalDarkFrom}
+              mode={modalDarkMode}
+              secondValue={modalDarkTo}
+              angle={modalDarkAngle}
+              radialStopA={modalDarkStopA}
+              radialStopB={modalDarkStopB}
               placeholder="#16181d"
-              onChange={(value) => updateData({ serviceModalBgColorDark: value })}
-              onClear={() => updateData({ serviceModalBgColorDark: "transparent" })}
+              onModeChange={(value) => updateData({ serviceModalBackgroundModeDark: value })}
+              onSecondChange={(value) => updateData({ serviceModalBackgroundToDark: value })}
+              onAngleChange={(value) => updateData({ serviceModalBackgroundAngleDark: value })}
+              onRadialStopAChange={(value) => updateData({ serviceModalBackgroundStopADark: value })}
+              onRadialStopBChange={(value) => updateData({ serviceModalBackgroundStopBDark: value })}
+              onChange={(value) =>
+                updateData({
+                  serviceModalBgColorDark: value,
+                  serviceModalBackgroundFromDark: value,
+                })
+              }
             />
           ) : null}
         </div>
