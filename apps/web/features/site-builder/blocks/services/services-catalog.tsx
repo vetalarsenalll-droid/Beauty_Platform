@@ -200,7 +200,7 @@ function ServiceModal({
   const [activeImageIndex, setActiveImageIndex] = useState(
     Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
   );
-  const [zoomLevel, setZoomLevel] = useState<0 | 1 | 2>(0);
+  const [zoomLevel, setZoomLevel] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
   const canNavigate = images.length > 1;
   const showArrows = controls === "arrows" || controls === "arrowsAndDots" || controls === "thumbnails";
   const showDots = controls === "dots" || controls === "arrowsAndDots";
@@ -261,7 +261,7 @@ function ServiceModal({
 
   return (
     <div
-      className="fixed inset-0 z-[300] overflow-hidden bg-[#f3f3f3]"
+      className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]"
       onClick={() => {
         if (isImageFocusMode) {
           setZoomLevel(0);
@@ -295,7 +295,7 @@ function ServiceModal({
           <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
             <button
               type="button"
-              onClick={() => setZoomLevel((current) => (current === 0 ? 0 : current === 2 ? 1 : 0))}
+              onClick={() => setZoomLevel((current) => (current === 0 ? 0 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5)))}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Уменьшить"
               disabled={zoomLevel === 0}
@@ -304,10 +304,10 @@ function ServiceModal({
             </button>
             <button
               type="button"
-              onClick={() => setZoomLevel((current) => (current === 2 ? 2 : current === 1 ? 2 : 1))}
+              onClick={() => setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5)))}
               className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
               aria-label="Увеличить"
-              disabled={zoomLevel === 2}
+              disabled={zoomLevel === 5}
             >
               +
             </button>
@@ -352,20 +352,32 @@ function ServiceModal({
           ) : null}
 
           <div
-            className="relative overflow-hidden rounded-[8px]"
+            className="relative mx-auto overflow-hidden rounded-[8px]"
             style={{
               width:
                 zoomLevel === 0
                   ? "min(62vw, 820px)"
                   : zoomLevel === 1
-                    ? "min(94vw, 1400px)"
-                    : "min(98vw, 1600px)",
+                    ? "min(72vw, 980px)"
+                    : zoomLevel === 2
+                      ? "min(80vw, 1100px)"
+                      : zoomLevel === 3
+                        ? "min(88vw, 1250px)"
+                        : zoomLevel === 4
+                          ? "min(94vw, 1400px)"
+                          : "min(98vw, 1600px)",
               height:
                 zoomLevel === 0
                   ? "min(72vh, 820px)"
                   : zoomLevel === 1
-                    ? "calc(100vh - 48px)"
-                    : "calc(100vh - 24px)",
+                    ? "calc(100vh - 72px)"
+                    : zoomLevel === 2
+                      ? "calc(100vh - 56px)"
+                      : zoomLevel === 3
+                        ? "calc(100vh - 40px)"
+                        : zoomLevel === 4
+                          ? "calc(100vh - 28px)"
+                          : "calc(100vh - 16px)",
             }}
           >
             {currentImage ? (
