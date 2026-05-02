@@ -169,6 +169,7 @@ export default function SiteClient({
   );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [mobileViewport, setMobileViewport] = useState<MobileViewportKey>("mobile360");
+  const [mobileViewportPickerOpen, setMobileViewportPickerOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
@@ -683,15 +684,18 @@ export default function SiteClient({
             </button>
           </div>
           </div>
-          <div className="grid w-[360px] max-w-[42vw] grid-cols-[1fr_auto_1fr] items-center gap-2 justify-self-center">
-            <div className="col-start-2 flex items-center gap-2">
+          <div className="relative flex items-center justify-self-center">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setPreviewMode("desktop")}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                onClick={() => {
+                  setPreviewMode("desktop");
+                  setMobileViewportPickerOpen(false);
+                }}
+                className={`flex h-10 w-10 items-center justify-center rounded-none border-0 bg-transparent transition ${
                   previewMode === "desktop"
-                    ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
-                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                    ? "text-[color:var(--bp-ink)]"
+                    : "text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
                 }`}
                 aria-label="Десктоп"
                 title="Десктоп"
@@ -700,11 +704,13 @@ export default function SiteClient({
               </button>
               <button
                 type="button"
-                onClick={() => setPreviewMode("mobile")}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                onClick={() => {
+                  setMobileViewportPickerOpen((open) => !open);
+                }}
+                className={`flex h-10 w-10 items-center justify-center rounded-none border-0 bg-transparent transition ${
                   previewMode === "mobile"
-                    ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
-                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                    ? "text-[color:var(--bp-ink)]"
+                    : "text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
                 }`}
                 aria-label="Мобильный"
                 title="Мобильный"
@@ -712,21 +718,37 @@ export default function SiteClient({
                 <MobilePreviewIcon className="h-5 w-5" />
               </button>
             </div>
-            {previewMode === "mobile" && (
-              <select
-                value={mobileViewport}
-                onChange={(event) =>
-                  setMobileViewport(event.target.value as MobileViewportKey)
-                }
-                className="col-start-3 h-10 justify-self-start rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
-                title="Размер мобильного предпросмотра"
+            {mobileViewportPickerOpen && (
+              <div
+                className="absolute left-1/2 top-[calc(100%+8px)] z-[320] w-[240px] -translate-x-1/2 rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-2 shadow-[var(--bp-shadow)]"
+                role="dialog"
+                aria-label="Выбор размера мобильного предпросмотра"
               >
-                {(Object.keys(MOBILE_VIEWPORTS) as MobileViewportKey[]).map((key) => (
-                  <option key={key} value={key}>
-                    {MOBILE_VIEWPORTS[key].label}
-                  </option>
-                ))}
-              </select>
+                {(Object.keys(MOBILE_VIEWPORTS) as MobileViewportKey[]).map((key) => {
+                  const isSelectedViewport = previewMode === "mobile" && mobileViewport === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setMobileViewport(key);
+                        setPreviewMode("mobile");
+                        setMobileViewportPickerOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm transition ${
+                        isSelectedViewport
+                          ? "bg-[color:var(--bp-surface)] font-semibold text-[color:var(--bp-ink)]"
+                          : "text-[color:var(--bp-muted)] hover:bg-[color:var(--bp-surface)]/70 hover:text-[color:var(--bp-ink)]"
+                      }`}
+                    >
+                      {MOBILE_VIEWPORTS[key].label}
+                      {isSelectedViewport ? (
+                        <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--bp-ink)]" aria-hidden="true" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
           <div className="flex flex-wrap justify-end gap-2 justify-self-end">
