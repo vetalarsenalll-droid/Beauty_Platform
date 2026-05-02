@@ -2175,6 +2175,12 @@ export function buildBlockWrapperStyle(
     const gridEnd = Math.max(gridStart, gridEndRaw);
     const gridWidthCss = gridSpanWidthCss(gridStart, gridEnd);
     const gridLeftCss = gridSpanLeftCss(gridStart);
+    const mobileServicesGrid = centeredGridRange(10);
+    const mobileServicesWidthCss = gridSpanWidthCss(
+      mobileServicesGrid.start,
+      mobileServicesGrid.end
+    );
+    const mobileServicesLeftCss = gridSpanLeftCss(mobileServicesGrid.start);
     const contentWidth = responsiveBlockWidthCss(blockOuterColumns, true);
     const menuWidth =
       blockOuterColumns >= MAX_BLOCK_COLUMNS
@@ -2279,6 +2285,14 @@ export function buildBlockWrapperStyle(
         color: "var(--block-text)",
         ["--works-content-width" as string]: gridWidthCss,
         ["--works-content-left" as string]: gridLeftCss,
+        ["--works-content-width-desktop" as string]: gridWidthCss,
+        ["--works-content-left-desktop" as string]: gridLeftCss,
+        ["--works-content-width-mobile" as string]: isServicesBlock
+          ? mobileServicesWidthCss
+          : undefined,
+        ["--works-content-left-mobile" as string]: isServicesBlock
+          ? mobileServicesLeftCss
+          : undefined,
         ["--bp-ink" as string]: "var(--block-text)",
         ["--bp-muted" as string]: "var(--block-muted)",
         ["--block-heading-size-desktop" as string]: `${

@@ -1597,18 +1597,27 @@ export function BlockPreview({
   const menuBlockBgDark =
     isMenu && !style.blockBgDark.trim() ? style.sectionBgDarkResolved : style.blockBgDarkResolved;
   const isFullscreenGallery = isGallery && block.variant === "v2";
-  const blockWidthColumns = isMenu
+  const useMobileLayout =
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth <= 480;
+  const blockWidthColumnsDesktop = isMenu
     ? MAX_BLOCK_COLUMNS
     : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
+  const blockWidthColumns = isServices && useMobileLayout ? 10 : blockWidthColumnsDesktop;
   const gridFallback = centeredGridRange(
     isMenu || isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns
   );
   const gridStart = isMenu || isBooking
     ? 1
-    : clampGridColumn(style.gridStartColumn ?? gridFallback.start);
+    : isServices && useMobileLayout
+      ? gridFallback.start
+      : clampGridColumn(style.gridStartColumn ?? gridFallback.start);
   const gridEnd = isMenu || isBooking
     ? MAX_BLOCK_COLUMNS
-    : Math.max(gridStart, clampGridColumn(style.gridEndColumn ?? gridFallback.end));
+    : isServices && useMobileLayout
+      ? gridFallback.end
+      : Math.max(gridStart, clampGridColumn(style.gridEndColumn ?? gridFallback.end));
   const gridSpan = Math.max(1, gridEnd - gridStart + 1);
   const gridWidthPercent = `${(gridSpan / MAX_BLOCK_COLUMNS) * 100}%`;
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
@@ -1654,10 +1663,7 @@ export function BlockPreview({
   const desktopHeadingSize = style.headingSize ?? theme.headingSize;
   const desktopSubheadingSize = style.subheadingSize ?? theme.subheadingSize;
   const desktopTextSize = style.textSize ?? theme.textSize;
-  const useMobileTypography =
-    typeof previewViewportWidth === "number" &&
-    Number.isFinite(previewViewportWidth) &&
-    previewViewportWidth <= 480;
+  const useMobileTypography = useMobileLayout;
   const currentHeadingSize =
     useMobileTypography ? style.mobileHeadingSize ?? defaultMobileHeadingSize(desktopHeadingSize) : desktopHeadingSize;
   const currentSubheadingSize =

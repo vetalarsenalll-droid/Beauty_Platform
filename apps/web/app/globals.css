@@ -243,6 +243,8 @@ html {
     --block-heading-size: var(--block-heading-size-mobile, var(--block-heading-size-desktop, var(--site-h1)));
     --block-subheading-size: var(--block-subheading-size-mobile, var(--block-subheading-size-desktop, var(--site-h2)));
     --block-text-size: var(--block-text-size-mobile, var(--block-text-size-desktop, var(--site-text-size)));
+    --works-content-width: var(--works-content-width-mobile, var(--works-content-width));
+    --works-content-left: var(--works-content-left-mobile, var(--works-content-left));
   }
 }
 
