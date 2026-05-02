@@ -819,7 +819,7 @@ export function ServicesCatalog({
   const [sortMode, setSortMode] = useState(defaultSort);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModalState>(null);
-  const pageSize = clamp(maxVisibleItems, 1, 100, 36);
+  const pageSize = clamp(maxVisibleItems, 1, 100, 8);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
 

@@ -5239,7 +5239,7 @@ export function renderServices(
         modalDescriptionTextStyle={modalDescriptionTextStyle}
         modalPriceTextStyle={modalPriceTextStyle}
         modalDurationTextStyle={modalDurationTextStyle}
-        maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 36}
+        maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 8}
         usePagination={usePagination}
         headingStyle={servicesHeadingStyle}
         subheadingStyle={servicesSubheadingStyle}

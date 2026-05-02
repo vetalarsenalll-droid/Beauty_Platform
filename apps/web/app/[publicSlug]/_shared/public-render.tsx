@@ -3500,7 +3500,7 @@ function renderServices(
         modalDescriptionTextStyle={modalDescriptionTextStyle}
         modalPriceTextStyle={modalPriceTextStyle}
         modalDurationTextStyle={modalDurationTextStyle}
-        maxVisibleItems={Number.isFinite(Number(data.maxVisibleItems)) ? Number(data.maxVisibleItems) : 36}
+        maxVisibleItems={Number.isFinite(Number(data.maxVisibleItems)) ? Number(data.maxVisibleItems) : 8}
         usePagination={data.usePagination === true}
         headingStyle={servicesHeadingStyle}
         subheadingStyle={servicesSubheadingStyle}

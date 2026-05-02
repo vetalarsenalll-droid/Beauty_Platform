@@ -518,9 +518,9 @@ export function SiteServicesSettingsDrawer({
         />
         {renderFlatTextInput(
           "Количество видимых услуг до кнопки «Загрузить ещё»",
-          String(data.maxVisibleItems ?? 36),
-          (value) => updateData({ maxVisibleItems: Math.max(1, Math.min(100, Number(value) || 36)) }),
-          "36"
+          String(data.maxVisibleItems ?? 8),
+          (value) => updateData({ maxVisibleItems: Math.max(1, Math.min(100, Number(value) || 8)) }),
+          "8"
         )}
         <FlatCheckbox
           checked={data.usePagination === true}
@@ -825,9 +825,10 @@ export function SiteServicesSettingsDrawer({
       prefix: string,
       colorFallback: string,
       sizeFallback: number,
-      weightFallback = ""
+      weightFallback = "",
+      showTopBorder = true
     ) => (
-      <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+      <div className={`space-y-4 ${showTopBorder ? "border-t border-[color:var(--bp-stroke)] pt-4" : ""}`}>
         <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
         <TildaInlineColorField
           compact
@@ -923,7 +924,7 @@ export function SiteServicesSettingsDrawer({
           Number(data.modalImageRadius ?? 8),
           (value) => updateData({ modalImageRadius: value })
         )}
-        {renderModalTypographyControl("Категория", "modalCategory", "#6B7280", 14)}
+        {renderModalTypographyControl("Категория", "modalCategory", "#6B7280", 14, "", false)}
         {renderModalTypographyControl("Заголовок", "modalTitle", "#111827", 48, "600")}
         {renderModalTypographyControl("Описание", "modalDescription", "#6B7280", 17)}
         {renderModalTypographyControl("Стоимость", "modalPrice", "#111827", 20, "600")}
