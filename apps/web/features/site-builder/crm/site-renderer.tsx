@@ -4870,6 +4870,10 @@ export function renderServices(
   const isDarkMode = theme.mode === "dark";
   const readDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const readOptionalDataColor = (key: string) => {
+    const value = readDataColor(key);
+    return value && value !== "transparent" ? value : "";
+  };
   const detailsButtonColor = isDarkMode
     ? readDataColor("detailsButtonColorDark") || readDataColor("detailsButtonColor") || "transparent"
     : readDataColor("detailsButtonColor") || "transparent";
@@ -4967,6 +4971,18 @@ export function renderServices(
     typeof data.defaultSort === "string" && data.defaultSort.trim()
       ? data.defaultSort.trim()
       : "default";
+  const categoryTextColor = isDarkMode
+    ? readOptionalDataColor("categoryTextColorDark") || readOptionalDataColor("categoryTextColor")
+    : readOptionalDataColor("categoryTextColor");
+  const categoryActiveColor = isDarkMode
+    ? readOptionalDataColor("categoryActiveColorDark") || readOptionalDataColor("categoryActiveColor")
+    : readOptionalDataColor("categoryActiveColor");
+  const sortTextColor = isDarkMode
+    ? readOptionalDataColor("sortTextColorDark") || readOptionalDataColor("sortTextColor")
+    : readOptionalDataColor("sortTextColor");
+  const sortActiveColor = isDarkMode
+    ? readOptionalDataColor("sortActiveColorDark") || readOptionalDataColor("sortActiveColor")
+    : readOptionalDataColor("sortActiveColor");
   const showDescription = data.showDescription !== false;
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
@@ -5014,6 +5030,10 @@ export function renderServices(
         searchPlaceholder={searchPlaceholder}
         showSort={showSort}
         defaultSort={defaultSort}
+        categoryTextColor={categoryTextColor}
+        categoryActiveColor={categoryActiveColor}
+        sortTextColor={sortTextColor}
+        sortActiveColor={sortActiveColor}
         showDescription={showDescription}
         showPrice={showPrice}
         showDuration={showDuration}

@@ -21,6 +21,10 @@ type ServiceCatalogProps = {
   searchPlaceholder: string;
   showSort: boolean;
   defaultSort: string;
+  categoryTextColor?: string;
+  categoryActiveColor?: string;
+  sortTextColor?: string;
+  sortActiveColor?: string;
   showDescription: boolean;
   showPrice: boolean;
   showDuration: boolean;
@@ -609,6 +613,10 @@ export function ServicesCatalog({
   searchPlaceholder,
   showSort,
   defaultSort,
+  categoryTextColor,
+  categoryActiveColor,
+  sortTextColor,
+  sortActiveColor,
   showDescription,
   showPrice,
   showDuration,
@@ -696,6 +704,10 @@ export function ServicesCatalog({
 
   const activeSortOption =
     SORT_OPTIONS.find((option) => option.value === sortMode) ?? SORT_OPTIONS[0]!;
+  const resolvedCategoryTextColor = categoryTextColor || "var(--block-text,var(--bp-ink))";
+  const resolvedCategoryActiveColor = categoryActiveColor || "var(--block-text,var(--bp-ink))";
+  const resolvedSortTextColor = sortTextColor || "var(--block-text,var(--bp-ink))";
+  const resolvedSortActiveColor = sortActiveColor || resolvedCategoryActiveColor;
 
   useEffect(() => {
     if (activeCategory === "__all__") return;
@@ -822,7 +834,7 @@ export function ServicesCatalog({
                     border: "1px solid rgba(15,16,18,0.12)",
                     borderRadius: 12,
                     backgroundColor: "rgba(255,255,255,0.78)",
-                    color: "var(--block-text,var(--bp-ink))",
+                    color: resolvedSortTextColor,
                     padding: "0 12px 0 14px",
                     boxShadow: "0 1px 2px rgba(15,16,18,0.04)",
                   }}
@@ -842,7 +854,7 @@ export function ServicesCatalog({
                       border: "1px solid rgba(15,16,18,0.12)",
                       borderRadius: 12,
                       backgroundColor: "rgba(255,255,255,0.98)",
-                      color: "var(--block-text,var(--bp-ink))",
+                      color: resolvedSortTextColor,
                     }}
                     role="listbox"
                   >
@@ -861,11 +873,11 @@ export function ServicesCatalog({
                           className="block w-full px-3.5 py-2.5 text-left transition hover:bg-black/[0.04]"
                           style={{
                             backgroundColor: isSelected
-                              ? "var(--block-text,var(--bp-ink))"
+                              ? resolvedSortActiveColor
                               : "transparent",
                             color: isSelected
                               ? "var(--block-button-text,var(--bp-paper))"
-                              : "var(--block-text,var(--bp-ink))",
+                              : resolvedSortTextColor,
                           }}
                         >
                           {option.label}
@@ -889,14 +901,14 @@ export function ServicesCatalog({
             style={{
               borderColor:
                 activeCategory === "__all__"
-                  ? "var(--block-text,var(--bp-ink))"
+                  ? resolvedCategoryActiveColor
                   : "var(--block-border,transparent)",
               backgroundColor:
-                activeCategory === "__all__" ? "var(--block-text,var(--bp-ink))" : "transparent",
+                activeCategory === "__all__" ? resolvedCategoryActiveColor : "transparent",
               color:
                 activeCategory === "__all__"
                   ? "var(--block-button-text,var(--bp-paper))"
-                  : "var(--block-text,var(--bp-ink))",
+                  : resolvedCategoryTextColor,
             }}
           >
             {categoryAllLabel || "Все услуги"}
@@ -911,12 +923,12 @@ export function ServicesCatalog({
                 className="rounded-[12px] border px-4 py-2 text-sm transition"
                 style={{
                   borderColor: isActive
-                    ? "var(--block-text,var(--bp-ink))"
+                    ? resolvedCategoryActiveColor
                     : "var(--block-border,transparent)",
-                  backgroundColor: isActive ? "var(--block-text,var(--bp-ink))" : "transparent",
+                  backgroundColor: isActive ? resolvedCategoryActiveColor : "transparent",
                   color: isActive
                     ? "var(--block-button-text,var(--bp-paper))"
-                    : "var(--block-text,var(--bp-ink))",
+                    : resolvedCategoryTextColor,
                 }}
               >
                 {category}
