@@ -3026,7 +3026,6 @@ function renderServices(
     typeof data.detailsButtonBorderColor === "string" && data.detailsButtonBorderColor.trim()
       ? data.detailsButtonBorderColor.trim()
       : "";
-  const isDarkMode = theme.mode === "dark";
   const readDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
   const readOptionalDataColor = (key: string) => {
@@ -3118,18 +3117,14 @@ function renderServices(
     typeof data.defaultSort === "string" && data.defaultSort.trim()
       ? data.defaultSort.trim()
       : "default";
-  const categoryTextColor = isDarkMode
-    ? readOptionalDataColor("categoryTextColorDark") || readOptionalDataColor("categoryTextColor")
-    : readOptionalDataColor("categoryTextColor");
-  const categoryActiveColor = isDarkMode
-    ? readOptionalDataColor("categoryActiveColorDark") || readOptionalDataColor("categoryActiveColor")
-    : readOptionalDataColor("categoryActiveColor");
-  const sortTextColor = isDarkMode
-    ? readOptionalDataColor("sortTextColorDark") || readOptionalDataColor("sortTextColor")
-    : readOptionalDataColor("sortTextColor");
-  const sortActiveColor = isDarkMode
-    ? readOptionalDataColor("sortActiveColorDark") || readOptionalDataColor("sortActiveColor")
-    : readOptionalDataColor("sortActiveColor");
+  const categoryTextColor = readOptionalDataColor("categoryTextColor");
+  const categoryActiveColor = readOptionalDataColor("categoryActiveColor");
+  const sortTextColor = readOptionalDataColor("sortTextColor");
+  const sortActiveColor = readOptionalDataColor("sortActiveColor");
+  const categoryTextColorDark = readOptionalDataColor("categoryTextColorDark");
+  const categoryActiveColorDark = readOptionalDataColor("categoryActiveColorDark");
+  const sortTextColorDark = readOptionalDataColor("sortTextColorDark");
+  const sortActiveColorDark = readOptionalDataColor("sortActiveColorDark");
   const showDescription = data.showDescription !== false;
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
@@ -3181,6 +3176,11 @@ function renderServices(
         categoryActiveColor={categoryActiveColor}
         sortTextColor={sortTextColor}
         sortActiveColor={sortActiveColor}
+        categoryTextColorDark={categoryTextColorDark}
+        categoryActiveColorDark={categoryActiveColorDark}
+        sortTextColorDark={sortTextColorDark}
+        sortActiveColorDark={sortActiveColorDark}
+        themeMode={theme.mode === "dark" ? "dark" : "light"}
         showDescription={showDescription}
         showPrice={showPrice}
         showDuration={showDuration}

@@ -25,6 +25,11 @@ type ServiceCatalogProps = {
   categoryActiveColor?: string;
   sortTextColor?: string;
   sortActiveColor?: string;
+  categoryTextColorDark?: string;
+  categoryActiveColorDark?: string;
+  sortTextColorDark?: string;
+  sortActiveColorDark?: string;
+  themeMode: "light" | "dark";
   showDescription: boolean;
   showPrice: boolean;
   showDuration: boolean;
@@ -139,6 +144,23 @@ function rgbaFromHex(hex: string, opacity: number) {
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${clamp(opacity, 0, 1, 1)})`;
+}
+
+function readableTextColor(backgroundColor: string, light = "#f8fafc", dark = "#111827") {
+  const normalized = backgroundColor.trim().replace("#", "");
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return light;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.58 ? dark : light;
 }
 
 function uniqueImageUrls(service: ServiceItem) {
@@ -617,6 +639,11 @@ export function ServicesCatalog({
   categoryActiveColor,
   sortTextColor,
   sortActiveColor,
+  categoryTextColorDark,
+  categoryActiveColorDark,
+  sortTextColorDark,
+  sortActiveColorDark,
+  themeMode,
   showDescription,
   showPrice,
   showDuration,
@@ -669,8 +696,12 @@ export function ServicesCatalog({
   buttonStyle,
   textAlign = "left",
 }: ServiceCatalogProps) {
+  const catalogRef = useRef<HTMLDivElement | null>(null);
   const isEditorial = variant === "v1";
   const isListView = listView === "list";
+  const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">(
+    themeMode === "dark" ? "dark" : "light"
+  );
   const scopedItems = currentLocationId
     ? items.filter((item) => item.locationIds.includes(currentLocationId))
     : locationId
@@ -704,10 +735,66 @@ export function ServicesCatalog({
 
   const activeSortOption =
     SORT_OPTIONS.find((option) => option.value === sortMode) ?? SORT_OPTIONS[0]!;
-  const resolvedCategoryTextColor = categoryTextColor || "var(--block-text,var(--bp-ink))";
-  const resolvedCategoryActiveColor = categoryActiveColor || "var(--block-text,var(--bp-ink))";
-  const resolvedSortTextColor = sortTextColor || "var(--block-text,var(--bp-ink))";
-  const resolvedSortActiveColor = sortActiveColor || resolvedCategoryActiveColor;
+  const pickThemeColor = (light?: string, dark?: string, fallback = "var(--block-text,var(--bp-ink))") =>
+    activeThemeMode === "dark" ? dark || light || fallback : light || dark || fallback;
+  const resolvedCategoryTextColor = pickThemeColor(categoryTextColor, categoryTextColorDark);
+  const resolvedCategoryActiveColor = pickThemeColor(categoryActiveColor, categoryActiveColorDark);
+  const resolvedSortTextColor = pickThemeColor(sortTextColor, sortTextColorDark);
+  const resolvedSortActiveColor = pickThemeColor(
+    sortActiveColor,
+    sortActiveColorDark,
+    resolvedCategoryActiveColor
+  );
+  const isDarkTheme = activeThemeMode === "dark";
+  const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
+  const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
+  const dropdownBackgroundColor = isDarkTheme ? "rgba(18,22,28,0.98)" : "rgba(255,255,255,0.98)";
+  const optionHoverColor = isDarkTheme ? "rgba(242,243,245,0.08)" : "rgba(15,16,18,0.04)";
+  const controlShadow = isDarkTheme
+    ? "0 1px 2px rgba(0,0,0,0.24)"
+    : "0 1px 2px rgba(15,16,18,0.04)";
+  const dropdownShadow = isDarkTheme
+    ? "0 14px 34px rgba(0,0,0,0.34)"
+    : "0 14px 34px rgba(15,16,18,0.14)";
+  const selectedSortTextColor = readableTextColor(resolvedSortActiveColor);
+
+  useEffect(() => {
+    setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
+  }, [themeMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const resolveModeFromDom = () => {
+      const scopedRoot =
+        catalogRef.current?.closest("[data-site-theme]") ??
+        document.getElementById("public-site-root") ??
+        document.documentElement;
+      const mode = scopedRoot.getAttribute("data-site-theme");
+      if (mode === "light" || mode === "dark") {
+        setActiveThemeMode(mode);
+      }
+    };
+    resolveModeFromDom();
+    const onThemeChange = (event: Event) => {
+      const mode = (event as CustomEvent<{ mode?: string }>).detail?.mode;
+      if (mode === "light" || mode === "dark") {
+        setActiveThemeMode(mode);
+        return;
+      }
+      resolveModeFromDom();
+    };
+    window.addEventListener("site-theme-change", onThemeChange as EventListener);
+    const observedRoot =
+      catalogRef.current?.closest("[data-site-theme]") ??
+      document.getElementById("public-site-root") ??
+      document.documentElement;
+    const observer = new MutationObserver(resolveModeFromDom);
+    observer.observe(observedRoot, { attributes: true, attributeFilter: ["data-site-theme"] });
+    return () => {
+      window.removeEventListener("site-theme-change", onThemeChange as EventListener);
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (activeCategory === "__all__") return;
@@ -772,7 +859,7 @@ export function ServicesCatalog({
       : null;
 
   return (
-    <div>
+    <div ref={catalogRef}>
       <div
         className={`flex flex-col gap-6 ${variant === "v2" ? "xl:flex-row xl:items-end xl:justify-between" : ""}`}
       >
@@ -807,10 +894,10 @@ export function ServicesCatalog({
                   className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
                   style={{
                     appearance: "none",
-                    border: "1px solid rgba(15,16,18,0.12)",
+                    border: `1px solid ${controlBorderColor}`,
                     borderRadius: 12,
-                    backgroundColor: "rgba(255,255,255,0.78)",
-                    boxShadow: "0 1px 2px rgba(15,16,18,0.04)",
+                    backgroundColor: controlBackgroundColor,
+                    boxShadow: controlShadow,
                   }}
                 />
               </label>
@@ -831,12 +918,12 @@ export function ServicesCatalog({
                   onClick={() => setIsSortOpen((open) => !open)}
                   className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
                   style={{
-                    border: "1px solid rgba(15,16,18,0.12)",
+                    border: `1px solid ${controlBorderColor}`,
                     borderRadius: 12,
-                    backgroundColor: "rgba(255,255,255,0.78)",
+                    backgroundColor: controlBackgroundColor,
                     color: resolvedSortTextColor,
                     padding: "0 12px 0 14px",
-                    boxShadow: "0 1px 2px rgba(15,16,18,0.04)",
+                    boxShadow: controlShadow,
                   }}
                   aria-haspopup="listbox"
                   aria-expanded={isSortOpen}
@@ -849,12 +936,13 @@ export function ServicesCatalog({
 
                 {isSortOpen ? (
                   <div
-                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm shadow-[0_14px_34px_rgba(15,16,18,0.14)]"
+                    className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
                     style={{
-                      border: "1px solid rgba(15,16,18,0.12)",
+                      border: `1px solid ${controlBorderColor}`,
                       borderRadius: 12,
-                      backgroundColor: "rgba(255,255,255,0.98)",
+                      backgroundColor: dropdownBackgroundColor,
                       color: resolvedSortTextColor,
+                      boxShadow: dropdownShadow,
                     }}
                     role="listbox"
                   >
@@ -870,13 +958,19 @@ export function ServicesCatalog({
                             setSortMode(option.value);
                             setIsSortOpen(false);
                           }}
-                          className="block w-full px-3.5 py-2.5 text-left transition hover:bg-black/[0.04]"
+                          className="block w-full px-3.5 py-2.5 text-left transition"
+                          onMouseEnter={(event) => {
+                            if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
+                          }}
+                          onMouseLeave={(event) => {
+                            if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
+                          }}
                           style={{
                             backgroundColor: isSelected
                               ? resolvedSortActiveColor
                               : "transparent",
                             color: isSelected
-                              ? "var(--block-button-text,var(--bp-paper))"
+                              ? selectedSortTextColor
                               : resolvedSortTextColor,
                           }}
                         >

@@ -518,7 +518,7 @@ export function SiteServicesSettingsDrawer({
           (value) => updateData({ searchPlaceholder: value || "Поиск услуги" }),
           "Поиск услуги"
         )}
-        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+        <div className="space-y-4">
           <TildaInlineColorField
             compact
             label="Цвет текста категорий"
