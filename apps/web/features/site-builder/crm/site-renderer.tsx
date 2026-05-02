@@ -5038,6 +5038,45 @@ export function renderServices(
   const modalInfiniteGallery = data.modalInfiniteGallery !== false;
   const modalImageZoomOnClick = data.modalImageZoomOnClick === true;
   const modalImageZoomOnHover = data.modalImageZoomOnHover === true;
+  const readDataNumberValue = (key: string, fallback: number, min = 8, max = 96) => {
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : fallback;
+  };
+  const readDataFont = (key: string, fallback = "Manrope") =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : fallback;
+  const readDataWeight = (key: string, fallback?: number) => {
+    if (data[key] === "" || data[key] === null || data[key] === undefined) return fallback;
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? Math.max(100, Math.min(900, Math.round(value))) : fallback;
+  };
+  const modalTextColor = (key: string, lightFallback: string, darkFallback: string) => {
+    const sharedColor = readOptionalDataColor(key);
+    return {
+      light: readOptionalDataColor(`${key}Light`) || sharedColor || lightFallback,
+      dark: readOptionalDataColor(`${key}Dark`) || sharedColor || darkFallback,
+    };
+  };
+  const modalTextStyle = (
+    key: string,
+    lightFallback: string,
+    darkFallback: string,
+    sizeFallback: number,
+    weightFallback?: number
+  ): CSSProperties => {
+    const color = modalTextColor(`${key}Color`, lightFallback, darkFallback);
+    return {
+      color: color.light,
+      ["--modal-dark-color" as string]: color.dark,
+      fontSize: `${readDataNumberValue(`${key}Size`, sizeFallback)}px`,
+      fontFamily: readDataFont(`${key}Font`, "Manrope"),
+      fontWeight: readDataWeight(`${key}Weight`, weightFallback),
+    };
+  };
+  const modalCategoryTextStyle = modalTextStyle("modalCategory", "#6B7280", "#A7B0C0", 14);
+  const modalTitleTextStyle = modalTextStyle("modalTitle", "#111827", "#F8FAFC", 48, 600);
+  const modalDescriptionTextStyle = modalTextStyle("modalDescription", "#6B7280", "#CBD5E1", 17);
+  const modalPriceTextStyle = modalTextStyle("modalPrice", "#111827", "#F8FAFC", 20, 600);
+  const modalDurationTextStyle = modalTextStyle("modalDuration", "#6B7280", "#CBD5E1", 20);
   const listView = data.listView === "list" ? "list" : "tile";
   const maxVisibleItems = Number(data.maxVisibleItems);
   const usePagination = data.usePagination === true;
@@ -5195,6 +5234,11 @@ export function renderServices(
         modalInfiniteGallery={modalInfiniteGallery}
         modalImageZoomOnClick={modalImageZoomOnClick}
         modalImageZoomOnHover={modalImageZoomOnHover}
+        modalCategoryTextStyle={modalCategoryTextStyle}
+        modalTitleTextStyle={modalTitleTextStyle}
+        modalDescriptionTextStyle={modalDescriptionTextStyle}
+        modalPriceTextStyle={modalPriceTextStyle}
+        modalDurationTextStyle={modalDurationTextStyle}
         maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 36}
         usePagination={usePagination}
         headingStyle={servicesHeadingStyle}

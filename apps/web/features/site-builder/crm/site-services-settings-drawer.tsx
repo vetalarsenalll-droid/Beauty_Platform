@@ -804,6 +804,70 @@ export function SiteServicesSettingsDrawer({
       serviceModalMediaColumns + serviceModalInfoColumnsRaw === 12
         ? serviceModalInfoColumnsRaw
         : 12 - serviceModalMediaColumns;
+    const modalFontOptions = [
+      { value: "Manrope", label: "Manrope" },
+      { value: "Inter", label: "Inter" },
+      { value: "Arial", label: "Arial" },
+      { value: "Georgia", label: "Georgia" },
+      { value: "Times New Roman", label: "Times New Roman" },
+    ];
+    const modalWeightOptions = [
+      { value: "", label: "По умолчанию" },
+      { value: "300", label: "300" },
+      { value: "400", label: "400" },
+      { value: "500", label: "500" },
+      { value: "600", label: "600" },
+      { value: "700", label: "700" },
+      { value: "800", label: "800" },
+    ];
+    const renderModalTypographyControl = (
+      title: string,
+      prefix: string,
+      colorFallback: string,
+      sizeFallback: number,
+      weightFallback = ""
+    ) => (
+      <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+        <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
+        <TildaInlineColorField
+          compact
+          label="Цвет"
+          value={readDataColor(`${prefix}ColorLight`, colorFallback)}
+          placeholder={colorFallback}
+          onChange={(value) => updateData({ [`${prefix}ColorLight`]: value })}
+          onClear={() => updateData({ [`${prefix}ColorLight`]: "transparent" })}
+        />
+        {renderFlatNumberPxInput(
+          "Размер шрифта",
+          Number(data[`${prefix}Size`] ?? sizeFallback),
+          (value) => updateData({ [`${prefix}Size`]: value }),
+          8,
+          96
+        )}
+        {renderFlatSelect(
+          "Шрифт",
+          String(data[`${prefix}Font`] ?? "Manrope"),
+          (value) => updateData({ [`${prefix}Font`]: value }),
+          modalFontOptions
+        )}
+        {renderFlatSelect(
+          "Насыщенность",
+          String(data[`${prefix}Weight`] ?? weightFallback),
+          (value) => updateData({ [`${prefix}Weight`]: value ? Number(value) : "" }),
+          modalWeightOptions
+        )}
+      </div>
+    );
+    const renderModalDarkColorControl = (label: string, prefix: string, fallback: string) => (
+      <TildaInlineColorField
+        compact
+        label={label}
+        value={readDataColor(`${prefix}ColorDark`, fallback)}
+        placeholder={fallback}
+        onChange={(value) => updateData({ [`${prefix}ColorDark`]: value })}
+        onClear={() => updateData({ [`${prefix}ColorDark`]: "transparent" })}
+      />
+    );
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
@@ -859,6 +923,11 @@ export function SiteServicesSettingsDrawer({
           Number(data.modalImageRadius ?? 8),
           (value) => updateData({ modalImageRadius: value })
         )}
+        {renderModalTypographyControl("Категория", "modalCategory", "#6B7280", 14)}
+        {renderModalTypographyControl("Заголовок", "modalTitle", "#111827", 48, "600")}
+        {renderModalTypographyControl("Описание", "modalDescription", "#6B7280", 17)}
+        {renderModalTypographyControl("Стоимость", "modalPrice", "#111827", 20, "600")}
+        {renderModalTypographyControl("Длительность", "modalDuration", "#6B7280", 20)}
         <FlatCheckbox
           checked={data.modalImageZoomOnClick === true}
           onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}
@@ -884,27 +953,34 @@ export function SiteServicesSettingsDrawer({
             <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
           </button>
           {showDarkThemeAdvanced ? (
-            <TildaBackgroundColorField
-              label="Цвет фона карточки услуги"
-              value={modalDarkFrom}
-              mode={modalDarkMode}
-              secondValue={modalDarkTo}
-              angle={modalDarkAngle}
-              radialStopA={modalDarkStopA}
-              radialStopB={modalDarkStopB}
-              placeholder="#16181d"
-              onModeChange={(value) => updateData({ serviceModalBackgroundModeDark: value })}
-              onSecondChange={(value) => updateData({ serviceModalBackgroundToDark: value })}
-              onAngleChange={(value) => updateData({ serviceModalBackgroundAngleDark: value })}
-              onRadialStopAChange={(value) => updateData({ serviceModalBackgroundStopADark: value })}
-              onRadialStopBChange={(value) => updateData({ serviceModalBackgroundStopBDark: value })}
-              onChange={(value) =>
-                updateData({
-                  serviceModalBgColorDark: value,
-                  serviceModalBackgroundFromDark: value,
-                })
-              }
-            />
+            <div className="space-y-4">
+              <TildaBackgroundColorField
+                label="Цвет фона карточки услуги"
+                value={modalDarkFrom}
+                mode={modalDarkMode}
+                secondValue={modalDarkTo}
+                angle={modalDarkAngle}
+                radialStopA={modalDarkStopA}
+                radialStopB={modalDarkStopB}
+                placeholder="#16181d"
+                onModeChange={(value) => updateData({ serviceModalBackgroundModeDark: value })}
+                onSecondChange={(value) => updateData({ serviceModalBackgroundToDark: value })}
+                onAngleChange={(value) => updateData({ serviceModalBackgroundAngleDark: value })}
+                onRadialStopAChange={(value) => updateData({ serviceModalBackgroundStopADark: value })}
+                onRadialStopBChange={(value) => updateData({ serviceModalBackgroundStopBDark: value })}
+                onChange={(value) =>
+                  updateData({
+                    serviceModalBgColorDark: value,
+                    serviceModalBackgroundFromDark: value,
+                  })
+                }
+              />
+              {renderModalDarkColorControl("Категория", "modalCategory", "#A7B0C0")}
+              {renderModalDarkColorControl("Заголовок", "modalTitle", "#F8FAFC")}
+              {renderModalDarkColorControl("Описание", "modalDescription", "#CBD5E1")}
+              {renderModalDarkColorControl("Стоимость", "modalPrice", "#F8FAFC")}
+              {renderModalDarkColorControl("Длительность", "modalDuration", "#CBD5E1")}
+            </div>
           ) : null}
         </div>
       </div>

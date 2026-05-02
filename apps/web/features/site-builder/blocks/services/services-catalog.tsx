@@ -87,6 +87,11 @@ type ServiceCatalogProps = {
   modalInfiniteGallery: boolean;
   modalImageZoomOnClick: boolean;
   modalImageZoomOnHover: boolean;
+  modalCategoryTextStyle: CSSProperties;
+  modalTitleTextStyle: CSSProperties;
+  modalDescriptionTextStyle: CSSProperties;
+  modalPriceTextStyle: CSSProperties;
+  modalDurationTextStyle: CSSProperties;
   maxVisibleItems: number;
   usePagination: boolean;
   headingStyle: CSSProperties;
@@ -191,6 +196,10 @@ function uniqueImageUrls(service: ServiceItem) {
   return Array.from(new Set([...(service.photoUrls ?? []), service.coverUrl ?? ""].filter(Boolean)));
 }
 
+type ModalTextStyle = CSSProperties & {
+  "--modal-dark-color"?: string;
+};
+
 function ServiceModal({
   service,
   imageIndex,
@@ -226,6 +235,11 @@ function ServiceModal({
   infiniteGallery,
   imageZoomOnClick,
   imageZoomOnHover,
+  categoryTextStyle,
+  titleTextStyle,
+  descriptionTextStyle,
+  priceTextStyle,
+  durationTextStyle,
 }: {
   service: ServiceItem;
   imageIndex: number;
@@ -261,6 +275,11 @@ function ServiceModal({
   infiniteGallery: boolean;
   imageZoomOnClick: boolean;
   imageZoomOnHover: boolean;
+  categoryTextStyle: CSSProperties;
+  titleTextStyle: CSSProperties;
+  descriptionTextStyle: CSSProperties;
+  priceTextStyle: CSSProperties;
+  durationTextStyle: CSSProperties;
 }) {
   const images = useMemo(() => uniqueImageUrls(service), [service]);
   const [activeImageIndex, setActiveImageIndex] = useState(
@@ -376,6 +395,11 @@ function ServiceModal({
   const modalColumnsTotal = Math.max(2, clampedMediaColumns + clampedInfoColumns);
   const mediaWidthPercent = (clampedMediaColumns / modalColumnsTotal) * 100;
   const infoWidthPercent = (clampedInfoColumns / modalColumnsTotal) * 100;
+  const modalChromeColor =
+    typeof titleTextStyle.color === "string" && titleTextStyle.color.trim()
+      ? titleTextStyle.color
+      : "var(--block-text,var(--bp-ink))";
+  const modalChromeButtonStyle: CSSProperties = { color: modalChromeColor };
 
   return (
     <div
@@ -401,7 +425,8 @@ function ServiceModal({
             }
             onClose();
           }}
-          className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none text-black/80 hover:text-black"
+          className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none opacity-80 transition hover:opacity-100"
+          style={modalChromeButtonStyle}
           aria-label="Закрыть"
         >
           ×
@@ -416,7 +441,8 @@ function ServiceModal({
                 setPan({ x: 0, y: 0 });
                 setZoomLevel((current) => (current <= 1 ? 1 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5)));
               }}
-              className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
+              className="inline-flex items-center justify-center text-4xl leading-none opacity-80 transition hover:opacity-100 disabled:opacity-30"
+              style={modalChromeButtonStyle}
               aria-label="Уменьшить"
               disabled={zoomLevel <= 1}
             >
@@ -429,7 +455,8 @@ function ServiceModal({
                 setPan({ x: 0, y: 0 });
                 setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5)));
               }}
-              className="inline-flex items-center justify-center text-4xl leading-none text-black/80 disabled:opacity-30"
+              className="inline-flex items-center justify-center text-4xl leading-none opacity-80 transition hover:opacity-100 disabled:opacity-30"
+              style={modalChromeButtonStyle}
               aria-label="Увеличить"
               disabled={zoomLevel === 5}
             >
@@ -600,17 +627,17 @@ function ServiceModal({
           className="flex w-full flex-col py-2"
           style={{ flex: `0 0 ${infoWidthPercent}%`, maxWidth: `${infoWidthPercent}%` }}
         >
-          <div className="text-sm uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">
+          <div className="uppercase tracking-[0.18em]" style={categoryTextStyle}>
             {service.categoryName || "Услуга"}
           </div>
-          <h3 className="mt-3 text-5xl font-semibold leading-tight text-[color:var(--bp-ink)]">{service.name}</h3>
+          <h3 className="mt-3 leading-tight" style={titleTextStyle}>{service.name}</h3>
 
-          <div className="mt-6 flex flex-wrap items-center gap-4 text-xl">
-            <span className="font-semibold text-[color:var(--bp-ink)]">{formatPrice(service.basePrice)}</span>
-            {showMeta ? (
-              <span className="text-[color:var(--bp-muted)]">{service.baseDurationMin} мин</span>
-            ) : null}
-          </div>
+          {showMeta ? (
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <span style={priceTextStyle}>{formatPrice(service.basePrice)}</span>
+              <span style={durationTextStyle}>{service.baseDurationMin} мин</span>
+            </div>
+          ) : null}
 
           {bookingHref ? (
             <a href={bookingHref} className="mt-8 inline-flex w-fit items-center justify-center px-6 py-3 text-base" style={buttonStyle}>
@@ -619,7 +646,7 @@ function ServiceModal({
           ) : null}
 
           {showDescription && service.description ? (
-            <p className="mt-10 text-[17px] leading-8 text-[color:var(--bp-muted)]">{service.description}</p>
+            <p className="mt-10 leading-8" style={descriptionTextStyle}>{service.description}</p>
           ) : null}
 
           {showThumbnails ? (
@@ -757,6 +784,11 @@ export function ServicesCatalog({
   modalInfiniteGallery,
   modalImageZoomOnClick,
   modalImageZoomOnHover,
+  modalCategoryTextStyle,
+  modalTitleTextStyle,
+  modalDescriptionTextStyle,
+  modalPriceTextStyle,
+  modalDurationTextStyle,
   maxVisibleItems,
   usePagination,
   headingStyle,
@@ -833,6 +865,20 @@ export function ServicesCatalog({
     activeThemeMode === "dark"
       ? serviceModalBgImageDark || serviceModalBgImage || "none"
       : serviceModalBgImage || "none";
+  const resolveModalTextStyle = (style: CSSProperties): CSSProperties => {
+    const nextStyle = { ...(style as ModalTextStyle) };
+    const darkColor = nextStyle["--modal-dark-color"];
+    delete nextStyle["--modal-dark-color"];
+    if (activeThemeMode === "dark" && typeof darkColor === "string" && darkColor.trim()) {
+      nextStyle.color = darkColor;
+    }
+    return nextStyle;
+  };
+  const resolvedModalCategoryTextStyle = resolveModalTextStyle(modalCategoryTextStyle);
+  const resolvedModalTitleTextStyle = resolveModalTextStyle(modalTitleTextStyle);
+  const resolvedModalDescriptionTextStyle = resolveModalTextStyle(modalDescriptionTextStyle);
+  const resolvedModalPriceTextStyle = resolveModalTextStyle(modalPriceTextStyle);
+  const resolvedModalDurationTextStyle = resolveModalTextStyle(modalDurationTextStyle);
   const isDarkTheme = activeThemeMode === "dark";
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
@@ -1508,6 +1554,11 @@ export function ServicesCatalog({
           infiniteGallery={modalInfiniteGallery}
           imageZoomOnClick={modalImageZoomOnClick}
           imageZoomOnHover={modalImageZoomOnHover}
+          categoryTextStyle={resolvedModalCategoryTextStyle}
+          titleTextStyle={resolvedModalTitleTextStyle}
+          descriptionTextStyle={resolvedModalDescriptionTextStyle}
+          priceTextStyle={resolvedModalPriceTextStyle}
+          durationTextStyle={resolvedModalDurationTextStyle}
         />
       ) : null}
     </div>
