@@ -660,7 +660,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
   },
   services: {
     title: "Услуги",
-    subtitle: "Популярные услуги",
+    subtitle: "Выберите подходящую услугу",
     mode: "all",
     ids: [],
     cardsPerRow: 4,
@@ -671,6 +671,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     searchPlaceholder: "Поиск услуги",
     showSort: true,
     defaultSort: "default",
+    searchSortAlignment: "right",
+    filtersAlignment: "left",
     categoryTextColor: "#111827",
     categoryActiveColor: "#111827",
     categoryTextColorDark: "#f2f3f5",

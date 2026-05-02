@@ -69,6 +69,49 @@ function renderSectionButton(
   );
 }
 
+const TEXT_ALIGNMENT_OPTIONS = [
+  { value: "left", label: "По левому краю" },
+  { value: "center", label: "По центру" },
+  { value: "right", label: "По правому краю" },
+];
+
+function renderTextAlignmentSelect(
+  label: string,
+  value: BlockStyle["textAlign"],
+  onChange: (value: BlockStyle["textAlign"]) => void
+) {
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value as BlockStyle["textAlign"])}
+          className="w-full appearance-none rounded-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
+        >
+          {TEXT_ALIGNMENT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+          {"\u25BE"}
+        </span>
+      </div>
+    </label>
+  );
+}
+
 export function SiteServicesSettingsPrimary({
   block,
   activeTheme,
@@ -188,6 +231,18 @@ export function SiteServicesSettingsPrimary({
                 <span>px</span>
               </div>
             </div>
+          )}
+        </div>
+        <div className="mt-6 grid grid-cols-1 gap-4">
+          {renderTextAlignmentSelect(
+            "Выравнивание заголовка",
+            style.textAlignHeading ?? style.textAlign ?? "left",
+            (value) => updateStyle({ textAlignHeading: value })
+          )}
+          {renderTextAlignmentSelect(
+            "Выравнивание описания",
+            style.textAlignSubheading ?? style.textAlign ?? "left",
+            (value) => updateStyle({ textAlignSubheading: value })
           )}
         </div>
       </div>

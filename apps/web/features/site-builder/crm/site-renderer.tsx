@@ -4968,6 +4968,16 @@ export function renderServices(
     typeof data.defaultSort === "string" && data.defaultSort.trim()
       ? data.defaultSort.trim()
       : "default";
+  const searchSortAlignment =
+    data.searchSortAlignment === "left" ||
+    data.searchSortAlignment === "center" ||
+    data.searchSortAlignment === "right"
+      ? data.searchSortAlignment
+      : "right";
+  const filtersAlignment =
+    data.filtersAlignment === "left" || data.filtersAlignment === "center" || data.filtersAlignment === "right"
+      ? data.filtersAlignment
+      : "left";
   const categoryTextColor = readOptionalDataColor("categoryTextColor");
   const categoryActiveColor = readOptionalDataColor("categoryActiveColor");
   const sortTextColor = readOptionalDataColor("sortTextColor");
@@ -5023,6 +5033,8 @@ export function renderServices(
         searchPlaceholder={searchPlaceholder}
         showSort={showSort}
         defaultSort={defaultSort}
+        searchSortAlignment={searchSortAlignment}
+        filtersAlignment={filtersAlignment}
         categoryTextColor={categoryTextColor}
         categoryActiveColor={categoryActiveColor}
         sortTextColor={sortTextColor}

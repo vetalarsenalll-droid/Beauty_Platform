@@ -73,6 +73,16 @@ function renderFlatSelect(
   );
 }
 
+const ALIGNMENT_OPTIONS = [
+  { value: "left", label: "По левому краю" },
+  { value: "center", label: "По центру" },
+  { value: "right", label: "По правому краю" },
+];
+
+function readAlignment(value: unknown, fallback: "left" | "center" | "right") {
+  return value === "left" || value === "center" || value === "right" ? value : fallback;
+}
+
 export function SiteServicesSettingsDrawer({
   block,
   activeTheme,
@@ -501,6 +511,18 @@ export function SiteServicesSettingsDrawer({
           String(data.searchPlaceholder ?? "Поиск услуги"),
           (value) => updateData({ searchPlaceholder: value || "Поиск услуги" }),
           "Поиск услуги"
+        )}
+        {renderFlatSelect(
+          "Выравнивание поиска/сортировки",
+          readAlignment(data.searchSortAlignment, "right"),
+          (value) => updateData({ searchSortAlignment: readAlignment(value, "right") }),
+          ALIGNMENT_OPTIONS
+        )}
+        {renderFlatSelect(
+          "Выравнивание фильтров",
+          readAlignment(data.filtersAlignment, "left"),
+          (value) => updateData({ filtersAlignment: readAlignment(value, "left") }),
+          ALIGNMENT_OPTIONS
         )}
         <div className="space-y-4">
           <TildaInlineColorField

@@ -21,6 +21,8 @@ type ServiceCatalogProps = {
   searchPlaceholder: string;
   showSort: boolean;
   defaultSort: string;
+  searchSortAlignment: "left" | "center" | "right";
+  filtersAlignment: "left" | "center" | "right";
   categoryTextColor?: string;
   categoryActiveColor?: string;
   sortTextColor?: string;
@@ -131,6 +133,18 @@ function resolveArrowSize(size: "sm" | "md" | "lg") {
   if (size === "sm") return 34;
   if (size === "lg") return 52;
   return 42;
+}
+
+function alignmentToJustifyContent(alignment: "left" | "center" | "right") {
+  if (alignment === "center") return "center";
+  if (alignment === "right") return "flex-end";
+  return "flex-start";
+}
+
+function textAlignToBlockMarginStyle(textAlign: CSSProperties["textAlign"]): CSSProperties {
+  if (textAlign === "center") return { marginLeft: "auto", marginRight: "auto" };
+  if (textAlign === "right") return { marginLeft: "auto", marginRight: 0 };
+  return { marginLeft: 0, marginRight: "auto" };
 }
 
 function rgbaFromHex(hex: string, opacity: number) {
@@ -638,6 +652,8 @@ export function ServicesCatalog({
   searchPlaceholder,
   showSort,
   defaultSort,
+  searchSortAlignment,
+  filtersAlignment,
   categoryTextColor,
   categoryActiveColor,
   sortTextColor,
@@ -775,6 +791,10 @@ export function ServicesCatalog({
     ? "0 14px 34px rgba(0,0,0,0.34)"
     : "0 14px 34px rgba(15,16,18,0.14)";
   const selectedSortTextColor = readableTextColor(resolvedSortActiveColor);
+  const searchSortJustifyContent = alignmentToJustifyContent(searchSortAlignment);
+  const filtersJustifyContent = alignmentToJustifyContent(filtersAlignment);
+  const headingBlockMarginStyle = textAlignToBlockMarginStyle(headingStyle.textAlign);
+  const subheadingBlockMarginStyle = textAlignToBlockMarginStyle(subheadingStyle.textAlign);
 
   useEffect(() => {
     setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
@@ -881,14 +901,17 @@ export function ServicesCatalog({
       <div
         className={`flex flex-col gap-6 ${variant === "v2" ? "xl:flex-row xl:items-end xl:justify-between" : ""}`}
       >
-        <div className="max-w-3xl">
-          <h3 className={`${isEditorial ? "max-w-2xl" : ""} font-semibold`} style={headingStyle}>
+        <div className="w-full">
+          <h3
+            className={`${isEditorial ? "max-w-2xl" : "max-w-3xl"} font-semibold`}
+            style={{ ...headingStyle, ...headingBlockMarginStyle }}
+          >
             {title}
           </h3>
           {subtitle ? (
             <p
-              className={`mt-3 ${isEditorial ? "max-w-2xl" : ""} text-[color:var(--bp-muted)]`}
-              style={subheadingStyle}
+              className={`mt-3 ${isEditorial ? "max-w-2xl" : "max-w-3xl"} text-[color:var(--bp-muted)]`}
+              style={{ ...subheadingStyle, ...subheadingBlockMarginStyle }}
             >
               {subtitle}
             </p>
@@ -896,7 +919,10 @@ export function ServicesCatalog({
         </div>
 
         {(showSearch || showSort) && (
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <div
+            className="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+            style={{ justifyContent: searchSortJustifyContent }}
+          >
             {showSearch ? (
               <label
                 className="relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]"
@@ -1005,7 +1031,10 @@ export function ServicesCatalog({
       </div>
 
       {showCategoryTabs && categories.length > 0 ? (
-        <div className={`mt-6 flex flex-wrap ${isEditorial ? "gap-3" : "gap-2"}`}>
+        <div
+          className={`mt-6 flex flex-wrap ${isEditorial ? "gap-3" : "gap-2"}`}
+          style={{ justifyContent: filtersJustifyContent }}
+        >
           <button
             type="button"
             onClick={() => setActiveCategory("__all__")}

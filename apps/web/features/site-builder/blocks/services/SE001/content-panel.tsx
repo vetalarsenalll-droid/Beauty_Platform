@@ -174,7 +174,7 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
             "Заголовок",
             String(block.data.title ?? ""),
             (value) => updateData({ title: value }),
-            "Список услуг"
+            "Услуги"
           )}
           {renderFlatTextInput(
             "Описание",

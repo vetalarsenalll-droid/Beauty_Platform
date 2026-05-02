@@ -129,6 +129,8 @@ export const SE001: BlockVersion = {
         cardStyle: "plain",
         categoryAllLabel: "Все услуги",
         searchPlaceholder: "Найти услугу",
+        searchSortAlignment: "right",
+        filtersAlignment: "left",
         detailsButtonColor: "transparent",
         detailsButtonTextColor: "#111111",
         detailsButtonBorderColor: "transparent",
