@@ -120,6 +120,12 @@ type BlockStyle = {
   mutedColor?: string;
   mutedColorLight?: string;
   mutedColorDark?: string;
+  servicesHeadingColor?: string;
+  servicesHeadingColorLight?: string;
+  servicesHeadingColorDark?: string;
+  servicesDescriptionColor?: string;
+  servicesDescriptionColorLight?: string;
+  servicesDescriptionColorDark?: string;
   shadowColor?: string;
   shadowSize?: number | null;
   gradientEnabled?: boolean;
@@ -154,6 +160,10 @@ type BlockStyle = {
   textColorDarkResolved?: string;
   mutedColorLightResolved?: string;
   mutedColorDarkResolved?: string;
+  servicesHeadingColorLightResolved?: string;
+  servicesHeadingColorDarkResolved?: string;
+  servicesDescriptionColorLightResolved?: string;
+  servicesDescriptionColorDarkResolved?: string;
   gradientEnabledLight?: boolean;
   gradientEnabledDark?: boolean;
   gradientFromLightResolved?: string;
@@ -450,6 +460,20 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.mutedColor,
     theme.darkPalette.mutedColor
   );
+  const servicesHeadingPair = resolvePair(
+    "servicesHeadingColorLight",
+    "servicesHeadingColorDark",
+    "servicesHeadingColor",
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
+  );
+  const servicesDescriptionPair = resolvePair(
+    "servicesDescriptionColorLight",
+    "servicesDescriptionColorDark",
+    "servicesDescriptionColor",
+    theme.lightPalette.mutedColor,
+    theme.darkPalette.mutedColor
+  );
   const gradientEnabledLight =
     typeof style.gradientEnabledLight === "boolean"
       ? (style.gradientEnabledLight as boolean)
@@ -524,6 +548,14 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
         : buttonTextPairResolved.lightResolved || buttonTextPairResolved.darkResolved,
     textColor: resolveColor("textColorLight", "textColorDark", "textColor"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    servicesHeadingColor:
+      theme.mode === "dark"
+        ? servicesHeadingPair.darkResolved || servicesHeadingPair.lightResolved
+        : servicesHeadingPair.lightResolved || servicesHeadingPair.darkResolved,
+    servicesDescriptionColor:
+      theme.mode === "dark"
+        ? servicesDescriptionPair.darkResolved || servicesDescriptionPair.lightResolved
+        : servicesDescriptionPair.lightResolved || servicesDescriptionPair.darkResolved,
     subBlockBgLightResolved: subBlockBgPair.lightResolved,
     subBlockBgDarkResolved: subBlockBgPair.darkResolved,
     sectionBgLightResolved: sectionBgPair.lightResolved,
@@ -540,6 +572,10 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     textColorDarkResolved: textPair.darkResolved,
     mutedColorLightResolved: mutedPair.lightResolved,
     mutedColorDarkResolved: mutedPair.darkResolved,
+    servicesHeadingColorLightResolved: servicesHeadingPair.lightResolved,
+    servicesHeadingColorDarkResolved: servicesHeadingPair.darkResolved,
+    servicesDescriptionColorLightResolved: servicesDescriptionPair.lightResolved,
+    servicesDescriptionColorDarkResolved: servicesDescriptionPair.darkResolved,
     gradientEnabledLight,
     gradientEnabledDark,
     gradientFromLightResolved,
@@ -2095,6 +2131,10 @@ export function buildBlockWrapperStyle(
         ["--block-text-dark" as string]: style.textColorDarkResolved,
         ["--block-muted-light" as string]: style.mutedColorLightResolved,
         ["--block-muted-dark" as string]: style.mutedColorDarkResolved,
+        ["--services-heading-color-light" as string]: style.servicesHeadingColorLightResolved,
+        ["--services-heading-color-dark" as string]: style.servicesHeadingColorDarkResolved,
+        ["--services-description-color-light" as string]: style.servicesDescriptionColorLightResolved,
+        ["--services-description-color-dark" as string]: style.servicesDescriptionColorDarkResolved,
         ["--block-button-light" as string]: style.buttonColorLightResolved,
         ["--block-button-dark" as string]: style.buttonColorDarkResolved,
         ["--block-button-text-light" as string]: style.buttonTextColorLightResolved,
@@ -3149,6 +3189,14 @@ function renderServices(
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const servicesHeadingStyle = {
+    ...headingStyle(style),
+    color: "var(--services-heading-color,var(--site-text,var(--block-text,var(--bp-ink))))",
+  };
+  const servicesSubheadingStyle = {
+    ...subheadingStyle(style),
+    color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
+  };
 
   return (
     <div
@@ -3163,7 +3211,7 @@ function renderServices(
       <ServicesCatalog
         variant={block.variant === "v2" ? "v2" : "v1"}
         listView={data.listView === "list" ? "list" : "tile"}
-        title={(data.title as string) || "Услуги"}
+        title={typeof data.title === "string" ? data.title : "Услуги"}
         subtitle={subtitle}
         items={items}
         publicSlug={publicSlug}
@@ -3238,8 +3286,8 @@ function renderServices(
         modalImageZoomOnHover={modalImageZoomOnHover}
         maxVisibleItems={Number.isFinite(Number(data.maxVisibleItems)) ? Number(data.maxVisibleItems) : 36}
         usePagination={data.usePagination === true}
-        headingStyle={headingStyle(style)}
-        subheadingStyle={subheadingStyle(style)}
+        headingStyle={servicesHeadingStyle}
+        subheadingStyle={servicesSubheadingStyle}
         buttonStyle={buttonStyle(style)}
         textAlign={style.textAlign}
       />

@@ -226,6 +226,8 @@ html {
   --block-border: var(--block-border-light);
   --block-text: var(--block-text-light);
   --block-muted: var(--block-muted-light);
+  --services-heading-color: var(--services-heading-color-light, var(--block-text));
+  --services-description-color: var(--services-description-color-light, var(--block-muted));
   --block-button: var(--block-button-light);
   --block-button-text: var(--block-button-text-light);
   --block-gradient: var(--block-gradient-light);
@@ -272,6 +274,8 @@ html {
   --block-border: var(--block-border-dark);
   --block-text: var(--block-text-dark);
   --block-muted: var(--block-muted-dark);
+  --services-heading-color: var(--services-heading-color-dark, var(--block-text));
+  --services-description-color: var(--services-description-color-dark, var(--block-muted));
   --block-button: var(--block-button-dark);
   --block-button-text: var(--block-button-text-dark);
   --block-gradient: var(--block-gradient-dark);

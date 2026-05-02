@@ -389,7 +389,7 @@ export function SiteServicesSettingsDrawer({
           />
           <TildaInlineColorField
             compact
-            label="Заголовок"
+            label="Заголовок карточки"
             value={readStyle("textColorLight", readStyle("textColor", activeTheme.textColor))}
             placeholder={activeTheme.textColor}
             onChange={(value) => updateStyle({ textColorLight: value, textColor: value })}
@@ -397,7 +397,7 @@ export function SiteServicesSettingsDrawer({
           />
           <TildaInlineColorField
             compact
-            label="Текст"
+            label="Текст карточки"
             value={readStyle("mutedColorLight", readStyle("mutedColor", activeTheme.mutedColor))}
             placeholder={activeTheme.mutedColor}
             onChange={(value) => updateStyle({ mutedColorLight: value, mutedColor: value })}
@@ -435,7 +435,7 @@ export function SiteServicesSettingsDrawer({
               />
               <TildaInlineColorField
                 compact
-                label="Заголовок"
+                label="Заголовок карточки"
                 value={readStyle("textColorDark", activeTheme.darkPalette.textColor)}
                 placeholder={activeTheme.darkPalette.textColor}
                 onChange={(value) => updateStyle({ textColorDark: value })}
@@ -443,7 +443,7 @@ export function SiteServicesSettingsDrawer({
               />
               <TildaInlineColorField
                 compact
-                label="Текст"
+                label="Текст карточки"
                 value={readStyle("mutedColorDark", activeTheme.darkPalette.mutedColor)}
                 placeholder={activeTheme.darkPalette.mutedColor}
                 onChange={(value) => updateStyle({ mutedColorDark: value })}

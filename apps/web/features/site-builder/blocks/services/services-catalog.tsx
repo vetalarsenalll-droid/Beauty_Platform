@@ -901,22 +901,26 @@ export function ServicesCatalog({
       <div
         className={`flex flex-col gap-6 ${variant === "v2" ? "xl:flex-row xl:items-end xl:justify-between" : ""}`}
       >
-        <div className="w-full">
-          <h3
-            className={`${isEditorial ? "max-w-2xl" : "max-w-3xl"} font-semibold`}
-            style={{ ...headingStyle, ...headingBlockMarginStyle }}
-          >
-            {title}
-          </h3>
-          {subtitle ? (
+        {title || subtitle ? (
+          <div className="w-full">
+            {title ? (
+              <h3
+                className={`${isEditorial ? "max-w-2xl" : "max-w-3xl"} font-semibold`}
+                style={{ ...headingStyle, ...headingBlockMarginStyle }}
+              >
+                {title}
+              </h3>
+            ) : null}
+            {subtitle ? (
             <p
-              className={`mt-3 ${isEditorial ? "max-w-2xl" : "max-w-3xl"} text-[color:var(--bp-muted)]`}
+              className={`${title ? "mt-3" : ""} ${isEditorial ? "max-w-2xl" : "max-w-3xl"} text-[color:var(--bp-muted)]`}
               style={{ ...subheadingStyle, ...subheadingBlockMarginStyle }}
             >
               {subtitle}
             </p>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {(showSearch || showSort) && (
           <div

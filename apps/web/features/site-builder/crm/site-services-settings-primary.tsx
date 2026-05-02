@@ -256,13 +256,6 @@ export function SiteServicesSettingsPrimary({
           setActivePanelSectionId
         )}
         {renderSectionButton(
-          "Кнопка",
-          "button",
-          activePanelSectionId,
-          panelTheme,
-          setActivePanelSectionId
-        )}
-        {renderSectionButton(
           "Список услуг",
           "servicesList",
           activePanelSectionId,
@@ -272,6 +265,13 @@ export function SiteServicesSettingsPrimary({
         {renderSectionButton(
           "Фильтры, поиск и сортировка",
           "filters",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
+        {renderSectionButton(
+          "Кнопка",
+          "button",
           activePanelSectionId,
           panelTheme,
           setActivePanelSectionId

@@ -88,6 +88,12 @@ export type BlockStyle = {
   mutedColorLight: string;
   mutedColorDark: string;
   mutedColor: string;
+  servicesHeadingColorLight: string;
+  servicesHeadingColorDark: string;
+  servicesHeadingColor: string;
+  servicesDescriptionColorLight: string;
+  servicesDescriptionColorDark: string;
+  servicesDescriptionColor: string;
   assistantBubbleColorLight: string;
   assistantBubbleColorDark: string;
   assistantBubbleColor: string;
@@ -171,6 +177,10 @@ export type BlockStyle = {
   textColorDarkResolved: string;
   mutedColorLightResolved: string;
   mutedColorDarkResolved: string;
+  servicesHeadingColorLightResolved: string;
+  servicesHeadingColorDarkResolved: string;
+  servicesDescriptionColorLightResolved: string;
+  servicesDescriptionColorDarkResolved: string;
   assistantBubbleColorLightResolved: string;
   assistantBubbleColorDarkResolved: string;
   assistantTextColorLightResolved: string;
@@ -368,6 +378,20 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     "mutedColorLight",
     "mutedColorDark",
     "mutedColor",
+    theme.lightPalette.mutedColor,
+    theme.darkPalette.mutedColor
+  );
+  const servicesHeadingPair = resolvePair(
+    "servicesHeadingColorLight",
+    "servicesHeadingColorDark",
+    "servicesHeadingColor",
+    theme.lightPalette.textColor,
+    theme.darkPalette.textColor
+  );
+  const servicesDescriptionPair = resolvePair(
+    "servicesDescriptionColorLight",
+    "servicesDescriptionColorDark",
+    "servicesDescriptionColor",
     theme.lightPalette.mutedColor,
     theme.darkPalette.mutedColor
   );
@@ -617,6 +641,20 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     mutedColorLight: readColor("mutedColorLight") || readColor("mutedColor"),
     mutedColorDark: readColor("mutedColorDark"),
     mutedColor: resolveColor("mutedColorLight", "mutedColorDark", "mutedColor"),
+    servicesHeadingColorLight:
+      readColor("servicesHeadingColorLight") || readColor("servicesHeadingColor"),
+    servicesHeadingColorDark: readColor("servicesHeadingColorDark"),
+    servicesHeadingColor:
+      theme.mode === "dark"
+        ? servicesHeadingPair.darkResolved || servicesHeadingPair.lightResolved
+        : servicesHeadingPair.lightResolved || servicesHeadingPair.darkResolved,
+    servicesDescriptionColorLight:
+      readColor("servicesDescriptionColorLight") || readColor("servicesDescriptionColor"),
+    servicesDescriptionColorDark: readColor("servicesDescriptionColorDark"),
+    servicesDescriptionColor:
+      theme.mode === "dark"
+        ? servicesDescriptionPair.darkResolved || servicesDescriptionPair.lightResolved
+        : servicesDescriptionPair.lightResolved || servicesDescriptionPair.darkResolved,
     assistantBubbleColorLight:
       readColor("assistantBubbleColorLight") || readColor("assistantBubbleColor"),
     assistantBubbleColorDark: readColor("assistantBubbleColorDark"),
@@ -693,6 +731,10 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     textColorDarkResolved: textPair.darkResolved,
     mutedColorLightResolved: mutedPair.lightResolved,
     mutedColorDarkResolved: mutedPair.darkResolved,
+    servicesHeadingColorLightResolved: servicesHeadingPair.lightResolved,
+    servicesHeadingColorDarkResolved: servicesHeadingPair.darkResolved,
+    servicesDescriptionColorLightResolved: servicesDescriptionPair.lightResolved,
+    servicesDescriptionColorDarkResolved: servicesDescriptionPair.darkResolved,
     assistantBubbleColorLightResolved: assistantBubblePair.lightResolved,
     assistantBubbleColorDarkResolved: assistantBubblePair.darkResolved,
     assistantTextColorLightResolved: assistantTextPair.lightResolved,
@@ -1707,6 +1749,12 @@ export function BlockPreview({
             ["--block-text-dark" as string]: style.textColorDarkResolved,
             ["--block-muted-light" as string]: style.mutedColorLightResolved,
             ["--block-muted-dark" as string]: style.mutedColorDarkResolved,
+            ["--services-heading-color-light" as string]: style.servicesHeadingColorLightResolved,
+            ["--services-heading-color-dark" as string]: style.servicesHeadingColorDarkResolved,
+            ["--services-description-color-light" as string]:
+              style.servicesDescriptionColorLightResolved,
+            ["--services-description-color-dark" as string]:
+              style.servicesDescriptionColorDarkResolved,
             ["--block-button-light" as string]: style.buttonColorLightResolved,
             ["--block-button-dark" as string]: style.buttonColorDarkResolved,
             ["--block-button-text-light" as string]: style.buttonTextColorLightResolved,
@@ -1725,6 +1773,14 @@ export function BlockPreview({
               theme.mode === "dark" ? style.textColorDarkResolved : style.textColorLightResolved,
             ["--block-muted" as string]:
               theme.mode === "dark" ? style.mutedColorDarkResolved : style.mutedColorLightResolved,
+            ["--services-heading-color" as string]:
+              theme.mode === "dark"
+                ? style.servicesHeadingColorDarkResolved
+                : style.servicesHeadingColorLightResolved,
+            ["--services-description-color" as string]:
+              theme.mode === "dark"
+                ? style.servicesDescriptionColorDarkResolved
+                : style.servicesDescriptionColorLightResolved,
             ["--block-button" as string]:
               theme.mode === "dark" ? style.buttonColorDarkResolved : style.buttonColorLightResolved,
             ["--block-button-text" as string]:
@@ -5005,6 +5061,14 @@ export function renderServices(
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const servicesHeadingStyle = {
+    ...headingStyle(style, theme),
+    color: "var(--services-heading-color,var(--site-text,var(--block-text,var(--bp-ink))))",
+  };
+  const servicesSubheadingStyle = {
+    ...subheadingStyle(style, theme),
+    color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
+  };
 
   return (
     <div
@@ -5019,7 +5083,7 @@ export function renderServices(
       <ServicesCatalog
         variant={block.variant === "v2" ? "v2" : "v1"}
         listView={listView}
-        title={(data.title as string) || "Услуги"}
+        title={typeof data.title === "string" ? data.title : "Услуги"}
         subtitle={subtitle}
         items={items}
         publicSlug={account.publicSlug}
@@ -5094,8 +5158,8 @@ export function renderServices(
         modalImageZoomOnHover={modalImageZoomOnHover}
         maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 36}
         usePagination={usePagination}
-        headingStyle={headingStyle(style, theme)}
-        subheadingStyle={subheadingStyle(style, theme)}
+        headingStyle={servicesHeadingStyle}
+        subheadingStyle={servicesSubheadingStyle}
         buttonStyle={buttonStyle(style, theme)}
         textAlign={style.textAlign}
       />

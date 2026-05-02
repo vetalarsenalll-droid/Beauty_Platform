@@ -3098,7 +3098,152 @@ export function BlockStyleEditor({
           <div className="h-6" />
         </>
       )}
-      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && (
+      {inSection("typography") && block.type === "services" && (
+        <>
+          <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Заголовок
+          </div>
+          <TildaInlineColorField
+            label="Цвет"
+            value={style.servicesHeadingColorLight || style.servicesHeadingColor || theme.textColor}
+            onChange={(value) => update({ servicesHeadingColorLight: value })}
+            onClear={() =>
+              update({
+                servicesHeadingColorLight: "transparent",
+              })
+            }
+            placeholder={theme.textColor}
+            compact
+          />
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.headingSize ?? theme.headingSize,
+            0,
+            140,
+            (value) => update({ headingSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontHeading || "",
+            (value) => update({ fontHeading: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.heading, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightHeading?.toString() || "",
+            (value) => update({ fontWeightHeading: value ? Number(value) : null }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...FONT_WEIGHTS.map((weight) => ({
+                value: String(weight.value),
+                label: weight.label,
+              })),
+            ]
+          )}
+
+          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Описание
+          </div>
+          <TildaInlineColorField
+            label="Цвет"
+            value={
+              style.servicesDescriptionColorLight ||
+              style.servicesDescriptionColor ||
+              theme.mutedColor
+            }
+            onChange={(value) =>
+              update({
+                servicesDescriptionColorLight: value,
+              })
+            }
+            onClear={() =>
+              update({
+                servicesDescriptionColorLight: "transparent",
+              })
+            }
+            placeholder={theme.mutedColor}
+            compact
+          />
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.subheadingSize ?? theme.subheadingSize,
+            0,
+            100,
+            (value) => update({ subheadingSize: value })
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontSubheading || "",
+            (value) => update({ fontSubheading: value }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label })),
+            ]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightSubheading?.toString() || "",
+            (value) => update({ fontWeightSubheading: value ? Number(value) : null }),
+            [
+              { value: "", label: "По умолчанию" },
+              ...FONT_WEIGHTS.map((weight) => ({
+                value: String(weight.value),
+                label: weight.label,
+              })),
+            ]
+          )}
+
+          <button
+            type="button"
+            onClick={() => setCoverTypographyDarkOpen((prev) => !prev)}
+            className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
+            style={{
+              borderColor: coverTypographyDarkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: coverTypographyDarkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{coverTypographyDarkOpen ? "▴" : "▾"}</span>
+          </button>
+          {coverTypographyDarkOpen && (
+            <>
+              <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+                Заголовок
+              </div>
+              <TildaInlineColorField
+                label="Цвет"
+                value={style.servicesHeadingColorDark || theme.darkPalette.textColor}
+                onChange={(value) => update({ servicesHeadingColorDark: value })}
+                onClear={() => update({ servicesHeadingColorDark: "transparent" })}
+                placeholder={theme.darkPalette.textColor}
+                compact
+              />
+              <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+                Описание
+              </div>
+              <TildaInlineColorField
+                label="Цвет"
+                value={style.servicesDescriptionColorDark || theme.darkPalette.mutedColor}
+                onChange={(value) => update({ servicesDescriptionColorDark: value })}
+                onClear={() => update({ servicesDescriptionColorDark: "transparent" })}
+                placeholder={theme.darkPalette.mutedColor}
+                compact
+              />
+            </>
+          )}
+          <div className="h-6" />
+        </>
+      )}
+      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && block.type !== "services" && (
         <>
           {renderFlatSelect(
             "Шрифт заголовка",
