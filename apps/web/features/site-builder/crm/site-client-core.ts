@@ -404,6 +404,8 @@ export const defaultBlockStyle = {
   textSize: null,
 };
 
+const servicesDefaultGridRange = centeredGridRange(8);
+
 export const defaultBlockData: Record<string, Record<string, unknown>> = {
   cover: {
     title: "",
@@ -674,11 +676,15 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     showPrice: true,
     showDuration: true,
     showButton: true,
+    showDetailsButton: true,
     buttonText: "Записаться",
     detailsButtonText: "Подробнее",
-    detailsButtonColor: "",
-    detailsButtonTextColor: "",
-    detailsButtonBorderColor: "",
+    detailsButtonColor: "transparent",
+    detailsButtonTextColor: "#111111",
+    detailsButtonBorderColor: "transparent",
+    detailsButtonColorDark: "transparent",
+    detailsButtonTextColorDark: "#f8fafc",
+    detailsButtonBorderColorDark: "transparent",
     locationId: null,
     specialistId: null,
     modalImageClickEnabled: true,
@@ -692,6 +698,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     cardPaddingY: 30,
     mobileCardsPerRow: 2,
     showSecondImageOnHover: false,
+    imageZoomOnHover: false,
     alignButtonsBottom: true,
     maxVisibleItems: 36,
     usePagination: false,
@@ -720,6 +727,11 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     serviceModalShowMeta: true,
     style: {
       ...defaultBlockStyle,
+      blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+      blockWidthColumns: 8,
+      gridStartColumn: servicesDefaultGridRange.start,
+      gridEndColumn: servicesDefaultGridRange.end,
+      useCustomWidth: true,
       sectionBgLight: "#ffffff",
       sectionBgDark: "transparent",
       sectionBg: "#ffffff",

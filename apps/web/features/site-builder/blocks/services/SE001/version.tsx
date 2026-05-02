@@ -1,6 +1,14 @@
 import type { BlockVersion } from "../../runtime/contracts";
 import { makeBlockId } from "@/lib/site-builder";
-import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
+import {
+  DEFAULT_BLOCK_COLUMNS,
+  DEFAULT_BLOCK_WIDTH,
+  LEGACY_WIDTH_REFERENCE,
+  MAX_BLOCK_COLUMNS,
+  centeredGridRange,
+  defaultBlockData,
+  defaultBlockStyle,
+} from "@/features/site-builder/crm/site-client-core";
 import { SiteServicesSettingsPrimary } from "@/features/site-builder/crm/site-services-settings-primary";
 import { SE001ContentPanel } from "./content-panel";
 import { SE001Drawers } from "./drawers";
@@ -34,6 +42,20 @@ function isLegacyWhiteServiceSurface(style: Record<string, unknown>) {
   );
 }
 
+function isLegacyDefaultServiceWidth(style: Record<string, unknown>) {
+  const columns = Number(style.blockWidthColumns);
+  const width = Number(style.blockWidth);
+  const gridStart = Number(style.gridStartColumn);
+  const gridEnd = Number(style.gridEndColumn);
+  const defaultRange = centeredGridRange(DEFAULT_BLOCK_COLUMNS);
+  return (
+    (!Number.isFinite(columns) || columns === DEFAULT_BLOCK_COLUMNS) &&
+    (!Number.isFinite(width) || width === DEFAULT_BLOCK_WIDTH) &&
+    (!Number.isFinite(gridStart) || gridStart === defaultRange.start) &&
+    (!Number.isFinite(gridEnd) || gridEnd === defaultRange.end)
+  );
+}
+
 export const SE001: BlockVersion = {
   blockCode: "SE001",
   normalizeData: (input) => {
@@ -42,10 +64,30 @@ export const SE001: BlockVersion = {
     const style =
       typeof data.style === "object" && data.style ? (data.style as Record<string, unknown>) : {};
     const shouldResetLegacySurface = isLegacyWhiteServiceSurface(style);
+    const shouldResetLegacyWidth = isLegacyDefaultServiceWidth(style);
+    const servicesDefaultGridRange = centeredGridRange(8);
     return {
       ...data,
+      showDetailsButton: data.showDetailsButton ?? true,
+      detailsButtonColor: data.detailsButtonColor ?? "transparent",
+      detailsButtonTextColor: data.detailsButtonTextColor ?? "#111111",
+      detailsButtonBorderColor: data.detailsButtonBorderColor ?? "transparent",
+      detailsButtonColorDark: data.detailsButtonColorDark ?? "transparent",
+      detailsButtonTextColorDark: data.detailsButtonTextColorDark ?? "#f8fafc",
+      detailsButtonBorderColorDark: data.detailsButtonBorderColorDark ?? "transparent",
       style: {
         ...style,
+        blockWidth: shouldResetLegacyWidth
+          ? Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE)
+          : (style.blockWidth ?? Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE)),
+        blockWidthColumns: shouldResetLegacyWidth ? 8 : (style.blockWidthColumns ?? 8),
+        gridStartColumn: shouldResetLegacyWidth
+          ? servicesDefaultGridRange.start
+          : (style.gridStartColumn ?? servicesDefaultGridRange.start),
+        gridEndColumn: shouldResetLegacyWidth
+          ? servicesDefaultGridRange.end
+          : (style.gridEndColumn ?? servicesDefaultGridRange.end),
+        useCustomWidth: style.useCustomWidth ?? true,
         blockBgLight: shouldResetLegacySurface ? "transparent" : (style.blockBgLight ?? "transparent"),
         blockBgDark: style.blockBgDark ?? "transparent",
         blockBg: shouldResetLegacySurface ? "transparent" : (style.blockBg ?? "transparent"),
@@ -65,6 +107,7 @@ export const SE001: BlockVersion = {
     const base = (defaultBlockData.services ?? {}) as Record<string, unknown>;
     const baseStyle =
       typeof base.style === "object" && base.style ? (base.style as Record<string, unknown>) : {};
+    const servicesDefaultGridRange = centeredGridRange(8);
     return {
       id: makeBlockId(),
       type: "services",
@@ -77,8 +120,19 @@ export const SE001: BlockVersion = {
         cardStyle: "plain",
         categoryAllLabel: "Все услуги",
         searchPlaceholder: "Найти услугу",
+        detailsButtonColor: "transparent",
+        detailsButtonTextColor: "#111111",
+        detailsButtonBorderColor: "transparent",
+        detailsButtonColorDark: "transparent",
+        detailsButtonTextColorDark: "#f8fafc",
+        detailsButtonBorderColorDark: "transparent",
         style: {
           ...defaultBlockStyle,
+          blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+          blockWidthColumns: 8,
+          gridStartColumn: servicesDefaultGridRange.start,
+          gridEndColumn: servicesDefaultGridRange.end,
+          useCustomWidth: true,
           sectionBgLight: "#ffffff",
           sectionBg: "#ffffff",
           blockBgLight: "#ffffff",

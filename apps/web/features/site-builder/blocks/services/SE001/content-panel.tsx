@@ -262,13 +262,6 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
             (value) => updateData({ cardPaddingY: Number(value) || 0 }),
             "30"
           )}
-          <div>
-            {renderCheckboxRow(
-              block.data.alignButtonsBottom !== false,
-              (checked) => updateData({ alignButtonsBottom: checked }),
-              "Выравнивать кнопки по низу"
-            )}
-          </div>
           {renderFlatSelect(
             "Фильтр по локации",
             String(block.data.locationId ?? ""),
@@ -347,9 +340,9 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
         <div className="space-y-5">
           {renderSectionTitle("Страница услуги / модалка")}
           {renderFlatTextInput(
-            "Текст кнопки подробностей",
+            "Текст второй кнопки",
             String(block.data.detailsButtonText ?? "Подробнее"),
-            (value) => updateData({ detailsButtonText: value || "Подробнее" }),
+            (value) => updateData({ detailsButtonText: value }),
             "Подробнее"
           )}
           {renderFlatSelect(
@@ -485,7 +478,7 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
           {renderFlatTextInput(
             "Текст кнопки",
             String(block.data.buttonText ?? "Записаться"),
-            (value) => updateData({ buttonText: value || "Записаться" })
+            (value) => updateData({ buttonText: value })
           )}
         </div>
       )}

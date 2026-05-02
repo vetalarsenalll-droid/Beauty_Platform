@@ -97,6 +97,8 @@ export function SiteServicesSettingsDrawer({
   };
   const readStyle = (key: string, fallback = "") =>
     typeof rawStyle[key] === "string" && String(rawStyle[key]).trim() ? String(rawStyle[key]) : fallback;
+  const readDataColor = (key: string, fallback = "transparent") =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]) : fallback;
 
   if (activeSectionId === "button") {
     return (
@@ -106,16 +108,26 @@ export function SiteServicesSettingsDrawer({
           onChange={(checked) => updateData({ showButton: checked })}
           label="Показывать основную кнопку записи"
         />
+        <FlatCheckbox
+          checked={data.showDetailsButton !== false}
+          onChange={(checked) => updateData({ showDetailsButton: checked })}
+          label="Показывать вторую кнопку"
+        />
+        <FlatCheckbox
+          checked={data.alignButtonsBottom !== false}
+          onChange={(checked) => updateData({ alignButtonsBottom: checked })}
+          label="Выравнивать кнопки по низу"
+        />
         {renderFlatTextInput(
           "Текст основной кнопки",
           String(data.buttonText ?? "Записаться"),
-          (value) => updateData({ buttonText: value || "Записаться" }),
+          (value) => updateData({ buttonText: value }),
           "Записаться"
         )}
         {renderFlatTextInput(
-          "Текст кнопки подробностей",
+          "Текст второй кнопки",
           String(data.detailsButtonText ?? "Подробнее"),
-          (value) => updateData({ detailsButtonText: value || "Подробнее" }),
+          (value) => updateData({ detailsButtonText: value }),
           "Подробнее"
         )}
 
@@ -143,32 +155,48 @@ export function SiteServicesSettingsDrawer({
         <TildaInlineColorField
           compact
           label="Фон кнопки подробностей"
-          value={String(data.detailsButtonColor ?? "")}
+          value={readDataColor("detailsButtonColor")}
           placeholder="#ffffff"
           onChange={(value) => updateData({ detailsButtonColor: value })}
-          onClear={() => updateData({ detailsButtonColor: "" })}
+          onClear={() => updateData({ detailsButtonColor: "transparent" })}
         />
         <TildaInlineColorField
           compact
-          label="Текст кнопки подробностей"
-          value={String(data.detailsButtonTextColor ?? "")}
+          label="Текст второй кнопки"
+          value={readDataColor("detailsButtonTextColor", "#111111")}
           placeholder="#111111"
           onChange={(value) => updateData({ detailsButtonTextColor: value })}
-          onClear={() => updateData({ detailsButtonTextColor: "" })}
+          onClear={() => updateData({ detailsButtonTextColor: "transparent" })}
         />
         <TildaInlineColorField
           compact
           label="Обводка кнопки подробностей"
-          value={String(data.detailsButtonBorderColor ?? "")}
+          value={readDataColor("detailsButtonBorderColor")}
           placeholder="#623232"
           onChange={(value) => updateData({ detailsButtonBorderColor: value })}
-          onClear={() => updateData({ detailsButtonBorderColor: "" })}
+          onClear={() => updateData({ detailsButtonBorderColor: "transparent" })}
         />
 
-        <div className="border-t border-[color:var(--bp-stroke)] pt-4">
-          <div className="mb-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-            Темная тема
-          </div>
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+          {showDarkThemeAdvanced ? (
           <div className="space-y-4">
             <TildaInlineColorField
               compact
@@ -186,7 +214,32 @@ export function SiteServicesSettingsDrawer({
               onChange={(value) => updateStyle({ buttonTextColorDark: value })}
               onClear={() => updateStyle({ buttonTextColorDark: "transparent" })}
             />
+            <TildaInlineColorField
+              compact
+              label="Фон кнопки подробностей"
+              value={readDataColor("detailsButtonColorDark")}
+              placeholder="#1f2937"
+              onChange={(value) => updateData({ detailsButtonColorDark: value })}
+              onClear={() => updateData({ detailsButtonColorDark: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Текст второй кнопки"
+              value={readDataColor("detailsButtonTextColorDark", "#f8fafc")}
+              placeholder="#f8fafc"
+              onChange={(value) => updateData({ detailsButtonTextColorDark: value })}
+              onClear={() => updateData({ detailsButtonTextColorDark: "transparent" })}
+            />
+            <TildaInlineColorField
+              compact
+              label="Обводка кнопки подробностей"
+              value={readDataColor("detailsButtonBorderColorDark")}
+              placeholder="#374151"
+              onChange={(value) => updateData({ detailsButtonBorderColorDark: value })}
+              onClear={() => updateData({ detailsButtonBorderColorDark: "transparent" })}
+            />
           </div>
+          ) : null}
         </div>
       </div>
     );
@@ -292,9 +345,9 @@ export function SiteServicesSettingsDrawer({
           label="Две услуги в ряд на мобильных устройствах"
         />
         <FlatCheckbox
-          checked={data.alignButtonsBottom !== false}
-          onChange={(checked) => updateData({ alignButtonsBottom: checked })}
-          label="Выравнивать кнопки в карточках по низу"
+          checked={data.imageZoomOnHover === true}
+          onChange={(checked) => updateData({ imageZoomOnHover: checked })}
+          label="Увеличивать изображение по наведению"
         />
         {renderFlatTextInput(
           "Количество видимых услуг до кнопки «Загрузить ещё»",
@@ -405,37 +458,20 @@ export function SiteServicesSettingsDrawer({
   if (activeSectionId === "servicePage") {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
-        {renderFlatSelect(
-          "Действие кнопки подробностей",
-          String(data.servicePageButtonMode ?? "entityPage"),
-          (value) => updateData({ servicePageButtonMode: value }),
-          [
-            { value: "entityPage", label: "Открыть страницу услуги" },
-            { value: "booking", label: "Сразу вести к записи" },
-          ]
-        )}
         <FlatCheckbox
           checked={data.modalImageClickEnabled !== false}
           onChange={(checked) => updateData({ modalImageClickEnabled: checked })}
-          label="Открывать модалку по клику на изображение"
+          label="Открывать карточку по клику на изображение"
         />
         <FlatCheckbox
           checked={data.serviceModalShowDescription !== false}
           onChange={(checked) => updateData({ serviceModalShowDescription: checked })}
-          label="Показывать описание в модалке"
+          label="Показывать описание в карточке"
         />
         <FlatCheckbox
           checked={data.serviceModalShowMeta !== false}
           onChange={(checked) => updateData({ serviceModalShowMeta: checked })}
           label="Показывать цену и длительность"
-        />
-        <TildaInlineColorField
-          compact
-          label="Цвет фона галереи"
-          value={String(data.modalGalleryBgColor ?? "#ebebeb")}
-          placeholder="#ebebeb"
-          onChange={(value) => updateData({ modalGalleryBgColor: value })}
-          onClear={() => updateData({ modalGalleryBgColor: "#ebebeb" })}
         />
         {renderFlatSelect(
           "Масштабирование изображения",
@@ -456,130 +492,10 @@ export function SiteServicesSettingsDrawer({
             { value: "16 / 9", label: "16:9 Широкое" },
           ]
         )}
-        {renderFlatSelect(
-          "Управляющие элементы",
-          String(data.modalControls ?? "arrowsAndDots"),
-          (value) => updateData({ modalControls: value }),
-          [
-            { value: "arrowsAndDots", label: "Стрелки и точки" },
-            { value: "arrows", label: "Только стрелки" },
-            { value: "dots", label: "Только точки" },
-            { value: "thumbnails", label: "Стрелки и миниатюры" },
-          ]
-        )}
-        {renderFlatSelect(
-          "Размер стрелки",
-          String(data.modalArrowSize ?? "md"),
-          (value) => updateData({ modalArrowSize: value }),
-          [
-            { value: "sm", label: "Малый" },
-            { value: "md", label: "Средний" },
-            { value: "lg", label: "Большой" },
-          ]
-        )}
-        {renderFlatTextInput(
-          "Толщина стрелки",
-          String(data.modalArrowThickness ?? 3),
-          (value) => updateData({ modalArrowThickness: Number(value) || 1 }),
-          "3"
-        )}
-        <TildaInlineColorField
-          compact
-          label="Стрелка: цвет"
-          value={String(data.modalArrowColor ?? "#000000")}
-          placeholder="#000000"
-          onChange={(value) => updateData({ modalArrowColor: value })}
-          onClear={() => updateData({ modalArrowColor: "#000000" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Цвет при наведении"
-          value={String(data.modalArrowHoverColor ?? "#000000")}
-          placeholder="#000000"
-          onChange={(value) => updateData({ modalArrowHoverColor: value })}
-          onClear={() => updateData({ modalArrowHoverColor: "#000000" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Стрелка: цвет фона"
-          value={String(data.modalArrowBgColor ?? "#ffffff")}
-          placeholder="#ffffff"
-          onChange={(value) => updateData({ modalArrowBgColor: value })}
-          onClear={() => updateData({ modalArrowBgColor: "#ffffff" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Цвет фона при наведении"
-          value={String(data.modalArrowHoverBgColor ?? "#000000")}
-          placeholder="#000000"
-          onChange={(value) => updateData({ modalArrowHoverBgColor: value })}
-          onClear={() => updateData({ modalArrowHoverBgColor: "#000000" })}
-        />
-        {renderFlatTextInput(
-          "Стрелка: непрозрачность фона",
-          String(data.modalArrowBgOpacity ?? 0.92),
-          (value) => updateData({ modalArrowBgOpacity: Number(value) || 0 }),
-          "0.92"
-        )}
-        {renderFlatTextInput(
-          "Непрозрачность при наведении",
-          String(data.modalArrowHoverBgOpacity ?? 0.96),
-          (value) => updateData({ modalArrowHoverBgOpacity: Number(value) || 0 }),
-          "0.96"
-        )}
-        <TildaInlineColorField
-          compact
-          label="Точки: цвет"
-          value={String(data.modalDotsColor ?? "#000000")}
-          placeholder="#000000"
-          onChange={(value) => updateData({ modalDotsColor: value })}
-          onClear={() => updateData({ modalDotsColor: "#000000" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Точки: активная"
-          value={String(data.modalDotsActiveColor ?? "#cccccc")}
-          placeholder="#cccccc"
-          onChange={(value) => updateData({ modalDotsActiveColor: value })}
-          onClear={() => updateData({ modalDotsActiveColor: "#cccccc" })}
-        />
-        {renderFlatTextInput(
-          "Точки: размер",
-          String(data.modalDotsSize ?? 4),
-          (value) => updateData({ modalDotsSize: Number(value) || 1 }),
-          "4"
-        )}
-        {renderFlatTextInput(
-          "Точки: толщина обводки",
-          String(data.modalDotsBorderWidth ?? 1),
-          (value) => updateData({ modalDotsBorderWidth: Number(value) || 0 }),
-          "1"
-        )}
-        {renderFlatSelect(
-          "Положение миниатюр",
-          String(data.modalThumbnailsPosition ?? "bottom"),
-          (value) => updateData({ modalThumbnailsPosition: value }),
-          [{ value: "bottom", label: "Снизу" }]
-        )}
-        <FlatCheckbox
-          checked={data.modalArrowBorderEnabled === true}
-          onChange={(checked) => updateData({ modalArrowBorderEnabled: checked })}
-          label="Показывать обводку стрелок"
-        />
-        <FlatCheckbox
-          checked={data.modalInfiniteGallery !== false}
-          onChange={(checked) => updateData({ modalInfiniteGallery: checked })}
-          label="Бесконечная галерея"
-        />
         <FlatCheckbox
           checked={data.modalImageZoomOnClick !== false}
           onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}
           label="Увеличение изображения по клику"
-        />
-        <FlatCheckbox
-          checked={data.modalImageZoomOnHover === true}
-          onChange={(checked) => updateData({ modalImageZoomOnHover: checked })}
-          label="Увеличивать изображение по наведению"
         />
       </div>
     );

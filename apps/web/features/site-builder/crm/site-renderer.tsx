@@ -4859,23 +4859,26 @@ export function renderServices(
         ? services.slice(0, 1)
         : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const showDetailsButton = data.showDetailsButton !== false;
+  const buttonText = typeof data.buttonText === "string" ? data.buttonText.trim() : "Записаться";
   const detailsButtonText =
-    typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
-      ? data.detailsButtonText.trim()
-      : "Подробнее";
-  const detailsButtonColor =
-    typeof data.detailsButtonColor === "string" && data.detailsButtonColor.trim()
-      ? data.detailsButtonColor.trim()
+    showDetailsButton
+      ? typeof data.detailsButtonText === "string"
+        ? data.detailsButtonText.trim()
+        : "Подробнее"
       : "";
-  const detailsButtonTextColor =
-    typeof data.detailsButtonTextColor === "string" && data.detailsButtonTextColor.trim()
-      ? data.detailsButtonTextColor.trim()
-      : "";
-  const detailsButtonBorderColor =
-    typeof data.detailsButtonBorderColor === "string" && data.detailsButtonBorderColor.trim()
-      ? data.detailsButtonBorderColor.trim()
-      : "";
+  const isDarkMode = theme.mode === "dark";
+  const readDataColor = (key: string) =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const detailsButtonColor = isDarkMode
+    ? readDataColor("detailsButtonColorDark") || readDataColor("detailsButtonColor") || "transparent"
+    : readDataColor("detailsButtonColor") || "transparent";
+  const detailsButtonTextColor = isDarkMode
+    ? readDataColor("detailsButtonTextColorDark") || readDataColor("detailsButtonTextColor") || "#f8fafc"
+    : readDataColor("detailsButtonTextColor") || "#111111";
+  const detailsButtonBorderColor = isDarkMode
+    ? readDataColor("detailsButtonBorderColorDark") || readDataColor("detailsButtonBorderColor") || "transparent"
+    : readDataColor("detailsButtonBorderColor") || "transparent";
   const servicePageButtonMode =
     data.servicePageButtonMode === "booking" ? "booking" : "entityPage";
   const cardStyle = data.cardStyle === "plain" ? "plain" : "filled";
@@ -4890,6 +4893,7 @@ export function renderServices(
   const cardPaddingY = Number(data.cardPaddingY);
   const mobileCardsPerRow = Number(data.mobileCardsPerRow) === 1 ? 1 : 2;
   const showSecondImageOnHover = data.showSecondImageOnHover === true;
+  const imageZoomOnHover = data.imageZoomOnHover === true;
   const alignButtonsBottom = data.alignButtonsBottom !== false;
   const modalImageClickEnabled = data.modalImageClickEnabled !== false;
   const serviceModalShowDescription = data.serviceModalShowDescription !== false;
@@ -5029,6 +5033,7 @@ export function renderServices(
         cardPaddingY={cardPaddingY}
         mobileCardsPerRow={mobileCardsPerRow}
         showSecondImageOnHover={showSecondImageOnHover}
+        imageZoomOnHover={imageZoomOnHover}
         alignButtonsBottom={alignButtonsBottom}
         modalImageClickEnabled={modalImageClickEnabled}
         serviceModalShowDescription={serviceModalShowDescription}

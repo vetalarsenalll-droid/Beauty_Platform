@@ -40,6 +40,7 @@ type ServiceCatalogProps = {
   cardPaddingY: number;
   mobileCardsPerRow: 1 | 2;
   showSecondImageOnHover: boolean;
+  imageZoomOnHover: boolean;
   alignButtonsBottom: boolean;
   modalImageClickEnabled: boolean;
   serviceModalShowDescription: boolean;
@@ -627,6 +628,7 @@ export function ServicesCatalog({
   cardPaddingY,
   mobileCardsPerRow,
   showSecondImageOnHover,
+  imageZoomOnHover,
   alignButtonsBottom,
   modalImageClickEnabled,
   serviceModalShowDescription,
@@ -1018,7 +1020,11 @@ export function ServicesCatalog({
                         src={primaryImage ?? ""}
                         alt={service.name}
                         className={`h-full w-full transition duration-300 ${
-                          secondaryImage ? "group-hover:opacity-0" : "group-hover:scale-[1.03]"
+                          secondaryImage
+                            ? "group-hover:opacity-0"
+                            : imageZoomOnHover
+                              ? "group-hover:scale-[1.03]"
+                              : ""
                         }`}
                         style={{ objectFit: "cover" }}
                       />
@@ -1055,7 +1061,11 @@ export function ServicesCatalog({
                         src={primaryImage ?? ""}
                         alt={service.name}
                         className={`h-full w-full transition duration-300 ${
-                          secondaryImage ? "group-hover:opacity-0" : "group-hover:scale-[1.03]"
+                          secondaryImage
+                            ? "group-hover:opacity-0"
+                            : imageZoomOnHover
+                              ? "group-hover:scale-[1.03]"
+                              : ""
                         }`}
                         style={{ objectFit: "cover" }}
                       />
@@ -1095,7 +1105,7 @@ export function ServicesCatalog({
               >
                 <a
                   href={serviceHref}
-                  className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] hover:underline ${
+                  className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline ${
                     isEditorial ? "text-[22px]" : "text-[20px]"
                   }`}
                 >
@@ -1147,18 +1157,20 @@ export function ServicesCatalog({
                       className="flex flex-wrap gap-3"
                       style={{ justifyContent: "center" }}
                     >
-                    <a
-                      href={detailsHref}
-                      className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
-                      style={{
-                        backgroundColor: detailsButtonColor || "transparent",
-                        color: detailsButtonTextColor || "var(--block-text,var(--bp-ink))",
-                        border: `1px solid ${detailsButtonBorderColor || "var(--block-border,transparent)"}`,
-                      }}
-                    >
-                      {detailsButtonText}
-                    </a>
-                    {showButton && bookingHref ? (
+                    {detailsButtonText ? (
+                      <a
+                        href={detailsHref}
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
+                        style={{
+                          backgroundColor: detailsButtonColor || "transparent",
+                          color: detailsButtonTextColor || "var(--block-text,var(--bp-ink))",
+                          border: `1px solid ${detailsButtonBorderColor || "var(--block-border,transparent)"}`,
+                        }}
+                      >
+                        {detailsButtonText}
+                      </a>
+                    ) : null}
+                    {showButton && bookingHref && buttonText ? (
                       <a
                         href={bookingHref}
                         className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
