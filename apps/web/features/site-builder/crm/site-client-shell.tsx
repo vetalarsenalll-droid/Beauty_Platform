@@ -892,7 +892,7 @@ export default function SiteClient({
                         : undefined
                 }
               >
-                {isBlockActive && (
+                {isBlockActive && !rightPanel && (
                   <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between">
                     <div className="pointer-events-auto flex items-center gap-1">
                       {block.type !== "booking" && (
