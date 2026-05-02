@@ -56,6 +56,10 @@ function isLegacyDefaultServiceWidth(style: Record<string, unknown>) {
   );
 }
 
+function defaultServiceCardBackground(value: unknown, fallback: string) {
+  return isTransparentColor(value) ? fallback : value;
+}
+
 export const SE001: BlockVersion = {
   blockCode: "SE001",
   normalizeData: (input) => {
@@ -94,9 +98,13 @@ export const SE001: BlockVersion = {
         sectionBgLight: shouldResetLegacySurface ? "transparent" : (style.sectionBgLight ?? "transparent"),
         sectionBgDark: style.sectionBgDark ?? "transparent",
         sectionBg: shouldResetLegacySurface ? "transparent" : (style.sectionBg ?? "transparent"),
-        subBlockBgLight: shouldResetLegacySurface ? "transparent" : (style.subBlockBgLight ?? "transparent"),
-        subBlockBgDark: style.subBlockBgDark ?? "transparent",
-        subBlockBg: shouldResetLegacySurface ? "transparent" : (style.subBlockBg ?? "transparent"),
+        subBlockBgLight: shouldResetLegacySurface
+          ? "#fafafa"
+          : defaultServiceCardBackground(style.subBlockBgLight ?? style.subBlockBg, "#fafafa"),
+        subBlockBgDark: defaultServiceCardBackground(style.subBlockBgDark, "#24282e"),
+        subBlockBg: shouldResetLegacySurface
+          ? "#fafafa"
+          : defaultServiceCardBackground(style.subBlockBg ?? style.subBlockBgLight, "#fafafa"),
         borderColorLight: style.borderColorLight ?? "transparent",
         borderColorDark: style.borderColorDark ?? "transparent",
         borderColor: style.borderColor ?? "transparent",

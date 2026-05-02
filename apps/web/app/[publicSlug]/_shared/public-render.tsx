@@ -3014,24 +3014,19 @@ function renderServices(
     typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
       ? data.detailsButtonText.trim()
       : "Подробнее";
-  const detailsButtonColor =
-    typeof data.detailsButtonColor === "string" && data.detailsButtonColor.trim()
-      ? data.detailsButtonColor.trim()
-      : "";
-  const detailsButtonTextColor =
-    typeof data.detailsButtonTextColor === "string" && data.detailsButtonTextColor.trim()
-      ? data.detailsButtonTextColor.trim()
-      : "";
-  const detailsButtonBorderColor =
-    typeof data.detailsButtonBorderColor === "string" && data.detailsButtonBorderColor.trim()
-      ? data.detailsButtonBorderColor.trim()
-      : "";
   const readDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
   const readOptionalDataColor = (key: string) => {
     const value = readDataColor(key);
     return value && value !== "transparent" ? value : "";
   };
+  const detailsButtonColor = readDataColor("detailsButtonColor") || "transparent";
+  const detailsButtonTextColor = readDataColor("detailsButtonTextColor") || "#111111";
+  const detailsButtonBorderColor = readDataColor("detailsButtonBorderColor") || "transparent";
+  const detailsButtonColorDark = readDataColor("detailsButtonColorDark") || detailsButtonColor;
+  const detailsButtonTextColorDark = readDataColor("detailsButtonTextColorDark") || "#f8fafc";
+  const detailsButtonBorderColorDark =
+    readDataColor("detailsButtonBorderColorDark") || detailsButtonBorderColor;
   const servicePageButtonMode =
     data.servicePageButtonMode === "booking" ? "booking" : "entityPage";
   const cardStyle = data.cardStyle === "plain" ? "plain" : "filled";
@@ -3190,6 +3185,9 @@ function renderServices(
         detailsButtonColor={detailsButtonColor}
         detailsButtonTextColor={detailsButtonTextColor}
         detailsButtonBorderColor={detailsButtonBorderColor}
+        detailsButtonColorDark={detailsButtonColorDark}
+        detailsButtonTextColorDark={detailsButtonTextColorDark}
+        detailsButtonBorderColorDark={detailsButtonBorderColorDark}
         servicePageButtonMode={servicePageButtonMode}
         cardStyle={cardStyle}
         cardGapX={cardGapX}

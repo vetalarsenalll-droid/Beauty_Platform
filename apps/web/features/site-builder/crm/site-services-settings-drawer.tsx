@@ -372,18 +372,10 @@ export function SiteServicesSettingsDrawer({
           <TildaInlineColorField
             compact
             label="Фон карточек"
-            value={readStyle("subBlockBgLight", readStyle("subBlockBg", "transparent"))}
-            placeholder="transparent"
+            value={readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"))}
+            placeholder="#fafafa"
             onChange={(value) => updateStyle({ subBlockBgLight: value, subBlockBg: value })}
-            onClear={() => updateStyle({ subBlockBgLight: "transparent", subBlockBg: "transparent" })}
-          />
-          <TildaInlineColorField
-            compact
-            label="Обводка"
-            value={readStyle("borderColorLight", readStyle("borderColor", "transparent"))}
-            placeholder="transparent"
-            onChange={(value) => updateStyle({ borderColorLight: value, borderColor: value })}
-            onClear={() => updateStyle({ borderColorLight: "transparent", borderColor: "transparent" })}
+            onClear={() => updateStyle({ subBlockBgLight: "#fafafa", subBlockBg: "#fafafa" })}
           />
           <TildaInlineColorField
             compact
@@ -426,18 +418,10 @@ export function SiteServicesSettingsDrawer({
               <TildaInlineColorField
                 compact
                 label="Фон карточек"
-                value={readStyle("subBlockBgDark", "transparent")}
-                placeholder="transparent"
+                value={readStyle("subBlockBgDark", "#24282e")}
+                placeholder="#24282e"
                 onChange={(value) => updateStyle({ subBlockBgDark: value })}
-                onClear={() => updateStyle({ subBlockBgDark: "transparent" })}
-              />
-              <TildaInlineColorField
-                compact
-                label="Обводка"
-                value={readStyle("borderColorDark", "transparent")}
-                placeholder="transparent"
-                onChange={(value) => updateStyle({ borderColorDark: value })}
-                onClear={() => updateStyle({ borderColorDark: "transparent" })}
+                onClear={() => updateStyle({ subBlockBgDark: "#24282e" })}
               />
               <TildaInlineColorField
                 compact

@@ -39,6 +39,9 @@ type ServiceCatalogProps = {
   detailsButtonColor?: string;
   detailsButtonTextColor?: string;
   detailsButtonBorderColor?: string;
+  detailsButtonColorDark?: string;
+  detailsButtonTextColorDark?: string;
+  detailsButtonBorderColorDark?: string;
   servicePageButtonMode: "entityPage" | "booking";
   cardStyle: "plain" | "filled";
   cardGapX: number;
@@ -653,6 +656,9 @@ export function ServicesCatalog({
   detailsButtonColor,
   detailsButtonTextColor,
   detailsButtonBorderColor,
+  detailsButtonColorDark,
+  detailsButtonTextColorDark,
+  detailsButtonBorderColorDark,
   servicePageButtonMode,
   cardStyle,
   cardGapX,
@@ -745,6 +751,18 @@ export function ServicesCatalog({
     sortActiveColorDark,
     resolvedCategoryActiveColor
   );
+  const resolvedDetailsButtonColor =
+    activeThemeMode === "dark"
+      ? detailsButtonColorDark || detailsButtonColor || "transparent"
+      : detailsButtonColor || "transparent";
+  const resolvedDetailsButtonTextColor =
+    activeThemeMode === "dark"
+      ? detailsButtonTextColorDark || detailsButtonTextColor || "var(--block-text,var(--bp-ink))"
+      : detailsButtonTextColor || "var(--block-text,var(--bp-ink))";
+  const resolvedDetailsButtonBorderColor =
+    activeThemeMode === "dark"
+      ? detailsButtonBorderColorDark || detailsButtonBorderColor || "var(--block-border,transparent)"
+      : detailsButtonBorderColor || "var(--block-border,transparent)";
   const isDarkTheme = activeThemeMode === "dark";
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
@@ -1268,9 +1286,9 @@ export function ServicesCatalog({
                         href={detailsHref}
                         className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
                         style={{
-                          backgroundColor: detailsButtonColor || "transparent",
-                          color: detailsButtonTextColor || "var(--block-text,var(--bp-ink))",
-                          border: `1px solid ${detailsButtonBorderColor || "var(--block-border,transparent)"}`,
+                          backgroundColor: resolvedDetailsButtonColor,
+                          color: resolvedDetailsButtonTextColor,
+                          border: `1px solid ${resolvedDetailsButtonBorderColor}`,
                         }}
                       >
                         {detailsButtonText}
