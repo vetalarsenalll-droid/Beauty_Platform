@@ -74,6 +74,28 @@ import {
 } from "@/features/site-builder/blocks/block-registry";
 import { resolveBlockVersion } from "@/features/site-builder/blocks/runtime/resolve-block-version";
 
+function DesktopPreviewIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <rect height="15.031" width="18.5" rx="3.5" x="2.75" y="2.75" />
+        <path d="M9.11 17.781v3.469m5.78-3.469v3.469m-8.382 0h10.984" />
+      </g>
+    </svg>
+  );
+}
+
+function MobilePreviewIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 21 21" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" fillRule="evenodd" transform="translate(5 3)">
+        <path d="M2.5.5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="5.5" cy="11.5" fill="currentColor" r="1" />
+      </g>
+    </svg>
+  );
+}
+
 export default function SiteClient({
   initialActivePage = "home",
   initialPublicPage,
@@ -463,8 +485,9 @@ export default function SiteClient({
             isRightPanelVisible ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
           }`}
         >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-4 justify-self-start">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
             <Link
               href="/crm/site/project"
               className="text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
@@ -659,40 +682,43 @@ export default function SiteClient({
               Вернуться в CRM
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPreviewMode("desktop")}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border ${
-                previewMode === "desktop"
-                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
-              }`}
-              aria-label="Десктоп"
-              title="Десктоп"
-            >
-              ПК
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreviewMode("mobile")}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border ${
-                previewMode === "mobile"
-                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
-              }`}
-              aria-label="Мобильный"
-              title="Мобильный"
-            >
-              М
-            </button>
+          </div>
+          <div className="grid w-[360px] max-w-[42vw] grid-cols-[1fr_auto_1fr] items-center gap-2 justify-self-center">
+            <div className="col-start-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPreviewMode("desktop")}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  previewMode === "desktop"
+                    ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                }`}
+                aria-label="Десктоп"
+                title="Десктоп"
+              >
+                <DesktopPreviewIcon className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewMode("mobile")}
+                className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  previewMode === "mobile"
+                    ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                }`}
+                aria-label="Мобильный"
+                title="Мобильный"
+              >
+                <MobilePreviewIcon className="h-5 w-5" />
+              </button>
+            </div>
             {previewMode === "mobile" && (
               <select
                 value={mobileViewport}
                 onChange={(event) =>
                   setMobileViewport(event.target.value as MobileViewportKey)
                 }
-                className="h-10 rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
+                className="col-start-3 h-10 justify-self-start rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
                 title="Размер мобильного предпросмотра"
               >
                 {(Object.keys(MOBILE_VIEWPORTS) as MobileViewportKey[]).map((key) => (
@@ -703,7 +729,7 @@ export default function SiteClient({
               </select>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-end gap-2 justify-self-end">
             <button
               type="button"
               onClick={handleUndo}

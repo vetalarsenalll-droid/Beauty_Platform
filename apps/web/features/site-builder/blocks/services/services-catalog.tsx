@@ -663,8 +663,8 @@ function ServiceModal({
 
           {showMeta ? (
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <span className="service-modal-text" style={priceTextStyle}>{formatPrice(service.basePrice)}</span>
-              <span className="service-modal-text" style={durationTextStyle}>{service.baseDurationMin} мин</span>
+              <span className="service-modal-text" style={priceTextStyle}>от {formatPrice(service.basePrice)}</span>
+              <span className="service-modal-text" style={durationTextStyle}>от {service.baseDurationMin} мин</span>
             </div>
           ) : null}
 
@@ -1672,7 +1672,7 @@ export function ServicesCatalog({
                         className="rounded-[10px] px-3 py-1 max-sm:!px-0 max-sm:!py-0"
                         style={compactMetaPillStyle}
                       >
-                        {service.baseDurationMin} мин
+                        от {service.baseDurationMin} мин
                       </span>
                     ) : null}
                     {showPrice ? (
@@ -1680,7 +1680,7 @@ export function ServicesCatalog({
                         className="rounded-[10px] px-3 py-1 max-sm:!px-0 max-sm:!py-0"
                         style={compactMetaPillStyle}
                       >
-                        {formatPrice(service.basePrice)}
+                        от {formatPrice(service.basePrice)}
                       </span>
                     ) : null}
                   </div>
