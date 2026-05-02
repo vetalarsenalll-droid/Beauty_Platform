@@ -5114,10 +5114,14 @@ export function renderServices(
   const categoryActiveColor = readOptionalDataColor("categoryActiveColor");
   const sortTextColor = readOptionalDataColor("sortTextColor");
   const sortActiveColor = readOptionalDataColor("sortActiveColor");
+  const locationTextColor = readOptionalDataColor("locationTextColor");
+  const locationActiveColor = readOptionalDataColor("locationActiveColor");
   const categoryTextColorDark = readOptionalDataColor("categoryTextColorDark");
   const categoryActiveColorDark = readOptionalDataColor("categoryActiveColorDark");
   const sortTextColorDark = readOptionalDataColor("sortTextColorDark");
   const sortActiveColorDark = readOptionalDataColor("sortActiveColorDark");
+  const locationTextColorDark = readOptionalDataColor("locationTextColorDark");
+  const locationActiveColorDark = readOptionalDataColor("locationActiveColorDark");
   const showDescription = data.showDescription !== false;
   const showPrice = data.showPrice !== false;
   const showDuration = data.showDuration !== false;
@@ -5180,10 +5184,14 @@ export function renderServices(
         categoryActiveColor={categoryActiveColor}
         sortTextColor={sortTextColor}
         sortActiveColor={sortActiveColor}
+        locationTextColor={locationTextColor}
+        locationActiveColor={locationActiveColor}
         categoryTextColorDark={categoryTextColorDark}
         categoryActiveColorDark={categoryActiveColorDark}
         sortTextColorDark={sortTextColorDark}
         sortActiveColorDark={sortActiveColorDark}
+        locationTextColorDark={locationTextColorDark}
+        locationActiveColorDark={locationActiveColorDark}
         themeMode={theme.mode === "dark" ? "dark" : "light"}
         showDescription={showDescription}
         showPrice={showPrice}

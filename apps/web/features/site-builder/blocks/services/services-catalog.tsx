@@ -28,10 +28,14 @@ type ServiceCatalogProps = {
   categoryActiveColor?: string;
   sortTextColor?: string;
   sortActiveColor?: string;
+  locationTextColor?: string;
+  locationActiveColor?: string;
   categoryTextColorDark?: string;
   categoryActiveColorDark?: string;
   sortTextColorDark?: string;
   sortActiveColorDark?: string;
+  locationTextColorDark?: string;
+  locationActiveColorDark?: string;
   themeMode: "light" | "dark";
   showDescription: boolean;
   showPrice: boolean;
@@ -726,10 +730,14 @@ export function ServicesCatalog({
   categoryActiveColor,
   sortTextColor,
   sortActiveColor,
+  locationTextColor,
+  locationActiveColor,
   categoryTextColorDark,
   categoryActiveColorDark,
   sortTextColorDark,
   sortActiveColorDark,
+  locationTextColorDark,
+  locationActiveColorDark,
   themeMode,
   showDescription,
   showPrice,
@@ -858,6 +866,12 @@ export function ServicesCatalog({
     sortActiveColor,
     sortActiveColorDark,
     resolvedCategoryActiveColor
+  );
+  const resolvedLocationTextColor = pickThemeColor(locationTextColor, locationTextColorDark, resolvedSortTextColor);
+  const resolvedLocationActiveColor = pickThemeColor(
+    locationActiveColor,
+    locationActiveColorDark,
+    resolvedSortActiveColor
   );
   const resolvedDetailsButtonColor =
     activeThemeMode === "dark"
@@ -1162,7 +1176,7 @@ export function ServicesCatalog({
                     border: `1px solid ${controlBorderColor}`,
                     borderRadius: 12,
                     backgroundColor: controlBackgroundColor,
-                    color: resolvedSortTextColor,
+                    color: resolvedLocationTextColor,
                     padding: "0 12px 0 14px",
                     boxShadow: controlShadow,
                   }}
@@ -1182,7 +1196,7 @@ export function ServicesCatalog({
                       border: `1px solid ${controlBorderColor}`,
                       borderRadius: 12,
                       backgroundColor: dropdownBackgroundColor,
-                      color: resolvedSortTextColor,
+                      color: resolvedLocationTextColor,
                       boxShadow: dropdownShadow,
                     }}
                     role="listbox"
@@ -1207,8 +1221,8 @@ export function ServicesCatalog({
                             if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
                           }}
                           style={{
-                            backgroundColor: isSelected ? resolvedSortActiveColor : "transparent",
-                            color: isSelected ? selectedSortTextColor : resolvedSortTextColor,
+                            backgroundColor: isSelected ? resolvedLocationActiveColor : "transparent",
+                            color: isSelected ? readableTextColor(resolvedLocationActiveColor) : resolvedLocationTextColor,
                           }}
                         >
                           {location.name}

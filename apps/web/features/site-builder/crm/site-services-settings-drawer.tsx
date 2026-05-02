@@ -712,6 +712,22 @@ export function SiteServicesSettingsDrawer({
             onChange={(value) => updateData({ sortActiveColor: value })}
             onClear={() => updateData({ sortActiveColor: "transparent" })}
           />
+          <TildaInlineColorField
+            compact
+            label="Цвет текста выбора локации"
+            value={readDefaultedDataColor("locationTextColor", activeTheme.textColor)}
+            placeholder={activeTheme.textColor}
+            onChange={(value) => updateData({ locationTextColor: value })}
+            onClear={() => updateData({ locationTextColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Активный пункт локации"
+            value={readDefaultedDataColor("locationActiveColor", activeTheme.buttonColor)}
+            placeholder={activeTheme.buttonColor}
+            onChange={(value) => updateData({ locationActiveColor: value })}
+            onClear={() => updateData({ locationActiveColor: "transparent" })}
+          />
 
           <button
             type="button"
@@ -765,6 +781,22 @@ export function SiteServicesSettingsDrawer({
                 placeholder={activeTheme.darkPalette.buttonColor}
                 onChange={(value) => updateData({ sortActiveColorDark: value })}
                 onClear={() => updateData({ sortActiveColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Цвет текста выбора локации"
+                value={readDefaultedDataColor("locationTextColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateData({ locationTextColorDark: value })}
+                onClear={() => updateData({ locationTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Активный пункт локации"
+                value={readDefaultedDataColor("locationActiveColorDark", activeTheme.darkPalette.buttonColor)}
+                placeholder={activeTheme.darkPalette.buttonColor}
+                onChange={(value) => updateData({ locationActiveColorDark: value })}
+                onClear={() => updateData({ locationActiveColorDark: "transparent" })}
               />
             </div>
           ) : null}
