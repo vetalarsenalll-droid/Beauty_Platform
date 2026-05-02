@@ -400,6 +400,9 @@ export const defaultBlockStyle = {
   headingSize: null,
   subheadingSize: null,
   textSize: null,
+  mobileHeadingSize: null,
+  mobileSubheadingSize: null,
+  mobileTextSize: null,
 };
 
 const servicesDefaultGridRange = centeredGridRange(8);

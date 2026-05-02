@@ -650,15 +650,15 @@ function ServiceModal({
           className="flex w-full flex-col py-2"
           style={{ flex: `0 0 ${infoWidthPercent}%`, maxWidth: `${infoWidthPercent}%` }}
         >
-          <div className="uppercase tracking-[0.18em]" style={categoryTextStyle}>
+          <div className="service-modal-text uppercase tracking-[0.18em]" style={categoryTextStyle}>
             {service.categoryName || "Услуга"}
           </div>
-          <h3 className="mt-3 leading-tight" style={titleTextStyle}>{service.name}</h3>
+          <h3 className="service-modal-text mt-3 leading-tight" style={titleTextStyle}>{service.name}</h3>
 
           {showMeta ? (
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <span style={priceTextStyle}>{formatPrice(service.basePrice)}</span>
-              <span style={durationTextStyle}>{service.baseDurationMin} мин</span>
+              <span className="service-modal-text" style={priceTextStyle}>{formatPrice(service.basePrice)}</span>
+              <span className="service-modal-text" style={durationTextStyle}>{service.baseDurationMin} мин</span>
             </div>
           ) : null}
 
@@ -669,7 +669,7 @@ function ServiceModal({
           ) : null}
 
           {showDescription && service.description ? (
-            <p className="mt-10 leading-8" style={descriptionTextStyle}>{service.description}</p>
+            <p className="service-modal-text mt-10 leading-8" style={descriptionTextStyle}>{service.description}</p>
           ) : null}
 
           {showThumbnails ? (
@@ -942,6 +942,18 @@ export function ServicesCatalog({
   const filtersJustifyContent = alignmentToJustifyContent(filtersAlignment);
   const headingBlockMarginStyle = textAlignToBlockMarginStyle(headingStyle.textAlign);
   const subheadingBlockMarginStyle = textAlignToBlockMarginStyle(subheadingStyle.textAlign);
+  const serviceCardTitleStyle: CSSProperties = {
+    ...subheadingStyle,
+    color: "var(--block-text,var(--bp-ink))",
+    fontWeight: 600,
+  };
+  const serviceCardTextStyle: CSSProperties = {
+    color: "var(--block-muted,var(--bp-muted))",
+    fontSize: "var(--block-text-size)",
+  };
+  const serviceCardButtonTextStyle: CSSProperties = {
+    fontSize: "var(--block-text-size)",
+  };
   const hasPreviewViewport =
     typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
   const isNarrowPreviewViewport = hasPreviewViewport && previewViewportWidth < 640;
@@ -1106,6 +1118,7 @@ export function ServicesCatalog({
                     borderRadius: 12,
                     backgroundColor: controlBackgroundColor,
                     boxShadow: controlShadow,
+                    fontSize: "var(--block-text-size)",
                   }}
                 />
               </label>
@@ -1132,6 +1145,7 @@ export function ServicesCatalog({
                     color: resolvedSortTextColor,
                     padding: "0 12px 0 14px",
                     boxShadow: controlShadow,
+                    fontSize: "var(--block-text-size)",
                   }}
                   aria-haspopup="listbox"
                   aria-expanded={isSortOpen}
@@ -1151,6 +1165,7 @@ export function ServicesCatalog({
                       backgroundColor: dropdownBackgroundColor,
                       color: resolvedSortTextColor,
                       boxShadow: dropdownShadow,
+                      fontSize: "var(--block-text-size)",
                     }}
                     role="listbox"
                   >
@@ -1212,6 +1227,7 @@ export function ServicesCatalog({
                     color: resolvedLocationTextColor,
                     padding: "0 12px 0 14px",
                     boxShadow: controlShadow,
+                    fontSize: "var(--block-text-size)",
                   }}
                   aria-haspopup="listbox"
                   aria-expanded={isLocationOpen}
@@ -1231,6 +1247,7 @@ export function ServicesCatalog({
                       backgroundColor: dropdownBackgroundColor,
                       color: resolvedLocationTextColor,
                       boxShadow: dropdownShadow,
+                      fontSize: "var(--block-text-size)",
                     }}
                     role="listbox"
                   >
@@ -1278,7 +1295,7 @@ export function ServicesCatalog({
           <button
             type="button"
             onClick={() => setActiveCategory("__all__")}
-            className="rounded-[12px] border px-4 py-2 text-sm transition"
+            className="rounded-[12px] border px-4 py-2 transition"
             style={{
               borderColor:
                 activeCategory === "__all__"
@@ -1290,6 +1307,7 @@ export function ServicesCatalog({
                 activeCategory === "__all__"
                   ? "var(--block-button-text,var(--bp-paper))"
                   : resolvedCategoryTextColor,
+              fontSize: "var(--block-text-size)",
             }}
           >
             {categoryAllLabel || "Все услуги"}
@@ -1301,7 +1319,7 @@ export function ServicesCatalog({
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className="rounded-[12px] border px-4 py-2 text-sm transition"
+                className="rounded-[12px] border px-4 py-2 transition"
                 style={{
                   borderColor: isActive
                     ? resolvedCategoryActiveColor
@@ -1310,6 +1328,7 @@ export function ServicesCatalog({
                   color: isActive
                     ? "var(--block-button-text,var(--bp-paper))"
                     : resolvedCategoryTextColor,
+                  fontSize: "var(--block-text-size)",
                 }}
               >
                 {category}
@@ -1515,18 +1534,16 @@ export function ServicesCatalog({
               >
                 {modalImageClickEnabled ? (
                   <span
-                    className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] ${
-                      isEditorial ? "text-[22px]" : "text-[20px]"
-                    }`}
+                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))]"
+                    style={serviceCardTitleStyle}
                   >
                     {service.name}
                   </span>
                 ) : (
                   <a
                     href={serviceHref}
-                    className={`font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline ${
-                      isEditorial ? "text-[22px]" : "text-[20px]"
-                    }`}
+                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline"
+                    style={serviceCardTitleStyle}
                   >
                     {service.name}
                   </a>
@@ -1534,8 +1551,8 @@ export function ServicesCatalog({
 
                 {(showDuration || showPrice) && (
                   <div
-                    className="mt-6 flex flex-wrap gap-2 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
-                    style={{ justifyContent: contentJustify }}
+                    className="mt-6 flex flex-wrap gap-2 text-[color:var(--block-muted,var(--bp-muted))]"
+                    style={{ ...serviceCardTextStyle, justifyContent: contentJustify }}
                   >
                     {showDuration ? (
                       <span
@@ -1581,13 +1598,14 @@ export function ServicesCatalog({
                       <a
                         href={detailsHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2"
                         style={{
                           backgroundColor: resolvedDetailsButtonColor,
                           color: resolvedDetailsButtonTextColor,
                           border: "1px solid transparent",
                           borderRadius: buttonStyle.borderRadius ?? 0,
                           boxShadow: `inset 0 0 0 1px ${resolvedDetailsButtonBorderColor}`,
+                          ...serviceCardButtonTextStyle,
                         }}
                       >
                         {detailsButtonText}
@@ -1597,8 +1615,8 @@ export function ServicesCatalog({
                       <a
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
-                        style={buttonStyle}
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2"
+                        style={{ ...buttonStyle, ...serviceCardButtonTextStyle }}
                       >
                         {buttonText}
                       </a>

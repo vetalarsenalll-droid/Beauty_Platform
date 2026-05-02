@@ -1515,6 +1515,44 @@ export function BlockStyleEditor({
   );
   const [coverTypographyDarkOpen, setCoverTypographyDarkOpen] = useState(false);
   const [menuColorsDarkOpen, setMenuColorsDarkOpen] = useState(false);
+  const [mobileTypographyOpen, setMobileTypographyOpen] = useState<Record<string, boolean>>({});
+  const defaultMobileTypographySize = (
+    key: "mobileHeadingSize" | "mobileSubheadingSize" | "mobileTextSize",
+    desktopSize: number
+  ) => {
+    if (block.type === "cover") {
+      if (key === "mobileHeadingSize") {
+        return Math.max(28, Math.min(56, Math.round(desktopSize * 0.58)));
+      }
+      if (key === "mobileSubheadingSize") {
+        return Math.max(18, Math.min(36, Math.round(desktopSize * 0.72)));
+      }
+      return Math.max(14, Math.min(26, Math.round(desktopSize * 0.9)));
+    }
+    if (key === "mobileHeadingSize") {
+      return Math.max(24, Math.min(40, Math.round(desktopSize * 0.72)));
+    }
+    if (key === "mobileSubheadingSize") {
+      return Math.max(18, Math.min(28, Math.round(desktopSize * 0.8)));
+    }
+    return Math.max(14, Math.min(18, Math.round(desktopSize * 0.9)));
+  };
+  const DesktopFontSizeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <rect height="15.031" width="18.5" rx="3.5" x="2.75" y="2.75" />
+        <path d="M9.11 17.781v3.469m5.78-3.469v3.469m-8.382 0h10.984" />
+      </g>
+    </svg>
+  );
+  const MobileFontSizeIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+    <svg viewBox="0 0 21 21" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" fillRule="evenodd" transform="translate(5 3)">
+        <path d="M2.5.5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="5.5" cy="11.5" fill="currentColor" r="1" />
+      </g>
+    </svg>
+  );
   const renderFlatSelect = (
     label: string,
     value: string,
@@ -1558,30 +1596,88 @@ export function BlockStyleEditor({
     value: number,
     min: number,
     max: number,
-    onChange: (value: number) => void
-  ) => (
-    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-      <div className="min-h-[32px] leading-4">{label}</div>
-      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          value={value}
-          onChange={(event) => onChange(Number(event.target.value))}
-          className="w-full rounded-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
-          style={{
-            border: 0,
-            borderRadius: 0,
-            backgroundColor: "transparent",
-            boxShadow: "none",
-            appearance: "auto",
-          }}
-        />
-        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+    onChange: (value: number) => void,
+    mobile?: {
+      key: "mobileHeadingSize" | "mobileSubheadingSize" | "mobileTextSize";
+      value: number | null;
+      fallback: number;
+      onChange: (value: number) => void;
+    }
+  ) => {
+    const mobileControlKey = mobile ? `${activeSectionId}:${label}:${mobile.key}` : "";
+    const mobileOpen = mobile ? mobileTypographyOpen[mobileControlKey] === true : false;
+    const inputClassName =
+      "w-full rounded-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0";
+    const inputStyle = {
+      border: 0,
+      borderRadius: 0,
+      backgroundColor: "transparent",
+      boxShadow: "none",
+      appearance: "auto",
+    } as const;
+    const clampNext = (next: number) =>
+      Number.isFinite(next) ? Math.max(min, Math.min(max, Math.round(next))) : min;
+
+    return (
+      <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+        <label className="block">
+          <div className="min-h-[32px] leading-4">{label}</div>
+          <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
+            <input
+              type="number"
+              min={min}
+              max={max}
+              value={value}
+              onChange={(event) => onChange(clampNext(Number(event.target.value)))}
+              className={inputClassName}
+              style={inputStyle}
+            />
+            <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+            {mobile ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setMobileTypographyOpen((prev) => ({
+                    ...prev,
+                    [mobileControlKey]: !prev[mobileControlKey],
+                  }))
+                }
+                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                  mobileOpen
+                    ? "bg-[#ff5a5f] text-white"
+                    : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+                }`}
+                title="Нажмите, чтобы задать значение для мобильного"
+                aria-label="Открыть мобильный размер шрифта"
+              >
+                <DesktopFontSizeIcon className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+        </label>
+        {mobile && mobileOpen ? (
+          <label className="mt-3 grid grid-cols-[112px_1fr] items-end gap-3">
+            <div className="min-h-[32px] leading-4">Моб. размер шрифта</div>
+            <div className="flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
+              <input
+                type="number"
+                min={min}
+                max={max}
+                value={mobile.value ?? mobile.fallback}
+                onChange={(event) => mobile.onChange(clampNext(Number(event.target.value)))}
+                className={inputClassName}
+                style={inputStyle}
+              />
+              <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#d1d5db] text-white">
+                <MobileFontSizeIcon className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          </label>
+        ) : null}
       </div>
-    </label>
-  );
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -2869,7 +2965,13 @@ export function BlockStyleEditor({
             style.headingSize ?? theme.headingSize,
             0,
             140,
-            (value) => update({ headingSize: value })
+            (value) => update({ headingSize: value }),
+            {
+              key: "mobileHeadingSize",
+              value: style.mobileHeadingSize,
+              fallback: defaultMobileTypographySize("mobileHeadingSize", style.headingSize ?? theme.headingSize),
+              onChange: (value) => update({ mobileHeadingSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -2900,7 +3002,13 @@ export function BlockStyleEditor({
                 style.subheadingSize ?? theme.subheadingSize,
                 0,
                 100,
-                (value) => update({ subheadingSize: value })
+                (value) => update({ subheadingSize: value }),
+                {
+                  key: "mobileSubheadingSize",
+                  value: style.mobileSubheadingSize,
+                  fallback: defaultMobileTypographySize("mobileSubheadingSize", style.subheadingSize ?? theme.subheadingSize),
+                  onChange: (value) => update({ mobileSubheadingSize: value }),
+                }
               )}
               {renderFlatSelect(
                 "Шрифт",
@@ -2937,7 +3045,13 @@ export function BlockStyleEditor({
             style.textSize ?? theme.textSize,
             0,
             72,
-            (value) => update({ textSize: value })
+            (value) => update({ textSize: value }),
+            {
+              key: "mobileTextSize",
+              value: style.mobileTextSize,
+              fallback: defaultMobileTypographySize("mobileTextSize", style.textSize ?? theme.textSize),
+              onChange: (value) => update({ mobileTextSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -3017,7 +3131,13 @@ export function BlockStyleEditor({
             style.headingSize ?? theme.headingSize,
             0,
             140,
-            (value) => update({ headingSize: value })
+            (value) => update({ headingSize: value }),
+            {
+              key: "mobileHeadingSize",
+              value: style.mobileHeadingSize,
+              fallback: defaultMobileTypographySize("mobileHeadingSize", style.headingSize ?? theme.headingSize),
+              onChange: (value) => update({ mobileHeadingSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -3046,7 +3166,13 @@ export function BlockStyleEditor({
             style.textSize ?? theme.textSize,
             0,
             72,
-            (value) => update({ textSize: value })
+            (value) => update({ textSize: value }),
+            {
+              key: "mobileTextSize",
+              value: style.mobileTextSize,
+              fallback: defaultMobileTypographySize("mobileTextSize", style.textSize ?? theme.textSize),
+              onChange: (value) => update({ mobileTextSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -3075,7 +3201,13 @@ export function BlockStyleEditor({
             style.subheadingSize ?? theme.subheadingSize,
             0,
             100,
-            (value) => update({ subheadingSize: value })
+            (value) => update({ subheadingSize: value }),
+            {
+              key: "mobileSubheadingSize",
+              value: style.mobileSubheadingSize,
+              fallback: defaultMobileTypographySize("mobileSubheadingSize", style.subheadingSize ?? theme.subheadingSize),
+              onChange: (value) => update({ mobileSubheadingSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -3120,7 +3252,13 @@ export function BlockStyleEditor({
             style.headingSize ?? theme.headingSize,
             0,
             140,
-            (value) => update({ headingSize: value })
+            (value) => update({ headingSize: value }),
+            {
+              key: "mobileHeadingSize",
+              value: style.mobileHeadingSize,
+              fallback: defaultMobileTypographySize("mobileHeadingSize", style.headingSize ?? theme.headingSize),
+              onChange: (value) => update({ mobileHeadingSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -3172,7 +3310,13 @@ export function BlockStyleEditor({
             style.subheadingSize ?? theme.subheadingSize,
             0,
             100,
-            (value) => update({ subheadingSize: value })
+            (value) => update({ subheadingSize: value }),
+            {
+              key: "mobileSubheadingSize",
+              value: style.mobileSubheadingSize,
+              fallback: defaultMobileTypographySize("mobileSubheadingSize", style.subheadingSize ?? theme.subheadingSize),
+              onChange: (value) => update({ mobileSubheadingSize: value }),
+            }
           )}
           {renderFlatSelect(
             "Шрифт",
@@ -3307,21 +3451,39 @@ export function BlockStyleEditor({
               style.headingSize ?? theme.headingSize,
               0,
               140,
-              (value) => update({ headingSize: value })
+              (value) => update({ headingSize: value }),
+              {
+                key: "mobileHeadingSize",
+                value: style.mobileHeadingSize,
+                fallback: defaultMobileTypographySize("mobileHeadingSize", style.headingSize ?? theme.headingSize),
+                onChange: (value) => update({ mobileHeadingSize: value }),
+              }
             )}
             {renderFlatNumber(
               "Подзаголовок",
               style.subheadingSize ?? theme.subheadingSize,
               0,
               100,
-              (value) => update({ subheadingSize: value })
+              (value) => update({ subheadingSize: value }),
+              {
+                key: "mobileSubheadingSize",
+                value: style.mobileSubheadingSize,
+                fallback: defaultMobileTypographySize("mobileSubheadingSize", style.subheadingSize ?? theme.subheadingSize),
+                onChange: (value) => update({ mobileSubheadingSize: value }),
+              }
             )}
             {renderFlatNumber(
               "Текст",
               style.textSize ?? theme.textSize,
               0,
               72,
-              (value) => update({ textSize: value })
+              (value) => update({ textSize: value }),
+              {
+                key: "mobileTextSize",
+                value: style.mobileTextSize,
+              fallback: defaultMobileTypographySize("mobileTextSize", style.textSize ?? theme.textSize),
+                onChange: (value) => update({ mobileTextSize: value }),
+              }
             )}
           </div>
         </>

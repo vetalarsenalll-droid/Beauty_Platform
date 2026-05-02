@@ -162,6 +162,9 @@ export type BlockStyle = {
   headingSize: number | null;
   subheadingSize: number | null;
   textSize: number | null;
+  mobileHeadingSize: number | null;
+  mobileSubheadingSize: number | null;
+  mobileTextSize: number | null;
   sectionBgLightResolved: string;
   sectionBgDarkResolved: string;
   blockBgLightResolved: string;
@@ -199,6 +202,31 @@ export type BlockStyle = {
   quickReplyTextColorLightResolved: string;
   quickReplyTextColorDarkResolved: string;
 };
+
+function defaultMobileHeadingSize(desktopSize: number) {
+  return Math.max(24, Math.min(40, Math.round(desktopSize * 0.72)));
+}
+
+function defaultMobileSubheadingSize(desktopSize: number) {
+  return Math.max(18, Math.min(28, Math.round(desktopSize * 0.8)));
+}
+
+function defaultMobileTextSize(desktopSize: number) {
+  return Math.max(14, Math.min(18, Math.round(desktopSize * 0.9)));
+}
+
+function defaultServiceModalMobileTextSize(key: string, desktopSize: number) {
+  if (key === "modalTitle") {
+    return Math.max(26, Math.min(36, Math.round(desktopSize * 0.68)));
+  }
+  if (key === "modalCategory") {
+    return Math.max(11, Math.min(14, Math.round(desktopSize * 0.9)));
+  }
+  if (key === "modalPrice" || key === "modalDuration") {
+    return Math.max(15, Math.min(18, Math.round(desktopSize * 0.85)));
+  }
+  return Math.max(14, Math.min(17, Math.round(desktopSize * 0.9)));
+}
 
 export function isValidColorValue(value: string): boolean {
   const trimmed = value.trim();
@@ -807,6 +835,9 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     headingSize: toNumber(style.headingSize),
     subheadingSize: toNumber(style.subheadingSize),
     textSize: toNumber(style.textSize),
+    mobileHeadingSize: toNumber(style.mobileHeadingSize),
+    mobileSubheadingSize: toNumber(style.mobileSubheadingSize),
+    mobileTextSize: toNumber(style.mobileTextSize),
   };
 }
 
@@ -1620,6 +1651,21 @@ export function BlockPreview({
     onThemeToggle,
     coverScrollEffect === "parallax" ? coverParallaxOffset : 0
   );
+  const desktopHeadingSize = style.headingSize ?? theme.headingSize;
+  const desktopSubheadingSize = style.subheadingSize ?? theme.subheadingSize;
+  const desktopTextSize = style.textSize ?? theme.textSize;
+  const useMobileTypography =
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth <= 480;
+  const currentHeadingSize =
+    useMobileTypography ? style.mobileHeadingSize ?? defaultMobileHeadingSize(desktopHeadingSize) : desktopHeadingSize;
+  const currentSubheadingSize =
+    useMobileTypography
+      ? style.mobileSubheadingSize ?? defaultMobileSubheadingSize(desktopSubheadingSize)
+      : desktopSubheadingSize;
+  const currentTextSize =
+    useMobileTypography ? style.mobileTextSize ?? defaultMobileTextSize(desktopTextSize) : desktopTextSize;
   const coverBackground = resolveCoverBackgroundVisual(
     isCover ? (block.data as Record<string, unknown>) : null,
     sectionBg || theme.panelColor,
@@ -1741,6 +1787,9 @@ export function BlockPreview({
             ["--bp-ink" as string]: textColor,
             ["--bp-muted" as string]: mutedColor,
             ["--bp-stroke" as string]: borderColor,
+            ["--block-heading-size" as string]: `${currentHeadingSize}px`,
+            ["--block-subheading-size" as string]: `${currentSubheadingSize}px`,
+            ["--block-text-size" as string]: `${currentTextSize}px`,
             ["--block-bg-light" as string]: menuBlockBgLight,
             ["--block-bg-dark" as string]: menuBlockBgDark,
             ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
@@ -2194,7 +2243,7 @@ export function headingStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontHeading || theme.fontHeading,
     fontWeight: style.fontWeightHeading ?? undefined,
-    fontSize: style.headingSize ?? theme.headingSize,
+    fontSize: "var(--block-heading-size)",
     textAlign: style.textAlignHeading ?? style.textAlign,
     color: style.textColor || theme.textColor,
   } as const;
@@ -2204,7 +2253,7 @@ export function subheadingStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontSubheading || style.fontBody || theme.fontBody,
     fontWeight: style.fontWeightSubheading ?? undefined,
-    fontSize: style.subheadingSize ?? theme.subheadingSize,
+    fontSize: "var(--block-subheading-size)",
     textAlign: style.textAlignSubheading ?? style.textAlign,
     color: style.mutedColor || theme.mutedColor,
   } as const;
@@ -2214,7 +2263,7 @@ export function textStyle(style: BlockStyle, theme: SiteTheme) {
   return {
     fontFamily: style.fontBody || theme.fontBody,
     fontWeight: style.fontWeightBody ?? undefined,
-    fontSize: style.textSize ?? theme.textSize,
+    fontSize: "var(--block-text-size)",
     textAlign: style.textAlign,
     color: style.mutedColor || theme.mutedColor,
   } as const;
@@ -3011,14 +3060,18 @@ export function renderCover(
   const subheadingDesktopSize = style.subheadingSize ?? theme.subheadingSize;
   const textDesktopSize = style.textSize ?? theme.textSize;
   const descriptionMobileSizeRaw = Number(data.coverDescriptionMobileSize);
-  const headingMobileSize = Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
-  const subheadingMobileSize = Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
+  const headingMobileSize =
+    style.mobileHeadingSize ?? Math.max(28, Math.min(56, Math.round(headingDesktopSize * 0.58)));
+  const subheadingMobileSize =
+    style.mobileSubheadingSize ??
+    Math.max(18, Math.min(36, Math.round(subheadingDesktopSize * 0.72)));
   const textMobileSize =
-    Number.isFinite(descriptionMobileSizeRaw) &&
+    style.mobileTextSize ??
+    (Number.isFinite(descriptionMobileSizeRaw) &&
     descriptionMobileSizeRaw >= 10 &&
     descriptionMobileSizeRaw <= 72
       ? Math.round(descriptionMobileSizeRaw)
-      : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9)));
+      : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9))));
   const sliderInfinite = data.coverSliderInfinite !== false;
   const sliderShowArrows = data.coverSliderShowArrows !== false;
   const sliderShowDots = data.coverSliderShowDots !== false;
@@ -4134,7 +4187,7 @@ export function renderMenuBlock(
           ...headingStyle(style, theme),
           textAlign: menuTextAlign,
           ...(block.variant === "v2"
-            ? { fontSize: `${Math.max(26, Number(style.headingSize ?? 15) + 12)}px`, lineHeight: 1.25 }
+            ? { fontSize: "calc(var(--block-heading-size) + 12px)", lineHeight: 1.25 }
             : {}),
         }}
       >
@@ -4234,10 +4287,7 @@ export function renderMenuBlock(
   const ctaTypographyStyle: CSSProperties = {
     fontFamily: style.fontSubheading || style.fontBody || theme.fontBody,
     fontWeight: style.fontWeightSubheading ?? style.fontWeightBody ?? undefined,
-    fontSize:
-      style.subheadingSize !== null && style.subheadingSize !== undefined
-        ? `${style.subheadingSize}px`
-        : undefined,
+    fontSize: "var(--block-subheading-size)",
     lineHeight: 1.15,
   };
   const ctaNode =
@@ -4322,7 +4372,7 @@ export function renderMenuBlock(
                 style={{
                   ...headingStyle(style, theme),
                   ...(block.variant === "v3"
-                    ? { fontSize: `${Math.max(32, Number(style.headingSize ?? 15) + 16)}px`, lineHeight: 1.25 }
+                    ? { fontSize: "calc(var(--block-heading-size) + 16px)", lineHeight: 1.25 }
                     : {}),
                 }}
               >
@@ -5121,10 +5171,17 @@ export function renderServices(
     weightFallback?: number
   ): CSSProperties => {
     const color = modalTextColor(`${key}Color`, lightFallback, darkFallback);
+    const desktopSize = readDataNumberValue(`${key}Size`, sizeFallback);
+    const mobileSize = readDataNumberValue(
+      `${key}MobileSize`,
+      defaultServiceModalMobileTextSize(key, desktopSize)
+    );
     return {
       color: color.light,
       ["--modal-dark-color" as string]: color.dark,
-      fontSize: `${readDataNumberValue(`${key}Size`, sizeFallback)}px`,
+      ["--service-modal-text-size-desktop" as string]: `${desktopSize}px`,
+      ["--service-modal-text-size-mobile" as string]: `${mobileSize}px`,
+      fontSize: "var(--service-modal-text-size)",
       fontFamily: readDataFont(`${key}Font`, "Manrope"),
       fontWeight: readDataWeight(`${key}Weight`, weightFallback),
     };

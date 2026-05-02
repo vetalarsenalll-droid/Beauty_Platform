@@ -43,39 +43,119 @@ function renderFlatNumberPxInput(
   value: number,
   onChange: (value: number) => void,
   min = 0,
-  max = 80
+  max = 80,
+  mobile?: {
+    value: number | null;
+    fallback: number;
+    onChange: (value: number) => void;
+    isOpen: boolean;
+    onToggle: () => void;
+  }
 ) {
   const normalizedValue = Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : min;
+  const inputClassName =
+    "w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0";
+  const inputStyle = {
+    border: 0,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "textfield",
+    appearance: "textfield",
+  } as const;
+  const clampNext = (nextValue: number) =>
+    Number.isFinite(nextValue) ? Math.max(min, Math.min(max, Math.round(nextValue))) : min;
 
   return (
-    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-      <div className="min-h-[32px] leading-4">{label}</div>
-      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step={1}
-          value={normalizedValue}
-          onChange={(event) => {
-            const nextValue = Number(event.target.value);
-            onChange(Number.isFinite(nextValue) ? Math.max(min, Math.min(max, Math.round(nextValue))) : min);
-          }}
-          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
-          style={{
-            border: 0,
-            borderRadius: 0,
-            backgroundColor: "transparent",
-            boxShadow: "none",
-            WebkitAppearance: "none",
-            MozAppearance: "textfield",
-            appearance: "textfield",
-          }}
-        />
-        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
-      </div>
-    </label>
+    <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <label className="block">
+        <div className="min-h-[32px] leading-4">{label}</div>
+        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={1}
+            value={normalizedValue}
+            onChange={(event) => onChange(clampNext(Number(event.target.value)))}
+            className={inputClassName}
+            style={inputStyle}
+          />
+          <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+          {mobile ? (
+            <button
+              type="button"
+              onClick={mobile.onToggle}
+              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                mobile.isOpen ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+              }`}
+              title="Нажмите, чтобы задать значение для мобильного (≤ 480px)"
+              aria-label="Открыть мобильный размер шрифта"
+            >
+              <DesktopFontSizeIcon className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </label>
+      {mobile && mobile.isOpen ? (
+        <label className="mt-3 grid grid-cols-[112px_1fr] items-end gap-3">
+          <div className="min-h-[32px] leading-4">Моб. размер шрифта</div>
+          <div className="flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <input
+              type="number"
+              min={min}
+              max={max}
+              step={1}
+              value={mobile.value ?? mobile.fallback}
+              onChange={(event) => mobile.onChange(clampNext(Number(event.target.value)))}
+              className={inputClassName}
+              style={inputStyle}
+            />
+            <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#d1d5db] text-white">
+              <MobileFontSizeIcon className="h-3.5 w-3.5" />
+            </span>
+          </div>
+        </label>
+      ) : null}
+    </div>
   );
+}
+
+function DesktopFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <rect height="15.031" width="18.5" rx="3.5" x="2.75" y="2.75" />
+        <path d="M9.11 17.781v3.469m5.78-3.469v3.469m-8.382 0h10.984" />
+      </g>
+    </svg>
+  );
+}
+
+function MobileFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 21 21" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" fillRule="evenodd" transform="translate(5 3)">
+        <path d="M2.5.5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="5.5" cy="11.5" fill="currentColor" r="1" />
+      </g>
+    </svg>
+  );
+}
+
+function defaultModalMobileTextSize(prefix: string, desktopSize: number) {
+  if (prefix === "modalTitle") {
+    return Math.max(26, Math.min(36, Math.round(desktopSize * 0.68)));
+  }
+  if (prefix === "modalCategory") {
+    return Math.max(11, Math.min(14, Math.round(desktopSize * 0.9)));
+  }
+  if (prefix === "modalPrice" || prefix === "modalDuration") {
+    return Math.max(15, Math.min(18, Math.round(desktopSize * 0.85)));
+  }
+  return Math.max(14, Math.min(17, Math.round(desktopSize * 0.9)));
 }
 
 function renderFlatSelect(
@@ -238,6 +318,7 @@ export function SiteServicesSettingsDrawer({
   updateBlock: (blockId: string, updater: (block: SiteBlock) => SiteBlock) => void;
 }) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
+  const [mobileTypographyOpen, setMobileTypographyOpen] = useState<Record<string, boolean>>({});
   const data = (block.data as Record<string, unknown>) ?? {};
   const rawStyle = ((block.data as Record<string, unknown>).style as Record<string, unknown>) ?? {};
   const updateData = (patch: Record<string, unknown>) => {
@@ -864,38 +945,59 @@ export function SiteServicesSettingsDrawer({
       sizeFallback: number,
       weightFallback = "",
       showTopBorder = true
-    ) => (
-      <div className={`space-y-4 ${showTopBorder ? "border-t border-[color:var(--bp-stroke)] pt-4" : ""}`}>
-        <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
-        <TildaInlineColorField
-          compact
-          label="Цвет"
-          value={readDataColor(`${prefix}ColorLight`, colorFallback)}
-          placeholder={colorFallback}
-          onChange={(value) => updateData({ [`${prefix}ColorLight`]: value })}
-          onClear={() => updateData({ [`${prefix}ColorLight`]: "transparent" })}
-        />
-        {renderFlatNumberPxInput(
-          "Размер шрифта",
-          Number(data[`${prefix}Size`] ?? sizeFallback),
-          (value) => updateData({ [`${prefix}Size`]: value }),
-          8,
-          96
-        )}
-        {renderFlatSelect(
-          "Шрифт",
-          String(data[`${prefix}Font`] ?? "Manrope"),
-          (value) => updateData({ [`${prefix}Font`]: value }),
-          modalFontOptions
-        )}
-        {renderFlatSelect(
-          "Насыщенность",
-          String(data[`${prefix}Weight`] ?? weightFallback),
-          (value) => updateData({ [`${prefix}Weight`]: value ? Number(value) : "" }),
-          modalWeightOptions
-        )}
-      </div>
-    );
+    ) => {
+      const mobileKey = `servicePage:${prefix}MobileSize`;
+      const desktopSize = Number(data[`${prefix}Size`] ?? sizeFallback);
+      const mobileSize = Number(data[`${prefix}MobileSize`]);
+      const mobileValue = Number.isFinite(mobileSize) ? Math.round(mobileSize) : null;
+
+      return (
+        <div className={`space-y-4 ${showTopBorder ? "border-t border-[color:var(--bp-stroke)] pt-4" : ""}`}>
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
+          <TildaInlineColorField
+            compact
+            label="Цвет"
+            value={readDataColor(`${prefix}ColorLight`, colorFallback)}
+            placeholder={colorFallback}
+            onChange={(value) => updateData({ [`${prefix}ColorLight`]: value })}
+            onClear={() => updateData({ [`${prefix}ColorLight`]: "transparent" })}
+          />
+          {renderFlatNumberPxInput(
+            "Размер шрифта",
+            desktopSize,
+            (value) => updateData({ [`${prefix}Size`]: value }),
+            8,
+            96,
+            {
+              value: mobileValue,
+              fallback: defaultModalMobileTextSize(
+                prefix,
+                Number.isFinite(desktopSize) ? Math.round(desktopSize) : sizeFallback
+              ),
+              onChange: (value) => updateData({ [`${prefix}MobileSize`]: value }),
+              isOpen: mobileTypographyOpen[mobileKey] === true,
+              onToggle: () =>
+                setMobileTypographyOpen((prev) => ({
+                  ...prev,
+                  [mobileKey]: !prev[mobileKey],
+                })),
+            }
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            String(data[`${prefix}Font`] ?? "Manrope"),
+            (value) => updateData({ [`${prefix}Font`]: value }),
+            modalFontOptions
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            String(data[`${prefix}Weight`] ?? weightFallback),
+            (value) => updateData({ [`${prefix}Weight`]: value ? Number(value) : "" }),
+            modalWeightOptions
+          )}
+        </div>
+      );
+    };
     const renderModalDarkColorControl = (label: string, prefix: string, fallback: string) => (
       <TildaInlineColorField
         compact

@@ -233,6 +233,27 @@ html {
   --block-button: var(--block-button-light);
   --block-button-text: var(--block-button-text-light);
   --block-gradient: var(--block-gradient-light);
+  --block-heading-size: var(--block-heading-size-desktop, var(--site-h1));
+  --block-subheading-size: var(--block-subheading-size-desktop, var(--site-h2));
+  --block-text-size: var(--block-text-size-desktop, var(--site-text-size));
+}
+
+@media (max-width: 480px) {
+  #public-site-root .site-block {
+    --block-heading-size: var(--block-heading-size-mobile, var(--block-heading-size-desktop, var(--site-h1)));
+    --block-subheading-size: var(--block-subheading-size-mobile, var(--block-subheading-size-desktop, var(--site-h2)));
+    --block-text-size: var(--block-text-size-mobile, var(--block-text-size-desktop, var(--site-text-size)));
+  }
+}
+
+.service-modal-text {
+  --service-modal-text-size: var(--service-modal-text-size-desktop);
+}
+
+@media (max-width: 480px) {
+  .service-modal-text {
+    --service-modal-text-size: var(--service-modal-text-size-mobile, var(--service-modal-text-size-desktop));
+  }
 }
 
 [data-site-theme] .public-ai-widget {
