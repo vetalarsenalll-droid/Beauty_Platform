@@ -292,6 +292,11 @@ export function SiteServicesSettingsDrawer({
           (value) => updateData({ detailsButtonText: value }),
           "Подробнее"
         )}
+        {renderFlatNumberPxInput(
+          "Скругление",
+          Number(rawStyle.buttonRadius ?? 0),
+          (value) => updateStyle({ buttonRadius: value })
+        )}
 
         <TildaInlineColorField
           compact

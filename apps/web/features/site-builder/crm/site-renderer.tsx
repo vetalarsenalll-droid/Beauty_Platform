@@ -5077,6 +5077,10 @@ export function renderServices(
   const modalDescriptionTextStyle = modalTextStyle("modalDescription", "#6B7280", "#CBD5E1", 17);
   const modalPriceTextStyle = modalTextStyle("modalPrice", "#111827", "#F8FAFC", 20, 600);
   const modalDurationTextStyle = modalTextStyle("modalDuration", "#6B7280", "#CBD5E1", 20);
+  const servicesButtonStyle = {
+    ...buttonStyle(style, theme),
+    borderRadius: style.buttonRadius ?? 0,
+  };
   const listView = data.listView === "list" ? "list" : "tile";
   const maxVisibleItems = Number(data.maxVisibleItems);
   const usePagination = data.usePagination === true;
@@ -5243,7 +5247,7 @@ export function renderServices(
         usePagination={usePagination}
         headingStyle={servicesHeadingStyle}
         subheadingStyle={servicesSubheadingStyle}
-        buttonStyle={buttonStyle(style, theme)}
+        buttonStyle={servicesButtonStyle}
         textAlign={style.textAlign}
       />
     </div>

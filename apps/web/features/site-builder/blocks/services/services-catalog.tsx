@@ -1447,6 +1447,7 @@ export function ServicesCatalog({
                           backgroundColor: resolvedDetailsButtonColor,
                           color: resolvedDetailsButtonTextColor,
                           border: `1px solid ${resolvedDetailsButtonBorderColor}`,
+                          borderRadius: buttonStyle.borderRadius ?? 0,
                         }}
                       >
                         {detailsButtonText}
