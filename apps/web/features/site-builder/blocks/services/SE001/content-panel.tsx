@@ -263,18 +263,6 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
             "30"
           )}
           {renderFlatSelect(
-            "Фильтр по локации",
-            String(block.data.locationId ?? ""),
-            (value) => updateData({ locationId: value ? Number(value) : null }),
-            [
-              { value: "", label: "Все локации" },
-              ...ctx.locations.map((location) => ({
-                value: String(location.id),
-                label: location.name,
-              })),
-            ]
-          )}
-          {renderFlatSelect(
             "Специалист для кнопки записи",
             String(block.data.specialistId ?? ""),
             (value) => updateData({ specialistId: value ? Number(value) : null }),
@@ -285,53 +273,6 @@ export function SE001ContentPanel(ctx: CrmPanelCtx) {
                 label: specialist.name,
               })),
             ]
-          )}
-        </div>
-      )}
-
-      {inSection("filters") && (
-        <div className="space-y-5">
-          {renderSectionTitle("Фильтры, поиск и сортировка")}
-          <div>
-            {renderCheckboxRow(
-              block.data.showCategoryTabs !== false,
-              (checked) => updateData({ showCategoryTabs: checked }),
-              "Показывать категории услуг"
-            )}
-            {renderCheckboxRow(
-              block.data.showSearch !== false,
-              (checked) => updateData({ showSearch: checked }),
-              "Показывать поиск"
-            )}
-            {renderCheckboxRow(
-              block.data.showSort !== false,
-              (checked) => updateData({ showSort: checked }),
-              "Показывать сортировку"
-            )}
-          </div>
-          {renderFlatSelect(
-            "Сортировка по умолчанию",
-            String(block.data.defaultSort ?? "default"),
-            (value) => updateData({ defaultSort: value }),
-            [
-              { value: "default", label: "По умолчанию" },
-              { value: "priceAsc", label: "Цена: по возрастанию" },
-              { value: "priceDesc", label: "Цена: по убыванию" },
-              { value: "nameAsc", label: "Название: А-Я" },
-              { value: "nameDesc", label: "Название: Я-А" },
-              { value: "durationAsc", label: "Длительность: меньше" },
-              { value: "durationDesc", label: "Длительность: больше" },
-            ]
-          )}
-          {renderFlatTextInput(
-            "Текст вкладки «Все»",
-            String(block.data.categoryAllLabel ?? "Все услуги"),
-            (value) => updateData({ categoryAllLabel: value || "Все услуги" })
-          )}
-          {renderFlatTextInput(
-            "Плейсхолдер поиска",
-            String(block.data.searchPlaceholder ?? "Поиск услуги"),
-            (value) => updateData({ searchPlaceholder: value || "Поиск услуги" })
           )}
         </div>
       )}

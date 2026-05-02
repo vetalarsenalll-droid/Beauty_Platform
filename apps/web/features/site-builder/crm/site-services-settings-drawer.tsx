@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TildaInlineColorField } from "@/features/site-builder/crm/site-editor-panels";
 import { FlatCheckbox, updateBlockStyle } from "@/features/site-builder/crm/site-renderer";
+import type { SiteLocationItem } from "@/features/site-builder/shared/site-data";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 
 function renderFlatTextInput(
@@ -76,11 +77,13 @@ export function SiteServicesSettingsDrawer({
   block,
   activeTheme,
   activeSectionId,
+  locations,
   updateBlock,
 }: {
   block: SiteBlock;
   activeTheme: SiteTheme;
   activeSectionId: string;
+  locations: SiteLocationItem[];
   updateBlock: (blockId: string, updater: (block: SiteBlock) => SiteBlock) => void;
 }) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
@@ -451,6 +454,66 @@ export function SiteServicesSettingsDrawer({
             </div>
           ) : null}
         </div>
+      </div>
+    );
+  }
+
+  if (activeSectionId === "filters") {
+    return (
+      <div className="space-y-6 px-1 pb-8 pt-1">
+        {renderFlatSelect(
+          "Фильтр по локации",
+          String(data.locationId ?? ""),
+          (value) => updateData({ locationId: value ? Number(value) : null }),
+          [
+            { value: "", label: "Все локации" },
+            ...locations.map((location) => ({
+              value: String(location.id),
+              label: location.name,
+            })),
+          ]
+        )}
+        <FlatCheckbox
+          checked={data.showCategoryTabs !== false}
+          onChange={(checked) => updateData({ showCategoryTabs: checked })}
+          label="Показывать категории услуг"
+        />
+        <FlatCheckbox
+          checked={data.showSearch !== false}
+          onChange={(checked) => updateData({ showSearch: checked })}
+          label="Показывать поиск"
+        />
+        <FlatCheckbox
+          checked={data.showSort !== false}
+          onChange={(checked) => updateData({ showSort: checked })}
+          label="Показывать сортировку"
+        />
+        {renderFlatSelect(
+          "Сортировка по умолчанию",
+          String(data.defaultSort ?? "default"),
+          (value) => updateData({ defaultSort: value }),
+          [
+            { value: "default", label: "По умолчанию" },
+            { value: "priceAsc", label: "Цена: по возрастанию" },
+            { value: "priceDesc", label: "Цена: по убыванию" },
+            { value: "nameAsc", label: "Название: А-Я" },
+            { value: "nameDesc", label: "Название: Я-А" },
+            { value: "durationAsc", label: "Длительность: меньше" },
+            { value: "durationDesc", label: "Длительность: больше" },
+          ]
+        )}
+        {renderFlatTextInput(
+          "Текст вкладки «Все»",
+          String(data.categoryAllLabel ?? "Все услуги"),
+          (value) => updateData({ categoryAllLabel: value || "Все услуги" }),
+          "Все услуги"
+        )}
+        {renderFlatTextInput(
+          "Плейсхолдер поиска",
+          String(data.searchPlaceholder ?? "Поиск услуги"),
+          (value) => updateData({ searchPlaceholder: value || "Поиск услуги" }),
+          "Поиск услуги"
+        )}
       </div>
     );
   }

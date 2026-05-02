@@ -19,6 +19,7 @@ export function SE001Drawers(ctx: CrmPanelCtx) {
 
   if (
     ctx.activePanelSectionId === "button" ||
+    ctx.activePanelSectionId === "filters" ||
     ctx.activePanelSectionId === "servicePage" ||
     ctx.activePanelSectionId === "servicesList"
   ) {
@@ -27,6 +28,7 @@ export function SE001Drawers(ctx: CrmPanelCtx) {
         block={ctx.block}
         activeTheme={ctx.activeTheme}
         activeSectionId={ctx.activePanelSectionId}
+        locations={ctx.locations}
         updateBlock={ctx.updateBlock}
       />
     );

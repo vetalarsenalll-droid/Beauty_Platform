@@ -49,19 +49,22 @@ function renderSectionButton(
   return (
     <button
       type="button"
+      onMouseDown={(event) => {
+        event.stopPropagation();
+      }}
       onClick={(event) => {
         event.stopPropagation();
-        setActivePanelSectionId(sectionId);
+        setActivePanelSectionId(isActive ? null : sectionId);
       }}
       className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
       style={{
-        borderColor: isActive ? panelTheme.accent : panelTheme.border,
+        borderColor: isActive ? "#ff5a5f" : panelTheme.border,
         backgroundColor: "transparent",
         color: isActive ? panelTheme.text : panelTheme.muted,
       }}
     >
       <span>{label}</span>
-      <span className="text-sm leading-none">›</span>
+      <span className="text-sm leading-none">{isActive ? "‹" : "›"}</span>
     </button>
   );
 }
@@ -207,6 +210,13 @@ export function SiteServicesSettingsPrimary({
         {renderSectionButton(
           "Список услуг",
           "servicesList",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
+        {renderSectionButton(
+          "Фильтры, поиск и сортировка",
+          "filters",
           activePanelSectionId,
           panelTheme,
           setActivePanelSectionId
