@@ -300,7 +300,7 @@ function ServiceModal({
 
   const currentImage = images[activeImageIndex] ?? null;
   const isImageFocusMode = zoomLevel > 0;
-  const zoomCenterOffsetX = isImageFocusMode ? 10 : 0;
+  const zoomCenterOffsetX = 0;
   const zoomScale = zoomLevel === 0 ? 1 : zoomLevel === 1 ? 1.35 : zoomLevel === 2 ? 1.8 : zoomLevel === 3 ? 2.3 : zoomLevel === 4 ? 2.9 : 3.6;
   const maxPanY = useMemo(() => {
     const viewport = viewportRef.current;
@@ -374,7 +374,11 @@ function ServiceModal({
           </div>
         ) : null}
 
-        <div className="relative flex min-h-[70vh] flex-1 items-center justify-center p-8">
+        <div
+          className={`relative flex flex-1 items-center justify-center ${
+            isImageFocusMode ? "min-h-0 p-0" : "min-h-[70vh] p-8"
+          }`}
+        >
           {showArrows && canNavigate ? (
             <button
               type="button"
@@ -415,9 +419,8 @@ function ServiceModal({
             ref={viewportRef}
             className="relative mx-auto overflow-hidden rounded-[8px]"
             style={{
-              width: zoomLevel === 0 ? "min(62vw, 820px)" : "calc(100vw - 48px)",
-              height: zoomLevel === 0 ? "min(72vh, 820px)" : "calc(100vh - 48px)",
-              paddingLeft: zoomLevel === 0 ? undefined : "12px",
+              width: zoomLevel === 0 ? "min(62vw, 820px)" : "calc(100vw - 24px)",
+              height: zoomLevel === 0 ? "min(72vh, 820px)" : "calc(100vh - 24px)",
             }}
             onMouseDown={(event) => {
               if (zoomLevel === 0 || event.button !== 0) return;
