@@ -42,6 +42,7 @@ type ServiceCatalogProps = {
   showDuration: boolean;
   showButton: boolean;
   buttonText: string;
+  buttonAlignment?: "left" | "center" | "right";
   detailsButtonText: string;
   detailsButtonColor?: string;
   detailsButtonTextColor?: string;
@@ -852,6 +853,7 @@ export function ServicesCatalog({
   showDuration,
   showButton,
   buttonText,
+  buttonAlignment = "center",
   detailsButtonText,
   detailsButtonColor,
   detailsButtonTextColor,
@@ -1036,6 +1038,7 @@ export function ServicesCatalog({
   const selectedSortTextColor = readableTextColor(resolvedSortActiveColor);
   const searchSortJustifyContent = alignmentToJustifyContent(searchSortAlignment);
   const filtersJustifyContent = alignmentToJustifyContent(filtersAlignment);
+  const buttonJustifyContent = alignmentToJustifyContent(buttonAlignment);
   const headingBlockMarginStyle = textAlignToBlockMarginStyle(headingStyle.textAlign);
   const subheadingBlockMarginStyle = textAlignToBlockMarginStyle(subheadingStyle.textAlign);
   const serviceCardTitleStyle: CSSProperties = {
@@ -1812,7 +1815,7 @@ export function ServicesCatalog({
                   >
                     <div
                       className="flex w-full flex-wrap gap-3 max-sm:gap-2"
-                      style={{ justifyContent: isMobileListView ? "center" : isListView ? contentJustify : "center" }}
+                      style={{ justifyContent: buttonJustifyContent }}
                     >
                     {detailsButtonText ? (
                       <a

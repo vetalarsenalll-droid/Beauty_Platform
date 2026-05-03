@@ -124,6 +124,11 @@ export function SiteSpecialistsSettingsDrawer({
           onChange={(checked) => updateData({ showDetailsButton: checked })}
           label="Показывать вторую кнопку"
         />
+        {renderFlatSelect("Выравнивание", readAlignment(data.buttonAlignment, "center"), (value) => updateData({ buttonAlignment: readAlignment(value, "center") }), [
+          { value: "left", label: "По левому краю" },
+          { value: "center", label: "По центру" },
+          { value: "right", label: "По правому краю" },
+        ])}
         {renderFlatTextInput(
           "Текст основной кнопки",
           String(data.buttonText ?? "Записаться"),

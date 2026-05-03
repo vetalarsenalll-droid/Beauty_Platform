@@ -35,6 +35,7 @@ type SpecialistsCatalogProps = {
   showLevel?: boolean;
   showButton?: boolean;
   buttonText?: string;
+  buttonAlignment?: "left" | "center" | "right";
   showDetailsButton?: boolean;
   detailsButtonText?: string;
   showImage?: boolean;
@@ -100,6 +101,7 @@ export function SpecialistsCatalog({
   showLevel = true,
   showButton = true,
   buttonText = "Записаться",
+  buttonAlignment = "center",
   showDetailsButton = true,
   detailsButtonText = "Подробнее",
   showImage = true,
@@ -154,6 +156,8 @@ export function SpecialistsCatalog({
   const gridTemplateColumns = listView === "list" ? "1fr" : `repeat(${columns}, minmax(0, 1fr))`;
   const mobileGridTemplateColumns =
     listView === "list" ? "1fr" : `repeat(${mobileColumns}, minmax(0, 1fr))`;
+  const buttonJustifyContent =
+    buttonAlignment === "left" ? "flex-start" : buttonAlignment === "right" ? "flex-end" : "center";
 
   return (
     <section
@@ -302,7 +306,7 @@ export function SpecialistsCatalog({
                   </div>
                 )}
                 {(showDetailsButton || showButton) && publicSlug && (
-                  <div className="mt-6 flex flex-wrap items-center gap-4">
+                  <div className="mt-6 flex flex-wrap items-center gap-4" style={{ justifyContent: buttonJustifyContent }}>
                     {showDetailsButton && (
                       <a href={profileHref} className="inline-flex items-center justify-center text-sm no-underline">
                         {detailsButtonText}

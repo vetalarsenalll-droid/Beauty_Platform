@@ -361,6 +361,16 @@ export function SiteServicesSettingsDrawer({
           onChange={(checked) => updateData({ alignButtonsBottom: checked })}
           label="Выравнивать кнопки по низу"
         />
+        {renderFlatSelect(
+          "Выравнивание",
+          readAlignment(data.buttonAlignment, "center"),
+          (value) => updateData({ buttonAlignment: readAlignment(value, "center") }),
+          [
+            { value: "left", label: "По левому краю" },
+            { value: "center", label: "По центру" },
+            { value: "right", label: "По правому краю" },
+          ]
+        )}
         {renderFlatTextInput(
           "Текст основной кнопки",
           String(data.buttonText ?? "Записаться"),

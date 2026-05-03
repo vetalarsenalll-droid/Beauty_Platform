@@ -5077,6 +5077,8 @@ export function renderServices(
         ? services.slice(0, 1)
         : resolveEntities(mode, ids, services);
   const showButton = Boolean(data.showButton);
+  const buttonAlignment =
+    data.buttonAlignment === "left" || data.buttonAlignment === "right" ? data.buttonAlignment : "center";
   const showDetailsButton = data.showDetailsButton !== false;
   const buttonText = typeof data.buttonText === "string" ? data.buttonText.trim() : "Записаться";
   const detailsButtonText =
@@ -5367,6 +5369,7 @@ export function renderServices(
         showDuration={showDuration}
         showButton={showButton}
         buttonText={buttonText}
+        buttonAlignment={buttonAlignment}
         detailsButtonText={detailsButtonText}
         detailsButtonColor={detailsButtonColor}
         detailsButtonTextColor={detailsButtonTextColor}
@@ -5456,6 +5459,8 @@ export function renderSpecialists(
         ? specialists.slice(0, 1)
         : resolveEntities(mode, ids, specialists);
   const showButton = data.showButton !== false;
+  const buttonAlignment =
+    data.buttonAlignment === "left" || data.buttonAlignment === "right" ? data.buttonAlignment : "center";
   const buttonText =
     typeof data.buttonText === "string" && data.buttonText.trim()
       ? data.buttonText.trim()
@@ -5559,6 +5564,7 @@ export function renderSpecialists(
         showLevel={data.showLevel !== false}
         showButton={showButton}
         buttonText={buttonText}
+        buttonAlignment={buttonAlignment}
         showDetailsButton={data.showDetailsButton !== false}
         detailsButtonText={
           typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
