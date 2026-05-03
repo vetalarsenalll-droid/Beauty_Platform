@@ -263,22 +263,35 @@ export function SpecialistsCatalog({
               })
             : "#";
           const profileHref = publicSlug ? `/${publicSlug}/specialists/${specialist.id}` : "#";
+          const isListCard = listView === "list";
+          const isFilledCard = normalizedCardStyle === "filled";
+          const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
+          const imageBorderRadius =
+            isListCard
+              ? imageRadiusValue
+              : isFilledCard
+                ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
+                : imageRadiusValue;
 
           return (
             <article
               key={specialist.id}
-              className={`group ${listView === "list" ? "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center" : ""}`}
+              className={`group ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
+                isListCard ? "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center" : ""
+              }`}
               style={{
-                padding: normalizedCardStyle === "filled" ? `${cardPaddingY}px ${cardPaddingX}px` : 0,
-                backgroundColor:
-                  normalizedCardStyle === "filled" ? "var(--block-sub-bg,var(--bp-paper))" : "transparent",
+                backgroundColor: isFilledCard ? "var(--block-sub-bg,var(--bp-paper))" : "transparent",
+                borderRadius: isFilledCard ? imageRadiusValue : 0,
               }}
             >
               {showImage && (
                 <a
                   href={profileHref}
                   className="block overflow-hidden bg-[color:var(--block-sub-bg,var(--bp-paper))]"
-                  style={{ aspectRatio: imageAspectRatio === "original" ? undefined : imageAspectRatio, borderRadius: imageRadius }}
+                  style={{
+                    aspectRatio: imageAspectRatio === "original" ? undefined : imageAspectRatio,
+                    borderRadius: imageBorderRadius,
+                  }}
                 >
                   {specialist.coverUrl ? (
                     <img
@@ -293,7 +306,12 @@ export function SpecialistsCatalog({
                   )}
                 </a>
               )}
-              <div className={showImage && listView !== "list" ? "mt-5" : ""}>
+              <div
+                className={showImage && !isListCard && !isFilledCard ? "mt-5" : ""}
+                style={{
+                  padding: isFilledCard ? `${cardPaddingY}px ${cardPaddingX}px` : undefined,
+                }}
+              >
                 <a
                   href={profileHref}
                   className="text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
