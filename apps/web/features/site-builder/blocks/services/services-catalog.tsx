@@ -1792,7 +1792,7 @@ export function ServicesCatalog({
                   >
                     {showDuration ? (
                       <span
-                        className="rounded-[10px] px-3 py-1 max-sm:!px-0 max-sm:!py-0"
+                        className="rounded-[10px]"
                         style={compactMetaPillStyle}
                       >
                         от {service.baseDurationMin} мин
@@ -1800,7 +1800,7 @@ export function ServicesCatalog({
                     ) : null}
                     {showPrice ? (
                       <span
-                        className="rounded-[10px] px-3 py-1 max-sm:!px-0 max-sm:!py-0"
+                        className="rounded-[10px]"
                         style={compactMetaPillStyle}
                       >
                         от {formatPrice(service.basePrice)}
