@@ -50,10 +50,17 @@ type SpecialistsCatalogProps = {
   buttonAlignment?: "left" | "center" | "right";
   showDetailsButton?: boolean;
   detailsButtonText?: string;
+  detailsButtonColor?: string;
+  detailsButtonTextColor?: string;
+  detailsButtonBorderColor?: string;
+  detailsButtonColorDark?: string;
+  detailsButtonTextColorDark?: string;
+  detailsButtonBorderColorDark?: string;
   showImage?: boolean;
   imageAspectRatio?: string;
   imageRadius?: number;
   imageZoomOnHover?: boolean;
+  alignButtonsBottom?: boolean;
   cardClickEnabled?: boolean;
   cardStyle?: "plain" | "filled" | "boxed";
   cardGapX?: number;
@@ -138,10 +145,17 @@ export function SpecialistsCatalog({
   buttonAlignment = "center",
   showDetailsButton = true,
   detailsButtonText = "Подробнее",
+  detailsButtonColor,
+  detailsButtonTextColor,
+  detailsButtonBorderColor,
+  detailsButtonColorDark,
+  detailsButtonTextColorDark,
+  detailsButtonBorderColorDark,
   showImage = true,
   imageAspectRatio = "1 / 1",
   imageRadius = 10,
   imageZoomOnHover = true,
+  alignButtonsBottom = true,
   cardClickEnabled = true,
   cardStyle = "plain",
   cardGapX = 20,
@@ -272,6 +286,17 @@ export function SpecialistsCatalog({
     locationActiveColor,
     locationActiveColorDark,
     resolvedSortActiveColor
+  );
+  const resolvedDetailsButtonColor = pickColor(detailsButtonColor, detailsButtonColorDark, "transparent");
+  const resolvedDetailsButtonTextColor = pickColor(
+    detailsButtonTextColor,
+    detailsButtonTextColorDark,
+    "var(--block-text,var(--bp-ink))"
+  );
+  const resolvedDetailsButtonBorderColor = pickColor(
+    detailsButtonBorderColor,
+    detailsButtonBorderColorDark,
+    "var(--block-border,transparent)"
   );
   const isDarkTheme = activeThemeMode === "dark";
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
@@ -574,7 +599,7 @@ export function SpecialistsCatalog({
               key={specialist.id}
               className={`group ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
                 isListCard ? "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center" : ""
-              } ${canOpenCardByClick ? "cursor-pointer" : ""}`}
+              } ${!isListCard && alignButtonsBottom ? "flex h-full flex-col" : ""} ${canOpenCardByClick ? "cursor-pointer" : ""}`}
               role={canOpenCardByClick ? "button" : undefined}
               tabIndex={canOpenCardByClick ? 0 : undefined}
               onClick={
@@ -624,7 +649,9 @@ export function SpecialistsCatalog({
                 </a>
               )}
               <div
-                className={showImage && !isListCard && !isFilledCard ? "mt-5" : ""}
+                className={`${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
+                  !isListCard && alignButtonsBottom ? "flex flex-1 flex-col" : ""
+                }`}
                 style={{
                   padding: isFilledCard ? `${cardPaddingY}px ${cardPaddingX}px` : undefined,
                 }}
@@ -640,18 +667,30 @@ export function SpecialistsCatalog({
                     {specialist.level}
                   </div>
                 )}
-                {(showDetailsButton || showButton) && publicSlug && (
-                  <div className="mt-6 flex flex-wrap items-center gap-4" style={{ justifyContent: buttonJustifyContent }}>
-                    {showDetailsButton && (
+                {((showDetailsButton && detailsButtonText) || (showButton && buttonText)) && publicSlug && (
+                  <div
+                    className={`flex flex-wrap items-center gap-4 ${
+                      !isListCard && alignButtonsBottom ? "mt-auto pt-6" : "mt-6"
+                    }`}
+                    style={{ justifyContent: buttonJustifyContent }}
+                  >
+                    {showDetailsButton && detailsButtonText && (
                       <a
                         href={profileHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center text-sm no-underline"
+                        className="inline-flex items-center justify-center px-4 py-2 text-sm no-underline"
+                        style={{
+                          backgroundColor: resolvedDetailsButtonColor,
+                          color: resolvedDetailsButtonTextColor,
+                          border: "1px solid transparent",
+                          borderRadius: buttonStyle?.borderRadius ?? 0,
+                          boxShadow: `inset 0 0 0 1px ${resolvedDetailsButtonBorderColor}`,
+                        }}
                       >
                         {detailsButtonText}
                       </a>
                     )}
-                    {showButton && (
+                    {showButton && buttonText && (
                       <a
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}

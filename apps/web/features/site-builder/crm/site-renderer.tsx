@@ -5465,6 +5465,23 @@ export function renderSpecialists(
     typeof data.buttonText === "string" && data.buttonText.trim()
       ? data.buttonText.trim()
       : "Записаться";
+  const showDetailsButton = data.showDetailsButton !== false;
+  const detailsButtonText =
+    showDetailsButton && typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
+      ? data.detailsButtonText.trim()
+      : showDetailsButton
+        ? "Подробнее"
+        : "";
+  const readDataColor = (key: string) =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const detailsButtonColor = readDataColor("detailsButtonColor") || "transparent";
+  const detailsButtonTextColor = readDataColor("detailsButtonTextColor") || "#111111";
+  const detailsButtonBorderColor = readDataColor("detailsButtonBorderColor") || "transparent";
+  const detailsButtonColorDark = readDataColor("detailsButtonColorDark") || detailsButtonColor;
+  const detailsButtonTextColorDark = readDataColor("detailsButtonTextColorDark") || "#f8fafc";
+  const detailsButtonBorderColorDark =
+    readDataColor("detailsButtonBorderColorDark") || detailsButtonBorderColor;
+  const alignButtonsBottom = data.alignButtonsBottom !== false;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const currentLocationId = currentEntity?.type === "location" ? currentEntity.id : null;
   const subtitle =
@@ -5581,16 +5598,19 @@ export function renderSpecialists(
         showButton={showButton}
         buttonText={buttonText}
         buttonAlignment={buttonAlignment}
-        showDetailsButton={data.showDetailsButton !== false}
-        detailsButtonText={
-          typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
-            ? data.detailsButtonText.trim()
-            : "Подробнее"
-        }
+        showDetailsButton={showDetailsButton}
+        detailsButtonText={detailsButtonText}
+        detailsButtonColor={detailsButtonColor}
+        detailsButtonTextColor={detailsButtonTextColor}
+        detailsButtonBorderColor={detailsButtonBorderColor}
+        detailsButtonColorDark={detailsButtonColorDark}
+        detailsButtonTextColorDark={detailsButtonTextColorDark}
+        detailsButtonBorderColorDark={detailsButtonBorderColorDark}
         showImage={data.showImage !== false}
         imageAspectRatio={imageAspectRatio}
         imageRadius={Number.isFinite(imageRadius) ? imageRadius : 0}
         imageZoomOnHover={data.imageZoomOnHover !== false}
+        alignButtonsBottom={alignButtonsBottom}
         cardClickEnabled={data.modalImageClickEnabled !== false}
         cardStyle={cardStyle}
         cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}

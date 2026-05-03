@@ -39,6 +39,45 @@ function renderFlatTextInput(
   );
 }
 
+function renderFlatNumberPxInput(
+  label: string,
+  value: number,
+  onChange: (value: number) => void,
+  min = 0,
+  max = 80
+) {
+  const normalizedValue = Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : min;
+  const clampNext = (nextValue: number) =>
+    Number.isFinite(nextValue) ? Math.max(min, Math.min(max, Math.round(nextValue))) : min;
+
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={1}
+          value={normalizedValue}
+          onChange={(event) => onChange(clampNext(Number(event.target.value)))}
+          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "textfield",
+            appearance: "textfield",
+          }}
+        />
+        <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+      </div>
+    </label>
+  );
+}
+
 function renderFlatSelect(
   label: string,
   value: string,
@@ -128,6 +167,11 @@ export function SiteSpecialistsSettingsDrawer({
           onChange={(checked) => updateData({ showDetailsButton: checked })}
           label="Показывать вторую кнопку"
         />
+        <FlatCheckbox
+          checked={data.alignButtonsBottom !== false}
+          onChange={(checked) => updateData({ alignButtonsBottom: checked })}
+          label="Выравнивать кнопки по низу"
+        />
         {renderFlatSelect("Выравнивание", readAlignment(data.buttonAlignment, "center"), (value) => updateData({ buttonAlignment: readAlignment(value, "center") }), [
           { value: "left", label: "По левому краю" },
           { value: "center", label: "По центру" },
@@ -145,11 +189,10 @@ export function SiteSpecialistsSettingsDrawer({
           (value) => updateData({ detailsButtonText: value }),
           "Подробнее"
         )}
-        {renderFlatTextInput(
+        {renderFlatNumberPxInput(
           "Скругление",
-          String(rawStyle.buttonRadius ?? 0),
-          (value) => updateStyle({ buttonRadius: Number(value) || 0 }),
-          "0"
+          Number(rawStyle.buttonRadius ?? 0),
+          (value) => updateStyle({ buttonRadius: value })
         )}
         <TildaInlineColorField
           compact
@@ -167,6 +210,95 @@ export function SiteSpecialistsSettingsDrawer({
           onChange={(value) => updateStyle({ buttonTextColorLight: value, buttonTextColor: value })}
           onClear={() => updateStyle({ buttonTextColorLight: "transparent", buttonTextColor: "transparent" })}
         />
+        <TildaInlineColorField
+          compact
+          label="Фон кнопки подробностей"
+          value={readDataColor("detailsButtonColor")}
+          placeholder="#ffffff"
+          onChange={(value) => updateData({ detailsButtonColor: value })}
+          onClear={() => updateData({ detailsButtonColor: "transparent" })}
+        />
+        <TildaInlineColorField
+          compact
+          label="Текст второй кнопки"
+          value={readDataColor("detailsButtonTextColor", "#111111")}
+          placeholder="#111111"
+          onChange={(value) => updateData({ detailsButtonTextColor: value })}
+          onClear={() => updateData({ detailsButtonTextColor: "transparent" })}
+        />
+        <TildaInlineColorField
+          compact
+          label="Обводка кнопки подробностей"
+          value={readDataColor("detailsButtonBorderColor")}
+          placeholder="#623232"
+          onChange={(value) => updateData({ detailsButtonBorderColor: value })}
+          onClear={() => updateData({ detailsButtonBorderColor: "transparent" })}
+        />
+
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaInlineColorField
+                compact
+                label="Кнопка"
+                value={readStyle("buttonColorDark", activeTheme.darkPalette.buttonColor)}
+                placeholder={activeTheme.darkPalette.buttonColor}
+                onChange={(value) => updateStyle({ buttonColorDark: value })}
+                onClear={() => updateStyle({ buttonColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Текст кнопки"
+                value={readStyle("buttonTextColorDark", activeTheme.darkPalette.buttonTextColor)}
+                placeholder={activeTheme.darkPalette.buttonTextColor}
+                onChange={(value) => updateStyle({ buttonTextColorDark: value })}
+                onClear={() => updateStyle({ buttonTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Фон кнопки подробностей"
+                value={readDataColor("detailsButtonColorDark")}
+                placeholder="#1f2937"
+                onChange={(value) => updateData({ detailsButtonColorDark: value })}
+                onClear={() => updateData({ detailsButtonColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Текст второй кнопки"
+                value={readDataColor("detailsButtonTextColorDark", "#f8fafc")}
+                placeholder="#f8fafc"
+                onChange={(value) => updateData({ detailsButtonTextColorDark: value })}
+                onClear={() => updateData({ detailsButtonTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Обводка кнопки подробностей"
+                value={readDataColor("detailsButtonBorderColorDark")}
+                placeholder="#374151"
+                onChange={(value) => updateData({ detailsButtonBorderColorDark: value })}
+                onClear={() => updateData({ detailsButtonBorderColorDark: "transparent" })}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
