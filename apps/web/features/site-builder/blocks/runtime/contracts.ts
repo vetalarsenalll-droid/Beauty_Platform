@@ -5,6 +5,7 @@ import type {
   SiteEditorAccountProfile as AccountProfile,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
+  SiteServiceCategoryItem as ServiceCategoryItem,
   SiteServiceItem as ServiceItem,
   SiteSpecialistItem as SpecialistItem,
 } from "@/features/site-builder/shared/site-data";
@@ -52,6 +53,7 @@ export type CrmPanelCtx = {
   accountProfile: AccountProfile;
   locations: LocationItem[];
   services: ServiceItem[];
+  serviceCategories: ServiceCategoryItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
 
@@ -71,4 +73,5 @@ export type CrmPanelCtx = {
   setCoverWidthModalOpen: Dispatch<SetStateAction<boolean>>;
 
   updateBlock: UpdateBlock;
+  updateServiceItem?: (service: ServiceItem) => void;
 };

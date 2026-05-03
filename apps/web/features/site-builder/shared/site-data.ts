@@ -71,12 +71,19 @@ export type SiteServiceItem = {
   id: number;
   name: string;
   description: string | null;
+  categoryId?: number | null;
   categoryName?: string | null;
   baseDurationMin: number;
   basePrice: number;
   coverUrl: string | null;
   photoUrls: string[];
+  photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
   locationIds: number[];
+};
+
+export type SiteServiceCategoryItem = {
+  id: number;
+  name: string;
 };
 
 export type SiteSpecialistItem = {

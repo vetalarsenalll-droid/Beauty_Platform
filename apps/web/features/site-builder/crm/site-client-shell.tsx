@@ -120,12 +120,14 @@ export default function SiteClient({
   accountProfile,
   branding,
   locations,
-  services,
+  services: initialServices,
+  serviceCategories,
   specialists,
   promos,
   workPhotos,
 }: SiteClientProps) {
   const [publicPage, setPublicPage] = useState(initialPublicPage);
+  const [services, setServices] = useState<ServiceItem[]>(initialServices);
   const {
     draft,
     setDraft,
@@ -138,6 +140,14 @@ export default function SiteClient({
   } = useDraftHistory(normalizeDraft(initialPublicPage.draftJson, account.name));
   const [activePage, setActivePage] = useState<SitePageKey>(initialActivePage);
   const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
+
+  useEffect(() => {
+    setServices(initialServices);
+  }, [initialServices]);
+
+  const updateServiceItem = (service: ServiceItem) => {
+    setServices((prev) => prev.map((item) => (item.id === service.id ? service : item)));
+  };
 
   const activeBlockTypes = useMemo(
     () =>
@@ -1202,6 +1212,7 @@ export default function SiteClient({
                       accountProfile,
                       locations,
                       services,
+                      serviceCategories,
                       specialists,
                       promos,
                       activeTheme,
@@ -1216,6 +1227,7 @@ export default function SiteClient({
                       coverWidthModalOpen,
                       setCoverWidthModalOpen,
                       updateBlock,
+                      updateServiceItem,
                     })
                   ) : (
                     selectedBlockVersion.settingsPanel({
@@ -1226,6 +1238,7 @@ export default function SiteClient({
                       accountProfile,
                       locations,
                       services,
+                      serviceCategories,
                       specialists,
                       promos,
                       activeTheme,
@@ -1240,6 +1253,7 @@ export default function SiteClient({
                       coverWidthModalOpen,
                       setCoverWidthModalOpen,
                       updateBlock,
+                      updateServiceItem,
                     })
                   )
                 ) : null}
@@ -1315,6 +1329,7 @@ export default function SiteClient({
                     accountProfile,
                     locations,
                     services,
+                    serviceCategories,
                     specialists,
                     promos,
                     activeTheme,
@@ -1329,6 +1344,7 @@ export default function SiteClient({
                     coverWidthModalOpen,
                     setCoverWidthModalOpen,
                     updateBlock,
+                    updateServiceItem,
                   })
                 : null}
             </div>

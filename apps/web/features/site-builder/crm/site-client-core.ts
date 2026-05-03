@@ -12,6 +12,7 @@ import type {
   SiteEditorAccountProfile as AccountProfile,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
+  SiteServiceCategoryItem as ServiceCategoryItem,
   SiteServiceItem as ServiceItem,
   SiteSpecialistItem as SpecialistItem,
   SiteWorkPhotos as WorkPhotos,
@@ -38,6 +39,7 @@ export type SiteClientProps = {
   branding: Branding;
   locations: LocationItem[];
   services: ServiceItem[];
+  serviceCategories: ServiceCategoryItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
   workPhotos: WorkPhotos;

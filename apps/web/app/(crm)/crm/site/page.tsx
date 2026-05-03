@@ -84,7 +84,7 @@ export default async function CrmSitePage({
     accountName
   );
 
-  const [locations, services, specialists, promotions, profile, branding] = await Promise.all([
+  const [locations, services, specialists, promotions, profile, branding, serviceCategories] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
@@ -94,7 +94,7 @@ export default async function CrmSitePage({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
       include: {
-        category: { select: { name: true } },
+        category: { select: { id: true, name: true } },
         locations: { select: { locationId: true } },
       },
     }),
@@ -117,6 +117,10 @@ export default async function CrmSitePage({
     }),
     prisma.accountBranding.findUnique({
       where: { accountId: session.accountId },
+    }),
+    prisma.serviceCategory.findMany({
+      where: { accountId: session.accountId },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -277,16 +281,28 @@ export default async function CrmSitePage({
             : null,
           coverUrl: locationCoverMap.get(String(location.id)) ?? null,
         }))}
-        services={services.map((service: { id: number; name: string; description: string | null; category: { name: string } | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
+        services={services.map((service: { id: number; name: string; description: string | null; category: { id: number; name: string } | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
           id: service.id,
           name: service.name,
           description: service.description,
+          categoryId: service.category?.id ?? null,
           categoryName: service.category?.name ?? null,
           baseDurationMin: service.baseDurationMin,
           basePrice: Number(service.basePrice),
           coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
           photoUrls: servicePhotoMap.get(String(service.id)) ?? [],
+          photoItems: servicePhotos
+            .filter((item) => item.entityId === String(service.id))
+            .map((item) => ({
+              id: item.id,
+              url: item.asset.url,
+              isCover: item.isCover,
+            })),
           locationIds: service.locations.map((item) => item.locationId),
+        }))}
+        serviceCategories={serviceCategories.map((category) => ({
+          id: category.id,
+          name: category.name,
         }))}
         specialists={specialists.map((specialist: { id: number; user: { email: string | null; profile: { firstName: string | null; lastName: string | null } | null }; level: { name: string } | null; locations: Array<{ locationId: number }> }) => {
           const profile = specialist.user.profile;
