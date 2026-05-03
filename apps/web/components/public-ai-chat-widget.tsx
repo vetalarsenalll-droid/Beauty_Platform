@@ -23,6 +23,7 @@ type PublicAiChatWidgetProps = {
   defaultOpen?: boolean;
   className?: string;
   themeMode?: "light" | "dark";
+  previewViewportWidth?: number;
 };
 
 function stripLegalRefs(text: string) {
@@ -240,6 +241,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     defaultOpen = false,
     className,
     themeMode,
+    previewViewportWidth,
   } = props;
   const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState("");
@@ -661,17 +663,28 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setComplaintTextByMessage({});
   };
 
-  const isMobileFullscreen = open && isMobileViewport;
-  const rootClass = isMobileFullscreen
+  const isMobilePreviewViewport =
+    mode === "inline" &&
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth <= 480;
+  const isInlineMobileFullscreen = open && isMobilePreviewViewport;
+  const isFixedMobileFullscreen = open && isMobileViewport && !isInlineMobileFullscreen;
+  const isMobileFullscreen = isInlineMobileFullscreen || isFixedMobileFullscreen;
+  const rootClass = isFixedMobileFullscreen
     ? "public-ai-widget fixed inset-0 z-[170]"
+    : isInlineMobileFullscreen
+      ? `public-ai-widget absolute inset-0 z-[1] ${className ?? ""}`
     : mode === "floating"
       ? "public-ai-widget fixed z-[140]"
       : `public-ai-widget absolute z-[1] ${className ?? ""}`;
-  const rootStyle: CSSProperties = isMobileFullscreen
+  const rootStyle: CSSProperties = isFixedMobileFullscreen
     ? { ...widgetRootStyle, right: 0, bottom: 0 }
+    : isInlineMobileFullscreen
+      ? widgetRootStyle
     : widgetRootStyle;
   const panelStyle: CSSProperties =
-    isMobileFullscreen
+    isFixedMobileFullscreen
       ? {
           position: "fixed",
           inset: 0,
@@ -681,6 +694,19 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           maxHeight: "100dvh",
           borderRadius: 0,
           backgroundImage: panelBackground,
+          boxShadow: "none",
+        }
+      : isInlineMobileFullscreen
+      ? {
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          maxWidth: "100%",
+          height: "100%",
+          maxHeight: "100%",
+          borderRadius: 0,
+          backgroundImage: panelBackground,
+          backgroundColor: widgetConfig?.panelColor || undefined,
           boxShadow: "none",
         }
       : mode === "floating"

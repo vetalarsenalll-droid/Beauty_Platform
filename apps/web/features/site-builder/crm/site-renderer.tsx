@@ -2052,7 +2052,7 @@ export function renderBlock(
     case "contacts":
       return renderContacts(block, account, accountProfile, locations, theme, style, previewViewportWidth);
     case "aisha":
-      return renderAisha(block, account, theme, style);
+      return renderAisha(block, account, theme, style, previewViewportWidth);
     default:
       return null;
   }
@@ -6016,7 +6016,8 @@ export function renderAisha(
   block: SiteBlock,
   account: AccountInfo,
   theme: SiteTheme,
-  style: BlockStyle
+  style: BlockStyle,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const enabled = data.enabled !== false;
@@ -6031,7 +6032,15 @@ export function renderAisha(
     );
   }
 
-  const inlinePreviewMinHeight = "calc(74vh + 24px)";
+  const isMobilePreview =
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth <= 480;
+  const inlinePreviewMinHeight = isMobilePreview
+    ? previewViewportWidth && previewViewportWidth > 400
+      ? "520px"
+      : "640px"
+    : "calc(74vh + 24px)";
 
   return (
     <div className="relative w-full overflow-hidden" style={{ minHeight: inlinePreviewMinHeight }}>
@@ -6042,6 +6051,7 @@ export function renderAisha(
         defaultOpen
         className="inset-0"
         themeMode={theme.mode}
+        previewViewportWidth={previewViewportWidth}
       />
     </div>
   );
