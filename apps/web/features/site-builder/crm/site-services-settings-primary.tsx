@@ -155,8 +155,14 @@ export function SiteServicesSettingsPrimary({
   );
   const resolvedWidthPx = Math.round((resolvedColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
   const range = centeredGridRange(resolvedColumns);
-  const coverMarginTopLines = Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2;
-  const coverMarginBottomLines = Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2;
+  const coverMarginTopLines = Math.max(
+    0,
+    Math.min(7, Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2)
+  );
+  const coverMarginBottomLines = Math.max(
+    0,
+    Math.min(7, Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2)
+  );
 
   const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
   const darkSectionBg = readRaw("sectionBgDark");

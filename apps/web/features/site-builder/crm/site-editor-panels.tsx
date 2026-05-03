@@ -19,6 +19,8 @@ import type {
 import {
   BOOKING_MAX_PRESET,
   BOOKING_MIN_PRESET,
+  BLOCK_OFFSET_MAX_PX,
+  BLOCK_OFFSET_STEP_PX,
   COVER_BACKGROUND_POSITION_OPTIONS,
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
@@ -1842,8 +1844,8 @@ export function BlockStyleEditor({
           <input
             type="range"
             min={0}
-            max={120}
-            step={2}
+            max={BLOCK_OFFSET_MAX_PX}
+            step={BLOCK_OFFSET_STEP_PX}
             value={style.marginTop}
             onChange={(event) => update({ marginTop: Number(event.target.value) })}
             className="mt-2 w-full"
@@ -1856,8 +1858,8 @@ export function BlockStyleEditor({
           <input
             type="range"
             min={0}
-            max={120}
-            step={2}
+            max={BLOCK_OFFSET_MAX_PX}
+            step={BLOCK_OFFSET_STEP_PX}
             value={style.marginBottom}
             onChange={(event) => update({ marginBottom: Number(event.target.value) })}
             className="mt-2 w-full"

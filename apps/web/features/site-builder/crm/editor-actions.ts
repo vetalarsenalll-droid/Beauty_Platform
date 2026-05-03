@@ -6,7 +6,13 @@ import type {
   SitePageKey,
   SiteTheme,
 } from "@/lib/site-builder";
-import { isSystemBlockType, createBlock, defaultBlockStyle } from "./site-client-core";
+import {
+  BLOCK_OFFSET_MAX_PX,
+  BLOCK_OFFSET_STEP_PX,
+  isSystemBlockType,
+  createBlock,
+  defaultBlockStyle,
+} from "./site-client-core";
 import { ensurePages } from "./editor-draft-helpers";
 import { normalizeBlockStyle, updateBlockStyle } from "./site-renderer";
 
@@ -269,7 +275,14 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     args.setPendingDeleteBlockId(null);
   };
 
-  const clampBlockOffset = (value: number) => Math.max(0, Math.min(240, Math.round(value)));
+  const clampBlockOffset = (value: number) =>
+    Math.max(
+      0,
+      Math.min(
+        BLOCK_OFFSET_MAX_PX,
+        Math.round(value / BLOCK_OFFSET_STEP_PX) * BLOCK_OFFSET_STEP_PX
+      )
+    );
 
   const adjustSpacingAt = (
     slotIndex: number,

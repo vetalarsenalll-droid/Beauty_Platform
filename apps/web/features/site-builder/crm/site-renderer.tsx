@@ -32,6 +32,7 @@ import type {
   SiteWorkPhotos as WorkPhotos,
 } from "@/features/site-builder/shared/site-data";
 import {
+  BLOCK_OFFSET_STEP_PX,
   BLOCK_WIDTH_STEP,
   COVER_BACKGROUND_POSITION_VALUES,
   DEFAULT_BLOCK_COLUMNS,
@@ -1902,9 +1903,10 @@ export function InsertSlot({
     }
     const handleMove = (nextEvent: PointerEvent) => {
       const totalDelta = nextEvent.clientY - startY;
-      if (totalDelta !== lastAppliedDelta) {
-        onAdjustSpacing(totalDelta - lastAppliedDelta, target);
-        lastAppliedDelta = totalDelta;
+      const snappedDelta = Math.round(totalDelta / BLOCK_OFFSET_STEP_PX) * BLOCK_OFFSET_STEP_PX;
+      if (snappedDelta !== lastAppliedDelta) {
+        onAdjustSpacing(snappedDelta - lastAppliedDelta, target);
+        lastAppliedDelta = snappedDelta;
       }
     };
     const handleUp = () => {

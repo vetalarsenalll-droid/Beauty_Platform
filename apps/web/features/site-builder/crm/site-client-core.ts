@@ -50,6 +50,8 @@ export const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
 
 export const COVER_LINE_STEP_PX = 30;
 export const COVER_LINE_OPTIONS = Array.from({ length: 15 }, (_, index) => index * 0.5);
+export const BLOCK_OFFSET_STEP_PX = 15;
+export const BLOCK_OFFSET_MAX_PX = 210;
 export const PANEL_ANIMATION_MS = 220;
 export const COVER_BACKGROUND_POSITION_OPTIONS = [
   { value: "center top", label: "^ Центр Верх" },
@@ -63,7 +65,7 @@ export const COVER_BACKGROUND_POSITION_VALUES = new Set<string>(
 export const formatCoverLineLabel = (lineValue: number) => {
   if (lineValue === 0) return "0";
   const px = Math.round(lineValue * COVER_LINE_STEP_PX);
-  return `${lineValue} line (${px}px)`;
+  return `${px}px`;
 };
 
 export const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
