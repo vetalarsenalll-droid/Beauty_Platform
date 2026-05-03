@@ -1648,19 +1648,6 @@ export function ServicesCatalog({
             typeof contentPaddingY === "number"
               ? Math.max(12, Math.round(contentPaddingY * 0.5))
               : `var(--service-card-inset-panel-padding, ${Math.max(12, Math.round(baseContentPaddingY * 0.5))}px)`;
-          const insetOuterPaddingX = shouldCompactTileSpacing
-            ? contentPaddingX
-            : hasPreviewViewport
-              ? cardPaddingX
-              : `var(--service-card-inset-outer-padding-x, ${cardPaddingX}px)`;
-          const insetOuterPaddingOffset =
-            typeof insetOuterPaddingX === "number"
-              ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0)
-              : `calc(-1 * ${insetOuterPaddingX}${hasGlassInfoPanel ? " - 1px" : ""})`;
-          const insetPanelWidth =
-            typeof insetOuterPaddingX === "number"
-              ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
-              : `calc(100% + (${insetOuterPaddingX} * 2)${hasGlassInfoPanel ? " + 2px" : ""})`;
           const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 480;
           const compactServiceTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
@@ -1907,27 +1894,22 @@ export function ServicesCatalog({
                   isImageInsetCard ? "" : "flex-1"
                 } ${
                   isListView ? "justify-between" : ""
-                } ${isImageInsetCard ? "relative z-[1] justify-end" : ""}`}
+                } ${isImageInsetCard ? "absolute bottom-0 z-[1] justify-end" : ""}`}
                 style={{
+                  left: isImageInsetCard ? 0 : undefined,
+                  right: isImageInsetCard ? 0 : undefined,
+                  bottom: isImageInsetCard ? 0 : undefined,
                   paddingLeft: isImageInsetCard
-                    ? hasFilledInfoPanel
-                      ? insetPanelPadding
-                      : 0
+                    ? insetPanelPadding
                     : contentInnerPaddingX,
                   paddingRight: isImageInsetCard
-                    ? hasFilledInfoPanel
-                      ? insetPanelPadding
-                      : 0
+                    ? insetPanelPadding
                     : contentInnerPaddingX,
                   paddingTop: isImageInsetCard
-                    ? hasFilledInfoPanel
-                      ? insetPanelPadding
-                      : 0
+                    ? insetPanelPadding
                     : contentPaddingY,
                   paddingBottom: isImageInsetCard
-                    ? hasFilledInfoPanel
-                      ? insetPanelPadding
-                      : 0
+                    ? insetPanelPadding
                     : contentPaddingY,
                   height: isListView ? listContentHeight : undefined,
                   boxSizing: "border-box",
@@ -1959,11 +1941,7 @@ export function ServicesCatalog({
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
                   borderBottomRightRadius:
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
-                  marginTop: isImageInsetCard ? "auto" : undefined,
-                  marginLeft: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
-                  marginRight: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
-                  width: hasFilledInfoPanel ? insetPanelWidth : undefined,
                   backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
                   WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
                   boxShadow: hasGlassInfoPanel
