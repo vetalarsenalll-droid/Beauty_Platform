@@ -992,11 +992,14 @@ export function SpecialistsCatalog({
           const profileHref = publicSlug ? `/${publicSlug}/specialists/${specialist.id}` : "#";
           const canOpenCardByClick = cardClickEnabled && Boolean(publicSlug);
           const isListCard = listView === "list";
-          const isFilledCard = normalizedCardStyle === "filled";
+          const isImageInsetCard = imageAspectRatio === "original";
+          const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
           const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
           const imageBorderRadius =
             isListCard
               ? imageRadiusValue
+              : isImageInsetCard
+                ? imageRadiusValue
               : isFilledCard
                 ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
                 : imageRadiusValue;
@@ -1007,7 +1010,7 @@ export function SpecialistsCatalog({
           return (
             <article
               key={specialist.id}
-              className={`group ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
+              className={`group ${isImageInsetCard && !isListCard ? "relative overflow-hidden" : ""} ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
                 isListCard ? "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center" : ""
               } ${!isListCard && alignButtonsBottom ? "flex h-full flex-col" : ""} ${canOpenCardByClick ? "cursor-pointer" : ""}`}
               role={canOpenCardByClick ? "button" : undefined}
@@ -1035,6 +1038,8 @@ export function SpecialistsCatalog({
                 backgroundColor: isFilledCard ? resolvedCardBackgroundColor : "transparent",
                 backgroundImage: isFilledCard ? resolvedCardBackgroundImage : "none",
                 borderRadius: isFilledCard ? imageRadiusValue : 0,
+                padding: isImageInsetCard && !isListCard ? `${cardPaddingY}px ${cardPaddingX}px` : undefined,
+                minHeight: isImageInsetCard && !isListCard ? 420 : undefined,
               }}
             >
               {showImage && (
@@ -1049,9 +1054,13 @@ export function SpecialistsCatalog({
                         }
                       : undefined
                   }
-                  className="block overflow-hidden bg-[color:var(--block-sub-bg,var(--bp-paper))]"
+                  className={`block overflow-hidden ${
+                    isImageInsetCard && !isListCard
+                      ? "absolute inset-0 bg-transparent"
+                      : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
+                  }`}
                   style={{
-                    aspectRatio: imageAspectRatio === "original" ? undefined : imageAspectRatio,
+                    aspectRatio: isImageInsetCard ? undefined : imageAspectRatio,
                     borderRadius: imageBorderRadius,
                   }}
                 >
@@ -1060,7 +1069,7 @@ export function SpecialistsCatalog({
                       src={specialist.coverUrl}
                       alt=""
                       className={`h-full w-full transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
-                      style={{ objectFit: imageFit }}
+                      style={{ objectFit: isImageInsetCard ? "cover" : imageFit }}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
@@ -1070,11 +1079,12 @@ export function SpecialistsCatalog({
                 </a>
               )}
               <div
-                className={`${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
+                className={`${isImageInsetCard && !isListCard ? "relative z-[1] justify-end" : ""} ${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
                   !isListCard && alignButtonsBottom ? "flex flex-1 flex-col" : ""
                 }`}
                 style={{
-                  padding: isFilledCard ? `${cardPaddingY}px ${cardPaddingX}px` : undefined,
+                  padding: isFilledCard && !isImageInsetCard ? `${cardPaddingY}px ${cardPaddingX}px` : undefined,
+                  marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
                 }}
               >
                 <a
@@ -1089,19 +1099,26 @@ export function SpecialistsCatalog({
                       : undefined
                   }
                   className="specialist-card-text text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
-                  style={resolvedCardTitleTextStyle}
+                  style={isImageInsetCard && !isListCard ? { ...resolvedCardTitleTextStyle, color: "#ffffff" } : resolvedCardTitleTextStyle}
                 >
                   {specialist.name}
                 </a>
                 {showLevel && specialist.level && (
-                  <div className="specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]" style={resolvedCardDescriptionTextStyle}>
+                  <div
+                    className="specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
+                    style={
+                      isImageInsetCard && !isListCard
+                        ? { ...resolvedCardDescriptionTextStyle, color: "rgba(255,255,255,0.82)" }
+                        : resolvedCardDescriptionTextStyle
+                    }
+                  >
                     {specialist.level}
                   </div>
                 )}
                 {((showDetailsButton && detailsButtonText) || (showButton && buttonText)) && publicSlug && (
                   <div
                     className={`flex flex-wrap items-center gap-4 ${
-                      !isListCard && alignButtonsBottom ? "mt-auto pt-6" : "mt-6"
+                      !isListCard && alignButtonsBottom && !isImageInsetCard ? "mt-auto pt-6" : "mt-6"
                     }`}
                     style={{ justifyContent: buttonJustifyContent }}
                   >

@@ -510,7 +510,7 @@ export function SiteSpecialistsSettingsDrawer({
           { value: "4 / 3", label: "4:3 Горизонтально" },
           { value: "3 / 4", label: "3:4 Вертикально" },
           { value: "16 / 9", label: "16:9 Широкое" },
-          { value: "original", label: "Оригинальное" },
+          { value: "original", label: "Вписать в карточку" },
         ])}
         {renderFlatTextInput("Отступ между колонками", String(data.cardGapX ?? 20), (value) => updateData({ cardGapX: Number(value) || 0 }), "20")}
         {renderFlatTextInput("Вертикальный отступ между карточками", String(data.cardGapY ?? 40), (value) => updateData({ cardGapY: Number(value) || 0 }), "40")}
