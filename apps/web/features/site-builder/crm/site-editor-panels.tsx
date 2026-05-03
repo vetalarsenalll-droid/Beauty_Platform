@@ -3232,7 +3232,7 @@ export function BlockStyleEditor({
           <div className="h-6" />
         </>
       )}
-      {inSection("typography") && block.type === "services" && (
+      {inSection("typography") && (block.type === "services" || block.type === "specialists") && (
         <>
           <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
             Заголовок
@@ -3389,7 +3389,11 @@ export function BlockStyleEditor({
           <div className="h-6" />
         </>
       )}
-      {inSection("typography") && block.type !== "cover" && block.type !== "menu" && block.type !== "services" && (
+      {inSection("typography") &&
+        block.type !== "cover" &&
+        block.type !== "menu" &&
+        block.type !== "services" &&
+        block.type !== "specialists" && (
         <>
           {renderFlatSelect(
             "Шрифт заголовка",

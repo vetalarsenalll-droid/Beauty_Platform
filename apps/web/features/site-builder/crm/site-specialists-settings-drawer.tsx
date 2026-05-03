@@ -268,21 +268,23 @@ export function SiteSpecialistsSettingsDrawer({
           { value: "", label: "Все локации" },
           ...locations.map((location) => ({ value: String(location.id), label: location.name })),
         ])}
-        <FlatCheckbox
-          checked={data.showCategoryTabs !== false}
-          onChange={(checked) => updateData({ showCategoryTabs: checked })}
-          label="Показывать уровни специалистов"
-        />
-        <FlatCheckbox
-          checked={data.showSearch !== false}
-          onChange={(checked) => updateData({ showSearch: checked })}
-          label="Показывать поиск"
-        />
-        <FlatCheckbox
-          checked={data.showSort !== false}
-          onChange={(checked) => updateData({ showSort: checked })}
-          label="Показывать сортировку"
-        />
+        <div className="flex flex-col items-start gap-4">
+          <FlatCheckbox
+            checked={data.showCategoryTabs !== false}
+            onChange={(checked) => updateData({ showCategoryTabs: checked })}
+            label="Показывать уровни специалистов"
+          />
+          <FlatCheckbox
+            checked={data.showSearch !== false}
+            onChange={(checked) => updateData({ showSearch: checked })}
+            label="Показывать поиск"
+          />
+          <FlatCheckbox
+            checked={data.showSort !== false}
+            onChange={(checked) => updateData({ showSort: checked })}
+            label="Показывать сортировку"
+          />
+        </div>
         {renderFlatSelect("Сортировка по умолчанию", String(data.defaultSort ?? "default"), (value) => updateData({ defaultSort: value }), [
           { value: "default", label: "По умолчанию" },
           { value: "nameAsc", label: "Имя: А-Я" },

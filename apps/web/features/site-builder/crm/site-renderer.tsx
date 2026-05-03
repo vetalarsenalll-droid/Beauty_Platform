@@ -5498,12 +5498,12 @@ export function renderSpecialists(
   const specialistsHeadingStyle = {
     ...headingStyle(style, theme),
     textAlign: style.textAlignHeading ?? "center",
-    color: "var(--site-text,var(--block-text,var(--bp-ink)))",
+    color: "var(--services-heading-color,var(--site-text,var(--block-text,var(--bp-ink))))",
   };
   const specialistsSubheadingStyle = {
     ...subheadingStyle(style, theme),
     textAlign: style.textAlignSubheading ?? "left",
-    color: "var(--site-muted,var(--block-muted,var(--bp-muted)))",
+    color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
   };
   const specialistsButtonStyle = {
     ...buttonStyle(style, theme),

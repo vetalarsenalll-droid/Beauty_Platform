@@ -3650,10 +3650,12 @@ function renderSpecialists(
   const specialistsHeadingStyle = {
     ...headingStyle(style),
     textAlign: style.textAlignHeading ?? "center",
+    color: "var(--services-heading-color,var(--site-text,var(--block-text,var(--bp-ink))))",
   };
   const specialistsSubheadingStyle = {
     ...subheadingStyle(style),
     textAlign: style.textAlignSubheading ?? "left",
+    color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
   };
   const specialistsButtonStyle = {
     ...buttonStyle(style),
