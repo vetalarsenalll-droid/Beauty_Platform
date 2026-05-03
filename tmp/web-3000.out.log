@@ -57,3 +57,5 @@
  GET /severnaya-orhideya_2 200 in 593ms (compile: 16ms, render: 578ms)
  GET /crm/site 200 in 1300ms (compile: 198ms, proxy.ts: 146ms, render: 956ms)
  GET /severnaya-orhideya_2 200 in 1443ms (compile: 39ms, render: 1404ms)
+ GET /severnaya-orhideya_2 200 in 461ms (compile: 18ms, render: 444ms)
+ GET /severnaya-orhideya_2 200 in 317ms (compile: 17ms, render: 300ms)
