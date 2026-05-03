@@ -1614,6 +1614,12 @@ export function ServicesCatalog({
             : shouldCompactTileSpacing
               ? 12
               : clamp(cardPaddingY, 0, 80, 30);
+          const shouldAlignMobileTextToImage =
+            shouldCompactTileSpacing &&
+            !isImageInsetCard &&
+            !hasRegularFilledInfoPanel &&
+            cardStyle !== "filled";
+          const contentInnerPaddingX = shouldAlignMobileTextToImage ? 0 : contentPaddingX;
           const insetPanelPadding = Math.max(12, Math.round(contentPaddingY * 0.5));
           const insetOuterPaddingX = shouldCompactTileSpacing ? contentPaddingX : cardPaddingX;
           const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 480;
@@ -1845,12 +1851,12 @@ export function ServicesCatalog({
                     ? hasFilledInfoPanel
                       ? insetPanelPadding
                       : 0
-                    : contentPaddingX,
+                    : contentInnerPaddingX,
                   paddingRight: isImageInsetCard
                     ? hasFilledInfoPanel
                       ? insetPanelPadding
                       : 0
-                    : contentPaddingX,
+                    : contentInnerPaddingX,
                   paddingTop: isImageInsetCard
                     ? hasFilledInfoPanel
                       ? insetPanelPadding
@@ -1955,7 +1961,7 @@ export function ServicesCatalog({
                       <a
                         href={detailsHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 max-sm:!px-3 max-sm:!py-2 max-sm:!text-[13px] max-sm:!leading-[1.1]"
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm"
                         style={{
                           backgroundColor: resolvedDetailsButtonColor,
                           color: resolvedDetailsButtonTextColor,
@@ -1972,7 +1978,7 @@ export function ServicesCatalog({
                       <a
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}
-                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 max-sm:!px-3 max-sm:!py-2 max-sm:!text-[13px] max-sm:!leading-[1.1]"
+                        className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm font-semibold"
                         style={{ ...buttonStyle, ...compactServiceButtonTextStyle }}
                       >
                         {buttonText}
