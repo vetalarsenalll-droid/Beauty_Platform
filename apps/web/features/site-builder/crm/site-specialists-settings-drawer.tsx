@@ -317,10 +317,6 @@ export function SiteSpecialistsSettingsDrawer({
   if (activeSectionId === "filters") {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
-        {renderFlatSelect("Фильтр по локации", String(data.locationId ?? ""), (value) => updateData({ locationId: value ? Number(value) : null }), [
-          { value: "", label: "Все локации" },
-          ...locations.map((location) => ({ value: String(location.id), label: location.name })),
-        ])}
         <div className="flex flex-col items-start gap-4">
           <FlatCheckbox
             checked={data.showCategoryTabs !== false}
