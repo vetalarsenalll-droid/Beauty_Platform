@@ -502,7 +502,14 @@ function ServiceModal({
           maxWidth: "100vw",
           transform: "translateX(-50%)",
         }
-      : {}),
+      : isMobileModal
+        ? {
+            left: 0,
+            right: "auto",
+            width: "100dvw",
+            maxWidth: "100dvw",
+          }
+        : {}),
   };
   const modalMediaStyle: CSSProperties = isMobileModal
     ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
@@ -531,7 +538,7 @@ function ServiceModal({
   return (
     <div
       className={`fixed bottom-0 top-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))] ${
-        hasPreviewViewport ? "" : "left-0 right-0"
+        hasPreviewViewport ? "" : isMobileModal ? "" : "left-0 right-0"
       }`}
       style={modalShellStyle}
     >

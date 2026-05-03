@@ -353,7 +353,14 @@ function SpecialistModal({
         maxWidth: "100vw",
         transform: "translateX(-50%)",
       }
-    : {};
+    : isMobileModal
+      ? {
+          left: 0,
+          right: "auto",
+          width: "100dvw",
+          maxWidth: "100dvw",
+        }
+      : {};
   const focusViewportWidth = hasPreviewViewport || isMobileModal ? "calc(100% - 24px)" : "min(92vw, 1280px)";
   const focusViewportHeight = hasPreviewViewport
     ? `calc(100vh - ${previewTopOffset + 84}px)`
@@ -380,7 +387,7 @@ function SpecialistModal({
   return (
     <div
       className={`fixed bottom-0 top-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))] ${
-        hasPreviewViewport ? "" : "left-0 right-0"
+        hasPreviewViewport ? "" : isMobileModal ? "" : "left-0 right-0"
       }`}
       style={modalShellStyle}
     >
