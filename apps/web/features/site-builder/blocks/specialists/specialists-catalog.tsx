@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 
 export type SpecialistCatalogItem = {
@@ -31,6 +31,18 @@ type SpecialistsCatalogProps = {
   defaultSort?: string;
   searchSortAlignment?: "left" | "center" | "right";
   filtersAlignment?: "left" | "center" | "right";
+  categoryTextColor?: string;
+  categoryActiveColor?: string;
+  sortTextColor?: string;
+  sortActiveColor?: string;
+  locationTextColor?: string;
+  locationActiveColor?: string;
+  categoryTextColorDark?: string;
+  categoryActiveColorDark?: string;
+  sortTextColorDark?: string;
+  sortActiveColorDark?: string;
+  locationTextColorDark?: string;
+  locationActiveColorDark?: string;
   showLocationFilter?: boolean;
   showLevel?: boolean;
   showButton?: boolean;
@@ -106,6 +118,18 @@ export function SpecialistsCatalog({
   defaultSort = "default",
   searchSortAlignment = "right",
   filtersAlignment = "left",
+  categoryTextColor,
+  categoryActiveColor,
+  sortTextColor,
+  sortActiveColor,
+  locationTextColor,
+  locationActiveColor,
+  categoryTextColorDark,
+  categoryActiveColorDark,
+  sortTextColorDark,
+  sortActiveColorDark,
+  locationTextColorDark,
+  locationActiveColorDark,
   showLocationFilter = true,
   showLevel = true,
   showButton = true,
@@ -129,6 +153,8 @@ export function SpecialistsCatalog({
   buttonStyle,
   textAlign = "left",
 }: SpecialistsCatalogProps) {
+  const catalogRef = useRef<HTMLElement | null>(null);
+  const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">("light");
   const [query, setQuery] = useState("");
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
     currentLocationId ?? locationId ?? null
@@ -183,6 +209,38 @@ export function SpecialistsCatalog({
     setVisibleCount(pageSize);
   }, [activeLocationId, normalizedQuery, selectedLevel, sort, pageSize, usePagination]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const resolveModeFromDom = () => {
+      const scopedRoot =
+        catalogRef.current?.closest("[data-site-theme]") ??
+        document.getElementById("public-site-root") ??
+        document.documentElement;
+      const mode = scopedRoot.getAttribute("data-site-theme");
+      setActiveThemeMode(mode === "dark" ? "dark" : "light");
+    };
+    resolveModeFromDom();
+    const onThemeChange = (event: Event) => {
+      const mode = (event as CustomEvent<{ mode?: string }>).detail?.mode;
+      if (mode === "light" || mode === "dark") {
+        setActiveThemeMode(mode);
+        return;
+      }
+      resolveModeFromDom();
+    };
+    window.addEventListener("site-theme-change", onThemeChange as EventListener);
+    const observedRoot =
+      catalogRef.current?.closest("[data-site-theme]") ??
+      document.getElementById("public-site-root") ??
+      document.documentElement;
+    const observer = new MutationObserver(resolveModeFromDom);
+    observer.observe(observedRoot, { attributes: true, attributeFilter: ["data-site-theme"] });
+    return () => {
+      window.removeEventListener("site-theme-change", onThemeChange as EventListener);
+      observer.disconnect();
+    };
+  }, []);
+
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const displayItems = usePagination
@@ -193,18 +251,40 @@ export function SpecialistsCatalog({
     listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns);
   const buttonJustifyContent =
     buttonAlignment === "left" ? "flex-start" : buttonAlignment === "right" ? "flex-end" : "center";
-  const controlBorderColor = "rgba(15,16,18,0.12)";
-  const controlBackgroundColor = "rgba(255,255,255,0.78)";
-  const dropdownBackgroundColor = "rgba(255,255,255,0.98)";
-  const optionHoverColor = "rgba(15,16,18,0.04)";
-  const controlShadow = "0 1px 2px rgba(15,16,18,0.04)";
-  const dropdownShadow = "0 14px 34px rgba(15,16,18,0.14)";
+  const pickColor = (light?: string, dark?: string, fallback = "var(--block-text,var(--bp-ink))") =>
+    activeThemeMode === "dark" ? dark || light || fallback : light || dark || fallback;
+  const resolvedCategoryTextColor = pickColor(categoryTextColor, categoryTextColorDark);
+  const resolvedCategoryActiveColor = pickColor(
+    categoryActiveColor,
+    categoryActiveColorDark,
+    "var(--block-button,var(--site-button,var(--bp-ink)))"
+  );
+  const resolvedSortTextColor = pickColor(sortTextColor, sortTextColorDark);
+  const resolvedSortActiveColor = pickColor(
+    sortActiveColor,
+    sortActiveColorDark,
+    resolvedCategoryActiveColor
+  );
+  const resolvedLocationTextColor = pickColor(locationTextColor, locationTextColorDark);
+  const resolvedLocationActiveColor = pickColor(
+    locationActiveColor,
+    locationActiveColorDark,
+    resolvedSortActiveColor
+  );
+  const isDarkTheme = activeThemeMode === "dark";
+  const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
+  const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
+  const dropdownBackgroundColor = isDarkTheme ? "rgba(18,22,28,0.98)" : "rgba(255,255,255,0.98)";
+  const optionHoverColor = isDarkTheme ? "rgba(242,243,245,0.08)" : "rgba(15,16,18,0.04)";
+  const controlShadow = isDarkTheme ? "0 1px 2px rgba(0,0,0,0.24)" : "0 1px 2px rgba(15,16,18,0.04)";
+  const dropdownShadow = isDarkTheme ? "0 14px 34px rgba(0,0,0,0.34)" : "0 14px 34px rgba(15,16,18,0.14)";
   const searchSortJustifyContent =
     searchSortAlignment === "center" ? "center" : searchSortAlignment === "right" ? "flex-end" : "flex-start";
   const selectControlClassName = "relative min-w-0 sm:w-[250px]";
 
   return (
     <section
+      ref={catalogRef}
       className="bp-specialists-catalog"
       style={{
         textAlign,
@@ -274,7 +354,7 @@ export function SpecialistsCatalog({
                   border: `1px solid ${controlBorderColor}`,
                   borderRadius: 12,
                   backgroundColor: controlBackgroundColor,
-                  color: "var(--block-text,var(--bp-ink))",
+                  color: resolvedSortTextColor,
                   padding: "0 12px 0 14px",
                   boxShadow: controlShadow,
                   fontSize: "var(--block-text-size)",
@@ -295,7 +375,7 @@ export function SpecialistsCatalog({
                     border: `1px solid ${controlBorderColor}`,
                     borderRadius: 12,
                     backgroundColor: dropdownBackgroundColor,
-                    color: "var(--block-text,var(--bp-ink))",
+                    color: resolvedSortTextColor,
                     boxShadow: dropdownShadow,
                     fontSize: "var(--block-text-size)",
                   }}
@@ -322,11 +402,11 @@ export function SpecialistsCatalog({
                         }}
                         style={{
                           backgroundColor: isSelected
-                            ? "var(--block-button,var(--site-button,var(--bp-ink)))"
+                            ? resolvedSortActiveColor
                             : "transparent",
                           color: isSelected
                             ? "var(--block-button-text,var(--site-button-text,#fff))"
-                            : "var(--block-text,var(--bp-ink))",
+                            : resolvedSortTextColor,
                         }}
                       >
                         {option.label}
@@ -355,7 +435,7 @@ export function SpecialistsCatalog({
                   border: `1px solid ${controlBorderColor}`,
                   borderRadius: 12,
                   backgroundColor: controlBackgroundColor,
-                  color: "var(--block-text,var(--bp-ink))",
+                  color: resolvedLocationTextColor,
                   padding: "0 12px 0 14px",
                   boxShadow: controlShadow,
                   fontSize: "var(--block-text-size)",
@@ -376,7 +456,7 @@ export function SpecialistsCatalog({
                     border: `1px solid ${controlBorderColor}`,
                     borderRadius: 12,
                     backgroundColor: dropdownBackgroundColor,
-                    color: "var(--block-text,var(--bp-ink))",
+                    color: resolvedLocationTextColor,
                     boxShadow: dropdownShadow,
                     fontSize: "var(--block-text-size)",
                   }}
@@ -403,11 +483,11 @@ export function SpecialistsCatalog({
                         }}
                         style={{
                           backgroundColor: isSelected
-                            ? "var(--block-button,var(--site-button,var(--bp-ink)))"
+                            ? resolvedLocationActiveColor
                             : "transparent",
                           color: isSelected
                             ? "var(--block-button-text,var(--site-button-text,#fff))"
-                            : "var(--block-text,var(--bp-ink))",
+                            : resolvedLocationTextColor,
                         }}
                       >
                         {location.name}
@@ -426,7 +506,14 @@ export function SpecialistsCatalog({
           <button
             type="button"
             onClick={() => setSelectedLevel("")}
-            className={`rounded-[10px] px-4 py-2 text-sm ${selectedLevel === "" ? "bg-[color:var(--block-button,var(--site-button,var(--bp-ink)))] text-[color:var(--block-button-text,var(--site-button-text,#fff))]" : "text-[color:var(--block-text,var(--bp-ink))]"}`}
+            className="rounded-[10px] px-4 py-2 text-sm"
+            style={{
+              backgroundColor: selectedLevel === "" ? resolvedCategoryActiveColor : "transparent",
+              color:
+                selectedLevel === ""
+                  ? "var(--block-button-text,var(--site-button-text,#fff))"
+                  : resolvedCategoryTextColor,
+            }}
           >
             {categoryAllLabel}
           </button>
@@ -435,7 +522,14 @@ export function SpecialistsCatalog({
               key={level}
               type="button"
               onClick={() => setSelectedLevel(level)}
-              className={`rounded-[10px] px-4 py-2 text-sm ${selectedLevel === level ? "bg-[color:var(--block-button,var(--site-button,var(--bp-ink)))] text-[color:var(--block-button-text,var(--site-button-text,#fff))]" : "text-[color:var(--block-text,var(--bp-ink))]"}`}
+              className="rounded-[10px] px-4 py-2 text-sm"
+              style={{
+                backgroundColor: selectedLevel === level ? resolvedCategoryActiveColor : "transparent",
+                color:
+                  selectedLevel === level
+                    ? "var(--block-button-text,var(--site-button-text,#fff))"
+                    : resolvedCategoryTextColor,
+              }}
             >
               {level}
             </button>

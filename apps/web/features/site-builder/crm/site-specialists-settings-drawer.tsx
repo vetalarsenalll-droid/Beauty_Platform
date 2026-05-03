@@ -1,4 +1,7 @@
 import {
+  useState,
+} from "react";
+import {
   TildaInlineColorField,
 } from "@/features/site-builder/crm/site-editor-panels";
 import { FlatCheckbox, updateBlockStyle } from "@/features/site-builder/crm/site-renderer";
@@ -91,6 +94,7 @@ export function SiteSpecialistsSettingsDrawer({
   locations: SiteLocationItem[];
   updateBlock: (blockId: string, updater: (block: SiteBlock) => SiteBlock) => void;
 }) {
+  const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const data = (block.data as Record<string, unknown>) ?? {};
   const rawStyle = ((block.data as Record<string, unknown>).style as Record<string, unknown>) ?? {};
   const updateData = (patch: Record<string, unknown>) => {
@@ -298,14 +302,128 @@ export function SiteSpecialistsSettingsDrawer({
           { value: "center", label: "По центру" },
           { value: "right", label: "По правому краю" },
         ])}
-        <TildaInlineColorField
-          compact
-          label="Цвет текста уровней"
-          value={readDefaultedDataColor("categoryTextColor", activeTheme.textColor)}
-          placeholder={activeTheme.textColor}
-          onChange={(value) => updateData({ categoryTextColor: value })}
-          onClear={() => updateData({ categoryTextColor: "transparent" })}
-        />
+        <div className="space-y-4">
+          <TildaInlineColorField
+            compact
+            label="Цвет текста уровней"
+            value={readDefaultedDataColor("categoryTextColor", activeTheme.textColor)}
+            placeholder={activeTheme.textColor}
+            onChange={(value) => updateData({ categoryTextColor: value })}
+            onClear={() => updateData({ categoryTextColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Активный уровень"
+            value={readDefaultedDataColor("categoryActiveColor", activeTheme.buttonColor)}
+            placeholder={activeTheme.buttonColor}
+            onChange={(value) => updateData({ categoryActiveColor: value })}
+            onClear={() => updateData({ categoryActiveColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Цвет текста сортировки"
+            value={readDefaultedDataColor("sortTextColor", activeTheme.textColor)}
+            placeholder={activeTheme.textColor}
+            onChange={(value) => updateData({ sortTextColor: value })}
+            onClear={() => updateData({ sortTextColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Активный пункт сортировки"
+            value={readDefaultedDataColor("sortActiveColor", activeTheme.buttonColor)}
+            placeholder={activeTheme.buttonColor}
+            onChange={(value) => updateData({ sortActiveColor: value })}
+            onClear={() => updateData({ sortActiveColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Цвет текста выбора локации"
+            value={readDefaultedDataColor("locationTextColor", activeTheme.textColor)}
+            placeholder={activeTheme.textColor}
+            onChange={(value) => updateData({ locationTextColor: value })}
+            onClear={() => updateData({ locationTextColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Активный пункт локации"
+            value={readDefaultedDataColor("locationActiveColor", activeTheme.buttonColor)}
+            placeholder={activeTheme.buttonColor}
+            onChange={(value) => updateData({ locationActiveColor: value })}
+            onClear={() => updateData({ locationActiveColor: "transparent" })}
+          />
+
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaInlineColorField
+                compact
+                label="Цвет текста уровней"
+                value={readDefaultedDataColor("categoryTextColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateData({ categoryTextColorDark: value })}
+                onClear={() => updateData({ categoryTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Активный уровень"
+                value={readDefaultedDataColor("categoryActiveColorDark", activeTheme.darkPalette.buttonColor)}
+                placeholder={activeTheme.darkPalette.buttonColor}
+                onChange={(value) => updateData({ categoryActiveColorDark: value })}
+                onClear={() => updateData({ categoryActiveColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Цвет текста сортировки"
+                value={readDefaultedDataColor("sortTextColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateData({ sortTextColorDark: value })}
+                onClear={() => updateData({ sortTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Активный пункт сортировки"
+                value={readDefaultedDataColor("sortActiveColorDark", activeTheme.darkPalette.buttonColor)}
+                placeholder={activeTheme.darkPalette.buttonColor}
+                onChange={(value) => updateData({ sortActiveColorDark: value })}
+                onClear={() => updateData({ sortActiveColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Цвет текста выбора локации"
+                value={readDefaultedDataColor("locationTextColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateData({ locationTextColorDark: value })}
+                onClear={() => updateData({ locationTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Активный пункт локации"
+                value={readDefaultedDataColor("locationActiveColorDark", activeTheme.darkPalette.buttonColor)}
+                placeholder={activeTheme.darkPalette.buttonColor}
+                onChange={(value) => updateData({ locationActiveColorDark: value })}
+                onClear={() => updateData({ locationActiveColorDark: "transparent" })}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }

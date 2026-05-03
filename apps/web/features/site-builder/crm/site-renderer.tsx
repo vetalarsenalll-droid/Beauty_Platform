@@ -5491,6 +5491,10 @@ export function renderSpecialists(
   const cardGapY = Number(data.cardGapY);
   const cardPaddingX = Number(data.cardPaddingX);
   const cardPaddingY = Number(data.cardPaddingY);
+  const readOptionalDataColor = (key: string) =>
+    typeof data[key] === "string" && String(data[key]).trim() && String(data[key]).trim() !== "transparent"
+      ? String(data[key]).trim()
+      : "";
   const specialistsHeadingStyle = {
     ...headingStyle(style, theme),
     textAlign: style.textAlignHeading ?? "center",
@@ -5560,6 +5564,18 @@ export function renderSpecialists(
             ? data.filtersAlignment
             : "left"
         }
+        categoryTextColor={readOptionalDataColor("categoryTextColor")}
+        categoryActiveColor={readOptionalDataColor("categoryActiveColor")}
+        sortTextColor={readOptionalDataColor("sortTextColor")}
+        sortActiveColor={readOptionalDataColor("sortActiveColor")}
+        locationTextColor={readOptionalDataColor("locationTextColor")}
+        locationActiveColor={readOptionalDataColor("locationActiveColor")}
+        categoryTextColorDark={readOptionalDataColor("categoryTextColorDark")}
+        categoryActiveColorDark={readOptionalDataColor("categoryActiveColorDark")}
+        sortTextColorDark={readOptionalDataColor("sortTextColorDark")}
+        sortActiveColorDark={readOptionalDataColor("sortActiveColorDark")}
+        locationTextColorDark={readOptionalDataColor("locationTextColorDark")}
+        locationActiveColorDark={readOptionalDataColor("locationActiveColorDark")}
         showLocationFilter={data.showLocationFilter !== false}
         showLevel={data.showLevel !== false}
         showButton={showButton}
