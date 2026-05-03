@@ -4171,6 +4171,10 @@ export function renderMenuBlock(
         ? "items-end text-right"
         : "items-start text-left";
   const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
+  const forceMobileLayout =
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth < 960;
   const logoImageNode =
     showLogo && branding.logoUrl ? (
       <img
@@ -4231,11 +4235,15 @@ export function renderMenuBlock(
       <a
         key={`${key}-overlay`}
         href={href}
-        className="w-full text-3xl font-medium md:text-5xl"
+        className="w-full max-w-full break-words text-3xl font-medium leading-tight md:text-5xl"
         style={{
           ...headingStyle(style, theme),
           textAlign: menuTextAlign,
-          ...(block.variant === "v2"
+          maxWidth: "100%",
+          overflowWrap: "anywhere",
+          ...(forceMobileLayout
+            ? { fontSize: "28px", lineHeight: 1.18 }
+            : block.variant === "v2"
             ? { fontSize: "calc(var(--block-heading-size) + 12px)", lineHeight: 1.25 }
             : {}),
         }}
@@ -4379,10 +4387,6 @@ export function renderMenuBlock(
       : menuTopBg;
   const subBlockBorder =
     (style.borderColor || theme.borderColor || "").trim() || "transparent";
-  const forceMobileLayout =
-    typeof previewViewportWidth === "number" &&
-    Number.isFinite(previewViewportWidth) &&
-    previewViewportWidth < 960;
 
   return (
     <MenuPreview
@@ -4415,12 +4419,16 @@ export function renderMenuBlock(
               <a
                 key={`${key}-drawer`}
                 href={href}
-                className={`font-medium text-[color:var(--block-text,var(--bp-ink))] ${
+                className={`max-w-full break-words font-medium leading-tight text-[color:var(--block-text,var(--bp-ink))] ${
                   block.variant === "v3" ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl"
                 }`}
                 style={{
                   ...headingStyle(style, theme),
-                  ...(block.variant === "v3"
+                  maxWidth: "100%",
+                  overflowWrap: "anywhere",
+                  ...(forceMobileLayout
+                    ? { fontSize: block.variant === "v3" ? "28px" : "24px", lineHeight: 1.18 }
+                    : block.variant === "v3"
                     ? { fontSize: "calc(var(--block-heading-size) + 16px)", lineHeight: 1.25 }
                     : {}),
                 }}
@@ -4495,6 +4503,7 @@ export function MenuPreview({
   forceMobileLayout?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileNavNode = drawerNavNode || overlayNavNode || navNode;
   const subBlockStyle: React.CSSProperties = {
     backgroundColor: subBlockBg,
     borderColor: subBlockBorder,
@@ -4558,7 +4567,7 @@ export function MenuPreview({
           className={`relative flex items-center py-0 pl-8 pr-24 ${mobileOpen ? "z-[161]" : "z-[1]"}`}
           style={{ ...topBarStyle, minHeight: menuHeight }}
         >
-          <div className="flex items-center gap-3">{logoNode}</div>
+          <div className="flex min-w-0 items-center gap-3">{logoNode}</div>
           {mobileOpen && searchNode ? (
             <div
               className={
@@ -4601,11 +4610,11 @@ export function MenuPreview({
         </div>
         {mobileOpen && (
           <div
-            className="absolute inset-0 z-[160] flex flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
+            className="absolute inset-0 z-[160] flex min-w-0 flex-col overflow-hidden rounded-[inherit] px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
             style={{ ...subBlockStyle, borderWidth: 0 }}
           >
-            <div className="flex flex-1 flex-col items-center justify-center py-6">
-              {overlayNavNode}
+            <div className="flex min-w-0 flex-1 flex-col items-center justify-center overflow-hidden py-6">
+              {forceMobileLayout ? mobileNavNode : overlayNavNode}
             </div>
             <div className={forceMobileLayout ? "w-full" : "w-full md:hidden"}>
               <div className="space-y-3 text-center">
@@ -4725,8 +4734,8 @@ export function MenuPreview({
                 </button>
                 <div className="min-w-0 flex flex-1 justify-end">{searchNode}</div>
               </div>
-              <div className="space-y-3 px-6">
-                {drawerNavNode}
+              <div className="min-w-0 overflow-hidden px-6">
+                {mobileNavNode}
               </div>
               <div className="mt-auto space-y-4 px-6 pt-6">
                 {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
@@ -4825,8 +4834,8 @@ export function MenuPreview({
                 </button>
               </div>
               {searchNode && <div className="mb-6 flex justify-center">{searchNode}</div>}
-              <div className="flex flex-1 flex-col">
-                <div className="flex flex-col gap-2">{navNode}</div>
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="min-w-0 overflow-hidden">{mobileNavNode}</div>
                 <div className="mt-auto space-y-3 pt-4">
                   {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
                   {socialsNode && <div className="flex justify-center">{socialsNode}</div>}
@@ -4871,11 +4880,11 @@ export function MenuPreview({
         </div>
         {mobileOpen && (
           <div
-            className="mt-4 space-y-3 rounded-none border p-4"
+            className="mt-4 min-w-0 space-y-3 overflow-hidden rounded-none border p-4"
             style={subBlockStyle}
           >
             {searchNode}
-            <div className="flex flex-col gap-2">{navNode}</div>
+            <div className="min-w-0 overflow-hidden">{mobileNavNode}</div>
             {socialsNode}
             {ctaNode}
           </div>
