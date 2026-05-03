@@ -270,20 +270,26 @@ export function SpecialistsCatalog({
                   normalizedCardStyle === "filled" ? "var(--block-sub-bg,var(--bp-paper))" : "transparent",
               }}
             >
-              {showImage && specialist.coverUrl && (
+              {showImage && (
                 <a
                   href={profileHref}
                   className="block overflow-hidden bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                   style={{ aspectRatio: imageAspectRatio === "original" ? undefined : imageAspectRatio, borderRadius: imageRadius }}
                 >
-                  <img
-                    src={specialist.coverUrl}
-                    alt=""
-                    className={`h-full w-full object-cover transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
-                  />
+                  {specialist.coverUrl ? (
+                    <img
+                      src={specialist.coverUrl}
+                      alt=""
+                      className={`h-full w-full object-cover transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                      {specialist.name}
+                    </div>
+                  )}
                 </a>
               )}
-              <div className={showImage && specialist.coverUrl && listView !== "list" ? "mt-5" : ""}>
+              <div className={showImage && listView !== "list" ? "mt-5" : ""}>
                 <a
                   href={profileHref}
                   className="text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"

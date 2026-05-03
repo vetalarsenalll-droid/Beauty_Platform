@@ -1554,7 +1554,7 @@ export function BlockPreview({
   const isCover = block.type === "cover";
   const isAisha = block.type === "aisha";
   const isLoader = block.type === "loader";
-  const isServices = block.type === "services";
+  const isServices = block.type === "services" || block.type === "specialists";
   const coverData = isCover ? (block.data as Record<string, unknown>) : null;
   const coverScrollEffect =
     coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
