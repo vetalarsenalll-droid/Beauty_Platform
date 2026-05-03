@@ -1506,7 +1506,6 @@ export function ServicesCatalog({
           const images = uniqueImageUrls(service);
           const primaryImage = images[0] ?? null;
           const secondaryImage = showSecondImageOnHover ? images[1] ?? null : null;
-          const hasImage = Boolean(primaryImage);
           const hasServiceMeta = showDuration || showPrice;
           const articleBackground =
             cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
@@ -1651,11 +1650,10 @@ export function ServicesCatalog({
                 borderRadius: cardStyle === "filled" ? imageRadiusValue : 0,
               }}
             >
-              {hasImage ? (
-                modalImageClickEnabled ? (
-                  <div
-                    className={`block ${listImageWrapperClassName}`}
-                  >
+              {modalImageClickEnabled ? (
+                <div
+                  className={`block ${listImageWrapperClassName}`}
+                >
                     <div
                       className="relative overflow-hidden max-sm:!h-[180px]"
                       style={{
@@ -1669,19 +1667,25 @@ export function ServicesCatalog({
                         borderRadius: imageBorderRadius,
                       }}
                     >
-                      <img
-                        src={primaryImage ?? ""}
-                        alt={service.name}
-                        className={`h-full w-full transition duration-300 ${
-                          secondaryImage
-                            ? "group-hover:opacity-0"
-                            : imageZoomOnHover
-                              ? "group-hover:scale-[1.03]"
-                              : ""
-                        }`}
-                        style={{ objectFit: "cover" }}
-                      />
-                      {secondaryImage ? (
+                      {primaryImage ? (
+                        <img
+                          src={primaryImage}
+                          alt={service.name}
+                          className={`h-full w-full transition duration-300 ${
+                            secondaryImage
+                              ? "group-hover:opacity-0"
+                              : imageZoomOnHover
+                                ? "group-hover:scale-[1.03]"
+                                : ""
+                          }`}
+                          style={{ objectFit: "cover" }}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                          Нет фото
+                        </div>
+                      )}
+                      {primaryImage && secondaryImage ? (
                         <img
                           src={secondaryImage}
                           alt=""
@@ -1709,19 +1713,25 @@ export function ServicesCatalog({
                         borderRadius: imageBorderRadius,
                       }}
                     >
-                      <img
-                        src={primaryImage ?? ""}
-                        alt={service.name}
-                        className={`h-full w-full transition duration-300 ${
-                          secondaryImage
-                            ? "group-hover:opacity-0"
-                            : imageZoomOnHover
-                              ? "group-hover:scale-[1.03]"
-                              : ""
-                        }`}
-                        style={{ objectFit: "cover" }}
-                      />
-                      {secondaryImage ? (
+                      {primaryImage ? (
+                        <img
+                          src={primaryImage}
+                          alt={service.name}
+                          className={`h-full w-full transition duration-300 ${
+                            secondaryImage
+                              ? "group-hover:opacity-0"
+                              : imageZoomOnHover
+                                ? "group-hover:scale-[1.03]"
+                                : ""
+                          }`}
+                          style={{ objectFit: "cover" }}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                          Нет фото
+                        </div>
+                      )}
+                      {primaryImage && secondaryImage ? (
                         <img
                           src={secondaryImage}
                           alt=""
@@ -1731,8 +1741,7 @@ export function ServicesCatalog({
                       ) : null}
                     </div>
                   </a>
-                )
-              ) : null}
+                )}
 
               <div
                 className={`flex min-w-0 flex-1 flex-col max-sm:!h-auto max-sm:!pb-3 max-sm:!pt-2 ${isListView ? "justify-between" : ""}`}

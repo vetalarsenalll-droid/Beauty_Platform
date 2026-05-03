@@ -284,7 +284,7 @@ export function SpecialistsCatalog({
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
-                      {specialist.name}
+                      Нет фото
                     </div>
                   )}
                 </a>
