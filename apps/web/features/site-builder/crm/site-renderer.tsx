@@ -6052,6 +6052,7 @@ export function renderAisha(
         className="inset-0"
         themeMode={theme.mode}
         previewViewportWidth={previewViewportWidth}
+        disablePageScrollOnMessages
       />
     </div>
   );

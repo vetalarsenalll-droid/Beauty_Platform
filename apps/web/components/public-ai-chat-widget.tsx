@@ -24,6 +24,7 @@ type PublicAiChatWidgetProps = {
   className?: string;
   themeMode?: "light" | "dark";
   previewViewportWidth?: number;
+  disablePageScrollOnMessages?: boolean;
 };
 
 function stripLegalRefs(text: string) {
@@ -242,6 +243,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     className,
     themeMode,
     previewViewportWidth,
+    disablePageScrollOnMessages = false,
   } = props;
   const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState("");
@@ -452,10 +454,16 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
 
   useEffect(() => {
     if (!open) return
+    if (disablePageScrollOnMessages) {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+      return;
+    }
     const node = bottomRef.current;
     if (!node) return;
     node.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages.length, loading, open, typingVisible]);
+  }, [messages.length, loading, open, typingVisible, disablePageScrollOnMessages]);
 
   useEffect(() => {
     const el = inputRef.current;
