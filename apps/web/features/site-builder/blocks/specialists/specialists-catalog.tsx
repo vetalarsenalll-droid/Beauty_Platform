@@ -1247,14 +1247,20 @@ export function SpecialistsCatalog({
                 ...resolvedCardTitleTextStyle,
                 fontSize: 15,
                 lineHeight: 1.16,
+                minHeight: 35,
                 width: "100%",
               }
             : hasPreviewViewport
-              ? resolvedCardTitleTextStyle ?? {}
+              ? {
+                  ...(resolvedCardTitleTextStyle ?? {}),
+                  minHeight: !isListCard ? 45 : undefined,
+                  width: "100%",
+                }
               : {
                   ...(resolvedCardTitleTextStyle ?? {}),
                   fontSize: "var(--specialist-card-title-font-size, 18px)",
                   lineHeight: "var(--specialist-card-title-line-height, 1.25)",
+                  minHeight: "var(--specialist-card-title-min-height, 45px)",
                   width: "100%",
                 };
           const compactDescriptionStyle: CSSProperties = shouldCompactTileSpacing

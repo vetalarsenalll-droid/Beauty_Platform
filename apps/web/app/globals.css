@@ -281,6 +281,7 @@ html {
   --catalog-card-actions-padding-top: 0px;
   --specialist-card-title-font-size: 18px;
   --specialist-card-title-line-height: 1.25;
+  --specialist-card-title-min-height: 45px;
   --specialist-card-level-font-size: 14px;
   --specialist-card-level-line-height: 1.2;
   --specialist-card-level-margin-top: 12px;
@@ -339,6 +340,7 @@ html {
     --catalog-card-actions-padding-top: 0px;
     --specialist-card-title-font-size: 15px;
     --specialist-card-title-line-height: 1.16;
+    --specialist-card-title-min-height: 35px;
     --specialist-card-level-font-size: 13px;
     --specialist-card-level-line-height: 1.2;
     --specialist-card-level-margin-top: 12px;
