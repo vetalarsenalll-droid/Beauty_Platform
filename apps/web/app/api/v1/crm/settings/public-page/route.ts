@@ -46,6 +46,7 @@ async function ensurePage(accountId: number) {
 
 async function publishPage(pageId: number, draftJson: object) {
   let lastError: unknown = null;
+  const draftJsonInput = draftJson as Prisma.InputJsonValue;
 
   for (let attempt = 0; attempt < MAX_PUBLISH_RETRIES; attempt += 1) {
     try {
@@ -60,14 +61,14 @@ async function publishPage(pageId: number, draftJson: object) {
             data: {
               publicPageId: pageId,
               version: nextVersion,
-              contentJson: draftJson,
+              contentJson: draftJsonInput,
             },
           });
 
           return tx.publicPage.update({
             where: { id: pageId },
             data: {
-              draftJson,
+              draftJson: draftJsonInput,
               status: "PUBLISHED",
               publishedVersionId: version.id,
             },
@@ -132,7 +133,7 @@ export async function PATCH(request: Request) {
     ? await publishPage(page.id, draftJson)
     : await prisma.publicPage.update({
         where: { id: page.id },
-        data: { draftJson },
+        data: { draftJson: draftJson as Prisma.InputJsonValue },
       });
 
   return NextResponse.json({

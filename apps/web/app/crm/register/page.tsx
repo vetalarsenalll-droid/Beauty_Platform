@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BusinessType, LegalType } from "@prisma/client";
@@ -16,6 +16,14 @@ type PlatformLegalDoc = {
 };
 
 export default function CrmRegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <CrmRegisterPageContent />
+    </Suspense>
+  );
+}
+
+function CrmRegisterPageContent() {
   const params = useSearchParams();
   const inviteToken = String(params.get("invite") ?? "").trim();
   const invitedEmail = String(params.get("email") ?? "").trim();

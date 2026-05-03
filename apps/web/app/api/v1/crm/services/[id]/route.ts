@@ -2,7 +2,7 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
-import { Prisma } from "@prisma/client";
+import { Prisma, ServiceBookingType } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -117,7 +117,7 @@ export async function PATCH(request: Request, { params }: Params) {
         400
       );
     }
-    data.bookingType = bookingType as Prisma.ServiceBookingType;
+    data.bookingType = bookingType as ServiceBookingType;
   }
   if (body.groupCapacityDefault !== undefined) {
     if (body.groupCapacityDefault === null || body.groupCapacityDefault === "") {

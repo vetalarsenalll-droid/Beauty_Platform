@@ -131,7 +131,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       CLIENT_CONFLICT: { code: "CLIENT_CONFLICT", message: "Указаны разные клиенты по телефону и email.", status: 409 },
       ALREADY_EXISTS: { code: "ALREADY_EXISTS", message: "Вы уже записаны на этот сеанс.", status: 409 },
     };
-    const info = map[result.error] ?? { code: "ERROR", message: "Не удалось записаться.", status: 400 };
+    const errorKey = typeof result.error === "string" ? result.error : "";
+    const info = map[errorKey] ?? { code: "ERROR", message: "Не удалось записаться.", status: 400 };
     return jsonError(info.code, info.message, null, info.status);
   }
 

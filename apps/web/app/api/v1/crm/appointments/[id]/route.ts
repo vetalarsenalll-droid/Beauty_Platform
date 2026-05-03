@@ -156,16 +156,16 @@ function parsePayload(raw: unknown): AppointmentPayload {
         new Set(
           raw.serviceIds
             .map((value) => toNum(value))
-            .filter((value): value is number => Number.isInteger(value) && value > 0)
+            .filter((value): value is number => value !== null && Number.isInteger(value) && value > 0)
         )
       )
     : undefined;
   const serviceItems = Array.isArray(raw.serviceItems)
     ? raw.serviceItems
-        .map((entry) => {
+        .map((entry): ServiceItemPayload | null => {
           if (!isRecord(entry)) return null;
           const serviceId = toNum(entry.serviceId);
-          if (!Number.isInteger(serviceId) || serviceId <= 0) return null;
+          if (serviceId === null || !Number.isInteger(serviceId) || serviceId <= 0) return null;
           const priceRaw = toStr(entry.price);
           const durationRaw = toNum(entry.durationMin);
           return {

@@ -1,6 +1,7 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { jsonOk } from "@/lib/api";
 import { buildPublicSlugId } from "@/lib/public-slug";
+import { UserStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
       ? { locations: { some: { locationId: { in: allowedLocationIds } } } }
       : {}),
     user: {
-      status: "ACTIVE",
+      status: UserStatus.ACTIVE,
       profile: {
         ...(parts.length > 1
           ? {

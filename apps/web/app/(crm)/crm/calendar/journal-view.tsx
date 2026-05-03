@@ -2128,6 +2128,8 @@ export default function JournalView({
       return;
     }
 
+    if (editorState.mode !== "edit") return;
+
     const response = await fetch(
       `/api/v1/crm/appointments/${editorState.appointment.id}`,
       {
