@@ -504,6 +504,9 @@ export function SiteSpecialistsSettingsDrawer({
     const cardLightStopB = readDataNumber("specialistCardBackgroundStopBLight", 100);
     const cardDarkStopA = readDataNumber("specialistCardBackgroundStopADark", cardLightStopA);
     const cardDarkStopB = readDataNumber("specialistCardBackgroundStopBDark", cardLightStopB);
+    const showLiquidGlassControl =
+      String(data.imageAspectRatio ?? "1 / 1") === "original" &&
+      (data.cardStyle === "filled" || data.cardStyle === "boxed");
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
@@ -570,6 +573,13 @@ export function SiteSpecialistsSettingsDrawer({
           label="Показывать пагинацию (вместо кнопки «Загрузить ещё»)"
         />
         <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+          {showLiquidGlassControl ? (
+            <FlatCheckbox
+              checked={data.specialistCardLiquidGlass === true}
+              onChange={(checked) => updateData({ specialistCardLiquidGlass: checked })}
+              label="Жидкое стекло"
+            />
+          ) : null}
           <TildaBackgroundColorField
             label="Фон карточек"
             value={cardLightFrom}

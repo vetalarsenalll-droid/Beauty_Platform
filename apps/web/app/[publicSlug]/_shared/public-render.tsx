@@ -3845,6 +3845,7 @@ function renderSpecialists(
         cardBackgroundImageLight={specialistCardBackgroundLight.backgroundImage}
         cardBackgroundColorDark={specialistCardBackgroundDark.backgroundColor}
         cardBackgroundImageDark={specialistCardBackgroundDark.backgroundImage}
+        cardLiquidGlass={data.specialistCardLiquidGlass === true}
         cardTitleTextStyle={specialistCardTitleTextStyle}
         cardDescriptionTextStyle={specialistCardDescriptionTextStyle}
         cardClickEnabled={data.modalImageClickEnabled !== false}

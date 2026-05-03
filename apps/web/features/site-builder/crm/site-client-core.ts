@@ -893,6 +893,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     specialistCardBackgroundAngleDark: 135,
     specialistCardBackgroundStopADark: 0,
     specialistCardBackgroundStopBDark: 100,
+    specialistCardLiquidGlass: false,
     specialistCardTitleColorLight: "#111827",
     specialistCardTitleColorDark: "#F8FAFC",
     specialistCardTitleSize: 18,

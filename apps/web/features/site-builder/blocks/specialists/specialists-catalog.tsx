@@ -77,6 +77,7 @@ type SpecialistsCatalogProps = {
   cardBackgroundImageLight?: string;
   cardBackgroundColorDark?: string;
   cardBackgroundImageDark?: string;
+  cardLiquidGlass?: boolean;
   cardTitleTextStyle?: CSSProperties;
   cardDescriptionTextStyle?: CSSProperties;
   cardClickEnabled?: boolean;
@@ -541,6 +542,7 @@ export function SpecialistsCatalog({
   cardBackgroundImageLight,
   cardBackgroundColorDark,
   cardBackgroundImageDark,
+  cardLiquidGlass = false,
   cardTitleTextStyle,
   cardDescriptionTextStyle,
   cardClickEnabled = true,
@@ -712,6 +714,15 @@ export function SpecialistsCatalog({
     activeThemeMode === "dark"
       ? cardBackgroundImageDark || cardBackgroundImageLight || "none"
       : cardBackgroundImageLight || cardBackgroundImageDark || "none";
+  const glassPanelOpacity = activeThemeMode === "dark" ? 0.28 : 0.42;
+  const glassPanelBackgroundImage =
+    activeThemeMode === "dark"
+      ? `linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.06) 42%, rgba(12,14,18,0.34)), ${
+          resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
+            ? alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)
+            : "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(12,14,18,0.18))"
+        }`
+      : alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity);
   const resolveModeTextStyle = (nextStyle?: CSSProperties): CSSProperties | undefined => {
     if (!nextStyle) return undefined;
     const darkColor = (nextStyle as Record<string, unknown>)["--card-dark-color"];
@@ -1010,7 +1021,7 @@ export function SpecialistsCatalog({
           const isImageInsetCard = imageAspectRatio === "original";
           const hasCoverImage = Boolean(specialist.coverUrl);
           const hasFilledInfoPanel = isImageInsetCard && normalizedCardStyle === "filled" && !isListCard;
-          const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage;
+          const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage && cardLiquidGlass;
           const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
           const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
           const imageBorderRadius =
@@ -1138,20 +1149,22 @@ export function SpecialistsCatalog({
                     ? hasGlassInfoPanel
                       ? rgbaFromHex(
                           resolvedCardBackgroundColor,
-                          activeThemeMode === "dark" ? 0.34 : 0.42
+                          glassPanelOpacity
                         )
                       : resolvedCardBackgroundColor
                     : undefined,
                   backgroundImage: hasFilledInfoPanel
                     ? hasGlassInfoPanel
-                      ? alphaHexColors(resolvedCardBackgroundImage, activeThemeMode === "dark" ? 0.34 : 0.42)
+                      ? glassPanelBackgroundImage
                       : resolvedCardBackgroundImage
                     : undefined,
                   boxShadow: hasGlassInfoPanel
-                    ? "0 18px 45px rgba(15,16,18,0.14)"
+                    ? activeThemeMode === "dark"
+                      ? "inset 0 1px 0 rgba(255,255,255,0.18), 0 18px 45px rgba(0,0,0,0.22)"
+                      : "0 18px 45px rgba(15,16,18,0.14)"
                     : undefined,
-                  backdropFilter: hasGlassInfoPanel ? "blur(18px) saturate(1.45)" : undefined,
-                  WebkitBackdropFilter: hasGlassInfoPanel ? "blur(18px) saturate(1.45)" : undefined,
+                  backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
+                  WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
                 }}
               >
                 <a
