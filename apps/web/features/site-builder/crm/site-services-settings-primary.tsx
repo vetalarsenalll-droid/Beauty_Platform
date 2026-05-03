@@ -128,6 +128,17 @@ function MobileWidthIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+function DesktopWidthIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8">
+        <rect x="4" y="5" width="16" height="11" rx="1.8" />
+        <path d="M9 20h6M12 16v4" />
+      </g>
+    </svg>
+  );
+}
+
 export function SiteServicesSettingsPrimary({
   block,
   activeTheme,
@@ -142,7 +153,8 @@ export function SiteServicesSettingsPrimary({
   labels,
 }: SiteServicesSettingsPrimaryProps) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
-  const [mobileWidthOpen, setMobileWidthOpen] = useState(false);
+  const [showMobileWidthControl, setShowMobileWidthControl] = useState(false);
+  const [widthPopoverOpen, setWidthPopoverOpen] = useState<"desktop" | "mobile" | null>(null);
   const style = normalizeBlockStyle(block, activeTheme);
 
   const updateStyle = (patch: Partial<BlockStyle>) => {
@@ -182,8 +194,6 @@ export function SiteServicesSettingsPrimary({
     style.mobileBlockWidthColumns ?? MAX_BLOCK_COLUMNS,
     block.type
   );
-  const resolvedWidthPx = Math.round((resolvedColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
-  const resolvedMobileWidthPx = Math.round((resolvedMobileColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
   const range = centeredGridRange(resolvedColumns);
   const mobileRange = centeredGridRange(resolvedMobileColumns);
   const coverMarginTopLines = Math.max(
@@ -243,25 +253,59 @@ export function SiteServicesSettingsPrimary({
             <button
               type="button"
               ref={coverWidthButtonRef}
-              onClick={() => setCoverWidthModalOpen((prev) => !prev)}
+              onClick={() => {
+                setCoverWidthModalOpen((prev) => !(prev && widthPopoverOpen === "desktop"));
+                setWidthPopoverOpen((prev) => (prev === "desktop" ? null : "desktop"));
+              }}
               className="flex min-w-0 flex-1 items-center justify-between text-left text-sm"
             >
               <span>{resolvedColumns} колонок</span>
-              <span className="text-sm leading-none">{coverWidthModalOpen ? "\u25B4" : "\u25BE"}</span>
+              <span className="text-sm leading-none">{coverWidthModalOpen && widthPopoverOpen === "desktop" ? "\u25B4" : "\u25BE"}</span>
             </button>
             <button
               type="button"
-              onClick={() => setMobileWidthOpen((prev) => !prev)}
+              onClick={() => {
+                setShowMobileWidthControl((prev) => !prev);
+                setCoverWidthModalOpen(false);
+                setWidthPopoverOpen(null);
+              }}
               className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
-                mobileWidthOpen ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+                showMobileWidthControl ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
               }`}
-              title="Задать ширину блока для мобильного"
-              aria-label="Задать мобильную ширину блока"
+              title="Показать мобильную ширину блока"
+              aria-label="Показать мобильную ширину блока"
             >
-              <MobileWidthIcon className="h-3.5 w-3.5" />
+              <DesktopWidthIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-          {coverWidthModalOpen && (
+          {showMobileWidthControl || (coverWidthModalOpen && widthPopoverOpen === "mobile") ? (
+            <div className="mt-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                Моб. ширина блока
+              </div>
+              <div className="mt-2 flex items-center gap-2 border-b pb-2" style={{ borderColor: panelTheme.border }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCoverWidthModalOpen((prev) => !(prev && widthPopoverOpen === "mobile"));
+                    setWidthPopoverOpen((prev) => (prev === "mobile" ? null : "mobile"));
+                  }}
+                  className="flex min-w-0 flex-1 items-center justify-between text-left text-sm"
+                >
+                  <span>{resolvedMobileColumns} колонок</span>
+                  <span className="text-sm leading-none">{coverWidthModalOpen && widthPopoverOpen === "mobile" ? "\u25B4" : "\u25BE"}</span>
+                </button>
+                <span
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#d1d5db] text-white"
+                  title="Мобильная ширина блока"
+                  aria-label="Мобильная ширина блока"
+                >
+                  <MobileWidthIcon className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </div>
+          ) : null}
+          {coverWidthModalOpen && widthPopoverOpen === "desktop" && (
             <div
               ref={coverWidthPopoverRef}
               className="absolute inset-x-0 top-[calc(100%+8px)] z-[160] rounded-none border px-3 py-4 shadow-2xl"
@@ -275,21 +319,13 @@ export function SiteServicesSettingsPrimary({
                 }
                 compact
               />
-              <div className="mt-3 flex items-center justify-between text-sm text-[color:var(--bp-muted)]">
-                <span>{resolvedWidthPx}</span>
-                <span>px</span>
-              </div>
             </div>
           )}
-          {mobileWidthOpen && (
+          {coverWidthModalOpen && widthPopoverOpen === "mobile" && (
             <div
-              className="mt-3 rounded-none border px-3 py-4"
-              style={{ backgroundColor: "transparent", borderColor: panelTheme.border }}
+              className="absolute inset-x-0 top-[calc(100%+8px)] z-[160] rounded-none border px-3 py-4 shadow-2xl"
+              style={{ backgroundColor: panelTheme.panel, borderColor: panelTheme.border }}
             >
-              <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                <span>Моб. ширина блока</span>
-                <span>{resolvedMobileColumns} колонок</span>
-              </div>
               <CoverGridWidthControl
                 start={mobileRange.start}
                 end={mobileRange.end}
@@ -298,10 +334,6 @@ export function SiteServicesSettingsPrimary({
                 }
                 compact
               />
-              <div className="mt-3 flex items-center justify-between text-sm text-[color:var(--bp-muted)]">
-                <span>{resolvedMobileWidthPx}</span>
-                <span>px</span>
-              </div>
             </div>
           )}
         </div>
