@@ -1126,7 +1126,7 @@ export function SpecialistsCatalog({
                       style={{ objectFit: isImageInsetCard ? "cover" : imageFit }}
                     />
                   ) : (
-                    <div className={`${isImageInsetCard && !isListCard ? "hidden" : "flex"} h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]`}>
+                    <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                       Нет фото
                     </div>
                   )}
@@ -1146,11 +1146,6 @@ export function SpecialistsCatalog({
                         ? Math.max(12, Math.round(cardPaddingY * 0.5))
                         : undefined,
                   marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
-                  borderRadius: hasFilledInfoPanel
-                    ? 0
-                    : hasRegularFilledInfoPanel
-                      ? `0 0 ${imageRadiusValue}px ${imageRadiusValue}px`
-                      : undefined,
                   border: hasFilledInfoPanel ? 0 : undefined,
                   marginLeft: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
                   marginRight: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
@@ -1158,10 +1153,14 @@ export function SpecialistsCatalog({
                   width: hasFilledInfoPanel
                     ? `calc(100% + ${cardPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
                     : undefined,
-                  borderBottomLeftRadius: hasFilledInfoPanel ? 0 : undefined,
-                  borderBottomRightRadius: hasFilledInfoPanel ? 0 : undefined,
-                  borderTopLeftRadius: hasFilledInfoPanel ? 0 : undefined,
-                  borderTopRightRadius: hasFilledInfoPanel ? 0 : undefined,
+                  borderTopLeftRadius:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : undefined,
+                  borderTopRightRadius:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : undefined,
+                  borderBottomLeftRadius:
+                    hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
+                  borderBottomRightRadius:
+                    hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
                   backgroundColor: hasFilledInfoPanel
                     ? hasGlassInfoPanel
                       ? rgbaFromHex(
