@@ -355,6 +355,11 @@ html {
     gap: 8px !important;
   }
 
+  .bp-services-catalog .bp-service-card-plain-tile .bp-service-card-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
   .bp-specialists-catalog .bp-specialist-card-level {
     margin-top: var(--specialist-card-level-margin-top) !important;
   }

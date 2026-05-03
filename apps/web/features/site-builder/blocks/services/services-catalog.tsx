@@ -1743,6 +1743,10 @@ export function ServicesCatalog({
               } ${
                 isImageInsetCard ? "relative" : ""
               } ${
+                !isListView && !isImageInsetCard && cardStyle !== "filled"
+                  ? "bp-service-card-plain-tile"
+                  : ""
+              } ${
                 isListView
                   ? hasPreviewViewport
                     ? isNarrowPreviewViewport
@@ -1899,7 +1903,7 @@ export function ServicesCatalog({
                 )}
 
               <div
-                className={`flex min-w-0 flex-col max-sm:!h-auto max-sm:!pb-3 max-sm:!pt-2 ${
+                className={`bp-service-card-content flex min-w-0 flex-col max-sm:!h-auto max-sm:!pb-3 max-sm:!pt-2 ${
                   isImageInsetCard ? "" : "flex-1"
                 } ${
                   isListView ? "justify-between" : ""
