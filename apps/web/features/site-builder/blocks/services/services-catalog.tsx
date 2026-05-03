@@ -1587,15 +1587,17 @@ export function ServicesCatalog({
               : contentTextAlign === "right"
                 ? "flex-end"
                 : "flex-start";
-          const contentPaddingX = isListView ? 0 : clamp(cardPaddingX, 0, 80, 30);
           const shouldCompactTileSpacing =
             !isListView && hasPreviewViewport && isNarrowPreviewViewport;
+          const contentPaddingX = isListView ? 0 : shouldCompactTileSpacing ? 12 : clamp(cardPaddingX, 0, 80, 30);
           const contentPaddingY = isListView
             ? 18
             : shouldCompactTileSpacing
               ? 12
               : clamp(cardPaddingY, 0, 80, 30);
           const insetPanelPadding = Math.max(12, Math.round(contentPaddingY * 0.5));
+          const insetOuterPaddingX = shouldCompactTileSpacing ? contentPaddingX : cardPaddingX;
+          const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 480;
           const compactServiceTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
                 ...serviceCardTitleStyle,
@@ -1704,10 +1706,12 @@ export function ServicesCatalog({
                 borderRadius: cardStyle === "filled" ? imageRadiusValue : 0,
                 padding: isImageInsetCard
                   ? hasFilledInfoPanel
-                    ? `${cardPaddingY}px ${cardPaddingX}px 0`
-                    : `${cardPaddingY}px ${cardPaddingX}px`
+                    ? shouldCompactTileSpacing
+                      ? `${contentPaddingY}px ${contentPaddingX}px 0`
+                      : `${cardPaddingY}px ${cardPaddingX}px 0`
+                    : `${contentPaddingY}px ${contentPaddingX}px`
                   : undefined,
-                minHeight: isImageInsetCard ? 480 : undefined,
+                minHeight: isImageInsetCard ? imageInsetCardMinHeight : undefined,
               }}
             >
               {modalImageClickEnabled ? (
@@ -1818,10 +1822,26 @@ export function ServicesCatalog({
                   isListView ? "justify-between" : ""
                 } ${isImageInsetCard ? "relative z-[1] justify-end" : ""}`}
                 style={{
-                  paddingLeft: hasFilledInfoPanel ? insetPanelPadding : contentPaddingX,
-                  paddingRight: hasFilledInfoPanel ? insetPanelPadding : contentPaddingX,
-                  paddingTop: hasFilledInfoPanel ? insetPanelPadding : contentPaddingY,
-                  paddingBottom: hasFilledInfoPanel ? insetPanelPadding : contentPaddingY,
+                  paddingLeft: isImageInsetCard
+                    ? hasFilledInfoPanel
+                      ? insetPanelPadding
+                      : 0
+                    : contentPaddingX,
+                  paddingRight: isImageInsetCard
+                    ? hasFilledInfoPanel
+                      ? insetPanelPadding
+                      : 0
+                    : contentPaddingX,
+                  paddingTop: isImageInsetCard
+                    ? hasFilledInfoPanel
+                      ? insetPanelPadding
+                      : 0
+                    : contentPaddingY,
+                  paddingBottom: isImageInsetCard
+                    ? hasFilledInfoPanel
+                      ? insetPanelPadding
+                      : 0
+                    : contentPaddingY,
                   height: isListView ? listContentHeight : undefined,
                   boxSizing: "border-box",
                   textAlign: contentTextAlign,
@@ -1853,11 +1873,11 @@ export function ServicesCatalog({
                   borderBottomRightRadius:
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
                   marginTop: isImageInsetCard ? "auto" : undefined,
-                  marginLeft: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
-                  marginRight: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginLeft: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginRight: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
                   width: hasFilledInfoPanel
-                    ? `calc(100% + ${cardPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
+                    ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
                     : undefined,
                   backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
                   WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
@@ -1888,16 +1908,16 @@ export function ServicesCatalog({
 
                 {hasServiceMeta && (
                   <div
-                    className={`flex flex-nowrap gap-1.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}
+                    className={`flex flex-wrap gap-x-1.5 gap-y-0.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}
                     style={{ ...textOverlayStyle, justifyContent: contentJustify }}
                   >
                     {showDuration ? (
-                      <span>
+                      <span className="whitespace-nowrap">
                         от {service.baseDurationMin} мин
                       </span>
                     ) : null}
                     {showPrice ? (
-                      <span>
+                      <span className="whitespace-nowrap">
                         от {formatPrice(service.basePrice)}
                       </span>
                     ) : null}
