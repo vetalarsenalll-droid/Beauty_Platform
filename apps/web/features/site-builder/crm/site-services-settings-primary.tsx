@@ -323,6 +323,7 @@ export function SiteServicesSettingsPrimary({
           )}
           {coverWidthModalOpen && widthPopoverOpen === "mobile" && (
             <div
+              ref={coverWidthPopoverRef}
               className="absolute inset-x-0 top-[calc(100%+8px)] z-[160] rounded-none border px-3 py-4 shadow-2xl"
               style={{ backgroundColor: panelTheme.panel, borderColor: panelTheme.border }}
             >

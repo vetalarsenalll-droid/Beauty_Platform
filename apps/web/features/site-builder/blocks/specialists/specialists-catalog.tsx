@@ -796,7 +796,7 @@ export function SpecialistsCatalog({
   const effectiveViewportWidth =
     typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)
       ? previewViewportWidth
-      : windowViewportWidth;
+      : undefined;
   const hasPreviewViewport =
     typeof effectiveViewportWidth === "number" && Number.isFinite(effectiveViewportWidth);
   const isNarrowPreviewViewport = hasPreviewViewport && effectiveViewportWidth < 640;
