@@ -79,6 +79,14 @@ function alignClassName(value: "left" | "center" | "right") {
   return "justify-start";
 }
 
+function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number) {
+  const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
+  if (cardsPerRow <= 1) return mobile;
+  if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
+  if (cardsPerRow === 4) return `${mobile} md:grid-cols-2 xl:grid-cols-4`;
+  return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
+}
+
 export function SpecialistsCatalog({
   title,
   subtitle = "",
@@ -127,6 +135,8 @@ export function SpecialistsCatalog({
   );
   const [selectedLevel, setSelectedLevel] = useState("");
   const [sort, setSort] = useState(defaultSort || "default");
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -136,6 +146,13 @@ export function SpecialistsCatalog({
   const activeLocationId = currentLocationId ?? selectedLocationId;
   const normalizedQuery = normalizeSearch(query);
   const normalizedCardStyle = cardStyle === "filled" || cardStyle === "boxed" ? "filled" : "plain";
+  const availableLocations = locations.filter((location) =>
+    items.some((item) => item.locationIds.includes(location.id))
+  );
+  const activeSortOption = SORT_OPTIONS.find((option) => option.value === sort) ?? SORT_OPTIONS[0]!;
+  const activeLocationOption = selectedLocationId
+    ? availableLocations.find((location) => location.id === selectedLocationId)
+    : null;
   const levels = useMemo(
     () => Array.from(new Set(items.map((item) => item.level).filter(Boolean) as string[])),
     [items]
@@ -172,21 +189,25 @@ export function SpecialistsCatalog({
     ? filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
     : filteredItems.slice(0, visibleCount);
 
-  const gridTemplateColumns = listView === "list" ? "1fr" : `repeat(${columns}, minmax(0, 1fr))`;
-  const mobileGridTemplateColumns =
-    listView === "list" ? "1fr" : `repeat(${mobileColumns}, minmax(0, 1fr))`;
+  const gridClassName =
+    listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns);
   const buttonJustifyContent =
     buttonAlignment === "left" ? "flex-start" : buttonAlignment === "right" ? "flex-end" : "center";
+  const controlBorderColor = "rgba(15,16,18,0.12)";
+  const controlBackgroundColor = "rgba(255,255,255,0.78)";
+  const dropdownBackgroundColor = "rgba(255,255,255,0.98)";
+  const optionHoverColor = "rgba(15,16,18,0.04)";
+  const controlShadow = "0 1px 2px rgba(15,16,18,0.04)";
+  const dropdownShadow = "0 14px 34px rgba(15,16,18,0.14)";
+  const searchSortJustifyContent =
+    searchSortAlignment === "center" ? "center" : searchSortAlignment === "right" ? "flex-end" : "flex-start";
+  const selectControlClassName = "relative min-w-0 sm:w-[250px]";
 
   return (
     <section
       className="bp-specialists-catalog"
       style={{
         textAlign,
-        ["--specialists-grid" as string]: gridTemplateColumns,
-        ["--specialists-grid-mobile" as string]: mobileGridTemplateColumns,
-        ["--specialists-gap-x" as string]: `${Math.max(0, cardGapX)}px`,
-        ["--specialists-gap-y" as string]: `${Math.max(0, cardGapY)}px`,
       }}
     >
       <div>
@@ -205,44 +226,197 @@ export function SpecialistsCatalog({
         )}
       </div>
 
-      {(showSearch || showSort || (showLocationFilter && locations.length > 1 && !currentLocationId)) && (
-        <div className={`mt-7 flex flex-col gap-3 sm:flex-row sm:items-center ${alignClassName(searchSortAlignment)}`}>
+      {(showSearch || showSort || (showLocationFilter && availableLocations.length > 1 && !currentLocationId)) && (
+        <div
+          className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center"
+          style={{ justifyContent: searchSortJustifyContent }}
+        >
           {showSearch && (
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-11 min-w-[260px] rounded-[10px] border border-[color:var(--block-border,var(--bp-stroke))] bg-transparent px-4 text-sm outline-none"
-            />
+            <label className="relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[color:var(--block-muted,var(--bp-muted))]">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <circle cx="11" cy="11" r="6" />
+                  <path d="m16 16 4 4" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
+                style={{
+                  appearance: "none",
+                  border: `1px solid ${controlBorderColor}`,
+                  borderRadius: 12,
+                  backgroundColor: controlBackgroundColor,
+                  boxShadow: controlShadow,
+                  fontSize: "var(--block-text-size)",
+                }}
+              />
+            </label>
           )}
           {showSort && (
-            <select
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
-              className="h-11 min-w-[220px] rounded-[10px] border border-[color:var(--block-border,var(--bp-stroke))] bg-transparent px-4 text-sm outline-none"
+            <div
+              className={selectControlClassName}
+              onBlur={(event) => {
+                const nextFocusedElement = event.relatedTarget as Node | null;
+                if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                  setIsSortOpen(false);
+                }
+              }}
             >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <button
+                type="button"
+                onClick={() => setIsSortOpen((open) => !open)}
+                className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
+                style={{
+                  border: `1px solid ${controlBorderColor}`,
+                  borderRadius: 12,
+                  backgroundColor: controlBackgroundColor,
+                  color: "var(--block-text,var(--bp-ink))",
+                  padding: "0 12px 0 14px",
+                  boxShadow: controlShadow,
+                  fontSize: "var(--block-text-size)",
+                }}
+                aria-haspopup="listbox"
+                aria-expanded={isSortOpen}
+              >
+                <span className="truncate">{activeSortOption.label}</span>
+                <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                  ▾
+                </span>
+              </button>
+
+              {isSortOpen ? (
+                <div
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+                  style={{
+                    border: `1px solid ${controlBorderColor}`,
+                    borderRadius: 12,
+                    backgroundColor: dropdownBackgroundColor,
+                    color: "var(--block-text,var(--bp-ink))",
+                    boxShadow: dropdownShadow,
+                    fontSize: "var(--block-text-size)",
+                  }}
+                  role="listbox"
+                >
+                  {SORT_OPTIONS.map((option) => {
+                    const isSelected = option.value === sort;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setSort(option.value);
+                          setIsSortOpen(false);
+                        }}
+                        className="block w-full px-3.5 py-2.5 text-left transition"
+                        onMouseEnter={(event) => {
+                          if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
+                        }}
+                        onMouseLeave={(event) => {
+                          if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
+                        }}
+                        style={{
+                          backgroundColor: isSelected
+                            ? "var(--block-button,var(--site-button,var(--bp-ink)))"
+                            : "transparent",
+                          color: isSelected
+                            ? "var(--block-button-text,var(--site-button-text,#fff))"
+                            : "var(--block-text,var(--bp-ink))",
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           )}
-          {showLocationFilter && locations.length > 1 && !currentLocationId && (
-            <select
-              value={selectedLocationId ?? ""}
-              onChange={(event) =>
-                setSelectedLocationId(event.target.value ? Number(event.target.value) : null)
-              }
-              className="h-11 min-w-[220px] rounded-[10px] border border-[color:var(--block-border,var(--bp-stroke))] bg-transparent px-4 text-sm outline-none"
+          {showLocationFilter && availableLocations.length > 1 && !currentLocationId && (
+            <div
+              className={selectControlClassName}
+              onBlur={(event) => {
+                const nextFocusedElement = event.relatedTarget as Node | null;
+                if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                  setIsLocationOpen(false);
+                }
+              }}
             >
-              <option value="">Все локации</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
+              <button
+                type="button"
+                onClick={() => setIsLocationOpen((open) => !open)}
+                className="flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition"
+                style={{
+                  border: `1px solid ${controlBorderColor}`,
+                  borderRadius: 12,
+                  backgroundColor: controlBackgroundColor,
+                  color: "var(--block-text,var(--bp-ink))",
+                  padding: "0 12px 0 14px",
+                  boxShadow: controlShadow,
+                  fontSize: "var(--block-text-size)",
+                }}
+                aria-haspopup="listbox"
+                aria-expanded={isLocationOpen}
+              >
+                <span className="truncate">{activeLocationOption?.name ?? "Все локации"}</span>
+                <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+                  ▾
+                </span>
+              </button>
+
+              {isLocationOpen ? (
+                <div
+                  className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden py-1 text-sm"
+                  style={{
+                    border: `1px solid ${controlBorderColor}`,
+                    borderRadius: 12,
+                    backgroundColor: dropdownBackgroundColor,
+                    color: "var(--block-text,var(--bp-ink))",
+                    boxShadow: dropdownShadow,
+                    fontSize: "var(--block-text-size)",
+                  }}
+                  role="listbox"
+                >
+                  {[{ id: null, name: "Все локации" }, ...availableLocations].map((location) => {
+                    const isSelected = location.id === selectedLocationId;
+                    return (
+                      <button
+                        key={location.id ?? "all"}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setSelectedLocationId(location.id);
+                          setIsLocationOpen(false);
+                        }}
+                        className="block w-full px-3.5 py-2.5 text-left transition"
+                        onMouseEnter={(event) => {
+                          if (!isSelected) event.currentTarget.style.backgroundColor = optionHoverColor;
+                        }}
+                        onMouseLeave={(event) => {
+                          if (!isSelected) event.currentTarget.style.backgroundColor = "transparent";
+                        }}
+                        style={{
+                          backgroundColor: isSelected
+                            ? "var(--block-button,var(--site-button,var(--bp-ink)))"
+                            : "transparent",
+                          color: isSelected
+                            ? "var(--block-button-text,var(--site-button-text,#fff))"
+                            : "var(--block-text,var(--bp-ink))",
+                        }}
+                      >
+                        {location.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
       )}
@@ -269,7 +443,13 @@ export function SpecialistsCatalog({
         </div>
       )}
 
-      <div className="mt-8 grid bp-specialists-grid">
+      <div
+        className={`mt-8 grid ${gridClassName}`}
+        style={{
+          columnGap: listView === "list" ? undefined : Math.max(0, cardGapX),
+          rowGap: Math.max(0, cardGapY),
+        }}
+      >
         {displayItems.map((specialist) => {
           const bookingHref = publicSlug
             ? buildBookingLink({
@@ -414,18 +594,6 @@ export function SpecialistsCatalog({
         </div>
       ) : null}
 
-      <style jsx>{`
-        .bp-specialists-grid {
-          grid-template-columns: var(--specialists-grid);
-          column-gap: var(--specialists-gap-x);
-          row-gap: var(--specialists-gap-y);
-        }
-        @media (max-width: 767px) {
-          .bp-specialists-grid {
-            grid-template-columns: var(--specialists-grid-mobile);
-          }
-        }
-      `}</style>
     </section>
   );
 }
