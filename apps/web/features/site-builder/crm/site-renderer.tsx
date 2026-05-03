@@ -2378,11 +2378,10 @@ function CoverVariantV2Hero({
   subtitleColor,
   descriptionColor,
   headingDesktopSize,
-  subheadingDesktopSize,
   textDesktopSize,
   headingMobileSize,
-  subheadingMobileSize,
   textMobileSize,
+  forceMobileLayout,
 }: {
   slides: CoverSlideItem[];
   style: BlockStyle;
@@ -2427,11 +2426,10 @@ function CoverVariantV2Hero({
   subtitleColor: string;
   descriptionColor: string;
   headingDesktopSize: number;
-  subheadingDesktopSize: number;
   textDesktopSize: number;
   headingMobileSize: number;
-  subheadingMobileSize: number;
   textMobileSize: number;
+  forceMobileLayout: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const canSlide = slides.length > 1;
@@ -2503,7 +2501,7 @@ function CoverVariantV2Hero({
   if (!current) return null;
 
   const arrowSizeMap = { sm: 40, md: 48, lg: 56, xl: 64 } as const;
-  const arrowPx = arrowSizeMap[arrowSize] ?? 40;
+  const arrowPx = forceMobileLayout ? 34 : arrowSizeMap[arrowSize] ?? 40;
   const canGoPrev = infinite || index > 0;
   const canGoNext = infinite || index < slides.length - 1;
   const goPrev = () => {
@@ -2562,13 +2560,18 @@ function CoverVariantV2Hero({
 
   return (
     <section
-      className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      className={
+        forceMobileLayout
+          ? "relative overflow-hidden px-5 py-12"
+          : "relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      }
       style={{
         height: coverHeightCss,
         minHeight: coverHeightCss,
         backgroundImage: current.imageUrl ? `url(${current.imageUrl})` : "none",
         backgroundSize: "cover",
         backgroundPosition: coverBackgroundPosition,
+        containerType: "inline-size",
         boxSizing: "border-box",
       }}
     >
@@ -2601,7 +2604,7 @@ function CoverVariantV2Hero({
               textAlign: contentAlign,
               fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
                 headingMobileSize,
-                headingDesktopSize
+                forceMobileLayout ? headingMobileSize : headingDesktopSize
               )}px)`,
             }}
           >
@@ -2617,9 +2620,10 @@ function CoverVariantV2Hero({
                 marginLeft:
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,
+                maxWidth: forceMobileLayout ? "calc(100% - 92px)" : 760,
                 fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
                   textMobileSize,
-                  textDesktopSize
+                  forceMobileLayout ? textMobileSize : textDesktopSize
                 )}px)`,
               }}
             >
@@ -2671,8 +2675,11 @@ function CoverVariantV2Hero({
             type="button"
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="absolute left-6 top-1/2 z-[3] inline-flex -translate-y-1/2 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
+            className="absolute z-[3] inline-flex items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
             style={{
+              left: forceMobileLayout ? 10 : 24,
+              top: "50%",
+              transform: "translateY(-50%)",
               width: arrowPx,
               height: arrowPx,
               color: hoveredArrow === "prev" ? hoverArrowColor : baseArrowColor,
@@ -2704,8 +2711,11 @@ function CoverVariantV2Hero({
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="absolute right-6 top-1/2 z-[3] inline-flex -translate-y-1/2 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
+            className="absolute z-[3] inline-flex items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
             style={{
+              right: forceMobileLayout ? 10 : 24,
+              top: "50%",
+              transform: "translateY(-50%)",
               width: arrowPx,
               height: arrowPx,
               color: hoveredArrow === "next" ? hoverArrowColor : baseArrowColor,
@@ -3083,6 +3093,22 @@ export function renderCover(
     descriptionMobileSizeRaw <= 72
       ? Math.round(descriptionMobileSizeRaw)
       : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9))));
+  const effectiveHeadingMobileSize = forceMobileLayout
+    ? Math.max(24, Math.min(38, headingMobileSize))
+    : headingMobileSize;
+  const effectiveSubheadingMobileSize = forceMobileLayout
+    ? Math.max(16, Math.min(22, subheadingMobileSize))
+    : subheadingMobileSize;
+  const effectiveTextMobileSize = forceMobileLayout
+    ? Math.max(13, Math.min(17, textMobileSize))
+    : textMobileSize;
+  const v1SubheadingMobileSize = forceMobileLayout
+    ? Math.max(15, Math.min(20, effectiveSubheadingMobileSize))
+    : effectiveSubheadingMobileSize;
+  const v1TextMobileSize = forceMobileLayout
+    ? Math.max(13, Math.min(16, effectiveTextMobileSize))
+    : effectiveTextMobileSize;
+  const effectiveCoverHeightCss = forceMobileLayout ? "min(680px, 100svh)" : coverHeightCss;
   const sliderInfinite = data.coverSliderInfinite !== false;
   const sliderShowArrows = data.coverSliderShowArrows !== false;
   const sliderShowDots = data.coverSliderShowDots !== false;
@@ -3355,7 +3381,7 @@ export function renderCover(
         contentMaxWidth={contentMaxWidth}
         contentMarginLeft={contentMarginLeft}
         coverBackgroundPosition={coverBackgroundPosition}
-        coverHeightCss={coverHeightCss}
+        coverHeightCss={effectiveCoverHeightCss}
         filterOverlay={filterOverlay}
         showArrows={sliderShowArrows}
         showDots={sliderShowDots}
@@ -3390,20 +3416,27 @@ export function renderCover(
         subtitleColor={subtitleColor}
         descriptionColor={descriptionColor}
         headingDesktopSize={headingDesktopSize}
-        subheadingDesktopSize={subheadingDesktopSize}
         textDesktopSize={textDesktopSize}
-        headingMobileSize={headingMobileSize}
-        subheadingMobileSize={subheadingMobileSize}
-        textMobileSize={textMobileSize}
+        headingMobileSize={effectiveHeadingMobileSize}
+        textMobileSize={effectiveTextMobileSize}
+        forceMobileLayout={forceMobileLayout}
       />
     );
   }
 
   if (block.variant === "v3") {
     const textHorizontalJustify =
-      contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start";
+      forceMobileLayout
+        ? "center"
+        : contentAlign === "center"
+          ? "center"
+          : contentAlign === "right"
+            ? "flex-end"
+            : "flex-start";
     const textVerticalAlignItems =
-      contentVerticalAlign === "top"
+      forceMobileLayout
+        ? "flex-start"
+        : contentVerticalAlign === "top"
         ? "flex-start"
         : contentVerticalAlign === "bottom"
           ? "flex-end"
@@ -3449,28 +3482,33 @@ export function renderCover(
       <section
         className="relative overflow-hidden"
         style={{
-          height: coverHeightCss,
-          minHeight: coverHeightCss,
+          height: forceMobileLayout ? "auto" : coverHeightCss,
+          minHeight: forceMobileLayout ? 0 : coverHeightCss,
+          containerType: "inline-size",
           backgroundColor: sectionBackground.backgroundColor,
           backgroundImage: sectionBackground.backgroundImage,
         }}
       >
         <div
-          className={`mx-auto flex w-full flex-col ${
-            coverFlipHorizontal ? "md:flex-row-reverse" : "md:flex-row"
-          }`}
+          className={
+            forceMobileLayout
+              ? "mx-auto flex w-full flex-col"
+              : `mx-auto flex w-full flex-col ${
+                  coverFlipHorizontal ? "md:flex-row-reverse" : "md:flex-row"
+                }`
+          }
           style={{
-            height: coverHeightCss,
-            minHeight: coverHeightCss,
+            height: forceMobileLayout ? "auto" : coverHeightCss,
+            minHeight: forceMobileLayout ? 0 : coverHeightCss,
             width: "100%",
           }}
         >
           <div
-            className="w-full md:w-1/2"
+            className={forceMobileLayout ? "w-full" : "w-full md:w-1/2"}
             style={{
-              height: coverHeightCss,
-              minHeight: coverHeightCss,
-              padding: coverImageInsetPx,
+              height: forceMobileLayout ? "300px" : coverHeightCss,
+              minHeight: forceMobileLayout ? "300px" : coverHeightCss,
+              padding: forceMobileLayout ? Math.min(coverImageInsetPx, 16) : coverImageInsetPx,
               backgroundColor: imagePanelBackground.backgroundColor,
               backgroundImage: imagePanelBackground.backgroundImage,
               boxSizing: "border-box",
@@ -3496,14 +3534,14 @@ export function renderCover(
           </div>
 
           <div
-            className="w-full md:w-1/2"
+            className={forceMobileLayout ? "w-full" : "w-full md:w-1/2"}
             style={{
               display: "flex",
               justifyContent: textHorizontalJustify,
               alignItems: textVerticalAlignItems,
-              height: coverHeightCss,
-              minHeight: coverHeightCss,
-              padding: forceMobileLayout ? "40px 20px" : "56px 64px 56px 56px",
+              height: forceMobileLayout ? "auto" : coverHeightCss,
+              minHeight: forceMobileLayout ? 0 : coverHeightCss,
+              padding: forceMobileLayout ? "28px 20px 34px" : "56px 64px 56px 56px",
               backgroundColor: textColumnBackground.backgroundColor,
               backgroundImage: textColumnBackground.backgroundImage,
               boxSizing: "border-box",
@@ -3515,9 +3553,9 @@ export function renderCover(
                 style={{
                   ...headingStyle(style, theme),
                   textAlign: contentAlign,
-                  fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
-                    headingMobileSize,
-                    headingDesktopSize
+                  fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
+                    effectiveHeadingMobileSize,
+                    forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
                   )}px)`,
                   ...(resolveAnimStyle(animHeading, 0) ?? {}),
                 }}
@@ -3530,11 +3568,11 @@ export function renderCover(
                   style={{
                     ...subheadingStyle(style, theme),
                     color: subtitleColor,
-                    textAlign: contentAlign,
-                    fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
-                      subheadingMobileSize,
-                      subheadingDesktopSize
-                    )}px)`,
+                textAlign: contentAlign,
+                fontSize: `clamp(${v1SubheadingMobileSize}px, ${forceMobileLayout ? "4.6cqw" : "5.8cqw"}, ${Math.max(
+                  v1SubheadingMobileSize,
+                  forceMobileLayout ? effectiveSubheadingMobileSize : subheadingDesktopSize
+                )}px)`,
                     ...(resolveAnimStyle(animSubtitle, 120) ?? {}),
                   }}
                 >
@@ -3551,9 +3589,9 @@ export function renderCover(
                     marginLeft:
                       contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                     marginRight: contentAlign === "center" ? "auto" : 0,
-                    fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
-                      textMobileSize,
-                      textDesktopSize
+                    fontSize: `clamp(${effectiveTextMobileSize}px, ${forceMobileLayout ? "4.4cqw" : "4.2cqw"}, ${Math.max(
+                      effectiveTextMobileSize,
+                      forceMobileLayout ? effectiveTextMobileSize : textDesktopSize
                     )}px)`,
                     ...(resolveAnimStyle(animDescription, subtitle ? 220 : 120) ?? {}),
                   }}
@@ -3596,7 +3634,7 @@ export function renderCover(
                           ? primaryButtonBorderColor
                           : "transparent",
                       minHeight: "clamp(46px, 6cqw, 54px)",
-                      paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                      paddingInline: forceMobileLayout ? "20px" : "clamp(24px, 3.2cqw, 40px)",
                       paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                       fontSize: "clamp(14px, 2cqw, 16px)",
                       transition: "background-color 180ms ease",
@@ -3641,7 +3679,7 @@ export function renderCover(
                           : 0,
                       borderRadius: secondaryButtonRadius,
                       minHeight: "clamp(46px, 6cqw, 54px)",
-                      paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                      paddingInline: forceMobileLayout ? "20px" : "clamp(24px, 3.2cqw, 40px)",
                       paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                       fontSize: "clamp(14px, 2cqw, 16px)",
                       transition: "background-color 180ms ease",
@@ -3687,8 +3725,8 @@ export function renderCover(
         ...(showMotionLayer
           ? { backgroundColor: "transparent", backgroundImage: "none" }
           : backgroundStyle),
-        height: coverHeightCss,
-        minHeight: coverHeightCss,
+        height: effectiveCoverHeightCss,
+        minHeight: effectiveCoverHeightCss,
         containerType: "inline-size",
         boxSizing: "border-box",
       }}
@@ -3721,9 +3759,9 @@ export function renderCover(
             style={{
               ...headingStyle(style, theme),
               textAlign: contentAlign,
-              fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
-                headingMobileSize,
-                headingDesktopSize
+              fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
+                effectiveHeadingMobileSize,
+                forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
               )}px)`,
               ...(resolveAnimStyle(animHeading, 0) ?? {}),
             }}
@@ -3737,9 +3775,9 @@ export function renderCover(
                 ...subheadingStyle(style, theme),
                 textAlign: contentAlign,
                 color: subtitleColor,
-                fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
-                  subheadingMobileSize,
-                  subheadingDesktopSize
+                fontSize: `clamp(${effectiveSubheadingMobileSize}px, ${forceMobileLayout ? "5cqw" : "5.8cqw"}, ${Math.max(
+                  effectiveSubheadingMobileSize,
+                  forceMobileLayout ? effectiveSubheadingMobileSize : subheadingDesktopSize
                 )}px)`,
                 ...(resolveAnimStyle(animSubtitle, 120) ?? {}),
               }}
@@ -3757,9 +3795,9 @@ export function renderCover(
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,
                 color: descriptionColor,
-                fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
-                  textMobileSize,
-                  textDesktopSize
+                fontSize: `clamp(${v1TextMobileSize}px, ${forceMobileLayout ? "4cqw" : "4.2cqw"}, ${Math.max(
+                  v1TextMobileSize,
+                  forceMobileLayout ? effectiveTextMobileSize : textDesktopSize
                 )}px)`,
                 ...(resolveAnimStyle(animDescription, subtitle ? 220 : 120) ?? {}),
               }}
@@ -3770,7 +3808,7 @@ export function renderCover(
           <div
             className="mt-7 flex flex-wrap items-center gap-3"
             style={{
-              flexWrap: forceMobileLayout ? "nowrap" : "wrap",
+              flexWrap: "wrap",
               justifyContent:
                 contentAlign === "center"
                   ? "center"
@@ -3802,8 +3840,8 @@ export function renderCover(
                     primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
                       ? primaryButtonBorderColor
                       : "transparent",
-                    minHeight: "clamp(46px, 6cqw, 54px)",
-                    paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                    minHeight: forceMobileLayout ? 44 : "clamp(46px, 6cqw, 54px)",
+                    paddingInline: forceMobileLayout ? "18px" : "clamp(24px, 3.2cqw, 40px)",
                     paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                     fontSize: "clamp(14px, 2cqw, 16px)",
                     transition: "background-color 180ms ease",
@@ -3847,8 +3885,8 @@ export function renderCover(
                       ? 1
                       : 0,
                     borderRadius: secondaryButtonRadius,
-                    minHeight: "clamp(46px, 6cqw, 54px)",
-                    paddingInline: "clamp(24px, 3.2cqw, 40px)",
+                    minHeight: forceMobileLayout ? 44 : "clamp(46px, 6cqw, 54px)",
+                    paddingInline: forceMobileLayout ? "18px" : "clamp(24px, 3.2cqw, 40px)",
                     paddingBlock: "clamp(10px, 1.2cqw, 12px)",
                     fontSize: "clamp(14px, 2cqw, 16px)",
                     transition: "background-color 180ms ease",
