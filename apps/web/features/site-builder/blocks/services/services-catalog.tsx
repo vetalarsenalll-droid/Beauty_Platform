@@ -269,6 +269,7 @@ function ServiceModal({
   descriptionTextStyle,
   priceTextStyle,
   durationTextStyle,
+  previewViewportWidth,
 }: {
   service: ServiceItem;
   imageIndex: number;
@@ -309,6 +310,7 @@ function ServiceModal({
   descriptionTextStyle: CSSProperties;
   priceTextStyle: CSSProperties;
   durationTextStyle: CSSProperties;
+  previewViewportWidth?: number;
 }) {
   const images = useMemo(() => uniqueImageUrls(service), [service]);
   const [activeImageIndex, setActiveImageIndex] = useState(
@@ -319,6 +321,7 @@ function ServiceModal({
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragStartPan, setDragStartPan] = useState({ x: 0, y: 0 });
+  const [previewTopOffset, setPreviewTopOffset] = useState(56);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const canNavigate = images.length > 1;
@@ -396,11 +399,33 @@ function ServiceModal({
 
   const currentImage = images[activeImageIndex] ?? null;
   const isImageFocusMode = zoomLevel > 0;
+  const hasPreviewViewport =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
+  const isMobilePreview = hasPreviewViewport && previewViewportWidth < 640;
+
+  useEffect(() => {
+    if (!hasPreviewViewport || typeof window === "undefined") return;
+    const updateTopOffset = () => {
+      const toolbar = document.querySelector<HTMLElement>("[data-site-builder-toolbar='true']");
+      const bottom = toolbar?.getBoundingClientRect().bottom;
+      setPreviewTopOffset(Number.isFinite(bottom) ? Math.max(0, Math.round(bottom ?? 56)) : 56);
+    };
+    updateTopOffset();
+    window.addEventListener("resize", updateTopOffset);
+    window.addEventListener("scroll", updateTopOffset, true);
+    return () => {
+      window.removeEventListener("resize", updateTopOffset);
+      window.removeEventListener("scroll", updateTopOffset, true);
+    };
+  }, [hasPreviewViewport]);
+
   const modalImageRadiusValue = clamp(imageRadius, 0, 80, 8);
   const zoomScale =
     zoomLevel <= 1 ? 1 : zoomLevel === 2 ? 1.35 : zoomLevel === 3 ? 1.8 : zoomLevel === 4 ? 2.3 : 2.9;
-  const focusViewportWidth = "min(92vw, 1280px)";
-  const focusViewportHeight = "calc(100vh - 112px)";
+  const focusViewportWidth = hasPreviewViewport ? "calc(100% - 24px)" : "min(92vw, 1280px)";
+  const focusViewportHeight = hasPreviewViewport
+    ? `calc(100vh - ${previewTopOffset + 84}px)`
+    : "calc(100vh - 112px)";
   const getPanBounds = () => {
     const viewport = viewportRef.current;
     const image = imageRef.current;
@@ -429,18 +454,68 @@ function ServiceModal({
       ? titleTextStyle.color
       : "var(--block-text,var(--bp-ink))";
   const modalChromeButtonStyle: CSSProperties = { color: modalChromeColor };
+  const modalShellStyle: CSSProperties = {
+    backgroundColor: modalBackgroundColor,
+    backgroundImage: modalBackgroundImage,
+    ...(hasPreviewViewport
+      ? {
+          left: "50%",
+          right: "auto",
+          top: `${previewTopOffset}px`,
+          width: `${previewViewportWidth}px`,
+          height: `calc(100vh - ${previewTopOffset}px)`,
+          maxWidth: "100vw",
+          transform: "translateX(-50%)",
+        }
+      : {}),
+  };
+  const modalMediaStyle: CSSProperties = isMobilePreview
+    ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
+    : isImageFocusMode
+      ? {}
+      : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` };
+  const modalInfoStyle: CSSProperties = isMobilePreview
+    ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
+    : { flex: `0 0 ${infoWidthPercent}%`, maxWidth: `${infoWidthPercent}%` };
+  const mobileCategoryTextStyle: CSSProperties = isMobilePreview
+    ? { ...categoryTextStyle, fontSize: 12, lineHeight: 1.3 }
+    : categoryTextStyle;
+  const mobileTitleTextStyle: CSSProperties = isMobilePreview
+    ? { ...titleTextStyle, fontSize: 42, lineHeight: 1.08 }
+    : titleTextStyle;
+  const mobileDescriptionTextStyle: CSSProperties = isMobilePreview
+    ? { ...descriptionTextStyle, fontSize: 16, lineHeight: 1.45 }
+    : descriptionTextStyle;
+  const mobilePriceTextStyle: CSSProperties = isMobilePreview
+    ? { ...priceTextStyle, fontSize: 18, lineHeight: 1.25 }
+    : priceTextStyle;
+  const mobileDurationTextStyle: CSSProperties = isMobilePreview
+    ? { ...durationTextStyle, fontSize: 18, lineHeight: 1.25 }
+    : durationTextStyle;
 
   return (
     <div
-      className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]"
-      style={{ backgroundColor: modalBackgroundColor, backgroundImage: modalBackgroundImage }}
+      className={`fixed bottom-0 top-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))] ${
+        hasPreviewViewport ? "" : "left-0 right-0"
+      }`}
+      style={modalShellStyle}
     >
       <div
-        className={`relative mx-auto flex min-h-screen w-full items-center ${
+        className={`relative mx-auto flex w-full ${
+          isMobilePreview && !isImageFocusMode ? "flex-col items-stretch overflow-y-auto" : "items-center"
+        } ${
           isImageFocusMode ? "max-w-none" : "max-w-[1600px]"
         } ${
-          isImageFocusMode ? "px-2 py-2 lg:px-3 lg:py-3" : "px-6 py-10 lg:px-10"
-        } ${isImageFocusMode ? "justify-center" : ""}`}
+          isImageFocusMode
+            ? hasPreviewViewport
+              ? "px-3 pb-3 pt-3"
+              : "px-2 py-2 lg:px-3 lg:py-3"
+            : isMobilePreview
+              ? "px-4 pb-8 pt-3"
+              : "px-6 py-10 lg:px-10"
+        } ${
+          hasPreviewViewport ? "h-full min-h-0" : "min-h-screen"
+        } ${isImageFocusMode ? (hasPreviewViewport ? "justify-start" : "justify-center") : ""}`}
         onClick={(event) => event.stopPropagation()}
       >
         <button
@@ -454,7 +529,11 @@ function ServiceModal({
             }
             onClose();
           }}
-          className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none opacity-80 transition hover:opacity-100"
+          className={`z-[310] font-light leading-none opacity-80 transition hover:opacity-100 ${
+            hasPreviewViewport
+              ? "absolute right-4 top-4 text-4xl"
+              : "fixed right-8 top-6 text-5xl"
+          }`}
           style={modalChromeButtonStyle}
           aria-label="Закрыть"
         >
@@ -462,7 +541,11 @@ function ServiceModal({
         </button>
 
         {imageZoomOnClick && zoomLevel > 0 ? (
-          <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
+          <div
+            className={`z-[310] flex items-center gap-4 ${
+              hasPreviewViewport ? "absolute right-14 top-5" : "fixed right-24 top-8"
+            }`}
+          >
             <button
               type="button"
               onClick={(event) => {
@@ -495,14 +578,14 @@ function ServiceModal({
         ) : null}
 
         <div
-          className={`relative flex flex-1 items-center justify-center ${
-            isImageFocusMode ? "min-h-0 p-0" : "min-h-[70vh] p-8"
-          }`}
-          style={
+          className={`relative flex items-center justify-center ${
             isImageFocusMode
-              ? undefined
-              : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` }
-          }
+              ? "min-h-0 flex-1 p-0"
+              : isMobilePreview
+                ? "min-h-0 w-full p-0"
+                : "min-h-[70vh] flex-1 p-8"
+          }`}
+          style={modalMediaStyle}
         >
           {showArrows && canNavigate ? (
             <button
@@ -544,8 +627,9 @@ function ServiceModal({
             ref={viewportRef}
             className="relative mx-auto flex items-center justify-center overflow-hidden rounded-[8px]"
             style={{
-              width: isImageFocusMode ? focusViewportWidth : "min(62vw, 820px)",
-              height: isImageFocusMode ? focusViewportHeight : "min(72vh, 820px)",
+              width: isImageFocusMode ? focusViewportWidth : isMobilePreview ? "100%" : "min(62vw, 820px)",
+              height: isImageFocusMode ? focusViewportHeight : isMobilePreview ? "auto" : "min(72vh, 820px)",
+              aspectRatio: !isImageFocusMode && isMobilePreview ? imageAspectRatio : undefined,
               borderRadius: zoomLevel > 1 ? 0 : modalImageRadiusValue,
             }}
             onMouseDown={(event) => {
@@ -653,29 +737,29 @@ function ServiceModal({
 
         {!isImageFocusMode ? (
         <div
-          className="flex w-full flex-col py-2"
-          style={{ flex: `0 0 ${infoWidthPercent}%`, maxWidth: `${infoWidthPercent}%` }}
+          className={`flex w-full flex-col ${isMobilePreview ? "pt-5" : "py-2"}`}
+          style={modalInfoStyle}
         >
-          <div className="service-modal-text uppercase tracking-[0.18em]" style={categoryTextStyle}>
+          <div className="service-modal-text uppercase tracking-[0.18em]" style={mobileCategoryTextStyle}>
             {service.categoryName || "Услуга"}
           </div>
-          <h3 className="service-modal-text mt-3 leading-tight" style={titleTextStyle}>{service.name}</h3>
+          <h3 className="service-modal-text mt-3 leading-tight" style={mobileTitleTextStyle}>{service.name}</h3>
 
           {showMeta ? (
-            <div className="mt-6 flex flex-wrap items-center gap-4">
-              <span className="service-modal-text" style={priceTextStyle}>от {formatPrice(service.basePrice)}</span>
-              <span className="service-modal-text" style={durationTextStyle}>от {service.baseDurationMin} мин</span>
+            <div className={`${isMobilePreview ? "mt-4" : "mt-6"} flex flex-wrap items-center gap-4`}>
+              <span className="service-modal-text" style={mobilePriceTextStyle}>от {formatPrice(service.basePrice)}</span>
+              <span className="service-modal-text" style={mobileDurationTextStyle}>от {service.baseDurationMin} мин</span>
             </div>
           ) : null}
 
           {bookingHref ? (
-            <a href={bookingHref} className="mt-8 inline-flex w-fit items-center justify-center px-6 py-3 text-base" style={buttonStyle}>
+            <a href={bookingHref} className={`${isMobilePreview ? "mt-5" : "mt-8"} inline-flex w-fit items-center justify-center px-6 py-3 text-base`} style={buttonStyle}>
               {buttonText}
             </a>
           ) : null}
 
           {showDescription && service.description ? (
-            <p className="service-modal-text mt-10 leading-8" style={descriptionTextStyle}>{service.description}</p>
+            <p className={`service-modal-text ${isMobilePreview ? "mt-6" : "mt-10 leading-8"}`} style={mobileDescriptionTextStyle}>{service.description}</p>
           ) : null}
 
           {showThumbnails ? (
@@ -1845,6 +1929,7 @@ export function ServicesCatalog({
           descriptionTextStyle={resolvedModalDescriptionTextStyle}
           priceTextStyle={resolvedModalPriceTextStyle}
           durationTextStyle={resolvedModalDurationTextStyle}
+          previewViewportWidth={previewViewportWidth}
         />
       ) : null}
     </div>

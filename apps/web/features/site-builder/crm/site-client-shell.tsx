@@ -482,6 +482,7 @@ export default function SiteClient({
       <div className="relative">
         <div className="h-8.5" />
         <div
+          data-site-builder-toolbar="true"
           className={`fixed top-0 left-0 right-0 z-[230] border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 sm:px-6 lg:px-8 transition-all duration-[220ms] ease-out ${
             isRightPanelVisible ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
           }`}
