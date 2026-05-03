@@ -30,6 +30,8 @@ export type PublicPageData = {
 
 export type SiteClientProps = {
   initialActivePage?: SitePageKey;
+  initialPreviewMode?: "desktop" | "mobile";
+  initialMobileViewport?: MobileViewportKey;
   initialPublicPage: PublicPageData;
   account: AccountInfo;
   accountProfile: AccountProfile;

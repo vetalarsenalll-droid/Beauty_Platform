@@ -1,6 +1,7 @@
 ﻿import { requireCrmPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import SiteClient from "./site-client";
+import { cookies } from "next/headers";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import {
   createDefaultDraft,
@@ -9,6 +10,10 @@ import {
   type SiteDraft,
   type SitePageKey,
 } from "@/lib/site-builder";
+import {
+  MOBILE_VIEWPORTS,
+  type MobileViewportKey,
+} from "@/features/site-builder/crm/site-client-core";
 import { Prisma } from "@prisma/client";
 
 const ALLOWED_PAGE_KEYS: SitePageKey[] = [
@@ -28,14 +33,30 @@ const normalizeInitialPage = (value: string | undefined): SitePageKey => {
     : "home";
 };
 
+const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
+const SITE_MOBILE_VIEWPORT_COOKIE_KEY = "site_builder_mobile_viewport";
+
+const normalizeInitialPreviewMode = (value: string | undefined): "desktop" | "mobile" =>
+  value === "mobile" ? "mobile" : "desktop";
+
+const normalizeInitialMobileViewport = (value: string | undefined): MobileViewportKey =>
+  value && value in MOBILE_VIEWPORTS ? (value as MobileViewportKey) : "mobile360";
+
 export default async function CrmSitePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string }> | { page?: string };
+  searchParams?: Promise<{ page?: string }>;
 }) {
   const session = await requireCrmPermission("crm.settings.read");
   const resolvedSearchParams = await searchParams;
+  const cookieStore = await cookies();
   const initialActivePage = normalizeInitialPage(resolvedSearchParams?.page);
+  const initialPreviewMode = normalizeInitialPreviewMode(
+    cookieStore.get(SITE_PREVIEW_MODE_COOKIE_KEY)?.value
+  );
+  const initialMobileViewport = normalizeInitialMobileViewport(
+    cookieStore.get(SITE_MOBILE_VIEWPORT_COOKIE_KEY)?.value
+  );
 
   const account = await prisma.account.findUnique({
     where: { id: session.accountId },
@@ -213,6 +234,8 @@ export default async function CrmSitePage({
     <div className="flex flex-col gap-6">
       <SiteClient
         initialActivePage={initialActivePage}
+        initialPreviewMode={initialPreviewMode}
+        initialMobileViewport={initialMobileViewport}
         initialPublicPage={{
           id: page.id,
           status: page.status,

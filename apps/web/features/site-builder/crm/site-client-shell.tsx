@@ -63,6 +63,7 @@ import {
 import { useDraftHistory } from "@/features/site-builder/crm/use-draft-history";
 import { buildEditorActions } from "@/features/site-builder/crm/editor-actions";
 import { usePagesMenu } from "@/features/site-builder/crm/use-pages-menu";
+import type { PagesMenuItem } from "@/features/site-builder/crm/use-pages-menu";
 import { useRightPanel } from "@/features/site-builder/crm/use-right-panel";
 import { buildThemeStyle, resolvePanelTheme } from "@/features/site-builder/crm/site-shell-theme";
 import { SiteRightPanelOverlays } from "@/features/site-builder/crm/site-right-panel-overlays";
@@ -96,8 +97,24 @@ function MobilePreviewIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+const SITE_PREVIEW_MODE_STORAGE_KEY = "site-builder:preview-mode";
+const SITE_MOBILE_VIEWPORT_STORAGE_KEY = "site-builder:mobile-viewport";
+const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
+const SITE_MOBILE_VIEWPORT_COOKIE_KEY = "site_builder_mobile_viewport";
+const SITE_PREFERENCES_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+type PageMenuItem = Extract<PagesMenuItem, { kind: "page" }>;
+type EntityProfileMenuItem = Extract<PagesMenuItem, { kind: "entity-profile" }>;
+
+const isPageMenuItem = (item: PagesMenuItem): item is PageMenuItem => item.kind === "page";
+
+const isEntityProfileMenuItem = (item: PagesMenuItem): item is EntityProfileMenuItem =>
+  item.kind === "entity-profile";
+
 export default function SiteClient({
   initialActivePage = "home",
+  initialPreviewMode = "desktop",
+  initialMobileViewport = "mobile360",
   initialPublicPage,
   account,
   accountProfile,
@@ -167,8 +184,8 @@ export default function SiteClient({
   const [rightPanel, setRightPanel] = useState<"content" | "settings" | null>(
     null
   );
-  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
-  const [mobileViewport, setMobileViewport] = useState<MobileViewportKey>("mobile360");
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(initialPreviewMode);
+  const [mobileViewport, setMobileViewport] = useState<MobileViewportKey>(initialMobileViewport);
   const [mobileViewportPickerOpen, setMobileViewportPickerOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -187,6 +204,18 @@ export default function SiteClient({
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [spacingAnchorBlockId, setSpacingAnchorBlockId] = useState<string | null>(null);
   const slotRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SITE_PREVIEW_MODE_STORAGE_KEY, previewMode);
+    document.cookie = `${SITE_PREVIEW_MODE_COOKIE_KEY}=${previewMode}; path=/; max-age=${SITE_PREFERENCES_COOKIE_MAX_AGE}; SameSite=Lax`;
+  }, [previewMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SITE_MOBILE_VIEWPORT_STORAGE_KEY, mobileViewport);
+    document.cookie = `${SITE_MOBILE_VIEWPORT_COOKIE_KEY}=${mobileViewport}; path=/; max-age=${SITE_PREFERENCES_COOKIE_MAX_AGE}; SameSite=Lax`;
+  }, [mobileViewport]);
 
   useEffect(() => {
     if (!displayBlocks.length) {
@@ -447,15 +476,18 @@ export default function SiteClient({
     serviceProfiles: services.map((item) => ({ id: item.id, name: item.name })),
     specialistProfiles: specialists.map((item) => ({ id: item.id, name: item.name })),
   });
-  const filteredPageItems = filteredMenuItems.filter((item) => item.kind === "page");
+  const filteredPageItems = filteredMenuItems.filter(isPageMenuItem);
   const filteredLocationProfileItems = filteredMenuItems.filter(
-    (item) => item.kind === "entity-profile" && item.entityType === "location"
+    (item): item is EntityProfileMenuItem =>
+      isEntityProfileMenuItem(item) && item.entityType === "location"
   );
   const filteredSpecialistProfileItems = filteredMenuItems.filter(
-    (item) => item.kind === "entity-profile" && item.entityType === "specialist"
+    (item): item is EntityProfileMenuItem =>
+      isEntityProfileMenuItem(item) && item.entityType === "specialist"
   );
   const filteredServiceProfileItems = filteredMenuItems.filter(
-    (item) => item.kind === "entity-profile" && item.entityType === "service"
+    (item): item is EntityProfileMenuItem =>
+      isEntityProfileMenuItem(item) && item.entityType === "service"
   );
 
   const themeStyle = buildThemeStyle(activeTheme);
@@ -533,27 +565,14 @@ export default function SiteClient({
                   </div>
                   <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
                     {[...filteredPageItems].map((item) => {
-                      const isActive =
-                        item.kind === "page"
-                          ? item.key === activePage && currentEntity === null
-                          : item.key === activePage &&
-                            currentEntity?.type === item.entityType &&
-                            currentEntity?.id === item.entityId;
+                      const isActive = item.key === activePage && currentEntity === null;
                       return (
                         <button
-                          key={
-                            item.kind === "page"
-                              ? `page:${item.key}`
-                              : `entity:${item.entityType}:${item.entityId}`
-                          }
+                          key={`page:${item.key}`}
                           type="button"
                           onClick={() => {
                             setActivePage(item.key);
-                            if (item.kind === "entity-profile") {
-                              setCurrentEntity({ type: item.entityType, id: item.entityId });
-                            } else {
-                              setCurrentEntity(null);
-                            }
+                            setCurrentEntity(null);
                             setPagesMenuOpen(false);
                             setPagesSearch("");
                           }}
