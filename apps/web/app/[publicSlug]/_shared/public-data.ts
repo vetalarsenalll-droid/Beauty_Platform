@@ -144,10 +144,14 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
   });
 
   const specialistCoverMap = new Map<string, string>();
+  const specialistPhotoMap = new Map<string, string[]>();
   specialistPhotos.forEach((item) => {
     if (!specialistCoverMap.has(item.entityId)) {
       specialistCoverMap.set(item.entityId, item.asset.url);
     }
+    const current = specialistPhotoMap.get(item.entityId) ?? [];
+    current.push(item.asset.url);
+    specialistPhotoMap.set(item.entityId, current);
   });
 
   const workPhotos: WorkPhotos = {
@@ -222,9 +226,11 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     return {
       id: specialist.id,
       name: fullName || specialist.user.email || "Без имени",
+      bio: specialist.bio,
       level: specialist.level?.name ?? null,
       locationIds: specialist.locations.map((item) => item.locationId),
       coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
+      photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],
     };
   });
 

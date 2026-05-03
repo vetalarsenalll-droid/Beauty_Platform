@@ -821,9 +821,9 @@ export function SiteSpecialistsSettingsDrawer({
           }
         />
         <FlatCheckbox
-          checked={data.showImage !== false}
-          onChange={(checked) => updateData({ showImage: checked })}
-          label="Показывать фото специалиста"
+          checked={data.showDescription !== false}
+          onChange={(checked) => updateData({ showDescription: checked })}
+          label="Показывать описание в карточке"
         />
         <FlatCheckbox
           checked={data.showLevel !== false}

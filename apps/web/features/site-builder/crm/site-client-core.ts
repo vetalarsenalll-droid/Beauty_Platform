@@ -853,6 +853,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     showCategoryTabs: true,
     showLocationFilter: true,
     showLevel: true,
+    showDescription: true,
     showImage: true,
     cardsPerRow: 4,
     cardStyle: "plain",

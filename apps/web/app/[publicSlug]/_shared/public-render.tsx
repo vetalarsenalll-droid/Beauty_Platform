@@ -3810,6 +3810,7 @@ function renderSpecialists(
         locationActiveColorDark={readOptionalDataColor("locationActiveColorDark")}
         showLocationFilter={data.showLocationFilter !== false}
         showLevel={data.showLevel !== false}
+        showDescription={data.showDescription !== false}
         showButton={showButton}
         buttonText={buttonText}
         buttonAlignment={buttonAlignment}

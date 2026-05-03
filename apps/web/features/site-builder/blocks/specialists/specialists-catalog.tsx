@@ -6,10 +6,17 @@ import { buildBookingLink } from "@/lib/booking-links";
 export type SpecialistCatalogItem = {
   id: number;
   name: string;
+  bio?: string | null;
   level: string | null;
   locationIds: number[];
   coverUrl: string | null;
+  photoUrls?: string[];
 };
+
+type ActiveSpecialistModalState = {
+  specialistId: number;
+  imageIndex: number;
+} | null;
 
 type SpecialistsCatalogProps = {
   title: string;
@@ -45,6 +52,7 @@ type SpecialistsCatalogProps = {
   locationActiveColorDark?: string;
   showLocationFilter?: boolean;
   showLevel?: boolean;
+  showDescription?: boolean;
   showButton?: boolean;
   buttonText?: string;
   buttonAlignment?: "left" | "center" | "right";
@@ -97,6 +105,20 @@ function clampInt(value: unknown, fallback: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(parsed)));
 }
 
+function clamp(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+function clampPan(value: number, limit: number) {
+  if (!Number.isFinite(value) || !Number.isFinite(limit) || limit <= 0) return 0;
+  return Math.max(-limit, Math.min(limit, value));
+}
+
+function uniqueSpecialistImages(specialist: SpecialistCatalogItem) {
+  return Array.from(new Set([...(specialist.photoUrls ?? []), specialist.coverUrl ?? ""].filter(Boolean)));
+}
+
 function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
@@ -113,6 +135,316 @@ function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number) {
   if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
   if (cardsPerRow === 4) return `${mobile} md:grid-cols-2 xl:grid-cols-4`;
   return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
+}
+
+function SpecialistModal({
+  specialist,
+  imageIndex,
+  bookingHref,
+  buttonText,
+  buttonStyle,
+  onClose,
+  showDescription,
+  imageFit,
+  imageRadius,
+  imageAspectRatio,
+  imageZoomOnClick,
+  imageZoomOnHover,
+  titleTextStyle,
+  descriptionTextStyle,
+}: {
+  specialist: SpecialistCatalogItem;
+  imageIndex: number;
+  bookingHref: string | null;
+  buttonText: string;
+  buttonStyle?: CSSProperties;
+  onClose: () => void;
+  showDescription: boolean;
+  imageFit: "cover" | "contain";
+  imageRadius: number;
+  imageAspectRatio: string;
+  imageZoomOnClick: boolean;
+  imageZoomOnHover: boolean;
+  titleTextStyle?: CSSProperties;
+  descriptionTextStyle?: CSSProperties;
+}) {
+  const images = useMemo(() => uniqueSpecialistImages(specialist), [specialist]);
+  const [activeImageIndex, setActiveImageIndex] = useState(
+    Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
+  );
+  const [zoomLevel, setZoomLevel] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragStartPan, setDragStartPan] = useState({ x: 0, y: 0 });
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const currentImage = images[activeImageIndex] ?? null;
+  const canNavigate = images.length > 1;
+  const isImageFocusMode = zoomLevel > 0;
+
+  useEffect(() => {
+    setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
+    setZoomLevel(0);
+    setPan({ x: 0, y: 0 });
+    setIsDraggingImage(false);
+  }, [imageIndex, images.length]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (zoomLevel > 0) {
+          setZoomLevel(0);
+          setPan({ x: 0, y: 0 });
+          return;
+        }
+        onClose();
+      }
+      if (event.key === "ArrowRight" && canNavigate) {
+        setPan({ x: 0, y: 0 });
+        setActiveImageIndex((current) => (current >= images.length - 1 ? 0 : current + 1));
+      }
+      if (event.key === "ArrowLeft" && canNavigate) {
+        setPan({ x: 0, y: 0 });
+        setActiveImageIndex((current) => (current <= 0 ? images.length - 1 : current - 1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canNavigate, images.length, onClose, zoomLevel]);
+
+  useEffect(() => {
+    if (!isDraggingImage) return;
+    const stopDragging = () => setIsDraggingImage(false);
+    window.addEventListener("mouseup", stopDragging);
+    window.addEventListener("blur", stopDragging);
+    return () => {
+      window.removeEventListener("mouseup", stopDragging);
+      window.removeEventListener("blur", stopDragging);
+    };
+  }, [isDraggingImage]);
+
+  const goPrev = () => {
+    setPan({ x: 0, y: 0 });
+    setActiveImageIndex((current) => (current <= 0 ? images.length - 1 : current - 1));
+  };
+  const goNext = () => {
+    setPan({ x: 0, y: 0 });
+    setActiveImageIndex((current) => (current >= images.length - 1 ? 0 : current + 1));
+  };
+  const zoomScale =
+    zoomLevel <= 1 ? 1 : zoomLevel === 2 ? 1.35 : zoomLevel === 3 ? 1.8 : zoomLevel === 4 ? 2.3 : 2.9;
+  const getPanBounds = () => {
+    const viewport = viewportRef.current;
+    const image = imageRef.current;
+    if (!viewport || !image) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, (image.clientWidth * zoomScale - viewport.clientWidth) / 2),
+      y: Math.max(0, (image.clientHeight * zoomScale - viewport.clientHeight) / 2),
+    };
+  };
+  const imageRadiusValue = clamp(imageRadius, 0, 80, 8);
+  const description = typeof specialist.bio === "string" ? specialist.bio.trim() : "";
+  const modalChromeButtonStyle: CSSProperties = {
+    color:
+      typeof titleTextStyle?.color === "string" && titleTextStyle.color.trim()
+        ? titleTextStyle.color
+        : "var(--block-text,var(--bp-ink))",
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]">
+      <div
+        className={`relative mx-auto flex min-h-screen w-full ${
+          isImageFocusMode ? "max-w-none items-center justify-center px-3 py-3" : "max-w-[1600px] items-center px-6 py-10 lg:px-10"
+        }`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            if (zoomLevel > 0) {
+              setZoomLevel(0);
+              setPan({ x: 0, y: 0 });
+              setIsDraggingImage(false);
+              return;
+            }
+            onClose();
+          }}
+          className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none opacity-80 transition hover:opacity-100"
+          style={modalChromeButtonStyle}
+          aria-label="Закрыть"
+        >
+          ×
+        </button>
+
+        {imageZoomOnClick && zoomLevel > 0 ? (
+          <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setPan({ x: 0, y: 0 });
+                setZoomLevel((current) => (current <= 1 ? 1 : ((current - 1) as 0 | 1 | 2 | 3 | 4 | 5)));
+              }}
+              className="text-4xl leading-none opacity-80 transition hover:opacity-100 disabled:opacity-30"
+              style={modalChromeButtonStyle}
+              disabled={zoomLevel <= 1}
+              aria-label="Уменьшить"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPan({ x: 0, y: 0 });
+                setZoomLevel((current) => (current === 5 ? 5 : ((current + 1) as 0 | 1 | 2 | 3 | 4 | 5)));
+              }}
+              className="text-4xl leading-none opacity-80 transition hover:opacity-100 disabled:opacity-30"
+              style={modalChromeButtonStyle}
+              disabled={zoomLevel === 5}
+              aria-label="Увеличить"
+            >
+              +
+            </button>
+          </div>
+        ) : null}
+
+        <div className={`relative flex items-center justify-center ${isImageFocusMode ? "min-h-0 flex-1 p-0" : "min-h-[70vh] flex-1 p-8"}`}>
+          {canNavigate && !isImageFocusMode ? (
+            <button type="button" onClick={goPrev} className="absolute left-6 top-1/2 z-10 -translate-y-1/2 text-5xl leading-none opacity-70" aria-label="Предыдущее изображение">
+              ‹
+            </button>
+          ) : null}
+          <div
+            ref={viewportRef}
+            className="relative mx-auto flex items-center justify-center overflow-hidden"
+            style={{
+              width: isImageFocusMode ? "min(92vw, 1280px)" : "min(62vw, 820px)",
+              height: isImageFocusMode ? "calc(100vh - 112px)" : "min(72vh, 820px)",
+              borderRadius: zoomLevel > 1 ? 0 : imageRadiusValue,
+              aspectRatio: !isImageFocusMode ? imageAspectRatio : undefined,
+            }}
+            onMouseDown={(event) => {
+              if (zoomLevel <= 1 || event.button !== 0) return;
+              setIsDraggingImage(true);
+              setDragStart({ x: event.clientX, y: event.clientY });
+              setDragStartPan(pan);
+            }}
+            onMouseMove={(event) => {
+              if (!isDraggingImage) return;
+              if ((event.buttons & 1) !== 1) {
+                setIsDraggingImage(false);
+                return;
+              }
+              const dx = event.clientX - dragStart.x;
+              const dy = event.clientY - dragStart.y;
+              const panBounds = getPanBounds();
+              setPan({
+                x: clampPan(dragStartPan.x + dx, panBounds.x),
+                y: clampPan(dragStartPan.y + dy, panBounds.y),
+              });
+            }}
+            onMouseUp={() => setIsDraggingImage(false)}
+            onMouseLeave={() => setIsDraggingImage(false)}
+          >
+            {currentImage ? (
+              <img
+                ref={imageRef}
+                src={currentImage}
+                alt={specialist.name}
+                draggable={false}
+                className={`${isImageFocusMode ? "max-h-full max-w-full" : "h-full w-full"} transition duration-300 ${
+                  imageZoomOnHover && zoomLevel === 0 ? "hover:scale-[1.04]" : ""
+                }`}
+                style={{
+                  objectFit: isImageFocusMode ? "contain" : imageFit,
+                  objectPosition: "center center",
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoomScale})`,
+                  transformOrigin: "center center",
+                  transition: isDraggingImage ? "none" : "transform 120ms ease-out",
+                  cursor: imageZoomOnClick
+                    ? zoomLevel === 0
+                      ? "zoom-in"
+                      : zoomLevel > 1
+                        ? isDraggingImage
+                          ? "grabbing"
+                          : "grab"
+                        : "default"
+                    : "default",
+                }}
+                onClick={() => {
+                  if (!imageZoomOnClick) return;
+                  if (zoomLevel === 0) {
+                    setPan({ x: 0, y: 0 });
+                    setZoomLevel(1);
+                  }
+                }}
+                onDragStart={(event) => event.preventDefault()}
+                onLoad={() => setPan({ x: 0, y: 0 })}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--bp-muted)]">
+                Нет изображения
+              </div>
+            )}
+          </div>
+          {canNavigate && !isImageFocusMode ? (
+            <button type="button" onClick={goNext} className="absolute right-6 top-1/2 z-10 -translate-y-1/2 text-5xl leading-none opacity-70" aria-label="Следующее изображение">
+              ›
+            </button>
+          ) : null}
+        </div>
+
+        {!isImageFocusMode ? (
+          <div className="flex w-full flex-col py-2" style={{ flex: "0 0 38%", maxWidth: "38%" }}>
+            {specialist.level ? (
+              <div className="specialist-card-text uppercase tracking-[0.18em]" style={descriptionTextStyle}>
+                {specialist.level}
+              </div>
+            ) : null}
+            <h3 className="specialist-card-text mt-3 leading-tight" style={titleTextStyle}>
+              {specialist.name}
+            </h3>
+            {bookingHref ? (
+              <a href={bookingHref} className="mt-8 inline-flex w-fit items-center justify-center px-6 py-3 text-base" style={buttonStyle}>
+                {buttonText}
+              </a>
+            ) : null}
+            {showDescription && description ? (
+              <p className="specialist-card-text mt-10 leading-8" style={descriptionTextStyle}>
+                {description}
+              </p>
+            ) : null}
+            {images.length > 1 ? (
+              <div className="mt-8 grid grid-cols-5 gap-3">
+                {images.map((url, idx) => (
+                  <button
+                    key={`${specialist.id}-${idx}`}
+                    type="button"
+                    onClick={() => {
+                      setActiveImageIndex(idx);
+                      setZoomLevel(0);
+                    }}
+                    className="overflow-hidden rounded-[12px] border"
+                    style={{ borderColor: idx === activeImageIndex ? "var(--bp-ink)" : "rgba(15,16,18,0.12)" }}
+                  >
+                    <div className="aspect-square">
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export function SpecialistsCatalog({
@@ -148,6 +480,7 @@ export function SpecialistsCatalog({
   locationActiveColorDark,
   showLocationFilter = true,
   showLevel = true,
+  showDescription = true,
   showButton = true,
   buttonText = "Записаться",
   buttonAlignment = "center",
@@ -195,7 +528,7 @@ export function SpecialistsCatalog({
   const [sort, setSort] = useState(defaultSort || "default");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
-  const [zoomImage, setZoomImage] = useState<{ src: string; alt: string } | null>(null);
+  const [activeModal, setActiveModal] = useState<ActiveSpecialistModalState>(null);
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -279,6 +612,23 @@ export function SpecialistsCatalog({
   const displayItems = usePagination
     ? filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
     : filteredItems.slice(0, visibleCount);
+  const activeModalSpecialist = activeModal
+    ? displayItems.find((item) => item.id === activeModal.specialistId) ??
+      filteredItems.find((item) => item.id === activeModal.specialistId) ??
+      items.find((item) => item.id === activeModal.specialistId) ??
+      null
+    : null;
+  const activeModalBookingHref =
+    activeModalSpecialist && publicSlug
+      ? buildBookingLink({
+          publicSlug,
+          locationId:
+            activeLocationId ??
+            (activeModalSpecialist.locationIds.length === 1 ? activeModalSpecialist.locationIds[0] : null),
+          specialistId: activeModalSpecialist.id,
+          scenario: "specialistFirst",
+        })
+      : null;
 
   const gridClassName =
     listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns);
@@ -627,6 +977,9 @@ export function SpecialistsCatalog({
               : isFilledCard
                 ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
                 : imageRadiusValue;
+          const openSpecialistModal = () => {
+            setActiveModal({ specialistId: specialist.id, imageIndex: 0 });
+          };
 
           return (
             <article
@@ -641,7 +994,7 @@ export function SpecialistsCatalog({
                   ? (event) => {
                       const target = event.target as HTMLElement | null;
                       if (target?.closest("a,button,input,select,textarea")) return;
-                      window.location.href = profileHref;
+                      openSpecialistModal();
                     }
                   : undefined
               }
@@ -651,7 +1004,7 @@ export function SpecialistsCatalog({
                       if (event.target !== event.currentTarget) return;
                       if (event.key !== "Enter" && event.key !== " ") return;
                       event.preventDefault();
-                      window.location.href = profileHref;
+                      openSpecialistModal();
                     }
                   : undefined
               }
@@ -665,11 +1018,11 @@ export function SpecialistsCatalog({
                 <a
                   href={profileHref}
                   onClick={
-                    imageZoomOnClick && specialist.coverUrl
+                    canOpenCardByClick
                       ? (event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          setZoomImage({ src: specialist.coverUrl!, alt: specialist.name });
+                          openSpecialistModal();
                         }
                       : undefined
                   }
@@ -703,6 +1056,15 @@ export function SpecialistsCatalog({
               >
                 <a
                   href={profileHref}
+                  onClick={
+                    canOpenCardByClick
+                      ? (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          openSpecialistModal();
+                        }
+                      : undefined
+                  }
                   className="specialist-card-text text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
                   style={resolvedCardTitleTextStyle}
                 >
@@ -721,9 +1083,16 @@ export function SpecialistsCatalog({
                     style={{ justifyContent: buttonJustifyContent }}
                   >
                     {showDetailsButton && detailsButtonText && (
-                      <a
-                        href={profileHref}
-                        onClick={(event) => event.stopPropagation()}
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (canOpenCardByClick) {
+                            openSpecialistModal();
+                            return;
+                          }
+                          window.location.href = profileHref;
+                        }}
                         className="inline-flex items-center justify-center px-4 py-2 text-sm no-underline"
                         style={{
                           backgroundColor: resolvedDetailsButtonColor,
@@ -734,7 +1103,7 @@ export function SpecialistsCatalog({
                         }}
                       >
                         {detailsButtonText}
-                      </a>
+                      </button>
                     )}
                     {showButton && buttonText && (
                       <a
@@ -802,28 +1171,23 @@ export function SpecialistsCatalog({
         </div>
       ) : null}
 
-      {zoomImage ? (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setZoomImage(null)}
-        >
-          <button
-            type="button"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-2xl leading-none text-black"
-            onClick={() => setZoomImage(null)}
-            aria-label="Закрыть"
-          >
-            ×
-          </button>
-          <img
-            src={zoomImage.src}
-            alt={zoomImage.alt}
-            className="max-h-full max-w-full object-contain"
-            onClick={(event) => event.stopPropagation()}
-          />
-        </div>
+      {activeModalSpecialist ? (
+        <SpecialistModal
+          specialist={activeModalSpecialist}
+          imageIndex={activeModal?.imageIndex ?? 0}
+          bookingHref={activeModalBookingHref}
+          buttonText={buttonText}
+          buttonStyle={buttonStyle}
+          onClose={() => setActiveModal(null)}
+          showDescription={showDescription}
+          imageFit={imageFit}
+          imageRadius={imageRadius}
+          imageAspectRatio={imageAspectRatio}
+          imageZoomOnClick={imageZoomOnClick}
+          imageZoomOnHover={imageZoomOnHover}
+          titleTextStyle={resolvedCardTitleTextStyle}
+          descriptionTextStyle={resolvedCardDescriptionTextStyle}
+        />
       ) : null}
 
     </section>

@@ -89,9 +89,11 @@ export type SiteServiceCategoryItem = {
 export type SiteSpecialistItem = {
   id: number;
   name: string;
+  bio?: string | null;
   level: string | null;
   locationIds: number[];
   coverUrl: string | null;
+  photoUrls?: string[];
 };
 
 export type SitePromoItem = {
