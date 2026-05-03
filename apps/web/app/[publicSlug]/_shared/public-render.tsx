@@ -1563,9 +1563,7 @@ function renderCover(
     const isGradientMode = backgroundModeRaw === "linear" || backgroundModeRaw === "radial";
     const hasGradientBackground =
       isGradientMode && typeof textPanelBackground.backgroundImage === "string";
-    const sectionBackground = hasGradientBackground
-      ? textPanelBackground
-      : { backgroundColor: "transparent", backgroundImage: "none" };
+    const sectionBackground = textPanelBackground;
     const imagePanelBackground =
       coverImageInsetPx > 0
         ? hasGradientBackground
@@ -2153,7 +2151,6 @@ export function buildBlockWrapperStyle(
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
     const isCoverBlock = options.blockType === "cover";
-    const isCoverV3 = isCoverBlock && options.coverVariant === "v3";
     const isServicesBlock = options.blockType === "services";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
@@ -2225,9 +2222,7 @@ export function buildBlockWrapperStyle(
         borderRadius: isMenu || isBookingBlock || isCoverBlock || isServicesBlock ? 0 : radius,
         backgroundColor:
           isCoverBlock
-            ? isCoverV3
-              ? "transparent"
-              : (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
+            ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
               : isServicesBlock
@@ -2237,9 +2232,7 @@ export function buildBlockWrapperStyle(
               : "var(--block-bg)",
         backgroundImage:
           isCoverBlock
-            ? isCoverV3
-              ? "none"
-              : (options.coverBackground?.backgroundImage ?? "none")
+            ? (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
               : isServicesBlock

@@ -1550,7 +1550,6 @@ export function BlockPreview({
   const isMenu = block.type === "menu";
   const isGallery = block.type === "works";
   const isCover = block.type === "cover";
-  const isCoverV3 = isCover && block.variant === "v3";
   const isAisha = block.type === "aisha";
   const isLoader = block.type === "loader";
   const isServices = block.type === "services";
@@ -1742,18 +1741,14 @@ export function BlockPreview({
           : isAisha
           ? "transparent"
           : isCover
-            ? isCoverV3
-              ? "transparent"
-              : coverBackground.backgroundColor
+            ? coverBackground.backgroundColor
             : isServices
               ? servicesSectionBackground.backgroundColor
             : sectionBg,
         backgroundImage: isLoader
           ? "none"
           : isCover
-          ? isCoverV3
-            ? "none"
-            : coverBackground.backgroundImage
+          ? coverBackground.backgroundImage
           : isMenu
             ? menuSectionBackground.backgroundImage
             : isServices
@@ -3465,9 +3460,7 @@ export function renderCover(
     const isGradientMode = backgroundModeRaw === "linear" || backgroundModeRaw === "radial";
     const hasGradientBackground =
       isGradientMode && typeof textPanelBackground.backgroundImage === "string";
-    const sectionBackground = hasGradientBackground
-      ? textPanelBackground
-      : { backgroundColor: "transparent", backgroundImage: "none" };
+    const sectionBackground = textPanelBackground;
     const imagePanelBackground =
       coverImageInsetPx > 0
         ? hasGradientBackground
