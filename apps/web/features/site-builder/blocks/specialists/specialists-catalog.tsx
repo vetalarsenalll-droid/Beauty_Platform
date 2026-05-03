@@ -1228,19 +1228,6 @@ export function SpecialistsCatalog({
             typeof contentPaddingY === "number"
               ? Math.max(12, Math.round(contentPaddingY * 0.5))
               : `var(--specialist-card-inset-panel-padding, ${Math.max(12, Math.round(cardPaddingY * 0.5))}px)`;
-          const insetOuterPaddingX = shouldCompactTileSpacing
-            ? contentPaddingX
-            : hasPreviewViewport
-              ? cardPaddingX
-              : `var(--specialist-card-inset-outer-padding-x, ${cardPaddingX}px)`;
-          const insetOuterPaddingOffset =
-            typeof insetOuterPaddingX === "number"
-              ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0)
-              : `calc(-1 * ${insetOuterPaddingX}${hasGlassInfoPanel ? " - 1px" : ""})`;
-          const insetPanelWidth =
-            typeof insetOuterPaddingX === "number"
-              ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
-              : `calc(100% + (${insetOuterPaddingX} * 2)${hasGlassInfoPanel ? " + 2px" : ""})`;
           const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 420;
           const compactTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
@@ -1276,14 +1263,8 @@ export function SpecialistsCatalog({
                   fontSize: "var(--specialist-card-level-font-size, 14px)",
                   lineHeight: "var(--specialist-card-level-line-height, 1.2)",
                 };
-          const titleStyle =
-            isImageInsetCard && !isListCard && !hasFilledInfoPanel
-              ? { ...compactTitleStyle, color: "#ffffff" }
-              : compactTitleStyle;
-          const descriptionStyle =
-            isImageInsetCard && !isListCard && !hasFilledInfoPanel
-              ? { ...compactDescriptionStyle, color: "rgba(255,255,255,0.82)" }
-              : compactDescriptionStyle;
+          const titleStyle = compactTitleStyle;
+          const descriptionStyle = compactDescriptionStyle;
           const compactButtonStyle: CSSProperties = shouldCompactTileSpacing
             ? { fontSize: 13, lineHeight: 1.1, padding: "8px 16px" }
             : hasPreviewViewport
@@ -1404,24 +1385,23 @@ export function SpecialistsCatalog({
                 </a>
               )}
               <div
-                className={`${isImageInsetCard && !isListCard ? "relative z-[1] justify-end" : ""} ${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
+                className={`${isImageInsetCard && !isListCard ? "absolute bottom-0 z-[1] justify-end" : ""} ${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
                   !isListCard && alignButtonsBottom && !isImageInsetCard ? "flex flex-1 flex-col" : ""
                 } ${
                   isImageInsetCard && !isListCard ? "flex flex-col" : ""
                 }`}
                 style={{
+                  left: isImageInsetCard && !isListCard ? 0 : undefined,
+                  right: isImageInsetCard && !isListCard ? 0 : undefined,
+                  bottom: isImageInsetCard && !isListCard ? 0 : undefined,
                   padding:
-                    isFilledCard && !isImageInsetCard
+                    isImageInsetCard && !isListCard
+                      ? insetPanelPadding
+                      : isFilledCard && !isImageInsetCard
                       ? `${contentPaddingY}px ${contentPaddingX}px`
-                      : hasFilledInfoPanel
-                        ? insetPanelPadding
-                        : undefined,
-                  marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
+                      : undefined,
                   border: hasFilledInfoPanel ? 0 : undefined,
-                  marginLeft: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
-                  marginRight: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
-                  width: hasFilledInfoPanel ? insetPanelWidth : undefined,
                   borderTopLeftRadius:
                     hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : undefined,
                   borderTopRightRadius:

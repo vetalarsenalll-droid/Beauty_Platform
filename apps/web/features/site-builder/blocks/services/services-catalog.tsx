@@ -1684,14 +1684,8 @@ export function ServicesCatalog({
                   lineHeight: "var(--catalog-card-button-line-height, normal)",
                   padding: "var(--catalog-card-button-padding-y, 8px) var(--catalog-card-button-padding-x, 16px)",
                 };
-          const titleOverlayStyle =
-            isImageInsetCard && !hasFilledInfoPanel
-              ? { ...compactServiceTitleStyle, color: "#ffffff" }
-              : compactServiceTitleStyle;
-          const textOverlayStyle =
-            isImageInsetCard && !hasFilledInfoPanel
-              ? { ...compactServiceTextStyle, color: "rgba(255,255,255,0.82)" }
-              : compactServiceTextStyle;
+          const titleOverlayStyle = compactServiceTitleStyle;
+          const textOverlayStyle = compactServiceTextStyle;
           const serviceMetaClassName = isListView
             ? "mt-6"
             : isImageInsetCard
