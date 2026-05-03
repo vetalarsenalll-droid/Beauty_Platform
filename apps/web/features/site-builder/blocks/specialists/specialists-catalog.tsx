@@ -1158,8 +1158,8 @@ export function SpecialistsCatalog({
                   width: hasFilledInfoPanel
                     ? `calc(100% + ${cardPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
                     : undefined,
-                  borderBottomLeftRadius: hasFilledInfoPanel ? imageRadiusValue : undefined,
-                  borderBottomRightRadius: hasFilledInfoPanel ? imageRadiusValue : undefined,
+                  borderBottomLeftRadius: hasFilledInfoPanel ? 0 : undefined,
+                  borderBottomRightRadius: hasFilledInfoPanel ? 0 : undefined,
                   borderTopLeftRadius: hasFilledInfoPanel ? 0 : undefined,
                   borderTopRightRadius: hasFilledInfoPanel ? 0 : undefined,
                   backgroundColor: hasFilledInfoPanel
@@ -1179,11 +1179,9 @@ export function SpecialistsCatalog({
                     : hasRegularFilledInfoPanel
                       ? resolvedCardBackgroundImage
                     : undefined,
-                  outline: hasGlassInfoPanel && activeThemeMode === "dark" ? "1px solid rgba(0,0,0,0.42)" : undefined,
-                  outlineOffset: hasGlassInfoPanel && activeThemeMode === "dark" ? -1 : undefined,
                   boxShadow: hasGlassInfoPanel
                     ? activeThemeMode === "dark"
-                      ? "inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.42), inset 1px 0 0 rgba(0,0,0,0.18), inset -1px 0 0 rgba(0,0,0,0.18), 0 18px 45px rgba(0,0,0,0.22)"
+                      ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 45px rgba(0,0,0,0.22)"
                       : "0 18px 45px rgba(15,16,18,0.14)"
                     : undefined,
                   backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
