@@ -70,6 +70,8 @@ type SpecialistsCatalogProps = {
   imageFit?: "cover" | "contain";
   imageZoomOnHover?: boolean;
   imageZoomOnClick?: boolean;
+  modalMediaColumns?: number;
+  modalInfoColumns?: number;
   alignButtonsBottom?: boolean;
   cardBackgroundColorLight?: string;
   cardBackgroundImageLight?: string;
@@ -150,6 +152,8 @@ function SpecialistModal({
   imageAspectRatio,
   imageZoomOnClick,
   imageZoomOnHover,
+  mediaColumns,
+  infoColumns,
   titleTextStyle,
   descriptionTextStyle,
 }: {
@@ -165,6 +169,8 @@ function SpecialistModal({
   imageAspectRatio: string;
   imageZoomOnClick: boolean;
   imageZoomOnHover: boolean;
+  mediaColumns: number;
+  infoColumns: number;
   titleTextStyle?: CSSProperties;
   descriptionTextStyle?: CSSProperties;
 }) {
@@ -249,6 +255,18 @@ function SpecialistModal({
     };
   };
   const imageRadiusValue = clamp(imageRadius, 0, 80, 8);
+  const clampedMediaColumns = clamp(Math.round(mediaColumns), 1, 11, 6);
+  const clampedInfoColumns = clamp(Math.round(infoColumns), 1, 11, 6);
+  const modalColumnsTotal = Math.max(2, clampedMediaColumns + clampedInfoColumns);
+  const mediaWidthPercent = (clampedMediaColumns / modalColumnsTotal) * 100;
+  const infoWidthPercent = (clampedInfoColumns / modalColumnsTotal) * 100;
+  const modalMediaStyle: CSSProperties = isImageFocusMode
+    ? {}
+    : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` };
+  const modalInfoStyle: CSSProperties = {
+    flex: `0 0 ${infoWidthPercent}%`,
+    maxWidth: `${infoWidthPercent}%`,
+  };
   const description = typeof specialist.bio === "string" ? specialist.bio.trim() : "";
   const modalChromeButtonStyle: CSSProperties = {
     color:
@@ -314,7 +332,10 @@ function SpecialistModal({
           </div>
         ) : null}
 
-        <div className={`relative flex items-center justify-center ${isImageFocusMode ? "min-h-0 flex-1 p-0" : "min-h-[70vh] flex-1 p-8"}`}>
+        <div
+          className={`relative flex items-center justify-center ${isImageFocusMode ? "min-h-0 flex-1 p-0" : "min-h-[70vh] p-8"}`}
+          style={modalMediaStyle}
+        >
           {canNavigate && !isImageFocusMode ? (
             <button type="button" onClick={goPrev} className="absolute left-6 top-1/2 z-10 -translate-y-1/2 text-5xl leading-none opacity-70" aria-label="Предыдущее изображение">
               ‹
@@ -401,7 +422,7 @@ function SpecialistModal({
         </div>
 
         {!isImageFocusMode ? (
-          <div className="flex w-full flex-col py-2" style={{ flex: "0 0 38%", maxWidth: "38%" }}>
+          <div className="flex w-full flex-col py-2" style={modalInfoStyle}>
             {specialist.level ? (
               <div className="specialist-card-text uppercase tracking-[0.18em]" style={descriptionTextStyle}>
                 {specialist.level}
@@ -498,6 +519,8 @@ export function SpecialistsCatalog({
   imageFit = "cover",
   imageZoomOnHover = true,
   imageZoomOnClick = false,
+  modalMediaColumns = 6,
+  modalInfoColumns = 6,
   alignButtonsBottom = true,
   cardBackgroundColorLight,
   cardBackgroundImageLight,
@@ -1185,6 +1208,8 @@ export function SpecialistsCatalog({
           imageAspectRatio={imageAspectRatio}
           imageZoomOnClick={imageZoomOnClick}
           imageZoomOnHover={imageZoomOnHover}
+          mediaColumns={modalMediaColumns}
+          infoColumns={modalInfoColumns}
           titleTextStyle={resolvedCardTitleTextStyle}
           descriptionTextStyle={resolvedCardDescriptionTextStyle}
         />

@@ -879,6 +879,8 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     imageRadius: 10,
     specialistCardImageFit: "cover",
     specialistCardImageZoomOnClick: false,
+    specialistModalMediaColumns: 6,
+    specialistModalInfoColumns: 6,
     specialistCardBackgroundModeLight: "solid",
     specialistCardBackgroundFromLight: "#fafafa",
     specialistCardBackgroundToLight: "#fafafa",

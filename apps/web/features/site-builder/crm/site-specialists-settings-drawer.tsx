@@ -1,4 +1,5 @@
 import {
+  useRef,
   useState,
 } from "react";
 import {
@@ -194,6 +195,104 @@ function renderFlatSelect(
 
 function readAlignment(value: unknown, fallback: "left" | "center" | "right") {
   return value === "left" || value === "center" || value === "right" ? value : fallback;
+}
+
+function clampSpecialistModalColumns(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(11, Math.round(parsed))) : fallback;
+}
+
+function SpecialistModalColumnsControl({
+  mediaColumns,
+  infoColumns,
+  onChange,
+}: {
+  mediaColumns: number;
+  infoColumns: number;
+  onChange: (mediaColumns: number, infoColumns: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const setMediaColumns = (nextMediaColumns: number) => {
+    const media = clampSpecialistModalColumns(nextMediaColumns, 6);
+    onChange(media, 12 - media);
+  };
+  const columnFromClientX = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return mediaColumns;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.max(1, Math.min(11, Math.round(ratio * 12)));
+  };
+  const startDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const apply = (clientX: number) => setMediaColumns(columnFromClientX(clientX));
+    apply(event.clientX);
+    const handleMove = (nextEvent: PointerEvent) => apply(nextEvent.clientX);
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  };
+  const dividerPercent = (mediaColumns / 12) * 100;
+
+  return (
+    <div className="relative">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+        Ширина блоков
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="mt-2 flex w-full items-center justify-between border-b border-[color:var(--bp-stroke)] pb-2 text-left text-sm"
+      >
+        <span>
+          {mediaColumns} колонок | {infoColumns} колонок
+        </span>
+        <span className="text-xs leading-none">{open ? "▴" : "▾"}</span>
+      </button>
+      {open ? (
+        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[160] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 shadow-2xl">
+          <div
+            ref={(node) => {
+              trackRef.current = node;
+            }}
+            className="relative"
+          >
+            <div className="grid grid-cols-12 gap-1">
+              {Array.from({ length: 12 }, (_, index) => {
+                const isMedia = index < mediaColumns;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setMediaColumns(index + 1)}
+                    className={`h-14 rounded-sm ${isMedia ? "bg-[#ff5a5f]" : "bg-[#c6cbd3]"}`}
+                    aria-label={`${index + 1} колонок`}
+                  />
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onPointerDown={startDrag}
+              className="absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+              style={{ left: `${dividerPercent}%` }}
+              aria-label="Изменить ширину блоков"
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-2 text-center text-sm text-[color:var(--bp-muted)]">
+            <span>{mediaColumns}</span>
+            <span>{infoColumns}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function SiteSpecialistsSettingsDrawer({
@@ -799,9 +898,25 @@ export function SiteSpecialistsSettingsDrawer({
         onClear={() => updateData({ [`${prefix}ColorDark`]: "transparent" })}
       />
     );
+    const specialistModalMediaColumns = clampSpecialistModalColumns(data.specialistModalMediaColumns, 6);
+    const specialistModalInfoColumnsRaw = clampSpecialistModalColumns(
+      data.specialistModalInfoColumns,
+      12 - specialistModalMediaColumns
+    );
+    const specialistModalInfoColumns =
+      specialistModalMediaColumns + specialistModalInfoColumnsRaw === 12
+        ? specialistModalInfoColumnsRaw
+        : 12 - specialistModalMediaColumns;
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
+        <SpecialistModalColumnsControl
+          mediaColumns={specialistModalMediaColumns}
+          infoColumns={specialistModalInfoColumns}
+          onChange={(mediaColumns, infoColumns) =>
+            updateData({ specialistModalMediaColumns: mediaColumns, specialistModalInfoColumns: infoColumns })
+          }
+        />
         <TildaBackgroundColorField
           label="Цвет фона карточки специалиста"
           value={cardLightFrom}

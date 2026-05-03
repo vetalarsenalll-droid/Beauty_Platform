@@ -3635,6 +3635,16 @@ function renderSpecialists(
   const detailsButtonBorderColorDark =
     readDataColor("detailsButtonBorderColorDark") || detailsButtonBorderColor;
   const alignButtonsBottom = data.alignButtonsBottom !== false;
+  const specialistModalMediaColumnsRaw = Number(data.specialistModalMediaColumns);
+  const specialistModalInfoColumnsRaw = Number(data.specialistModalInfoColumns);
+  const specialistModalMediaColumns =
+    Number.isFinite(specialistModalMediaColumnsRaw)
+      ? Math.max(1, Math.min(11, Math.round(specialistModalMediaColumnsRaw)))
+      : 6;
+  const specialistModalInfoColumns =
+    Number.isFinite(specialistModalInfoColumnsRaw)
+      ? Math.max(1, Math.min(11, Math.round(specialistModalInfoColumnsRaw)))
+      : 6;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const currentLocationId = current?.type === "location" ? current.id : null;
   const subtitle =
@@ -3828,6 +3838,8 @@ function renderSpecialists(
         imageFit={data.specialistCardImageFit === "contain" ? "contain" : "cover"}
         imageZoomOnHover={data.imageZoomOnHover !== false}
         imageZoomOnClick={data.specialistCardImageZoomOnClick === true}
+        modalMediaColumns={specialistModalMediaColumns}
+        modalInfoColumns={specialistModalInfoColumns}
         alignButtonsBottom={alignButtonsBottom}
         cardBackgroundColorLight={specialistCardBackgroundLight.backgroundColor}
         cardBackgroundImageLight={specialistCardBackgroundLight.backgroundImage}
