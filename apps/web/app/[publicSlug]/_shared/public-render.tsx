@@ -3731,6 +3731,7 @@ function renderSpecialists(
         cardPaddingX={Number.isFinite(cardPaddingX) ? cardPaddingX : 30}
         cardPaddingY={Number.isFinite(cardPaddingY) ? cardPaddingY : 30}
         maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 8}
+        usePagination={data.usePagination === true}
         headingStyle={specialistsHeadingStyle}
         subheadingStyle={specialistsSubheadingStyle}
         buttonStyle={specialistsButtonStyle}

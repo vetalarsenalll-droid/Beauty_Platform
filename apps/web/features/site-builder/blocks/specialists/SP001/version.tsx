@@ -54,6 +54,7 @@ export const SP001: BlockVersion = {
       cardPaddingX: data.cardPaddingX === 0 ? 30 : (data.cardPaddingX ?? 30),
       cardPaddingY: data.cardPaddingY === 0 ? 30 : (data.cardPaddingY ?? 30),
       maxVisibleItems: data.maxVisibleItems === 12 ? 8 : (data.maxVisibleItems ?? 8),
+      usePagination: data.usePagination ?? false,
       style: {
         ...style,
         blockWidth: style.blockWidth ?? Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
@@ -103,6 +104,7 @@ export const SP001: BlockVersion = {
         detailsButtonText: "Подробнее",
         buttonAlignment: "center",
         maxVisibleItems: 8,
+        usePagination: false,
         showSearch: true,
         showLocationFilter: true,
         showLevel: true,

@@ -863,6 +863,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     cardPaddingX: 30,
     cardPaddingY: 30,
     maxVisibleItems: 8,
+    usePagination: false,
     imageZoomOnHover: true,
     style: {
       ...defaultBlockStyle,

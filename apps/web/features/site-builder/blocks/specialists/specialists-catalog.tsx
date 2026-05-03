@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 
 export type SpecialistCatalogItem = {
@@ -48,6 +48,7 @@ type SpecialistsCatalogProps = {
   cardPaddingX?: number;
   cardPaddingY?: number;
   maxVisibleItems?: number;
+  usePagination?: boolean;
   headingStyle?: CSSProperties;
   subheadingStyle?: CSSProperties;
   buttonStyle?: CSSProperties;
@@ -114,6 +115,7 @@ export function SpecialistsCatalog({
   cardPaddingX = 30,
   cardPaddingY = 30,
   maxVisibleItems = 8,
+  usePagination = false,
   headingStyle,
   subheadingStyle,
   buttonStyle,
@@ -125,10 +127,12 @@ export function SpecialistsCatalog({
   );
   const [selectedLevel, setSelectedLevel] = useState("");
   const [sort, setSort] = useState(defaultSort || "default");
+  const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
+  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
 
   const columns = clampInt(cardsPerRow, 4, 1, 4);
   const mobileColumns = clampInt(mobileCardsPerRow, 2, 1, 2);
-  const visibleLimit = clampInt(maxVisibleItems, 8, 1, 100);
   const activeLocationId = currentLocationId ?? selectedLocationId;
   const normalizedQuery = normalizeSearch(query);
   const normalizedCardStyle = cardStyle === "filled" || cardStyle === "boxed" ? "filled" : "plain";
@@ -150,8 +154,23 @@ export function SpecialistsCatalog({
     if (sort === "levelAsc") next.sort((a, b) => (a.level ?? "").localeCompare(b.level ?? "", "ru"));
     if (sort === "levelDesc") next.sort((a, b) => (b.level ?? "").localeCompare(a.level ?? "", "ru"));
 
-    return next.slice(0, visibleLimit);
-  }, [activeLocationId, items, normalizedQuery, selectedLevel, sort, visibleLimit]);
+    return next;
+  }, [activeLocationId, items, normalizedQuery, selectedLevel, sort]);
+
+  useEffect(() => {
+    setSort(defaultSort || "default");
+  }, [defaultSort]);
+
+  useEffect(() => {
+    setPage(1);
+    setVisibleCount(pageSize);
+  }, [activeLocationId, normalizedQuery, selectedLevel, sort, pageSize, usePagination]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const displayItems = usePagination
+    ? filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : filteredItems.slice(0, visibleCount);
 
   const gridTemplateColumns = listView === "list" ? "1fr" : `repeat(${columns}, minmax(0, 1fr))`;
   const mobileGridTemplateColumns =
@@ -251,7 +270,7 @@ export function SpecialistsCatalog({
       )}
 
       <div className="mt-8 grid bp-specialists-grid">
-        {filteredItems.map((specialist) => {
+        {displayItems.map((specialist) => {
           const bookingHref = publicSlug
             ? buildBookingLink({
                 publicSlug,
@@ -346,12 +365,54 @@ export function SpecialistsCatalog({
           );
         })}
 
-        {filteredItems.length === 0 && (
+        {displayItems.length === 0 && (
           <div className="border border-dashed border-[color:var(--block-border,var(--bp-stroke))] p-6 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
             Нет специалистов для отображения.
           </div>
         )}
       </div>
+
+      {!usePagination && filteredItems.length > visibleCount ? (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((current) => Math.min(current + pageSize, filteredItems.length))
+            }
+            className="inline-flex items-center justify-center rounded-[12px] border px-5 py-2 text-sm"
+            style={{
+              borderColor: "var(--block-border,var(--bp-stroke))",
+              color: "var(--block-text,var(--bp-ink))",
+            }}
+          >
+            Загрузить ещё
+          </button>
+        </div>
+      ) : null}
+
+      {usePagination && filteredItems.length > pageSize ? (
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+          {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNumber) => (
+            <button
+              key={pageNumber}
+              type="button"
+              onClick={() => setPage(pageNumber)}
+              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] border px-3 text-sm"
+              style={{
+                borderColor:
+                  pageNumber === currentPage
+                    ? "var(--block-text,var(--bp-ink))"
+                    : "var(--block-border,var(--bp-stroke))",
+                color: "var(--block-text,var(--bp-ink))",
+                backgroundColor:
+                  pageNumber === currentPage ? "var(--block-sub-bg,var(--bp-paper))" : "transparent",
+              }}
+            >
+              {pageNumber}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <style jsx>{`
         .bp-specialists-grid {

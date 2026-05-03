@@ -217,11 +217,16 @@ export function SiteSpecialistsSettingsDrawer({
           label="Увеличивать изображение по наведению"
         />
         {renderFlatTextInput(
-          "Количество видимых специалистов",
+          "Количество видимых специалистов до кнопки «Загрузить ещё»",
           String(data.maxVisibleItems ?? 8),
           (value) => updateData({ maxVisibleItems: Math.max(1, Math.min(100, Number(value) || 8)) }),
           "8"
         )}
+        <FlatCheckbox
+          checked={data.usePagination === true}
+          onChange={(checked) => updateData({ usePagination: checked })}
+          label="Показывать пагинацию (вместо кнопки «Загрузить ещё»)"
+        />
         <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
           <TildaInlineColorField
             compact
