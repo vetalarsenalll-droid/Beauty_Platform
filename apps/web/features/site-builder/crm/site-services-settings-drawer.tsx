@@ -534,12 +534,7 @@ export function SiteServicesSettingsDrawer({
         {renderFlatSelect(
           "Выравнивание",
           String(rawStyle.textAlign ?? "left"),
-          (value) =>
-            updateStyle({
-              textAlign: value,
-              textAlignHeading: value,
-              textAlignSubheading: value,
-            }),
+          (value) => updateStyle({ textAlign: value }),
           [
             { value: "left", label: "По левому краю" },
             { value: "center", label: "По центру" },

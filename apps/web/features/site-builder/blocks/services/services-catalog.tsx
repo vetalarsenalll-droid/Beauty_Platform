@@ -781,7 +781,6 @@ export function ServicesCatalog({
   cardGapY,
   imageAspectRatio,
   imageRadius,
-  cardPaddingX,
   cardPaddingY,
   mobileCardsPerRow,
   showSecondImageOnHover,
@@ -1429,7 +1428,9 @@ export function ServicesCatalog({
             cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
           const articleBorderColor =
             cardStyle === "filled" ? "var(--block-border,transparent)" : "transparent";
-          const listImageSize = 220;
+          const isMobileListView = isListView && isNarrowPreviewViewport;
+          const listImageSize = isMobileListView ? 180 : 160;
+          const listContentHeight = isMobileListView ? undefined : listImageSize;
           const imageRadiusValue = clamp(imageRadius, 0, 40, 10);
           const imageBorderRadius =
             isListView
@@ -1437,12 +1438,27 @@ export function ServicesCatalog({
               : cardStyle === "filled"
               ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
               : imageRadiusValue;
-          const listImageOffsetLeft = isListView ? clamp(cardPaddingX, 0, 80, 30) : 0;
+          const listImageWrapperClassName = isListView
+            ? hasPreviewViewport
+              ? isNarrowPreviewViewport
+                ? "w-full shrink-0 text-left"
+                : "w-[160px] shrink-0 text-left"
+              : "w-[160px] shrink-0 text-left max-sm:!w-full"
+            : "w-full text-left";
+          const contentTextAlign = textAlign;
           const contentAlignItems =
-            textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
+            contentTextAlign === "center"
+              ? "center"
+              : contentTextAlign === "right"
+                ? "flex-end"
+                : "flex-start";
           const contentJustify =
-            textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : "flex-start";
-          const contentPaddingX = isListView ? 24 : 0;
+            contentTextAlign === "center"
+              ? "center"
+              : contentTextAlign === "right"
+                ? "flex-end"
+                : "flex-start";
+          const contentPaddingX = 0;
           const shouldCompactTileSpacing =
             !isListView && hasPreviewViewport && isNarrowPreviewViewport;
           const contentPaddingY = isListView
@@ -1451,8 +1467,15 @@ export function ServicesCatalog({
               ? 12
               : clamp(cardPaddingY, 0, 80, 30);
           const compactServiceTitleStyle: CSSProperties = shouldCompactTileSpacing
-            ? { ...serviceCardTitleStyle, fontSize: 15, lineHeight: 1.16, minHeight: 35 }
-            : serviceCardTitleStyle;
+            ? {
+                ...serviceCardTitleStyle,
+                width: "100%",
+                textAlign: contentTextAlign,
+                fontSize: 15,
+                lineHeight: 1.16,
+                minHeight: 35,
+              }
+            : { ...serviceCardTitleStyle, width: "100%", textAlign: contentTextAlign };
           const compactServiceTextStyle: CSSProperties = shouldCompactTileSpacing
             ? { ...serviceCardTextStyle, fontSize: 13, lineHeight: 1.2 }
             : serviceCardTextStyle;
@@ -1496,6 +1519,7 @@ export function ServicesCatalog({
                 border: "1px solid var(--block-border,transparent)",
                 backgroundColor:
                   cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
+                padding: isListView ? 0 : undefined,
               };
           const openServiceModal = () => {
             setActiveModal({ serviceId: service.id, imageIndex: 0 });
@@ -1508,7 +1532,11 @@ export function ServicesCatalog({
                 cardStyle === "filled" ? "overflow-hidden" : ""
               } ${
                 isListView
-                  ? "flex items-stretch gap-5 border-b pb-6"
+                  ? hasPreviewViewport
+                    ? isNarrowPreviewViewport
+                      ? "flex flex-col gap-3 border-b pb-5"
+                      : "flex items-stretch gap-4 border-b pb-6"
+                    : "flex items-stretch gap-4 border-b pb-6 max-sm:flex-col max-sm:items-stretch max-sm:gap-3 max-sm:pb-5"
                   : alignButtonsBottom
                     ? hasPreviewViewport
                       ? isNarrowPreviewViewport
@@ -1542,11 +1570,10 @@ export function ServicesCatalog({
               {hasImage ? (
                 modalImageClickEnabled ? (
                   <div
-                    className={`block ${isListView ? "w-[220px] shrink-0 text-left" : "w-full text-left"}`}
-                    style={isListView ? { marginLeft: listImageOffsetLeft } : undefined}
+                    className={`block ${listImageWrapperClassName}`}
                   >
                     <div
-                      className="relative overflow-hidden"
+                      className="relative overflow-hidden max-sm:!h-[180px]"
                       style={{
                         height: isListView ? listImageSize : undefined,
                         aspectRatio:
@@ -1583,11 +1610,10 @@ export function ServicesCatalog({
                 ) : (
                   <a
                     href={serviceHref}
-                    className={`block ${isListView ? "w-[220px] shrink-0" : ""}`}
-                    style={isListView ? { marginLeft: listImageOffsetLeft } : undefined}
+                    className={`block ${listImageWrapperClassName}`}
                   >
                     <div
-                      className="relative overflow-hidden"
+                      className="relative overflow-hidden max-sm:!h-[180px]"
                       style={{
                         height: isListView ? listImageSize : undefined,
                         aspectRatio:
@@ -1625,14 +1651,15 @@ export function ServicesCatalog({
               ) : null}
 
               <div
-                className={`flex flex-1 flex-col max-sm:!pb-4 max-sm:!pt-3 ${isListView ? "justify-between" : ""}`}
+                className={`flex min-w-0 flex-1 flex-col max-sm:!h-auto max-sm:!pb-3 max-sm:!pt-2 ${isListView ? "justify-between" : ""}`}
                 style={{
                   paddingLeft: contentPaddingX,
                   paddingRight: contentPaddingX,
                   paddingTop: contentPaddingY,
                   paddingBottom: contentPaddingY,
-                  height: isListView ? listImageSize : undefined,
+                  height: isListView ? listContentHeight : undefined,
                   boxSizing: "border-box",
+                  textAlign: contentTextAlign,
                   backgroundColor:
                     isListView && cardStyle === "filled"
                       ? "var(--block-sub-bg,transparent)"
@@ -1647,7 +1674,7 @@ export function ServicesCatalog({
               >
                 {modalImageClickEnabled ? (
                   <span
-                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
+                    className="block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
                     style={compactServiceTitleStyle}
                   >
                     {service.name}
@@ -1655,7 +1682,7 @@ export function ServicesCatalog({
                 ) : (
                   <a
                     href={serviceHref}
-                    className="font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
+                    className="block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
                     style={compactServiceTitleStyle}
                   >
                     {service.name}
@@ -1687,11 +1714,12 @@ export function ServicesCatalog({
                 )}
 
                 <div
-                  className={`${serviceActionsClassName} max-sm:!pt-3`}
+                  className={`${serviceActionsClassName} w-full max-sm:!pt-3`}
+                  style={{ alignSelf: "stretch" }}
                   >
                     <div
-                      className="flex flex-wrap gap-3 max-sm:gap-2"
-                      style={{ justifyContent: "center" }}
+                      className="flex w-full flex-wrap gap-3 max-sm:gap-2"
+                      style={{ justifyContent: isMobileListView ? "center" : isListView ? contentJustify : "center" }}
                     >
                     {detailsButtonText ? (
                       <a

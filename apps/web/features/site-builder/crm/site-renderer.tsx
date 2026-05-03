@@ -258,6 +258,7 @@ export function isLightShadowColor(value: string): boolean {
 
 export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
+  const isServicesBlock = block.type === "services";
   const toNumber = (value: unknown) => {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
@@ -817,12 +818,16 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     textAlignHeading:
       style.textAlignHeading === "center" || style.textAlignHeading === "right"
         ? style.textAlignHeading
+        : isServicesBlock
+          ? "center"
         : style.textAlign === "center" || style.textAlign === "right"
           ? style.textAlign
           : "left",
     textAlignSubheading:
       style.textAlignSubheading === "center" || style.textAlignSubheading === "right"
         ? style.textAlignSubheading
+        : isServicesBlock
+          ? "left"
         : style.textAlign === "center" || style.textAlign === "right"
           ? style.textAlign
           : "left",
@@ -5262,10 +5267,12 @@ export function renderServices(
         : "";
   const servicesHeadingStyle = {
     ...headingStyle(style, theme),
+    textAlign: style.textAlignHeading ?? "center",
     color: "var(--services-heading-color,var(--site-text,var(--block-text,var(--bp-ink))))",
   };
   const servicesSubheadingStyle = {
     ...subheadingStyle(style, theme),
+    textAlign: style.textAlignSubheading ?? "left",
     color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
   };
 

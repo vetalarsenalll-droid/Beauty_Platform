@@ -236,12 +236,12 @@ export function SiteServicesSettingsPrimary({
         <div className="mt-6 grid grid-cols-1 gap-4">
           {renderTextAlignmentSelect(
             "Выравнивание заголовка",
-            style.textAlignHeading ?? style.textAlign ?? "left",
+            style.textAlignHeading ?? "center",
             (value) => updateStyle({ textAlignHeading: value })
           )}
           {renderTextAlignmentSelect(
             "Выравнивание описания",
-            style.textAlignSubheading ?? style.textAlign ?? "left",
+            style.textAlignSubheading ?? "left",
             (value) => updateStyle({ textAlignSubheading: value })
           )}
         </div>
