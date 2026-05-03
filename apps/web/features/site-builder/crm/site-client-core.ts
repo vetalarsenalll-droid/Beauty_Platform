@@ -755,7 +755,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     maxVisibleItems: 8,
     usePagination: false,
     modalGalleryBgColor: "#ebebeb",
-    modalImageFit: "contain",
+    modalImageFit: "cover",
     modalImageRadius: 8,
     modalImageAspectRatio: "1 / 1",
     modalControls: "arrowsAndDots",

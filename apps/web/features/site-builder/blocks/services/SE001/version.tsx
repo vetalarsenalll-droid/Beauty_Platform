@@ -95,6 +95,7 @@ export const SE001: BlockVersion = {
       detailsButtonColorDark: data.detailsButtonColorDark ?? "transparent",
       detailsButtonTextColorDark: data.detailsButtonTextColorDark ?? "#f8fafc",
       detailsButtonBorderColorDark: data.detailsButtonBorderColorDark ?? "transparent",
+      modalImageFit: data.modalImageFit ?? "cover",
       style: {
         ...style,
         blockWidth: shouldResetLegacyWidth
@@ -158,6 +159,7 @@ export const SE001: BlockVersion = {
         detailsButtonColorDark: "transparent",
         detailsButtonTextColorDark: "#f8fafc",
         detailsButtonBorderColorDark: "transparent",
+        modalImageFit: "cover",
         style: {
           ...defaultBlockStyle,
           blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),

@@ -5169,7 +5169,7 @@ export function renderServices(
     typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
       ? data.modalGalleryBgColor.trim()
       : "#ebebeb";
-  const modalImageFit = data.modalImageFit === "cover" ? "cover" : "contain";
+  const modalImageFit = data.modalImageFit === "contain" ? "contain" : "cover";
   const modalImageRadiusRaw = Number(data.modalImageRadius);
   const modalImageRadius = Number.isFinite(modalImageRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(modalImageRadiusRaw)))

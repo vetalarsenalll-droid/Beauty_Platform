@@ -1096,7 +1096,7 @@ export function SiteServicesSettingsDrawer({
         />
         {renderFlatSelect(
           "Масштабирование изображения",
-          String(data.modalImageFit ?? "contain"),
+          String(data.modalImageFit ?? "cover"),
           (value) => updateData({ modalImageFit: value }),
           [
             { value: "contain", label: "Вписывать в область" },

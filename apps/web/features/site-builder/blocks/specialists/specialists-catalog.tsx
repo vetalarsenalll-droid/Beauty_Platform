@@ -204,6 +204,7 @@ function SpecialistModal({
   infoColumns,
   titleTextStyle,
   descriptionTextStyle,
+  previewViewportWidth,
 }: {
   specialist: SpecialistCatalogItem;
   imageIndex: number;
@@ -221,6 +222,7 @@ function SpecialistModal({
   infoColumns: number;
   titleTextStyle?: CSSProperties;
   descriptionTextStyle?: CSSProperties;
+  previewViewportWidth?: number;
 }) {
   const images = useMemo(() => uniqueSpecialistImages(specialist), [specialist]);
   const [activeImageIndex, setActiveImageIndex] = useState(
@@ -233,6 +235,8 @@ function SpecialistModal({
   const [dragStartPan, setDragStartPan] = useState({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const windowViewportWidth = useWindowViewportWidth();
+  const [previewTopOffset, setPreviewTopOffset] = useState(56);
   const currentImage = images[activeImageIndex] ?? null;
   const canNavigate = images.length > 1;
   const isImageFocusMode = zoomLevel > 0;
@@ -303,31 +307,96 @@ function SpecialistModal({
     };
   };
   const imageRadiusValue = clamp(imageRadius, 0, 80, 8);
+  const hasPreviewViewport =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
+  const effectiveModalViewportWidth = hasPreviewViewport ? previewViewportWidth : windowViewportWidth;
+  const isMobileModal =
+    typeof effectiveModalViewportWidth === "number" &&
+    Number.isFinite(effectiveModalViewportWidth) &&
+    effectiveModalViewportWidth < 640;
   const clampedMediaColumns = clamp(Math.round(mediaColumns), 1, 11, 6);
   const clampedInfoColumns = clamp(Math.round(infoColumns), 1, 11, 6);
   const modalColumnsTotal = Math.max(2, clampedMediaColumns + clampedInfoColumns);
   const mediaWidthPercent = (clampedMediaColumns / modalColumnsTotal) * 100;
   const infoWidthPercent = (clampedInfoColumns / modalColumnsTotal) * 100;
-  const modalMediaStyle: CSSProperties = isImageFocusMode
-    ? {}
-    : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` };
-  const modalInfoStyle: CSSProperties = {
-    flex: `0 0 ${infoWidthPercent}%`,
-    maxWidth: `${infoWidthPercent}%`,
-  };
+  const modalMediaStyle: CSSProperties = isMobileModal
+    ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
+    : isImageFocusMode
+      ? {}
+      : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` };
+  const modalInfoStyle: CSSProperties = isMobileModal
+    ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
+    : {
+        flex: `0 0 ${infoWidthPercent}%`,
+        maxWidth: `${infoWidthPercent}%`,
+      };
+  const mobileTitleTextStyle: CSSProperties = isMobileModal
+    ? { ...titleTextStyle, fontSize: 42, lineHeight: 1.08 }
+    : titleTextStyle ?? {};
+  const mobileDescriptionTextStyle: CSSProperties = isMobileModal
+    ? { ...descriptionTextStyle, fontSize: 16, lineHeight: 1.45 }
+    : descriptionTextStyle ?? {};
   const description = typeof specialist.bio === "string" ? specialist.bio.trim() : "";
   const modalChromeButtonStyle: CSSProperties = {
     color:
       typeof titleTextStyle?.color === "string" && titleTextStyle.color.trim()
         ? titleTextStyle.color
-        : "var(--block-text,var(--bp-ink))",
+      : "var(--block-text,var(--bp-ink))",
   };
+  const modalShellStyle: CSSProperties = hasPreviewViewport
+    ? {
+        left: "50%",
+        right: "auto",
+        top: `${previewTopOffset}px`,
+        width: `${previewViewportWidth}px`,
+        height: `calc(100vh - ${previewTopOffset}px)`,
+        maxWidth: "100vw",
+        transform: "translateX(-50%)",
+      }
+    : {};
+  const focusViewportWidth = hasPreviewViewport || isMobileModal ? "calc(100% - 24px)" : "min(92vw, 1280px)";
+  const focusViewportHeight = hasPreviewViewport
+    ? `calc(100vh - ${previewTopOffset + 84}px)`
+    : isMobileModal
+      ? "calc(100vh - 84px)"
+      : "calc(100vh - 112px)";
+
+  useEffect(() => {
+    if (!hasPreviewViewport || typeof window === "undefined") return;
+    const updateTopOffset = () => {
+      const toolbar = document.querySelector<HTMLElement>("[data-site-builder-toolbar='true']");
+      const bottom = toolbar?.getBoundingClientRect().bottom;
+      setPreviewTopOffset(Number.isFinite(bottom) ? Math.max(0, Math.round(bottom ?? 56)) : 56);
+    };
+    updateTopOffset();
+    window.addEventListener("resize", updateTopOffset);
+    window.addEventListener("scroll", updateTopOffset, true);
+    return () => {
+      window.removeEventListener("resize", updateTopOffset);
+      window.removeEventListener("scroll", updateTopOffset, true);
+    };
+  }, [hasPreviewViewport]);
 
   return (
-    <div className="fixed inset-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))]">
+    <div
+      className={`fixed bottom-0 top-0 z-[300] overflow-hidden bg-[color:var(--block-bg,var(--bp-paper))] ${
+        hasPreviewViewport ? "" : "left-0 right-0"
+      }`}
+      style={modalShellStyle}
+    >
       <div
-        className={`relative mx-auto flex min-h-screen w-full ${
-          isImageFocusMode ? "max-w-none items-center justify-center px-3 py-3" : "max-w-[1600px] items-center px-6 py-10 lg:px-10"
+        className={`relative mx-auto flex w-full ${
+          isMobileModal && !isImageFocusMode ? "flex-col items-stretch overflow-y-auto" : "items-center"
+        } ${isImageFocusMode ? "max-w-none" : "max-w-[1600px]"} ${
+          isImageFocusMode
+            ? hasPreviewViewport
+              ? "px-3 pb-3 pt-3"
+              : "px-2 py-2 lg:px-3 lg:py-3"
+            : isMobileModal
+              ? "px-4 pb-8 pt-3"
+              : "px-6 py-10 lg:px-10"
+        } ${hasPreviewViewport ? "h-full min-h-0" : "min-h-screen"} ${
+          isImageFocusMode ? (hasPreviewViewport ? "justify-start" : "justify-center") : ""
         }`}
         onClick={(event) => event.stopPropagation()}
       >
@@ -342,7 +411,9 @@ function SpecialistModal({
             }
             onClose();
           }}
-          className="fixed right-8 top-6 z-[310] text-5xl font-light leading-none opacity-80 transition hover:opacity-100"
+          className={`z-[310] font-light leading-none opacity-80 transition hover:opacity-100 ${
+            hasPreviewViewport ? "absolute right-4 top-4 text-4xl" : "fixed right-8 top-6 text-5xl"
+          }`}
           style={modalChromeButtonStyle}
           aria-label="Закрыть"
         >
@@ -350,7 +421,11 @@ function SpecialistModal({
         </button>
 
         {imageZoomOnClick && zoomLevel > 0 ? (
-          <div className="fixed right-24 top-8 z-[310] flex items-center gap-4">
+          <div
+            className={`z-[310] flex items-center gap-4 ${
+              hasPreviewViewport ? "absolute right-14 top-5" : "fixed right-24 top-8"
+            }`}
+          >
             <button
               type="button"
               onClick={() => {
@@ -381,7 +456,13 @@ function SpecialistModal({
         ) : null}
 
         <div
-          className={`relative flex items-center justify-center ${isImageFocusMode ? "min-h-0 flex-1 p-0" : "min-h-[70vh] p-8"}`}
+          className={`relative flex items-center justify-center ${
+            isImageFocusMode
+              ? "min-h-0 flex-1 p-0"
+              : isMobileModal
+                ? "min-h-0 w-full p-0"
+                : "min-h-[70vh] flex-1 p-8"
+          }`}
           style={modalMediaStyle}
         >
           {canNavigate && !isImageFocusMode ? (
@@ -393,8 +474,8 @@ function SpecialistModal({
             ref={viewportRef}
             className="relative mx-auto flex items-center justify-center overflow-hidden"
             style={{
-              width: isImageFocusMode ? "min(92vw, 1280px)" : "min(62vw, 820px)",
-              height: isImageFocusMode ? "calc(100vh - 112px)" : "min(72vh, 820px)",
+              width: isImageFocusMode ? focusViewportWidth : isMobileModal ? "100%" : "min(62vw, 820px)",
+              height: isImageFocusMode ? focusViewportHeight : isMobileModal ? "auto" : "min(72vh, 820px)",
               borderRadius: zoomLevel > 1 ? 0 : imageRadiusValue,
               aspectRatio: !isImageFocusMode ? imageAspectRatio : undefined,
             }}
@@ -470,22 +551,22 @@ function SpecialistModal({
         </div>
 
         {!isImageFocusMode ? (
-          <div className="flex w-full flex-col py-2" style={modalInfoStyle}>
+          <div className={`flex w-full flex-col ${isMobileModal ? "pt-5" : "py-2"}`} style={modalInfoStyle}>
             {specialist.level ? (
-              <div className="specialist-card-text uppercase tracking-[0.18em]" style={descriptionTextStyle}>
+              <div className="specialist-card-text uppercase tracking-[0.18em]" style={mobileDescriptionTextStyle}>
                 {specialist.level}
               </div>
             ) : null}
-            <h3 className="specialist-card-text mt-3 leading-tight" style={titleTextStyle}>
+            <h3 className="specialist-card-text mt-3 leading-tight" style={mobileTitleTextStyle}>
               {specialist.name}
             </h3>
             {bookingHref ? (
-              <a href={bookingHref} className="mt-8 inline-flex w-fit items-center justify-center px-6 py-3 text-base" style={buttonStyle}>
+              <a href={bookingHref} className={`${isMobileModal ? "mt-5" : "mt-8"} inline-flex w-fit items-center justify-center px-6 py-3 text-base`} style={buttonStyle}>
                 {buttonText}
               </a>
             ) : null}
             {showDescription && description ? (
-              <p className="specialist-card-text mt-10 leading-8" style={descriptionTextStyle}>
+              <p className={`specialist-card-text ${isMobileModal ? "mt-6" : "mt-10 leading-8"}`} style={mobileDescriptionTextStyle}>
                 {description}
               </p>
             ) : null}
@@ -1460,6 +1541,7 @@ export function SpecialistsCatalog({
           infoColumns={modalInfoColumns}
           titleTextStyle={resolvedCardTitleTextStyle}
           descriptionTextStyle={resolvedCardDescriptionTextStyle}
+          previewViewportWidth={previewViewportWidth}
         />
       ) : null}
 

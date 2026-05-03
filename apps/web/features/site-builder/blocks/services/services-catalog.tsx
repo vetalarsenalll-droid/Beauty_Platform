@@ -352,6 +352,7 @@ function ServiceModal({
   const [previewTopOffset, setPreviewTopOffset] = useState(56);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const windowViewportWidth = useWindowViewportWidth();
   const canNavigate = images.length > 1;
   const showArrows = controls === "arrows" || controls === "arrowsAndDots" || controls === "thumbnails";
   const showDots = controls === "dots" || controls === "arrowsAndDots";
@@ -429,7 +430,11 @@ function ServiceModal({
   const isImageFocusMode = zoomLevel > 0;
   const hasPreviewViewport =
     typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
-  const isMobilePreview = hasPreviewViewport && previewViewportWidth < 640;
+  const effectiveModalViewportWidth = hasPreviewViewport ? previewViewportWidth : windowViewportWidth;
+  const isMobileModal =
+    typeof effectiveModalViewportWidth === "number" &&
+    Number.isFinite(effectiveModalViewportWidth) &&
+    effectiveModalViewportWidth < 640;
 
   useEffect(() => {
     if (!hasPreviewViewport || typeof window === "undefined") return;
@@ -453,7 +458,9 @@ function ServiceModal({
   const focusViewportWidth = hasPreviewViewport ? "calc(100% - 24px)" : "min(92vw, 1280px)";
   const focusViewportHeight = hasPreviewViewport
     ? `calc(100vh - ${previewTopOffset + 84}px)`
-    : "calc(100vh - 112px)";
+    : isMobileModal
+      ? "calc(100vh - 84px)"
+      : "calc(100vh - 112px)";
   const getPanBounds = () => {
     const viewport = viewportRef.current;
     const image = imageRef.current;
@@ -497,27 +504,27 @@ function ServiceModal({
         }
       : {}),
   };
-  const modalMediaStyle: CSSProperties = isMobilePreview
+  const modalMediaStyle: CSSProperties = isMobileModal
     ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
     : isImageFocusMode
       ? {}
       : { flex: `0 0 ${mediaWidthPercent}%`, maxWidth: `${mediaWidthPercent}%` };
-  const modalInfoStyle: CSSProperties = isMobilePreview
+  const modalInfoStyle: CSSProperties = isMobileModal
     ? { flex: "0 0 auto", maxWidth: "100%", width: "100%" }
     : { flex: `0 0 ${infoWidthPercent}%`, maxWidth: `${infoWidthPercent}%` };
-  const mobileCategoryTextStyle: CSSProperties = isMobilePreview
+  const mobileCategoryTextStyle: CSSProperties = isMobileModal
     ? { ...categoryTextStyle, fontSize: 12, lineHeight: 1.3 }
     : categoryTextStyle;
-  const mobileTitleTextStyle: CSSProperties = isMobilePreview
+  const mobileTitleTextStyle: CSSProperties = isMobileModal
     ? { ...titleTextStyle, fontSize: 42, lineHeight: 1.08 }
     : titleTextStyle;
-  const mobileDescriptionTextStyle: CSSProperties = isMobilePreview
+  const mobileDescriptionTextStyle: CSSProperties = isMobileModal
     ? { ...descriptionTextStyle, fontSize: 16, lineHeight: 1.45 }
     : descriptionTextStyle;
-  const mobilePriceTextStyle: CSSProperties = isMobilePreview
+  const mobilePriceTextStyle: CSSProperties = isMobileModal
     ? { ...priceTextStyle, fontSize: 18, lineHeight: 1.25 }
     : priceTextStyle;
-  const mobileDurationTextStyle: CSSProperties = isMobilePreview
+  const mobileDurationTextStyle: CSSProperties = isMobileModal
     ? { ...durationTextStyle, fontSize: 18, lineHeight: 1.25 }
     : durationTextStyle;
 
@@ -530,7 +537,7 @@ function ServiceModal({
     >
       <div
         className={`relative mx-auto flex w-full ${
-          isMobilePreview && !isImageFocusMode ? "flex-col items-stretch overflow-y-auto" : "items-center"
+          isMobileModal && !isImageFocusMode ? "flex-col items-stretch overflow-y-auto" : "items-center"
         } ${
           isImageFocusMode ? "max-w-none" : "max-w-[1600px]"
         } ${
@@ -538,7 +545,7 @@ function ServiceModal({
             ? hasPreviewViewport
               ? "px-3 pb-3 pt-3"
               : "px-2 py-2 lg:px-3 lg:py-3"
-            : isMobilePreview
+            : isMobileModal
               ? "px-4 pb-8 pt-3"
               : "px-6 py-10 lg:px-10"
         } ${
@@ -609,7 +616,7 @@ function ServiceModal({
           className={`relative flex items-center justify-center ${
             isImageFocusMode
               ? "min-h-0 flex-1 p-0"
-              : isMobilePreview
+              : isMobileModal
                 ? "min-h-0 w-full p-0"
                 : "min-h-[70vh] flex-1 p-8"
           }`}
@@ -655,9 +662,9 @@ function ServiceModal({
             ref={viewportRef}
             className="relative mx-auto flex items-center justify-center overflow-hidden rounded-[8px]"
             style={{
-              width: isImageFocusMode ? focusViewportWidth : isMobilePreview ? "100%" : "min(62vw, 820px)",
-              height: isImageFocusMode ? focusViewportHeight : isMobilePreview ? "auto" : "min(72vh, 820px)",
-              aspectRatio: !isImageFocusMode && isMobilePreview ? imageAspectRatio : undefined,
+              width: isImageFocusMode ? focusViewportWidth : isMobileModal ? "100%" : "min(62vw, 820px)",
+              height: isImageFocusMode ? focusViewportHeight : isMobileModal ? "auto" : "min(72vh, 820px)",
+              aspectRatio: !isImageFocusMode && isMobileModal ? imageAspectRatio : undefined,
               borderRadius: zoomLevel > 1 ? 0 : modalImageRadiusValue,
             }}
             onMouseDown={(event) => {
@@ -765,7 +772,7 @@ function ServiceModal({
 
         {!isImageFocusMode ? (
         <div
-          className={`flex w-full flex-col ${isMobilePreview ? "pt-5" : "py-2"}`}
+          className={`flex w-full flex-col ${isMobileModal ? "pt-5" : "py-2"}`}
           style={modalInfoStyle}
         >
           <div className="service-modal-text uppercase tracking-[0.18em]" style={mobileCategoryTextStyle}>
@@ -774,20 +781,20 @@ function ServiceModal({
           <h3 className="service-modal-text mt-3 leading-tight" style={mobileTitleTextStyle}>{service.name}</h3>
 
           {showMeta ? (
-            <div className={`${isMobilePreview ? "mt-4" : "mt-6"} flex flex-wrap items-center gap-4`}>
+            <div className={`${isMobileModal ? "mt-4" : "mt-6"} flex flex-wrap items-center gap-4`}>
               <span className="service-modal-text" style={mobilePriceTextStyle}>от {formatPrice(service.basePrice)}</span>
               <span className="service-modal-text" style={mobileDurationTextStyle}>от {service.baseDurationMin} мин</span>
             </div>
           ) : null}
 
           {bookingHref ? (
-            <a href={bookingHref} className={`${isMobilePreview ? "mt-5" : "mt-8"} inline-flex w-fit items-center justify-center px-6 py-3 text-base`} style={buttonStyle}>
+            <a href={bookingHref} className={`${isMobileModal ? "mt-5" : "mt-8"} inline-flex w-fit items-center justify-center px-6 py-3 text-base`} style={buttonStyle}>
               {buttonText}
             </a>
           ) : null}
 
           {showDescription && service.description ? (
-            <p className={`service-modal-text ${isMobilePreview ? "mt-6" : "mt-10 leading-8"}`} style={mobileDescriptionTextStyle}>{service.description}</p>
+            <p className={`service-modal-text ${isMobileModal ? "mt-6" : "mt-10 leading-8"}`} style={mobileDescriptionTextStyle}>{service.description}</p>
           ) : null}
 
           {showThumbnails ? (
