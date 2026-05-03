@@ -117,10 +117,6 @@ export default function PublicCoverV2Hero({
   );
 
   useEffect(() => {
-    setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
-  }, [themeMode]);
-
-  useEffect(() => {
     const resolveModeFromDom = () => {
       const root = document.getElementById("public-site-root");
       const mode = root?.getAttribute("data-site-theme");
@@ -150,16 +146,8 @@ export default function PublicCoverV2Hero({
   }, []);
 
   useEffect(() => {
-    if (slides.length === 0) {
-      setIndex(0);
-      return;
-    }
-    if (index >= slides.length) setIndex(slides.length - 1);
-  }, [index, slides.length]);
-
-  useEffect(() => {
     if (!canSlide || autoplayMs <= 0) return;
-    const timer = window.setInterval(() => {
+        const timer = window.setInterval(() => {
       setIndex((prev) => {
         if (infinite) return (prev + 1) % slides.length;
         if (prev >= slides.length - 1) return prev;
@@ -169,13 +157,14 @@ export default function PublicCoverV2Hero({
     return () => window.clearInterval(timer);
   }, [autoplayMs, canSlide, infinite, slides.length]);
 
-  const current = slides[index] ?? slides[0];
+  const activeIndex = slides.length > 0 ? Math.min(index, slides.length - 1) : 0;
+  const current = slides[activeIndex] ?? slides[0];
   if (!current) return null;
 
   const arrowSizeMap = { sm: 40, md: 48, lg: 56, xl: 64 } as const;
   const arrowPx = arrowSizeMap[arrowSize] ?? 40;
-  const canGoPrev = infinite || index > 0;
-  const canGoNext = infinite || index < slides.length - 1;
+  const canGoPrev = infinite || activeIndex > 0;
+  const canGoNext = infinite || activeIndex < slides.length - 1;
 
   const goPrev = () => {
     if (!canGoPrev) return;
@@ -220,19 +209,41 @@ export default function PublicCoverV2Hero({
 
   return (
     <section
-      className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      className="bp-cover-hero bp-cover-v2-hero relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
       style={{
-        minHeight: coverHeightCss,
+        ["--bp-cover-height-desktop" as string]: coverHeightCss,
+        ["--bp-cover-height-mobile" as string]: "min(680px, 100svh)",
+        ["--bp-cover-heading-size-desktop" as string]: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+          headingMobileSize,
+          headingDesktopSize
+        )}px)`,
+        ["--bp-cover-heading-size-mobile" as string]: `${Math.max(
+          24,
+          Math.min(38, headingMobileSize)
+        )}px`,
+        ["--bp-cover-text-size-desktop" as string]: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+          textMobileSize,
+          textDesktopSize
+        )}px)`,
+        ["--bp-cover-text-size-mobile" as string]: `${Math.max(
+          13,
+          Math.min(17, textMobileSize)
+        )}px`,
+        height: "var(--bp-cover-height, var(--bp-cover-height-desktop))",
+        minHeight: "var(--bp-cover-height, var(--bp-cover-height-desktop))",
         backgroundImage: current.imageUrl ? `url(${current.imageUrl})` : "none",
         backgroundSize: "cover",
         backgroundPosition: coverBackgroundPosition,
+        containerType: "inline-size",
+        boxSizing: "border-box",
       }}
     >
       <div className="pointer-events-none absolute inset-0" style={{ backgroundImage: filterOverlay }} />
       <div
         className="relative z-[1] mx-auto flex w-full"
         style={{
-          minHeight: coverHeightCss,
+          height: "100%",
+          minHeight: "100%",
           alignItems:
             contentVerticalAlign === "top"
               ? "flex-start"
@@ -242,7 +253,7 @@ export default function PublicCoverV2Hero({
         }}
       >
         <div
-          className="w-full"
+          className="bp-cover-content w-full"
           style={{
             maxWidth: contentMaxWidth,
             marginLeft: contentMarginLeft,
@@ -254,10 +265,7 @@ export default function PublicCoverV2Hero({
             style={{
               ...headingCss,
               textAlign: contentAlign,
-              fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
-                headingMobileSize,
-                headingDesktopSize
-              )}px)`,
+              fontSize: "var(--bp-cover-heading-size)",
             }}
           >
             {current.title}
@@ -272,10 +280,7 @@ export default function PublicCoverV2Hero({
                 marginLeft:
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,
-                fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
-                  textMobileSize,
-                  textDesktopSize
-                )}px)`,
+                fontSize: "var(--bp-cover-text-size)",
               }}
             >
               {current.description}
@@ -295,7 +300,7 @@ export default function PublicCoverV2Hero({
             >
               <a
                 href={current.buttonHref}
-                className="inline-flex items-center whitespace-nowrap font-semibold"
+                className="bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold"
                 onMouseEnter={() => setHoveredPrimaryButton(true)}
                 onMouseLeave={() => setHoveredPrimaryButton(false)}
                 style={{
@@ -309,7 +314,7 @@ export default function PublicCoverV2Hero({
                   minHeight: "clamp(40px, 5.2cqw, 48px)",
                   paddingInline: "clamp(18px, 3cqw, 30px)",
                   paddingBlock: "clamp(8px, 1.1cqw, 11px)",
-                  fontSize: "clamp(14px, 2cqw, 16px)",
+                  fontSize: "var(--bp-cover-button-size, clamp(14px, 2cqw, 16px))",
                   transition: "background-color 180ms ease",
                 }}
               >
@@ -326,7 +331,7 @@ export default function PublicCoverV2Hero({
             type="button"
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="absolute left-4 top-1/2 z-[2] -translate-y-1/2 rounded-full transition disabled:opacity-40"
+            className="bp-cover-slider-arrow bp-cover-slider-arrow-prev absolute left-4 top-1/2 z-[2] -translate-y-1/2 rounded-full transition disabled:opacity-40"
             style={{
               width: arrowPx,
               height: arrowPx,
@@ -357,7 +362,7 @@ export default function PublicCoverV2Hero({
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="absolute right-4 top-1/2 z-[2] -translate-y-1/2 rounded-full transition disabled:opacity-40"
+            className="bp-cover-slider-arrow bp-cover-slider-arrow-next absolute right-4 top-1/2 z-[2] -translate-y-1/2 rounded-full transition disabled:opacity-40"
             style={{
               width: arrowPx,
               height: arrowPx,
@@ -390,7 +395,6 @@ export default function PublicCoverV2Hero({
       {showDots && canSlide ? (
         <div className="absolute bottom-6 left-1/2 z-[2] flex -translate-x-1/2 items-center gap-2">
           {slides.map((slide, dotIndex) => {
-            const active = dotIndex === index;
             return (
               <button
                 key={`${slide.id}-dot`}
@@ -400,11 +404,11 @@ export default function PublicCoverV2Hero({
                 style={{
                   width: dotSize,
                   height: dotSize,
-                  backgroundColor: active ? dotActiveColor : dotColor,
+                  backgroundColor: dotIndex === activeIndex ? dotActiveColor : dotColor,
                   borderStyle: "solid",
                   borderWidth: dotBorderWidth,
                   borderColor: dotBorderColor,
-                  opacity: active ? 1 : 0.85,
+                  opacity: dotIndex === activeIndex ? 1 : 0.85,
                 }}
                 aria-label={`Слайд ${dotIndex + 1}`}
               />

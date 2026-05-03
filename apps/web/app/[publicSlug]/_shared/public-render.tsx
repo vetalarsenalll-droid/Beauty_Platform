@@ -1209,6 +1209,12 @@ function renderCover(
     descriptionMobileSizeRaw <= 72
       ? Math.round(descriptionMobileSizeRaw)
       : Math.max(14, Math.min(26, Math.round(textDesktopSize * 0.9))));
+  const effectiveHeadingMobileSize = Math.max(24, Math.min(38, headingMobileSize));
+  const effectiveSubheadingMobileSize = Math.max(16, Math.min(22, subheadingMobileSize));
+  const effectiveTextMobileSize = Math.max(13, Math.min(17, textMobileSize));
+  const v1SubheadingMobileSize = Math.max(15, Math.min(20, effectiveSubheadingMobileSize));
+  const v1TextMobileSize = Math.max(13, Math.min(16, effectiveTextMobileSize));
+  const coverHeightMobileCss = "min(680px, 100svh)";
   const sliderInfinite = data.coverSliderInfinite !== false;
   const sliderShowArrows = data.coverSliderShowArrows !== false;
   const sliderShowDots = data.coverSliderShowDots !== false;
@@ -1586,16 +1592,34 @@ function renderCover(
 
     return (
       <section
-        className="relative overflow-hidden"
+        className="bp-cover-hero bp-cover-v3-hero relative overflow-hidden"
         style={{
+          ["--bp-cover-height-desktop" as string]: coverHeightCss,
+          ["--bp-cover-height-mobile" as string]: coverHeightMobileCss,
+          ["--bp-cover-heading-size-desktop" as string]: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+            headingMobileSize,
+            headingDesktopSize
+          )}px)`,
+          ["--bp-cover-heading-size-mobile" as string]: `${effectiveHeadingMobileSize}px`,
+          ["--bp-cover-subheading-size-desktop" as string]: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
+            subheadingMobileSize,
+            subheadingDesktopSize
+          )}px)`,
+          ["--bp-cover-subheading-size-mobile" as string]: `${v1SubheadingMobileSize}px`,
+          ["--bp-cover-text-size-desktop" as string]: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+            textMobileSize,
+            textDesktopSize
+          )}px)`,
+          ["--bp-cover-text-size-mobile" as string]: `${effectiveTextMobileSize}px`,
           height: coverHeightCss,
           minHeight: coverHeightCss,
+          containerType: "inline-size",
           backgroundColor: sectionBackground.backgroundColor,
           backgroundImage: sectionBackground.backgroundImage,
         }}
       >
         <div
-          className={`mx-auto flex w-full flex-col ${
+          className={`bp-cover-v3-layout mx-auto flex w-full flex-col ${
             coverFlipHorizontal ? "md:flex-row-reverse" : "md:flex-row"
           }`}
           style={{
@@ -1605,8 +1629,9 @@ function renderCover(
           }}
         >
           <div
-            className="w-full md:w-1/2"
+            className="bp-cover-v3-image w-full md:w-1/2"
             style={{
+              ["--bp-cover-image-inset" as string]: `${coverImageInsetPx}px`,
               height: coverHeightCss,
               minHeight: coverHeightCss,
               padding: coverImageInsetPx,
@@ -1635,7 +1660,7 @@ function renderCover(
           </div>
 
           <div
-            className="w-full px-5 py-10 md:w-1/2 md:px-16 md:py-14"
+            className="bp-cover-v3-text w-full px-5 py-10 md:w-1/2 md:px-16 md:py-14"
             style={{
               display: "flex",
               justifyContent: textHorizontalJustify,
@@ -1653,10 +1678,7 @@ function renderCover(
                 style={{
                   ...headingStyle(style),
                   textAlign: contentAlign,
-                  fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
-                    headingMobileSize,
-                    headingDesktopSize
-                  )}px)`,
+                  fontSize: "var(--bp-cover-heading-size)",
                   ...(resolveAnimStyle(animHeading, 0) ?? {}),
                 }}
               >
@@ -1669,10 +1691,7 @@ function renderCover(
                     ...subheadingStyle(style),
                     color: subtitleColor,
                     textAlign: contentAlign,
-                    fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
-                      subheadingMobileSize,
-                      subheadingDesktopSize
-                    )}px)`,
+                    fontSize: "var(--bp-cover-subheading-size)",
                     ...(resolveAnimStyle(animDescription, 120) ?? {}),
                   }}
                 >
@@ -1689,10 +1708,7 @@ function renderCover(
                     marginLeft:
                       contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                     marginRight: contentAlign === "center" ? "auto" : 0,
-                    fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
-                      textMobileSize,
-                      textDesktopSize
-                    )}px)`,
+                    fontSize: "var(--bp-cover-text-size)",
                     ...(resolveAnimStyle(animDescription, subtitle ? 220 : 120) ?? {}),
                   }}
                 >
@@ -1736,7 +1752,7 @@ function renderCover(
                       minHeight: "clamp(46px, 6cqw, 54px)",
                       paddingInline: "clamp(24px, 3.2cqw, 40px)",
                       paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                      fontSize: "clamp(14px, 2cqw, 16px)",
+                      fontSize: "var(--bp-cover-button-size, clamp(14px, 2cqw, 16px))",
                       transition: "background-color 180ms ease",
                       ...(resolveAnimStyle(animButton, 320) ?? {}),
                     }}
@@ -1781,7 +1797,7 @@ function renderCover(
                       minHeight: "clamp(46px, 6cqw, 54px)",
                       paddingInline: "clamp(24px, 3.2cqw, 40px)",
                       paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                      fontSize: "clamp(14px, 2cqw, 16px)",
+                      fontSize: "var(--bp-cover-button-size, clamp(14px, 2cqw, 16px))",
                       transition: "background-color 180ms ease",
                       ...(resolveAnimStyle(animButton, 380) ?? {}),
                     }}
@@ -1812,13 +1828,30 @@ function renderCover(
 
   return (
     <section
-      className="relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
+      className="bp-cover-hero relative overflow-hidden px-4 py-14 sm:px-10 sm:py-20"
       style={{
+        ["--bp-cover-height-desktop" as string]: coverHeightCss,
+        ["--bp-cover-height-mobile" as string]: coverHeightMobileCss,
+        ["--bp-cover-heading-size-desktop" as string]: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
+          headingMobileSize,
+          headingDesktopSize
+        )}px)`,
+        ["--bp-cover-heading-size-mobile" as string]: `${effectiveHeadingMobileSize}px`,
+        ["--bp-cover-subheading-size-desktop" as string]: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
+          subheadingMobileSize,
+          subheadingDesktopSize
+        )}px)`,
+        ["--bp-cover-subheading-size-mobile" as string]: `${v1SubheadingMobileSize}px`,
+        ["--bp-cover-text-size-desktop" as string]: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
+          textMobileSize,
+          textDesktopSize
+        )}px)`,
+        ["--bp-cover-text-size-mobile" as string]: `${v1TextMobileSize}px`,
         ...(showMotionLayer
           ? { backgroundColor: "transparent", backgroundImage: "none" }
           : backgroundStyle),
-        height: coverHeightCss,
-        minHeight: coverHeightCss,
+        height: "var(--bp-cover-height, var(--bp-cover-height-desktop))",
+        minHeight: "var(--bp-cover-height, var(--bp-cover-height-desktop))",
         containerType: "inline-size",
         boxSizing: "border-box",
       }}
@@ -1844,10 +1877,7 @@ function renderCover(
             style={{
               ...headingStyle(style),
               textAlign: contentAlign,
-              fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
-                headingMobileSize,
-                headingDesktopSize
-              )}px)`,
+              fontSize: "var(--bp-cover-heading-size)",
               ...(resolveAnimStyle(animHeading, 0) ?? {}),
             }}
           >
@@ -1860,10 +1890,7 @@ function renderCover(
                 ...subheadingStyle(style),
                 textAlign: contentAlign,
                 color: subtitleColor,
-                fontSize: `clamp(${subheadingMobileSize}px, 5.8cqw, ${Math.max(
-                  subheadingMobileSize,
-                  subheadingDesktopSize
-                )}px)`,
+                fontSize: "var(--bp-cover-subheading-size)",
                 ...(resolveAnimStyle(animDescription, 120) ?? {}),
               }}
             >
@@ -1880,10 +1907,7 @@ function renderCover(
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,
                 color: descriptionColor,
-                fontSize: `clamp(${textMobileSize}px, 4.2cqw, ${Math.max(
-                  textMobileSize,
-                  textDesktopSize
-                )}px)`,
+                fontSize: "var(--bp-cover-text-size)",
                 ...(resolveAnimStyle(animDescription, subtitle ? 220 : 120) ?? {}),
               }}
             >
@@ -1927,7 +1951,7 @@ function renderCover(
                   minHeight: "clamp(46px, 6cqw, 54px)",
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                  fontSize: "clamp(14px, 2cqw, 16px)",
+                  fontSize: "var(--bp-cover-button-size, clamp(14px, 2cqw, 16px))",
                   transition: "background-color 180ms ease",
                   ...(resolveAnimStyle(animButton, 320) ?? {}),
                 }}
@@ -1972,7 +1996,7 @@ function renderCover(
                   minHeight: "clamp(46px, 6cqw, 54px)",
                   paddingInline: "clamp(24px, 3.2cqw, 40px)",
                   paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                  fontSize: "clamp(14px, 2cqw, 16px)",
+                  fontSize: "var(--bp-cover-button-size, clamp(14px, 2cqw, 16px))",
                   transition: "background-color 180ms ease",
                   ...(resolveAnimStyle(animButton, 380) ?? {}),
                 }}

@@ -605,6 +605,73 @@ textarea::placeholder {
   background-color: var(--cover-primary-hover-bg, transparent) !important;
 }
 
+.bp-cover-hero {
+  --bp-cover-height: var(--bp-cover-height-desktop);
+  --bp-cover-heading-size: var(--bp-cover-heading-size-desktop);
+  --bp-cover-subheading-size: var(--bp-cover-subheading-size-desktop);
+  --bp-cover-text-size: var(--bp-cover-text-size-desktop);
+  --bp-cover-button-size: clamp(14px, 2cqw, 16px);
+}
+
+@media (max-width: 767px) {
+  .bp-cover-hero {
+    --bp-cover-height: var(--bp-cover-height-mobile, min(680px, 100svh));
+    --bp-cover-heading-size: var(--bp-cover-heading-size-mobile, var(--bp-cover-heading-size-desktop));
+    --bp-cover-subheading-size: var(--bp-cover-subheading-size-mobile, var(--bp-cover-subheading-size-desktop));
+    --bp-cover-text-size: var(--bp-cover-text-size-mobile, var(--bp-cover-text-size-desktop));
+    --bp-cover-button-size: 14px;
+  }
+
+  .bp-cover-slider-arrow {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 18px !important;
+  }
+
+  .bp-cover-hero .bp-cover-primary-hover,
+  .bp-cover-hero .bp-cover-secondary-hover {
+    min-height: 44px !important;
+    padding-inline: 18px !important;
+    padding-block: 10px !important;
+    font-size: var(--bp-cover-button-size, 14px) !important;
+  }
+
+  .bp-cover-v2-hero .bp-cover-content p {
+    max-width: calc(100% - 92px) !important;
+  }
+
+  .bp-cover-slider-arrow-prev {
+    left: 10px !important;
+  }
+
+  .bp-cover-slider-arrow-next {
+    right: 10px !important;
+  }
+
+  .bp-cover-v3-hero {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .bp-cover-v3-layout {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .bp-cover-v3-image {
+    height: 300px !important;
+    min-height: 300px !important;
+    padding: min(var(--bp-cover-image-inset, 0px), 16px) !important;
+  }
+
+  .bp-cover-v3-text {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 28px 20px 34px !important;
+    align-items: flex-start !important;
+  }
+}
+
 .bp-cover-secondary-hover:hover {
   background-color: var(--cover-secondary-hover-bg, rgba(255, 255, 255, 0.1)) !important;
 }
