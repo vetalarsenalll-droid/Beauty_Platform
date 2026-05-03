@@ -252,9 +252,17 @@ html {
   --service-modal-text-size: var(--service-modal-text-size-desktop);
 }
 
+.specialist-card-text {
+  --specialist-card-text-size: var(--specialist-card-text-size-desktop);
+}
+
 @media (max-width: 480px) {
   .service-modal-text {
     --service-modal-text-size: var(--service-modal-text-size-mobile, var(--service-modal-text-size-desktop));
+  }
+
+  .specialist-card-text {
+    --specialist-card-text-size: var(--specialist-card-text-size-mobile, var(--specialist-card-text-size-desktop));
   }
 }
 

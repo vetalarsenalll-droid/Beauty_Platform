@@ -19,6 +19,7 @@ import {
   resolveMenuSectionBackgroundVisual,
   resolveServiceModalBackgroundVisual,
   resolveServicesSectionBackgroundVisual,
+  resolveSpecialistCardBackgroundVisual,
 } from "@/features/site-builder/shared/background-visuals";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
@@ -5508,10 +5509,72 @@ export function renderSpecialists(
   const cardGapY = Number(data.cardGapY);
   const cardPaddingX = Number(data.cardPaddingX);
   const cardPaddingY = Number(data.cardPaddingY);
+  const specialistCardBackgroundSource = {
+    ...data,
+    specialistCardBackgroundFromLight:
+      readDataColor("specialistCardBackgroundFromLight") || style.subBlockBgLightResolved || style.subBlockBg || "#fafafa",
+    specialistCardBackgroundFromDark:
+      readDataColor("specialistCardBackgroundFromDark") || style.subBlockBgDarkResolved || "#24282e",
+  };
+  const specialistCardBackgroundLight = resolveSpecialistCardBackgroundVisual(
+    specialistCardBackgroundSource,
+    "var(--block-sub-bg,var(--bp-paper))",
+    "light"
+  );
+  const specialistCardBackgroundDark = resolveSpecialistCardBackgroundVisual(
+    specialistCardBackgroundSource,
+    specialistCardBackgroundLight.backgroundColor,
+    "dark"
+  );
   const readOptionalDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() && String(data[key]).trim() !== "transparent"
       ? String(data[key]).trim()
       : "";
+  const readDataNumberValue = (key: string, fallback: number, min = 8, max = 96) => {
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : fallback;
+  };
+  const readDataFont = (key: string, fallback = "Manrope") =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : fallback;
+  const readDataWeight = (key: string, fallback?: number) => {
+    if (data[key] === "" || data[key] === null || data[key] === undefined) return fallback;
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? Math.max(100, Math.min(900, Math.round(value))) : fallback;
+  };
+  const cardTextColor = (key: string, lightFallback: string, darkFallback: string) => {
+    const sharedColor = readOptionalDataColor(key);
+    return {
+      light: readOptionalDataColor(`${key}Light`) || sharedColor || lightFallback,
+      dark: readOptionalDataColor(`${key}Dark`) || sharedColor || darkFallback,
+    };
+  };
+  const cardTextStyle = (
+    key: string,
+    lightFallback: string,
+    darkFallback: string,
+    sizeFallback: number,
+    weightFallback?: number
+  ): CSSProperties => {
+    const color = cardTextColor(`${key}Color`, lightFallback, darkFallback);
+    const desktopSize = readDataNumberValue(`${key}Size`, sizeFallback);
+    const mobileSize = readDataNumberValue(
+      `${key}MobileSize`,
+      key === "specialistCardTitle"
+        ? Math.max(15, Math.min(28, Math.round(desktopSize * 0.82)))
+        : Math.max(12, Math.min(17, Math.round(desktopSize * 0.9)))
+    );
+    return {
+      color: color.light,
+      ["--card-dark-color" as string]: color.dark,
+      ["--specialist-card-text-size-desktop" as string]: `${desktopSize}px`,
+      ["--specialist-card-text-size-mobile" as string]: `${mobileSize}px`,
+      fontSize: "var(--specialist-card-text-size)",
+      fontFamily: readDataFont(`${key}Font`, "Manrope"),
+      fontWeight: readDataWeight(`${key}Weight`, weightFallback),
+    };
+  };
+  const specialistCardTitleTextStyle = cardTextStyle("specialistCardTitle", "#111827", "#F8FAFC", 18, 600);
+  const specialistCardDescriptionTextStyle = cardTextStyle("specialistCardDescription", "#6B7280", "#CBD5E1", 14);
   const specialistsHeadingStyle = {
     ...headingStyle(style, theme),
     textAlign: style.textAlignHeading ?? "center",
@@ -5609,8 +5672,16 @@ export function renderSpecialists(
         showImage={data.showImage !== false}
         imageAspectRatio={imageAspectRatio}
         imageRadius={Number.isFinite(imageRadius) ? imageRadius : 0}
+        imageFit={data.specialistCardImageFit === "contain" ? "contain" : "cover"}
         imageZoomOnHover={data.imageZoomOnHover !== false}
+        imageZoomOnClick={data.specialistCardImageZoomOnClick === true}
         alignButtonsBottom={alignButtonsBottom}
+        cardBackgroundColorLight={specialistCardBackgroundLight.backgroundColor}
+        cardBackgroundImageLight={specialistCardBackgroundLight.backgroundImage}
+        cardBackgroundColorDark={specialistCardBackgroundDark.backgroundColor}
+        cardBackgroundImageDark={specialistCardBackgroundDark.backgroundImage}
+        cardTitleTextStyle={specialistCardTitleTextStyle}
+        cardDescriptionTextStyle={specialistCardDescriptionTextStyle}
         cardClickEnabled={data.modalImageClickEnabled !== false}
         cardStyle={cardStyle}
         cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}

@@ -169,3 +169,19 @@ export function resolveServiceModalBackgroundVisual(
     stopB: `serviceModalBackgroundStopB${suffix}`,
   });
 }
+
+export function resolveSpecialistCardBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
+) {
+  const suffix = mode === "dark" ? "Dark" : "Light";
+  return resolveBackgroundVisual(data, fallbackColor, {
+    mode: `specialistCardBackgroundMode${suffix}`,
+    from: `specialistCardBackgroundFrom${suffix}`,
+    to: `specialistCardBackgroundTo${suffix}`,
+    angle: `specialistCardBackgroundAngle${suffix}`,
+    stopA: `specialistCardBackgroundStopA${suffix}`,
+    stopB: `specialistCardBackgroundStopB${suffix}`,
+  });
+}

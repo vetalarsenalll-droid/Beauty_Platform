@@ -59,8 +59,16 @@ type SpecialistsCatalogProps = {
   showImage?: boolean;
   imageAspectRatio?: string;
   imageRadius?: number;
+  imageFit?: "cover" | "contain";
   imageZoomOnHover?: boolean;
+  imageZoomOnClick?: boolean;
   alignButtonsBottom?: boolean;
+  cardBackgroundColorLight?: string;
+  cardBackgroundImageLight?: string;
+  cardBackgroundColorDark?: string;
+  cardBackgroundImageDark?: string;
+  cardTitleTextStyle?: CSSProperties;
+  cardDescriptionTextStyle?: CSSProperties;
   cardClickEnabled?: boolean;
   cardStyle?: "plain" | "filled" | "boxed";
   cardGapX?: number;
@@ -154,8 +162,16 @@ export function SpecialistsCatalog({
   showImage = true,
   imageAspectRatio = "1 / 1",
   imageRadius = 10,
+  imageFit = "cover",
   imageZoomOnHover = true,
+  imageZoomOnClick = false,
   alignButtonsBottom = true,
+  cardBackgroundColorLight,
+  cardBackgroundImageLight,
+  cardBackgroundColorDark,
+  cardBackgroundImageDark,
+  cardTitleTextStyle,
+  cardDescriptionTextStyle,
   cardClickEnabled = true,
   cardStyle = "plain",
   cardGapX = 20,
@@ -179,6 +195,7 @@ export function SpecialistsCatalog({
   const [sort, setSort] = useState(defaultSort || "default");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [zoomImage, setZoomImage] = useState<{ src: string; alt: string } | null>(null);
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -298,6 +315,23 @@ export function SpecialistsCatalog({
     detailsButtonBorderColorDark,
     "var(--block-border,transparent)"
   );
+  const resolvedCardBackgroundColor = pickColor(
+    cardBackgroundColorLight,
+    cardBackgroundColorDark,
+    "var(--block-sub-bg,var(--bp-paper))"
+  );
+  const resolvedCardBackgroundImage =
+    activeThemeMode === "dark"
+      ? cardBackgroundImageDark || cardBackgroundImageLight || "none"
+      : cardBackgroundImageLight || cardBackgroundImageDark || "none";
+  const resolveModeTextStyle = (nextStyle?: CSSProperties): CSSProperties | undefined => {
+    if (!nextStyle) return undefined;
+    const darkColor = (nextStyle as Record<string, unknown>)["--card-dark-color"];
+    if (activeThemeMode !== "dark" || typeof darkColor !== "string" || !darkColor) return nextStyle;
+    return { ...nextStyle, color: darkColor };
+  };
+  const resolvedCardTitleTextStyle = resolveModeTextStyle(cardTitleTextStyle);
+  const resolvedCardDescriptionTextStyle = resolveModeTextStyle(cardDescriptionTextStyle);
   const isDarkTheme = activeThemeMode === "dark";
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
@@ -622,13 +656,23 @@ export function SpecialistsCatalog({
                   : undefined
               }
               style={{
-                backgroundColor: isFilledCard ? "var(--block-sub-bg,var(--bp-paper))" : "transparent",
+                backgroundColor: isFilledCard ? resolvedCardBackgroundColor : "transparent",
+                backgroundImage: isFilledCard ? resolvedCardBackgroundImage : "none",
                 borderRadius: isFilledCard ? imageRadiusValue : 0,
               }}
             >
               {showImage && (
                 <a
                   href={profileHref}
+                  onClick={
+                    imageZoomOnClick && specialist.coverUrl
+                      ? (event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setZoomImage({ src: specialist.coverUrl!, alt: specialist.name });
+                        }
+                      : undefined
+                  }
                   className="block overflow-hidden bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                   style={{
                     aspectRatio: imageAspectRatio === "original" ? undefined : imageAspectRatio,
@@ -639,7 +683,8 @@ export function SpecialistsCatalog({
                     <img
                       src={specialist.coverUrl}
                       alt=""
-                      className={`h-full w-full object-cover transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
+                      className={`h-full w-full transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
+                      style={{ objectFit: imageFit }}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
@@ -658,12 +703,13 @@ export function SpecialistsCatalog({
               >
                 <a
                   href={profileHref}
-                  className="text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
+                  className="specialist-card-text text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
+                  style={resolvedCardTitleTextStyle}
                 >
                   {specialist.name}
                 </a>
                 {showLevel && specialist.level && (
-                  <div className="mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                  <div className="specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]" style={resolvedCardDescriptionTextStyle}>
                     {specialist.level}
                   </div>
                 )}
@@ -753,6 +799,30 @@ export function SpecialistsCatalog({
               {pageNumber}
             </button>
           ))}
+        </div>
+      ) : null}
+
+      {zoomImage ? (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setZoomImage(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-2xl leading-none text-black"
+            onClick={() => setZoomImage(null)}
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+          <img
+            src={zoomImage.src}
+            alt={zoomImage.alt}
+            className="max-h-full max-w-full object-contain"
+            onClick={(event) => event.stopPropagation()}
+          />
         </div>
       ) : null}
 

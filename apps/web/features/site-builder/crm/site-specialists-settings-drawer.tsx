@@ -2,6 +2,7 @@ import {
   useState,
 } from "react";
 import {
+  TildaBackgroundColorField,
   TildaInlineColorField,
 } from "@/features/site-builder/crm/site-editor-panels";
 import { FlatCheckbox, updateBlockStyle } from "@/features/site-builder/crm/site-renderer";
@@ -44,16 +45,35 @@ function renderFlatNumberPxInput(
   value: number,
   onChange: (value: number) => void,
   min = 0,
-  max = 80
+  max = 80,
+  mobile?: {
+    value: number | null;
+    fallback: number;
+    onChange: (value: number) => void;
+    isOpen: boolean;
+    onToggle: () => void;
+  }
 ) {
   const normalizedValue = Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : min;
+  const inputClassName =
+    "w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0";
+  const inputStyle = {
+    border: 0,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "textfield",
+    appearance: "textfield",
+  } as const;
   const clampNext = (nextValue: number) =>
     Number.isFinite(nextValue) ? Math.max(min, Math.min(max, Math.round(nextValue))) : min;
 
   return (
-    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-      <div className="min-h-[32px] leading-4">{label}</div>
-      <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+    <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <label className="block">
+        <div className="min-h-[32px] leading-4">{label}</div>
+        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
         <input
           type="number"
           min={min}
@@ -61,21 +81,77 @@ function renderFlatNumberPxInput(
           step={1}
           value={normalizedValue}
           onChange={(event) => onChange(clampNext(Number(event.target.value)))}
-          className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0"
-          style={{
-            border: 0,
-            borderRadius: 0,
-            backgroundColor: "transparent",
-            boxShadow: "none",
-            WebkitAppearance: "none",
-            MozAppearance: "textfield",
-            appearance: "textfield",
-          }}
+          className={inputClassName}
+          style={inputStyle}
         />
         <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
-      </div>
-    </label>
+        {mobile ? (
+          <button
+            type="button"
+            onClick={mobile.onToggle}
+            className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+              mobile.isOpen ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+            }`}
+            title="Нажмите, чтобы задать значение для мобильного (≤ 480px)"
+            aria-label="Открыть мобильный размер шрифта"
+          >
+            <DesktopFontSizeIcon className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        </div>
+      </label>
+      {mobile && mobile.isOpen ? (
+        <label className="mt-3 grid grid-cols-[112px_1fr] items-end gap-3">
+          <div className="min-h-[32px] leading-4">Моб. размер шрифта</div>
+          <div className="flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <input
+              type="number"
+              min={min}
+              max={max}
+              step={1}
+              value={mobile.value ?? mobile.fallback}
+              onChange={(event) => mobile.onChange(clampNext(Number(event.target.value)))}
+              className={inputClassName}
+              style={inputStyle}
+            />
+            <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#d1d5db] text-white">
+              <MobileFontSizeIcon className="h-3.5 w-3.5" />
+            </span>
+          </div>
+        </label>
+      ) : null}
+    </div>
   );
+}
+
+function DesktopFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <rect height="15.031" width="18.5" rx="3.5" x="2.75" y="2.75" />
+        <path d="M9.11 17.781v3.469m5.78-3.469v3.469m-8.382 0h10.984" />
+      </g>
+    </svg>
+  );
+}
+
+function MobileFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 21 21" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" fillRule="evenodd" transform="translate(5 3)">
+        <path d="M2.5.5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="5.5" cy="11.5" fill="currentColor" r="1" />
+      </g>
+    </svg>
+  );
+}
+
+function defaultCardMobileTextSize(prefix: string, desktopSize: number) {
+  if (prefix === "specialistCardTitle") {
+    return Math.max(15, Math.min(28, Math.round(desktopSize * 0.82)));
+  }
+  return Math.max(12, Math.min(17, Math.round(desktopSize * 0.9)));
 }
 
 function renderFlatSelect(
@@ -134,6 +210,7 @@ export function SiteSpecialistsSettingsDrawer({
   updateBlock: (blockId: string, updater: (block: SiteBlock) => SiteBlock) => void;
 }) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
+  const [mobileTypographyOpen, setMobileTypographyOpen] = useState<Record<string, boolean>>({});
   const data = (block.data as Record<string, unknown>) ?? {};
   const rawStyle = ((block.data as Record<string, unknown>).style as Record<string, unknown>) ?? {};
   const updateData = (patch: Record<string, unknown>) => {
@@ -149,6 +226,10 @@ export function SiteSpecialistsSettingsDrawer({
     typeof rawStyle[key] === "string" && String(rawStyle[key]).trim() ? String(rawStyle[key]) : fallback;
   const readDataColor = (key: string, fallback = "transparent") =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]) : fallback;
+  const readDataNumber = (key: string, fallback: number) => {
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? value : fallback;
+  };
   const readDefaultedDataColor = (key: string, fallback: string) => {
     const value = readDataColor(key);
     return value && value !== "transparent" ? value : fallback;
@@ -612,8 +693,133 @@ export function SiteSpecialistsSettingsDrawer({
   }
 
   if (activeSectionId === "servicePage") {
+    const readBackgroundMode = (value: unknown): "solid" | "linear" | "radial" =>
+      value === "linear" || value === "radial" ? value : "solid";
+    const cardLightMode = readBackgroundMode(data.specialistCardBackgroundModeLight);
+    const cardDarkMode = readBackgroundMode(data.specialistCardBackgroundModeDark ?? cardLightMode);
+    const cardLightFrom =
+      readDataColor("specialistCardBackgroundFromLight", "") ||
+      readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"));
+    const cardLightTo =
+      readDataColor("specialistCardBackgroundToLight", "") || cardLightFrom || "#fafafa";
+    const cardDarkFrom =
+      readDataColor("specialistCardBackgroundFromDark", "") ||
+      readStyle("subBlockBgDark", "#24282e");
+    const cardDarkTo =
+      readDataColor("specialistCardBackgroundToDark", "") || cardDarkFrom || "#24282e";
+    const cardLightAngle = readDataNumber("specialistCardBackgroundAngleLight", 135);
+    const cardDarkAngle = readDataNumber("specialistCardBackgroundAngleDark", cardLightAngle);
+    const cardLightStopA = readDataNumber("specialistCardBackgroundStopALight", 0);
+    const cardLightStopB = readDataNumber("specialistCardBackgroundStopBLight", 100);
+    const cardDarkStopA = readDataNumber("specialistCardBackgroundStopADark", cardLightStopA);
+    const cardDarkStopB = readDataNumber("specialistCardBackgroundStopBDark", cardLightStopB);
+    const fontOptions = [
+      { value: "Manrope", label: "Manrope" },
+      { value: "Inter", label: "Inter" },
+      { value: "Arial", label: "Arial" },
+      { value: "Georgia", label: "Georgia" },
+      { value: "Times New Roman", label: "Times New Roman" },
+    ];
+    const weightOptions = [
+      { value: "", label: "По умолчанию" },
+      { value: "300", label: "300" },
+      { value: "400", label: "400" },
+      { value: "500", label: "500" },
+      { value: "600", label: "600" },
+      { value: "700", label: "700" },
+      { value: "800", label: "800" },
+    ];
+    const renderCardTypographyControl = (
+      title: string,
+      prefix: string,
+      colorFallback: string,
+      sizeFallback: number,
+      weightFallback = "",
+      showTopBorder = true
+    ) => {
+      const mobileKey = `specialistCard:${prefix}MobileSize`;
+      const desktopSize = Number(data[`${prefix}Size`] ?? sizeFallback);
+      const mobileSize = Number(data[`${prefix}MobileSize`]);
+      const mobileValue = Number.isFinite(mobileSize) ? Math.round(mobileSize) : null;
+
+      return (
+        <div className={`space-y-4 ${showTopBorder ? "border-t border-[color:var(--bp-stroke)] pt-4" : ""}`}>
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
+          <TildaInlineColorField
+            compact
+            label="Цвет"
+            value={readDataColor(`${prefix}ColorLight`, colorFallback)}
+            placeholder={colorFallback}
+            onChange={(value) => updateData({ [`${prefix}ColorLight`]: value })}
+            onClear={() => updateData({ [`${prefix}ColorLight`]: "transparent" })}
+          />
+          {renderFlatNumberPxInput(
+            "Размер шрифта",
+            desktopSize,
+            (value) => updateData({ [`${prefix}Size`]: value }),
+            8,
+            96,
+            {
+              value: mobileValue,
+              fallback: defaultCardMobileTextSize(
+                prefix,
+                Number.isFinite(desktopSize) ? Math.round(desktopSize) : sizeFallback
+              ),
+              onChange: (value) => updateData({ [`${prefix}MobileSize`]: value }),
+              isOpen: mobileTypographyOpen[mobileKey] === true,
+              onToggle: () =>
+                setMobileTypographyOpen((prev) => ({
+                  ...prev,
+                  [mobileKey]: !prev[mobileKey],
+                })),
+            }
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            String(data[`${prefix}Font`] ?? "Manrope"),
+            (value) => updateData({ [`${prefix}Font`]: value }),
+            fontOptions
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            String(data[`${prefix}Weight`] ?? weightFallback),
+            (value) => updateData({ [`${prefix}Weight`]: value ? Number(value) : "" }),
+            weightOptions
+          )}
+        </div>
+      );
+    };
+    const renderCardDarkColorControl = (label: string, prefix: string, fallback: string) => (
+      <TildaInlineColorField
+        compact
+        label={label}
+        value={readDataColor(`${prefix}ColorDark`, fallback)}
+        placeholder={fallback}
+        onChange={(value) => updateData({ [`${prefix}ColorDark`]: value })}
+        onClear={() => updateData({ [`${prefix}ColorDark`]: "transparent" })}
+      />
+    );
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
+        <TildaBackgroundColorField
+          label="Цвет фона карточки специалиста"
+          value={cardLightFrom}
+          mode={cardLightMode}
+          secondValue={cardLightTo}
+          angle={cardLightAngle}
+          radialStopA={cardLightStopA}
+          radialStopB={cardLightStopB}
+          placeholder="#fafafa"
+          onModeChange={(value) => updateData({ specialistCardBackgroundModeLight: value })}
+          onSecondChange={(value) => updateData({ specialistCardBackgroundToLight: value })}
+          onAngleChange={(value) => updateData({ specialistCardBackgroundAngleLight: value })}
+          onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopALight: value })}
+          onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBLight: value })}
+          onChange={(value) =>
+            updateData({ specialistCardBackgroundFromLight: value })
+          }
+        />
         <FlatCheckbox
           checked={data.showImage !== false}
           onChange={(checked) => updateData({ showImage: checked })}
@@ -624,6 +830,69 @@ export function SiteSpecialistsSettingsDrawer({
           onChange={(checked) => updateData({ showLevel: checked })}
           label="Показывать уровень специалиста"
         />
+        {renderFlatSelect(
+          "Масштабирование изображения",
+          String(data.specialistCardImageFit ?? "cover"),
+          (value) => updateData({ specialistCardImageFit: value }),
+          [
+            { value: "cover", label: "Заполнять область" },
+            { value: "contain", label: "Вписывать в область" },
+          ]
+        )}
+        {renderFlatNumberPxInput(
+          "Скругление",
+          Number(data.imageRadius ?? 10),
+          (value) => updateData({ imageRadius: value })
+        )}
+        {renderCardTypographyControl("Заголовок", "specialistCardTitle", "#111827", 18, "600", false)}
+        {renderCardTypographyControl("Описание", "specialistCardDescription", "#6B7280", 14)}
+        <FlatCheckbox
+          checked={data.specialistCardImageZoomOnClick === true}
+          onChange={(checked) => updateData({ specialistCardImageZoomOnClick: checked })}
+          label="Увеличение изображения по клику"
+        />
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaBackgroundColorField
+                label="Цвет фона карточки специалиста"
+                value={cardDarkFrom}
+                mode={cardDarkMode}
+                secondValue={cardDarkTo}
+                angle={cardDarkAngle}
+                radialStopA={cardDarkStopA}
+                radialStopB={cardDarkStopB}
+                placeholder="#24282e"
+                onModeChange={(value) => updateData({ specialistCardBackgroundModeDark: value })}
+                onSecondChange={(value) => updateData({ specialistCardBackgroundToDark: value })}
+                onAngleChange={(value) => updateData({ specialistCardBackgroundAngleDark: value })}
+                onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopADark: value })}
+                onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBDark: value })}
+                onChange={(value) => updateData({ specialistCardBackgroundFromDark: value })}
+              />
+              {renderCardDarkColorControl("Заголовок", "specialistCardTitle", "#F8FAFC")}
+              {renderCardDarkColorControl("Описание", "specialistCardDescription", "#CBD5E1")}
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
