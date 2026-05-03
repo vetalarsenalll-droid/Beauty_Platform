@@ -810,6 +810,11 @@ export default function SiteClient({
         <main
           className="w-full"
           data-site-theme={activeTheme.mode}
+          onMouseMove={(event) => updateHoveredBlockFromLine(event.clientY)}
+          onMouseLeave={() => {
+            if (activeSpacingSlot !== null) return;
+            setHoveredBlockId(null);
+          }}
           style={{
             ...themeStyle,
             backgroundColor: "var(--site-surface)",
@@ -820,11 +825,6 @@ export default function SiteClient({
         >
           <div
             className="mx-auto flex w-full flex-col"
-            onMouseMove={(event) => updateHoveredBlockFromLine(event.clientY)}
-            onMouseLeave={() => {
-              if (activeSpacingSlot !== null) return;
-              setHoveredBlockId(null);
-            }}
             style={{
               paddingTop: 0,
               paddingBottom: 0,
@@ -875,6 +875,10 @@ export default function SiteClient({
               const removeBtnClass = controlsDark
                 ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#7f1d1d] bg-[#111827] text-xs font-semibold text-[#fca5a5] shadow-sm hover:bg-[#1f2937]"
                 : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#fda4af] bg-white text-xs font-semibold text-[#dc2626] shadow-sm hover:bg-[#f3f4f6]";
+              const controlsWrapClass =
+                previewMode === "mobile"
+                  ? "pointer-events-none absolute left-1/2 top-3 z-20 flex w-screen -translate-x-1/2 items-start justify-between px-3"
+                  : "pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between";
               const menuTopOffset = 0;
               return (
               <div
@@ -893,7 +897,7 @@ export default function SiteClient({
                 }
               >
                 {isBlockActive && !rightPanel && (
-                  <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-start justify-between">
+                  <div className={controlsWrapClass}>
                     <div className="pointer-events-auto flex items-center gap-1">
                       {block.type !== "booking" && (
                         <button
