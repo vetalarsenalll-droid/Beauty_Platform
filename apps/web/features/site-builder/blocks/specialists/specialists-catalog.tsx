@@ -1023,6 +1023,7 @@ export function SpecialistsCatalog({
           const hasFilledInfoPanel = isImageInsetCard && normalizedCardStyle === "filled" && !isListCard;
           const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage && cardLiquidGlass;
           const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
+          const hasRegularFilledInfoPanel = isFilledCard && !isImageInsetCard && !isListCard && showImage;
           const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
           const imageBorderRadius =
             isListCard
@@ -1066,11 +1067,15 @@ export function SpecialistsCatalog({
               style={{
                 backgroundColor: isImageInsetCard
                   ? "transparent"
+                  : hasRegularFilledInfoPanel
+                    ? "transparent"
                   : isFilledCard
                     ? resolvedCardBackgroundColor
                     : "transparent",
                 backgroundImage: isImageInsetCard
                   ? "none"
+                  : hasRegularFilledInfoPanel
+                    ? "none"
                   : isFilledCard
                     ? resolvedCardBackgroundImage
                     : "none",
@@ -1106,6 +1111,11 @@ export function SpecialistsCatalog({
                   style={{
                     aspectRatio: isImageInsetCard && hasCoverImage ? undefined : imageAspectRatio === "original" ? "4 / 5" : imageAspectRatio,
                     borderRadius: imageBorderRadius,
+                    marginLeft: hasRegularFilledInfoPanel ? -1 : undefined,
+                    marginRight: hasRegularFilledInfoPanel ? -1 : undefined,
+                    marginTop: hasRegularFilledInfoPanel ? -1 : undefined,
+                    marginBottom: hasRegularFilledInfoPanel ? -1 : undefined,
+                    width: hasRegularFilledInfoPanel ? "calc(100% + 2px)" : undefined,
                   }}
                 >
                   {specialist.coverUrl ? (
@@ -1136,13 +1146,20 @@ export function SpecialistsCatalog({
                         ? Math.max(12, Math.round(cardPaddingY * 0.5))
                         : undefined,
                   marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
-                  borderRadius: hasFilledInfoPanel ? 0 : undefined,
+                  borderRadius: hasFilledInfoPanel
+                    ? 0
+                    : hasRegularFilledInfoPanel
+                      ? `0 0 ${imageRadiusValue}px ${imageRadiusValue}px`
+                      : undefined,
                   border: hasFilledInfoPanel ? 0 : undefined,
-                  marginLeft: hasFilledInfoPanel ? -cardPaddingX : undefined,
-                  marginRight: hasFilledInfoPanel ? -cardPaddingX : undefined,
-                  width: hasFilledInfoPanel ? `calc(100% + ${cardPaddingX * 2}px)` : undefined,
-                  borderBottomLeftRadius: hasFilledInfoPanel ? 0 : undefined,
-                  borderBottomRightRadius: hasFilledInfoPanel ? 0 : undefined,
+                  marginLeft: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginRight: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginBottom: hasGlassInfoPanel ? -1 : undefined,
+                  width: hasFilledInfoPanel
+                    ? `calc(100% + ${cardPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
+                    : undefined,
+                  borderBottomLeftRadius: hasFilledInfoPanel ? imageRadiusValue : undefined,
+                  borderBottomRightRadius: hasFilledInfoPanel ? imageRadiusValue : undefined,
                   borderTopLeftRadius: hasFilledInfoPanel ? 0 : undefined,
                   borderTopRightRadius: hasFilledInfoPanel ? 0 : undefined,
                   backgroundColor: hasFilledInfoPanel
@@ -1152,15 +1169,21 @@ export function SpecialistsCatalog({
                           glassPanelOpacity
                         )
                       : resolvedCardBackgroundColor
+                    : hasRegularFilledInfoPanel
+                      ? resolvedCardBackgroundColor
                     : undefined,
                   backgroundImage: hasFilledInfoPanel
                     ? hasGlassInfoPanel
                       ? glassPanelBackgroundImage
                       : resolvedCardBackgroundImage
+                    : hasRegularFilledInfoPanel
+                      ? resolvedCardBackgroundImage
                     : undefined,
+                  outline: hasGlassInfoPanel && activeThemeMode === "dark" ? "1px solid rgba(0,0,0,0.42)" : undefined,
+                  outlineOffset: hasGlassInfoPanel && activeThemeMode === "dark" ? -1 : undefined,
                   boxShadow: hasGlassInfoPanel
                     ? activeThemeMode === "dark"
-                      ? "inset 0 1px 0 rgba(255,255,255,0.18), 0 18px 45px rgba(0,0,0,0.22)"
+                      ? "inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.42), inset 1px 0 0 rgba(0,0,0,0.18), inset -1px 0 0 rgba(0,0,0,0.18), 0 18px 45px rgba(0,0,0,0.22)"
                       : "0 18px 45px rgba(15,16,18,0.14)"
                     : undefined,
                   backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
