@@ -1595,6 +1595,7 @@ export function ServicesCatalog({
             : shouldCompactTileSpacing
               ? 12
               : clamp(cardPaddingY, 0, 80, 30);
+          const insetPanelPadding = Math.max(12, Math.round(contentPaddingY * 0.5));
           const compactServiceTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
                 ...serviceCardTitleStyle,
@@ -1817,10 +1818,10 @@ export function ServicesCatalog({
                   isListView ? "justify-between" : ""
                 } ${isImageInsetCard ? "relative z-[1] justify-end" : ""}`}
                 style={{
-                  paddingLeft: contentPaddingX,
-                  paddingRight: contentPaddingX,
-                  paddingTop: hasFilledInfoPanel ? Math.max(12, Math.round(contentPaddingY * 0.5)) : contentPaddingY,
-                  paddingBottom: hasFilledInfoPanel ? Math.max(12, Math.round(contentPaddingY * 0.5)) : contentPaddingY,
+                  paddingLeft: hasFilledInfoPanel ? insetPanelPadding : contentPaddingX,
+                  paddingRight: hasFilledInfoPanel ? insetPanelPadding : contentPaddingX,
+                  paddingTop: hasFilledInfoPanel ? insetPanelPadding : contentPaddingY,
+                  paddingBottom: hasFilledInfoPanel ? insetPanelPadding : contentPaddingY,
                   height: isListView ? listContentHeight : undefined,
                   boxSizing: "border-box",
                   textAlign: contentTextAlign,
