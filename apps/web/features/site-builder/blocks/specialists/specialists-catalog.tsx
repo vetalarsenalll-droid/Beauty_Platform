@@ -92,6 +92,7 @@ type SpecialistsCatalogProps = {
   subheadingStyle?: CSSProperties;
   buttonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
+  previewViewportWidth?: number;
 };
 
 const SORT_OPTIONS = [
@@ -147,7 +148,22 @@ function alignClassName(value: "left" | "center" | "right") {
   return "justify-start";
 }
 
-function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number) {
+function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number, previewViewportWidth?: number) {
+  if (typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)) {
+    if (previewViewportWidth < 640) {
+      return mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
+    }
+    if (previewViewportWidth < 1280) {
+      return cardsPerRow <= 1 ? "grid-cols-1" : "grid-cols-2";
+    }
+    if (cardsPerRow <= 1) return "grid-cols-1";
+    if (cardsPerRow === 2) return "grid-cols-2";
+    if (cardsPerRow === 4) return "grid-cols-4";
+    if (cardsPerRow === 5) return "grid-cols-5";
+    if (cardsPerRow === 6) return "grid-cols-6";
+    return "grid-cols-3";
+  }
+
   const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
   if (cardsPerRow <= 1) return mobile;
   if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
@@ -559,6 +575,7 @@ export function SpecialistsCatalog({
   subheadingStyle,
   buttonStyle,
   textAlign = "left",
+  previewViewportWidth,
 }: SpecialistsCatalogProps) {
   const catalogRef = useRef<HTMLElement | null>(null);
   const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">("light");
@@ -570,6 +587,7 @@ export function SpecialistsCatalog({
   const [sort, setSort] = useState(defaultSort || "default");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [areMobileFiltersOpen, setAreMobileFiltersOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveSpecialistModalState>(null);
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
@@ -672,8 +690,11 @@ export function SpecialistsCatalog({
         })
       : null;
 
+  const hasPreviewViewport =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
+  const isNarrowPreviewViewport = hasPreviewViewport && previewViewportWidth < 640;
   const gridClassName =
-    listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns);
+    listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns, previewViewportWidth);
   const buttonJustifyContent =
     buttonAlignment === "left" ? "flex-start" : buttonAlignment === "right" ? "flex-end" : "center";
   const pickColor = (light?: string, dark?: string, fallback = "var(--block-text,var(--bp-ink))") =>
@@ -742,7 +763,33 @@ export function SpecialistsCatalog({
   const dropdownShadow = isDarkTheme ? "0 14px 34px rgba(0,0,0,0.34)" : "0 14px 34px rgba(15,16,18,0.14)";
   const searchSortJustifyContent =
     searchSortAlignment === "center" ? "center" : searchSortAlignment === "right" ? "flex-end" : "flex-start";
-  const selectControlClassName = "relative min-w-0 sm:w-[250px]";
+  const filtersJustifyContent =
+    filtersAlignment === "center" ? "center" : filtersAlignment === "right" ? "flex-end" : "flex-start";
+  const searchControlsClassName = hasPreviewViewport
+    ? `${isNarrowPreviewViewport && !areMobileFiltersOpen ? "hidden" : "flex"} w-full gap-3 ${
+        isNarrowPreviewViewport ? "flex-col" : "flex-row items-center"
+      }`
+    : `${areMobileFiltersOpen ? "flex" : "hidden"} w-full flex-col gap-3 sm:flex sm:flex-row sm:items-center`;
+  const mobileFiltersToggleClassName = hasPreviewViewport
+    ? `${isNarrowPreviewViewport ? "flex" : "hidden"} h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition`
+    : "flex h-[44px] w-full items-center justify-between gap-3 text-left text-sm transition sm:hidden";
+  const searchInputClassName = hasPreviewViewport
+    ? `relative block h-[44px] min-w-0 text-sm transition ${
+        isNarrowPreviewViewport ? "w-full" : "w-[320px]"
+      }`
+    : "relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]";
+  const selectControlClassName = hasPreviewViewport
+    ? `relative min-w-0 ${isNarrowPreviewViewport ? "w-full" : "w-[250px]"}`
+    : "relative min-w-0 sm:w-[250px]";
+  const levelTabsClassName = hasPreviewViewport
+    ? `mt-6 flex max-w-full gap-2 ${
+        isNarrowPreviewViewport
+          ? "flex-nowrap justify-start overflow-x-auto overflow-y-hidden pb-1 [scrollbar-width:thin] [scrollbar-color:var(--block-border,var(--bp-stroke))_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--block-border,var(--bp-stroke))]"
+          : "flex-wrap"
+      }`
+    : `mt-6 flex max-w-full flex-nowrap justify-start overflow-x-auto overflow-y-hidden pb-1 gap-2 sm:flex-wrap sm:overflow-visible sm:pb-0 ${alignClassName(filtersAlignment)} [scrollbar-width:thin] [scrollbar-color:var(--block-border,var(--bp-stroke))_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--block-border,var(--bp-stroke))]`;
+  const levelTabsStyle: CSSProperties | undefined =
+    hasPreviewViewport && !isNarrowPreviewViewport ? { justifyContent: filtersJustifyContent } : undefined;
 
   return (
     <section
@@ -769,45 +816,68 @@ export function SpecialistsCatalog({
       </div>
 
       {(showSearch || showSort || (showLocationFilter && availableLocations.length > 1 && !currentLocationId)) && (
-        <div
-          className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center"
-          style={{ justifyContent: searchSortJustifyContent }}
-        >
-          {showSearch && (
-            <label className="relative block h-[44px] min-w-0 text-sm transition sm:w-[320px]">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[color:var(--block-muted,var(--bp-muted))]">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <circle cx="11" cy="11" r="6" />
-                  <path d="m16 16 4 4" />
-                </svg>
-              </span>
-              <input
-                type="text"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
-                style={{
-                  appearance: "none",
-                  border: `1px solid ${controlBorderColor}`,
-                  borderRadius: 12,
-                  backgroundColor: controlBackgroundColor,
-                  boxShadow: controlShadow,
-                  fontSize: "var(--block-text-size)",
+        <div className="mt-7 w-full">
+          <button
+            type="button"
+            onClick={() => setAreMobileFiltersOpen((open) => !open)}
+            className={mobileFiltersToggleClassName}
+            style={{
+              border: "none",
+              borderBottom: `1px solid ${areMobileFiltersOpen ? "transparent" : controlBorderColor}`,
+              borderRadius: 0,
+              backgroundColor: "transparent",
+              color: resolvedSortTextColor,
+              padding: "0 0 10px",
+              boxShadow: "none",
+              fontSize: "var(--block-text-size)",
+            }}
+            aria-expanded={areMobileFiltersOpen}
+          >
+            <span className="truncate">Поиск</span>
+            <span className="shrink-0 text-[11px] leading-none text-[color:var(--block-muted,var(--bp-muted))]">
+              {areMobileFiltersOpen ? "▴" : "▾"}
+            </span>
+          </button>
+
+          <div
+            className={`${searchControlsClassName} ${areMobileFiltersOpen ? "mt-3" : ""} sm:mt-0`}
+            style={{ justifyContent: searchSortJustifyContent }}
+          >
+            {showSearch && (
+              <label className={searchInputClassName}>
+                <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[color:var(--block-muted,var(--bp-muted))]">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <circle cx="11" cy="11" r="6" />
+                    <path d="m16 16 4 4" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="h-full w-full min-w-0 py-0 pl-9 pr-3.5 text-sm leading-none text-[color:var(--block-text,var(--bp-ink))] outline-none placeholder:text-[color:var(--block-muted,var(--bp-muted))]"
+                  style={{
+                    appearance: "none",
+                    border: `1px solid ${controlBorderColor}`,
+                    borderRadius: 12,
+                    backgroundColor: controlBackgroundColor,
+                    boxShadow: controlShadow,
+                    fontSize: "var(--block-text-size)",
+                  }}
+                />
+              </label>
+            )}
+            {showSort && (
+              <div
+                className={selectControlClassName}
+                onBlur={(event) => {
+                  const nextFocusedElement = event.relatedTarget as Node | null;
+                  if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                    setIsSortOpen(false);
+                  }
                 }}
-              />
-            </label>
-          )}
-          {showSort && (
-            <div
-              className={selectControlClassName}
-              onBlur={(event) => {
-                const nextFocusedElement = event.relatedTarget as Node | null;
-                if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
-                  setIsSortOpen(false);
-                }
-              }}
-            >
+              >
               <button
                 type="button"
                 onClick={() => setIsSortOpen((open) => !open)}
@@ -877,18 +947,18 @@ export function SpecialistsCatalog({
                   })}
                 </div>
               ) : null}
-            </div>
-          )}
-          {showLocationFilter && availableLocations.length > 1 && !currentLocationId && (
-            <div
-              className={selectControlClassName}
-              onBlur={(event) => {
-                const nextFocusedElement = event.relatedTarget as Node | null;
-                if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
-                  setIsLocationOpen(false);
-                }
-              }}
-            >
+              </div>
+            )}
+            {showLocationFilter && availableLocations.length > 1 && !currentLocationId && (
+              <div
+                className={selectControlClassName}
+                onBlur={(event) => {
+                  const nextFocusedElement = event.relatedTarget as Node | null;
+                  if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+                    setIsLocationOpen(false);
+                  }
+                }}
+              >
               <button
                 type="button"
                 onClick={() => setIsLocationOpen((open) => !open)}
@@ -958,17 +1028,18 @@ export function SpecialistsCatalog({
                   })}
                 </div>
               ) : null}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {showCategoryTabs && levels.length > 0 && (
-        <div className={`mt-6 flex flex-wrap gap-4 ${alignClassName(filtersAlignment)}`}>
+        <div className={levelTabsClassName} style={levelTabsStyle}>
           <button
             type="button"
             onClick={() => setSelectedLevel("")}
-            className="rounded-[10px] px-4 py-2 text-sm"
+            className="shrink-0 whitespace-nowrap rounded-[10px] px-4 py-2 text-sm"
             style={{
               backgroundColor: selectedLevel === "" ? resolvedCategoryActiveColor : "transparent",
               color:
@@ -984,7 +1055,7 @@ export function SpecialistsCatalog({
               key={level}
               type="button"
               onClick={() => setSelectedLevel(level)}
-              className="rounded-[10px] px-4 py-2 text-sm"
+              className="shrink-0 whitespace-nowrap rounded-[10px] px-4 py-2 text-sm"
               style={{
                 backgroundColor: selectedLevel === level ? resolvedCategoryActiveColor : "transparent",
                 color:
@@ -1035,6 +1106,38 @@ export function SpecialistsCatalog({
               : isFilledCard
                 ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
                 : imageRadiusValue;
+          const shouldCompactTileSpacing = !isListCard && isNarrowPreviewViewport;
+          const contentPaddingX = shouldCompactTileSpacing ? 12 : cardPaddingX;
+          const contentPaddingY = shouldCompactTileSpacing ? 12 : cardPaddingY;
+          const insetPanelPadding = Math.max(12, Math.round(contentPaddingY * 0.5));
+          const insetOuterPaddingX = shouldCompactTileSpacing ? contentPaddingX : cardPaddingX;
+          const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 420;
+          const compactTitleStyle: CSSProperties = shouldCompactTileSpacing
+            ? {
+                ...resolvedCardTitleTextStyle,
+                fontSize: 15,
+                lineHeight: 1.16,
+                width: "100%",
+              }
+            : resolvedCardTitleTextStyle ?? {};
+          const compactDescriptionStyle: CSSProperties = shouldCompactTileSpacing
+            ? {
+                ...resolvedCardDescriptionTextStyle,
+                fontSize: 13,
+                lineHeight: 1.2,
+              }
+            : resolvedCardDescriptionTextStyle ?? {};
+          const titleStyle =
+            isImageInsetCard && !isListCard && !hasFilledInfoPanel
+              ? { ...compactTitleStyle, color: "#ffffff" }
+              : compactTitleStyle;
+          const descriptionStyle =
+            isImageInsetCard && !isListCard && !hasFilledInfoPanel
+              ? { ...compactDescriptionStyle, color: "rgba(255,255,255,0.82)" }
+              : compactDescriptionStyle;
+          const compactButtonStyle: CSSProperties = shouldCompactTileSpacing
+            ? { fontSize: 13, lineHeight: 1.1 }
+            : {};
           const openSpecialistModal = () => {
             setActiveModal({ specialistId: specialist.id, imageIndex: 0 });
           };
@@ -1043,7 +1146,13 @@ export function SpecialistsCatalog({
             <article
               key={specialist.id}
               className={`group ${isImageInsetCard && !isListCard ? "relative overflow-hidden" : ""} ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
-                isListCard ? "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center" : ""
+                isListCard
+                  ? hasPreviewViewport
+                    ? isNarrowPreviewViewport
+                      ? "flex flex-col gap-3 border-b pb-5"
+                      : "grid gap-5 grid-cols-[260px_1fr] items-center"
+                    : "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center"
+                  : ""
               } ${!isListCard && alignButtonsBottom ? "flex h-full flex-col" : ""} ${canOpenCardByClick ? "cursor-pointer" : ""}`}
               role={canOpenCardByClick ? "button" : undefined}
               tabIndex={canOpenCardByClick ? 0 : undefined}
@@ -1085,10 +1194,10 @@ export function SpecialistsCatalog({
                 padding:
                   isImageInsetCard && !isListCard
                     ? hasFilledInfoPanel
-                      ? `${cardPaddingY}px ${cardPaddingX}px 0`
-                      : `${cardPaddingY}px ${cardPaddingX}px`
+                      ? `${contentPaddingY}px ${contentPaddingX}px 0`
+                      : `${contentPaddingY}px ${contentPaddingX}px`
                     : undefined,
-                minHeight: isImageInsetCard && !isListCard ? 420 : undefined,
+                minHeight: isImageInsetCard && !isListCard ? imageInsetCardMinHeight : undefined,
               }}
             >
               {showImage && (
@@ -1143,17 +1252,17 @@ export function SpecialistsCatalog({
                 style={{
                   padding:
                     isFilledCard && !isImageInsetCard
-                      ? `${cardPaddingY}px ${cardPaddingX}px`
+                      ? `${contentPaddingY}px ${contentPaddingX}px`
                       : hasFilledInfoPanel
-                        ? Math.max(12, Math.round(cardPaddingY * 0.5))
+                        ? insetPanelPadding
                         : undefined,
                   marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
                   border: hasFilledInfoPanel ? 0 : undefined,
-                  marginLeft: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
-                  marginRight: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginLeft: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginRight: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
                   width: hasFilledInfoPanel
-                    ? `calc(100% + ${cardPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
+                    ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
                     : undefined,
                   borderTopLeftRadius:
                     hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : undefined,
@@ -1201,22 +1310,14 @@ export function SpecialistsCatalog({
                       : undefined
                   }
                   className="specialist-card-text text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
-                  style={
-                    isImageInsetCard && !isListCard && !hasFilledInfoPanel
-                      ? { ...resolvedCardTitleTextStyle, color: "#ffffff" }
-                      : resolvedCardTitleTextStyle
-                  }
+                  style={titleStyle}
                 >
                   {specialist.name}
                 </a>
                 {showLevel && specialist.level && (
                   <div
                     className="specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
-                    style={
-                      isImageInsetCard && !isListCard && !hasFilledInfoPanel
-                        ? { ...resolvedCardDescriptionTextStyle, color: "rgba(255,255,255,0.82)" }
-                        : resolvedCardDescriptionTextStyle
-                    }
+                    style={descriptionStyle}
                   >
                     {specialist.level}
                   </div>
@@ -1224,7 +1325,11 @@ export function SpecialistsCatalog({
                 {((showDetailsButton && detailsButtonText) || (showButton && buttonText)) && publicSlug && (
                   <div
                     className={`flex flex-wrap items-center gap-4 ${
-                      !isListCard && alignButtonsBottom && !isImageInsetCard ? "mt-auto pt-6" : "mt-6"
+                      shouldCompactTileSpacing
+                        ? "mt-4"
+                        : !isListCard && alignButtonsBottom && !isImageInsetCard
+                          ? "mt-auto pt-6"
+                          : "mt-6"
                     }`}
                     style={{ justifyContent: buttonJustifyContent }}
                   >
@@ -1246,6 +1351,7 @@ export function SpecialistsCatalog({
                           border: "1px solid transparent",
                           borderRadius: buttonStyle?.borderRadius ?? 0,
                           boxShadow: `inset 0 0 0 1px ${resolvedDetailsButtonBorderColor}`,
+                          ...compactButtonStyle,
                         }}
                       >
                         {detailsButtonText}
@@ -1256,7 +1362,7 @@ export function SpecialistsCatalog({
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold no-underline"
-                        style={buttonStyle}
+                        style={{ ...buttonStyle, ...compactButtonStyle }}
                       >
                         {buttonText}
                       </a>

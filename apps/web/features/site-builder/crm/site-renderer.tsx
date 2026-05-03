@@ -5731,6 +5731,7 @@ export function renderSpecialists(
         subheadingStyle={specialistsSubheadingStyle}
         buttonStyle={specialistsButtonStyle}
         textAlign={style.textAlign}
+        previewViewportWidth={previewViewportWidth}
       />
     </div>
   );
