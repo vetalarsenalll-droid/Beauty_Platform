@@ -173,6 +173,20 @@ function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number, pr
   return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
 }
 
+function useWindowViewportWidth() {
+  const [width, setWidth] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateWidth = () => setWidth(window.innerWidth);
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+
+  return width;
+}
+
 function SpecialistModal({
   specialist,
   imageIndex,
@@ -592,6 +606,7 @@ export function SpecialistsCatalog({
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
+  const windowViewportWidth = useWindowViewportWidth();
 
   const columns = clampInt(cardsPerRow, 4, 1, 6);
   const mobileColumns = clampInt(mobileCardsPerRow, 2, 1, 2);
@@ -690,11 +705,15 @@ export function SpecialistsCatalog({
         })
       : null;
 
+  const effectiveViewportWidth =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)
+      ? previewViewportWidth
+      : windowViewportWidth;
   const hasPreviewViewport =
-    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
-  const isNarrowPreviewViewport = hasPreviewViewport && previewViewportWidth < 640;
+    typeof effectiveViewportWidth === "number" && Number.isFinite(effectiveViewportWidth);
+  const isNarrowPreviewViewport = hasPreviewViewport && effectiveViewportWidth < 640;
   const gridClassName =
-    listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns, previewViewportWidth);
+    listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns, effectiveViewportWidth);
   const buttonJustifyContent =
     buttonAlignment === "left" ? "flex-start" : buttonAlignment === "right" ? "flex-end" : "center";
   const pickColor = (light?: string, dark?: string, fallback = "var(--block-text,var(--bp-ink))") =>

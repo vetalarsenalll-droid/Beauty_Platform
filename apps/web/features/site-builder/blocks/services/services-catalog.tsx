@@ -178,6 +178,20 @@ function resolveGridClassName(
   return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
 }
 
+function useWindowViewportWidth() {
+  const [width, setWidth] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateWidth = () => setWidth(window.innerWidth);
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+
+  return width;
+}
+
 function resolveArrowSize(size: "sm" | "md" | "lg") {
   if (size === "sm") return 34;
   if (size === "lg") return 52;
@@ -967,6 +981,7 @@ export function ServicesCatalog({
   const pageSize = clamp(maxVisibleItems, 1, 100, 8);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
+  const windowViewportWidth = useWindowViewportWidth();
 
   useEffect(() => {
     setSortMode(defaultSort);
@@ -1090,9 +1105,13 @@ export function ServicesCatalog({
   const serviceCardButtonTextStyle: CSSProperties = {
     fontSize: "var(--block-text-size)",
   };
+  const effectiveViewportWidth =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)
+      ? previewViewportWidth
+      : windowViewportWidth;
   const hasPreviewViewport =
-    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
-  const isNarrowPreviewViewport = hasPreviewViewport && previewViewportWidth < 640;
+    typeof effectiveViewportWidth === "number" && Number.isFinite(effectiveViewportWidth);
+  const isNarrowPreviewViewport = hasPreviewViewport && effectiveViewportWidth < 640;
   const searchControlsClassName = hasPreviewViewport
     ? `${isNarrowPreviewViewport && !areMobileFiltersOpen ? "hidden" : "flex"} w-full gap-3 ${
         isNarrowPreviewViewport ? "flex-col" : "flex-row items-center"
@@ -1520,7 +1539,7 @@ export function ServicesCatalog({
         className={`mt-8 ${
           isListView
             ? "flex flex-col"
-            : `grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow, previewViewportWidth)}`
+            : `grid ${resolveGridClassName(cardsPerRow, mobileCardsPerRow, effectiveViewportWidth)}`
         }`}
         style={{
           columnGap: isListView ? undefined : clamp(cardGapX, 0, 80, 20),
@@ -1721,7 +1740,7 @@ export function ServicesCatalog({
                   }`}
                 >
                     <div
-                      className="relative overflow-hidden max-sm:!h-[180px]"
+                      className="relative overflow-hidden"
                       style={{
                         height: isImageInsetCard && primaryImage ? "100%" : isListView ? listImageSize : undefined,
                         aspectRatio:
@@ -1771,7 +1790,7 @@ export function ServicesCatalog({
                     }`}
                   >
                     <div
-                      className="relative overflow-hidden max-sm:!h-[180px]"
+                      className="relative overflow-hidden"
                       style={{
                         height: isImageInsetCard && primaryImage ? "100%" : isListView ? listImageSize : undefined,
                         aspectRatio:
