@@ -128,6 +128,10 @@ function rgbaFromHex(hex: string, opacity: number) {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
+function alphaHexColors(value: string, opacity: number) {
+  return value.replace(/#[0-9a-fA-F]{6}\b/g, (hex) => rgbaFromHex(hex, opacity));
+}
+
 function uniqueSpecialistImages(specialist: SpecialistCatalogItem) {
   return Array.from(new Set([...(specialist.photoUrls ?? []), specialist.coverUrl ?? ""].filter(Boolean)));
 }
@@ -1004,7 +1008,9 @@ export function SpecialistsCatalog({
           const canOpenCardByClick = cardClickEnabled && Boolean(publicSlug);
           const isListCard = listView === "list";
           const isImageInsetCard = imageAspectRatio === "original";
-          const hasGlassInfoPanel = isImageInsetCard && normalizedCardStyle === "filled" && !isListCard;
+          const hasCoverImage = Boolean(specialist.coverUrl);
+          const hasFilledInfoPanel = isImageInsetCard && normalizedCardStyle === "filled" && !isListCard;
+          const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage;
           const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
           const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
           const imageBorderRadius =
@@ -1047,12 +1053,20 @@ export function SpecialistsCatalog({
                   : undefined
               }
               style={{
-                backgroundColor: isFilledCard ? resolvedCardBackgroundColor : "transparent",
-                backgroundImage: isFilledCard ? resolvedCardBackgroundImage : "none",
+                backgroundColor: isImageInsetCard
+                  ? "transparent"
+                  : isFilledCard
+                    ? resolvedCardBackgroundColor
+                    : "transparent",
+                backgroundImage: isImageInsetCard
+                  ? "none"
+                  : isFilledCard
+                    ? resolvedCardBackgroundImage
+                    : "none",
                 borderRadius: isFilledCard ? imageRadiusValue : 0,
                 padding:
                   isImageInsetCard && !isListCard
-                    ? hasGlassInfoPanel
+                    ? hasFilledInfoPanel
                       ? `${cardPaddingY}px ${cardPaddingX}px 0`
                       : `${cardPaddingY}px ${cardPaddingX}px`
                     : undefined,
@@ -1072,12 +1086,14 @@ export function SpecialistsCatalog({
                       : undefined
                   }
                   className={`block overflow-hidden ${
-                    isImageInsetCard && !isListCard
+                    isImageInsetCard && !isListCard && hasCoverImage
                       ? "absolute inset-0 bg-transparent"
-                      : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
+                      : isImageInsetCard && !isListCard
+                        ? "bg-transparent"
+                        : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                   }`}
                   style={{
-                    aspectRatio: isImageInsetCard ? undefined : imageAspectRatio,
+                    aspectRatio: isImageInsetCard && hasCoverImage ? undefined : imageAspectRatio === "original" ? "4 / 5" : imageAspectRatio,
                     borderRadius: imageBorderRadius,
                   }}
                 >
@@ -1089,7 +1105,7 @@ export function SpecialistsCatalog({
                       style={{ objectFit: isImageInsetCard ? "cover" : imageFit }}
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                    <div className={`${isImageInsetCard && !isListCard ? "hidden" : "flex"} h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]`}>
                       Нет фото
                     </div>
                   )}
@@ -1105,24 +1121,31 @@ export function SpecialistsCatalog({
                   padding:
                     isFilledCard && !isImageInsetCard
                       ? `${cardPaddingY}px ${cardPaddingX}px`
-                      : hasGlassInfoPanel
+                      : hasFilledInfoPanel
                         ? Math.max(12, Math.round(cardPaddingY * 0.5))
                         : undefined,
                   marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
-                  borderRadius: hasGlassInfoPanel ? 0 : undefined,
-                  border: hasGlassInfoPanel ? 0 : undefined,
-                  marginLeft: hasGlassInfoPanel ? -cardPaddingX : undefined,
-                  marginRight: hasGlassInfoPanel ? -cardPaddingX : undefined,
-                  width: hasGlassInfoPanel ? `calc(100% + ${cardPaddingX * 2}px)` : undefined,
-                  borderBottomLeftRadius: hasGlassInfoPanel ? 0 : undefined,
-                  borderBottomRightRadius: hasGlassInfoPanel ? 0 : undefined,
-                  borderTopLeftRadius: hasGlassInfoPanel ? 0 : undefined,
-                  borderTopRightRadius: hasGlassInfoPanel ? 0 : undefined,
-                  backgroundColor: hasGlassInfoPanel
-                    ? rgbaFromHex(
-                        resolvedCardBackgroundColor,
-                        activeThemeMode === "dark" ? 0.34 : 0.42
-                      )
+                  borderRadius: hasFilledInfoPanel ? 0 : undefined,
+                  border: hasFilledInfoPanel ? 0 : undefined,
+                  marginLeft: hasFilledInfoPanel ? -cardPaddingX : undefined,
+                  marginRight: hasFilledInfoPanel ? -cardPaddingX : undefined,
+                  width: hasFilledInfoPanel ? `calc(100% + ${cardPaddingX * 2}px)` : undefined,
+                  borderBottomLeftRadius: hasFilledInfoPanel ? 0 : undefined,
+                  borderBottomRightRadius: hasFilledInfoPanel ? 0 : undefined,
+                  borderTopLeftRadius: hasFilledInfoPanel ? 0 : undefined,
+                  borderTopRightRadius: hasFilledInfoPanel ? 0 : undefined,
+                  backgroundColor: hasFilledInfoPanel
+                    ? hasGlassInfoPanel
+                      ? rgbaFromHex(
+                          resolvedCardBackgroundColor,
+                          activeThemeMode === "dark" ? 0.34 : 0.42
+                        )
+                      : resolvedCardBackgroundColor
+                    : undefined,
+                  backgroundImage: hasFilledInfoPanel
+                    ? hasGlassInfoPanel
+                      ? alphaHexColors(resolvedCardBackgroundImage, activeThemeMode === "dark" ? 0.34 : 0.42)
+                      : resolvedCardBackgroundImage
                     : undefined,
                   boxShadow: hasGlassInfoPanel
                     ? "0 18px 45px rgba(15,16,18,0.14)"
@@ -1144,7 +1167,7 @@ export function SpecialistsCatalog({
                   }
                   className="specialist-card-text text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
                   style={
-                    isImageInsetCard && !isListCard && !hasGlassInfoPanel
+                    isImageInsetCard && !isListCard && !hasFilledInfoPanel
                       ? { ...resolvedCardTitleTextStyle, color: "#ffffff" }
                       : resolvedCardTitleTextStyle
                   }
@@ -1155,7 +1178,7 @@ export function SpecialistsCatalog({
                   <div
                     className="specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
                     style={
-                      isImageInsetCard && !isListCard && !hasGlassInfoPanel
+                      isImageInsetCard && !isListCard && !hasFilledInfoPanel
                         ? { ...resolvedCardDescriptionTextStyle, color: "rgba(255,255,255,0.82)" }
                         : resolvedCardDescriptionTextStyle
                     }
