@@ -36,6 +36,11 @@ type SiteServicesSettingsPrimaryProps = {
     updater: (block: SiteBlock) => SiteBlock,
     options?: { recordHistory?: boolean }
   ) => void;
+  labels?: {
+    list?: string;
+    filters?: string;
+    card?: string;
+  };
 };
 
 function renderSectionButton(
@@ -123,6 +128,7 @@ export function SiteServicesSettingsPrimary({
   setCoverWidthModalOpen,
   setActivePanelSectionId,
   updateBlock,
+  labels,
 }: SiteServicesSettingsPrimaryProps) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const style = normalizeBlockStyle(block, activeTheme);
@@ -262,14 +268,14 @@ export function SiteServicesSettingsPrimary({
           setActivePanelSectionId
         )}
         {renderSectionButton(
-          "Список услуг",
+          labels?.list ?? "Список услуг",
           "servicesList",
           activePanelSectionId,
           panelTheme,
           setActivePanelSectionId
         )}
         {renderSectionButton(
-          "Фильтры, поиск и сортировка",
+          labels?.filters ?? "Фильтры, поиск и сортировка",
           "filters",
           activePanelSectionId,
           panelTheme,
@@ -283,7 +289,7 @@ export function SiteServicesSettingsPrimary({
           setActivePanelSectionId
         )}
         {renderSectionButton(
-          "Карточка услуги",
+          labels?.card ?? "Карточка услуги",
           "servicePage",
           activePanelSectionId,
           panelTheme,

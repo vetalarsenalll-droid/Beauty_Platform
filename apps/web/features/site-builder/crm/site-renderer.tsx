@@ -21,6 +21,7 @@ import {
   resolveServicesSectionBackgroundVisual,
 } from "@/features/site-builder/shared/background-visuals";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
+import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
 import type {
   SiteAccountInfoWithPublicSlug as AccountInfo,
   SiteBranding as Branding,
@@ -2039,7 +2040,7 @@ export function renderBlock(
     case "services":
       return renderServices(block, account, locations, services, theme, style, currentEntity, previewViewportWidth);
     case "specialists":
-      return renderSpecialists(block, account, specialists, theme, style, currentEntity, previewViewportWidth);
+      return renderSpecialists(block, account, locations, specialists, theme, style, currentEntity, previewViewportWidth);
     case "promos":
       return renderPromos(block, promos, theme, style, currentEntity, previewViewportWidth);
     case "works":
@@ -5436,6 +5437,7 @@ export function renderServices(
 export function renderSpecialists(
   block: SiteBlock,
   account: AccountInfo,
+  locations: LocationItem[],
   specialists: SpecialistItem[],
   theme: SiteTheme,
   style: BlockStyle,
@@ -5453,72 +5455,131 @@ export function renderSpecialists(
       : useCurrent
         ? specialists.slice(0, 1)
         : resolveEntities(mode, ids, specialists);
-  const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const showButton = data.showButton !== false;
+  const buttonText =
+    typeof data.buttonText === "string" && data.buttonText.trim()
+      ? data.buttonText.trim()
+      : "Записаться";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const currentLocationId = currentEntity?.type === "location" ? currentEntity.id : null;
-  const visibleItems = currentLocationId
-    ? items.filter((item) => item.locationIds.includes(currentLocationId))
-    : items;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const cardsPerRowRaw = Number(data.cardsPerRow);
+  const cardsPerRow =
+    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 6
+      ? Math.round(cardsPerRowRaw)
+      : 3;
+  const mobileCardsPerRow = Number(data.mobileCardsPerRow) === 1 ? 1 : 2;
+  const listView = data.listView === "list" ? "list" : "tile";
+  const cardStyle = data.cardStyle === "filled" || data.cardStyle === "boxed" ? "filled" : "plain";
+  const maxVisibleItems = Number(data.maxVisibleItems);
+  const imageAspectRatio =
+    typeof data.imageAspectRatio === "string" && data.imageAspectRatio.trim()
+      ? data.imageAspectRatio.trim()
+      : "1 / 1";
+  const imageRadius = Number(data.imageRadius);
+  const cardGapX = Number(data.cardGapX);
+  const cardGapY = Number(data.cardGapY);
+  const cardPaddingX = Number(data.cardPaddingX);
+  const cardPaddingY = Number(data.cardPaddingY);
+  const specialistsHeadingStyle = {
+    ...headingStyle(style, theme),
+    textAlign: style.textAlignHeading ?? "center",
+    color: "var(--site-text,var(--block-text,var(--bp-ink)))",
+  };
+  const specialistsSubheadingStyle = {
+    ...subheadingStyle(style, theme),
+    textAlign: style.textAlignSubheading ?? "left",
+    color: "var(--site-muted,var(--block-muted,var(--bp-muted)))",
+  };
+  const specialistsButtonStyle = {
+    ...buttonStyle(style, theme),
+    borderRadius: style.buttonRadius ?? 0,
+  };
 
   return (
-    <div>
-      <h3
-        className="font-semibold"
-        style={headingStyle(style, theme)}
-      >
-        {(data.title as string) || "Специалисты"}
-      </h3>
-      {subtitle && (
-        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
-          {subtitle}
-        </p>
-      )}
-      <div className={`mt-4 grid gap-4 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-3", 3)}`}>
-        {visibleItems.map((specialist) => (
-          <div
-            key={specialist.id}
-            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4"
-            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
-          >
-            {specialist.coverUrl && (
-              <img src={specialist.coverUrl} alt="" className="mb-3 h-32 w-full rounded-xl object-cover" />
-            )}
-            <div className="text-base font-semibold">{specialist.name}</div>
-            {specialist.level && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{specialist.level}</div>
-            )}
-            {showButton && account.publicSlug && (
-              <a
-                href={buildBookingLink({
-                  publicSlug: account.publicSlug,
-                  locationId:
-                    currentLocationId ??
-                    locationId ??
-                    (specialist.locationIds.length === 1 ? specialist.locationIds[0] : null),
-                  specialistId: specialist.id,
-                  scenario: "specialistFirst",
-                })}
-                className="mt-3 inline-flex px-3 py-2 text-xs"
-                style={buttonStyle(style, theme)}
-              >
-                {buttonText}
-              </a>
-            )}
-          </div>
-        ))}
-        {visibleItems.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет специалистов для отображения.
-          </div>
-        )}
-      </div>
+    <div
+      className="mx-auto w-full"
+      style={{
+        width: "var(--works-content-width, 100%)",
+        maxWidth: "100%",
+        marginLeft: "var(--works-content-left, auto)",
+        marginRight: 0,
+      }}
+    >
+      <SpecialistsCatalog
+        variant={block.variant === "v2" ? "v2" : "v1"}
+        listView={listView}
+        title={typeof data.title === "string" ? data.title : "Специалисты"}
+        subtitle={subtitle}
+        items={items}
+        publicSlug={account.publicSlug}
+        locations={locations.map((location) => ({ id: location.id, name: location.name }))}
+        currentLocationId={currentLocationId}
+        locationId={locationId}
+        cardsPerRow={cardsPerRow}
+        mobileCardsPerRow={mobileCardsPerRow}
+        showCategoryTabs={data.showCategoryTabs !== false}
+        categoryAllLabel={
+          typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
+            ? data.categoryAllLabel.trim()
+            : "Все специалисты"
+        }
+        showSearch={data.showSearch !== false}
+        searchPlaceholder={
+          typeof data.searchPlaceholder === "string" && data.searchPlaceholder.trim()
+            ? data.searchPlaceholder.trim()
+            : "Поиск специалиста"
+        }
+        showSort={data.showSort !== false}
+        defaultSort={
+          typeof data.defaultSort === "string" && data.defaultSort.trim()
+            ? data.defaultSort.trim()
+            : "default"
+        }
+        searchSortAlignment={
+          data.searchSortAlignment === "left" ||
+          data.searchSortAlignment === "center" ||
+          data.searchSortAlignment === "right"
+            ? data.searchSortAlignment
+            : "right"
+        }
+        filtersAlignment={
+          data.filtersAlignment === "left" ||
+          data.filtersAlignment === "center" ||
+          data.filtersAlignment === "right"
+            ? data.filtersAlignment
+            : "left"
+        }
+        showLocationFilter={data.showLocationFilter !== false}
+        showLevel={data.showLevel !== false}
+        showButton={showButton}
+        buttonText={buttonText}
+        showDetailsButton={data.showDetailsButton !== false}
+        detailsButtonText={
+          typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
+            ? data.detailsButtonText.trim()
+            : "Подробнее"
+        }
+        showImage={data.showImage !== false}
+        imageAspectRatio={imageAspectRatio}
+        imageRadius={Number.isFinite(imageRadius) ? imageRadius : 0}
+        imageZoomOnHover={data.imageZoomOnHover !== false}
+        cardStyle={cardStyle}
+        cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}
+        cardGapY={Number.isFinite(cardGapY) ? cardGapY : 40}
+        cardPaddingX={Number.isFinite(cardPaddingX) ? cardPaddingX : 30}
+        cardPaddingY={Number.isFinite(cardPaddingY) ? cardPaddingY : 30}
+        maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 8}
+        headingStyle={specialistsHeadingStyle}
+        subheadingStyle={specialistsSubheadingStyle}
+        buttonStyle={specialistsButtonStyle}
+        textAlign={style.textAlign}
+      />
     </div>
   );
 }

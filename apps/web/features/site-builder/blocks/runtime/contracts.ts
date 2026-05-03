@@ -23,6 +23,7 @@ export type BlockCode =
   | "LO002"
   | "LO003"
   | "SE001"
+  | "SP001"
   | "BO001"
   | "AI001";
 

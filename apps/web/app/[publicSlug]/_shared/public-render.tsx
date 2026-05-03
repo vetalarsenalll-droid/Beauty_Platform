@@ -8,6 +8,7 @@ import GallerySlider from "@/components/gallery-slider";
 import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
+import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
@@ -796,7 +797,7 @@ export function renderBlock(
     case "services":
       return renderServices(block, publicSlug, locations, services, current, theme);
     case "specialists":
-      return renderSpecialists(block, publicSlug, specialists, current, theme);
+      return renderSpecialists(block, publicSlug, locations, specialists, current, theme);
     case "promos":
       return renderPromos(block, publicSlug, promos, current, theme);
     case "works":
@@ -3589,6 +3590,7 @@ function renderServices(
 function renderSpecialists(
   block: SiteBlock,
   publicSlug: string,
+  locations: LocationItem[],
   specialists: SpecialistItem[],
   current: CurrentEntity,
   theme: SiteTheme
@@ -3602,74 +3604,132 @@ function renderSpecialists(
   const items =
     useCurrent && currentId
       ? specialists.filter((item) => item.id === currentId)
+      : useCurrent
+        ? specialists.slice(0, 1)
       : resolveEntities(mode, ids, specialists);
-  const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const showButton = data.showButton !== false;
+  const buttonText =
+    typeof data.buttonText === "string" && data.buttonText.trim()
+      ? data.buttonText.trim()
+      : "Записаться";
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
   const currentLocationId = current?.type === "location" ? current.id : null;
-  const visibleItems = currentLocationId
-    ? items.filter((item) => item.locationIds.includes(currentLocationId))
-    : items;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const cardsPerRowRaw = Number(data.cardsPerRow);
+  const cardsPerRow =
+    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 6
+      ? Math.round(cardsPerRowRaw)
+      : 3;
+  const mobileCardsPerRow = Number(data.mobileCardsPerRow) === 1 ? 1 : 2;
+  const listView = data.listView === "list" ? "list" : "tile";
+  const cardStyle = data.cardStyle === "filled" || data.cardStyle === "boxed" ? "filled" : "plain";
+  const maxVisibleItems = Number(data.maxVisibleItems);
+  const imageAspectRatio =
+    typeof data.imageAspectRatio === "string" && data.imageAspectRatio.trim()
+      ? data.imageAspectRatio.trim()
+      : "1 / 1";
+  const imageRadius = Number(data.imageRadius);
+  const cardGapX = Number(data.cardGapX);
+  const cardGapY = Number(data.cardGapY);
+  const cardPaddingX = Number(data.cardPaddingX);
+  const cardPaddingY = Number(data.cardPaddingY);
+  const specialistsHeadingStyle = {
+    ...headingStyle(style),
+    textAlign: style.textAlignHeading ?? "center",
+  };
+  const specialistsSubheadingStyle = {
+    ...subheadingStyle(style),
+    textAlign: style.textAlignSubheading ?? "left",
+  };
+  const specialistsButtonStyle = {
+    ...buttonStyle(style),
+    borderRadius: style.buttonRadius ?? 0,
+  };
 
   return (
-    <div>
-      <h2
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
-      >
-        {(data.title as string) || "Специалисты"}
-      </h2>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        {visibleItems.map((specialist) => (
-          <div key={specialist.id} className="rounded-2xl border border-[color:var(--bp-stroke)] p-4">
-            {specialist.coverUrl && (
-              <img
-                src={specialist.coverUrl}
-                alt=""
-                className="mb-3 h-32 w-full rounded-xl object-cover"
-              />
-            )}
-            <Link
-              href={`/${publicSlug}/specialists/${specialist.id}`}
-              className="text-base font-semibold"
-            >
-              {specialist.name}
-            </Link>
-            {specialist.level && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{specialist.level}</div>
-            )}
-            {showButton && publicSlug && (
-              <Link
-                href={buildBookingLink({
-                  publicSlug,
-                  locationId:
-                    currentLocationId ??
-                    locationId ??
-                    (specialist.locationIds.length === 1 ? specialist.locationIds[0] : null),
-                  specialistId: specialist.id,
-                  scenario: "specialistFirst",
-                })}
-                className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
-                style={buttonStyle(style)}
-              >
-                {buttonText}
-              </Link>
-            )}
-          </div>
-        ))}
-        {visibleItems.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет специалистов для отображения.
-          </div>
-        )}
-      </div>
+    <div
+      className="mx-auto w-full"
+      style={{
+        width: "var(--works-content-width, 100%)",
+        maxWidth: "100%",
+        marginLeft: "var(--works-content-left, auto)",
+        marginRight: 0,
+      }}
+    >
+      <SpecialistsCatalog
+        variant={block.variant === "v2" ? "v2" : "v1"}
+        listView={listView}
+        title={typeof data.title === "string" ? data.title : "Специалисты"}
+        subtitle={subtitle}
+        items={items}
+        publicSlug={publicSlug}
+        locations={locations.map((location) => ({ id: location.id, name: location.name }))}
+        currentLocationId={currentLocationId}
+        locationId={locationId}
+        cardsPerRow={cardsPerRow}
+        mobileCardsPerRow={mobileCardsPerRow}
+        showCategoryTabs={data.showCategoryTabs !== false}
+        categoryAllLabel={
+          typeof data.categoryAllLabel === "string" && data.categoryAllLabel.trim()
+            ? data.categoryAllLabel.trim()
+            : "Все специалисты"
+        }
+        showSearch={data.showSearch !== false}
+        searchPlaceholder={
+          typeof data.searchPlaceholder === "string" && data.searchPlaceholder.trim()
+            ? data.searchPlaceholder.trim()
+            : "Поиск специалиста"
+        }
+        showSort={data.showSort !== false}
+        defaultSort={
+          typeof data.defaultSort === "string" && data.defaultSort.trim()
+            ? data.defaultSort.trim()
+            : "default"
+        }
+        searchSortAlignment={
+          data.searchSortAlignment === "left" ||
+          data.searchSortAlignment === "center" ||
+          data.searchSortAlignment === "right"
+            ? data.searchSortAlignment
+            : "right"
+        }
+        filtersAlignment={
+          data.filtersAlignment === "left" ||
+          data.filtersAlignment === "center" ||
+          data.filtersAlignment === "right"
+            ? data.filtersAlignment
+            : "left"
+        }
+        showLocationFilter={data.showLocationFilter !== false}
+        showLevel={data.showLevel !== false}
+        showButton={showButton}
+        buttonText={buttonText}
+        showDetailsButton={data.showDetailsButton !== false}
+        detailsButtonText={
+          typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
+            ? data.detailsButtonText.trim()
+            : "Подробнее"
+        }
+        showImage={data.showImage !== false}
+        imageAspectRatio={imageAspectRatio}
+        imageRadius={Number.isFinite(imageRadius) ? imageRadius : 0}
+        imageZoomOnHover={data.imageZoomOnHover !== false}
+        cardStyle={cardStyle}
+        cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}
+        cardGapY={Number.isFinite(cardGapY) ? cardGapY : 40}
+        cardPaddingX={Number.isFinite(cardPaddingX) ? cardPaddingX : 30}
+        cardPaddingY={Number.isFinite(cardPaddingY) ? cardPaddingY : 30}
+        maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 8}
+        headingStyle={specialistsHeadingStyle}
+        subheadingStyle={specialistsSubheadingStyle}
+        buttonStyle={specialistsButtonStyle}
+        textAlign={style.textAlign}
+      />
     </div>
   );
 }
