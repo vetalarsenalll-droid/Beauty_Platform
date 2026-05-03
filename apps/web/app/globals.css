@@ -273,6 +273,7 @@ html {
   --service-card-padding-y: 30px;
   --service-card-inset-panel-padding: 15px;
   --service-card-inset-outer-padding-x: 30px;
+  --service-card-title-min-height: 45px;
   --catalog-card-button-font-size: var(--block-text-size);
   --catalog-card-button-line-height: normal;
   --catalog-card-button-padding-x: 16px;
@@ -318,6 +319,7 @@ html {
     --service-card-padding-y: 12px;
     --service-card-inset-panel-padding: 12px;
     --service-card-inset-outer-padding-x: 12px;
+    --service-card-title-min-height: 35px;
     --catalog-card-button-font-size: 13px;
     --catalog-card-button-line-height: 1.1;
     --catalog-card-button-padding-x: 16px;

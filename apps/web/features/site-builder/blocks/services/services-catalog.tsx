@@ -1671,7 +1671,19 @@ export function ServicesCatalog({
                 lineHeight: 1.16,
                 minHeight: 35,
               }
-            : { ...serviceCardTitleStyle, width: "100%", textAlign: contentTextAlign };
+            : hasPreviewViewport
+              ? {
+                  ...serviceCardTitleStyle,
+                  width: "100%",
+                  textAlign: contentTextAlign,
+                  minHeight: !isListView ? 45 : undefined,
+                }
+              : {
+                  ...serviceCardTitleStyle,
+                  width: "100%",
+                  textAlign: contentTextAlign,
+                  minHeight: "var(--service-card-title-min-height, 45px)",
+                };
           const compactServiceTextStyle: CSSProperties = shouldCompactTileSpacing
             ? { ...serviceCardTextStyle, fontSize: 13, lineHeight: 1.2 }
             : serviceCardTextStyle;
