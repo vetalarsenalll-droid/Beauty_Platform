@@ -54,6 +54,7 @@ type SpecialistsCatalogProps = {
   imageAspectRatio?: string;
   imageRadius?: number;
   imageZoomOnHover?: boolean;
+  cardClickEnabled?: boolean;
   cardStyle?: "plain" | "filled" | "boxed";
   cardGapX?: number;
   cardGapY?: number;
@@ -141,6 +142,7 @@ export function SpecialistsCatalog({
   imageAspectRatio = "1 / 1",
   imageRadius = 10,
   imageZoomOnHover = true,
+  cardClickEnabled = true,
   cardStyle = "plain",
   cardGapX = 20,
   cardGapY = 40,
@@ -556,6 +558,7 @@ export function SpecialistsCatalog({
               })
             : "#";
           const profileHref = publicSlug ? `/${publicSlug}/specialists/${specialist.id}` : "#";
+          const canOpenCardByClick = cardClickEnabled && Boolean(publicSlug);
           const isListCard = listView === "list";
           const isFilledCard = normalizedCardStyle === "filled";
           const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
@@ -571,7 +574,28 @@ export function SpecialistsCatalog({
               key={specialist.id}
               className={`group ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
                 isListCard ? "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center" : ""
-              }`}
+              } ${canOpenCardByClick ? "cursor-pointer" : ""}`}
+              role={canOpenCardByClick ? "button" : undefined}
+              tabIndex={canOpenCardByClick ? 0 : undefined}
+              onClick={
+                canOpenCardByClick
+                  ? (event) => {
+                      const target = event.target as HTMLElement | null;
+                      if (target?.closest("a,button,input,select,textarea")) return;
+                      window.location.href = profileHref;
+                    }
+                  : undefined
+              }
+              onKeyDown={
+                canOpenCardByClick
+                  ? (event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
+                      window.location.href = profileHref;
+                    }
+                  : undefined
+              }
               style={{
                 backgroundColor: isFilledCard ? "var(--block-sub-bg,var(--bp-paper))" : "transparent",
                 borderRadius: isFilledCard ? imageRadiusValue : 0,
@@ -619,13 +643,18 @@ export function SpecialistsCatalog({
                 {(showDetailsButton || showButton) && publicSlug && (
                   <div className="mt-6 flex flex-wrap items-center gap-4" style={{ justifyContent: buttonJustifyContent }}>
                     {showDetailsButton && (
-                      <a href={profileHref} className="inline-flex items-center justify-center text-sm no-underline">
+                      <a
+                        href={profileHref}
+                        onClick={(event) => event.stopPropagation()}
+                        className="inline-flex items-center justify-center text-sm no-underline"
+                      >
                         {detailsButtonText}
                       </a>
                     )}
                     {showButton && (
                       <a
                         href={bookingHref}
+                        onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold no-underline"
                         style={buttonStyle}
                       >

@@ -5591,6 +5591,7 @@ export function renderSpecialists(
         imageAspectRatio={imageAspectRatio}
         imageRadius={Number.isFinite(imageRadius) ? imageRadius : 0}
         imageZoomOnHover={data.imageZoomOnHover !== false}
+        cardClickEnabled={data.modalImageClickEnabled !== false}
         cardStyle={cardStyle}
         cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}
         cardGapY={Number.isFinite(cardGapY) ? cardGapY : 40}

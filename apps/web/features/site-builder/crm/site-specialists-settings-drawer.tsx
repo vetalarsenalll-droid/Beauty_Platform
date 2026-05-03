@@ -220,6 +220,11 @@ export function SiteSpecialistsSettingsDrawer({
           onChange={(checked) => updateData({ imageZoomOnHover: checked })}
           label="Увеличивать изображение по наведению"
         />
+        <FlatCheckbox
+          checked={data.modalImageClickEnabled !== false}
+          onChange={(checked) => updateData({ modalImageClickEnabled: checked })}
+          label="Открывать карточку специалиста по клику на карточку"
+        />
         {renderFlatTextInput(
           "Количество видимых специалистов до кнопки «Загрузить ещё»",
           String(data.maxVisibleItems ?? 8),
@@ -256,6 +261,54 @@ export function SiteSpecialistsSettingsDrawer({
             onChange={(value) => updateStyle({ mutedColorLight: value, mutedColor: value })}
             onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
           />
+
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaInlineColorField
+                compact
+                label="Фон карточек"
+                value={readStyle("subBlockBgDark", "#24282e")}
+                placeholder="#24282e"
+                onChange={(value) => updateStyle({ subBlockBgDark: value })}
+                onClear={() => updateStyle({ subBlockBgDark: "#24282e" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Заголовок карточки"
+                value={readStyle("textColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateStyle({ textColorDark: value })}
+                onClear={() => updateStyle({ textColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Текст карточки"
+                value={readStyle("mutedColorDark", activeTheme.darkPalette.mutedColor)}
+                placeholder={activeTheme.darkPalette.mutedColor}
+                onChange={(value) => updateStyle({ mutedColorDark: value })}
+                onClear={() => updateStyle({ mutedColorDark: "transparent" })}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     );
