@@ -484,6 +484,27 @@ export function SiteSpecialistsSettingsDrawer({
   }
 
   if (activeSectionId === "servicesList") {
+    const readBackgroundMode = (value: unknown): "solid" | "linear" | "radial" =>
+      value === "linear" || value === "radial" ? value : "solid";
+    const cardLightMode = readBackgroundMode(data.specialistCardBackgroundModeLight);
+    const cardDarkMode = readBackgroundMode(data.specialistCardBackgroundModeDark ?? cardLightMode);
+    const cardLightFrom =
+      readDataColor("specialistCardBackgroundFromLight", "") ||
+      readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"));
+    const cardLightTo =
+      readDataColor("specialistCardBackgroundToLight", "") || cardLightFrom || "#fafafa";
+    const cardDarkFrom =
+      readDataColor("specialistCardBackgroundFromDark", "") ||
+      readStyle("subBlockBgDark", "#24282e");
+    const cardDarkTo =
+      readDataColor("specialistCardBackgroundToDark", "") || cardDarkFrom || "#24282e";
+    const cardLightAngle = readDataNumber("specialistCardBackgroundAngleLight", 135);
+    const cardDarkAngle = readDataNumber("specialistCardBackgroundAngleDark", cardLightAngle);
+    const cardLightStopA = readDataNumber("specialistCardBackgroundStopALight", 0);
+    const cardLightStopB = readDataNumber("specialistCardBackgroundStopBLight", 100);
+    const cardDarkStopA = readDataNumber("specialistCardBackgroundStopADark", cardLightStopA);
+    const cardDarkStopB = readDataNumber("specialistCardBackgroundStopBDark", cardLightStopB);
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         {renderFlatSelect("Вид списка специалистов", String(data.listView ?? "tile"), (value) => updateData({ listView: value }), [
@@ -549,13 +570,23 @@ export function SiteSpecialistsSettingsDrawer({
           label="Показывать пагинацию (вместо кнопки «Загрузить ещё»)"
         />
         <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
-          <TildaInlineColorField
-            compact
+          <TildaBackgroundColorField
             label="Фон карточек"
-            value={readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"))}
+            value={cardLightFrom}
+            mode={cardLightMode}
+            secondValue={cardLightTo}
+            angle={cardLightAngle}
+            radialStopA={cardLightStopA}
+            radialStopB={cardLightStopB}
             placeholder="#fafafa"
-            onChange={(value) => updateStyle({ subBlockBgLight: value, subBlockBg: value })}
-            onClear={() => updateStyle({ subBlockBgLight: "#fafafa", subBlockBg: "#fafafa" })}
+            onModeChange={(value) => updateData({ specialistCardBackgroundModeLight: value })}
+            onSecondChange={(value) => updateData({ specialistCardBackgroundToLight: value })}
+            onAngleChange={(value) => updateData({ specialistCardBackgroundAngleLight: value })}
+            onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopALight: value })}
+            onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBLight: value })}
+            onChange={(value) =>
+              updateData({ specialistCardBackgroundFromLight: value })
+            }
           />
           <TildaInlineColorField
             compact
@@ -595,13 +626,21 @@ export function SiteSpecialistsSettingsDrawer({
 
           {showDarkThemeAdvanced ? (
             <div className="space-y-4">
-              <TildaInlineColorField
-                compact
+              <TildaBackgroundColorField
                 label="Фон карточек"
-                value={readStyle("subBlockBgDark", "#24282e")}
+                value={cardDarkFrom}
+                mode={cardDarkMode}
+                secondValue={cardDarkTo}
+                angle={cardDarkAngle}
+                radialStopA={cardDarkStopA}
+                radialStopB={cardDarkStopB}
                 placeholder="#24282e"
-                onChange={(value) => updateStyle({ subBlockBgDark: value })}
-                onClear={() => updateStyle({ subBlockBgDark: "#24282e" })}
+                onModeChange={(value) => updateData({ specialistCardBackgroundModeDark: value })}
+                onSecondChange={(value) => updateData({ specialistCardBackgroundToDark: value })}
+                onAngleChange={(value) => updateData({ specialistCardBackgroundAngleDark: value })}
+                onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopADark: value })}
+                onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBDark: value })}
+                onChange={(value) => updateData({ specialistCardBackgroundFromDark: value })}
               />
               <TildaInlineColorField
                 compact
