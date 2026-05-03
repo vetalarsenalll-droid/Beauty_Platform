@@ -936,6 +936,11 @@ export function SiteSpecialistsSettingsDrawer({
           }
         />
         <FlatCheckbox
+          checked={data.specialistCardImageZoomOnClick === true}
+          onChange={(checked) => updateData({ specialistCardImageZoomOnClick: checked })}
+          label="Увеличение изображения по клику"
+        />
+        <FlatCheckbox
           checked={data.showDescription !== false}
           onChange={(checked) => updateData({ showDescription: checked })}
           label="Показывать описание в карточке"
@@ -961,11 +966,6 @@ export function SiteSpecialistsSettingsDrawer({
         )}
         {renderCardTypographyControl("Заголовок", "specialistCardTitle", "#111827", 18, "600", false)}
         {renderCardTypographyControl("Описание", "specialistCardDescription", "#6B7280", 14)}
-        <FlatCheckbox
-          checked={data.specialistCardImageZoomOnClick === true}
-          onChange={(checked) => updateData({ specialistCardImageZoomOnClick: checked })}
-          label="Увеличение изображения по клику"
-        />
         <div className="pt-2">
           <button
             type="button"

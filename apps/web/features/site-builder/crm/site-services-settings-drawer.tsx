@@ -1035,6 +1035,11 @@ export function SiteServicesSettingsDrawer({
           }
         />
         <FlatCheckbox
+          checked={data.modalImageZoomOnClick === true}
+          onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}
+          label="Увеличение изображения по клику"
+        />
+        <FlatCheckbox
           checked={data.serviceModalShowDescription !== false}
           onChange={(checked) => updateData({ serviceModalShowDescription: checked })}
           label="Показывать описание в карточке"
@@ -1063,11 +1068,6 @@ export function SiteServicesSettingsDrawer({
         {renderModalTypographyControl("Описание", "modalDescription", "#6B7280", 17)}
         {renderModalTypographyControl("Стоимость", "modalPrice", "#111827", 20, "600")}
         {renderModalTypographyControl("Длительность", "modalDuration", "#6B7280", 20)}
-        <FlatCheckbox
-          checked={data.modalImageZoomOnClick === true}
-          onChange={(checked) => updateData({ modalImageZoomOnClick: checked })}
-          label="Увеличение изображения по клику"
-        />
         <div className="pt-2">
           <button
             type="button"
