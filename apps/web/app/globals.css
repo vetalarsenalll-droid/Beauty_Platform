@@ -267,6 +267,39 @@ html {
   --specialist-card-text-size: var(--specialist-card-text-size-desktop);
 }
 
+.bp-services-catalog {
+  --service-image-inset-card-min-height: 480px;
+  --service-card-padding-x: 30px;
+  --service-card-padding-y: 30px;
+  --service-card-inset-panel-padding: 15px;
+  --service-card-inset-outer-padding-x: 30px;
+  --catalog-card-button-font-size: var(--block-text-size);
+  --catalog-card-button-line-height: normal;
+  --catalog-card-button-padding-x: 16px;
+  --catalog-card-button-padding-y: 8px;
+  --catalog-card-actions-margin-top: 24px;
+  --catalog-card-actions-padding-top: 0px;
+  --specialist-card-title-font-size: 18px;
+  --specialist-card-title-line-height: 1.25;
+  --specialist-card-level-font-size: 14px;
+  --specialist-card-level-line-height: 1.2;
+  --specialist-card-level-margin-top: 12px;
+}
+
+.bp-specialists-catalog {
+  --specialist-image-inset-card-min-height: 420px;
+  --specialist-card-padding-x: 30px;
+  --specialist-card-padding-y: 30px;
+  --specialist-card-inset-panel-padding: 15px;
+  --specialist-card-inset-outer-padding-x: 30px;
+  --catalog-card-button-font-size: var(--block-text-size);
+  --catalog-card-button-line-height: normal;
+  --catalog-card-button-padding-x: 16px;
+  --catalog-card-button-padding-y: 8px;
+  --catalog-card-actions-margin-top: 24px;
+  --catalog-card-actions-padding-top: 0px;
+}
+
 @media (max-width: 480px) {
   .service-modal-text {
     --service-modal-text-size: var(--service-modal-text-size-mobile, var(--service-modal-text-size-desktop));
@@ -274,6 +307,52 @@ html {
 
   .specialist-card-text {
     --specialist-card-text-size: var(--specialist-card-text-size-mobile, var(--specialist-card-text-size-desktop));
+  }
+}
+
+@media (max-width: 640px) {
+  .bp-services-catalog {
+    --service-image-inset-card-min-height: 300px;
+    --service-card-padding-x: 12px;
+    --service-card-padding-y: 12px;
+    --service-card-inset-panel-padding: 12px;
+    --service-card-inset-outer-padding-x: 12px;
+    --catalog-card-button-font-size: 13px;
+    --catalog-card-button-line-height: 1.1;
+    --catalog-card-button-padding-x: 16px;
+    --catalog-card-button-padding-y: 8px;
+    --catalog-card-actions-margin-top: 16px;
+    --catalog-card-actions-padding-top: 0px;
+  }
+
+  .bp-specialists-catalog {
+    --specialist-image-inset-card-min-height: 300px;
+    --specialist-card-padding-x: 12px;
+    --specialist-card-padding-y: 12px;
+    --specialist-card-inset-panel-padding: 12px;
+    --specialist-card-inset-outer-padding-x: 12px;
+    --catalog-card-button-font-size: 13px;
+    --catalog-card-button-line-height: 1.1;
+    --catalog-card-button-padding-x: 16px;
+    --catalog-card-button-padding-y: 8px;
+    --catalog-card-actions-margin-top: 16px;
+    --catalog-card-actions-padding-top: 0px;
+    --specialist-card-title-font-size: 15px;
+    --specialist-card-title-line-height: 1.16;
+    --specialist-card-level-font-size: 13px;
+    --specialist-card-level-line-height: 1.2;
+    --specialist-card-level-margin-top: 12px;
+  }
+
+  .bp-services-catalog .bp-catalog-card-actions,
+  .bp-specialists-catalog .bp-catalog-card-actions {
+    margin-top: var(--catalog-card-actions-margin-top) !important;
+    padding-top: var(--catalog-card-actions-padding-top) !important;
+    gap: 8px !important;
+  }
+
+  .bp-specialists-catalog .bp-specialist-card-level {
+    margin-top: var(--specialist-card-level-margin-top) !important;
   }
 }
 

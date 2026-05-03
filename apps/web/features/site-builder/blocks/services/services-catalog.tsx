@@ -1257,7 +1257,7 @@ export function ServicesCatalog({
       : null;
 
   return (
-    <div ref={catalogRef}>
+    <div ref={catalogRef} className="bp-services-catalog">
       <div
         className={`flex flex-col gap-6 ${variant === "v2" ? "xl:flex-row xl:items-end xl:justify-between" : ""}`}
       >
@@ -1622,20 +1622,45 @@ export function ServicesCatalog({
                 : "flex-start";
           const shouldCompactTileSpacing =
             !isListView && hasPreviewViewport && isNarrowPreviewViewport;
-          const contentPaddingX = isListView ? 0 : shouldCompactTileSpacing ? 12 : clamp(cardPaddingX, 0, 80, 30);
+          const baseContentPaddingX = clamp(cardPaddingX, 0, 80, 30);
+          const baseContentPaddingY = clamp(cardPaddingY, 0, 80, 30);
+          const contentPaddingX = isListView
+            ? 0
+            : shouldCompactTileSpacing
+              ? 12
+              : hasPreviewViewport
+                ? baseContentPaddingX
+                : `var(--service-card-padding-x, ${baseContentPaddingX}px)`;
           const contentPaddingY = isListView
             ? 18
             : shouldCompactTileSpacing
               ? 12
-              : clamp(cardPaddingY, 0, 80, 30);
+              : hasPreviewViewport
+                ? baseContentPaddingY
+                : `var(--service-card-padding-y, ${baseContentPaddingY}px)`;
           const shouldAlignMobileTextToImage =
             shouldCompactTileSpacing &&
             !isImageInsetCard &&
             !hasRegularFilledInfoPanel &&
             cardStyle !== "filled";
           const contentInnerPaddingX = shouldAlignMobileTextToImage ? 0 : contentPaddingX;
-          const insetPanelPadding = Math.max(12, Math.round(contentPaddingY * 0.5));
-          const insetOuterPaddingX = shouldCompactTileSpacing ? contentPaddingX : cardPaddingX;
+          const insetPanelPadding =
+            typeof contentPaddingY === "number"
+              ? Math.max(12, Math.round(contentPaddingY * 0.5))
+              : `var(--service-card-inset-panel-padding, ${Math.max(12, Math.round(baseContentPaddingY * 0.5))}px)`;
+          const insetOuterPaddingX = shouldCompactTileSpacing
+            ? contentPaddingX
+            : hasPreviewViewport
+              ? cardPaddingX
+              : `var(--service-card-inset-outer-padding-x, ${cardPaddingX}px)`;
+          const insetOuterPaddingOffset =
+            typeof insetOuterPaddingX === "number"
+              ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0)
+              : `calc(-1 * ${insetOuterPaddingX}${hasGlassInfoPanel ? " - 1px" : ""})`;
+          const insetPanelWidth =
+            typeof insetOuterPaddingX === "number"
+              ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
+              : `calc(100% + (${insetOuterPaddingX} * 2)${hasGlassInfoPanel ? " + 2px" : ""})`;
           const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 480;
           const compactServiceTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
@@ -1651,8 +1676,15 @@ export function ServicesCatalog({
             ? { ...serviceCardTextStyle, fontSize: 13, lineHeight: 1.2 }
             : serviceCardTextStyle;
           const compactServiceButtonTextStyle: CSSProperties = shouldCompactTileSpacing
-            ? { ...serviceCardButtonTextStyle, fontSize: 13, lineHeight: 1.1 }
-            : serviceCardButtonTextStyle;
+            ? { ...serviceCardButtonTextStyle, fontSize: 13, lineHeight: 1.1, padding: "8px 16px" }
+            : hasPreviewViewport
+              ? serviceCardButtonTextStyle
+              : {
+                  ...serviceCardButtonTextStyle,
+                  fontSize: "var(--catalog-card-button-font-size, var(--block-text-size))",
+                  lineHeight: "var(--catalog-card-button-line-height, normal)",
+                  padding: "var(--catalog-card-button-padding-y, 8px) var(--catalog-card-button-padding-x, 16px)",
+                };
           const titleOverlayStyle =
             isImageInsetCard && !hasFilledInfoPanel
               ? { ...compactServiceTitleStyle, color: "#ffffff" }
@@ -1750,7 +1782,11 @@ export function ServicesCatalog({
                       : `${cardPaddingY}px ${cardPaddingX}px 0`
                     : `${contentPaddingY}px ${contentPaddingX}px`
                   : undefined,
-                minHeight: isImageInsetCard ? imageInsetCardMinHeight : undefined,
+                minHeight: isImageInsetCard
+                  ? hasPreviewViewport
+                    ? imageInsetCardMinHeight
+                    : "var(--service-image-inset-card-min-height, 480px)"
+                  : undefined,
               }}
             >
               {modalImageClickEnabled ? (
@@ -1912,12 +1948,10 @@ export function ServicesCatalog({
                   borderBottomRightRadius:
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
                   marginTop: isImageInsetCard ? "auto" : undefined,
-                  marginLeft: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
-                  marginRight: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginLeft: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
+                  marginRight: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
-                  width: hasFilledInfoPanel
-                    ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
-                    : undefined,
+                  width: hasFilledInfoPanel ? insetPanelWidth : undefined,
                   backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
                   WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
                   boxShadow: hasGlassInfoPanel
@@ -1964,7 +1998,7 @@ export function ServicesCatalog({
                 )}
 
                 <div
-                  className={`${serviceActionsClassName} w-full max-sm:!pt-3`}
+                  className={`bp-catalog-card-actions ${serviceActionsClassName} w-full max-sm:!pt-3`}
                   style={{ alignSelf: "stretch" }}
                   >
                     <div

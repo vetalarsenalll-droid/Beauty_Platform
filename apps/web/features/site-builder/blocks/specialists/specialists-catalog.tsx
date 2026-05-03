@@ -1214,10 +1214,33 @@ export function SpecialistsCatalog({
                 ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
                 : imageRadiusValue;
           const shouldCompactTileSpacing = !isListCard && isNarrowPreviewViewport;
-          const contentPaddingX = shouldCompactTileSpacing ? 12 : cardPaddingX;
-          const contentPaddingY = shouldCompactTileSpacing ? 12 : cardPaddingY;
-          const insetPanelPadding = Math.max(12, Math.round(contentPaddingY * 0.5));
-          const insetOuterPaddingX = shouldCompactTileSpacing ? contentPaddingX : cardPaddingX;
+          const contentPaddingX = shouldCompactTileSpacing
+            ? 12
+            : hasPreviewViewport
+              ? cardPaddingX
+              : `var(--specialist-card-padding-x, ${cardPaddingX}px)`;
+          const contentPaddingY = shouldCompactTileSpacing
+            ? 12
+            : hasPreviewViewport
+              ? cardPaddingY
+              : `var(--specialist-card-padding-y, ${cardPaddingY}px)`;
+          const insetPanelPadding =
+            typeof contentPaddingY === "number"
+              ? Math.max(12, Math.round(contentPaddingY * 0.5))
+              : `var(--specialist-card-inset-panel-padding, ${Math.max(12, Math.round(cardPaddingY * 0.5))}px)`;
+          const insetOuterPaddingX = shouldCompactTileSpacing
+            ? contentPaddingX
+            : hasPreviewViewport
+              ? cardPaddingX
+              : `var(--specialist-card-inset-outer-padding-x, ${cardPaddingX}px)`;
+          const insetOuterPaddingOffset =
+            typeof insetOuterPaddingX === "number"
+              ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0)
+              : `calc(-1 * ${insetOuterPaddingX}${hasGlassInfoPanel ? " - 1px" : ""})`;
+          const insetPanelWidth =
+            typeof insetOuterPaddingX === "number"
+              ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
+              : `calc(100% + (${insetOuterPaddingX} * 2)${hasGlassInfoPanel ? " + 2px" : ""})`;
           const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 420;
           const compactTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
@@ -1226,14 +1249,27 @@ export function SpecialistsCatalog({
                 lineHeight: 1.16,
                 width: "100%",
               }
-            : resolvedCardTitleTextStyle ?? {};
+            : hasPreviewViewport
+              ? resolvedCardTitleTextStyle ?? {}
+              : {
+                  ...(resolvedCardTitleTextStyle ?? {}),
+                  fontSize: "var(--specialist-card-title-font-size, 18px)",
+                  lineHeight: "var(--specialist-card-title-line-height, 1.25)",
+                  width: "100%",
+                };
           const compactDescriptionStyle: CSSProperties = shouldCompactTileSpacing
             ? {
                 ...resolvedCardDescriptionTextStyle,
                 fontSize: 13,
                 lineHeight: 1.2,
               }
-            : resolvedCardDescriptionTextStyle ?? {};
+            : hasPreviewViewport
+              ? resolvedCardDescriptionTextStyle ?? {}
+              : {
+                  ...(resolvedCardDescriptionTextStyle ?? {}),
+                  fontSize: "var(--specialist-card-level-font-size, 14px)",
+                  lineHeight: "var(--specialist-card-level-line-height, 1.2)",
+                };
           const titleStyle =
             isImageInsetCard && !isListCard && !hasFilledInfoPanel
               ? { ...compactTitleStyle, color: "#ffffff" }
@@ -1243,8 +1279,14 @@ export function SpecialistsCatalog({
               ? { ...compactDescriptionStyle, color: "rgba(255,255,255,0.82)" }
               : compactDescriptionStyle;
           const compactButtonStyle: CSSProperties = shouldCompactTileSpacing
-            ? { fontSize: 13, lineHeight: 1.1 }
-            : {};
+            ? { fontSize: 13, lineHeight: 1.1, padding: "8px 16px" }
+            : hasPreviewViewport
+              ? {}
+              : {
+                  fontSize: "var(--catalog-card-button-font-size, var(--block-text-size))",
+                  lineHeight: "var(--catalog-card-button-line-height, normal)",
+                  padding: "var(--catalog-card-button-padding-y, 8px) var(--catalog-card-button-padding-x, 16px)",
+                };
           const openSpecialistModal = () => {
             setActiveModal({ specialistId: specialist.id, imageIndex: 0 });
           };
@@ -1304,7 +1346,12 @@ export function SpecialistsCatalog({
                       ? `${contentPaddingY}px ${contentPaddingX}px 0`
                       : `${contentPaddingY}px ${contentPaddingX}px`
                     : undefined,
-                minHeight: isImageInsetCard && !isListCard ? imageInsetCardMinHeight : undefined,
+                minHeight:
+                  isImageInsetCard && !isListCard
+                    ? hasPreviewViewport
+                      ? imageInsetCardMinHeight
+                      : "var(--specialist-image-inset-card-min-height, 420px)"
+                    : undefined,
               }}
             >
               {showImage && (
@@ -1365,12 +1412,10 @@ export function SpecialistsCatalog({
                         : undefined,
                   marginTop: isImageInsetCard && !isListCard ? "auto" : undefined,
                   border: hasFilledInfoPanel ? 0 : undefined,
-                  marginLeft: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
-                  marginRight: hasFilledInfoPanel ? -insetOuterPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginLeft: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
+                  marginRight: hasFilledInfoPanel ? insetOuterPaddingOffset : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
-                  width: hasFilledInfoPanel
-                    ? `calc(100% + ${insetOuterPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
-                    : undefined,
+                  width: hasFilledInfoPanel ? insetPanelWidth : undefined,
                   borderTopLeftRadius:
                     hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : undefined,
                   borderTopRightRadius:
@@ -1423,7 +1468,7 @@ export function SpecialistsCatalog({
                 </a>
                 {showLevel && specialist.level && (
                   <div
-                    className="specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
+                    className="bp-specialist-card-level specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
                     style={descriptionStyle}
                   >
                     {specialist.level}
@@ -1431,7 +1476,7 @@ export function SpecialistsCatalog({
                 )}
                 {((showDetailsButton && detailsButtonText) || (showButton && buttonText)) && publicSlug && (
                   <div
-                    className={`flex flex-wrap items-center gap-4 ${
+                    className={`bp-catalog-card-actions flex flex-wrap items-center gap-4 ${
                       shouldCompactTileSpacing
                         ? "mt-4"
                         : !isListCard && alignButtonsBottom && !isImageInsetCard
