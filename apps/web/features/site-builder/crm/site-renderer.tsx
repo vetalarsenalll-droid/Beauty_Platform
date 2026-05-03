@@ -64,6 +64,7 @@ export type BlockStyle = {
   marginBottom: number;
   blockWidth: number | null;
   blockWidthColumns: number | null;
+  mobileBlockWidthColumns: number | null;
   gridStartColumn: number | null;
   gridEndColumn: number | null;
   useCustomWidth: boolean;
@@ -571,6 +572,7 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
       : Math.max(0, Math.min(100, servicesSectionBackgroundStopBDarkRaw));
   const rawBlockWidth = toNumber(style.blockWidth);
   const rawBlockWidthColumns = toNumber(style.blockWidthColumns);
+  const rawMobileBlockWidthColumns = toNumber(style.mobileBlockWidthColumns);
   const rawGridStartColumn = toNumber(style.gridStartColumn);
   const rawGridEndColumn = toNumber(style.gridEndColumn);
   const normalizedBlockWidth =
@@ -587,6 +589,10 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     rawBlockWidthColumns === null
       ? null
       : clampBlockColumns(rawBlockWidthColumns, block.type);
+  const normalizedMobileBlockWidthColumns =
+    rawMobileBlockWidthColumns === null
+      ? null
+      : clampBlockColumns(rawMobileBlockWidthColumns, block.type);
   const legacyColumnsFromPx =
     normalizedBlockWidth === null
       ? null
@@ -639,6 +645,7 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     marginBottom: toNumber(style.marginBottom) ?? 0,
     blockWidth: useCustomWidth ? normalizedBlockWidth ?? DEFAULT_BLOCK_WIDTH : null,
     blockWidthColumns: useCustomWidth ? resolvedColumnsFromGrid : null,
+    mobileBlockWidthColumns: normalizedMobileBlockWidthColumns,
     gridStartColumn: useCustomWidth ? resolvedGridStart : null,
     gridEndColumn: useCustomWidth ? resolvedGridEnd : null,
     useCustomWidth,
@@ -1612,7 +1619,11 @@ export function BlockPreview({
   const blockWidthColumnsDesktop = isMenu
     ? MAX_BLOCK_COLUMNS
     : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
-  const blockWidthColumns = isServices && useMobileLayout ? 10 : blockWidthColumnsDesktop;
+  const mobileBlockWidthColumns = clampBlockColumns(
+    style.mobileBlockWidthColumns ?? MAX_BLOCK_COLUMNS,
+    block.type
+  );
+  const blockWidthColumns = isServices && useMobileLayout ? mobileBlockWidthColumns : blockWidthColumnsDesktop;
   const gridFallback = centeredGridRange(
     isMenu || isBooking ? MAX_BLOCK_COLUMNS : blockWidthColumns
   );

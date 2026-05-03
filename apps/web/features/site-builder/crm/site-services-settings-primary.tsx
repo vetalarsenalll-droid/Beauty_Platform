@@ -117,6 +117,17 @@ function renderTextAlignmentSelect(
   );
 }
 
+function MobileWidthIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 21 21" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" fillRule="evenodd" transform="translate(5 3)">
+        <path d="M2.5.5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="5.5" cy="11.5" fill="currentColor" r="1" />
+      </g>
+    </svg>
+  );
+}
+
 export function SiteServicesSettingsPrimary({
   block,
   activeTheme,
@@ -131,6 +142,7 @@ export function SiteServicesSettingsPrimary({
   labels,
 }: SiteServicesSettingsPrimaryProps) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
+  const [mobileWidthOpen, setMobileWidthOpen] = useState(false);
   const style = normalizeBlockStyle(block, activeTheme);
 
   const updateStyle = (patch: Partial<BlockStyle>) => {
@@ -150,6 +162,13 @@ export function SiteServicesSettingsPrimary({
     });
   };
 
+  const applyMobileGridColumns = (columns: number) => {
+    const safeColumns = clampBlockColumns(columns, block.type);
+    updateStyle({
+      mobileBlockWidthColumns: safeColumns,
+    });
+  };
+
   const readRaw = (key: string) => {
     const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
     return typeof rawStyle[key] === "string" ? (rawStyle[key] as string) : "";
@@ -159,8 +178,14 @@ export function SiteServicesSettingsPrimary({
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     block.type
   );
+  const resolvedMobileColumns = clampBlockColumns(
+    style.mobileBlockWidthColumns ?? MAX_BLOCK_COLUMNS,
+    block.type
+  );
   const resolvedWidthPx = Math.round((resolvedColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
+  const resolvedMobileWidthPx = Math.round((resolvedMobileColumns / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE);
   const range = centeredGridRange(resolvedColumns);
+  const mobileRange = centeredGridRange(resolvedMobileColumns);
   const coverMarginTopLines = Math.max(
     0,
     Math.min(7, Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2)
@@ -214,16 +239,28 @@ export function SiteServicesSettingsPrimary({
           <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
             Ширина блока
           </div>
-          <button
-            type="button"
-            ref={coverWidthButtonRef}
-            onClick={() => setCoverWidthModalOpen((prev) => !prev)}
-            className="mt-2 flex w-full items-center justify-between border-b pb-2 text-left text-sm"
-            style={{ borderColor: panelTheme.border }}
-          >
-            <span>{resolvedColumns} колонок</span>
-            <span className="text-sm leading-none">{coverWidthModalOpen ? "\u25B4" : "\u25BE"}</span>
-          </button>
+          <div className="mt-2 flex items-center gap-2 border-b pb-2" style={{ borderColor: panelTheme.border }}>
+            <button
+              type="button"
+              ref={coverWidthButtonRef}
+              onClick={() => setCoverWidthModalOpen((prev) => !prev)}
+              className="flex min-w-0 flex-1 items-center justify-between text-left text-sm"
+            >
+              <span>{resolvedColumns} колонок</span>
+              <span className="text-sm leading-none">{coverWidthModalOpen ? "\u25B4" : "\u25BE"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileWidthOpen((prev) => !prev)}
+              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                mobileWidthOpen ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+              }`}
+              title="Задать ширину блока для мобильного"
+              aria-label="Задать мобильную ширину блока"
+            >
+              <MobileWidthIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
           {coverWidthModalOpen && (
             <div
               ref={coverWidthPopoverRef}
@@ -240,6 +277,29 @@ export function SiteServicesSettingsPrimary({
               />
               <div className="mt-3 flex items-center justify-between text-sm text-[color:var(--bp-muted)]">
                 <span>{resolvedWidthPx}</span>
+                <span>px</span>
+              </div>
+            </div>
+          )}
+          {mobileWidthOpen && (
+            <div
+              className="mt-3 rounded-none border px-3 py-4"
+              style={{ backgroundColor: "transparent", borderColor: panelTheme.border }}
+            >
+              <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+                <span>Моб. ширина блока</span>
+                <span>{resolvedMobileColumns} колонок</span>
+              </div>
+              <CoverGridWidthControl
+                start={mobileRange.start}
+                end={mobileRange.end}
+                onChange={(nextStart, nextEnd) =>
+                  applyMobileGridColumns(Math.max(1, nextEnd - nextStart + 1))
+                }
+                compact
+              />
+              <div className="mt-3 flex items-center justify-between text-sm text-[color:var(--bp-muted)]">
+                <span>{resolvedMobileWidthPx}</span>
                 <span>px</span>
               </div>
             </div>

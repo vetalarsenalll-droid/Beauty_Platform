@@ -98,6 +98,7 @@ type BlockStyle = {
   marginBottom?: number;
   blockWidth?: number | null;
   blockWidthColumns?: number | null;
+  mobileBlockWidthColumns?: number | null;
   gridStartColumn?: number | null;
   gridEndColumn?: number | null;
   useCustomWidth?: boolean;
@@ -393,6 +394,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   );
   const rawBlockWidth = numOrNull(style.blockWidth as number);
   const rawBlockWidthColumns = numOrNull(style.blockWidthColumns as number);
+  const rawMobileBlockWidthColumns = numOrNull(style.mobileBlockWidthColumns as number);
   const rawGridStartColumn = numOrNull(style.gridStartColumn as number);
   const rawGridEndColumn = numOrNull(style.gridEndColumn as number);
   const normalizedBlockWidth =
@@ -409,6 +411,10 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     rawBlockWidthColumns === null
       ? null
       : clampBlockColumns(rawBlockWidthColumns, block.type);
+  const normalizedMobileBlockWidthColumns =
+    rawMobileBlockWidthColumns === null
+      ? null
+      : clampBlockColumns(rawMobileBlockWidthColumns, block.type);
   const legacyColumnsFromPx =
     normalizedBlockWidth === null
       ? null
@@ -648,6 +654,7 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     marginBottom: numOrNull(style.marginBottom as number | string | null) ?? 0,
     blockWidth: useCustomWidth ? normalizedBlockWidth ?? DEFAULT_BLOCK_WIDTH : null,
     blockWidthColumns: useCustomWidth ? resolvedColumnsFromGrid : null,
+    mobileBlockWidthColumns: normalizedMobileBlockWidthColumns,
     gridStartColumn: useCustomWidth ? resolvedGridStart : null,
     gridEndColumn: useCustomWidth ? resolvedGridEnd : null,
     useCustomWidth,
@@ -2175,7 +2182,11 @@ export function buildBlockWrapperStyle(
     const gridEnd = Math.max(gridStart, gridEndRaw);
     const gridWidthCss = gridSpanWidthCss(gridStart, gridEnd);
     const gridLeftCss = gridSpanLeftCss(gridStart);
-    const mobileServicesGrid = centeredGridRange(10);
+    const mobileServicesColumns = clampBlockColumns(
+      style.mobileBlockWidthColumns ?? MAX_BLOCK_COLUMNS,
+      options.blockType ?? "services"
+    );
+    const mobileServicesGrid = centeredGridRange(mobileServicesColumns);
     const mobileServicesWidthCss = gridSpanWidthCss(
       mobileServicesGrid.start,
       mobileServicesGrid.end
@@ -3328,7 +3339,7 @@ function renderServices(
     typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
       ? data.modalGalleryBgColor.trim()
       : "#ebebeb";
-  const modalImageFit = data.modalImageFit === "cover" ? "cover" : "contain";
+  const modalImageFit = data.modalImageFit === "contain" ? "contain" : "cover";
   const modalImageRadiusRaw = Number(data.modalImageRadius);
   const modalImageRadius = Number.isFinite(modalImageRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(modalImageRadiusRaw)))

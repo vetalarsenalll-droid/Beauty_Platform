@@ -102,6 +102,7 @@ export const SE001: BlockVersion = {
           ? Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE)
           : (style.blockWidth ?? Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE)),
         blockWidthColumns: shouldResetLegacyWidth ? 8 : (style.blockWidthColumns ?? 8),
+        mobileBlockWidthColumns: style.mobileBlockWidthColumns ?? MAX_BLOCK_COLUMNS,
         gridStartColumn: shouldResetLegacyWidth
           ? servicesDefaultGridRange.start
           : (style.gridStartColumn ?? servicesDefaultGridRange.start),
@@ -164,6 +165,7 @@ export const SE001: BlockVersion = {
           ...defaultBlockStyle,
           blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
           blockWidthColumns: 8,
+          mobileBlockWidthColumns: MAX_BLOCK_COLUMNS,
           gridStartColumn: servicesDefaultGridRange.start,
           gridEndColumn: servicesDefaultGridRange.end,
           useCustomWidth: true,
