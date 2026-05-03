@@ -52,6 +52,11 @@ type ServiceCatalogProps = {
   detailsButtonBorderColorDark?: string;
   servicePageButtonMode: "entityPage" | "booking";
   cardStyle: "plain" | "filled";
+  cardBackgroundColorLight?: string;
+  cardBackgroundImageLight?: string;
+  cardBackgroundColorDark?: string;
+  cardBackgroundImageDark?: string;
+  cardLiquidGlass?: boolean;
   cardGapX: number;
   cardGapY: number;
   imageAspectRatio: string;
@@ -135,6 +140,10 @@ function clamp(value: number, min: number, max: number, fallback: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function alphaHexColors(value: string, opacity: number) {
+  return value.replace(/#[0-9a-fA-F]{6}\b/g, (hex) => rgbaFromHex(hex, opacity));
+}
+
 function clampPan(value: number, limit: number) {
   if (!Number.isFinite(value) || !Number.isFinite(limit) || limit <= 0) return 0;
   return Math.max(-limit, Math.min(limit, value));
@@ -155,12 +164,16 @@ function resolveGridClassName(
     if (cardsPerRow <= 1) return "grid-cols-1";
     if (cardsPerRow === 2) return "grid-cols-2";
     if (cardsPerRow === 4) return "grid-cols-4";
+    if (cardsPerRow === 5) return "grid-cols-5";
+    if (cardsPerRow === 6) return "grid-cols-6";
     return "grid-cols-3";
   }
 
   const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
   if (cardsPerRow <= 1) return `${mobile}`;
   if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
+  if (cardsPerRow === 5) return `${mobile} md:grid-cols-2 xl:grid-cols-5`;
+  if (cardsPerRow === 6) return `${mobile} md:grid-cols-3 xl:grid-cols-6`;
   if (cardsPerRow === 4) return `${mobile} md:grid-cols-2 xl:grid-cols-4`;
   return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
 }
@@ -863,10 +876,16 @@ export function ServicesCatalog({
   detailsButtonBorderColorDark,
   servicePageButtonMode,
   cardStyle,
+  cardBackgroundColorLight,
+  cardBackgroundImageLight,
+  cardBackgroundColorDark,
+  cardBackgroundImageDark,
+  cardLiquidGlass = false,
   cardGapX,
   cardGapY,
   imageAspectRatio,
   imageRadius,
+  cardPaddingX,
   cardPaddingY,
   mobileCardsPerRow,
   showSecondImageOnHover,
@@ -1010,6 +1029,24 @@ export function ServicesCatalog({
     activeThemeMode === "dark"
       ? serviceModalBgImageDark || serviceModalBgImage || "none"
       : serviceModalBgImage || "none";
+  const resolvedCardBackgroundColor = pickThemeColor(
+    cardBackgroundColorLight,
+    cardBackgroundColorDark,
+    "var(--block-sub-bg,var(--bp-paper))"
+  );
+  const resolvedCardBackgroundImage =
+    activeThemeMode === "dark"
+      ? cardBackgroundImageDark || cardBackgroundImageLight || "none"
+      : cardBackgroundImageLight || cardBackgroundImageDark || "none";
+  const glassPanelOpacity = activeThemeMode === "dark" ? 0.28 : 0.42;
+  const glassPanelBackgroundImage =
+    activeThemeMode === "dark"
+      ? `linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.06) 42%, rgba(12,14,18,0.34)), ${
+          resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
+            ? alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)
+            : "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(12,14,18,0.18))"
+        }`
+      : alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity);
   const resolveModalTextStyle = (style: CSSProperties): CSSProperties => {
     const nextStyle = { ...(style as ModalTextStyle) };
     const darkColor = nextStyle["--modal-dark-color"];
@@ -1510,8 +1547,14 @@ export function ServicesCatalog({
           const primaryImage = images[0] ?? null;
           const secondaryImage = showSecondImageOnHover ? images[1] ?? null : null;
           const hasServiceMeta = showDuration || showPrice;
+          const isImageInsetCard = imageAspectRatio === "original" && !isListView;
+          const hasFilledInfoPanel = isImageInsetCard && cardStyle === "filled";
+          const hasGlassInfoPanel = hasFilledInfoPanel && Boolean(primaryImage) && cardLiquidGlass;
+          const hasRegularFilledInfoPanel = cardStyle === "filled" && !isImageInsetCard && !isListView;
           const articleBackground =
-            cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent";
+            cardStyle === "filled" && !isImageInsetCard && !hasRegularFilledInfoPanel
+              ? resolvedCardBackgroundColor
+              : "transparent";
           const articleBorderColor =
             cardStyle === "filled" ? "var(--block-border,transparent)" : "transparent";
           const isMobileListView = isListView && isNarrowPreviewViewport;
@@ -1544,7 +1587,7 @@ export function ServicesCatalog({
               : contentTextAlign === "right"
                 ? "flex-end"
                 : "flex-start";
-          const contentPaddingX = 0;
+          const contentPaddingX = isListView ? 0 : clamp(cardPaddingX, 0, 80, 30);
           const shouldCompactTileSpacing =
             !isListView && hasPreviewViewport && isNarrowPreviewViewport;
           const contentPaddingY = isListView
@@ -1568,8 +1611,18 @@ export function ServicesCatalog({
           const compactServiceButtonTextStyle: CSSProperties = shouldCompactTileSpacing
             ? { ...serviceCardButtonTextStyle, fontSize: 13, lineHeight: 1.1 }
             : serviceCardButtonTextStyle;
+          const titleOverlayStyle =
+            isImageInsetCard && !hasFilledInfoPanel
+              ? { ...compactServiceTitleStyle, color: "#ffffff" }
+              : compactServiceTitleStyle;
+          const textOverlayStyle =
+            isImageInsetCard && !hasFilledInfoPanel
+              ? { ...compactServiceTextStyle, color: "rgba(255,255,255,0.82)" }
+              : compactServiceTextStyle;
           const serviceMetaClassName = isListView
             ? "mt-6"
+            : isImageInsetCard
+              ? "mt-3"
             : alignButtonsBottom
               ? hasPreviewViewport
                 ? shouldCompactTileSpacing
@@ -1583,6 +1636,8 @@ export function ServicesCatalog({
                 : "mt-4 sm:mt-6";
           const serviceActionsClassName = isListView
             ? "pt-3"
+            : isImageInsetCard
+              ? "mt-6"
             : alignButtonsBottom && !hasServiceMeta
               ? hasPreviewViewport
                 ? shouldCompactTileSpacing
@@ -1594,19 +1649,6 @@ export function ServicesCatalog({
                   ? "pt-3"
                   : "pt-6"
                 : "pt-4 sm:pt-6";
-          const compactMetaPillStyle: CSSProperties = shouldCompactTileSpacing
-            ? {
-                border: "1px solid var(--block-border,transparent)",
-                backgroundColor:
-                  cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
-                padding: 0,
-              }
-            : {
-                border: "1px solid var(--block-border,transparent)",
-                backgroundColor:
-                  cardStyle === "filled" ? "var(--block-sub-bg,transparent)" : "transparent",
-                padding: isListView ? 0 : undefined,
-              };
           const openServiceModal = () => {
             setActiveModal({ serviceId: service.id, imageIndex: 0 });
           };
@@ -1616,6 +1658,8 @@ export function ServicesCatalog({
               key={service.id}
               className={`group ${
                 cardStyle === "filled" ? "overflow-hidden" : ""
+              } ${
+                isImageInsetCard ? "relative" : ""
               } ${
                 isListView
                   ? hasPreviewViewport
@@ -1647,25 +1691,41 @@ export function ServicesCatalog({
               style={{
                 textAlign,
                 backgroundColor: isListView ? "transparent" : articleBackground,
+                backgroundImage:
+                  isListView || isImageInsetCard || hasRegularFilledInfoPanel
+                    ? "none"
+                    : cardStyle === "filled"
+                      ? resolvedCardBackgroundImage
+                      : "none",
                 borderWidth: isListView ? 0 : 1,
                 borderStyle: "solid",
                 borderColor: isListView ? "transparent" : articleBorderColor,
                 borderRadius: cardStyle === "filled" ? imageRadiusValue : 0,
+                padding: isImageInsetCard
+                  ? hasFilledInfoPanel
+                    ? `${cardPaddingY}px ${cardPaddingX}px 0`
+                    : `${cardPaddingY}px ${cardPaddingX}px`
+                  : undefined,
+                minHeight: isImageInsetCard ? 480 : undefined,
               }}
             >
               {modalImageClickEnabled ? (
                 <div
-                  className={`block ${listImageWrapperClassName}`}
+                  className={`block ${listImageWrapperClassName} ${
+                    isImageInsetCard && primaryImage ? "absolute inset-0 bg-transparent" : ""
+                  }`}
                 >
                     <div
                       className="relative overflow-hidden max-sm:!h-[180px]"
                       style={{
-                        height: isListView ? listImageSize : undefined,
+                        height: isImageInsetCard && primaryImage ? "100%" : isListView ? listImageSize : undefined,
                         aspectRatio:
                           isListView
                             ? undefined
-                            : imageAspectRatio === "original"
+                            : isImageInsetCard && primaryImage
                               ? undefined
+                              : imageAspectRatio === "original"
+                                ? "4 / 5"
                               : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
                         borderRadius: imageBorderRadius,
                       }}
@@ -1701,17 +1761,21 @@ export function ServicesCatalog({
                 ) : (
                   <a
                     href={serviceHref}
-                    className={`block ${listImageWrapperClassName}`}
+                    className={`block ${listImageWrapperClassName} ${
+                      isImageInsetCard && primaryImage ? "absolute inset-0 bg-transparent" : ""
+                    }`}
                   >
                     <div
                       className="relative overflow-hidden max-sm:!h-[180px]"
                       style={{
-                        height: isListView ? listImageSize : undefined,
+                        height: isImageInsetCard && primaryImage ? "100%" : isListView ? listImageSize : undefined,
                         aspectRatio:
                           isListView
                             ? undefined
-                            : imageAspectRatio === "original"
+                            : isImageInsetCard && primaryImage
                               ? undefined
+                              : imageAspectRatio === "original"
+                                ? "4 / 5"
                               : imageAspectRatio || (variant === "v2" ? "4 / 3" : "5 / 6"),
                         borderRadius: imageBorderRadius,
                       }}
@@ -1747,31 +1811,67 @@ export function ServicesCatalog({
                 )}
 
               <div
-                className={`flex min-w-0 flex-1 flex-col max-sm:!h-auto max-sm:!pb-3 max-sm:!pt-2 ${isListView ? "justify-between" : ""}`}
+                className={`flex min-w-0 flex-col max-sm:!h-auto max-sm:!pb-3 max-sm:!pt-2 ${
+                  isImageInsetCard ? "" : "flex-1"
+                } ${
+                  isListView ? "justify-between" : ""
+                } ${isImageInsetCard ? "relative z-[1] justify-end" : ""}`}
                 style={{
                   paddingLeft: contentPaddingX,
                   paddingRight: contentPaddingX,
-                  paddingTop: contentPaddingY,
-                  paddingBottom: contentPaddingY,
+                  paddingTop: hasFilledInfoPanel ? Math.max(12, Math.round(contentPaddingY * 0.5)) : contentPaddingY,
+                  paddingBottom: hasFilledInfoPanel ? Math.max(12, Math.round(contentPaddingY * 0.5)) : contentPaddingY,
                   height: isListView ? listContentHeight : undefined,
                   boxSizing: "border-box",
                   textAlign: contentTextAlign,
                   backgroundColor:
-                    isListView && cardStyle === "filled"
-                      ? "var(--block-sub-bg,transparent)"
-                      : "transparent",
+                    hasFilledInfoPanel
+                      ? hasGlassInfoPanel
+                        ? rgbaFromHex(resolvedCardBackgroundColor, glassPanelOpacity)
+                        : resolvedCardBackgroundColor
+                      : hasRegularFilledInfoPanel || (isListView && cardStyle === "filled")
+                        ? resolvedCardBackgroundColor
+                        : "transparent",
+                  backgroundImage: hasFilledInfoPanel
+                    ? hasGlassInfoPanel
+                      ? glassPanelBackgroundImage
+                      : resolvedCardBackgroundImage
+                    : hasRegularFilledInfoPanel || (isListView && cardStyle === "filled")
+                      ? resolvedCardBackgroundImage
+                      : "none",
                   border:
                     isListView && cardStyle === "filled"
                       ? "1px solid var(--block-border,transparent)"
                       : undefined,
-                  borderRadius: isListView && cardStyle === "filled" ? 18 : undefined,
+                  borderTopLeftRadius:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : isListView && cardStyle === "filled" ? 18 : undefined,
+                  borderTopRightRadius:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : isListView && cardStyle === "filled" ? 18 : undefined,
+                  borderBottomLeftRadius:
+                    hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
+                  borderBottomRightRadius:
+                    hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
+                  marginTop: isImageInsetCard ? "auto" : undefined,
+                  marginLeft: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginRight: hasFilledInfoPanel ? -cardPaddingX - (hasGlassInfoPanel ? 1 : 0) : undefined,
+                  marginBottom: hasGlassInfoPanel ? -1 : undefined,
+                  width: hasFilledInfoPanel
+                    ? `calc(100% + ${cardPaddingX * 2}px + ${hasGlassInfoPanel ? 2 : 0}px)`
+                    : undefined,
+                  backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
+                  WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
+                  boxShadow: hasGlassInfoPanel
+                    ? activeThemeMode === "dark"
+                      ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 45px rgba(0,0,0,0.22)"
+                      : "0 18px 45px rgba(15,16,18,0.14)"
+                    : undefined,
                   alignItems: isListView ? contentAlignItems : undefined,
                 }}
               >
                 {modalImageClickEnabled ? (
                   <span
                     className="block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
-                    style={compactServiceTitleStyle}
+                    style={titleOverlayStyle}
                   >
                     {service.name}
                   </span>
@@ -1779,7 +1879,7 @@ export function ServicesCatalog({
                   <a
                     href={serviceHref}
                     className="block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
-                    style={compactServiceTitleStyle}
+                    style={titleOverlayStyle}
                   >
                     {service.name}
                   </a>
@@ -1788,21 +1888,15 @@ export function ServicesCatalog({
                 {hasServiceMeta && (
                   <div
                     className={`flex flex-nowrap gap-1.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}
-                    style={{ ...compactServiceTextStyle, justifyContent: contentJustify }}
+                    style={{ ...textOverlayStyle, justifyContent: contentJustify }}
                   >
                     {showDuration ? (
-                      <span
-                        className="rounded-[10px]"
-                        style={compactMetaPillStyle}
-                      >
+                      <span>
                         от {service.baseDurationMin} мин
                       </span>
                     ) : null}
                     {showPrice ? (
-                      <span
-                        className="rounded-[10px]"
-                        style={compactMetaPillStyle}
-                      >
+                      <span>
                         от {formatPrice(service.basePrice)}
                       </span>
                     ) : null}
@@ -1814,7 +1908,7 @@ export function ServicesCatalog({
                   style={{ alignSelf: "stretch" }}
                   >
                     <div
-                      className="flex w-full flex-wrap gap-3 max-sm:gap-2"
+                      className="flex w-full flex-wrap items-center gap-4 max-sm:gap-2"
                       style={{ justifyContent: buttonJustifyContent }}
                     >
                     {detailsButtonText ? (

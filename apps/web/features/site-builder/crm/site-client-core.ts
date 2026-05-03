@@ -915,6 +915,11 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     modalImageClickEnabled: true,
     style: {
       ...defaultBlockStyle,
+      blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+      blockWidthColumns: 8,
+      gridStartColumn: centeredGridRange(8).start,
+      gridEndColumn: centeredGridRange(8).end,
+      useCustomWidth: true,
       sectionBgLight: "#ffffff",
       sectionBg: "#ffffff",
       blockBgLight: "#ffffff",

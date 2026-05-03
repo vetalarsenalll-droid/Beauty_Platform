@@ -170,6 +170,22 @@ export function resolveServiceModalBackgroundVisual(
   });
 }
 
+export function resolveServiceCardBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
+) {
+  const suffix = mode === "dark" ? "Dark" : "Light";
+  return resolveBackgroundVisual(data, fallbackColor, {
+    mode: `serviceCardBackgroundMode${suffix}`,
+    from: `serviceCardBackgroundFrom${suffix}`,
+    to: `serviceCardBackgroundTo${suffix}`,
+    angle: `serviceCardBackgroundAngle${suffix}`,
+    stopA: `serviceCardBackgroundStopA${suffix}`,
+    stopB: `serviceCardBackgroundStopB${suffix}`,
+  });
+}
+
 export function resolveSpecialistCardBackgroundVisual(
   data: Record<string, unknown> | null,
   fallbackColor: string,

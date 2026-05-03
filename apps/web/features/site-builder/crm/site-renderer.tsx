@@ -17,6 +17,7 @@ import {
   resolveCoverBackgroundVisual,
   resolveMenuBlockBackgroundVisual,
   resolveMenuSectionBackgroundVisual,
+  resolveServiceCardBackgroundVisual,
   resolveServiceModalBackgroundVisual,
   resolveServicesSectionBackgroundVisual,
   resolveSpecialistCardBackgroundVisual,
@@ -5104,6 +5105,23 @@ export function renderServices(
   const servicePageButtonMode =
     data.servicePageButtonMode === "booking" ? "booking" : "entityPage";
   const cardStyle = data.cardStyle === "plain" ? "plain" : "filled";
+  const serviceCardBackgroundSource = {
+    ...data,
+    serviceCardBackgroundFromLight:
+      readDataColor("serviceCardBackgroundFromLight") || style.subBlockBgLightResolved || style.subBlockBg || "#fafafa",
+    serviceCardBackgroundFromDark:
+      readDataColor("serviceCardBackgroundFromDark") || style.subBlockBgDarkResolved || "#24282e",
+  };
+  const serviceCardBackgroundLight = resolveServiceCardBackgroundVisual(
+    serviceCardBackgroundSource,
+    "var(--block-sub-bg,var(--bp-paper))",
+    "light"
+  );
+  const serviceCardBackgroundDark = resolveServiceCardBackgroundVisual(
+    serviceCardBackgroundSource,
+    serviceCardBackgroundLight.backgroundColor,
+    "dark"
+  );
   const cardGapX = Number(data.cardGapX);
   const cardGapY = Number(data.cardGapY);
   const imageAspectRatio =
@@ -5297,7 +5315,7 @@ export function renderServices(
   const showDuration = data.showDuration !== false;
   const cardsPerRowRaw = Number(data.cardsPerRow);
   const cardsPerRow =
-    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 4
+    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 6
       ? Math.round(cardsPerRowRaw)
       : 3;
   const locationId = typeof data.locationId === "number" ? data.locationId : null;
@@ -5380,6 +5398,11 @@ export function renderServices(
         detailsButtonBorderColorDark={detailsButtonBorderColorDark}
         servicePageButtonMode={servicePageButtonMode}
         cardStyle={cardStyle}
+        cardBackgroundColorLight={serviceCardBackgroundLight.backgroundColor}
+        cardBackgroundImageLight={serviceCardBackgroundLight.backgroundImage}
+        cardBackgroundColorDark={serviceCardBackgroundDark.backgroundColor}
+        cardBackgroundImageDark={serviceCardBackgroundDark.backgroundImage}
+        cardLiquidGlass={data.serviceCardLiquidGlass === true}
         cardGapX={cardGapX}
         cardGapY={cardGapY}
         imageAspectRatio={imageAspectRatio}

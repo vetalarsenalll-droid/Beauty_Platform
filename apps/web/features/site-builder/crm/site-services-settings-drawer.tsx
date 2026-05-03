@@ -504,6 +504,26 @@ export function SiteServicesSettingsDrawer({
   }
 
   if (activeSectionId === "servicesList") {
+    const readBackgroundMode = (value: unknown): "solid" | "linear" | "radial" =>
+      value === "linear" || value === "radial" ? value : "solid";
+    const cardLightMode = readBackgroundMode(data.serviceCardBackgroundModeLight);
+    const cardDarkMode = readBackgroundMode(data.serviceCardBackgroundModeDark ?? cardLightMode);
+    const cardLightFrom =
+      readDataColor("serviceCardBackgroundFromLight", "") ||
+      readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"));
+    const cardLightTo = readDataColor("serviceCardBackgroundToLight", "") || cardLightFrom || "#fafafa";
+    const cardDarkFrom =
+      readDataColor("serviceCardBackgroundFromDark", "") || readStyle("subBlockBgDark", "#24282e");
+    const cardDarkTo = readDataColor("serviceCardBackgroundToDark", "") || cardDarkFrom || "#24282e";
+    const cardLightAngle = readDataNumber("serviceCardBackgroundAngleLight", 135);
+    const cardDarkAngle = readDataNumber("serviceCardBackgroundAngleDark", cardLightAngle);
+    const cardLightStopA = readDataNumber("serviceCardBackgroundStopALight", 0);
+    const cardLightStopB = readDataNumber("serviceCardBackgroundStopBLight", 100);
+    const cardDarkStopA = readDataNumber("serviceCardBackgroundStopADark", cardLightStopA);
+    const cardDarkStopB = readDataNumber("serviceCardBackgroundStopBDark", cardLightStopB);
+    const showLiquidGlassControl =
+      String(data.imageAspectRatio ?? "1 / 1") === "original" && data.cardStyle === "filled";
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         {renderFlatSelect(
@@ -539,6 +559,8 @@ export function SiteServicesSettingsDrawer({
             { value: "2", label: "2" },
             { value: "3", label: "3" },
             { value: "4", label: "4" },
+            { value: "5", label: "5" },
+            { value: "6", label: "6" },
           ]
         )}
         {renderFlatSelect(
@@ -560,7 +582,7 @@ export function SiteServicesSettingsDrawer({
             { value: "4 / 3", label: "4:3 Горизонтально" },
             { value: "3 / 4", label: "3:4 Вертикально" },
             { value: "16 / 9", label: "16:9 Широкое" },
-            { value: "original", label: "Оригинальное" },
+            { value: "original", label: "Вписать в карточку" },
           ]
         )}
         {renderFlatTextInput(
@@ -620,13 +642,28 @@ export function SiteServicesSettingsDrawer({
         />
 
         <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
-          <TildaInlineColorField
-            compact
+          {showLiquidGlassControl ? (
+            <FlatCheckbox
+              checked={data.serviceCardLiquidGlass === true}
+              onChange={(checked) => updateData({ serviceCardLiquidGlass: checked })}
+              label="Жидкое стекло"
+            />
+          ) : null}
+          <TildaBackgroundColorField
             label="Фон карточек"
-            value={readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"))}
+            value={cardLightFrom}
+            mode={cardLightMode}
+            secondValue={cardLightTo}
+            angle={cardLightAngle}
+            radialStopA={cardLightStopA}
+            radialStopB={cardLightStopB}
             placeholder="#fafafa"
-            onChange={(value) => updateStyle({ subBlockBgLight: value, subBlockBg: value })}
-            onClear={() => updateStyle({ subBlockBgLight: "#fafafa", subBlockBg: "#fafafa" })}
+            onModeChange={(value) => updateData({ serviceCardBackgroundModeLight: value })}
+            onSecondChange={(value) => updateData({ serviceCardBackgroundToLight: value })}
+            onAngleChange={(value) => updateData({ serviceCardBackgroundAngleLight: value })}
+            onRadialStopAChange={(value) => updateData({ serviceCardBackgroundStopALight: value })}
+            onRadialStopBChange={(value) => updateData({ serviceCardBackgroundStopBLight: value })}
+            onChange={(value) => updateData({ serviceCardBackgroundFromLight: value })}
           />
           <TildaInlineColorField
             compact
@@ -666,13 +703,21 @@ export function SiteServicesSettingsDrawer({
 
           {showDarkThemeAdvanced ? (
             <div className="space-y-4">
-              <TildaInlineColorField
-                compact
+              <TildaBackgroundColorField
                 label="Фон карточек"
-                value={readStyle("subBlockBgDark", "#24282e")}
+                value={cardDarkFrom}
+                mode={cardDarkMode}
+                secondValue={cardDarkTo}
+                angle={cardDarkAngle}
+                radialStopA={cardDarkStopA}
+                radialStopB={cardDarkStopB}
                 placeholder="#24282e"
-                onChange={(value) => updateStyle({ subBlockBgDark: value })}
-                onClear={() => updateStyle({ subBlockBgDark: "#24282e" })}
+                onModeChange={(value) => updateData({ serviceCardBackgroundModeDark: value })}
+                onSecondChange={(value) => updateData({ serviceCardBackgroundToDark: value })}
+                onAngleChange={(value) => updateData({ serviceCardBackgroundAngleDark: value })}
+                onRadialStopAChange={(value) => updateData({ serviceCardBackgroundStopADark: value })}
+                onRadialStopBChange={(value) => updateData({ serviceCardBackgroundStopBDark: value })}
+                onChange={(value) => updateData({ serviceCardBackgroundFromDark: value })}
               />
               <TildaInlineColorField
                 compact

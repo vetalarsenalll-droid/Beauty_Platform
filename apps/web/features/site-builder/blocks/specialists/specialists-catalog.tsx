@@ -151,6 +151,8 @@ function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number) {
   const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
   if (cardsPerRow <= 1) return mobile;
   if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
+  if (cardsPerRow === 5) return `${mobile} md:grid-cols-2 xl:grid-cols-5`;
+  if (cardsPerRow === 6) return `${mobile} md:grid-cols-3 xl:grid-cols-6`;
   if (cardsPerRow === 4) return `${mobile} md:grid-cols-2 xl:grid-cols-4`;
   return `${mobile} md:grid-cols-2 xl:grid-cols-3`;
 }
@@ -573,7 +575,7 @@ export function SpecialistsCatalog({
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
-  const columns = clampInt(cardsPerRow, 4, 1, 4);
+  const columns = clampInt(cardsPerRow, 4, 1, 6);
   const mobileColumns = clampInt(mobileCardsPerRow, 2, 1, 2);
   const activeLocationId = currentLocationId ?? selectedLocationId;
   const normalizedQuery = normalizeSearch(query);
