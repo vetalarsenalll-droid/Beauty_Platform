@@ -498,6 +498,7 @@ export default function SiteClient({
   const panelTheme = resolvePanelTheme(activeTheme.mode);
   const selectedBlockVersion = selectedBlock ? resolveBlockVersion({ block: selectedBlock }) : null;
   const floatingPanelsTop = rightPanel ? 0 : 56;
+  const builderCanvasBg = activeTheme.mode === "dark" ? "#111318" : "#f6f7f9";
 
   return (
     <div className="flex flex-col gap-6">
@@ -823,8 +824,8 @@ export default function SiteClient({
       <div
         className="relative"
         style={{
-          backgroundColor: "var(--site-surface)",
-          backgroundImage: "var(--site-gradient)",
+          backgroundColor: builderCanvasBg,
+          backgroundImage: "none",
         }}
       >
         <main
@@ -837,8 +838,8 @@ export default function SiteClient({
           }}
           style={{
             ...themeStyle,
-            backgroundColor: "var(--site-surface)",
-            backgroundImage: "var(--site-gradient)",
+            backgroundColor: builderCanvasBg,
+            backgroundImage: "none",
             color: activeTheme.textColor,
             fontFamily: activeTheme.fontBody,
           }}
