@@ -1709,13 +1709,9 @@ export function ServicesCatalog({
             ? "mt-6"
             : isImageInsetCard
               ? "mt-3"
-            : alignButtonsBottom
-              ? hasPreviewViewport
-                ? shouldCompactTileSpacing
-                  ? "mt-3"
-                  : "mt-auto pt-6"
-                : "mt-4 sm:mt-auto sm:pt-6"
-              : hasPreviewViewport
+            : !alignButtonsBottom
+              ? "mt-3"
+            : hasPreviewViewport
                 ? shouldCompactTileSpacing
                   ? "mt-3"
                   : "mt-6"
@@ -1724,7 +1720,7 @@ export function ServicesCatalog({
             ? "pt-3"
             : isImageInsetCard
               ? "mt-6"
-            : alignButtonsBottom && !hasServiceMeta
+            : alignButtonsBottom
               ? hasPreviewViewport
                 ? shouldCompactTileSpacing
                   ? "pt-3"
@@ -1733,8 +1729,8 @@ export function ServicesCatalog({
               : hasPreviewViewport
                 ? shouldCompactTileSpacing
                   ? "pt-3"
-                  : "pt-6"
-                : "pt-4 sm:pt-6";
+                  : "pt-3"
+                : "pt-3";
           const openServiceModal = () => {
             setActiveModal({ serviceId: service.id, imageIndex: 0 });
           };
