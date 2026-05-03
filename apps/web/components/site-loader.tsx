@@ -93,7 +93,7 @@ export default function SiteLoader({
         borderRightColor: config.color,
         borderBottomColor: config.color,
         borderLeftColor: config.color,
-        animation: `spin ${duration} linear infinite`,
+        animation: `site-loader-spin ${duration} linear infinite`,
       }}
     />
   );

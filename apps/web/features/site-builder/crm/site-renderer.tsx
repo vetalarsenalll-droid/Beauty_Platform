@@ -2206,7 +2206,7 @@ export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: B
   return (
     <div className="relative flex min-h-[180px] w-full items-center justify-center">
       <div
-        className="absolute inset-0"
+        className="absolute left-1/2 top-0 h-full w-screen -translate-x-1/2"
         style={
           backdropEnabled && backdropOpacity > 0
             ? { backgroundColor: backdropColor }

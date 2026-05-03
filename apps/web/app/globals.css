@@ -362,6 +362,12 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
   }
 }
 
+@keyframes site-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes bp-slide-progress {
   0% {
     transform: scaleX(0);
