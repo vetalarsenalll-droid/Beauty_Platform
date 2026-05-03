@@ -2539,11 +2539,13 @@ function renderMenu(
       <Link
         key={`${key}-overlay`}
         href={href}
-        className="w-full text-3xl font-medium md:text-5xl"
+        className="bp-menu-overlay-link w-full max-w-full break-words text-3xl font-medium leading-tight md:text-5xl"
         style={{
           ...headingStyle(style),
           color: "var(--block-text, var(--bp-ink))",
           textAlign: align,
+          maxWidth: "100%",
+          overflowWrap: "anywhere",
           ...(block.variant === "v2"
             ? { fontSize: "calc(var(--block-heading-size) + 12px)", lineHeight: 1.25 }
             : {}),
@@ -2740,12 +2742,14 @@ function renderMenu(
           <Link
             key={`${key}-drawer`}
             href={href}
-            className={`w-full font-medium text-[color:var(--block-text,var(--bp-ink))] ${
+            className={`bp-menu-drawer-link w-full max-w-full break-words font-medium leading-tight text-[color:var(--block-text,var(--bp-ink))] ${
               block.variant === "v3" ? "text-3xl md:text-4xl" : "text-2xl md:text-3xl"
             }`}
             style={{
               ...headingStyle(style),
               textAlign: align,
+              maxWidth: "100%",
+              overflowWrap: "anywhere",
               ...(block.variant === "v3"
                 ? { fontSize: "calc(var(--block-heading-size) + 16px)", lineHeight: 1.25 }
                 : {}),
@@ -2818,7 +2822,7 @@ function renderMenu(
   if (block.variant === "v2") {
     return (
       <div
-        className="w-full"
+        className="bp-public-menu bp-public-menu-v2 w-full"
         style={
           position === "sticky"
             ? { position: "sticky", top: 12, zIndex: 20 }
@@ -2861,8 +2865,11 @@ function renderMenu(
             className="fixed inset-0 z-[160] flex flex-col overflow-hidden border px-6 py-6 pt-24 md:px-10 md:py-8 md:pt-28"
             style={subBlockSurfaceStyle}
           >
-            <div className="flex flex-1 flex-col items-center justify-center py-6">
+            <div className="bp-menu-v2-desktop-nav flex flex-1 flex-col items-center justify-center py-6">
               {overlayNavNode}
+            </div>
+            <div className="bp-menu-v2-mobile-nav hidden min-w-0 flex-1 flex-col items-center justify-center overflow-hidden py-6">
+              {drawerNavNode}
             </div>
             <div className="w-full md:hidden">
               <div className="space-y-3 text-center">
@@ -2892,7 +2899,7 @@ function renderMenu(
   if (block.variant === "v3") {
     return (
       <div
-        className="w-full"
+        className="bp-public-menu bp-public-menu-v3 w-full"
         style={
           position === "sticky"
             ? { position: "sticky", top: 12, zIndex: 20 }
@@ -2977,7 +2984,7 @@ function renderMenu(
     };
     return (
       <div
-        className="w-full"
+        className="bp-public-menu bp-public-menu-v1 w-full"
         style={
           position === "sticky"
             ? { position: "sticky", top: 12, zIndex: 20 }
@@ -3021,7 +3028,7 @@ function renderMenu(
                 </div>
                 {searchNode && <div className="mb-6 flex justify-center">{searchNode}</div>}
                 <div className="flex flex-1 flex-col">
-                  <div className="flex flex-col gap-2">{linkItems}</div>
+                  <div className="min-w-0 overflow-hidden">{drawerNavNode}</div>
                   <div className="mt-auto space-y-3 pt-4">
                     {ctaNode && <div className="flex justify-center">{ctaNode}</div>}
                     {socialsNode && <div className="flex justify-center">{socialsNode}</div>}

@@ -421,6 +421,44 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
   padding-right: 0;
 }
 
+@media (max-width: 959px) {
+  #public-site-root .bp-public-menu .bp-menu-overlay-link {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    font-size: 28px !important;
+    line-height: 1.18 !important;
+  }
+
+  #public-site-root .bp-public-menu .bp-menu-drawer-link {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    font-size: 24px !important;
+    line-height: 1.18 !important;
+  }
+
+  #public-site-root .bp-public-menu-v3 .bp-menu-drawer-link {
+    font-size: 28px !important;
+  }
+
+  #public-site-root .bp-public-menu-v2 .bp-menu-v2-desktop-nav {
+    display: none !important;
+  }
+
+  #public-site-root .bp-public-menu-v2 .bp-menu-v2-mobile-nav {
+    display: flex !important;
+  }
+
+  #public-site-root .bp-public-menu summary {
+    min-width: 0;
+  }
+
+  #public-site-root .bp-public-menu a,
+  #public-site-root .bp-public-menu button,
+  #public-site-root .bp-public-menu span {
+    min-width: 0;
+  }
+}
+
 [data-site-theme="dark"] .booking-root {
   --booking-bg: var(--booking-bg-dark, var(--site-panel));
   --booking-sub-bg: var(--booking-sub-bg-dark, var(--booking-bg));
