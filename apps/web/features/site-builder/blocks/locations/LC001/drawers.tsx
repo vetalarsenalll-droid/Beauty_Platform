@@ -28,6 +28,7 @@ export function LC001Drawers(ctx: CrmPanelCtx) {
         block={ctx.block}
         activeTheme={ctx.activeTheme}
         activeSectionId={ctx.activePanelSectionId}
+        locationsCount={ctx.locations.length}
         updateBlock={ctx.updateBlock}
       />
     );

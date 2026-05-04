@@ -95,6 +95,7 @@ type SpecialistsCatalogProps = {
   headingStyle?: CSSProperties;
   subheadingStyle?: CSSProperties;
   buttonStyle?: CSSProperties;
+  detailsButtonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
   previewViewportWidth?: number;
   entityBasePath?: "specialists" | "locations";
@@ -680,6 +681,7 @@ export function SpecialistsCatalog({
   headingStyle,
   subheadingStyle,
   buttonStyle,
+  detailsButtonStyle,
   textAlign = "left",
   previewViewportWidth,
   entityBasePath = "specialists",
@@ -809,8 +811,11 @@ export function SpecialistsCatalog({
   const hasPreviewViewport =
     typeof effectiveViewportWidth === "number" && Number.isFinite(effectiveViewportWidth);
   const isNarrowPreviewViewport = hasPreviewViewport && effectiveViewportWidth < 640;
+  const useSingleLocationCardLayout = bookingEntity === "location" && filteredItems.length === 1;
   const gridClassName =
-    listView === "list" ? "grid-cols-1" : resolveGridClassName(columns, mobileColumns, effectiveViewportWidth);
+    useSingleLocationCardLayout || listView === "list"
+      ? "grid-cols-1"
+      : resolveGridClassName(columns, mobileColumns, effectiveViewportWidth);
   const buttonJustifyContent =
     buttonAlignment === "left" ? "flex-start" : buttonAlignment === "right" ? "flex-end" : "center";
   const pickColor = (light?: string, dark?: string, fallback = "var(--block-text,var(--bp-ink))") =>
@@ -1248,13 +1253,14 @@ export function SpecialistsCatalog({
           const canOpenCardByClick = cardClickEnabled && Boolean(publicSlug);
           const isListCard = listView === "list";
           const isImageInsetCard = imageAspectRatio === "original";
+          const isSingleLocationCard = useSingleLocationCardLayout && !isListCard && !isImageInsetCard;
           const hasCoverImage = Boolean(specialist.coverUrl);
           const hasFilledInfoPanel = isImageInsetCard && normalizedCardStyle === "filled" && !isListCard;
           const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage && cardLiquidGlass;
           const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
-          const hasRegularFilledInfoPanel = isFilledCard && !isImageInsetCard && !isListCard && showImage;
+          const hasRegularFilledInfoPanel = isFilledCard && !isImageInsetCard && !isListCard && showImage && !isSingleLocationCard;
           const articleBackground =
-            normalizedCardStyle === "filled" && !isImageInsetCard && !hasRegularFilledInfoPanel
+            normalizedCardStyle === "filled" && !isImageInsetCard && (!hasRegularFilledInfoPanel || isSingleLocationCard)
               ? resolvedCardBackgroundColor
               : "transparent";
           const articleBorderColor =
@@ -1263,6 +1269,8 @@ export function SpecialistsCatalog({
           const imageBorderRadius =
             isListCard
               ? imageRadiusValue
+              : isSingleLocationCard
+                ? imageRadiusValue
               : normalizedCardStyle === "filled"
                 ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
                 : imageRadiusValue;
@@ -1330,19 +1338,28 @@ export function SpecialistsCatalog({
           const openSpecialistModal = () => {
             setActiveModal({ specialistId: specialist.id, imageIndex: 0 });
           };
+          const singleLocationCardPadding =
+            normalizedCardStyle === "filled" ? `${contentPaddingY}px ${contentPaddingX}px` : undefined;
+          const singleLocationGap = Math.max(18, Math.round(Math.max(cardGapX, cardGapY) * 0.8));
 
           return (
             <article
               key={specialist.id}
               className={`group ${isImageInsetCard && !isListCard ? "relative overflow-hidden" : ""} ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
-                isListCard
+                isSingleLocationCard
+                  ? hasPreviewViewport
+                    ? isNarrowPreviewViewport
+                      ? "grid grid-cols-1"
+                      : "grid grid-cols-[minmax(0,1.08fr)_minmax(260px,0.92fr)] items-center"
+                    : "grid grid-cols-1 md:grid-cols-[minmax(0,1.08fr)_minmax(260px,0.92fr)] md:items-center"
+                  : isListCard
                   ? hasPreviewViewport
                     ? isNarrowPreviewViewport
                       ? "flex flex-col gap-3 border-b pb-5"
                       : "grid gap-5 grid-cols-[260px_1fr] items-center"
                     : "grid gap-5 sm:grid-cols-[260px_1fr] sm:items-center"
                   : ""
-              } ${!isListCard && alignButtonsBottom ? "flex h-full flex-col" : ""} ${canOpenCardByClick ? "cursor-pointer" : ""}`}
+              } ${!isListCard && !isSingleLocationCard && alignButtonsBottom ? "flex h-full flex-col" : ""} ${canOpenCardByClick ? "cursor-pointer" : ""}`}
               role={canOpenCardByClick ? "button" : undefined}
               tabIndex={canOpenCardByClick ? 0 : undefined}
               onClick={
@@ -1378,11 +1395,14 @@ export function SpecialistsCatalog({
                 borderColor: isListCard ? "transparent" : articleBorderColor,
                 borderRadius: isFilledCard ? imageRadiusValue : 0,
                 padding:
-                  isImageInsetCard && !isListCard
+                  isSingleLocationCard
+                    ? singleLocationCardPadding
+                    : isImageInsetCard && !isListCard
                     ? hasFilledInfoPanel
                       ? `${contentPaddingY}px ${contentPaddingX}px 0`
                       : `${contentPaddingY}px ${contentPaddingX}px`
                     : undefined,
+                gap: isSingleLocationCard ? singleLocationGap : undefined,
                 minHeight:
                   isImageInsetCard && !isListCard
                     ? hasPreviewViewport
@@ -1463,7 +1483,11 @@ export function SpecialistsCatalog({
               )}
               <div
                 className={`${isImageInsetCard && !isListCard ? "absolute bottom-0 z-[1] justify-end" : ""} ${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
-                  !isListCard && alignButtonsBottom && !isImageInsetCard ? "flex flex-1 flex-col" : ""
+                  isSingleLocationCard
+                    ? "flex flex-col"
+                    : !isListCard && alignButtonsBottom && !isImageInsetCard
+                      ? "flex flex-1 flex-col"
+                      : ""
                 } ${
                   isImageInsetCard && !isListCard ? "flex flex-col" : ""
                 }`}
@@ -1474,7 +1498,7 @@ export function SpecialistsCatalog({
                   padding:
                     isImageInsetCard && !isListCard
                       ? insetPanelPadding
-                      : isFilledCard && !isImageInsetCard
+                      : isFilledCard && !isImageInsetCard && !isSingleLocationCard
                       ? `${contentPaddingY}px ${contentPaddingX}px`
                       : undefined,
                   boxSizing: "border-box",
@@ -1533,15 +1557,23 @@ export function SpecialistsCatalog({
                         }
                       : undefined
                   }
-                  className="specialist-card-text relative z-[1] text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
-                  style={titleStyle}
+                  className={`specialist-card-text relative z-[1] text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline ${
+                    isSingleLocationCard && showLevel && specialist.level ? "mt-3" : ""
+                  }`}
+                  style={{
+                    ...titleStyle,
+                    minHeight: isSingleLocationCard ? undefined : titleStyle?.minHeight,
+                    order: isSingleLocationCard ? 2 : undefined,
+                  }}
                 >
                   {specialist.name}
                 </a>
                 {showLevel && specialist.level && (
                   <div
-                    className="bp-specialist-card-level specialist-card-text relative z-[1] mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
-                    style={descriptionStyle}
+                    className={`bp-specialist-card-level specialist-card-text relative z-[1] text-sm text-[color:var(--block-muted,var(--bp-muted))] ${
+                      isSingleLocationCard ? "uppercase tracking-[0.18em]" : "mt-3"
+                    }`}
+                    style={{ ...descriptionStyle, order: isSingleLocationCard ? 1 : undefined }}
                   >
                     {specialist.level}
                   </div>
@@ -1551,11 +1583,11 @@ export function SpecialistsCatalog({
                     className={`bp-catalog-card-actions relative z-[1] flex flex-wrap items-center gap-4 ${
                       shouldCompactTileSpacing
                         ? "mt-4"
-                        : !isListCard && alignButtonsBottom && !isImageInsetCard
+                        : !isListCard && !isSingleLocationCard && alignButtonsBottom && !isImageInsetCard
                           ? "mt-auto pt-6"
                           : "mt-6"
                     }`}
-                    style={{ justifyContent: buttonJustifyContent }}
+                    style={{ justifyContent: buttonJustifyContent, order: isSingleLocationCard ? 3 : undefined }}
                   >
                     {showDetailsButton && detailsButtonText && (
                       <button
@@ -1576,6 +1608,7 @@ export function SpecialistsCatalog({
                           borderRadius: buttonStyle?.borderRadius ?? 0,
                           boxShadow: `inset 0 0 0 1px ${resolvedDetailsButtonBorderColor}`,
                           ...compactButtonStyle,
+                          ...detailsButtonStyle,
                         }}
                       >
                         {detailsButtonText}
@@ -1586,7 +1619,7 @@ export function SpecialistsCatalog({
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold no-underline"
-                        style={{ ...buttonStyle, ...compactButtonStyle }}
+                        style={{ ...compactButtonStyle, ...buttonStyle }}
                       >
                         {buttonText}
                       </a>

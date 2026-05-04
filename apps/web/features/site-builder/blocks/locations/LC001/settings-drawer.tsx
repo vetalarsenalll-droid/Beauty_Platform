@@ -10,6 +10,7 @@ type Props = {
   block: SiteBlock;
   activeTheme: SiteTheme;
   activeSectionId: string;
+  locationsCount?: number;
   updateBlock: (blockId: string, updater: (block: SiteBlock) => SiteBlock) => void;
 };
 
@@ -86,6 +87,29 @@ function renderFlatSelect(
   );
 }
 
+function renderFontSelect(label: string, value: string, onChange: (value: string) => void) {
+  return renderFlatSelect(label, value || "Manrope", onChange, [
+    { value: "Manrope", label: "Manrope" },
+    { value: "Inter", label: "Inter" },
+    { value: "Arial", label: "Arial" },
+    { value: "Georgia", label: "Georgia" },
+    { value: "Times New Roman", label: "Times New Roman" },
+  ]);
+}
+
+function renderWeightSelect(label: string, value: unknown, onChange: (value: number | "") => void, fallback = "") {
+  const normalized = value === "" || value === null || value === undefined ? fallback : String(value);
+  return renderFlatSelect(label, normalized || "", (next) => onChange(next ? Number(next) : ""), [
+    { value: "", label: "Обычная" },
+    { value: "300", label: "300" },
+    { value: "400", label: "400" },
+    { value: "500", label: "500" },
+    { value: "600", label: "600" },
+    { value: "700", label: "700" },
+    { value: "800", label: "800" },
+  ]);
+}
+
 function renderOpacitySelect(label: string, value: number, onChange: (value: number) => void) {
   const normalizedValue = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value / 10) * 10)) : 0;
   return (
@@ -120,10 +144,11 @@ function readBackgroundMode(value: unknown): "solid" | "linear" | "radial" {
   return value === "linear" || value === "radial" ? value : "solid";
 }
 
-export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updateBlock }: Props) {
+export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locationsCount = 0, updateBlock }: Props) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const data = (block.data as Record<string, unknown>) ?? {};
   const rawStyle = ((block.data as Record<string, unknown>).style as Record<string, unknown>) ?? {};
+  const hasMultipleLocations = locationsCount > 1;
 
   const updateData = (patch: Record<string, unknown>) => {
     updateBlock(block.id, (prev) => ({
@@ -138,10 +163,26 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updat
     typeof rawStyle[key] === "string" && String(rawStyle[key]).trim() ? String(rawStyle[key]) : fallback;
   const readDataColor = (key: string, fallback = "transparent") =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]) : fallback;
+  const readDataColorFallback = (key: string, legacyKey: string, fallback = "transparent") =>
+    readDataColor(key, readDataColor(legacyKey, fallback));
   const readDataNumber = (key: string, fallback: number) => {
     const value = Number(data[key]);
     return Number.isFinite(value) ? value : fallback;
   };
+  const readDataNumberFallback = (key: string, legacyKey: string, fallback: number) => {
+    const value = Number(data[key]);
+    if (Number.isFinite(value)) return value;
+    const legacyValue = Number(data[legacyKey]);
+    return Number.isFinite(legacyValue) ? legacyValue : fallback;
+  };
+  const readDataTextFallback = (key: string, legacyKey: string, fallback: string) =>
+    typeof data[key] === "string" && String(data[key]).trim()
+      ? String(data[key])
+      : typeof data[legacyKey] === "string" && String(data[legacyKey]).trim()
+        ? String(data[legacyKey])
+        : fallback;
+  const readDataValueFallback = (key: string, legacyKey: string) =>
+    data[key] !== undefined && data[key] !== null ? data[key] : data[legacyKey];
 
   if (activeSectionId === "button") {
     return (
@@ -168,6 +209,14 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updat
         ])}
         {renderFlatTextInput("Текст кнопки записи", String(data.buttonText ?? "Записаться"), (value) => updateData({ buttonText: value }), "Записаться")}
         {renderFlatTextInput("Текст кнопки подробнее", String(data.detailsButtonText ?? "Подробнее"), (value) => updateData({ detailsButtonText: value }), "Подробнее")}
+        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+          {renderFlatNumberInput("Размер текста кнопки записи", readDataNumber("locationPrimaryButtonSize", 14), (value) => updateData({ locationPrimaryButtonSize: value }), 8, 48)}
+          {renderFontSelect("Шрифт кнопки записи", String(data.locationPrimaryButtonFont ?? "Manrope"), (value) => updateData({ locationPrimaryButtonFont: value }))}
+          {renderWeightSelect("Жирность кнопки записи", data.locationPrimaryButtonWeight, (value) => updateData({ locationPrimaryButtonWeight: value }), "600")}
+          {renderFlatNumberInput("Размер текста кнопки подробнее", readDataNumber("locationDetailsButtonSize", 14), (value) => updateData({ locationDetailsButtonSize: value }), 8, 48)}
+          {renderFontSelect("Шрифт кнопки подробнее", String(data.locationDetailsButtonFont ?? "Manrope"), (value) => updateData({ locationDetailsButtonFont: value }))}
+          {renderWeightSelect("Жирность кнопки подробнее", data.locationDetailsButtonWeight, (value) => updateData({ locationDetailsButtonWeight: value }))}
+        </div>
         {renderFlatNumberInput("Скругление", Number(rawStyle.buttonRadius ?? 0), (value) => updateStyle({ buttonRadius: value }))}
         <TildaInlineColorField
           compact
@@ -209,12 +258,12 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updat
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         <FlatCheckbox
-          checked={data.showSearch !== false}
+          checked={hasMultipleLocations && data.showSearch !== false}
           onChange={(checked) => updateData({ showSearch: checked })}
           label="Показывать поиск"
         />
         <FlatCheckbox
-          checked={data.showSort !== false}
+          checked={hasMultipleLocations && data.showSort !== false}
           onChange={(checked) => updateData({ showSort: checked })}
           label="Показывать сортировку"
         />
@@ -375,19 +424,25 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updat
           <TildaInlineColorField
             compact
             label="Заголовок карточки"
-            value={readStyle("textColorLight", readStyle("textColor", activeTheme.textColor))}
+            value={readDataColorFallback("catalogCardTitleColorLight", "specialistCardTitleColorLight", "#111827")}
             placeholder={activeTheme.textColor}
-            onChange={(value) => updateStyle({ textColorLight: value, textColor: value })}
-            onClear={() => updateStyle({ textColorLight: "transparent", textColor: "transparent" })}
+            onChange={(value) => updateData({ catalogCardTitleColorLight: value })}
+            onClear={() => updateData({ catalogCardTitleColorLight: "transparent" })}
           />
+          {renderFlatNumberInput("Размер названия", readDataNumberFallback("catalogCardTitleSize", "specialistCardTitleSize", 18), (value) => updateData({ catalogCardTitleSize: value }), 8, 96)}
+          {renderFontSelect("Шрифт названия", readDataTextFallback("catalogCardTitleFont", "specialistCardTitleFont", "Manrope"), (value) => updateData({ catalogCardTitleFont: value }))}
+          {renderWeightSelect("Жирность названия", readDataValueFallback("catalogCardTitleWeight", "specialistCardTitleWeight"), (value) => updateData({ catalogCardTitleWeight: value }), "600")}
           <TildaInlineColorField
             compact
             label="Текст карточки"
-            value={readStyle("mutedColorLight", readStyle("mutedColor", activeTheme.mutedColor))}
+            value={readDataColorFallback("catalogCardTextColorLight", "specialistCardDescriptionColorLight", "#6B7280")}
             placeholder={activeTheme.mutedColor}
-            onChange={(value) => updateStyle({ mutedColorLight: value, mutedColor: value })}
-            onClear={() => updateStyle({ mutedColorLight: "transparent", mutedColor: "transparent" })}
+            onChange={(value) => updateData({ catalogCardTextColorLight: value })}
+            onClear={() => updateData({ catalogCardTextColorLight: "transparent" })}
           />
+          {renderFlatNumberInput("Размер адреса", readDataNumberFallback("catalogCardTextSize", "specialistCardDescriptionSize", 14), (value) => updateData({ catalogCardTextSize: value }), 8, 48)}
+          {renderFontSelect("Шрифт адреса", readDataTextFallback("catalogCardTextFont", "specialistCardDescriptionFont", "Manrope"), (value) => updateData({ catalogCardTextFont: value }))}
+          {renderWeightSelect("Жирность адреса", readDataValueFallback("catalogCardTextWeight", "specialistCardDescriptionWeight"), (value) => updateData({ catalogCardTextWeight: value }))}
           <button
             type="button"
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
@@ -435,18 +490,18 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updat
               <TildaInlineColorField
                 compact
                 label="Заголовок карточки"
-                value={readStyle("textColorDark", activeTheme.darkPalette.textColor)}
+                value={readDataColorFallback("catalogCardTitleColorDark", "specialistCardTitleColorDark", "#F8FAFC")}
                 placeholder={activeTheme.darkPalette.textColor}
-                onChange={(value) => updateStyle({ textColorDark: value })}
-                onClear={() => updateStyle({ textColorDark: "transparent" })}
+                onChange={(value) => updateData({ catalogCardTitleColorDark: value })}
+                onClear={() => updateData({ catalogCardTitleColorDark: "transparent" })}
               />
               <TildaInlineColorField
                 compact
                 label="Текст карточки"
-                value={readStyle("mutedColorDark", activeTheme.darkPalette.mutedColor)}
+                value={readDataColorFallback("catalogCardTextColorDark", "specialistCardDescriptionColorDark", "#CBD5E1")}
                 placeholder={activeTheme.darkPalette.mutedColor}
-                onChange={(value) => updateStyle({ mutedColorDark: value })}
-                onClear={() => updateStyle({ mutedColorDark: "transparent" })}
+                onChange={(value) => updateData({ catalogCardTextColorDark: value })}
+                onClear={() => updateData({ catalogCardTextColorDark: "transparent" })}
               />
             </div>
           ) : null}
@@ -506,21 +561,21 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, updat
         <TildaInlineColorField
           compact
           label="Цвет названия"
-          value={readDataColor("specialistCardTitleColorLight", "#111827")}
+          value={readDataColorFallback("catalogCardTitleColorLight", "specialistCardTitleColorLight", "#111827")}
           placeholder="#111827"
-          onChange={(value) => updateData({ specialistCardTitleColorLight: value })}
-          onClear={() => updateData({ specialistCardTitleColorLight: "transparent" })}
+          onChange={(value) => updateData({ catalogCardTitleColorLight: value })}
+          onClear={() => updateData({ catalogCardTitleColorLight: "transparent" })}
         />
-        {renderFlatNumberInput("Размер названия", readDataNumber("specialistCardTitleSize", 18), (value) => updateData({ specialistCardTitleSize: value }), 8, 96)}
+        {renderFlatNumberInput("Размер названия", readDataNumberFallback("catalogCardTitleSize", "specialistCardTitleSize", 18), (value) => updateData({ catalogCardTitleSize: value }), 8, 96)}
         <TildaInlineColorField
           compact
           label="Цвет адреса и описания"
-          value={readDataColor("specialistCardDescriptionColorLight", "#6B7280")}
+          value={readDataColorFallback("catalogCardTextColorLight", "specialistCardDescriptionColorLight", "#6B7280")}
           placeholder="#6B7280"
-          onChange={(value) => updateData({ specialistCardDescriptionColorLight: value })}
-          onClear={() => updateData({ specialistCardDescriptionColorLight: "transparent" })}
+          onChange={(value) => updateData({ catalogCardTextColorLight: value })}
+          onClear={() => updateData({ catalogCardTextColorLight: "transparent" })}
         />
-        {renderFlatNumberInput("Размер адреса и описания", readDataNumber("specialistCardDescriptionSize", 14), (value) => updateData({ specialistCardDescriptionSize: value }), 8, 48)}
+        {renderFlatNumberInput("Размер адреса и описания", readDataNumberFallback("catalogCardTextSize", "specialistCardDescriptionSize", 14), (value) => updateData({ catalogCardTextSize: value }), 8, 48)}
         <button
           type="button"
           onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}

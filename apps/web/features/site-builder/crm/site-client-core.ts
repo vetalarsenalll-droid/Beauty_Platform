@@ -694,7 +694,15 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     showContacts: false,
     showButton: true,
     buttonText: "Записаться",
-    style: defaultBlockStyle,
+    style: {
+      ...defaultBlockStyle,
+      blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+      blockWidthColumns: 8,
+      mobileBlockWidthColumns: MAX_BLOCK_COLUMNS,
+      gridStartColumn: centeredGridRange(8).start,
+      gridEndColumn: centeredGridRange(8).end,
+      useCustomWidth: true,
+    },
   },
   services: {
     title: "Услуги",

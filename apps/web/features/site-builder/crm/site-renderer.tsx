@@ -5008,11 +5008,27 @@ export function renderLocations(
   };
   const readDataFont = (key: string, fallback = "Manrope") =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : fallback;
+  const readDataFontFallback = (key: string, legacyKey: string, fallback = "Manrope") =>
+    typeof data[key] === "string" && String(data[key]).trim()
+      ? String(data[key]).trim()
+      : readDataFont(legacyKey, fallback);
   const readDataWeight = (key: string, fallback?: number) => {
     if (data[key] === "" || data[key] === null || data[key] === undefined) return fallback;
     const value = Number(data[key]);
     return Number.isFinite(value) ? Math.max(100, Math.min(900, Math.round(value))) : fallback;
   };
+  const readDataWeightFallback = (key: string, legacyKey: string, fallback?: number) => {
+    if (data[key] !== "" && data[key] !== null && data[key] !== undefined) {
+      const value = Number(data[key]);
+      return Number.isFinite(value) ? Math.max(100, Math.min(900, Math.round(value))) : fallback;
+    }
+    return readDataWeight(legacyKey, fallback);
+  };
+  const buttonTextStyle = (prefix: "locationPrimaryButton" | "locationDetailsButton", sizeFallback: number, weightFallback?: number): CSSProperties => ({
+    fontSize: `${readDataNumberValue(`${prefix}Size`, sizeFallback, 8, 48)}px`,
+    fontFamily: readDataFont(`${prefix}Font`, "Manrope"),
+    fontWeight: readDataWeight(`${prefix}Weight`, weightFallback),
+  });
   const showButton = data.showButton !== false;
   const buttonAlignment =
     data.buttonAlignment === "left" || data.buttonAlignment === "right" ? data.buttonAlignment : "center";
@@ -5066,11 +5082,20 @@ export function renderLocations(
     cardBackgroundLight.backgroundColor,
     "dark"
   );
-  const cardTextColor = (key: string, lightFallback: string, darkFallback: string) => {
+  const cardTextColor = (key: string, lightFallback: string, darkFallback: string, legacyKey?: string) => {
     const sharedColor = readOptionalDataColor(key);
+    const legacySharedColor = legacyKey ? readOptionalDataColor(legacyKey) : "";
     return {
-      light: readOptionalDataColor(`${key}Light`) || sharedColor || lightFallback,
-      dark: readOptionalDataColor(`${key}Dark`) || sharedColor || darkFallback,
+      light:
+        readOptionalDataColor(`${key}Light`) ||
+        sharedColor ||
+        (legacyKey ? readOptionalDataColor(`${legacyKey}Light`) || legacySharedColor : "") ||
+        lightFallback,
+      dark:
+        readOptionalDataColor(`${key}Dark`) ||
+        sharedColor ||
+        (legacyKey ? readOptionalDataColor(`${legacyKey}Dark`) || legacySharedColor : "") ||
+        darkFallback,
     };
   };
   const cardTextStyle = (
@@ -5078,24 +5103,31 @@ export function renderLocations(
     lightFallback: string,
     darkFallback: string,
     sizeFallback: number,
-    weightFallback?: number
+    weightFallback?: number,
+    legacyKey?: string
   ): CSSProperties => {
-    const color = cardTextColor(`${key}Color`, lightFallback, darkFallback);
+    const color = cardTextColor(`${key}Color`, lightFallback, darkFallback, legacyKey ? `${legacyKey}Color` : undefined);
     const desktopSize = readDataNumberValue(`${key}Size`, sizeFallback);
+    const legacyDesktopSize = legacyKey ? readDataNumberValue(`${legacyKey}Size`, desktopSize) : desktopSize;
+    const resolvedDesktopSize = Number.isFinite(Number(data[`${key}Size`])) ? desktopSize : legacyDesktopSize;
     const mobileSize = readDataNumberValue(
       `${key}MobileSize`,
-      key === "specialistCardTitle"
-        ? Math.max(15, Math.min(28, Math.round(desktopSize * 0.82)))
-        : Math.max(12, Math.min(17, Math.round(desktopSize * 0.9)))
+      key === "catalogCardTitle"
+        ? Math.max(15, Math.min(28, Math.round(resolvedDesktopSize * 0.82)))
+        : Math.max(12, Math.min(17, Math.round(resolvedDesktopSize * 0.9)))
     );
     return {
       color: color.light,
       ["--card-dark-color" as string]: color.dark,
-      ["--specialist-card-text-size-desktop" as string]: `${desktopSize}px`,
+      ["--specialist-card-text-size-desktop" as string]: `${resolvedDesktopSize}px`,
       ["--specialist-card-text-size-mobile" as string]: `${mobileSize}px`,
       fontSize: "var(--specialist-card-text-size)",
-      fontFamily: readDataFont(`${key}Font`, "Manrope"),
-      fontWeight: readDataWeight(`${key}Weight`, weightFallback),
+      fontFamily: legacyKey
+        ? readDataFontFallback(`${key}Font`, `${legacyKey}Font`, "Manrope")
+        : readDataFont(`${key}Font`, "Manrope"),
+      fontWeight: legacyKey
+        ? readDataWeightFallback(`${key}Weight`, `${legacyKey}Weight`, weightFallback)
+        : readDataWeight(`${key}Weight`, weightFallback),
     };
   };
   const catalogItems = items.map((location) => ({
@@ -5107,6 +5139,7 @@ export function renderLocations(
     coverUrl: location.coverUrl,
     photoUrls: location.photoUrls ?? [],
   }));
+  const hasMultipleLocations = catalogItems.length > 1;
   const locationsHeadingStyle = {
     ...headingStyle(style, theme),
     textAlign: style.textAlignHeading ?? "center",
@@ -5142,13 +5175,13 @@ export function renderLocations(
         mobileCardsPerRow={mobileCardsPerRow}
         showCategoryTabs={false}
         categoryAllLabel="Все филиалы"
-        showSearch={data.showSearch !== false}
+        showSearch={hasMultipleLocations && data.showSearch !== false}
         searchPlaceholder={
           typeof data.searchPlaceholder === "string" && data.searchPlaceholder.trim()
             ? data.searchPlaceholder.trim()
             : "Поиск филиала"
         }
-        showSort={data.showSort !== false}
+        showSort={hasMultipleLocations && data.showSort !== false}
         defaultSort={typeof data.defaultSort === "string" && data.defaultSort.trim() ? data.defaultSort.trim() : "default"}
         searchSortAlignment={
           data.searchSortAlignment === "left" ||
@@ -5198,8 +5231,8 @@ export function renderLocations(
         cardBackgroundEndOpacityLight={readDataNumber("specialistCardBackgroundEndOpacityLight", 10)}
         cardBackgroundStartOpacityDark={readDataNumber("specialistCardBackgroundStartOpacityDark", readDataNumber("specialistCardBackgroundStartOpacityLight", 0))}
         cardBackgroundEndOpacityDark={readDataNumber("specialistCardBackgroundEndOpacityDark", readDataNumber("specialistCardBackgroundEndOpacityLight", 10))}
-        cardTitleTextStyle={cardTextStyle("specialistCardTitle", "#111827", "#F8FAFC", 18, 600)}
-        cardDescriptionTextStyle={cardTextStyle("specialistCardDescription", "#6B7280", "#CBD5E1", 14)}
+        cardTitleTextStyle={cardTextStyle("catalogCardTitle", "#111827", "#F8FAFC", 18, 600, "specialistCardTitle")}
+        cardDescriptionTextStyle={cardTextStyle("catalogCardText", "#6B7280", "#CBD5E1", 14, undefined, "specialistCardDescription")}
         cardClickEnabled={data.modalImageClickEnabled !== false}
         cardStyle={cardStyle}
         cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}
@@ -5210,7 +5243,12 @@ export function renderLocations(
         usePagination={data.usePagination === true}
         headingStyle={locationsHeadingStyle}
         subheadingStyle={locationsSubheadingStyle}
-        buttonStyle={{ ...buttonStyle(style, theme), borderRadius: style.buttonRadius ?? 0 }}
+        buttonStyle={{
+          ...buttonStyle(style, theme),
+          borderRadius: style.buttonRadius ?? 0,
+          ...buttonTextStyle("locationPrimaryButton", 14, 600),
+        }}
+        detailsButtonStyle={buttonTextStyle("locationDetailsButton", 14)}
         textAlign={style.textAlign}
         previewViewportWidth={previewViewportWidth}
         emptyText="Нет филиалов для отображения."
