@@ -1396,14 +1396,12 @@ export function SpecialistsCatalog({
                       : undefined
                   }
                   className={`block ${
-                    isImageInsetCard && !isListCard && hasCoverImage
+                    isImageInsetCard && !isListCard
                       ? "absolute inset-0 bg-transparent"
-                      : isImageInsetCard && !isListCard
-                        ? "bg-transparent"
-                        : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
+                      : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                   }`}
                   style={{
-                    aspectRatio: isImageInsetCard && hasCoverImage ? undefined : imageAspectRatio === "original" ? "4 / 5" : imageAspectRatio,
+                    aspectRatio: isImageInsetCard ? undefined : imageAspectRatio === "original" ? "4 / 5" : imageAspectRatio,
                     marginLeft: hasRegularFilledInfoPanel ? -1 : undefined,
                     marginRight: hasRegularFilledInfoPanel ? -1 : undefined,
                     marginTop: hasRegularFilledInfoPanel ? -1 : undefined,
@@ -1425,7 +1423,7 @@ export function SpecialistsCatalog({
                       style={{ objectFit: isImageInsetCard ? "cover" : imageFit }}
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                    <div className="relative z-[1] flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                       Нет фото
                     </div>
                   )}

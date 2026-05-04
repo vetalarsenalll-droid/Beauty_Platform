@@ -535,3 +535,38 @@ Syntax error: Identifier 'readDataNumber' has already been declared.
 ⚠ Server is approaching the used memory threshold, restarting...
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⨯ ./features/site-builder/blocks/specialists/specialists-catalog.tsx
+Error:   x Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+      ,-[C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\specialists\specialists-catalog.tsx:1456:1]
+ 1453 |                     />
+ 1454 |                   ) : null}
+ 1455 |                 </a>
+ 1456 |               )}
+      :                ^
+ 1457 |               <div
+ 1458 |                 className={`${isImageInsetCard && !isListCard ? "absolute bottom-0 z-[1] justify-end" : ""} ${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
+ 1459 |                   !isListCard && alignButtonsBottom && !isImageInsetCard ? "flex flex-1 flex-col" : ""
+      `----
+  x Expected '</', got 'jsx text (
+  |               )}
+  |               )'
+      ,-[C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\specialists\specialists-catalog.tsx:1455:1]
+ 1452 |                           }}
+ 1453 |                         />
+ 1454 |                       ) : null}
+ 1455 | ,->                 </a>
+ 1456 | |                 )}
+ 1457 | `->               <div
+ 1458 |                     className={`${isImageInsetCard && !isListCard ? "absolute bottom-0 z-[1] justify-end" : ""} ${showImage && !isListCard && !isFilledCard ? "mt-5" : ""} ${
+ 1459 |                       !isListCard && alignButtonsBottom && !isImageInsetCard ? "flex flex-1 flex-col" : ""
+ 1459 |                     } ${
+      `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./features/site-builder/blocks/specialists/specialists-catalog.tsx
+./features/site-builder/crm/site-renderer.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx

@@ -678,7 +678,7 @@ function ServiceModal({
             style={{
               width: isImageFocusMode ? focusViewportWidth : isMobileModal ? "100%" : "min(62vw, 820px)",
               height: isImageFocusMode ? focusViewportHeight : isMobileModal ? "auto" : "min(72vh, 820px)",
-              aspectRatio: !isImageFocusMode && isMobileModal ? imageAspectRatio : undefined,
+              aspectRatio: !isImageFocusMode ? imageAspectRatio : undefined,
               borderRadius: zoomLevel > 1 ? 0 : modalImageRadiusValue,
             }}
             onMouseDown={(event) => {
@@ -741,7 +741,7 @@ function ServiceModal({
                 onLoad={() => setPan({ x: 0, y: 0 })}
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--bp-muted)]">
+              <div className="flex h-full w-full items-center justify-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                 Нет изображения
               </div>
             )}
@@ -1838,17 +1838,19 @@ export function ServicesCatalog({
               {modalImageClickEnabled ? (
                 <div
                   className={`block ${listImageWrapperClassName} ${
-                    isImageInsetCard && primaryImage ? "absolute inset-0 bg-transparent" : ""
+                    isImageInsetCard
+                      ? "absolute inset-0 bg-transparent"
+                      : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                   }`}
                 >
                     <div
-                      className="relative overflow-hidden"
+                      className="relative h-full w-full overflow-hidden"
                       style={{
-                        height: isImageInsetCard && primaryImage ? "100%" : isListView ? listImageSize : undefined,
+                        height: isImageInsetCard ? "100%" : isListView ? listImageSize : undefined,
                         aspectRatio:
                           isListView
                             ? undefined
-                            : isImageInsetCard && primaryImage
+                            : isImageInsetCard
                               ? undefined
                               : imageAspectRatio === "original"
                                 ? "4 / 5"
@@ -1870,7 +1872,7 @@ export function ServicesCatalog({
                           style={{ objectFit: "cover" }}
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                        <div className="relative z-[1] flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                           Нет фото
                         </div>
                       )}
@@ -1911,17 +1913,19 @@ export function ServicesCatalog({
                   <a
                     href={serviceHref}
                     className={`block ${listImageWrapperClassName} ${
-                      isImageInsetCard && primaryImage ? "absolute inset-0 bg-transparent" : ""
+                      isImageInsetCard
+                        ? "absolute inset-0 bg-transparent"
+                        : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                     }`}
                   >
                     <div
-                      className="relative overflow-hidden"
+                      className="relative h-full w-full overflow-hidden"
                       style={{
-                        height: isImageInsetCard && primaryImage ? "100%" : isListView ? listImageSize : undefined,
+                        height: isImageInsetCard ? "100%" : isListView ? listImageSize : undefined,
                         aspectRatio:
                           isListView
                             ? undefined
-                            : isImageInsetCard && primaryImage
+                            : isImageInsetCard
                               ? undefined
                               : imageAspectRatio === "original"
                                 ? "4 / 5"
@@ -1943,7 +1947,7 @@ export function ServicesCatalog({
                           style={{ objectFit: "cover" }}
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
+                        <div className="relative z-[1] flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
                           Нет фото
                         </div>
                       )}
