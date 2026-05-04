@@ -3292,6 +3292,8 @@ function renderServices(
       : "Подробнее";
   const readDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const readDataNumber = (key: string, fallback: number) =>
+    Number.isFinite(Number(data[key])) ? Number(data[key]) : fallback;
   const readOptionalDataColor = (key: string) => {
     const value = readDataColor(key);
     return value && value !== "transparent" ? value : "";
@@ -3599,6 +3601,16 @@ function renderServices(
         cardBackgroundColorDark={serviceCardBackgroundDark.backgroundColor}
         cardBackgroundImageDark={serviceCardBackgroundDark.backgroundImage}
         cardLiquidGlass={data.serviceCardLiquidGlass === true}
+        cardBackgroundStartOpacityLight={readDataNumber("serviceCardBackgroundStartOpacityLight", 0)}
+        cardBackgroundEndOpacityLight={readDataNumber("serviceCardBackgroundEndOpacityLight", 10)}
+        cardBackgroundStartOpacityDark={readDataNumber(
+          "serviceCardBackgroundStartOpacityDark",
+          readDataNumber("serviceCardBackgroundStartOpacityLight", 0)
+        )}
+        cardBackgroundEndOpacityDark={readDataNumber(
+          "serviceCardBackgroundEndOpacityDark",
+          readDataNumber("serviceCardBackgroundEndOpacityLight", 10)
+        )}
         cardGapX={cardGapX}
         cardGapY={cardGapY}
         imageAspectRatio={imageAspectRatio}

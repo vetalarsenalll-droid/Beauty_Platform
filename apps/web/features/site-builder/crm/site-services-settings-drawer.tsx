@@ -123,6 +123,38 @@ function renderFlatNumberPxInput(
   );
 }
 
+function renderOpacitySelect(label: string, value: number, onChange: (value: number) => void) {
+  const normalizedValue = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value / 10) * 10)) : 0;
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <select
+          value={String(normalizedValue)}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="h-8 w-full appearance-none rounded-none border-0 bg-transparent py-0 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          style={{
+            border: 0,
+            borderRadius: 0,
+            boxShadow: "none",
+            backgroundColor: "transparent",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            appearance: "none",
+          }}
+        >
+          {Array.from({ length: 11 }, (_, index) => index * 10).map((option) => (
+            <option key={`${label}-${option}`} value={option}>
+              {option}%
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">{"\u25BE"}</span>
+      </div>
+    </label>
+  );
+}
+
 function DesktopFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -521,6 +553,10 @@ export function SiteServicesSettingsDrawer({
     const cardLightStopB = readDataNumber("serviceCardBackgroundStopBLight", 100);
     const cardDarkStopA = readDataNumber("serviceCardBackgroundStopADark", cardLightStopA);
     const cardDarkStopB = readDataNumber("serviceCardBackgroundStopBDark", cardLightStopB);
+    const cardLightStartOpacity = readDataNumber("serviceCardBackgroundStartOpacityLight", 0);
+    const cardLightEndOpacity = readDataNumber("serviceCardBackgroundEndOpacityLight", 10);
+    const cardDarkStartOpacity = readDataNumber("serviceCardBackgroundStartOpacityDark", cardLightStartOpacity);
+    const cardDarkEndOpacity = readDataNumber("serviceCardBackgroundEndOpacityDark", cardLightEndOpacity);
     const showLiquidGlassControl =
       String(data.imageAspectRatio ?? "1 / 1") === "original" && data.cardStyle === "filled";
 
@@ -665,6 +701,14 @@ export function SiteServicesSettingsDrawer({
             onRadialStopBChange={(value) => updateData({ serviceCardBackgroundStopBLight: value })}
             onChange={(value) => updateData({ serviceCardBackgroundFromLight: value })}
           />
+          <div className="grid grid-cols-2 gap-4">
+            {renderOpacitySelect("Непрозрачность в начале", cardLightStartOpacity, (value) =>
+              updateData({ serviceCardBackgroundStartOpacityLight: value })
+            )}
+            {renderOpacitySelect("Непрозрачность в конце", cardLightEndOpacity, (value) =>
+              updateData({ serviceCardBackgroundEndOpacityLight: value })
+            )}
+          </div>
           <TildaInlineColorField
             compact
             label="Заголовок карточки"
@@ -719,6 +763,14 @@ export function SiteServicesSettingsDrawer({
                 onRadialStopBChange={(value) => updateData({ serviceCardBackgroundStopBDark: value })}
                 onChange={(value) => updateData({ serviceCardBackgroundFromDark: value })}
               />
+              <div className="grid grid-cols-2 gap-4">
+                {renderOpacitySelect("Непрозрачность в начале", cardDarkStartOpacity, (value) =>
+                  updateData({ serviceCardBackgroundStartOpacityDark: value })
+                )}
+                {renderOpacitySelect("Непрозрачность в конце", cardDarkEndOpacity, (value) =>
+                  updateData({ serviceCardBackgroundEndOpacityDark: value })
+                )}
+              </div>
               <TildaInlineColorField
                 compact
                 label="Заголовок карточки"

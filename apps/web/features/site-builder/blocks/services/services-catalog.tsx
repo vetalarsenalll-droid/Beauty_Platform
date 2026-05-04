@@ -57,6 +57,10 @@ type ServiceCatalogProps = {
   cardBackgroundColorDark?: string;
   cardBackgroundImageDark?: string;
   cardLiquidGlass?: boolean;
+  cardBackgroundStartOpacityLight?: number;
+  cardBackgroundEndOpacityLight?: number;
+  cardBackgroundStartOpacityDark?: number;
+  cardBackgroundEndOpacityDark?: number;
   cardGapX: number;
   cardGapY: number;
   imageAspectRatio: string;
@@ -142,6 +146,13 @@ function clamp(value: number, min: number, max: number, fallback: number) {
 
 function alphaHexColors(value: string, opacity: number) {
   return value.replace(/#[0-9a-fA-F]{6}\b/g, (hex) => rgbaFromHex(hex, opacity));
+}
+
+function opacityGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
+  return `linear-gradient(180deg, ${rgbaFromHex(color, clamp(startOpacity, 0, 100, 0) / 100)}, ${rgbaFromHex(
+    color,
+    clamp(endOpacity, 0, 100, 10) / 100
+  )})`;
 }
 
 function clampPan(value: number, limit: number) {
@@ -909,6 +920,10 @@ export function ServicesCatalog({
   cardBackgroundColorDark,
   cardBackgroundImageDark,
   cardLiquidGlass = false,
+  cardBackgroundStartOpacityLight,
+  cardBackgroundEndOpacityLight,
+  cardBackgroundStartOpacityDark,
+  cardBackgroundEndOpacityDark,
   cardGapX,
   cardGapY,
   imageAspectRatio,
@@ -1067,15 +1082,49 @@ export function ServicesCatalog({
     activeThemeMode === "dark"
       ? cardBackgroundImageDark || cardBackgroundImageLight || "none"
       : cardBackgroundImageLight || cardBackgroundImageDark || "none";
-  const glassPanelOpacity = activeThemeMode === "dark" ? 0.28 : 0.42;
+  const cardBackgroundStartOpacity =
+    activeThemeMode === "dark"
+      ? Number.isFinite(Number(cardBackgroundStartOpacityDark))
+        ? Number(cardBackgroundStartOpacityDark)
+        : Number.isFinite(Number(cardBackgroundStartOpacityLight))
+          ? Number(cardBackgroundStartOpacityLight)
+          : 0
+      : Number.isFinite(Number(cardBackgroundStartOpacityLight))
+        ? Number(cardBackgroundStartOpacityLight)
+        : Number.isFinite(Number(cardBackgroundStartOpacityDark))
+          ? Number(cardBackgroundStartOpacityDark)
+          : 0;
+  const cardBackgroundEndOpacity =
+    activeThemeMode === "dark"
+      ? Number.isFinite(Number(cardBackgroundEndOpacityDark))
+        ? Number(cardBackgroundEndOpacityDark)
+        : Number.isFinite(Number(cardBackgroundEndOpacityLight))
+          ? Number(cardBackgroundEndOpacityLight)
+          : 10
+      : Number.isFinite(Number(cardBackgroundEndOpacityLight))
+        ? Number(cardBackgroundEndOpacityLight)
+        : Number.isFinite(Number(cardBackgroundEndOpacityDark))
+          ? Number(cardBackgroundEndOpacityDark)
+          : 10;
+  const glassPanelOpacity = clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100;
+  const cardPanelBackgroundImage = opacityGradientFromColor(
+    resolvedCardBackgroundColor,
+    cardBackgroundStartOpacity,
+    cardBackgroundEndOpacity
+  );
   const glassPanelBackgroundImage =
     activeThemeMode === "dark"
-      ? `linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.06) 42%, rgba(12,14,18,0.34)), ${
+      ? `${cardPanelBackgroundImage}, ${
           resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
             ? alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)
-            : "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(12,14,18,0.18))"
+            : "none"
         }`
-      : alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity);
+      : resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
+        ? `${cardPanelBackgroundImage}, ${alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)}`
+        : cardPanelBackgroundImage;
+  const glassPanelMaskImage = `linear-gradient(180deg, rgba(0,0,0,${
+    clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100
+  }), rgba(0,0,0,${clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100}))`;
   const resolveModalTextStyle = (style: CSSProperties): CSSProperties => {
     const nextStyle = { ...(style as ModalTextStyle) };
     const darkColor = nextStyle["--modal-dark-color"];
@@ -1911,17 +1960,17 @@ export function ServicesCatalog({
                   backgroundColor:
                     hasFilledInfoPanel
                       ? hasGlassInfoPanel
-                        ? rgbaFromHex(resolvedCardBackgroundColor, glassPanelOpacity)
-                        : resolvedCardBackgroundColor
+                        ? "transparent"
+                        : "transparent"
                       : hasRegularFilledInfoPanel || (isListView && cardStyle === "filled")
-                        ? resolvedCardBackgroundColor
+                        ? "transparent"
                         : "transparent",
                   backgroundImage: hasFilledInfoPanel
                     ? hasGlassInfoPanel
-                      ? glassPanelBackgroundImage
-                      : resolvedCardBackgroundImage
+                      ? "none"
+                      : cardPanelBackgroundImage
                     : hasRegularFilledInfoPanel || (isListView && cardStyle === "filled")
-                      ? resolvedCardBackgroundImage
+                      ? cardPanelBackgroundImage
                       : "none",
                   border:
                     isListView && cardStyle === "filled"
@@ -1936,8 +1985,8 @@ export function ServicesCatalog({
                   borderBottomRightRadius:
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
                   marginBottom: hasGlassInfoPanel ? -1 : undefined,
-                  backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
-                  WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
+                  position: hasGlassInfoPanel ? (isImageInsetCard ? "absolute" : "relative") : undefined,
+                  overflow: hasGlassInfoPanel ? "hidden" : undefined,
                   boxShadow: hasGlassInfoPanel
                     ? activeThemeMode === "dark"
                       ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 45px rgba(0,0,0,0.22)"
@@ -1946,9 +1995,22 @@ export function ServicesCatalog({
                   alignItems: isListView ? contentAlignItems : undefined,
                 }}
               >
+                {hasGlassInfoPanel && (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-0"
+                    style={{
+                      backgroundImage: glassPanelBackgroundImage,
+                      backdropFilter: "blur(22px) saturate(1.65)",
+                      WebkitBackdropFilter: "blur(22px) saturate(1.65)",
+                      maskImage: glassPanelMaskImage,
+                      WebkitMaskImage: glassPanelMaskImage,
+                    }}
+                  />
+                )}
                 {modalImageClickEnabled ? (
                   <span
-                    className="block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
+                    className="relative z-[1] block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
                     style={titleOverlayStyle}
                   >
                     {service.name}
@@ -1956,7 +2018,7 @@ export function ServicesCatalog({
                 ) : (
                   <a
                     href={serviceHref}
-                    className="block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
+                    className="relative z-[1] block w-full font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline hover:no-underline max-sm:min-h-[35px] max-sm:!text-[15px] max-sm:!leading-[1.16]"
                     style={titleOverlayStyle}
                   >
                     {service.name}
@@ -1965,7 +2027,7 @@ export function ServicesCatalog({
 
                 {hasServiceMeta && (
                   <div
-                    className={`flex flex-wrap gap-x-1.5 gap-y-0.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}
+                    className={`relative z-[1] flex flex-wrap gap-x-1.5 gap-y-0.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}
                     style={{ ...textOverlayStyle, justifyContent: contentJustify }}
                   >
                     {showDuration ? (
@@ -1982,7 +2044,7 @@ export function ServicesCatalog({
                 )}
 
                 <div
-                  className={`bp-catalog-card-actions ${serviceActionsClassName} w-full max-sm:!pt-3`}
+                  className={`bp-catalog-card-actions relative z-[1] ${serviceActionsClassName} w-full max-sm:!pt-3`}
                   style={{ alignSelf: "stretch" }}
                   >
                     <div

@@ -5102,6 +5102,8 @@ export function renderServices(
       : "";
   const readDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const readDataNumber = (key: string, fallback: number) =>
+    Number.isFinite(Number(data[key])) ? Number(data[key]) : fallback;
   const readOptionalDataColor = (key: string) => {
     const value = readDataColor(key);
     return value && value !== "transparent" ? value : "";
@@ -5414,6 +5416,16 @@ export function renderServices(
         cardBackgroundColorDark={serviceCardBackgroundDark.backgroundColor}
         cardBackgroundImageDark={serviceCardBackgroundDark.backgroundImage}
         cardLiquidGlass={data.serviceCardLiquidGlass === true}
+        cardBackgroundStartOpacityLight={readDataNumber("serviceCardBackgroundStartOpacityLight", 0)}
+        cardBackgroundEndOpacityLight={readDataNumber("serviceCardBackgroundEndOpacityLight", 10)}
+        cardBackgroundStartOpacityDark={readDataNumber(
+          "serviceCardBackgroundStartOpacityDark",
+          readDataNumber("serviceCardBackgroundStartOpacityLight", 0)
+        )}
+        cardBackgroundEndOpacityDark={readDataNumber(
+          "serviceCardBackgroundEndOpacityDark",
+          readDataNumber("serviceCardBackgroundEndOpacityLight", 10)
+        )}
         cardGapX={cardGapX}
         cardGapY={cardGapY}
         imageAspectRatio={imageAspectRatio}
@@ -5509,6 +5521,8 @@ export function renderSpecialists(
         : "";
   const readDataColor = (key: string) =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const readDataNumber = (key: string, fallback: number) =>
+    Number.isFinite(Number(data[key])) ? Number(data[key]) : fallback;
   const detailsButtonColor = readDataColor("detailsButtonColor") || "transparent";
   const detailsButtonTextColor = readDataColor("detailsButtonTextColor") || "#111111";
   const detailsButtonBorderColor = readDataColor("detailsButtonBorderColor") || "transparent";
@@ -5728,6 +5742,16 @@ export function renderSpecialists(
         cardBackgroundColorDark={specialistCardBackgroundDark.backgroundColor}
         cardBackgroundImageDark={specialistCardBackgroundDark.backgroundImage}
         cardLiquidGlass={data.specialistCardLiquidGlass === true}
+        cardBackgroundStartOpacityLight={readDataNumber("specialistCardBackgroundStartOpacityLight", 0)}
+        cardBackgroundEndOpacityLight={readDataNumber("specialistCardBackgroundEndOpacityLight", 10)}
+        cardBackgroundStartOpacityDark={readDataNumber(
+          "specialistCardBackgroundStartOpacityDark",
+          readDataNumber("specialistCardBackgroundStartOpacityLight", 0)
+        )}
+        cardBackgroundEndOpacityDark={readDataNumber(
+          "specialistCardBackgroundEndOpacityDark",
+          readDataNumber("specialistCardBackgroundEndOpacityLight", 10)
+        )}
         cardTitleTextStyle={specialistCardTitleTextStyle}
         cardDescriptionTextStyle={specialistCardDescriptionTextStyle}
         cardClickEnabled={data.modalImageClickEnabled !== false}

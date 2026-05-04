@@ -1,1 +1,218 @@
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/account/media/route.ts
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
+    at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1943:23)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1570:23)
+  151 | function colorWithOpacity(color: string, opacityPercent: number) {
+  152 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 153 |   const normalized = color.trim();
+      |                            ^
+  154 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  155 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  156 |   return normalized; {
+  digest: '1933950333'
+}
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
+    at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1943:23)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1570:23)
+  151 | function colorWithOpacity(color: string, opacityPercent: number) {
+  152 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 153 |   const normalized = color.trim();
+      |                            ^
+  154 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  155 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  156 |   return normalized; {
+  digest: '2488668690'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
+    at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1951:23)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1578:23)
+  151 | function colorWithOpacity(color: string, opacityPercent: number) {
+  152 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 153 |   const normalized = color.trim();
+      |                            ^
+  154 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  155 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  156 |   return normalized; {
+  digest: '1933950333'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
+    at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1951:23)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1578:23)
+  151 | function colorWithOpacity(color: string, opacityPercent: number) {
+  152 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 153 |   const normalized = color.trim();
+      |                            ^
+  154 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  155 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  156 |   return normalized; {
+  digest: '2488668690'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
+    at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1989:23)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1616:23)
+  151 | function colorWithOpacity(color: string, opacityPercent: number) {
+  152 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 153 |   const normalized = color.trim();
+      |                            ^
+  154 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  155 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  156 |   return normalized; {
+  digest: '1933950333'
+}
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
+    at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1989:23)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1616:23)
+  151 | function colorWithOpacity(color: string, opacityPercent: number) {
+  152 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 153 |   const normalized = color.trim();
+      |                            ^
+  154 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  155 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  156 |   return normalized; {
+  digest: '2488668690'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\specialists\specialists-catalog.tsx:143:28)
+    at transparentToColorGradient (features\site-builder\blocks\specialists\specialists-catalog.tsx:150:87)
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1441:23)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1194:23)
+  141 | function colorWithOpacity(color: string, opacityPercent: number) {
+  142 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 143 |   const normalized = color.trim();
+      |                            ^
+  144 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  145 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  146 |   return normalized; {
+  digest: '69218315'
+}
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\specialists\specialists-catalog.tsx:143:28)
+    at transparentToColorGradient (features\site-builder\blocks\specialists\specialists-catalog.tsx:150:87)
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1441:23)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1194:23)
+  141 | function colorWithOpacity(color: string, opacityPercent: number) {
+  142 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 143 |   const normalized = color.trim();
+      |                            ^
+  144 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  145 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  146 |   return normalized; {
+  digest: '600916676'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\specialists\specialists-catalog.tsx:143:28)
+    at transparentToColorGradient (features\site-builder\blocks\specialists\specialists-catalog.tsx:150:87)
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1449:23)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1202:23)
+  141 | function colorWithOpacity(color: string, opacityPercent: number) {
+  142 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 143 |   const normalized = color.trim();
+      |                            ^
+  144 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  145 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  146 |   return normalized; {
+  digest: '69218315'
+}
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\specialists\specialists-catalog.tsx:143:28)
+    at transparentToColorGradient (features\site-builder\blocks\specialists\specialists-catalog.tsx:150:87)
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1449:23)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1202:23)
+  141 | function colorWithOpacity(color: string, opacityPercent: number) {
+  142 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 143 |   const normalized = color.trim();
+      |                            ^
+  144 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  145 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  146 |   return normalized; {
+  digest: '600916676'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\specialists\specialists-catalog.tsx:143:28)
+    at transparentToColorGradient (features\site-builder\blocks\specialists\specialists-catalog.tsx:150:87)
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1487:23)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1240:23)
+  141 | function colorWithOpacity(color: string, opacityPercent: number) {
+  142 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 143 |   const normalized = color.trim();
+      |                            ^
+  144 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  145 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  146 |   return normalized; {
+  digest: '69218315'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ TypeError: Cannot read properties of undefined (reading 'trim')
+    at colorWithOpacity (features\site-builder\blocks\specialists\specialists-catalog.tsx:143:28)
+    at transparentToColorGradient (features\site-builder\blocks\specialists\specialists-catalog.tsx:150:87)
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1487:23)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1240:23)
+  141 | function colorWithOpacity(color: string, opacityPercent: number) {
+  142 |   const opacity = clamp(opacityPercent, 0, 100, 100) / 100;
+> 143 |   const normalized = color.trim();
+      |                            ^
+  144 |   if (!normalized || normalized === "transparent" || opacity <= 0) return "transparent";
+  145 |   if (/^#[0-9a-fA-F]{6}$/.test(normalized)) return rgbaFromHex(normalized, opacity);
+  146 |   return normalized; {
+  digest: '600916676'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ./features/site-builder/crm/site-renderer.tsx:5107:8
+Syntax error: Identifier 'readDataNumber' has already been declared.
+
+[0m [90m 5105 |[39m   [36mconst[39m readDataNumber [33m=[39m (key[33m:[39m string[33m,[39m fallback[33m:[39m number) [33m=>[39m
+ [90m 5106 |[39m     [33mNumber[39m[33m.[39misFinite([33mNumber[39m(data[key])) [33m?[39m [33mNumber[39m(data[key]) [33m:[39m fallback[33m;[39m
+[31m[1m>[22m[39m[90m 5107 |[39m   [36mconst[39m readDataNumber [33m=[39m (key[33m:[39m string[33m,[39m fallback[33m:[39m number) [33m=>[39m
+ [90m      |[39m         [31m[1m^[22m[39m
+ [90m 5108 |[39m     [33mNumber[39m[33m.[39misFinite([33mNumber[39m(data[key])) [33m?[39m [33mNumber[39m(data[key]) [33m:[39m fallback[33m;[39m
+ [90m 5109 |[39m   [36mconst[39m readOptionalDataColor [33m=[39m (key[33m:[39m string) [33m=>[39m {
+ [90m 5110 |[39m     [36mconst[39m value [33m=[39m readDataColor(key)[33m;[39m[0m

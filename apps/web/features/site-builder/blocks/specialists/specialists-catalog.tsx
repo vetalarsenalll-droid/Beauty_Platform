@@ -78,6 +78,10 @@ type SpecialistsCatalogProps = {
   cardBackgroundColorDark?: string;
   cardBackgroundImageDark?: string;
   cardLiquidGlass?: boolean;
+  cardBackgroundStartOpacityLight?: number;
+  cardBackgroundEndOpacityLight?: number;
+  cardBackgroundStartOpacityDark?: number;
+  cardBackgroundEndOpacityDark?: number;
   cardTitleTextStyle?: CSSProperties;
   cardDescriptionTextStyle?: CSSProperties;
   cardClickEnabled?: boolean;
@@ -132,6 +136,13 @@ function rgbaFromHex(hex: string, opacity: number) {
 
 function alphaHexColors(value: string, opacity: number) {
   return value.replace(/#[0-9a-fA-F]{6}\b/g, (hex) => rgbaFromHex(hex, opacity));
+}
+
+function opacityGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
+  return `linear-gradient(180deg, ${rgbaFromHex(color, clamp(startOpacity, 0, 100, 0) / 100)}, ${rgbaFromHex(
+    color,
+    clamp(endOpacity, 0, 100, 10) / 100
+  )})`;
 }
 
 function uniqueSpecialistImages(specialist: SpecialistCatalogItem) {
@@ -663,6 +674,10 @@ export function SpecialistsCatalog({
   cardBackgroundColorDark,
   cardBackgroundImageDark,
   cardLiquidGlass = false,
+  cardBackgroundStartOpacityLight,
+  cardBackgroundEndOpacityLight,
+  cardBackgroundStartOpacityDark,
+  cardBackgroundEndOpacityDark,
   cardTitleTextStyle,
   cardDescriptionTextStyle,
   cardClickEnabled = true,
@@ -844,15 +859,49 @@ export function SpecialistsCatalog({
     activeThemeMode === "dark"
       ? cardBackgroundImageDark || cardBackgroundImageLight || "none"
       : cardBackgroundImageLight || cardBackgroundImageDark || "none";
-  const glassPanelOpacity = activeThemeMode === "dark" ? 0.28 : 0.42;
+  const cardBackgroundStartOpacity =
+    activeThemeMode === "dark"
+      ? Number.isFinite(Number(cardBackgroundStartOpacityDark))
+        ? Number(cardBackgroundStartOpacityDark)
+        : Number.isFinite(Number(cardBackgroundStartOpacityLight))
+          ? Number(cardBackgroundStartOpacityLight)
+          : 0
+      : Number.isFinite(Number(cardBackgroundStartOpacityLight))
+        ? Number(cardBackgroundStartOpacityLight)
+        : Number.isFinite(Number(cardBackgroundStartOpacityDark))
+          ? Number(cardBackgroundStartOpacityDark)
+          : 0;
+  const cardBackgroundEndOpacity =
+    activeThemeMode === "dark"
+      ? Number.isFinite(Number(cardBackgroundEndOpacityDark))
+        ? Number(cardBackgroundEndOpacityDark)
+        : Number.isFinite(Number(cardBackgroundEndOpacityLight))
+          ? Number(cardBackgroundEndOpacityLight)
+          : 10
+      : Number.isFinite(Number(cardBackgroundEndOpacityLight))
+        ? Number(cardBackgroundEndOpacityLight)
+        : Number.isFinite(Number(cardBackgroundEndOpacityDark))
+          ? Number(cardBackgroundEndOpacityDark)
+          : 10;
+  const glassPanelOpacity = clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100;
+  const cardPanelBackgroundImage = opacityGradientFromColor(
+    resolvedCardBackgroundColor,
+    cardBackgroundStartOpacity,
+    cardBackgroundEndOpacity
+  );
   const glassPanelBackgroundImage =
     activeThemeMode === "dark"
-      ? `linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.06) 42%, rgba(12,14,18,0.34)), ${
+      ? `${cardPanelBackgroundImage}, ${
           resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
             ? alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)
-            : "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(12,14,18,0.18))"
+            : "none"
         }`
-      : alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity);
+      : resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
+        ? `${cardPanelBackgroundImage}, ${alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)}`
+        : cardPanelBackgroundImage;
+  const glassPanelMaskImage = `linear-gradient(180deg, rgba(0,0,0,${
+    clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100
+  }), rgba(0,0,0,${clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100}))`;
   const resolveModeTextStyle = (nextStyle?: CSSProperties): CSSProperties | undefined => {
     if (!nextStyle) return undefined;
     const darkColor = (nextStyle as Record<string, unknown>)["--card-dark-color"];
@@ -1412,30 +1461,40 @@ export function SpecialistsCatalog({
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
                   backgroundColor: hasFilledInfoPanel
                     ? hasGlassInfoPanel
-                      ? rgbaFromHex(
-                          resolvedCardBackgroundColor,
-                          glassPanelOpacity
-                        )
-                      : resolvedCardBackgroundColor
+                      ? "transparent"
+                      : "transparent"
                     : hasRegularFilledInfoPanel
-                      ? resolvedCardBackgroundColor
+                      ? "transparent"
                     : undefined,
                   backgroundImage: hasFilledInfoPanel
                     ? hasGlassInfoPanel
-                      ? glassPanelBackgroundImage
-                      : resolvedCardBackgroundImage
+                      ? "none"
+                      : cardPanelBackgroundImage
                     : hasRegularFilledInfoPanel
-                      ? resolvedCardBackgroundImage
+                      ? cardPanelBackgroundImage
                     : undefined,
                   boxShadow: hasGlassInfoPanel
                     ? activeThemeMode === "dark"
                       ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 45px rgba(0,0,0,0.22)"
                       : "0 18px 45px rgba(15,16,18,0.14)"
                     : undefined,
-                  backdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
-                  WebkitBackdropFilter: hasGlassInfoPanel ? "blur(22px) saturate(1.65)" : undefined,
+                  position: hasGlassInfoPanel ? (isImageInsetCard && !isListCard ? "absolute" : "relative") : undefined,
+                  overflow: hasGlassInfoPanel ? "hidden" : undefined,
                 }}
               >
+                {hasGlassInfoPanel && (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-0"
+                    style={{
+                      backgroundImage: glassPanelBackgroundImage,
+                      backdropFilter: "blur(22px) saturate(1.65)",
+                      WebkitBackdropFilter: "blur(22px) saturate(1.65)",
+                      maskImage: glassPanelMaskImage,
+                      WebkitMaskImage: glassPanelMaskImage,
+                    }}
+                  />
+                )}
                 <a
                   href={profileHref}
                   onClick={
@@ -1447,14 +1506,14 @@ export function SpecialistsCatalog({
                         }
                       : undefined
                   }
-                  className="specialist-card-text text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
+                  className="specialist-card-text relative z-[1] text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline"
                   style={titleStyle}
                 >
                   {specialist.name}
                 </a>
                 {showLevel && specialist.level && (
                   <div
-                    className="bp-specialist-card-level specialist-card-text mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
+                    className="bp-specialist-card-level specialist-card-text relative z-[1] mt-3 text-sm text-[color:var(--block-muted,var(--bp-muted))]"
                     style={descriptionStyle}
                   >
                     {specialist.level}
@@ -1462,7 +1521,7 @@ export function SpecialistsCatalog({
                 )}
                 {((showDetailsButton && detailsButtonText) || (showButton && buttonText)) && publicSlug && (
                   <div
-                    className={`bp-catalog-card-actions flex flex-wrap items-center gap-4 ${
+                    className={`bp-catalog-card-actions relative z-[1] flex flex-wrap items-center gap-4 ${
                       shouldCompactTileSpacing
                         ? "mt-4"
                         : !isListCard && alignButtonsBottom && !isImageInsetCard
