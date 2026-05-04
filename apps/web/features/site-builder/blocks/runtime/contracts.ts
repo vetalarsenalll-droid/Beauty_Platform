@@ -7,6 +7,7 @@ import type {
   SitePromoItem as PromoItem,
   SiteServiceCategoryItem as ServiceCategoryItem,
   SiteServiceItem as ServiceItem,
+  SiteSpecialistLevelItem as SpecialistLevelItem,
   SiteSpecialistItem as SpecialistItem,
 } from "@/features/site-builder/shared/site-data";
 import type { PanelTheme } from "@/features/site-builder/crm/site-shell-theme";
@@ -55,6 +56,7 @@ export type CrmPanelCtx = {
   locations: LocationItem[];
   services: ServiceItem[];
   serviceCategories: ServiceCategoryItem[];
+  specialistLevels: SpecialistLevelItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
 
@@ -75,4 +77,5 @@ export type CrmPanelCtx = {
 
   updateBlock: UpdateBlock;
   updateServiceItem?: (service: ServiceItem) => void;
+  updateSpecialistItem?: (specialist: SpecialistItem) => void;
 };

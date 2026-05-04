@@ -570,3 +570,21 @@ Import trace for requested module:
 ./features/site-builder/crm/site-renderer.tsx
 ./features/site-builder/crm/site-client-shell.tsx
 ./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/specialists/SP001/content-panel.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\specialists\SP001\content-panel.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/specialists/SP001/content-panel.tsx
+./features/site-builder/blocks/specialists/SP001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/specialists/SP001/content-panel.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\specialists\SP001\content-panel.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/specialists/SP001/content-panel.tsx
+./features/site-builder/blocks/specialists/SP001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx

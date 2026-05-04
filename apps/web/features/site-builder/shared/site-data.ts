@@ -86,14 +86,23 @@ export type SiteServiceCategoryItem = {
   name: string;
 };
 
+export type SiteSpecialistLevelItem = {
+  id: number;
+  name: string;
+};
+
 export type SiteSpecialistItem = {
   id: number;
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
   bio?: string | null;
+  levelId?: number | null;
   level: string | null;
   locationIds: number[];
   coverUrl: string | null;
   photoUrls?: string[];
+  photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
 };
 
 export type SitePromoItem = {

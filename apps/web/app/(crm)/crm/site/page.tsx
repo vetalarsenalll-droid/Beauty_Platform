@@ -84,7 +84,7 @@ export default async function CrmSitePage({
     accountName
   );
 
-  const [locations, services, specialists, promotions, profile, branding, serviceCategories] = await Promise.all([
+  const [locations, services, specialists, promotions, profile, branding, serviceCategories, specialistLevels] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
@@ -121,6 +121,12 @@ export default async function CrmSitePage({
     prisma.serviceCategory.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
+    }),
+    prisma.specialistLevel.findMany({
+      where: {
+        OR: [{ accountId: session.accountId }, { accountId: null }],
+      },
+      orderBy: [{ rank: "asc" }, { createdAt: "desc" }],
     }),
   ]);
 
@@ -206,6 +212,7 @@ export default async function CrmSitePage({
 
   const specialistCoverMap = new Map<string, string>();
   const specialistPhotoMap = new Map<string, string[]>();
+  const specialistPhotoItemMap = new Map<string, Array<{ id: number; url: string; isCover: boolean }>>();
   specialistPhotos.forEach((item) => {
     if (!specialistCoverMap.has(item.entityId)) {
       specialistCoverMap.set(item.entityId, item.asset.url);
@@ -213,6 +220,13 @@ export default async function CrmSitePage({
     const current = specialistPhotoMap.get(item.entityId) ?? [];
     current.push(item.asset.url);
     specialistPhotoMap.set(item.entityId, current);
+    const currentItems = specialistPhotoItemMap.get(item.entityId) ?? [];
+    currentItems.push({
+      id: item.id,
+      url: item.asset.url,
+      isCover: item.isCover,
+    });
+    specialistPhotoItemMap.set(item.entityId, currentItems);
   });
 
   const workPhotos = {
@@ -308,7 +322,11 @@ export default async function CrmSitePage({
           id: category.id,
           name: category.name,
         }))}
-        specialists={specialists.map((specialist: { id: number; bio: string | null; user: { email: string | null; profile: { firstName: string | null; lastName: string | null } | null }; level: { name: string } | null; locations: Array<{ locationId: number }> }) => {
+        specialistLevels={specialistLevels.map((level) => ({
+          id: level.id,
+          name: level.name,
+        }))}
+        specialists={specialists.map((specialist: { id: number; bio: string | null; user: { email: string | null; profile: { firstName: string | null; lastName: string | null } | null }; level: { id: number; name: string } | null; locations: Array<{ locationId: number }> }) => {
           const profile = specialist.user.profile;
           const fullName = [profile?.firstName, profile?.lastName]
             .filter(Boolean)
@@ -316,11 +334,15 @@ export default async function CrmSitePage({
           return {
             id: specialist.id,
             name: fullName || specialist.user.email || "Без имени",
+            firstName: profile?.firstName ?? "",
+            lastName: profile?.lastName ?? "",
             bio: specialist.bio,
+            levelId: specialist.level?.id ?? null,
             level: specialist.level?.name ?? null,
             locationIds: specialist.locations.map((item: { locationId: number }) => item.locationId),
             coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
             photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],
+            photoItems: specialistPhotoItemMap.get(String(specialist.id)) ?? [],
           };
         })}
         promos={promotions.map((promo) => ({

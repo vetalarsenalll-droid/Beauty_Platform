@@ -122,12 +122,14 @@ export default function SiteClient({
   locations,
   services: initialServices,
   serviceCategories,
-  specialists,
+  specialistLevels,
+  specialists: initialSpecialists,
   promos,
   workPhotos,
 }: SiteClientProps) {
   const [publicPage, setPublicPage] = useState(initialPublicPage);
   const [services, setServices] = useState<ServiceItem[]>(initialServices);
+  const [specialists, setSpecialists] = useState<SpecialistItem[]>(initialSpecialists);
   const {
     draft,
     setDraft,
@@ -145,8 +147,16 @@ export default function SiteClient({
     setServices(initialServices);
   }, [initialServices]);
 
+  useEffect(() => {
+    setSpecialists(initialSpecialists);
+  }, [initialSpecialists]);
+
   const updateServiceItem = (service: ServiceItem) => {
     setServices((prev) => prev.map((item) => (item.id === service.id ? service : item)));
+  };
+
+  const updateSpecialistItem = (specialist: SpecialistItem) => {
+    setSpecialists((prev) => prev.map((item) => (item.id === specialist.id ? specialist : item)));
   };
 
   const activeBlockTypes = useMemo(
@@ -1213,6 +1223,7 @@ export default function SiteClient({
                       locations,
                       services,
                       serviceCategories,
+                      specialistLevels,
                       specialists,
                       promos,
                       activeTheme,
@@ -1228,6 +1239,7 @@ export default function SiteClient({
                       setCoverWidthModalOpen,
                       updateBlock,
                       updateServiceItem,
+                      updateSpecialistItem,
                     })
                   ) : (
                     selectedBlockVersion.settingsPanel({
@@ -1239,6 +1251,7 @@ export default function SiteClient({
                       locations,
                       services,
                       serviceCategories,
+                      specialistLevels,
                       specialists,
                       promos,
                       activeTheme,
@@ -1254,6 +1267,7 @@ export default function SiteClient({
                       setCoverWidthModalOpen,
                       updateBlock,
                       updateServiceItem,
+                      updateSpecialistItem,
                     })
                   )
                 ) : null}
@@ -1330,6 +1344,7 @@ export default function SiteClient({
                     locations,
                     services,
                     serviceCategories,
+                    specialistLevels,
                     specialists,
                     promos,
                     activeTheme,
@@ -1345,6 +1360,7 @@ export default function SiteClient({
                     setCoverWidthModalOpen,
                     updateBlock,
                     updateServiceItem,
+                    updateSpecialistItem,
                   })
                 : null}
             </div>

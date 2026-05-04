@@ -14,6 +14,7 @@ import type {
   SitePromoItem as PromoItem,
   SiteServiceCategoryItem as ServiceCategoryItem,
   SiteServiceItem as ServiceItem,
+  SiteSpecialistLevelItem as SpecialistLevelItem,
   SiteSpecialistItem as SpecialistItem,
   SiteWorkPhotos as WorkPhotos,
 } from "@/features/site-builder/shared/site-data";
@@ -40,6 +41,7 @@ export type SiteClientProps = {
   locations: LocationItem[];
   services: ServiceItem[];
   serviceCategories: ServiceCategoryItem[];
+  specialistLevels: SpecialistLevelItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
   workPhotos: WorkPhotos;
