@@ -1395,7 +1395,7 @@ export function SpecialistsCatalog({
                         }
                       : undefined
                   }
-                  className={`relative block overflow-hidden ${
+                  className={`block ${
                     isImageInsetCard && !isListCard && hasCoverImage
                       ? "absolute inset-0 bg-transparent"
                       : isImageInsetCard && !isListCard
@@ -1404,7 +1404,6 @@ export function SpecialistsCatalog({
                   }`}
                   style={{
                     aspectRatio: isImageInsetCard && hasCoverImage ? undefined : imageAspectRatio === "original" ? "4 / 5" : imageAspectRatio,
-                    borderRadius: imageBorderRadius,
                     marginLeft: hasRegularFilledInfoPanel ? -1 : undefined,
                     marginRight: hasRegularFilledInfoPanel ? -1 : undefined,
                     marginTop: hasRegularFilledInfoPanel ? -1 : undefined,
@@ -1412,6 +1411,12 @@ export function SpecialistsCatalog({
                     width: hasRegularFilledInfoPanel ? "calc(100% + 2px)" : undefined,
                   }}
                 >
+                  <div
+                    className="relative h-full w-full overflow-hidden"
+                    style={{
+                      borderRadius: imageBorderRadius,
+                    }}
+                  >
                   {specialist.coverUrl ? (
                     <img
                       src={specialist.coverUrl}
@@ -1447,6 +1452,7 @@ export function SpecialistsCatalog({
                       }}
                     />
                   ) : null}
+                  </div>
                 </a>
               )}
               <div
