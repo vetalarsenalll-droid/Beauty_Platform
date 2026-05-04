@@ -2,6 +2,7 @@ import type { CrmPanelCtx } from "../../runtime/contracts";
 import type { SiteServiceItem as ServiceItem } from "@/features/site-builder/shared/site-data";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 function renderSectionTitle(title: string) {
   return (
@@ -171,6 +172,8 @@ function ServiceCardEditor({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [removingPhotoId, setRemovingPhotoId] = useState<number | null>(null);
+  const [pendingDeletePhoto, setPendingDeletePhoto] = useState<{ id: number; url: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -254,6 +257,56 @@ function ServiceCardEditor({
     });
     setLibraryOpen(false);
     setMessage("Фотография обновлена");
+  };
+
+  const removeCoverPhoto = async () => {
+    const currentCover = (service.photoItems ?? []).find(
+      (item) => item.id > 0 && item.url === service.coverUrl
+    );
+    if (currentCover) {
+      setMessage(null);
+      const response = await fetch(`/api/v1/crm/services/${service.id}/media/${currentCover.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isCover: false }),
+      });
+      if (!response.ok) {
+        setMessage("Не удалось убрать фотографию.");
+        return;
+      }
+    }
+    applyServiceUpdate({
+      coverUrl: null,
+      photoItems: (service.photoItems ?? []).map((item) => ({ ...item, isCover: false })),
+    });
+    setMessage("Фотография убрана");
+  };
+
+  const deletePhoto = async (photo: { id: number; url: string }) => {
+    setRemovingPhotoId(photo.id);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/v1/crm/services/${service.id}/media/${photo.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        setMessage("Не удалось удалить фотографию.");
+        return;
+      }
+      const nextItems = (service.photoItems ?? []).filter((item) => item.id !== photo.id);
+      const wasCover = service.coverUrl === photo.url;
+      applyServiceUpdate({
+        coverUrl: wasCover ? null : service.coverUrl,
+        photoUrls: nextItems.map((item) => item.url),
+        photoItems: nextItems,
+      });
+      setPendingDeletePhoto(null);
+      setMessage("Фотография удалена");
+    } catch {
+      setMessage("Не удалось удалить фотографию.");
+    } finally {
+      setRemovingPhotoId(null);
+    }
   };
 
   const uploadPhoto = async (file: File) => {
@@ -351,26 +404,61 @@ function ServiceCardEditor({
           >
             Выбрать из загруженных
           </button>
+          <button
+            type="button"
+            onClick={() => void removeCoverPhoto()}
+            disabled={!service.coverUrl}
+            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+          >
+            Убрать
+          </button>
         </div>
         {libraryOpen ? (
           photos.length > 0 ? (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(92px,1fr))] gap-2">
-              {photos.map((photo) => (
-                <button
-                  key={`${photo.id}:${photo.url}`}
-                  type="button"
-                  onClick={() => photo.id > 0 && void setCoverPhoto(photo)}
-                  disabled={photo.id < 0}
-                  className={`overflow-hidden rounded-md border bg-[color:var(--bp-paper)] ${
-                    photo.url === service.coverUrl
-                      ? "border-[color:var(--bp-save-close,var(--bp-accent))]"
-                      : "border-[color:var(--bp-stroke)]"
-                  } disabled:opacity-60`}
-                  title={photo.id < 0 ? "Для выбора нужна перезагрузка страницы" : "Выбрать фотографию"}
-                >
-                  <img src={photo.url} alt="" className="aspect-[4/3] w-full object-cover" />
-                </button>
-              ))}
+              {photos.map((photo) => {
+                const isPendingDelete = pendingDeletePhoto?.id === photo.id;
+                return (
+                  <div
+                    key={`${photo.id}:${photo.url}`}
+                    className={`relative overflow-hidden rounded-md border bg-[color:var(--bp-paper)] ${
+                      photo.url === service.coverUrl
+                        ? "border-[color:var(--bp-save-close,var(--bp-accent))]"
+                        : "border-[color:var(--bp-stroke)]"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => photo.id > 0 && void setCoverPhoto(photo)}
+                      disabled={photo.id < 0 || removingPhotoId === photo.id || isPendingDelete}
+                      className="block w-full disabled:opacity-60"
+                      title={photo.id < 0 ? "Для выбора нужна перезагрузка страницы" : "Выбрать фотографию"}
+                    >
+                      <img src={photo.url} alt="" className="aspect-[4/3] w-full object-cover" />
+                    </button>
+                    {photo.id > 0 ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setPendingDeletePhoto((prev) => (prev?.id === photo.id ? null : photo));
+                        }}
+                        disabled={removingPhotoId === photo.id}
+                        className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
+                        aria-label="Удалить фотографию"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="M6 6l1 16h10l1-16" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
+                        </svg>
+                      </button>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-xs text-[color:var(--bp-muted)]">Загруженных фотографий пока нет.</div>
@@ -387,6 +475,45 @@ function ServiceCardEditor({
       >
         {saving ? "Сохранение..." : "Сохранить услугу"}
       </button>
+      {pendingDeletePhoto && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 p-4"
+              onClick={() => {
+                if (removingPhotoId !== null) return;
+                setPendingDeletePhoto(null);
+              }}
+            >
+              <div
+                className="w-full max-w-[460px] rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="text-base font-semibold">
+                  Вы уверены, что хотите удалить изображение?
+                </div>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPendingDeletePhoto(null)}
+                    className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
+                    disabled={removingPhotoId !== null}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deletePhoto(pendingDeletePhoto)}
+                    className="rounded-md bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+                    disabled={removingPhotoId !== null}
+                  >
+                    {removingPhotoId === pendingDeletePhoto.id ? "Удаление..." : "Удалить"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

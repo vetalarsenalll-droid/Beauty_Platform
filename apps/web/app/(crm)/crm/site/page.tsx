@@ -202,7 +202,7 @@ export default async function CrmSitePage({
   const serviceCoverMap = new Map<string, string>();
   const servicePhotoMap = new Map<string, string[]>();
   servicePhotos.forEach((item) => {
-    if (!serviceCoverMap.has(item.entityId)) {
+    if (item.isCover && !serviceCoverMap.has(item.entityId)) {
       serviceCoverMap.set(item.entityId, item.asset.url);
     }
     const current = servicePhotoMap.get(item.entityId) ?? [];
@@ -214,7 +214,7 @@ export default async function CrmSitePage({
   const specialistPhotoMap = new Map<string, string[]>();
   const specialistPhotoItemMap = new Map<string, Array<{ id: number; url: string; isCover: boolean }>>();
   specialistPhotos.forEach((item) => {
-    if (!specialistCoverMap.has(item.entityId)) {
+    if (item.isCover && !specialistCoverMap.has(item.entityId)) {
       specialistCoverMap.set(item.entityId, item.asset.url);
     }
     const current = specialistPhotoMap.get(item.entityId) ?? [];
