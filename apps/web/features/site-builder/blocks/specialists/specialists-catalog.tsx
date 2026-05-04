@@ -134,25 +134,6 @@ function rgbaFromHex(hex: string, opacity: number) {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-function alphaHexColors(value: string, opacity: number) {
-  return value.replace(/#[0-9a-fA-F]{6}\b/g, (hex) => rgbaFromHex(hex, opacity));
-}
-
-function opacityGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
-  return `linear-gradient(180deg, ${rgbaFromHex(color, clamp(startOpacity, 0, 100, 0) / 100)}, ${rgbaFromHex(
-    color,
-    clamp(endOpacity, 0, 100, 10) / 100
-  )})`;
-}
-
-function glassTintGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
-  const glassTintScale = 0.58;
-  return `linear-gradient(180deg, ${rgbaFromHex(
-    color,
-    (clamp(startOpacity, 0, 100, 0) / 100) * glassTintScale
-  )}, ${rgbaFromHex(color, (clamp(endOpacity, 0, 100, 10) / 100) * glassTintScale)})`;
-}
-
 function uniqueSpecialistImages(specialist: SpecialistCatalogItem) {
   return Array.from(new Set([...(specialist.photoUrls ?? []), specialist.coverUrl ?? ""].filter(Boolean)));
 }
@@ -891,31 +872,28 @@ export function SpecialistsCatalog({
         : Number.isFinite(Number(cardBackgroundEndOpacityDark))
           ? Number(cardBackgroundEndOpacityDark)
           : 10;
-  const glassPanelOpacity = clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100;
-  const cardPanelBackgroundImage = opacityGradientFromColor(
+  const panelBackgroundStartOpacity = clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100;
+  const panelBackgroundEndOpacity = clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100;
+  const softPanelBackgroundImage = `linear-gradient(180deg, ${rgbaFromHex(
     resolvedCardBackgroundColor,
-    cardBackgroundStartOpacity,
-    cardBackgroundEndOpacity
-  );
-  const glassPanelTintImage = glassTintGradientFromColor(
+    0
+  )} 0%, ${rgbaFromHex(resolvedCardBackgroundColor, panelBackgroundStartOpacity * 0.45)} 24%, ${rgbaFromHex(
     resolvedCardBackgroundColor,
-    cardBackgroundStartOpacity,
-    cardBackgroundEndOpacity
-  );
-  const glassPanelImageOpacity = Math.min(glassPanelOpacity, 0.58);
-  const glassPanelBackgroundImage =
-    activeThemeMode === "dark"
-      ? `${glassPanelTintImage}, ${
-          resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
-            ? alphaHexColors(resolvedCardBackgroundImage, glassPanelImageOpacity)
-            : "none"
-        }`
-      : resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
-        ? `${glassPanelTintImage}, ${alphaHexColors(resolvedCardBackgroundImage, glassPanelImageOpacity)}`
-        : glassPanelTintImage;
-  const glassPanelMaskImage = `linear-gradient(180deg, rgba(0,0,0,${
-    clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100
-  }), rgba(0,0,0,${clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100}))`;
+    panelBackgroundStartOpacity
+  )} 44%, ${rgbaFromHex(resolvedCardBackgroundColor, panelBackgroundEndOpacity)} 100%)`;
+  const photoPanelColorOverlayImage = `linear-gradient(180deg, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    0
+  )} 0%, ${rgbaFromHex(resolvedCardBackgroundColor, 0)} 44%, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    panelBackgroundStartOpacity * 0.28
+  )} 58%, ${rgbaFromHex(resolvedCardBackgroundColor, panelBackgroundStartOpacity)} 76%, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    panelBackgroundEndOpacity
+  )} 100%)`;
+  const photoPanelBlurMaskImage =
+    "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 44%, rgba(0,0,0,0.18) 58%, rgba(0,0,0,0.72) 76%, rgba(0,0,0,1) 100%)";
+  const glassPanelFeather = 104;
   const resolveModeTextStyle = (nextStyle?: CSSProperties): CSSProperties | undefined => {
     if (!nextStyle) return undefined;
     const darkColor = (nextStyle as Record<string, unknown>)["--card-dark-color"];
@@ -1267,13 +1245,17 @@ export function SpecialistsCatalog({
           const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage && cardLiquidGlass;
           const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
           const hasRegularFilledInfoPanel = isFilledCard && !isImageInsetCard && !isListCard && showImage;
+          const articleBackground =
+            normalizedCardStyle === "filled" && !isImageInsetCard && !hasRegularFilledInfoPanel
+              ? resolvedCardBackgroundColor
+              : "transparent";
+          const articleBorderColor =
+            normalizedCardStyle === "filled" ? "var(--block-border,transparent)" : "transparent";
           const imageRadiusValue = clampInt(imageRadius, 10, 0, 40);
           const imageBorderRadius =
             isListCard
               ? imageRadiusValue
-              : isImageInsetCard
-                ? imageRadiusValue
-              : isFilledCard
+              : normalizedCardStyle === "filled"
                 ? `${imageRadiusValue}px ${imageRadiusValue}px 0 0`
                 : imageRadiusValue;
           const shouldCompactTileSpacing = !isListCard && isNarrowPreviewViewport;
@@ -1375,13 +1357,7 @@ export function SpecialistsCatalog({
                   : undefined
               }
               style={{
-                backgroundColor: isImageInsetCard
-                  ? "transparent"
-                  : hasRegularFilledInfoPanel
-                    ? "transparent"
-                  : isFilledCard
-                    ? resolvedCardBackgroundColor
-                    : "transparent",
+                backgroundColor: isListCard ? "transparent" : articleBackground,
                 backgroundImage: isImageInsetCard
                   ? "none"
                   : hasRegularFilledInfoPanel
@@ -1389,6 +1365,9 @@ export function SpecialistsCatalog({
                   : isFilledCard
                     ? resolvedCardBackgroundImage
                     : "none",
+                borderWidth: isListCard ? 0 : 1,
+                borderStyle: "solid",
+                borderColor: isListCard ? "transparent" : articleBorderColor,
                 borderRadius: isFilledCard ? imageRadiusValue : 0,
                 padding:
                   isImageInsetCard && !isListCard
@@ -1416,7 +1395,7 @@ export function SpecialistsCatalog({
                         }
                       : undefined
                   }
-                  className={`block overflow-hidden ${
+                  className={`relative block overflow-hidden ${
                     isImageInsetCard && !isListCard && hasCoverImage
                       ? "absolute inset-0 bg-transparent"
                       : isImageInsetCard && !isListCard
@@ -1445,6 +1424,29 @@ export function SpecialistsCatalog({
                       Нет фото
                     </div>
                   )}
+                  {hasGlassInfoPanel && specialist.coverUrl ? (
+                    <img
+                      aria-hidden="true"
+                      src={specialist.coverUrl}
+                      alt=""
+                      className="pointer-events-none absolute inset-0 h-full w-full scale-[1.08]"
+                      style={{
+                        objectFit: "cover",
+                        filter: "blur(32px) saturate(1.08)",
+                        maskImage: photoPanelBlurMaskImage,
+                        WebkitMaskImage: photoPanelBlurMaskImage,
+                      }}
+                    />
+                  ) : null}
+                  {hasFilledInfoPanel ? (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        backgroundImage: photoPanelColorOverlayImage,
+                      }}
+                    />
+                  ) : null}
                 </a>
               )}
               <div
@@ -1463,8 +1465,10 @@ export function SpecialistsCatalog({
                       : isFilledCard && !isImageInsetCard
                       ? `${contentPaddingY}px ${contentPaddingX}px`
                       : undefined,
+                  boxSizing: "border-box",
+                  textAlign,
                   border: hasFilledInfoPanel ? 0 : undefined,
-                  marginBottom: hasGlassInfoPanel ? -1 : undefined,
+                  marginBottom: undefined,
                   borderTopLeftRadius:
                     hasFilledInfoPanel || hasRegularFilledInfoPanel ? 0 : undefined,
                   borderTopRightRadius:
@@ -1480,32 +1484,29 @@ export function SpecialistsCatalog({
                     : hasRegularFilledInfoPanel
                       ? "transparent"
                     : undefined,
-                  backgroundImage: hasFilledInfoPanel
-                    ? hasGlassInfoPanel
+                  backgroundImage:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel
                       ? "none"
-                      : cardPanelBackgroundImage
-                    : hasRegularFilledInfoPanel
-                      ? cardPanelBackgroundImage
-                    : undefined,
-                  boxShadow: hasGlassInfoPanel
-                    ? activeThemeMode === "dark"
-                      ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 45px rgba(0,0,0,0.22)"
-                      : "0 18px 45px rgba(15,16,18,0.14)"
-                    : undefined,
-                  position: hasGlassInfoPanel ? (isImageInsetCard && !isListCard ? "absolute" : "relative") : undefined,
-                  overflow: hasGlassInfoPanel ? "hidden" : undefined,
+                      : undefined,
+                  boxShadow: undefined,
+                  position:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel || hasGlassInfoPanel
+                      ? isImageInsetCard && !isListCard
+                        ? "absolute"
+                        : "relative"
+                      : undefined,
+                  overflow: hasFilledInfoPanel || hasRegularFilledInfoPanel || hasGlassInfoPanel ? "visible" : undefined,
                 }}
               >
-                {hasGlassInfoPanel && (
+                {hasRegularFilledInfoPanel && !hasGlassInfoPanel && (
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-0"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 z-0"
                     style={{
-                      backgroundImage: glassPanelBackgroundImage,
-                      backdropFilter: "blur(40px) saturate(1.65)",
-                      WebkitBackdropFilter: "blur(40px) saturate(1.65)",
-                      maskImage: glassPanelMaskImage,
-                      WebkitMaskImage: glassPanelMaskImage,
+                      top: -glassPanelFeather,
+                      backgroundImage: softPanelBackgroundImage,
+                      borderBottomLeftRadius: hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
+                      borderBottomRightRadius: hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
                     }}
                   />
                 )}

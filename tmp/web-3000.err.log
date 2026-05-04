@@ -216,3 +216,319 @@ Syntax error: Identifier 'readDataNumber' has already been declared.
  [90m 5108 |[39m     [33mNumber[39m[33m.[39misFinite([33mNumber[39m(data[key])) [33m?[39m [33mNumber[39m(data[key]) [33m:[39m fallback[33m;[39m
  [90m 5109 |[39m   [36mconst[39m readOptionalDataColor [33m=[39m (key[33m:[39m string) [33m=>[39m {
  [90m 5110 |[39m     [36mconst[39m value [33m=[39m readDataColor(key)[33m;[39m[0m
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: glassPanelBackgroundImage is not defined
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:2029:42)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1621:23)
+  2027 |                       style={{
+  2028 |                         top: -glassPanelFeather,
+> 2029 |                         backgroundImage: glassPanelBackgroundImage,
+       |                                          ^
+  2030 |                         maskImage: glassPanelMaskImage,
+  2031 |                         WebkitMaskImage: glassPanelMaskImage,
+  2032 |                       }} {
+  digest: '133202508'
+}
+⨯ ReferenceError: glassPanelBackgroundImage is not defined
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:2029:42)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1621:23)
+  2027 |                       style={{
+  2028 |                         top: -glassPanelFeather,
+> 2029 |                         backgroundImage: glassPanelBackgroundImage,
+       |                                          ^
+  2030 |                         maskImage: glassPanelMaskImage,
+  2031 |                         WebkitMaskImage: glassPanelMaskImage,
+  2032 |                       }} {
+  digest: '3535524067'
+}
+⨯ ReferenceError: glassPanelBackgroundImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1516:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1245:23)
+  1514 |                       style={{
+  1515 |                         top: -glassPanelFeather,
+> 1516 |                         backgroundImage: glassPanelBackgroundImage,
+       |                                          ^
+  1517 |                         maskImage: glassPanelMaskImage,
+  1518 |                         WebkitMaskImage: glassPanelMaskImage,
+  1519 |                       }} {
+  digest: '3888879930'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: glassPanelBackgroundImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1516:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1245:23)
+  1514 |                       style={{
+  1515 |                         top: -glassPanelFeather,
+> 1516 |                         backgroundImage: glassPanelBackgroundImage,
+       |                                          ^
+  1517 |                         maskImage: glassPanelMaskImage,
+  1518 |                         WebkitMaskImage: glassPanelMaskImage,
+  1519 |                       }} {
+  digest: '756724469'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: glassPanelBackgroundImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1516:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1245:23)
+  1514 |                       style={{
+  1515 |                         top: -glassPanelFeather,
+> 1516 |                         backgroundImage: glassPanelBackgroundImage,
+       |                                          ^
+  1517 |                         maskImage: glassPanelMaskImage,
+  1518 |                         WebkitMaskImage: glassPanelMaskImage,
+  1519 |                       }} {
+  digest: '3888879930'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: glassPanelBackgroundImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1516:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1245:23)
+  1514 |                       style={{
+  1515 |                         top: -glassPanelFeather,
+> 1516 |                         backgroundImage: glassPanelBackgroundImage,
+       |                                          ^
+  1517 |                         maskImage: glassPanelMaskImage,
+  1518 |                         WebkitMaskImage: glassPanelMaskImage,
+  1519 |                       }} {
+  digest: '756724469'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: fullCardGlassMaskImage is not defined
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1957:32)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1626:23)
+  1955 |                     backdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+  1956 |                     WebkitBackdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+> 1957 |                     maskImage: fullCardGlassMaskImage,
+       |                                ^
+  1958 |                     WebkitMaskImage: fullCardGlassMaskImage,
+  1959 |                   }}
+  1960 |                 /> {
+  digest: '2333719610'
+}
+⨯ ReferenceError: fullCardGlassMaskImage is not defined
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1957:32)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1626:23)
+  1955 |                     backdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+  1956 |                     WebkitBackdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+> 1957 |                     maskImage: fullCardGlassMaskImage,
+       |                                ^
+  1958 |                     WebkitMaskImage: fullCardGlassMaskImage,
+  1959 |                   }}
+  1960 |                 /> {
+  digest: '680683311'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: fullCardSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1457:38)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1238:23)
+  1455 |                   className="pointer-events-none absolute inset-0 z-0"
+  1456 |                   style={{
+> 1457 |                     backgroundImage: fullCardSoftOverlayImage,
+       |                                      ^
+  1458 |                   }}
+  1459 |                 />
+  1460 |               )} {
+  digest: '314894005'
+}
+⨯ ReferenceError: fullCardSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1457:38)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1238:23)
+  1455 |                   className="pointer-events-none absolute inset-0 z-0"
+  1456 |                   style={{
+> 1457 |                     backgroundImage: fullCardSoftOverlayImage,
+       |                                      ^
+  1458 |                   }}
+  1459 |                 />
+  1460 |               )} {
+  digest: '2547845018'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: fullCardSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1457:38)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1238:23)
+  1455 |                   className="pointer-events-none absolute inset-0 z-0"
+  1456 |                   style={{
+> 1457 |                     backgroundImage: fullCardSoftOverlayImage,
+       |                                      ^
+  1458 |                   }}
+  1459 |                 />
+  1460 |               )} {
+  digest: '2547845018'
+}
+⨯ ReferenceError: fullCardSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1457:38)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1238:23)
+  1455 |                   className="pointer-events-none absolute inset-0 z-0"
+  1456 |                   style={{
+> 1457 |                     backgroundImage: fullCardSoftOverlayImage,
+       |                                      ^
+  1458 |                   }}
+  1459 |                 />
+  1460 |               )} {
+  digest: '314894005'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: fullCardSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1478:38)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1238:23)
+  1476 |                   className="pointer-events-none absolute inset-0 z-0"
+  1477 |                   style={{
+> 1478 |                     backgroundImage: fullCardSoftOverlayImage,
+       |                                      ^
+  1479 |                   }}
+  1480 |                 />
+  1481 |               )} {
+  digest: '3582930432'
+}
+⨯ ReferenceError: fullCardSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1478:38)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1238:23)
+  1476 |                   className="pointer-events-none absolute inset-0 z-0"
+  1477 |                   style={{
+> 1478 |                     backgroundImage: fullCardSoftOverlayImage,
+       |                                      ^
+  1479 |                   }}
+  1480 |                 />
+  1481 |               )} {
+  digest: '314894005'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: glassPanelHighlightImage is not defined
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1880:46)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1606:23)
+  1878 |                           className="pointer-events-none absolute inset-0 z-[1]"
+  1879 |                           style={{
+> 1880 |                             backgroundImage: glassPanelHighlightImage,
+       |                                              ^
+  1881 |                             backdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+  1882 |                             WebkitBackdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+  1883 |                             maskImage: photoPanelGlassMaskImage, {
+  digest: '3725750933'
+}
+⨯ ReferenceError: glassPanelHighlightImage is not defined
+    at eval (features\site-builder\blocks\services\services-catalog.tsx:1880:46)
+    at Array.map (<anonymous>)
+    at ServicesCatalog (features\site-builder\blocks\services\services-catalog.tsx:1606:23)
+  1878 |                           className="pointer-events-none absolute inset-0 z-[1]"
+  1879 |                           style={{
+> 1880 |                             backgroundImage: glassPanelHighlightImage,
+       |                                              ^
+  1881 |                             backdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+  1882 |                             WebkitBackdropFilter: "blur(192px) saturate(2.15) contrast(0.82) brightness(1.08)",
+  1883 |                             maskImage: photoPanelGlassMaskImage, {
+  digest: '3105110746'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: photoPanelSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1434:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1218:23)
+  1432 |                       className="pointer-events-none absolute inset-0 z-[1]"
+  1433 |                       style={{
+> 1434 |                         backgroundImage: photoPanelSoftOverlayImage,
+       |                                          ^
+  1435 |                       }}
+  1436 |                     />
+  1437 |                   ) : null} {
+  digest: '2653659911'
+}
+⨯ ReferenceError: photoPanelSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1434:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1218:23)
+  1432 |                       className="pointer-events-none absolute inset-0 z-[1]"
+  1433 |                       style={{
+> 1434 |                         backgroundImage: photoPanelSoftOverlayImage,
+       |                                          ^
+  1435 |                       }}
+  1436 |                     />
+  1437 |                   ) : null} {
+  digest: '1274811240'
+}
+⨯ ReferenceError: photoPanelSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1434:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1218:23)
+  1432 |                       className="pointer-events-none absolute inset-0 z-[1]"
+  1433 |                       style={{
+> 1434 |                         backgroundImage: photoPanelSoftOverlayImage,
+       |                                          ^
+  1435 |                       }}
+  1436 |                     />
+  1437 |                   ) : null} {
+  digest: '2653659911'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: photoPanelSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1434:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1218:23)
+  1432 |                       className="pointer-events-none absolute inset-0 z-[1]"
+  1433 |                       style={{
+> 1434 |                         backgroundImage: photoPanelSoftOverlayImage,
+       |                                          ^
+  1435 |                       }}
+  1436 |                     />
+  1437 |                   ) : null} {
+  digest: '1274811240'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: photoPanelSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1434:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1218:23)
+  1432 |                       className="pointer-events-none absolute inset-0 z-[1]"
+  1433 |                       style={{
+> 1434 |                         backgroundImage: photoPanelSoftOverlayImage,
+       |                                          ^
+  1435 |                       }}
+  1436 |                     />
+  1437 |                   ) : null} {
+  digest: '2653659911'
+}
+⨯ ReferenceError: photoPanelSoftOverlayImage is not defined
+    at eval (features\site-builder\blocks\specialists\specialists-catalog.tsx:1434:42)
+    at Array.map (<anonymous>)
+    at SpecialistsCatalog (features\site-builder\blocks\specialists\specialists-catalog.tsx:1218:23)
+  1432 |                       className="pointer-events-none absolute inset-0 z-[1]"
+  1433 |                       style={{
+> 1434 |                         backgroundImage: photoPanelSoftOverlayImage,
+       |                                          ^
+  1435 |                       }}
+  1436 |                     />
+  1437 |                   ) : null} {
+  digest: '1274811240'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.

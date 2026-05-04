@@ -144,23 +144,11 @@ function clamp(value: number, min: number, max: number, fallback: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function alphaHexColors(value: string, opacity: number) {
-  return value.replace(/#[0-9a-fA-F]{6}\b/g, (hex) => rgbaFromHex(hex, opacity));
-}
-
 function opacityGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
   return `linear-gradient(180deg, ${rgbaFromHex(color, clamp(startOpacity, 0, 100, 0) / 100)}, ${rgbaFromHex(
     color,
     clamp(endOpacity, 0, 100, 10) / 100
   )})`;
-}
-
-function glassTintGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
-  const glassTintScale = 0.58;
-  return `linear-gradient(180deg, ${rgbaFromHex(
-    color,
-    (clamp(startOpacity, 0, 100, 0) / 100) * glassTintScale
-  )}, ${rgbaFromHex(color, (clamp(endOpacity, 0, 100, 10) / 100) * glassTintScale)})`;
 }
 
 function clampPan(value: number, limit: number) {
@@ -1114,31 +1102,33 @@ export function ServicesCatalog({
         : Number.isFinite(Number(cardBackgroundEndOpacityDark))
           ? Number(cardBackgroundEndOpacityDark)
           : 10;
-  const glassPanelOpacity = clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100;
   const cardPanelBackgroundImage = opacityGradientFromColor(
     resolvedCardBackgroundColor,
     cardBackgroundStartOpacity,
     cardBackgroundEndOpacity
   );
-  const glassPanelTintImage = glassTintGradientFromColor(
+  const panelBackgroundStartOpacity = clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100;
+  const panelBackgroundEndOpacity = clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100;
+  const softPanelBackgroundImage = `linear-gradient(180deg, ${rgbaFromHex(
     resolvedCardBackgroundColor,
-    cardBackgroundStartOpacity,
-    cardBackgroundEndOpacity
-  );
-  const glassPanelImageOpacity = Math.min(glassPanelOpacity, 0.58);
-  const glassPanelBackgroundImage =
-    activeThemeMode === "dark"
-      ? `${glassPanelTintImage}, ${
-          resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
-            ? alphaHexColors(resolvedCardBackgroundImage, glassPanelImageOpacity)
-            : "none"
-        }`
-      : resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
-        ? `${glassPanelTintImage}, ${alphaHexColors(resolvedCardBackgroundImage, glassPanelImageOpacity)}`
-        : glassPanelTintImage;
-  const glassPanelMaskImage = `linear-gradient(180deg, rgba(0,0,0,${
-    clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100
-  }), rgba(0,0,0,${clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100}))`;
+    0
+  )} 0%, ${rgbaFromHex(resolvedCardBackgroundColor, panelBackgroundStartOpacity * 0.45)} 24%, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    panelBackgroundStartOpacity
+  )} 44%, ${rgbaFromHex(resolvedCardBackgroundColor, panelBackgroundEndOpacity)} 100%)`;
+  const photoPanelColorOverlayImage = `linear-gradient(180deg, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    0
+  )} 0%, ${rgbaFromHex(resolvedCardBackgroundColor, 0)} 44%, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    panelBackgroundStartOpacity * 0.28
+  )} 58%, ${rgbaFromHex(resolvedCardBackgroundColor, panelBackgroundStartOpacity)} 76%, ${rgbaFromHex(
+    resolvedCardBackgroundColor,
+    panelBackgroundEndOpacity
+  )} 100%)`;
+  const photoPanelBlurMaskImage =
+    "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 44%, rgba(0,0,0,0.18) 58%, rgba(0,0,0,0.72) 76%, rgba(0,0,0,1) 100%)";
+  const glassPanelFeather = 104;
   const resolveModalTextStyle = (style: CSSProperties): CSSProperties => {
     const nextStyle = { ...(style as ModalTextStyle) };
     const darkColor = nextStyle["--modal-dark-color"];
@@ -1892,6 +1882,29 @@ export function ServicesCatalog({
                           style={{ objectFit: "cover" }}
                         />
                       ) : null}
+                      {hasGlassInfoPanel && primaryImage ? (
+                        <img
+                          aria-hidden="true"
+                          src={primaryImage}
+                          alt=""
+                          className="pointer-events-none absolute inset-0 h-full w-full scale-[1.08]"
+                          style={{
+                            objectFit: "cover",
+                            filter: "blur(32px) saturate(1.08)",
+                            maskImage: photoPanelBlurMaskImage,
+                            WebkitMaskImage: photoPanelBlurMaskImage,
+                          }}
+                        />
+                      ) : null}
+                      {hasFilledInfoPanel ? (
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0"
+                          style={{
+                            backgroundImage: photoPanelColorOverlayImage,
+                          }}
+                        />
+                      ) : null}
                     </div>
                   </div>
                 ) : (
@@ -1942,6 +1955,29 @@ export function ServicesCatalog({
                           style={{ objectFit: "cover" }}
                         />
                       ) : null}
+                      {hasGlassInfoPanel && primaryImage ? (
+                        <img
+                          aria-hidden="true"
+                          src={primaryImage}
+                          alt=""
+                          className="pointer-events-none absolute inset-0 h-full w-full scale-[1.08]"
+                          style={{
+                            objectFit: "cover",
+                            filter: "blur(32px) saturate(1.08)",
+                            maskImage: photoPanelBlurMaskImage,
+                            WebkitMaskImage: photoPanelBlurMaskImage,
+                          }}
+                        />
+                      ) : null}
+                      {hasFilledInfoPanel ? (
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0"
+                          style={{
+                            backgroundImage: photoPanelColorOverlayImage,
+                          }}
+                        />
+                      ) : null}
                     </div>
                   </a>
                 )}
@@ -1979,13 +2015,12 @@ export function ServicesCatalog({
                       : hasRegularFilledInfoPanel || (isListView && cardStyle === "filled")
                         ? "transparent"
                         : "transparent",
-                  backgroundImage: hasFilledInfoPanel
-                    ? hasGlassInfoPanel
+                  backgroundImage:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel
                       ? "none"
-                      : cardPanelBackgroundImage
-                    : hasRegularFilledInfoPanel || (isListView && cardStyle === "filled")
-                      ? cardPanelBackgroundImage
-                      : "none",
+                      : isListView && cardStyle === "filled"
+                        ? cardPanelBackgroundImage
+                        : "none",
                   border:
                     isListView && cardStyle === "filled"
                       ? "1px solid var(--block-border,transparent)"
@@ -1998,27 +2033,27 @@ export function ServicesCatalog({
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
                   borderBottomRightRadius:
                     hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : isListView && cardStyle === "filled" ? 18 : undefined,
-                  marginBottom: hasGlassInfoPanel ? -1 : undefined,
-                  position: hasGlassInfoPanel ? (isImageInsetCard ? "absolute" : "relative") : undefined,
-                  overflow: hasGlassInfoPanel ? "hidden" : undefined,
-                  boxShadow: hasGlassInfoPanel
-                    ? activeThemeMode === "dark"
-                      ? "inset 0 1px 0 rgba(255,255,255,0.14), 0 18px 45px rgba(0,0,0,0.22)"
-                      : "0 18px 45px rgba(15,16,18,0.14)"
-                    : undefined,
+                  marginBottom: undefined,
+                  position:
+                    hasFilledInfoPanel || hasRegularFilledInfoPanel || hasGlassInfoPanel
+                      ? isImageInsetCard
+                        ? "absolute"
+                        : "relative"
+                      : undefined,
+                  overflow: hasFilledInfoPanel || hasRegularFilledInfoPanel || hasGlassInfoPanel ? "visible" : undefined,
+                  boxShadow: undefined,
                   alignItems: isListView ? contentAlignItems : undefined,
                 }}
               >
-                {hasGlassInfoPanel && (
+                {hasRegularFilledInfoPanel && !hasGlassInfoPanel && (
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-0"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 z-0"
                     style={{
-                      backgroundImage: glassPanelBackgroundImage,
-                      backdropFilter: "blur(40px) saturate(1.65)",
-                      WebkitBackdropFilter: "blur(40px) saturate(1.65)",
-                      maskImage: glassPanelMaskImage,
-                      WebkitMaskImage: glassPanelMaskImage,
+                      top: -glassPanelFeather,
+                      backgroundImage: softPanelBackgroundImage,
+                      borderBottomLeftRadius: hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
+                      borderBottomRightRadius: hasFilledInfoPanel ? 0 : hasRegularFilledInfoPanel ? imageRadiusValue : undefined,
                     }}
                   />
                 )}
