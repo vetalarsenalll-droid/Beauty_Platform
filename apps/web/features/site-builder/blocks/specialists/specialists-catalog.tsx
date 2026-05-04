@@ -1488,8 +1488,8 @@ export function SpecialistsCatalog({
                     className="pointer-events-none absolute inset-0 z-0"
                     style={{
                       backgroundImage: glassPanelBackgroundImage,
-                      backdropFilter: "blur(22px) saturate(1.65)",
-                      WebkitBackdropFilter: "blur(22px) saturate(1.65)",
+                      backdropFilter: "blur(30px) saturate(1.65)",
+                      WebkitBackdropFilter: "blur(30px) saturate(1.65)",
                       maskImage: glassPanelMaskImage,
                       WebkitMaskImage: glassPanelMaskImage,
                     }}
