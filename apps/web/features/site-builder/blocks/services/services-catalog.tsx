@@ -155,6 +155,14 @@ function opacityGradientFromColor(color: string, startOpacity: number, endOpacit
   )})`;
 }
 
+function glassTintGradientFromColor(color: string, startOpacity: number, endOpacity: number) {
+  const glassTintScale = 0.58;
+  return `linear-gradient(180deg, ${rgbaFromHex(
+    color,
+    (clamp(startOpacity, 0, 100, 0) / 100) * glassTintScale
+  )}, ${rgbaFromHex(color, (clamp(endOpacity, 0, 100, 10) / 100) * glassTintScale)})`;
+}
+
 function clampPan(value: number, limit: number) {
   if (!Number.isFinite(value) || !Number.isFinite(limit) || limit <= 0) return 0;
   return Math.max(-limit, Math.min(limit, value));
@@ -1112,16 +1120,22 @@ export function ServicesCatalog({
     cardBackgroundStartOpacity,
     cardBackgroundEndOpacity
   );
+  const glassPanelTintImage = glassTintGradientFromColor(
+    resolvedCardBackgroundColor,
+    cardBackgroundStartOpacity,
+    cardBackgroundEndOpacity
+  );
+  const glassPanelImageOpacity = Math.min(glassPanelOpacity, 0.58);
   const glassPanelBackgroundImage =
     activeThemeMode === "dark"
-      ? `${cardPanelBackgroundImage}, ${
+      ? `${glassPanelTintImage}, ${
           resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
-            ? alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)
+            ? alphaHexColors(resolvedCardBackgroundImage, glassPanelImageOpacity)
             : "none"
         }`
       : resolvedCardBackgroundImage && resolvedCardBackgroundImage !== "none"
-        ? `${cardPanelBackgroundImage}, ${alphaHexColors(resolvedCardBackgroundImage, glassPanelOpacity)}`
-        : cardPanelBackgroundImage;
+        ? `${glassPanelTintImage}, ${alphaHexColors(resolvedCardBackgroundImage, glassPanelImageOpacity)}`
+        : glassPanelTintImage;
   const glassPanelMaskImage = `linear-gradient(180deg, rgba(0,0,0,${
     clamp(cardBackgroundStartOpacity, 0, 100, 0) / 100
   }), rgba(0,0,0,${clamp(cardBackgroundEndOpacity, 0, 100, 10) / 100}))`;
@@ -2001,8 +2015,8 @@ export function ServicesCatalog({
                     className="pointer-events-none absolute inset-0 z-0"
                     style={{
                       backgroundImage: glassPanelBackgroundImage,
-                      backdropFilter: "blur(30px) saturate(1.65)",
-                      WebkitBackdropFilter: "blur(30px) saturate(1.65)",
+                      backdropFilter: "blur(40px) saturate(1.65)",
+                      WebkitBackdropFilter: "blur(40px) saturate(1.65)",
                       maskImage: glassPanelMaskImage,
                       WebkitMaskImage: glassPanelMaskImage,
                     }}
