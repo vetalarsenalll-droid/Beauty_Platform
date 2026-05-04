@@ -263,7 +263,7 @@ export function isLightShadowColor(value: string): boolean {
 
 export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const style = (block.data.style as Record<string, unknown>) ?? {};
-  const isServicesBlock = block.type === "services";
+  const isServicesBlock = block.type === "services" || block.type === "specialists" || block.type === "locations";
   const toNumber = (value: unknown) => {
     const parsed =
       typeof value === "string" ? Number(value) : (value as number | null | undefined);
@@ -1563,7 +1563,7 @@ export function BlockPreview({
   const isCover = block.type === "cover";
   const isAisha = block.type === "aisha";
   const isLoader = block.type === "loader";
-  const isServices = block.type === "services" || block.type === "specialists";
+  const isServices = block.type === "services" || block.type === "specialists" || block.type === "locations";
   const coverData = isCover ? (block.data as Record<string, unknown>) : null;
   const coverScrollEffect =
     coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
@@ -4982,6 +4982,7 @@ export function renderLocations(
   currentEntity: CurrentEntity,
   previewViewportWidth?: number
 ) {
+  void accountProfile;
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
   const ids = Array.isArray(data.ids) ? (data.ids as number[]) : [];
@@ -4993,77 +4994,227 @@ export function renderLocations(
       : useCurrent
         ? locations.slice(0, 1)
         : resolveEntities(mode, ids, locations);
-  const showButton = Boolean(data.showButton);
-  const showPhone = data.showPhone !== false;
-  const showAddress = data.showAddress !== false;
-  const showContacts = Boolean(data.showContacts);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const readDataColor = (key: string) =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const readOptionalDataColor = (key: string) =>
+    typeof data[key] === "string" && String(data[key]).trim() && String(data[key]).trim() !== "transparent"
+      ? String(data[key]).trim()
+      : "";
+  const readDataNumber = (key: string, fallback: number) =>
+    Number.isFinite(Number(data[key])) ? Number(data[key]) : fallback;
+  const readDataNumberValue = (key: string, fallback: number, min = 8, max = 96) => {
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : fallback;
+  };
+  const readDataFont = (key: string, fallback = "Manrope") =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : fallback;
+  const readDataWeight = (key: string, fallback?: number) => {
+    if (data[key] === "" || data[key] === null || data[key] === undefined) return fallback;
+    const value = Number(data[key]);
+    return Number.isFinite(value) ? Math.max(100, Math.min(900, Math.round(value))) : fallback;
+  };
+  const showButton = data.showButton !== false;
+  const buttonAlignment =
+    data.buttonAlignment === "left" || data.buttonAlignment === "right" ? data.buttonAlignment : "center";
+  const buttonText =
+    typeof data.buttonText === "string" && data.buttonText.trim() ? data.buttonText.trim() : "Записаться";
+  const showDetailsButton = data.showDetailsButton !== false;
+  const detailsButtonText =
+    showDetailsButton && typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
+      ? data.detailsButtonText.trim()
+      : showDetailsButton
+        ? "Подробнее"
+        : "";
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const cardsPerRowRaw = Number(data.cardsPerRow);
+  const cardsPerRow =
+    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 6
+      ? Math.round(cardsPerRowRaw)
+      : 4;
+  const mobileCardsPerRow = Number(data.mobileCardsPerRow) === 1 ? 1 : 2;
+  const listView = data.listView === "list" ? "list" : "tile";
+  const cardStyle = data.cardStyle === "filled" || data.cardStyle === "boxed" ? "filled" : "plain";
+  const imageAspectRatio =
+    typeof data.imageAspectRatio === "string" && data.imageAspectRatio.trim()
+      ? data.imageAspectRatio.trim()
+      : "1 / 1";
+  const imageRadius = Number(data.imageRadius);
+  const cardGapX = Number(data.cardGapX);
+  const cardGapY = Number(data.cardGapY);
+  const cardPaddingX = Number(data.cardPaddingX);
+  const cardPaddingY = Number(data.cardPaddingY);
+  const maxVisibleItems = Number(data.maxVisibleItems);
+  const cardBackgroundSource = {
+    ...data,
+    specialistCardBackgroundFromLight:
+      readDataColor("specialistCardBackgroundFromLight") || style.subBlockBgLightResolved || style.subBlockBg || "#fafafa",
+    specialistCardBackgroundFromDark:
+      readDataColor("specialistCardBackgroundFromDark") || style.subBlockBgDarkResolved || "#24282e",
+  };
+  const cardBackgroundLight = resolveSpecialistCardBackgroundVisual(
+    cardBackgroundSource,
+    "var(--block-sub-bg,var(--bp-paper))",
+    "light"
+  );
+  const cardBackgroundDark = resolveSpecialistCardBackgroundVisual(
+    cardBackgroundSource,
+    cardBackgroundLight.backgroundColor,
+    "dark"
+  );
+  const cardTextColor = (key: string, lightFallback: string, darkFallback: string) => {
+    const sharedColor = readOptionalDataColor(key);
+    return {
+      light: readOptionalDataColor(`${key}Light`) || sharedColor || lightFallback,
+      dark: readOptionalDataColor(`${key}Dark`) || sharedColor || darkFallback,
+    };
+  };
+  const cardTextStyle = (
+    key: string,
+    lightFallback: string,
+    darkFallback: string,
+    sizeFallback: number,
+    weightFallback?: number
+  ): CSSProperties => {
+    const color = cardTextColor(`${key}Color`, lightFallback, darkFallback);
+    const desktopSize = readDataNumberValue(`${key}Size`, sizeFallback);
+    const mobileSize = readDataNumberValue(
+      `${key}MobileSize`,
+      key === "specialistCardTitle"
+        ? Math.max(15, Math.min(28, Math.round(desktopSize * 0.82)))
+        : Math.max(12, Math.min(17, Math.round(desktopSize * 0.9)))
+    );
+    return {
+      color: color.light,
+      ["--card-dark-color" as string]: color.dark,
+      ["--specialist-card-text-size-desktop" as string]: `${desktopSize}px`,
+      ["--specialist-card-text-size-mobile" as string]: `${mobileSize}px`,
+      fontSize: "var(--specialist-card-text-size)",
+      fontFamily: readDataFont(`${key}Font`, "Manrope"),
+      fontWeight: readDataWeight(`${key}Weight`, weightFallback),
+    };
+  };
+  const catalogItems = items.map((location) => ({
+    id: location.id,
+    name: location.name,
+    bio: [location.description, location.phone ? `Телефон: ${location.phone}` : ""].filter(Boolean).join("\n"),
+    level: location.address || null,
+    locationIds: [location.id],
+    coverUrl: location.coverUrl,
+    photoUrls: location.photoUrls ?? [],
+  }));
+  const locationsHeadingStyle = {
+    ...headingStyle(style, theme),
+    textAlign: style.textAlignHeading ?? "center",
+    color: "var(--services-heading-color,var(--site-text,var(--block-text,var(--bp-ink))))",
+  };
+  const locationsSubheadingStyle = {
+    ...subheadingStyle(style, theme),
+    textAlign: style.textAlignSubheading ?? "left",
+    color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
+  };
 
   return (
-    <div>
-      <h3
-        className="font-semibold"
-        style={headingStyle(style, theme)}
-      >
-        {(data.title as string) || "Локации"}
-      </h3>
-      {subtitle && (
-        <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
-          {subtitle}
-        </p>
-      )}
-      <div className={`mt-4 grid gap-4 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-2", 2)}`}>
-        {items.map((location) => (
-          <div
-            key={location.id}
-            className="rounded-2xl border p-4"
-            style={{ borderColor: theme.borderColor, textAlign: style.textAlign }}
-          >
-            {location.coverUrl && (
-              <img src={location.coverUrl} alt="" className="mb-3 h-32 w-full rounded-xl object-cover" />
-            )}
-            <div className="text-base font-semibold">{location.name}</div>
-            {showAddress && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
-            )}
-            {showPhone && location.phone && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">Телефон: {location.phone}</div>
-            )}
-            {showContacts && (
-              <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-                {accountProfile.telegramUrl ? "Telegram " : ""}
-                {accountProfile.whatsappUrl ? "WhatsApp " : ""}
-                {accountProfile.maxUrl ? "MAX " : ""}
-                {accountProfile.vkUrl ? "VK " : ""}
-              </div>
-            )}
-            {showButton && account.publicSlug && (
-              <a
-                href={buildBookingLink({
-                  publicSlug: account.publicSlug,
-                  locationId: location.id,
-                  scenario: "dateFirst",
-                })}
-                className="mt-3 inline-flex px-3 py-2 text-xs"
-                style={buttonStyle(style, theme)}
-              >
-                {buttonText}
-              </a>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет локаций для отображения.
-          </div>
-        )}
-      </div>
+    <div
+      className="mx-auto w-full"
+      style={{
+        width: "var(--works-content-width, 100%)",
+        maxWidth: "100%",
+        marginLeft: "var(--works-content-left, auto)",
+        marginRight: 0,
+      }}
+    >
+      <SpecialistsCatalog
+        variant={block.variant === "v2" ? "v2" : "v1"}
+        listView={listView}
+        title={typeof data.title === "string" ? data.title : "Филиалы"}
+        subtitle={subtitle}
+        items={catalogItems}
+        publicSlug={account.publicSlug}
+        entityBasePath="locations"
+        bookingEntity="location"
+        locations={locations.map((location) => ({ id: location.id, name: location.name }))}
+        cardsPerRow={cardsPerRow}
+        mobileCardsPerRow={mobileCardsPerRow}
+        showCategoryTabs={false}
+        categoryAllLabel="Все филиалы"
+        showSearch={data.showSearch !== false}
+        searchPlaceholder={
+          typeof data.searchPlaceholder === "string" && data.searchPlaceholder.trim()
+            ? data.searchPlaceholder.trim()
+            : "Поиск филиала"
+        }
+        showSort={data.showSort !== false}
+        defaultSort={typeof data.defaultSort === "string" && data.defaultSort.trim() ? data.defaultSort.trim() : "default"}
+        searchSortAlignment={
+          data.searchSortAlignment === "left" ||
+          data.searchSortAlignment === "center" ||
+          data.searchSortAlignment === "right"
+            ? data.searchSortAlignment
+            : "right"
+        }
+        filtersAlignment={
+          data.filtersAlignment === "left" || data.filtersAlignment === "center" || data.filtersAlignment === "right"
+            ? data.filtersAlignment
+            : "left"
+        }
+        sortTextColor={readOptionalDataColor("sortTextColor")}
+        sortActiveColor={readOptionalDataColor("sortActiveColor")}
+        sortTextColorDark={readOptionalDataColor("sortTextColorDark")}
+        sortActiveColorDark={readOptionalDataColor("sortActiveColorDark")}
+        showLocationFilter={false}
+        showLevel={data.showAddress !== false && data.showLevel !== false}
+        showDescription={data.showDescription !== false}
+        showButton={showButton}
+        buttonText={buttonText}
+        buttonAlignment={buttonAlignment}
+        showDetailsButton={showDetailsButton}
+        detailsButtonText={detailsButtonText}
+        detailsButtonColor={readDataColor("detailsButtonColor") || "transparent"}
+        detailsButtonTextColor={readDataColor("detailsButtonTextColor") || "#111111"}
+        detailsButtonBorderColor={readDataColor("detailsButtonBorderColor") || "transparent"}
+        detailsButtonColorDark={readDataColor("detailsButtonColorDark") || readDataColor("detailsButtonColor") || "transparent"}
+        detailsButtonTextColorDark={readDataColor("detailsButtonTextColorDark") || "#f8fafc"}
+        detailsButtonBorderColorDark={readDataColor("detailsButtonBorderColorDark") || readDataColor("detailsButtonBorderColor") || "transparent"}
+        showImage={data.showImage !== false}
+        imageAspectRatio={imageAspectRatio}
+        imageRadius={Number.isFinite(imageRadius) ? imageRadius : 10}
+        imageFit={data.specialistCardImageFit === "contain" ? "contain" : "cover"}
+        imageZoomOnHover={data.imageZoomOnHover !== false}
+        imageZoomOnClick={data.specialistCardImageZoomOnClick === true}
+        modalMediaColumns={readDataNumber("specialistModalMediaColumns", 6)}
+        modalInfoColumns={readDataNumber("specialistModalInfoColumns", 6)}
+        alignButtonsBottom={data.alignButtonsBottom !== false}
+        cardBackgroundColorLight={cardBackgroundLight.backgroundColor}
+        cardBackgroundImageLight={cardBackgroundLight.backgroundImage}
+        cardBackgroundColorDark={cardBackgroundDark.backgroundColor}
+        cardBackgroundImageDark={cardBackgroundDark.backgroundImage}
+        cardLiquidGlass={data.specialistCardLiquidGlass === true}
+        cardBackgroundStartOpacityLight={readDataNumber("specialistCardBackgroundStartOpacityLight", 0)}
+        cardBackgroundEndOpacityLight={readDataNumber("specialistCardBackgroundEndOpacityLight", 10)}
+        cardBackgroundStartOpacityDark={readDataNumber("specialistCardBackgroundStartOpacityDark", readDataNumber("specialistCardBackgroundStartOpacityLight", 0))}
+        cardBackgroundEndOpacityDark={readDataNumber("specialistCardBackgroundEndOpacityDark", readDataNumber("specialistCardBackgroundEndOpacityLight", 10))}
+        cardTitleTextStyle={cardTextStyle("specialistCardTitle", "#111827", "#F8FAFC", 18, 600)}
+        cardDescriptionTextStyle={cardTextStyle("specialistCardDescription", "#6B7280", "#CBD5E1", 14)}
+        cardClickEnabled={data.modalImageClickEnabled !== false}
+        cardStyle={cardStyle}
+        cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}
+        cardGapY={Number.isFinite(cardGapY) ? cardGapY : 40}
+        cardPaddingX={Number.isFinite(cardPaddingX) ? cardPaddingX : 30}
+        cardPaddingY={Number.isFinite(cardPaddingY) ? cardPaddingY : 30}
+        maxVisibleItems={Number.isFinite(maxVisibleItems) ? maxVisibleItems : 8}
+        usePagination={data.usePagination === true}
+        headingStyle={locationsHeadingStyle}
+        subheadingStyle={locationsSubheadingStyle}
+        buttonStyle={{ ...buttonStyle(style, theme), borderRadius: style.buttonRadius ?? 0 }}
+        textAlign={style.textAlign}
+        previewViewportWidth={previewViewportWidth}
+        emptyText="Нет филиалов для отображения."
+      />
     </div>
   );
 }

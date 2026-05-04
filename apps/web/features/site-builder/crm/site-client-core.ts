@@ -127,6 +127,10 @@ export const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[
     { id: "text", label: "Тексты" },
     { id: "catalog", label: "Список услуг" },
   ],
+  locations: [
+    { id: "text", label: "Тексты" },
+    { id: "catalog", label: "Список филиалов" },
+  ],
   specialists: [
     { id: "text", label: "Тексты" },
     { id: "catalog", label: "Список специалистов" },
@@ -168,6 +172,15 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "servicesList", label: "Список специалистов" },
     { id: "filters", label: "Фильтры, поиск и сортировка" },
     { id: "servicePage", label: "Карточка специалиста" },
+  ],
+  locations: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "button", label: "Кнопка" },
+    { id: "servicesList", label: "Список филиалов" },
+    { id: "filters", label: "Поиск и сортировка" },
+    { id: "servicePage", label: "Карточка филиала" },
   ],
   loader: [
     { id: "layout", label: "Основные настройки" },

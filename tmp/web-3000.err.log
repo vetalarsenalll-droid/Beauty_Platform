@@ -790,3 +790,236 @@ Import trace for requested module:
 ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
 ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
 ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/crm/site'
+}
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/runtime/resolve-block-version.tsx:13:1
+Module not found: Can't resolve '../locations/LC001/version'
+  11 | import { LO002 } from "../loader/LO002/version";
+  12 | import { LO003 } from "../loader/LO003/version";
+> 13 | import { LC001 } from "../locations/LC001/version";
+     | ^
+  14 | import { SE001 } from "../services/SE001/version";
+  15 | import { SP001 } from "../specialists/SP001/version";
+  16 | import { BO001 } from "../booking/BO001/version";
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/locations/LC001/version.tsx:11:1
+Module not found: Can't resolve './content-panel'
+   9 | } from "@/features/site-builder/crm/site-client-core";
+  10 | import { SiteServicesSettingsPrimary } from "@/features/site-builder/crm/site-services-settings-primary";
+> 11 | import { LC001ContentPanel } from "./content-panel";
+     | ^
+  12 | import { LC001Drawers } from "./drawers";
+  13 |
+  14 | function defaultSurface(value: unknown, fallback: string) {
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload

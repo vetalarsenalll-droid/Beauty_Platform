@@ -289,15 +289,26 @@ export default async function CrmSitePage({
           logoUrl: branding?.logoUrl ?? null,
           coverUrl: branding?.coverUrl ?? null,
         }}
-        locations={locations.map((location: { id: number; name: string; address: string; phone: string | null; geoPoint: { lat: number; lng: number } | null }) => ({
+        locations={locations.map((location: { id: number; name: string; address: string; description: string | null; phone: string | null; geoPoint: { lat: number; lng: number } | null }) => ({
           id: location.id,
           name: location.name,
           address: location.address,
+          description: location.description,
           phone: location.phone,
           geo: location.geoPoint
             ? { lat: location.geoPoint.lat, lng: location.geoPoint.lng }
             : null,
           coverUrl: locationCoverMap.get(String(location.id)) ?? null,
+          photoUrls: locationPhotos
+            .filter((item) => item.entityId === String(location.id))
+            .map((item) => item.asset.url),
+          photoItems: locationPhotos
+            .filter((item) => item.entityId === String(location.id))
+            .map((item) => ({
+              id: item.id,
+              url: item.asset.url,
+              isCover: item.isCover,
+            })),
         }))}
         services={services.map((service: { id: number; name: string; description: string | null; category: { id: number; name: string } | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
           id: service.id,

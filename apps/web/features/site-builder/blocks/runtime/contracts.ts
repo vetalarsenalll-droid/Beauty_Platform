@@ -23,6 +23,7 @@ export type BlockCode =
   | "LO001"
   | "LO002"
   | "LO003"
+  | "LC001"
   | "SE001"
   | "SP001"
   | "BO001"
@@ -76,6 +77,7 @@ export type CrmPanelCtx = {
   setCoverWidthModalOpen: Dispatch<SetStateAction<boolean>>;
 
   updateBlock: UpdateBlock;
+  updateLocationItem?: (location: LocationItem) => void;
   updateServiceItem?: (service: ServiceItem) => void;
   updateSpecialistItem?: (specialist: SpecialistItem) => void;
 };

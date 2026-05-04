@@ -199,11 +199,22 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     id: location.id,
     name: location.name,
     address: location.address,
+    description: location.description,
     phone: location.phone,
     geo: location.geoPoint
       ? { lat: location.geoPoint.lat, lng: location.geoPoint.lng }
       : null,
     coverUrl: locationCoverMap.get(String(location.id)) ?? null,
+    photoUrls: locationPhotos
+      .filter((item) => item.entityId === String(location.id))
+      .map((item) => item.asset.url),
+    photoItems: locationPhotos
+      .filter((item) => item.entityId === String(location.id))
+      .map((item) => ({
+        id: item.id,
+        url: item.asset.url,
+        isCover: item.isCover,
+      })),
   }));
 
   const serviceItems: ServiceItem[] = services.map((service) => ({

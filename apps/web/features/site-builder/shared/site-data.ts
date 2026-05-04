@@ -62,8 +62,11 @@ export type SiteLocationItem = {
   id: number;
   name: string;
   address: string;
+  description?: string | null;
   phone: string | null;
   coverUrl: string | null;
+  photoUrls?: string[];
+  photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
   geo: { lat: number; lng: number } | null;
 };
 

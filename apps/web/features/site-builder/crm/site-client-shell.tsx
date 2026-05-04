@@ -128,6 +128,7 @@ export default function SiteClient({
   workPhotos,
 }: SiteClientProps) {
   const [publicPage, setPublicPage] = useState(initialPublicPage);
+  const [editableLocations, setEditableLocations] = useState<LocationItem[]>(locations);
   const [services, setServices] = useState<ServiceItem[]>(initialServices);
   const [specialists, setSpecialists] = useState<SpecialistItem[]>(initialSpecialists);
   const {
@@ -144,12 +145,20 @@ export default function SiteClient({
   const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
 
   useEffect(() => {
+    setEditableLocations(locations);
+  }, [locations]);
+
+  useEffect(() => {
     setServices(initialServices);
   }, [initialServices]);
 
   useEffect(() => {
     setSpecialists(initialSpecialists);
   }, [initialSpecialists]);
+
+  const updateLocationItem = (location: LocationItem) => {
+    setEditableLocations((prev) => prev.map((item) => (item.id === location.id ? location : item)));
+  };
 
   const updateServiceItem = (service: ServiceItem) => {
     setServices((prev) => prev.map((item) => (item.id === service.id ? service : item)));
@@ -268,7 +277,7 @@ export default function SiteClient({
   }, [message]);
   useEffect(() => {
     if (!currentEntity) return;
-    if (currentEntity.type === "location" && !locations.some((item) => item.id === currentEntity.id)) {
+    if (currentEntity.type === "location" && !editableLocations.some((item) => item.id === currentEntity.id)) {
       setCurrentEntity(null);
       return;
     }
@@ -290,7 +299,7 @@ export default function SiteClient({
     ) {
       setCurrentEntity(null);
     }
-  }, [activePage, currentEntity, locations, services, specialists]);
+  }, [activePage, currentEntity, editableLocations, services, specialists]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
   const pendingDeleteBlock = pendingDeleteBlockId
@@ -489,10 +498,10 @@ export default function SiteClient({
     pages: draft.pages,
     activePageKey,
     activeEntity: currentEntity,
-    locationsCount: locations.length,
+    locationsCount: editableLocations.length,
     servicesCount: services.length,
     specialistsCount: specialists.length,
-    locationProfiles: locations.map((item) => ({ id: item.id, name: item.name })),
+    locationProfiles: editableLocations.map((item) => ({ id: item.id, name: item.name })),
     serviceProfiles: services.map((item) => ({ id: item.id, name: item.name })),
     specialistProfiles: specialists.map((item) => ({ id: item.id, name: item.name })),
   });
@@ -1004,7 +1013,7 @@ export default function SiteClient({
                   account={account}
                   accountProfile={accountProfile}
                   branding={branding}
-                  locations={locations}
+                  locations={editableLocations}
                   services={services}
                   specialists={specialists}
                   promos={promos}
@@ -1220,7 +1229,7 @@ export default function SiteClient({
                       accountName: account.name,
                       branding,
                       accountProfile,
-                      locations,
+                      locations: editableLocations,
                       services,
                       serviceCategories,
                       specialistLevels,
@@ -1238,6 +1247,7 @@ export default function SiteClient({
                       coverWidthModalOpen,
                       setCoverWidthModalOpen,
                       updateBlock,
+                      updateLocationItem,
                       updateServiceItem,
                       updateSpecialistItem,
                     })
@@ -1248,7 +1258,7 @@ export default function SiteClient({
                       accountName: account.name,
                       branding,
                       accountProfile,
-                      locations,
+                      locations: editableLocations,
                       services,
                       serviceCategories,
                       specialistLevels,
@@ -1266,6 +1276,7 @@ export default function SiteClient({
                       coverWidthModalOpen,
                       setCoverWidthModalOpen,
                       updateBlock,
+                      updateLocationItem,
                       updateServiceItem,
                       updateSpecialistItem,
                     })
@@ -1341,7 +1352,7 @@ export default function SiteClient({
                     accountName: account.name,
                     branding,
                     accountProfile,
-                    locations,
+                    locations: editableLocations,
                     services,
                     serviceCategories,
                     specialistLevels,
@@ -1359,6 +1370,7 @@ export default function SiteClient({
                     coverWidthModalOpen,
                     setCoverWidthModalOpen,
                     updateBlock,
+                    updateLocationItem,
                     updateServiceItem,
                     updateSpecialistItem,
                   })

@@ -17,6 +17,9 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
     if (block.variant === "v3") return "LO003";
     return "LO001";
   }
+  if (block.type === "locations") {
+    return "LC001";
+  }
   if (block.type === "services") {
     return "SE001";
   }

@@ -2185,7 +2185,10 @@ export function buildBlockWrapperStyle(
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
     const isCoverBlock = options.blockType === "cover";
-    const isServicesBlock = options.blockType === "services" || options.blockType === "specialists";
+    const isServicesBlock =
+      options.blockType === "services" ||
+      options.blockType === "specialists" ||
+      options.blockType === "locations";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
@@ -3199,67 +3202,128 @@ function renderLocations(
     useCurrent && currentId
       ? locations.filter((item) => item.id === currentId)
       : resolveEntities(mode, ids, locations);
-  const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const showButton = data.showButton !== false;
+  const buttonAlignment =
+    data.buttonAlignment === "left" || data.buttonAlignment === "right" ? data.buttonAlignment : "center";
+  const buttonText =
+    typeof data.buttonText === "string" && data.buttonText.trim() ? data.buttonText.trim() : "Записаться";
+  const showDetailsButton = data.showDetailsButton !== false;
+  const detailsButtonText =
+    showDetailsButton && typeof data.detailsButtonText === "string" && data.detailsButtonText.trim()
+      ? data.detailsButtonText.trim()
+      : showDetailsButton
+        ? "Подробнее"
+        : "";
+  const readDataColor = (key: string) =>
+    typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]).trim() : "";
+  const readOptionalDataColor = (key: string) => {
+    const value = readDataColor(key);
+    return value && value !== "transparent" ? value : "";
+  };
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const cardsPerRowRaw = Number(data.cardsPerRow);
+  const cardsPerRow =
+    Number.isFinite(cardsPerRowRaw) && cardsPerRowRaw >= 1 && cardsPerRowRaw <= 6
+      ? Math.round(cardsPerRowRaw)
+      : 4;
+  const catalogItems = items.map((location) => ({
+    id: location.id,
+    name: location.name,
+    bio: [location.description, location.phone ? `Телефон: ${location.phone}` : ""].filter(Boolean).join("\n"),
+    level: location.address || null,
+    locationIds: [location.id],
+    coverUrl: location.coverUrl,
+    photoUrls: location.photoUrls ?? [],
+  }));
 
   return (
-    <div>
-      <h2
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
-      >
-        {(data.title as string) || "Локации"}
-      </h2>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {items.map((location) => (
-          <div key={location.id} className="rounded-2xl border border-[color:var(--bp-stroke)] p-4">
-            {location.coverUrl && (
-              <img
-                src={location.coverUrl}
-                alt=""
-                className="mb-3 h-32 w-full rounded-xl object-cover"
-              />
-            )}
-            <Link
-              href={`/${publicSlug}/locations/${location.id}`}
-              className="text-base font-semibold"
-            >
-              {location.name}
-            </Link>
-            <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{location.address}</div>
-            {location.phone && (
-              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                Телефон: {location.phone}
-              </div>
-            )}
-            {showButton && publicSlug && (
-              <Link
-                href={buildBookingLink({
-                  publicSlug,
-                  locationId: location.id,
-                  scenario: "dateFirst",
-                })}
-                className="mt-3 inline-flex rounded-full border border-[color:var(--bp-stroke)] px-3 py-2 text-xs"
-                style={buttonStyle(style)}
-              >
-                {buttonText}
-              </Link>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]">
-            Нет локаций для отображения.
-          </div>
-        )}
-      </div>
+    <div
+      className="mx-auto w-full"
+      style={{
+        width: "var(--works-content-width, 100%)",
+        maxWidth: "100%",
+        marginLeft: "var(--works-content-left, auto)",
+        marginRight: 0,
+      }}
+    >
+      <SpecialistsCatalog
+        variant={block.variant === "v2" ? "v2" : "v1"}
+        listView={data.listView === "list" ? "list" : "tile"}
+        title={typeof data.title === "string" ? data.title : "Филиалы"}
+        subtitle={subtitle}
+        items={catalogItems}
+        publicSlug={publicSlug}
+        entityBasePath="locations"
+        bookingEntity="location"
+        locations={locations.map((location) => ({ id: location.id, name: location.name }))}
+        cardsPerRow={cardsPerRow}
+        mobileCardsPerRow={Number(data.mobileCardsPerRow) === 1 ? 1 : 2}
+        showCategoryTabs={false}
+        categoryAllLabel="Все филиалы"
+        showSearch={data.showSearch !== false}
+        searchPlaceholder={
+          typeof data.searchPlaceholder === "string" && data.searchPlaceholder.trim()
+            ? data.searchPlaceholder.trim()
+            : "Поиск филиала"
+        }
+        showSort={data.showSort !== false}
+        defaultSort={typeof data.defaultSort === "string" && data.defaultSort.trim() ? data.defaultSort.trim() : "default"}
+        searchSortAlignment={
+          data.searchSortAlignment === "left" ||
+          data.searchSortAlignment === "center" ||
+          data.searchSortAlignment === "right"
+            ? data.searchSortAlignment
+            : "right"
+        }
+        filtersAlignment={
+          data.filtersAlignment === "left" || data.filtersAlignment === "center" || data.filtersAlignment === "right"
+            ? data.filtersAlignment
+            : "left"
+        }
+        sortTextColor={readOptionalDataColor("sortTextColor")}
+        sortActiveColor={readOptionalDataColor("sortActiveColor")}
+        sortTextColorDark={readOptionalDataColor("sortTextColorDark")}
+        sortActiveColorDark={readOptionalDataColor("sortActiveColorDark")}
+        showLocationFilter={false}
+        showLevel={data.showAddress !== false && data.showLevel !== false}
+        showDescription={data.showDescription !== false}
+        showButton={showButton}
+        buttonText={buttonText}
+        buttonAlignment={buttonAlignment}
+        showDetailsButton={showDetailsButton}
+        detailsButtonText={detailsButtonText}
+        detailsButtonColor={readDataColor("detailsButtonColor") || "transparent"}
+        detailsButtonTextColor={readDataColor("detailsButtonTextColor") || "#111111"}
+        detailsButtonBorderColor={readDataColor("detailsButtonBorderColor") || "transparent"}
+        detailsButtonColorDark={readDataColor("detailsButtonColorDark") || readDataColor("detailsButtonColor") || "transparent"}
+        detailsButtonTextColorDark={readDataColor("detailsButtonTextColorDark") || "#f8fafc"}
+        detailsButtonBorderColorDark={readDataColor("detailsButtonBorderColorDark") || readDataColor("detailsButtonBorderColor") || "transparent"}
+        showImage={data.showImage !== false}
+        imageAspectRatio={typeof data.imageAspectRatio === "string" ? data.imageAspectRatio : "1 / 1"}
+        imageRadius={Number.isFinite(Number(data.imageRadius)) ? Number(data.imageRadius) : 10}
+        imageFit={data.specialistCardImageFit === "contain" ? "contain" : "cover"}
+        imageZoomOnHover={data.imageZoomOnHover !== false}
+        imageZoomOnClick={data.specialistCardImageZoomOnClick === true}
+        alignButtonsBottom={data.alignButtonsBottom !== false}
+        cardClickEnabled={data.modalImageClickEnabled !== false}
+        cardStyle={data.cardStyle === "filled" || data.cardStyle === "boxed" ? "filled" : "plain"}
+        cardGapX={Number.isFinite(Number(data.cardGapX)) ? Number(data.cardGapX) : 20}
+        cardGapY={Number.isFinite(Number(data.cardGapY)) ? Number(data.cardGapY) : 40}
+        cardPaddingX={Number.isFinite(Number(data.cardPaddingX)) ? Number(data.cardPaddingX) : 30}
+        cardPaddingY={Number.isFinite(Number(data.cardPaddingY)) ? Number(data.cardPaddingY) : 30}
+        maxVisibleItems={Number.isFinite(Number(data.maxVisibleItems)) ? Number(data.maxVisibleItems) : 8}
+        usePagination={data.usePagination === true}
+        headingStyle={{ ...headingStyle(style), textAlign: style.textAlignHeading ?? "center" }}
+        subheadingStyle={{ ...subheadingStyle(style), textAlign: style.textAlignSubheading ?? "left" }}
+        buttonStyle={{ ...buttonStyle(style), borderRadius: style.buttonRadius ?? 0 }}
+        textAlign={style.textAlign}
+        emptyText="Нет филиалов для отображения."
+      />
     </div>
   );
 }

@@ -97,6 +97,9 @@ type SpecialistsCatalogProps = {
   buttonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
   previewViewportWidth?: number;
+  entityBasePath?: "specialists" | "locations";
+  bookingEntity?: "specialist" | "location";
+  emptyText?: string;
 };
 
 const SORT_OPTIONS = [
@@ -153,9 +156,6 @@ function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number, pr
     if (previewViewportWidth < 640) {
       return mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
     }
-    if (previewViewportWidth < 1280) {
-      return cardsPerRow <= 1 ? "grid-cols-1" : "grid-cols-2";
-    }
     if (cardsPerRow <= 1) return "grid-cols-1";
     if (cardsPerRow === 2) return "grid-cols-2";
     if (cardsPerRow === 4) return "grid-cols-4";
@@ -165,7 +165,7 @@ function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number, pr
   }
 
   const mobile = mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
-  if (cardsPerRow <= 1) return mobile;
+  if (cardsPerRow <= 1) return "grid-cols-1";
   if (cardsPerRow === 2) return `${mobile} md:grid-cols-2`;
   if (cardsPerRow === 5) return `${mobile} md:grid-cols-2 xl:grid-cols-5`;
   if (cardsPerRow === 6) return `${mobile} md:grid-cols-3 xl:grid-cols-6`;
@@ -682,6 +682,9 @@ export function SpecialistsCatalog({
   buttonStyle,
   textAlign = "left",
   previewViewportWidth,
+  entityBasePath = "specialists",
+  bookingEntity = "specialist",
+  emptyText = "Нет специалистов для отображения.",
 }: SpecialistsCatalogProps) {
   const catalogRef = useRef<HTMLElement | null>(null);
   const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">("light");
@@ -790,10 +793,12 @@ export function SpecialistsCatalog({
       ? buildBookingLink({
           publicSlug,
           locationId:
-            activeLocationId ??
-            (activeModalSpecialist.locationIds.length === 1 ? activeModalSpecialist.locationIds[0] : null),
-          specialistId: activeModalSpecialist.id,
-          scenario: "specialistFirst",
+            bookingEntity === "location"
+              ? activeModalSpecialist.id
+              : activeLocationId ??
+                (activeModalSpecialist.locationIds.length === 1 ? activeModalSpecialist.locationIds[0] : null),
+          specialistId: bookingEntity === "specialist" ? activeModalSpecialist.id : null,
+          scenario: bookingEntity === "location" ? "dateFirst" : "specialistFirst",
         })
       : null;
 
@@ -943,6 +948,7 @@ export function SpecialistsCatalog({
     <section
       ref={catalogRef}
       className="bp-specialists-catalog"
+      data-empty-text={emptyText}
       style={{
         textAlign,
       }}
@@ -1230,13 +1236,15 @@ export function SpecialistsCatalog({
             ? buildBookingLink({
                 publicSlug,
                 locationId:
-                  activeLocationId ??
-                  (specialist.locationIds.length === 1 ? specialist.locationIds[0] : null),
-                specialistId: specialist.id,
-                scenario: "specialistFirst",
+                  bookingEntity === "location"
+                    ? specialist.id
+                    : activeLocationId ??
+                      (specialist.locationIds.length === 1 ? specialist.locationIds[0] : null),
+                specialistId: bookingEntity === "specialist" ? specialist.id : null,
+                scenario: bookingEntity === "location" ? "dateFirst" : "specialistFirst",
               })
             : "#";
-          const profileHref = publicSlug ? `/${publicSlug}/specialists/${specialist.id}` : "#";
+          const profileHref = publicSlug ? `/${publicSlug}/${entityBasePath}/${specialist.id}` : "#";
           const canOpenCardByClick = cardClickEnabled && Boolean(publicSlug);
           const isListCard = listView === "list";
           const isImageInsetCard = imageAspectRatio === "original";
@@ -1398,7 +1406,7 @@ export function SpecialistsCatalog({
                   className={`block ${
                     isImageInsetCard && !isListCard
                       ? "absolute inset-0 bg-transparent"
-                      : "bg-[color:var(--block-sub-bg,var(--bp-paper))]"
+                      : "relative overflow-hidden bg-[color:var(--block-sub-bg,var(--bp-paper))]"
                   }`}
                   style={{
                     aspectRatio: isImageInsetCard ? undefined : imageAspectRatio === "original" ? "4 / 5" : imageAspectRatio,
@@ -1410,7 +1418,7 @@ export function SpecialistsCatalog({
                   }}
                 >
                   <div
-                    className="relative h-full w-full overflow-hidden"
+                    className={`${isImageInsetCard && !isListCard ? "relative h-full w-full" : "absolute inset-0"} overflow-hidden`}
                     style={{
                       borderRadius: imageBorderRadius,
                     }}
