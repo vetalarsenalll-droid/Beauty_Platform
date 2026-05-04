@@ -511,3 +511,33 @@
  GET /severnaya-orhideya_2 200 in 1427ms (compile: 167ms, render: 1260ms)
  GET /crm/site 200 in 714ms (compile: 371ms, proxy.ts: 34ms, render: 308ms)
  GET /severnaya-orhideya_2 200 in 741ms (compile: 151ms, render: 590ms)
+ GET /crm/site 200 in 812ms (compile: 342ms, proxy.ts: 39ms, render: 430ms)
+ GET /severnaya-orhideya_2 200 in 851ms (compile: 156ms, render: 694ms)
+ GET /crm/site 200 in 902ms (compile: 552ms, proxy.ts: 41ms, render: 309ms)
+ GET /severnaya-orhideya_2 200 in 926ms (compile: 280ms, render: 647ms)
+ GET /crm/site 200 in 726ms (compile: 332ms, proxy.ts: 44ms, render: 351ms)
+ GET /severnaya-orhideya_2 200 in 737ms (compile: 151ms, render: 586ms)
+ GET /crm/site 200 in 951ms (compile: 450ms, proxy.ts: 46ms, render: 455ms)
+ GET /severnaya-orhideya_2 200 in 1306ms (compile: 180ms, render: 1126ms)
+ GET /crm/site 200 in 1594ms (compile: 373ms, proxy.ts: 35ms, render: 1187ms)
+ GET /severnaya-orhideya_2 200 in 1955ms (compile: 177ms, render: 1777ms)
+ GET /crm/site 200 in 825ms (compile: 429ms, proxy.ts: 32ms, render: 364ms)
+ GET /severnaya-orhideya_2 200 in 857ms (compile: 177ms, render: 679ms)
+▲ Next.js 16.1.3 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://172.20.48.1:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 6.7s
+○ Compiling /[publicSlug] ...
+○ Compiling /crm/site ...
+ GET /severnaya-orhideya_2 200 in 26.4s (compile: 20.3s, render: 6.1s)
+ GET /crm/site 200 in 8.8s (compile: 6.9s, proxy.ts: 1058ms, render: 769ms)
+ PATCH /api/v1/crm/settings/public-page 200 in 2.2s (compile: 1813ms, render: 345ms)
+ GET /crm/site 200 in 935ms (compile: 581ms, proxy.ts: 32ms, render: 322ms)
+ GET /severnaya-orhideya_2 200 in 974ms (compile: 361ms, render: 613ms)
+ GET /crm/site 200 in 1833ms (compile: 1443ms, proxy.ts: 69ms, render: 321ms)
+ GET /crm/site 200 in 442ms (compile: 83ms, proxy.ts: 62ms, render: 297ms)
+ GET /severnaya-orhideya_2 200 in 2.2s (compile: 966ms, render: 1215ms)
+ GET /severnaya-orhideya_2 200 in 487ms (compile: 67ms, render: 419ms)
