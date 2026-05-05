@@ -97,7 +97,7 @@ export const PAGE_KEYS: SitePageKey[] = [
   "specialists",
   "promos",
 ];
-export const isSystemBlockType = (type: unknown): type is "booking" => type === "booking";
+export const isSystemBlockType = (_type: unknown): boolean => false;
 export const QUICK_BLOCK_TYPES: BlockType[] = ["cover"];
 
 export const MOBILE_VIEWPORTS = {

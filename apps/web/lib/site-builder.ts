@@ -916,16 +916,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     blocks: homeBlocks,
     pages: {
       home: homeBlocks,
-      booking: [
-        {
-          id: makeBlockId(),
-          type: "booking",
-          variant: "v1",
-          data: {
-            style: {},
-          },
-        },
-      ],
+      booking: [],
       client: [],
       locations: [],
       services: [],
@@ -1375,19 +1366,6 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
 
   if (!hasStructuredPages && !pages.home.some((block) => block.type === "menu")) {
     pages.home = [createMenuBlock(safeAccountName), ...pages.home];
-  }
-  if (!pages.booking.some((block) => block.type === "booking")) {
-    pages.booking = [
-      {
-        id: makeBlockId(),
-        type: "booking",
-        variant: "v1",
-        data: {
-          style: {},
-        },
-      },
-      ...pages.booking,
-    ];
   }
   const normalizeTheme = (
     source: Partial<SiteTheme> | undefined,
