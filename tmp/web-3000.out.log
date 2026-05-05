@@ -753,3 +753,7 @@ prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { 
  GET /crm/site 200 in 676ms (compile: 98ms, proxy.ts: 20ms, render: 557ms)
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ○ Compiling /crm/login ...
  GET /crm/login 200 in 3.7s (compile: 3.5s, proxy.ts: 10ms, render: 186ms)
+ GET /crm/site 200 in 590ms (compile: 170ms, proxy.ts: 26ms, render: 393ms)
+ GET /crm/login 200 in 2.6s (compile: 2.3s, proxy.ts: 8ms, render: 229ms)
+ GET /crm/site 200 in 597ms (compile: 81ms, proxy.ts: 12ms, render: 504ms)
+ GET /crm/site 200 in 321ms (compile: 16ms, proxy.ts: 17ms, render: 287ms)
