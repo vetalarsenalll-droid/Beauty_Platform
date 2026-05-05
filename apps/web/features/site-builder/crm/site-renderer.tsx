@@ -5184,10 +5184,12 @@ export function renderLocations(
         showSort={hasMultipleLocations && data.showSort !== false}
         defaultSort={typeof data.defaultSort === "string" && data.defaultSort.trim() ? data.defaultSort.trim() : "default"}
         searchSortAlignment={
-          data.searchSortAlignment === "left" ||
-          data.searchSortAlignment === "center" ||
-          data.searchSortAlignment === "right"
-            ? data.searchSortAlignment
+          data.filtersAlignment === "left" || data.filtersAlignment === "center" || data.filtersAlignment === "right"
+            ? data.filtersAlignment
+            : data.searchSortAlignment === "left" ||
+                data.searchSortAlignment === "center" ||
+                data.searchSortAlignment === "right"
+              ? data.searchSortAlignment
             : "right"
         }
         filtersAlignment={

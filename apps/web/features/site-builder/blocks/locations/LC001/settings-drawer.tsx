@@ -57,6 +57,118 @@ function renderFlatNumberInput(label: string, value: number, onChange: (value: n
   );
 }
 
+function renderFlatNumberPxInput(
+  label: string,
+  value: number,
+  onChange: (value: number) => void,
+  min = 0,
+  max = 96,
+  mobile?: {
+    value: number | null;
+    fallback: number;
+    onChange: (value: number) => void;
+    isOpen: boolean;
+    onToggle: () => void;
+  }
+) {
+  const normalizedValue = Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : min;
+  const inputClassName =
+    "w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:shadow-none focus:outline-none focus:ring-0";
+  const inputStyle = {
+    border: 0,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    appearance: "textfield",
+  } as const;
+  const clampNext = (nextValue: number) =>
+    Number.isFinite(nextValue) ? Math.max(min, Math.min(max, Math.round(nextValue))) : min;
+
+  return (
+    <div className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <label className="block">
+        <div className="min-h-[32px] leading-4">{label}</div>
+        <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={1}
+            value={normalizedValue}
+            onChange={(event) => onChange(clampNext(Number(event.target.value)))}
+            className={inputClassName}
+            style={inputStyle}
+          />
+          <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+          {mobile ? (
+            <button
+              type="button"
+              onClick={mobile.onToggle}
+              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                mobile.isOpen ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+              }`}
+              title="Нажмите, чтобы задать значение для мобильного"
+              aria-label="Открыть мобильный размер шрифта"
+            >
+              <DesktopFontSizeIcon className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </label>
+      {mobile && mobile.isOpen ? (
+        <label className="mt-3 grid grid-cols-[112px_1fr] items-end gap-3">
+          <div className="min-h-[32px] leading-4">Моб. размер шрифта</div>
+          <div className="flex items-center gap-2 border-b border-[color:var(--bp-stroke)] pb-1">
+            <input
+              type="number"
+              min={min}
+              max={max}
+              step={1}
+              value={mobile.value ?? mobile.fallback}
+              onChange={(event) => mobile.onChange(clampNext(Number(event.target.value)))}
+              className={inputClassName}
+              style={inputStyle}
+            />
+            <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">px</span>
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#d1d5db] text-white">
+              <MobileFontSizeIcon className="h-3.5 w-3.5" />
+            </span>
+          </div>
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
+function DesktopFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <rect height="15.031" width="18.5" rx="3.5" x="2.75" y="2.75" />
+        <path d="M9.11 17.781v3.469m5.78-3.469v3.469m-8.382 0h10.984" />
+      </g>
+    </svg>
+  );
+}
+
+function MobileFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 21 21" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" fillRule="evenodd" transform="translate(5 3)">
+        <path d="M2.5.5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="5.5" cy="11.5" fill="currentColor" r="1" />
+      </g>
+    </svg>
+  );
+}
+
+function defaultCatalogCardMobileTextSize(prefix: string, desktopSize: number) {
+  if (prefix === "catalogCardTitle") {
+    return Math.max(15, Math.min(28, Math.round(desktopSize * 0.82)));
+  }
+  return Math.max(12, Math.min(17, Math.round(desktopSize * 0.9)));
+}
+
 function renderFlatSelect(
   label: string,
   value: string,
@@ -146,6 +258,7 @@ function readBackgroundMode(value: unknown): "solid" | "linear" | "radial" {
 
 export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locationsCount = 0, updateBlock }: Props) {
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
+  const [mobileTypographyOpen, setMobileTypographyOpen] = useState<Record<string, boolean>>({});
   const data = (block.data as Record<string, unknown>) ?? {};
   const rawStyle = ((block.data as Record<string, unknown>).style as Record<string, unknown>) ?? {};
   const hasMultipleLocations = locationsCount > 1;
@@ -163,6 +276,10 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
     typeof rawStyle[key] === "string" && String(rawStyle[key]).trim() ? String(rawStyle[key]) : fallback;
   const readDataColor = (key: string, fallback = "transparent") =>
     typeof data[key] === "string" && String(data[key]).trim() ? String(data[key]) : fallback;
+  const readDefaultedDataColor = (key: string, fallback: string) => {
+    const value = readDataColor(key);
+    return value && value !== "transparent" ? value : fallback;
+  };
   const readDataColorFallback = (key: string, legacyKey: string, fallback = "transparent") =>
     readDataColor(key, readDataColor(legacyKey, fallback));
   const readDataNumber = (key: string, fallback: number) => {
@@ -255,45 +372,102 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
   }
 
   if (activeSectionId === "filters") {
+    const controlsAlignment = readAlignment(data.filtersAlignment ?? data.searchSortAlignment, "right");
+    const updateControlsAlignment = (value: string) => {
+      const alignment = readAlignment(value, "right");
+      updateData({ searchSortAlignment: alignment, filtersAlignment: alignment });
+    };
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
-        <FlatCheckbox
-          checked={hasMultipleLocations && data.showSearch !== false}
-          onChange={(checked) => updateData({ showSearch: checked })}
-          label="Показывать поиск"
-        />
-        <FlatCheckbox
-          checked={hasMultipleLocations && data.showSort !== false}
-          onChange={(checked) => updateData({ showSort: checked })}
-          label="Показывать сортировку"
-        />
-        {renderFlatTextInput("Плейсхолдер поиска", String(data.searchPlaceholder ?? "Поиск филиала"), (value) => updateData({ searchPlaceholder: value || "Поиск филиала" }), "Поиск филиала")}
+        <div className="flex flex-col items-start gap-4">
+          <FlatCheckbox
+            checked={hasMultipleLocations && data.showSearch !== false}
+            onChange={(checked) => updateData({ showSearch: checked })}
+            label="Показывать поиск"
+          />
+          <FlatCheckbox
+            checked={hasMultipleLocations && data.showSort !== false}
+            onChange={(checked) => updateData({ showSort: checked })}
+            label="Показывать сортировку"
+          />
+        </div>
         {renderFlatSelect("Сортировка по умолчанию", String(data.defaultSort ?? "default"), (value) => updateData({ defaultSort: value }), [
           { value: "default", label: "По умолчанию" },
           { value: "nameAsc", label: "Название: А-Я" },
           { value: "nameDesc", label: "Название: Я-А" },
+          { value: "levelAsc", label: "Адрес: А-Я" },
+          { value: "levelDesc", label: "Адрес: Я-А" },
         ])}
-        {renderFlatSelect("Выравнивание поиска", readAlignment(data.searchSortAlignment, "right"), (value) => updateData({ searchSortAlignment: readAlignment(value, "right") }), [
+        {renderFlatTextInput("Плейсхолдер поиска", String(data.searchPlaceholder ?? "Поиск филиала"), (value) => updateData({ searchPlaceholder: value || "Поиск филиала" }), "Поиск филиала")}
+        {renderFlatSelect("Выравнивание поиска/сортировки", controlsAlignment, updateControlsAlignment, [
           { value: "left", label: "По левому краю" },
           { value: "center", label: "По центру" },
           { value: "right", label: "По правому краю" },
         ])}
-        <TildaInlineColorField
-          compact
-          label="Цвет сортировки"
-          value={readDataColor("sortTextColor", activeTheme.textColor)}
-          placeholder={activeTheme.textColor}
-          onChange={(value) => updateData({ sortTextColor: value })}
-          onClear={() => updateData({ sortTextColor: "transparent" })}
-        />
-        <TildaInlineColorField
-          compact
-          label="Активная сортировка"
-          value={readDataColor("sortActiveColor", activeTheme.buttonColor)}
-          placeholder={activeTheme.buttonColor}
-          onChange={(value) => updateData({ sortActiveColor: value })}
-          onClear={() => updateData({ sortActiveColor: "transparent" })}
-        />
+        {renderFlatSelect("Выравнивание фильтров", controlsAlignment, updateControlsAlignment, [
+          { value: "left", label: "По левому краю" },
+          { value: "center", label: "По центру" },
+          { value: "right", label: "По правому краю" },
+        ])}
+        <div className="space-y-4">
+          <TildaInlineColorField
+            compact
+            label="Цвет текста сортировки"
+            value={readDefaultedDataColor("sortTextColor", activeTheme.textColor)}
+            placeholder={activeTheme.textColor}
+            onChange={(value) => updateData({ sortTextColor: value })}
+            onClear={() => updateData({ sortTextColor: "transparent" })}
+          />
+          <TildaInlineColorField
+            compact
+            label="Активный пункт сортировки"
+            value={readDefaultedDataColor("sortActiveColor", activeTheme.buttonColor)}
+            placeholder={activeTheme.buttonColor}
+            onChange={(value) => updateData({ sortActiveColor: value })}
+            onClear={() => updateData({ sortActiveColor: "transparent" })}
+          />
+
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "▴" : "▾"}</span>
+          </button>
+
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaInlineColorField
+                compact
+                label="Цвет текста сортировки"
+                value={readDefaultedDataColor("sortTextColorDark", activeTheme.darkPalette.textColor)}
+                placeholder={activeTheme.darkPalette.textColor}
+                onChange={(value) => updateData({ sortTextColorDark: value })}
+                onClear={() => updateData({ sortTextColorDark: "transparent" })}
+              />
+              <TildaInlineColorField
+                compact
+                label="Активный пункт сортировки"
+                value={readDefaultedDataColor("sortActiveColorDark", activeTheme.darkPalette.buttonColor)}
+                placeholder={activeTheme.darkPalette.buttonColor}
+                onChange={(value) => updateData({ sortActiveColorDark: value })}
+                onClear={() => updateData({ sortActiveColorDark: "transparent" })}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -322,6 +496,81 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
     const showLiquidGlassControl =
       String(data.imageAspectRatio ?? "1 / 1") === "original" &&
       (data.cardStyle === "filled" || data.cardStyle === "boxed");
+    const renderCardTypographyControl = (
+      title: string,
+      prefix: string,
+      legacyPrefix: string,
+      colorFallback: string,
+      sizeFallback: number,
+      weightFallback = "",
+      showTopBorder = true
+    ) => {
+      const mobileKey = `locationCard:${prefix}MobileSize`;
+      const desktopSize = readDataNumberFallback(`${prefix}Size`, `${legacyPrefix}Size`, sizeFallback);
+      const mobileSize = Number(data[`${prefix}MobileSize`]);
+      const legacyMobileSize = Number(data[`${legacyPrefix}MobileSize`]);
+      const mobileValue = Number.isFinite(mobileSize)
+        ? Math.round(mobileSize)
+        : Number.isFinite(legacyMobileSize)
+          ? Math.round(legacyMobileSize)
+          : null;
+
+      return (
+        <div className={`space-y-4 ${showTopBorder ? "border-t border-[color:var(--bp-stroke)] pt-4" : ""}`}>
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
+          <TildaInlineColorField
+            compact
+            label="Цвет"
+            value={readDataColorFallback(`${prefix}ColorLight`, `${legacyPrefix}ColorLight`, colorFallback)}
+            placeholder={colorFallback}
+            onChange={(value) => updateData({ [`${prefix}ColorLight`]: value })}
+            onClear={() => updateData({ [`${prefix}ColorLight`]: "transparent" })}
+          />
+          {renderFlatNumberPxInput(
+            "Размер шрифта",
+            desktopSize,
+            (value) => updateData({ [`${prefix}Size`]: value }),
+            8,
+            96,
+            {
+              value: mobileValue,
+              fallback: defaultCatalogCardMobileTextSize(
+                prefix,
+                Number.isFinite(desktopSize) ? Math.round(desktopSize) : sizeFallback
+              ),
+              onChange: (value) => updateData({ [`${prefix}MobileSize`]: value }),
+              isOpen: mobileTypographyOpen[mobileKey] === true,
+              onToggle: () =>
+                setMobileTypographyOpen((prev) => ({
+                  ...prev,
+                  [mobileKey]: !prev[mobileKey],
+                })),
+            }
+          )}
+          {renderFontSelect(
+            "Шрифт",
+            readDataTextFallback(`${prefix}Font`, `${legacyPrefix}Font`, "Manrope"),
+            (value) => updateData({ [`${prefix}Font`]: value })
+          )}
+          {renderWeightSelect(
+            "Насыщенность",
+            readDataValueFallback(`${prefix}Weight`, `${legacyPrefix}Weight`),
+            (value) => updateData({ [`${prefix}Weight`]: value }),
+            weightFallback
+          )}
+        </div>
+      );
+    };
+    const renderCardDarkColorControl = (label: string, prefix: string, legacyPrefix: string, fallback: string) => (
+      <TildaInlineColorField
+        compact
+        label={label}
+        value={readDataColorFallback(`${prefix}ColorDark`, `${legacyPrefix}ColorDark`, fallback)}
+        placeholder={fallback}
+        onChange={(value) => updateData({ [`${prefix}ColorDark`]: value })}
+        onClear={() => updateData({ [`${prefix}ColorDark`]: "transparent" })}
+      />
+    );
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
@@ -421,28 +670,8 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
               updateData({ specialistCardBackgroundEndOpacityLight: value })
             )}
           </div>
-          <TildaInlineColorField
-            compact
-            label="Заголовок карточки"
-            value={readDataColorFallback("catalogCardTitleColorLight", "specialistCardTitleColorLight", "#111827")}
-            placeholder={activeTheme.textColor}
-            onChange={(value) => updateData({ catalogCardTitleColorLight: value })}
-            onClear={() => updateData({ catalogCardTitleColorLight: "transparent" })}
-          />
-          {renderFlatNumberInput("Размер названия", readDataNumberFallback("catalogCardTitleSize", "specialistCardTitleSize", 18), (value) => updateData({ catalogCardTitleSize: value }), 8, 96)}
-          {renderFontSelect("Шрифт названия", readDataTextFallback("catalogCardTitleFont", "specialistCardTitleFont", "Manrope"), (value) => updateData({ catalogCardTitleFont: value }))}
-          {renderWeightSelect("Жирность названия", readDataValueFallback("catalogCardTitleWeight", "specialistCardTitleWeight"), (value) => updateData({ catalogCardTitleWeight: value }), "600")}
-          <TildaInlineColorField
-            compact
-            label="Текст карточки"
-            value={readDataColorFallback("catalogCardTextColorLight", "specialistCardDescriptionColorLight", "#6B7280")}
-            placeholder={activeTheme.mutedColor}
-            onChange={(value) => updateData({ catalogCardTextColorLight: value })}
-            onClear={() => updateData({ catalogCardTextColorLight: "transparent" })}
-          />
-          {renderFlatNumberInput("Размер адреса", readDataNumberFallback("catalogCardTextSize", "specialistCardDescriptionSize", 14), (value) => updateData({ catalogCardTextSize: value }), 8, 48)}
-          {renderFontSelect("Шрифт адреса", readDataTextFallback("catalogCardTextFont", "specialistCardDescriptionFont", "Manrope"), (value) => updateData({ catalogCardTextFont: value }))}
-          {renderWeightSelect("Жирность адреса", readDataValueFallback("catalogCardTextWeight", "specialistCardDescriptionWeight"), (value) => updateData({ catalogCardTextWeight: value }))}
+          {renderCardTypographyControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#111827", 18, "600", false)}
+          {renderCardTypographyControl("Адрес", "catalogCardText", "specialistCardDescription", "#6B7280", 14)}
           <button
             type="button"
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
@@ -487,22 +716,8 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
                   updateData({ specialistCardBackgroundEndOpacityDark: value })
                 )}
               </div>
-              <TildaInlineColorField
-                compact
-                label="Заголовок карточки"
-                value={readDataColorFallback("catalogCardTitleColorDark", "specialistCardTitleColorDark", "#F8FAFC")}
-                placeholder={activeTheme.darkPalette.textColor}
-                onChange={(value) => updateData({ catalogCardTitleColorDark: value })}
-                onClear={() => updateData({ catalogCardTitleColorDark: "transparent" })}
-              />
-              <TildaInlineColorField
-                compact
-                label="Текст карточки"
-                value={readDataColorFallback("catalogCardTextColorDark", "specialistCardDescriptionColorDark", "#CBD5E1")}
-                placeholder={activeTheme.darkPalette.mutedColor}
-                onChange={(value) => updateData({ catalogCardTextColorDark: value })}
-                onClear={() => updateData({ catalogCardTextColorDark: "transparent" })}
-              />
+              {renderCardDarkColorControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#F8FAFC")}
+              {renderCardDarkColorControl("Адрес", "catalogCardText", "specialistCardDescription", "#CBD5E1")}
             </div>
           ) : null}
         </div>
@@ -517,6 +732,81 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
     const lightTo = readDataColor("specialistCardBackgroundToLight", lightFrom);
     const darkFrom = readDataColor("specialistCardBackgroundFromDark", readStyle("subBlockBgDark", "#24282e"));
     const darkTo = readDataColor("specialistCardBackgroundToDark", darkFrom);
+    const renderLocationCardTypographyControl = (
+      title: string,
+      prefix: string,
+      legacyPrefix: string,
+      colorFallback: string,
+      sizeFallback: number,
+      weightFallback = "",
+      showTopBorder = true
+    ) => {
+      const mobileKey = `locationPage:${prefix}MobileSize`;
+      const desktopSize = readDataNumberFallback(`${prefix}Size`, `${legacyPrefix}Size`, sizeFallback);
+      const mobileSize = Number(data[`${prefix}MobileSize`]);
+      const legacyMobileSize = Number(data[`${legacyPrefix}MobileSize`]);
+      const mobileValue = Number.isFinite(mobileSize)
+        ? Math.round(mobileSize)
+        : Number.isFinite(legacyMobileSize)
+          ? Math.round(legacyMobileSize)
+          : null;
+
+      return (
+        <div className={`space-y-4 ${showTopBorder ? "border-t border-[color:var(--bp-stroke)] pt-4" : ""}`}>
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{title}</div>
+          <TildaInlineColorField
+            compact
+            label="Цвет"
+            value={readDataColorFallback(`${prefix}ColorLight`, `${legacyPrefix}ColorLight`, colorFallback)}
+            placeholder={colorFallback}
+            onChange={(value) => updateData({ [`${prefix}ColorLight`]: value })}
+            onClear={() => updateData({ [`${prefix}ColorLight`]: "transparent" })}
+          />
+          {renderFlatNumberPxInput(
+            "Размер шрифта",
+            desktopSize,
+            (value) => updateData({ [`${prefix}Size`]: value }),
+            8,
+            96,
+            {
+              value: mobileValue,
+              fallback: defaultCatalogCardMobileTextSize(
+                prefix,
+                Number.isFinite(desktopSize) ? Math.round(desktopSize) : sizeFallback
+              ),
+              onChange: (value) => updateData({ [`${prefix}MobileSize`]: value }),
+              isOpen: mobileTypographyOpen[mobileKey] === true,
+              onToggle: () =>
+                setMobileTypographyOpen((prev) => ({
+                  ...prev,
+                  [mobileKey]: !prev[mobileKey],
+                })),
+            }
+          )}
+          {renderFontSelect(
+            "Шрифт",
+            readDataTextFallback(`${prefix}Font`, `${legacyPrefix}Font`, "Manrope"),
+            (value) => updateData({ [`${prefix}Font`]: value })
+          )}
+          {renderWeightSelect(
+            "Насыщенность",
+            readDataValueFallback(`${prefix}Weight`, `${legacyPrefix}Weight`),
+            (value) => updateData({ [`${prefix}Weight`]: value }),
+            weightFallback
+          )}
+        </div>
+      );
+    };
+    const renderLocationCardDarkColorControl = (label: string, prefix: string, legacyPrefix: string, fallback: string) => (
+      <TildaInlineColorField
+        compact
+        label={label}
+        value={readDataColorFallback(`${prefix}ColorDark`, `${legacyPrefix}ColorDark`, fallback)}
+        placeholder={fallback}
+        onChange={(value) => updateData({ [`${prefix}ColorDark`]: value })}
+        onClear={() => updateData({ [`${prefix}ColorDark`]: "transparent" })}
+      />
+    );
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
@@ -558,24 +848,8 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
         {renderFlatNumberInput("Скругление изображения", readDataNumber("imageRadius", 10), (value) => updateData({ imageRadius: value }), 0, 40)}
         {renderFlatNumberInput("Внутренний отступ X", readDataNumber("cardPaddingX", 30), (value) => updateData({ cardPaddingX: value }), 0, 80)}
         {renderFlatNumberInput("Внутренний отступ Y", readDataNumber("cardPaddingY", 30), (value) => updateData({ cardPaddingY: value }), 0, 80)}
-        <TildaInlineColorField
-          compact
-          label="Цвет названия"
-          value={readDataColorFallback("catalogCardTitleColorLight", "specialistCardTitleColorLight", "#111827")}
-          placeholder="#111827"
-          onChange={(value) => updateData({ catalogCardTitleColorLight: value })}
-          onClear={() => updateData({ catalogCardTitleColorLight: "transparent" })}
-        />
-        {renderFlatNumberInput("Размер названия", readDataNumberFallback("catalogCardTitleSize", "specialistCardTitleSize", 18), (value) => updateData({ catalogCardTitleSize: value }), 8, 96)}
-        <TildaInlineColorField
-          compact
-          label="Цвет адреса и описания"
-          value={readDataColorFallback("catalogCardTextColorLight", "specialistCardDescriptionColorLight", "#6B7280")}
-          placeholder="#6B7280"
-          onChange={(value) => updateData({ catalogCardTextColorLight: value })}
-          onClear={() => updateData({ catalogCardTextColorLight: "transparent" })}
-        />
-        {renderFlatNumberInput("Размер адреса и описания", readDataNumberFallback("catalogCardTextSize", "specialistCardDescriptionSize", 14), (value) => updateData({ catalogCardTextSize: value }), 8, 48)}
+        {renderLocationCardTypographyControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#111827", 18, "600", false)}
+        {renderLocationCardTypographyControl("Адрес и описание", "catalogCardText", "specialistCardDescription", "#6B7280", 14)}
         <button
           type="button"
           onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
@@ -590,22 +864,26 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
           <span className="text-xs">{showDarkThemeAdvanced ? "\u25B4" : "\u25BE"}</span>
         </button>
         {showDarkThemeAdvanced ? (
-          <TildaBackgroundColorField
-            label="Цвет фона карточки филиала"
-            value={darkFrom}
-            mode={darkMode}
-            secondValue={darkTo}
-            angle={readDataNumber("specialistCardBackgroundAngleDark", 135)}
-            radialStopA={readDataNumber("specialistCardBackgroundStopADark", 0)}
-            radialStopB={readDataNumber("specialistCardBackgroundStopBDark", 100)}
-            placeholder="#24282e"
-            onModeChange={(value) => updateData({ specialistCardBackgroundModeDark: value })}
-            onSecondChange={(value) => updateData({ specialistCardBackgroundToDark: value })}
-            onAngleChange={(value) => updateData({ specialistCardBackgroundAngleDark: value })}
-            onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopADark: value })}
-            onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBDark: value })}
-            onChange={(value) => updateData({ specialistCardBackgroundFromDark: value })}
-          />
+          <div className="space-y-4">
+            <TildaBackgroundColorField
+              label="Цвет фона карточки филиала"
+              value={darkFrom}
+              mode={darkMode}
+              secondValue={darkTo}
+              angle={readDataNumber("specialistCardBackgroundAngleDark", 135)}
+              radialStopA={readDataNumber("specialistCardBackgroundStopADark", 0)}
+              radialStopB={readDataNumber("specialistCardBackgroundStopBDark", 100)}
+              placeholder="#24282e"
+              onModeChange={(value) => updateData({ specialistCardBackgroundModeDark: value })}
+              onSecondChange={(value) => updateData({ specialistCardBackgroundToDark: value })}
+              onAngleChange={(value) => updateData({ specialistCardBackgroundAngleDark: value })}
+              onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopADark: value })}
+              onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBDark: value })}
+              onChange={(value) => updateData({ specialistCardBackgroundFromDark: value })}
+            />
+            {renderLocationCardDarkColorControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#F8FAFC")}
+            {renderLocationCardDarkColorControl("Адрес и описание", "catalogCardText", "specialistCardDescription", "#CBD5E1")}
+          </div>
         ) : null}
       </div>
     );
