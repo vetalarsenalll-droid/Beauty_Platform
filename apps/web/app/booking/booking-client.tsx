@@ -4519,10 +4519,10 @@ export default function BookingClient({
         <div className="h-0" />
 
         <div
-          className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_auto]"
+          className="booking-shell-grid grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_auto]"
           style={{ marginTop: "var(--booking-top-gap, 1rem)" }}
         >
-          <SoftPanel className="min-w-0 p-4 lg:col-start-1 lg:row-start-1">
+          <SoftPanel className="booking-scenario-panel min-w-0 p-4 lg:col-start-1 lg:row-start-1">
             <div className="flex flex-col gap-4">
               <div className="w-full space-y-3">
                 <div className="flex items-center justify-between">
@@ -4574,15 +4574,15 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="min-w-0 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
-            <div className="flex items-center justify-between gap-3">
+          <SoftPanel className="booking-step-panel min-w-0 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
+            <div className="booking-step-header flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">
                   {stepsWithScenario[stepIndex]?.title}
                 </div>
               </div>
 
-              <div className="ml-auto hidden items-center gap-2 sm:flex">
+              <div className="booking-desktop-nav ml-auto hidden items-center gap-2 sm:flex">
                 <button
                   type="button"
                   onClick={goPrev}
@@ -4603,7 +4603,7 @@ export default function BookingClient({
               </div>
             </div>
 
-            <div className="sticky top-[132px] z-30 -mt-9 mb-3 flex justify-end gap-2 sm:hidden">
+            <div className="booking-mobile-nav sticky top-[132px] z-30 -mt-9 mb-3 flex justify-end gap-2 sm:hidden">
               <button
                 type="button"
                 onClick={goPrev}
@@ -4623,8 +4623,8 @@ export default function BookingClient({
               </button>
             </div>
 
-            <div className="mt-4 pt-4 lg:min-h-0 lg:flex-1">
-              <div className="min-h-[620px] pl-0 pr-[2px] -mr-2 sm:pr-[6px] sm:-mr-3 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+            <div className="booking-step-body mt-4 pt-4 lg:min-h-0 lg:flex-1">
+              <div className="booking-step-scroll min-h-[620px] pl-0 pr-[2px] -mr-2 sm:pr-[6px] sm:-mr-3 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                 {currentStepKey === "scenario" && (
                   <div className="space-y-3">
                     <ScenarioTabs value={scenario} onChange={setScenario} />
@@ -4638,7 +4638,7 @@ export default function BookingClient({
                       <div className="space-y-3">
                         <div
                           className={cn(
-                            "grid gap-3 pt-1 [grid-auto-rows:1fr]",
+                            "booking-cards-grid grid gap-3 pt-1 [grid-auto-rows:1fr]",
                             (context?.locations?.length ?? 0) === 1
                               ? "grid-cols-1"
                               : "grid-cols-1 sm:grid-cols-2"
@@ -4873,7 +4873,7 @@ export default function BookingClient({
 
                 {currentStepKey === "service" && (
                   <div className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="booking-service-toolbar flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 flex-1">
                         <div className="-mx-1 overflow-hidden px-1 sm:mx-0 sm:px-0">
                           <div className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
@@ -4902,14 +4902,14 @@ export default function BookingClient({
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder="Поиск услуги"
-                        className="h-10 w-full rounded-2xl border-2 border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm placeholder:text-[color:var(--bp-muted)] focus:outline-none sm:w-[280px] sm:flex-none"
+                        className="booking-search-input h-10 w-full rounded-2xl border-2 border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm placeholder:text-[color:var(--bp-muted)] focus:outline-none sm:w-[280px] sm:flex-none"
                       />
                     </div>
 
                     {servicesError && <div className="text-sm text-red-600">{servicesError}</div>}
 
                     {!loadingServices && !servicesError && (
-                      <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
+                      <div className="booking-cards-grid grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                         {servicesForServiceStep.map((service) => {
                           const price = showFromServiceMetrics
                             ? service.minPrice ?? service.basePrice ?? 0
@@ -5081,7 +5081,7 @@ export default function BookingClient({
                       !specialistsError &&
                       (isSpecialistFirst || (!isSpecialistFirst && selectedServiceIds.length > 0 && !!timeChoice)) &&
                       (!isDateFirst || (!loadingDateFirstServiceSlots && selectedServiceIds.length > 0 && !!timeChoice)) && (
-                        <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
+                        <div className="booking-cards-grid grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                           {specialistsForSpecialistStepFiltered.map((sp) => {
                             const active = sp.id === specialistId;
                             const specialistProfileHref = accountPublicSlug
@@ -5592,7 +5592,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="min-w-0 p-4 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:h-full lg:self-stretch">
+          <SoftPanel className="booking-summary-panel min-w-0 p-4 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:h-full lg:self-stretch">
             <div className="space-y-4">
               <div className="text-base font-semibold">Сводка</div>
               <div className="space-y-2">
