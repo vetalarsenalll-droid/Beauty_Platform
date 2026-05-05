@@ -748,3 +748,6 @@ prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { 
 prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "Удаленный хост принудительно разорвал существующее подключение." }) }
 prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "Удаленный хост принудительно разорвал существующее подключение." }) }
 prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "Удаленный хост принудительно разорвал существующее подключение." }) }
+○ Compiling / ...
+ GET / 200 in 4.2s (compile: 4.0s, render: 236ms)
+ GET /crm/site 200 in 676ms (compile: 98ms, proxy.ts: 20ms, render: 557ms)
