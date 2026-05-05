@@ -1,5 +1,5 @@
 import type { BlockVersion, CrmPanelCtx } from "../../runtime/contracts";
-import { makeBlockId } from "@/lib/site-builder";
+import { makeBlockId, type SiteBlock } from "@/lib/site-builder";
 import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
 import { BlockStyleEditor } from "@/features/site-builder/crm/site-editor-panels";
 import { resolveCoverSettings } from "@/features/site-builder/crm/cover-settings";
@@ -8,8 +8,8 @@ import { SiteCoverDrawerSections } from "@/features/site-builder/crm/site-cover-
 import { renderGenericSettingsPanel } from "../../runtime/ui/generic-settings-panel";
 import { CoverV2ContentPanel } from "./content-panel";
 
-function updateSelected(ctx: CrmPanelCtx, next: unknown) {
-  ctx.updateBlock(ctx.block.id, () => next as any);
+function updateSelected(ctx: CrmPanelCtx, next: SiteBlock) {
+  ctx.updateBlock(ctx.block.id, () => next);
 }
 
 export const HE002: BlockVersion = {

@@ -2447,13 +2447,9 @@ function CoverVariantV2Hero({
   const canSlide = slides.length > 1;
   const [hoveredArrow, setHoveredArrow] = useState<"prev" | "next" | null>(null);
   const [hoveredPrimaryButton, setHoveredPrimaryButton] = useState(false);
-  const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">(
-    themeMode === "dark" ? "dark" : "light"
-  );
-
-  useEffect(() => {
-    setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
-  }, [themeMode]);
+  const propThemeMode = themeMode === "dark" ? "dark" : "light";
+  const [domThemeMode, setDomThemeMode] = useState<"light" | "dark" | null>(null);
+  const activeThemeMode = domThemeMode ?? propThemeMode;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2461,7 +2457,7 @@ function CoverVariantV2Hero({
       const root = document.getElementById("public-site-root");
       const mode = root?.getAttribute("data-site-theme");
       if (mode === "light" || mode === "dark") {
-        setActiveThemeMode(mode);
+        setDomThemeMode(mode);
       }
     };
     resolveModeFromDom();
@@ -2469,7 +2465,7 @@ function CoverVariantV2Hero({
       const detail = (event as CustomEvent<{ mode?: string }>).detail;
       const mode = detail?.mode;
       if (mode === "light" || mode === "dark") {
-        setActiveThemeMode(mode);
+        setDomThemeMode(mode);
         return;
       }
       resolveModeFromDom();
@@ -2488,46 +2484,40 @@ function CoverVariantV2Hero({
   }, []);
 
   useEffect(() => {
-    if (slides.length === 0) {
-      setIndex(0);
-      return;
-    }
-    if (index >= slides.length) {
-      setIndex(slides.length - 1);
-    }
-  }, [index, slides.length]);
-
-  useEffect(() => {
     if (!canSlide || autoplayMs <= 0) return;
     const timer = setInterval(() => {
       setIndex((prev) => {
-        if (infinite) return (prev + 1) % slides.length;
-        if (prev >= slides.length - 1) return prev;
-        return prev + 1;
+        const currentIndex = Math.min(prev, slides.length - 1);
+        if (infinite) return (currentIndex + 1) % slides.length;
+        if (currentIndex >= slides.length - 1) return currentIndex;
+        return currentIndex + 1;
       });
     }, autoplayMs);
     return () => clearInterval(timer);
   }, [autoplayMs, canSlide, infinite, slides.length]);
 
-  const current = slides[index] ?? slides[0];
+  const safeIndex = slides.length === 0 ? 0 : Math.min(index, slides.length - 1);
+  const current = slides[safeIndex] ?? slides[0];
   if (!current) return null;
 
   const arrowSizeMap = { sm: 40, md: 48, lg: 56, xl: 64 } as const;
   const arrowPx = forceMobileLayout ? 34 : arrowSizeMap[arrowSize] ?? 40;
-  const canGoPrev = infinite || index > 0;
-  const canGoNext = infinite || index < slides.length - 1;
+  const canGoPrev = infinite || safeIndex > 0;
+  const canGoNext = infinite || safeIndex < slides.length - 1;
   const goPrev = () => {
     if (!canGoPrev) return;
     setIndex((prev) => {
-      if (infinite) return (prev - 1 + slides.length) % slides.length;
-      return Math.max(0, prev - 1);
+      const currentIndex = Math.min(prev, slides.length - 1);
+      if (infinite) return (currentIndex - 1 + slides.length) % slides.length;
+      return Math.max(0, currentIndex - 1);
     });
   };
   const goNext = () => {
     if (!canGoNext) return;
     setIndex((prev) => {
-      if (infinite) return (prev + 1) % slides.length;
-      return Math.min(slides.length - 1, prev + 1);
+      const currentIndex = Math.min(prev, slides.length - 1);
+      if (infinite) return (currentIndex + 1) % slides.length;
+      return Math.min(slides.length - 1, currentIndex + 1);
     });
   };
 
@@ -2770,7 +2760,7 @@ function CoverVariantV2Hero({
                 width: dotSize,
                 height: dotSize,
                 borderRadius: 999,
-                backgroundColor: slideIndex === index ? dotActiveColor : dotColor,
+                backgroundColor: slideIndex === safeIndex ? dotActiveColor : dotColor,
                 borderStyle: "solid",
                 borderWidth: dotBorderWidth,
                 borderColor: dotBorderColor,

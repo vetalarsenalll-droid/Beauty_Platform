@@ -1,13 +1,9 @@
-import type { BlockVersion, CrmPanelCtx } from "../../runtime/contracts";
+import type { BlockVersion } from "../../runtime/contracts";
 import { makeBlockId } from "@/lib/site-builder";
 import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
 import { MenuContentPanel } from "./content-panel";
 import { MenuSettingsPanel } from "./settings-panel";
 import { MenuDrawers } from "./drawers";
-
-function updateSelected(ctx: CrmPanelCtx, next: unknown) {
-  ctx.updateBlock(ctx.block.id, () => next as any);
-}
 
 export const ME001: BlockVersion = {
   blockCode: "ME001",
