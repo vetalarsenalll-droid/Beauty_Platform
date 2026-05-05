@@ -112,6 +112,7 @@ type ServiceCatalogProps = {
   headingStyle: CSSProperties;
   subheadingStyle: CSSProperties;
   buttonStyle: CSSProperties;
+  detailsButtonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
   previewViewportWidth?: number;
 };
@@ -971,6 +972,7 @@ export function ServicesCatalog({
   headingStyle,
   subheadingStyle,
   buttonStyle,
+  detailsButtonStyle,
   textAlign = "left",
   previewViewportWidth,
 }: ServiceCatalogProps) {
@@ -2116,6 +2118,7 @@ export function ServicesCatalog({
                           borderRadius: buttonStyle.borderRadius ?? 0,
                           boxShadow: `inset 0 0 0 1px ${resolvedDetailsButtonBorderColor}`,
                           ...compactServiceButtonTextStyle,
+                          ...detailsButtonStyle,
                         }}
                       >
                         {detailsButtonText}
@@ -2126,7 +2129,7 @@ export function ServicesCatalog({
                         href={bookingHref}
                         onClick={(event) => event.stopPropagation()}
                         className="inline-flex items-center justify-center rounded-[12px] px-4 py-2 text-sm font-semibold"
-                        style={{ ...buttonStyle, ...compactServiceButtonTextStyle }}
+                        style={{ ...compactServiceButtonTextStyle, ...buttonStyle }}
                       >
                         {buttonText}
                       </a>

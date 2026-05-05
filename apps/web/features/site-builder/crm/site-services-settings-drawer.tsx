@@ -228,6 +228,29 @@ function renderFlatSelect(
   );
 }
 
+function renderFontSelect(label: string, value: string, onChange: (value: string) => void) {
+  return renderFlatSelect(label, value || "Manrope", onChange, [
+    { value: "Manrope", label: "Manrope" },
+    { value: "Inter", label: "Inter" },
+    { value: "Arial", label: "Arial" },
+    { value: "Georgia", label: "Georgia" },
+    { value: "Times New Roman", label: "Times New Roman" },
+  ]);
+}
+
+function renderWeightSelect(label: string, value: unknown, onChange: (value: number | "") => void, fallback = "") {
+  const normalized = value === "" || value === null || value === undefined ? fallback : String(value);
+  return renderFlatSelect(label, normalized || "", (next) => onChange(next ? Number(next) : ""), [
+    { value: "", label: "Обычная" },
+    { value: "300", label: "300" },
+    { value: "400", label: "400" },
+    { value: "500", label: "500" },
+    { value: "600", label: "600" },
+    { value: "700", label: "700" },
+    { value: "800", label: "800" },
+  ]);
+}
+
 const ALIGNMENT_OPTIONS = [
   { value: "left", label: "По левому краю" },
   { value: "center", label: "По центру" },
@@ -415,6 +438,43 @@ export function SiteServicesSettingsDrawer({
           (value) => updateData({ detailsButtonText: value }),
           "Подробнее"
         )}
+        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+          {renderFlatNumberPxInput(
+            "Размер текста основной кнопки",
+            readDataNumber("servicePrimaryButtonSize", 14),
+            (value) => updateData({ servicePrimaryButtonSize: value }),
+            8,
+            48
+          )}
+          {renderFontSelect(
+            "Шрифт основной кнопки",
+            String(data.servicePrimaryButtonFont ?? "Manrope"),
+            (value) => updateData({ servicePrimaryButtonFont: value })
+          )}
+          {renderWeightSelect(
+            "Жирность основной кнопки",
+            data.servicePrimaryButtonWeight,
+            (value) => updateData({ servicePrimaryButtonWeight: value }),
+            "600"
+          )}
+          {renderFlatNumberPxInput(
+            "Размер текста второй кнопки",
+            readDataNumber("serviceDetailsButtonSize", 14),
+            (value) => updateData({ serviceDetailsButtonSize: value }),
+            8,
+            48
+          )}
+          {renderFontSelect(
+            "Шрифт второй кнопки",
+            String(data.serviceDetailsButtonFont ?? "Manrope"),
+            (value) => updateData({ serviceDetailsButtonFont: value })
+          )}
+          {renderWeightSelect(
+            "Жирность второй кнопки",
+            data.serviceDetailsButtonWeight,
+            (value) => updateData({ serviceDetailsButtonWeight: value })
+          )}
+        </div>
         {renderFlatNumberPxInput(
           "Скругление",
           Number(rawStyle.buttonRadius ?? 0),

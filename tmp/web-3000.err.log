@@ -56,7 +56,6 @@ Import trace for requested module:
   156 |   return normalized; {
   digest: '1933950333'
 }
-⚠ Fast Refresh had to perform a full reload due to a runtime error.
 ⨯ TypeError: Cannot read properties of undefined (reading 'trim')
     at colorWithOpacity (features\site-builder\blocks\services\services-catalog.tsx:153:28)
     at transparentToColorGradient (features\site-builder\blocks\services\services-catalog.tsx:160:87)
@@ -1027,3 +1026,4 @@ Import trace for requested module:
     at JSON.parse (<anonymous>) {
   page: '/crm/site'
 }
+⚠ Fast Refresh had to perform a full reload due to a runtime error.

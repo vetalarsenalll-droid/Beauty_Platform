@@ -5470,9 +5470,15 @@ export function renderServices(
   const modalDescriptionTextStyle = modalTextStyle("modalDescription", "#6B7280", "#CBD5E1", 17);
   const modalPriceTextStyle = modalTextStyle("modalPrice", "#111827", "#F8FAFC", 20, 600);
   const modalDurationTextStyle = modalTextStyle("modalDuration", "#6B7280", "#CBD5E1", 20);
+  const serviceButtonTextStyle = (prefix: "servicePrimaryButton" | "serviceDetailsButton", sizeFallback: number, weightFallback?: number): CSSProperties => ({
+    fontSize: `${readDataNumberValue(`${prefix}Size`, sizeFallback, 8, 48)}px`,
+    fontFamily: readDataFont(`${prefix}Font`, "Manrope"),
+    fontWeight: readDataWeight(`${prefix}Weight`, weightFallback),
+  });
   const servicesButtonStyle = {
     ...buttonStyle(style, theme),
     borderRadius: style.buttonRadius ?? 0,
+    ...serviceButtonTextStyle("servicePrimaryButton", 14, 600),
   };
   const listView = data.listView === "list" ? "list" : "tile";
   const maxVisibleItems = Number(data.maxVisibleItems);
@@ -5668,6 +5674,7 @@ export function renderServices(
         headingStyle={servicesHeadingStyle}
         subheadingStyle={servicesSubheadingStyle}
         buttonStyle={servicesButtonStyle}
+        detailsButtonStyle={serviceButtonTextStyle("serviceDetailsButton", 14)}
         textAlign={style.textAlign}
         previewViewportWidth={previewViewportWidth}
       />
@@ -5834,9 +5841,15 @@ export function renderSpecialists(
     textAlign: style.textAlignSubheading ?? "left",
     color: "var(--services-description-color,var(--site-muted,var(--block-muted,var(--bp-muted))))",
   };
+  const specialistButtonTextStyle = (prefix: "specialistPrimaryButton" | "specialistDetailsButton", sizeFallback: number, weightFallback?: number): CSSProperties => ({
+    fontSize: `${readDataNumberValue(`${prefix}Size`, sizeFallback, 8, 48)}px`,
+    fontFamily: readDataFont(`${prefix}Font`, "Manrope"),
+    fontWeight: readDataWeight(`${prefix}Weight`, weightFallback),
+  });
   const specialistsButtonStyle = {
     ...buttonStyle(style, theme),
     borderRadius: style.buttonRadius ?? 0,
+    ...specialistButtonTextStyle("specialistPrimaryButton", 14, 600),
   };
 
   return (
@@ -5956,6 +5969,7 @@ export function renderSpecialists(
         headingStyle={specialistsHeadingStyle}
         subheadingStyle={specialistsSubheadingStyle}
         buttonStyle={specialistsButtonStyle}
+        detailsButtonStyle={specialistButtonTextStyle("specialistDetailsButton", 14)}
         textAlign={style.textAlign}
         previewViewportWidth={previewViewportWidth}
       />
