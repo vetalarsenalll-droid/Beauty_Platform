@@ -2,7 +2,7 @@
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type SocialKey = keyof typeof SOCIAL_LABELS;
@@ -48,11 +48,11 @@ function resolveSocialHrefByKey(accountProfile: CrmPanelCtx["accountProfile"], k
 
 export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
   const block = ctx.block;
-  const updateData = (patch: Record<string, unknown>) =>
+  const updateData = useCallback((patch: Record<string, unknown>) =>
     ctx.updateBlock(block.id, (prev) => ({
       ...prev,
       data: { ...(prev.data as Record<string, unknown>), ...patch },
-    }));
+    })), [block.id, ctx]);
 
   const [libraryImages, setLibraryImages] = useState<Array<{ id: number; url: string }>>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -72,9 +72,9 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
         ? (ctx.branding.coverUrl ?? "")
         : "";
 
-  const setSource = (next: ImageSource) => {
+  const setSource = useCallback((next: ImageSource) => {
     updateData({ imageSource: next });
-  };
+  }, [updateData]);
 
   useEffect(() => {
     let active = true;
@@ -135,7 +135,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
     if (!first) return;
     if (customSelectedId !== first.id) setCustomSelectedId(first.id);
     setSource({ type: "custom", url: first.url });
-  }, [libraryImages, customSelectedId, imageSource.type, imageSource.url]);
+  }, [libraryImages, customSelectedId, imageSource.type, imageSource.url, setSource]);
 
   const uploadToLibrary = async (file: File): Promise<{ id: number; url: string } | null> => {
     const formData = new FormData();
@@ -203,7 +203,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
     if (secondaryButtonSource === "auto") {
       updateData({ secondaryButtonSource: "" });
     }
-  }, [secondaryButtonSource]);
+  }, [secondaryButtonSource, updateData]);
 
   return (
     <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
@@ -339,6 +339,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
         <div className="flex items-center gap-3">
           <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
             {previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={previewUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[10px] text-[color:var(--bp-muted)]">
@@ -418,6 +419,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                     aria-label="Выбрать изображение"
                   >
                     <div className="flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[inherit] bg-[color:var(--bp-base)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={image.url} alt="" className="h-full w-full object-cover" />
                     </div>
                   </button>

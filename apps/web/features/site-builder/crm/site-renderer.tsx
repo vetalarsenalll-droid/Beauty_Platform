@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type {
   SiteAishaWidgetConfig,
   SiteBlock,
@@ -1216,9 +1216,9 @@ export function CoverImageEditor({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const setSource = (next: { type: string; id?: number | null; url?: string }) => {
+  const setSource = useCallback((next: { type: string; id?: number | null; url?: string }) => {
     onChange({ imageSource: next });
-  };
+  }, [onChange]);
 
   useEffect(() => {
     let active = true;
@@ -1288,7 +1288,7 @@ export function CoverImageEditor({
     if (!first) return;
     if (customSelectedId !== first.id) setCustomSelectedId(first.id);
     setSource({ type: "custom", url: first.url });
-  }, [customImages, customSelectedId, imageSource.type, imageSource.url]);
+  }, [customImages, customSelectedId, imageSource.type, imageSource.url, setSource]);
 
   const uploadCustomImage = async (file: File) => {
     const formData = new FormData();
@@ -1423,6 +1423,7 @@ export function CoverImageEditor({
       {previewUrl ? (
         <div className="flex items-center gap-3">
           <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-cover" />
           </div>
           <div className="text-xs text-[color:var(--bp-muted)]">Изображение выбрано</div>
@@ -1459,6 +1460,7 @@ export function CoverImageEditor({
                       aria-label="Выбрать изображение"
                     >
                       <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={image.url} alt="" className="h-full w-full object-cover" />
                       </div>
                     </button>
@@ -1641,8 +1643,6 @@ export function BlockPreview({
   const gridSpan = Math.max(1, gridEnd - gridStart + 1);
   const gridWidthPercent = `${(gridSpan / MAX_BLOCK_COLUMNS) * 100}%`;
   const gridLeftPercent = `${((gridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
-  const bookingInnerColumns = bookingContentColumns(blockWidthColumns);
-  const blockOuterColumns = isBooking || isMenu ? MAX_BLOCK_COLUMNS : blockWidthColumns;
   const gradientFrom = style.gradientFrom || theme.gradientFrom;
   const gradientTo = style.gradientTo || theme.gradientTo;
   const gradientDirection =
@@ -1655,7 +1655,6 @@ export function BlockPreview({
     ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
     : "none";
   const blockFont = style.fontBody || theme.fontBody;
-  const bookingContentWidth = `${(bookingInnerColumns / MAX_BLOCK_COLUMNS) * 100}%`;
   const loaderUsesCustomWidth = isLoader && Boolean(style.useCustomWidth) && Boolean(style.blockWidthColumns);
   const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices
     ? "p-0"
@@ -1877,7 +1876,6 @@ export function BlockPreview({
 export function InsertSlot({
   index,
   slotRef,
-  spacing,
   activeOffset,
   hideAddButton = false,
   persistent = false,
@@ -1944,6 +1942,9 @@ export function InsertSlot({
         <div
           role="slider"
           aria-label={`Изменить отступ между блоками ${index}`}
+          aria-valuemin={0}
+          aria-valuemax={BLOCK_OFFSET_STEP_PX * 20}
+          aria-valuenow={Math.max(0, Math.round(activeOffset))}
           className="absolute inset-x-0 top-1/2 z-[40] h-10 -translate-y-1/2 cursor-ns-resize touch-none"
           style={{ cursor: "ns-resize" }}
           onPointerDown={handleResizeStart}
@@ -2810,28 +2811,6 @@ export function renderCover(
       : "center";
   const showButton = Boolean(data.showButton);
   const buttonText = (data.buttonText as string) || "Записаться";
-  const menuButtonBorderColorRaw =
-    typeof data.menuButtonBorderColor === "string" ? data.menuButtonBorderColor.trim() : "";
-  const menuButtonBorderColor =
-    menuButtonBorderColorRaw.toLowerCase() === "transparent"
-      ? "transparent"
-      : menuButtonBorderColorRaw && isValidColorValue(menuButtonBorderColorRaw)
-        ? menuButtonBorderColorRaw
-        : "transparent";
-  const menuButtonBorderColorDarkRaw =
-    typeof data.menuButtonBorderColorDark === "string" ? data.menuButtonBorderColorDark.trim() : "";
-  const menuButtonBorderColorDark =
-    menuButtonBorderColorDarkRaw.toLowerCase() === "transparent"
-      ? "transparent"
-      : menuButtonBorderColorDarkRaw && isValidColorValue(menuButtonBorderColorDarkRaw)
-        ? menuButtonBorderColorDarkRaw
-        : menuButtonBorderColor;
-  const menuButtonBorderColorByMode =
-    theme.mode === "dark" ? menuButtonBorderColorDark : menuButtonBorderColor;
-  const menuButtonRadiusRaw = Number(data.menuButtonRadius);
-  const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
-    ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
-    : 0;
   const showSecondaryButton = Boolean(data.showSecondaryButton);
   const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
@@ -3143,8 +3122,6 @@ export function renderCover(
     sliderArrowColorDarkRaw && isValidColorValue(sliderArrowColorDarkRaw)
       ? sliderArrowColorDarkRaw
       : sliderArrowColorLight;
-  const sliderArrowColor =
-    theme.mode === "dark" ? sliderArrowColorDark || sliderArrowColorLight : sliderArrowColorLight || sliderArrowColorDark;
   const sliderArrowHoverColorLightRaw =
     typeof data.coverSliderArrowHoverColor === "string"
       ? data.coverSliderArrowHoverColor.trim()
@@ -3161,10 +3138,6 @@ export function renderCover(
     sliderArrowHoverColorDarkRaw && isValidColorValue(sliderArrowHoverColorDarkRaw)
       ? sliderArrowHoverColorDarkRaw
       : sliderArrowHoverColorLight;
-  const sliderArrowHoverColor =
-    theme.mode === "dark"
-      ? sliderArrowHoverColorDark || sliderArrowHoverColorLight
-      : sliderArrowHoverColorLight || sliderArrowHoverColorDark;
   const sliderArrowBgColorLightRaw =
     typeof data.coverSliderArrowBgColor === "string" ? data.coverSliderArrowBgColor.trim() : "";
   const sliderArrowBgColorDarkRaw =
@@ -3177,8 +3150,6 @@ export function renderCover(
     sliderArrowBgColorDarkRaw && isValidColorValue(sliderArrowBgColorDarkRaw)
       ? sliderArrowBgColorDarkRaw
       : sliderArrowBgColorLight;
-  const sliderArrowBgColor =
-    theme.mode === "dark" ? sliderArrowBgColorDark || sliderArrowBgColorLight : sliderArrowBgColorLight || sliderArrowBgColorDark;
   const sliderArrowHoverBgColorLightRaw =
     typeof data.coverSliderArrowHoverBgColor === "string"
       ? data.coverSliderArrowHoverBgColor.trim()
@@ -3195,10 +3166,6 @@ export function renderCover(
     sliderArrowHoverBgColorDarkRaw && isValidColorValue(sliderArrowHoverBgColorDarkRaw)
       ? sliderArrowHoverBgColorDarkRaw
       : sliderArrowHoverBgColorLight;
-  const sliderArrowHoverBgColor =
-    theme.mode === "dark"
-      ? sliderArrowHoverBgColorDark || sliderArrowHoverBgColorLight
-      : sliderArrowHoverBgColorLight || sliderArrowHoverBgColorDark;
   const sliderArrowOutlineColorLightRaw =
     typeof data.coverSliderArrowOutlineColor === "string"
       ? data.coverSliderArrowOutlineColor.trim()
@@ -3252,8 +3219,6 @@ export function renderCover(
     sliderDotColorDarkRaw && isValidColorValue(sliderDotColorDarkRaw)
       ? sliderDotColorDarkRaw
       : sliderDotColorLight;
-  const sliderDotColor =
-    theme.mode === "dark" ? sliderDotColorDark || sliderDotColorLight : sliderDotColorLight || sliderDotColorDark;
   const sliderDotActiveColorLightRaw =
     typeof data.coverSliderDotActiveColor === "string"
       ? data.coverSliderDotActiveColor.trim()
@@ -3270,10 +3235,6 @@ export function renderCover(
     sliderDotActiveColorDarkRaw && isValidColorValue(sliderDotActiveColorDarkRaw)
       ? sliderDotActiveColorDarkRaw
       : sliderDotActiveColorLight;
-  const sliderDotActiveColor =
-    theme.mode === "dark"
-      ? sliderDotActiveColorDark || sliderDotActiveColorLight
-      : sliderDotActiveColorLight || sliderDotActiveColorDark;
   const sliderDotBorderWidthRaw = Number(data.coverSliderDotBorderWidth);
   const sliderDotBorderWidth =
     Number.isFinite(sliderDotBorderWidthRaw) && sliderDotBorderWidthRaw >= 0
@@ -3295,10 +3256,6 @@ export function renderCover(
     sliderDotBorderColorDarkRaw && isValidColorValue(sliderDotBorderColorDarkRaw)
       ? sliderDotBorderColorDarkRaw
       : sliderDotBorderColorLight;
-  const sliderDotBorderColor =
-    theme.mode === "dark"
-      ? sliderDotBorderColorDark || sliderDotBorderColorLight
-      : sliderDotBorderColorLight || sliderDotBorderColorDark;
   const rawSlides = Array.isArray(data.coverSlides)
     ? (data.coverSlides as Array<Record<string, unknown>>)
     : [];
@@ -4177,6 +4134,7 @@ export function renderMenuBlock(
     previewViewportWidth < 960;
   const logoImageNode =
     showLogo && branding.logoUrl ? (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={branding.logoUrl}
         alt=""
@@ -4331,6 +4289,7 @@ export function renderMenuBlock(
             style={{ width: socialIconSize, height: socialIconSize }}
             title={SOCIAL_LABELS[item.key]}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={SOCIAL_ICONS[item.key]}
               alt=""

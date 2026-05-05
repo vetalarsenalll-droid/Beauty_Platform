@@ -391,6 +391,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                 <div className="flex items-center gap-3">
                   <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
                     {slide.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-[color:var(--bp-muted)]">
@@ -467,6 +468,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                             aria-label="Выбрать изображение"
                           >
                             <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={image.url} alt="" className="h-full w-full object-cover" />
                             </div>
                           </button>
