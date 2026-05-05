@@ -99,7 +99,7 @@ const locationDefaults = {
   usePagination: false,
   imageZoomOnHover: true,
   alignButtonsBottom: true,
-  modalImageClickEnabled: true,
+  locationCardClickEnabled: true,
 };
 
 function readMigratedValue(data: Record<string, unknown>, key: string, ...legacyKeys: string[]) {
@@ -124,6 +124,7 @@ export const LC001: BlockVersion = {
       ids: Array.isArray(data.ids) ? data.ids : [],
       locationCardImageFit: readMigratedValue(data, "locationCardImageFit", "specialistCardImageFit"),
       locationCardImageZoomOnClick: readMigratedValue(data, "locationCardImageZoomOnClick", "specialistCardImageZoomOnClick"),
+      locationCardClickEnabled: readMigratedValue(data, "locationCardClickEnabled", "modalImageClickEnabled"),
       locationModalMediaColumns: readMigratedValue(data, "locationModalMediaColumns", "specialistModalMediaColumns"),
       locationModalInfoColumns: readMigratedValue(data, "locationModalInfoColumns", "specialistModalInfoColumns"),
       locationCardBackgroundModeLight: readMigratedValue(data, "locationCardBackgroundModeLight", "catalogCardBackgroundModeLight", "specialistCardBackgroundModeLight"),

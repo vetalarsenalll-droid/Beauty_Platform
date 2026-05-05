@@ -5265,7 +5265,7 @@ export function renderLocations(
         cardBackgroundEndOpacityDark={readDataNumber("locationCardBackgroundEndOpacityDark", readDataNumber("specialistCardBackgroundEndOpacityDark", readDataNumber("locationCardBackgroundEndOpacityLight", readDataNumber("specialistCardBackgroundEndOpacityLight", 10))))}
         cardTitleTextStyle={cardTextStyle("locationCardTitle", "#111827", "#F8FAFC", 18, 600, "catalogCardTitle")}
         cardDescriptionTextStyle={cardTextStyle("locationCardText", "#6B7280", "#CBD5E1", 14, undefined, "catalogCardText")}
-        cardClickEnabled={data.modalImageClickEnabled !== false}
+        cardClickEnabled={(data.locationCardClickEnabled ?? data.modalImageClickEnabled) !== false}
         cardStyle={cardStyle}
         cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}
         cardGapY={Number.isFinite(cardGapY) ? cardGapY : 40}

@@ -793,8 +793,8 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
           label="Увеличивать изображение по наведению"
         />
         <FlatCheckbox
-          checked={data.modalImageClickEnabled !== false}
-          onChange={(checked) => updateData({ modalImageClickEnabled: checked })}
+          checked={(data.locationCardClickEnabled ?? data.modalImageClickEnabled) !== false}
+          onChange={(checked) => updateData({ locationCardClickEnabled: checked })}
           label="Открывать карточку филиала по клику на карточку"
         />
         {renderFlatTextInput(
