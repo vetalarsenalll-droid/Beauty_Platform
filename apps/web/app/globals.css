@@ -54,6 +54,34 @@ html {
   --booking-button-text: var(--booking-button-text-light, var(--site-button-text));
   --booking-gradient: var(--booking-gradient-light, none);
   --booking-border-width: var(--booking-border-width-light, 1px);
+  --booking-panel-border: var(--booking-panel-border-light, var(--booking-border));
+  --booking-card-border: var(--booking-card-border-light, var(--booking-border));
+  --booking-field-border: var(--booking-field-border-light, var(--booking-card-border));
+  --booking-field-bg: var(--booking-field-bg-light, var(--booking-sub-bg));
+  --booking-card-gradient: var(--booking-card-gradient-light, none);
+  --booking-field-gradient: var(--booking-field-gradient-light, none);
+  --booking-primary-button-border: var(--booking-primary-button-border-light, transparent);
+  --booking-secondary-button-bg: var(--booking-secondary-button-bg-light, var(--booking-sub-bg));
+  --booking-secondary-button-text: var(--booking-secondary-button-text-light, var(--booking-text));
+  --booking-secondary-button-border: var(--booking-secondary-button-border-light, var(--booking-card-border));
+  --booking-card-action-bg: var(--booking-card-action-bg-light, var(--booking-secondary-button-bg));
+  --booking-card-action-text: var(--booking-card-action-text-light, var(--booking-secondary-button-text));
+  --booking-card-action-border: var(--booking-card-action-border-light, var(--booking-secondary-button-border));
+  --booking-nav-secondary-bg: var(--booking-nav-secondary-bg-light, var(--booking-secondary-button-bg));
+  --booking-nav-secondary-text: var(--booking-nav-secondary-text-light, var(--booking-secondary-button-text));
+  --booking-nav-secondary-border: var(--booking-nav-secondary-border-light, var(--booking-secondary-button-border));
+  --booking-scenario-bg: var(--booking-scenario-bg-light, var(--booking-sub-bg));
+  --booking-scenario-text: var(--booking-scenario-text-light, var(--booking-muted));
+  --booking-scenario-border: var(--booking-scenario-border-light, transparent);
+  --booking-scenario-active-bg: var(--booking-scenario-active-bg-light, var(--booking-button));
+  --booking-scenario-active-text: var(--booking-scenario-active-text-light, var(--booking-button-text));
+  --booking-scenario-active-border: var(--booking-scenario-active-border-light, var(--booking-primary-button-border));
+  --booking-card-title-color: var(--booking-card-title-color-light, var(--booking-text));
+  --booking-card-title-size: var(--booking-card-title-size-light, var(--bp-text-size-base, 16px));
+  --booking-card-title-weight: var(--booking-card-title-weight-light, 600);
+  --booking-card-subtitle-color: var(--booking-card-subtitle-color-light, var(--booking-text));
+  --booking-card-subtitle-size: var(--booking-card-subtitle-size-light, var(--bp-text-size-sm, 14px));
+  --booking-card-subtitle-weight: var(--booking-card-subtitle-weight-light, 400);
   --bp-surface: var(--site-surface);
   --bp-paper: var(--booking-sub-bg);
   --bp-panel: var(--booking-sub-bg);
@@ -70,20 +98,34 @@ html {
 .booking-root .booking-panel {
   background-color: var(--booking-bg);
   background-image: var(--booking-gradient, none);
+  border-color: var(--booking-panel-border);
+  border-radius: var(--booking-panel-radius, 24px);
   background-size: cover;
   background-repeat: no-repeat;
 }
 
 .booking-root [class*="border-[color:var(--bp-stroke)]"] {
-  border-width: var(--booking-border-width, 1px);
+  border-width: 1px;
+  border-color: var(--booking-card-border);
+}
+
+.booking-root .booking-choice-card {
+  background-color: var(--booking-sub-bg);
+  background-image: var(--booking-card-gradient, none);
+  background-size: cover;
+  background-repeat: no-repeat;
+  border-color: var(--booking-card-border);
+  border-radius: var(--booking-card-radius, 24px);
 }
 
 .booking-root input,
 .booking-root textarea,
 .booking-root select {
-  background-color: var(--booking-sub-bg);
+  background-color: var(--booking-field-bg);
+  background-image: var(--booking-field-gradient, none);
   color: var(--booking-text);
-  border-color: var(--booking-border);
+  border-color: var(--booking-field-border);
+  border-radius: var(--booking-field-radius, 18px);
 }
 
 .booking-root input::placeholder,
@@ -95,7 +137,77 @@ html {
 .booking-root textarea:focus,
 .booking-root select:focus {
   outline: none;
-  border-color: var(--booking-border);
+  border-color: var(--booking-field-border);
+}
+
+.booking-root .booking-nav-secondary-button {
+  background-color: var(--booking-nav-secondary-bg);
+  background-image: none;
+  border-style: solid;
+  border-width: 1px;
+  border-color: var(--booking-nav-secondary-border);
+  color: var(--booking-nav-secondary-text);
+  border-radius: var(--booking-button-radius, 16px);
+}
+
+.booking-root .booking-nav-primary-button {
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 1px;
+  border-color: var(--booking-primary-button-border);
+  border-radius: var(--booking-button-radius, 16px);
+}
+
+.booking-root .booking-primary-button {
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 1px;
+  border-color: var(--booking-primary-button-border);
+  border-radius: var(--booking-button-radius, 16px);
+}
+
+.booking-root .booking-scenario-shell {
+  background-color: var(--booking-scenario-bg);
+  border-color: var(--booking-scenario-border);
+}
+
+.booking-root .booking-scenario-tab {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--booking-scenario-text);
+  border-radius: var(--booking-button-radius, 16px);
+}
+
+.booking-root .booking-scenario-tab.is-active {
+  background-color: var(--booking-scenario-active-bg);
+  border-color: var(--booking-scenario-active-border);
+  color: var(--booking-scenario-active-text);
+}
+
+.booking-root .booking-card-action {
+  background-color: var(--booking-card-action-bg);
+  background-image: none;
+  border-color: var(--booking-card-action-border);
+  color: var(--booking-card-action-text);
+  border-radius: var(--booking-button-radius, 16px);
+}
+
+.booking-root .booking-card-action.is-active {
+  background-color: var(--booking-button);
+  border-color: var(--booking-primary-button-border);
+  color: var(--booking-button-text);
+}
+
+.booking-root .booking-card-title {
+  color: var(--booking-card-title-color);
+  font-size: var(--booking-card-title-size);
+  font-weight: var(--booking-card-title-weight);
+}
+
+.booking-root .booking-card-subtitle {
+  color: var(--booking-card-subtitle-color);
+  font-size: var(--booking-card-subtitle-size);
+  font-weight: var(--booking-card-subtitle-weight);
 }
 
 .booking-soft-accent-hover {
@@ -191,16 +303,40 @@ html {
   font-family: var(--bp-font-heading, var(--bp-font-body, inherit));
 }
 
+.booking-root .booking-choice-card .booking-card-title {
+  color: var(--booking-card-title-color);
+  font-size: var(--booking-card-title-size);
+  font-weight: var(--booking-card-title-weight);
+}
+
+.booking-root .booking-choice-card .booking-card-subtitle {
+  color: var(--booking-card-subtitle-color);
+  font-size: var(--booking-card-subtitle-size);
+  font-weight: var(--booking-card-subtitle-weight);
+}
+
 .booking-root .rounded-2xl {
-  border-radius: var(--bp-button-radius, 16px);
+  border-radius: var(--booking-field-radius, 18px);
 }
 
 .booking-root .rounded-3xl {
-  border-radius: var(--bp-radius, 24px);
+  border-radius: var(--booking-card-radius, 24px);
 }
 
 .booking-root .rounded-\[18px\] {
-  border-radius: var(--bp-radius, 18px);
+  border-radius: var(--booking-field-radius, 18px);
+}
+
+.booking-root .booking-panel.rounded-3xl {
+  border-radius: var(--booking-panel-radius, 24px);
+}
+
+.booking-root .booking-choice-card.rounded-3xl {
+  border-radius: var(--booking-card-radius, 24px);
+}
+
+.booking-root .booking-card-media.rounded-2xl {
+  border-radius: var(--booking-image-radius, 18px);
 }
 
 .booking-bleed {
@@ -469,6 +605,34 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
   --booking-button-text: var(--booking-button-text-dark, var(--site-button-text));
   --booking-gradient: var(--booking-gradient-dark, none);
   --booking-border-width: var(--booking-border-width-dark, 1px);
+  --booking-panel-border: var(--booking-panel-border-dark, var(--booking-border));
+  --booking-card-border: var(--booking-card-border-dark, var(--booking-border));
+  --booking-field-border: var(--booking-field-border-dark, var(--booking-card-border));
+  --booking-field-bg: var(--booking-field-bg-dark, var(--booking-sub-bg));
+  --booking-card-gradient: var(--booking-card-gradient-dark, none);
+  --booking-field-gradient: var(--booking-field-gradient-dark, none);
+  --booking-primary-button-border: var(--booking-primary-button-border-dark, transparent);
+  --booking-secondary-button-bg: var(--booking-secondary-button-bg-dark, var(--booking-sub-bg));
+  --booking-secondary-button-text: var(--booking-secondary-button-text-dark, var(--booking-text));
+  --booking-secondary-button-border: var(--booking-secondary-button-border-dark, var(--booking-card-border));
+  --booking-card-action-bg: var(--booking-card-action-bg-dark, var(--booking-secondary-button-bg));
+  --booking-card-action-text: var(--booking-card-action-text-dark, var(--booking-secondary-button-text));
+  --booking-card-action-border: var(--booking-card-action-border-dark, var(--booking-secondary-button-border));
+  --booking-nav-secondary-bg: var(--booking-nav-secondary-bg-dark, var(--booking-secondary-button-bg));
+  --booking-nav-secondary-text: var(--booking-nav-secondary-text-dark, var(--booking-secondary-button-text));
+  --booking-nav-secondary-border: var(--booking-nav-secondary-border-dark, var(--booking-secondary-button-border));
+  --booking-scenario-bg: var(--booking-scenario-bg-dark, var(--booking-sub-bg));
+  --booking-scenario-text: var(--booking-scenario-text-dark, var(--booking-muted));
+  --booking-scenario-border: var(--booking-scenario-border-dark, transparent);
+  --booking-scenario-active-bg: var(--booking-scenario-active-bg-dark, var(--booking-button));
+  --booking-scenario-active-text: var(--booking-scenario-active-text-dark, var(--booking-button-text));
+  --booking-scenario-active-border: var(--booking-scenario-active-border-dark, var(--booking-primary-button-border));
+  --booking-card-title-color: var(--booking-card-title-color-dark, var(--booking-text));
+  --booking-card-title-size: var(--booking-card-title-size-dark, var(--booking-card-title-size-light, var(--bp-text-size-base, 16px)));
+  --booking-card-title-weight: var(--booking-card-title-weight-dark, var(--booking-card-title-weight-light, 600));
+  --booking-card-subtitle-color: var(--booking-card-subtitle-color-dark, var(--booking-text));
+  --booking-card-subtitle-size: var(--booking-card-subtitle-size-dark, var(--booking-card-subtitle-size-light, var(--bp-text-size-sm, 14px)));
+  --booking-card-subtitle-weight: var(--booking-card-subtitle-weight-dark, var(--booking-card-subtitle-weight-light, 400));
 }
 
 @keyframes site-loader-wave {

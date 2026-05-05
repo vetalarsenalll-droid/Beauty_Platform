@@ -1027,3 +1027,91 @@ Import trace for requested module:
   page: '/crm/site'
 }
 ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+                                                                      ⨯ ./features/site-builder/blocks/booking/BO001/settings-panel.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\booking\BO001\settings-panel.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/booking/BO001/settings-panel.tsx
+./features/site-builder/blocks/booking/BO001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/booking/BO001/settings-panel.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\booking\BO001\settings-panel.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/booking/BO001/settings-panel.tsx
+./features/site-builder/blocks/booking/BO001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\booking\BO001\settings-drawer.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+./features/site-builder/blocks/booking/BO001/drawers.tsx
+./features/site-builder/blocks/booking/BO001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\booking\BO001\settings-drawer.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+./features/site-builder/blocks/booking/BO001/drawers.tsx
+./features/site-builder/blocks/booking/BO001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\booking\BO001\settings-drawer.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+./features/site-builder/blocks/booking/BO001/drawers.tsx
+./features/site-builder/blocks/booking/BO001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⨯ ./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+Error: ENOENT: no such file or directory, open 'C:\Users\Nadin\BeautyPlatform\apps\web\features\site-builder\blocks\booking\BO001\settings-drawer.tsx'
+
+Import trace for requested module:
+./features/site-builder/blocks/booking/BO001/settings-drawer.tsx
+./features/site-builder/blocks/booking/BO001/drawers.tsx
+./features/site-builder/blocks/booking/BO001/version.tsx
+./features/site-builder/blocks/runtime/resolve-block-version.tsx
+./features/site-builder/crm/site-client-shell.tsx
+./app/(crm)/crm/site/site-client.tsx
+⚠ Server is approaching the used memory threshold, restarting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: subBlockLight is not defined
+    at normalizeBlockStyle (features\site-builder\crm\site-renderer.tsx:837:117)
+    at getSlotSpacing (features\site-builder\crm\site-client-shell.tsx:320:52)
+    at SiteClient (features\site-builder\crm\site-client-shell.tsx:889:24)
+  835 |     secondaryButtonBorderPair.darkResolved
+  836 |   );
+> 837 |   const bookingScenarioBgPair = resolvePair("bookingScenarioBgLight", "bookingScenarioBgDark", "bookingScenarioBg", subBlockLight, subBlockDark);
+      |                                                                                                                     ^
+  838 |   const bookingScenarioTextPair = resolvePair("bookingScenarioTextColorLight", "bookingScenarioTextColorDark", "bookingScenarioTextColor", mutedPair.lightResolved, mutedPair.darkResolved);
+  839 |   const bookingScenarioBorderPair = resolvePair("bookingScenarioBorderColorLight", "bookingScenarioBorderColorDark", "bookingScenarioBorderColor", "transparent", "transparent");
+  840 |   const bookingScenarioActiveBgPair = resolvePair("bookingScenarioActiveBgLight", "bookingScenarioActiveBgDark", "bookingScenarioActiveBg", buttonPairResolved.lightResolved, buttonPairResolved.darkResolved); {
+  digest: '535531141'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⨯ ReferenceError: sectionBackgroundValue is not defined
+    at normalizeBlockStyle (features\site-builder\crm\site-renderer.tsx:605:5)
+    at getSlotSpacing (features\site-builder\crm\site-client-shell.tsx:320:52)
+    at SiteClient (features\site-builder\crm\site-client-shell.tsx:889:24)
+  603 |   const gradientTo = theme.mode === "dark" ? gradientToDarkResolved : gradientToLightResolved;
+  604 |   const servicesSectionBackgroundModeLight =
+> 605 |     sectionBackgroundValue(block.type, style, "ModeLight") === "linear" ||
+      |     ^
+  606 |     sectionBackgroundValue(block.type, style, "ModeLight") === "radial"
+  607 |       ? (sectionBackgroundValue(block.type, style, "ModeLight") as "linear" | "radial")
+  608 |       : "solid"; {
+  digest: '2690485818'
+}

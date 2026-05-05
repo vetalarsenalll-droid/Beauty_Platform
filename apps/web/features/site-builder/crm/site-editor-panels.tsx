@@ -645,7 +645,7 @@ export function CoverGridWidthControl({
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0) return start;
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const column = Math.round(ratio * (GRID_MAX_COLUMN - GRID_MIN_COLUMN)) + GRID_MIN_COLUMN;
+    const column = Math.floor(ratio * MAX_BLOCK_COLUMNS) + GRID_MIN_COLUMN;
     return clampGridColumn(column);
   }, [start]);
 

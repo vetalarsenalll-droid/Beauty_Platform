@@ -189,9 +189,9 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
   ],
   booking: [
     { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
     { id: "typography", label: "Типографика" },
-    { id: "effects", label: "Эффекты" },
+    { id: "panels", label: "Панели и карточки" },
+    { id: "button", label: "Кнопки" },
   ],
   aisha: [
     { id: "layout", label: "Основные настройки" },
@@ -270,9 +270,9 @@ export const MAX_BLOCK_COLUMNS = 12;
 export const GRID_MIN_COLUMN = 1;
 export const GRID_MAX_COLUMN = 12;
 export const BOOKING_MIN_BLOCK_COLUMNS = 10;
-export const BOOKING_MAX_BLOCK_COLUMNS = 15;
+export const BOOKING_MAX_BLOCK_COLUMNS = 16;
 export const BOOKING_MIN_PRESET = 1;
-export const BOOKING_MAX_PRESET = 6;
+export const BOOKING_MAX_PRESET = 7;
 
 export function clamp01(value: number) {
   if (!Number.isFinite(value)) return 0;

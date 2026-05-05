@@ -160,6 +160,16 @@ export function SiteServicesSettingsPrimary({
   const updateStyle = (patch: Partial<BlockStyle>) => {
     updateBlock(block.id, (prev) => updateBlockStyle(prev, patch));
   };
+  const sectionBackgroundPrefix =
+    block.type === "specialists"
+      ? "specialistSectionBackground"
+      : block.type === "locations"
+        ? "locationSectionBackground"
+        : "serviceSectionBackground";
+  const sectionBgKey = (suffix: string) => `${sectionBackgroundPrefix}${suffix}`;
+  const updateSectionBackground = (patch: Record<string, unknown>) => {
+    updateBlock(block.id, (prev) => updateBlockStyle(prev, patch));
+  };
 
   const applyGridColumns = (columns: number) => {
     const safeColumns = clampBlockColumns(columns, block.type);
@@ -205,38 +215,47 @@ export function SiteServicesSettingsPrimary({
     Math.min(7, Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2)
   );
 
-  const lightSectionBg = readRaw("sectionBgLight") || readRaw("sectionBg");
-  const darkSectionBg = readRaw("sectionBgDark");
+  const readSectionRaw = (suffix: string) =>
+    readRaw(sectionBgKey(suffix)) || readRaw(`servicesSectionBackground${suffix}`);
+
+  const lightSectionBg = readSectionRaw("FromLight") || readRaw("sectionBgLight") || readRaw("sectionBg");
+  const darkSectionBg = readSectionRaw("FromDark") || readRaw("sectionBgDark");
 
   const lightBackgroundMode =
-    style.servicesSectionBackgroundModeLight === "linear" ||
-    style.servicesSectionBackgroundModeLight === "radial"
-      ? style.servicesSectionBackgroundModeLight
+    readSectionRaw("ModeLight") === "linear" ||
+    readSectionRaw("ModeLight") === "radial"
+      ? (readSectionRaw("ModeLight") as "linear" | "radial")
       : "solid";
   const darkBackgroundMode =
-    style.servicesSectionBackgroundModeDark === "linear" ||
-    style.servicesSectionBackgroundModeDark === "radial"
-      ? style.servicesSectionBackgroundModeDark
+    readSectionRaw("ModeDark") === "linear" ||
+    readSectionRaw("ModeDark") === "radial"
+      ? (readSectionRaw("ModeDark") as "linear" | "radial")
       : lightBackgroundMode;
-  const lightBackgroundTo = style.servicesSectionBackgroundToLight || lightSectionBg || "#ffffff";
-  const darkBackgroundTo = style.servicesSectionBackgroundToDark || darkSectionBg || "#16181d";
-  const lightBackgroundAngle = Number.isFinite(style.servicesSectionBackgroundAngleLight)
-    ? Number(style.servicesSectionBackgroundAngleLight)
+  const readSectionNumber = (suffix: string) => {
+    const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
+    const value = rawStyle[sectionBgKey(suffix)] ?? rawStyle[`servicesSectionBackground${suffix}`];
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const lightBackgroundTo = readSectionRaw("ToLight") || lightSectionBg || "#ffffff";
+  const darkBackgroundTo = readSectionRaw("ToDark") || darkSectionBg || "#16181d";
+  const lightBackgroundAngle = readSectionNumber("AngleLight") !== null
+    ? Number(readSectionNumber("AngleLight"))
     : 135;
-  const darkBackgroundAngle = Number.isFinite(style.servicesSectionBackgroundAngleDark)
-    ? Number(style.servicesSectionBackgroundAngleDark)
+  const darkBackgroundAngle = readSectionNumber("AngleDark") !== null
+    ? Number(readSectionNumber("AngleDark"))
     : lightBackgroundAngle;
-  const lightBackgroundStopA = Number.isFinite(style.servicesSectionBackgroundStopALight)
-    ? Number(style.servicesSectionBackgroundStopALight)
+  const lightBackgroundStopA = readSectionNumber("StopALight") !== null
+    ? Number(readSectionNumber("StopALight"))
     : 0;
-  const lightBackgroundStopB = Number.isFinite(style.servicesSectionBackgroundStopBLight)
-    ? Number(style.servicesSectionBackgroundStopBLight)
+  const lightBackgroundStopB = readSectionNumber("StopBLight") !== null
+    ? Number(readSectionNumber("StopBLight"))
     : 100;
-  const darkBackgroundStopA = Number.isFinite(style.servicesSectionBackgroundStopADark)
-    ? Number(style.servicesSectionBackgroundStopADark)
+  const darkBackgroundStopA = readSectionNumber("StopADark") !== null
+    ? Number(readSectionNumber("StopADark"))
     : lightBackgroundStopA;
-  const darkBackgroundStopB = Number.isFinite(style.servicesSectionBackgroundStopBDark)
-    ? Number(style.servicesSectionBackgroundStopBDark)
+  const darkBackgroundStopB = readSectionNumber("StopBDark") !== null
+    ? Number(readSectionNumber("StopBDark"))
     : lightBackgroundStopB;
 
   return (
@@ -468,18 +487,20 @@ export function SiteServicesSettingsPrimary({
         radialStopA={lightBackgroundStopA}
         radialStopB={lightBackgroundStopB}
         placeholder="#ffffff"
-        onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeLight: mode })}
-        onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToLight: value })}
-        onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleLight: value })}
-        onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopALight: value })}
-        onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBLight: value })}
+        onModeChange={(mode) => updateSectionBackground({ [sectionBgKey("ModeLight")]: mode })}
+        onSecondChange={(value) => updateSectionBackground({ [sectionBgKey("ToLight")]: value })}
+        onAngleChange={(value) => updateSectionBackground({ [sectionBgKey("AngleLight")]: value })}
+        onRadialStopAChange={(value) => updateSectionBackground({ [sectionBgKey("StopALight")]: value })}
+        onRadialStopBChange={(value) => updateSectionBackground({ [sectionBgKey("StopBLight")]: value })}
         onChange={(value) => {
-          updateStyle({
+          updateSectionBackground({
             sectionBgLight: value,
             sectionBg: value,
             blockBgLight: value,
             blockBg: value,
-            servicesSectionBackgroundFromLight: value,
+            [sectionBgKey("FromLight")]: value,
+            [sectionBgKey("ToLight")]:
+              lightBackgroundMode === "solid" ? value : readSectionRaw("ToLight") || value,
           });
         }}
       />
@@ -513,16 +534,18 @@ export function SiteServicesSettingsPrimary({
           radialStopA={darkBackgroundStopA}
           radialStopB={darkBackgroundStopB}
           placeholder="#16181d"
-          onModeChange={(mode) => updateStyle({ servicesSectionBackgroundModeDark: mode })}
-          onSecondChange={(value) => updateStyle({ servicesSectionBackgroundToDark: value })}
-          onAngleChange={(value) => updateStyle({ servicesSectionBackgroundAngleDark: value })}
-          onRadialStopAChange={(value) => updateStyle({ servicesSectionBackgroundStopADark: value })}
-          onRadialStopBChange={(value) => updateStyle({ servicesSectionBackgroundStopBDark: value })}
+          onModeChange={(mode) => updateSectionBackground({ [sectionBgKey("ModeDark")]: mode })}
+          onSecondChange={(value) => updateSectionBackground({ [sectionBgKey("ToDark")]: value })}
+          onAngleChange={(value) => updateSectionBackground({ [sectionBgKey("AngleDark")]: value })}
+          onRadialStopAChange={(value) => updateSectionBackground({ [sectionBgKey("StopADark")]: value })}
+          onRadialStopBChange={(value) => updateSectionBackground({ [sectionBgKey("StopBDark")]: value })}
           onChange={(value) => {
-            updateStyle({
+            updateSectionBackground({
               sectionBgDark: value,
               blockBgDark: value,
-              servicesSectionBackgroundFromDark: value,
+              [sectionBgKey("FromDark")]: value,
+              [sectionBgKey("ToDark")]:
+                darkBackgroundMode === "solid" ? value : readSectionRaw("ToDark") || value,
             });
           }}
         />

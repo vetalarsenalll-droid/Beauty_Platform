@@ -104,6 +104,8 @@ type BlockStyle = {
   useCustomWidth?: boolean;
   radius?: number | null;
   buttonRadius?: number | null;
+  cardRadius?: number | null;
+  bookingImageRadius?: number | null;
   subBlockBg?: string;
   subBlockBgLight?: string;
   subBlockBgDark?: string;
@@ -116,6 +118,62 @@ type BlockStyle = {
   borderColor?: string;
   borderColorLight?: string;
   borderColorDark?: string;
+  panelBorderColorLight?: string;
+  panelBorderColorDark?: string;
+  cardBgLight?: string;
+  cardBgDark?: string;
+  cardBackgroundModeLight?: "solid" | "linear" | "radial";
+  cardBackgroundModeDark?: "solid" | "linear" | "radial";
+  cardBackgroundToLight?: string;
+  cardBackgroundToDark?: string;
+  cardBackgroundAngleLight?: number;
+  cardBackgroundAngleDark?: number;
+  cardBackgroundStopALight?: number;
+  cardBackgroundStopADark?: number;
+  cardBackgroundStopBLight?: number;
+  cardBackgroundStopBDark?: number;
+  cardBorderColorLight?: string;
+  cardBorderColorDark?: string;
+  fieldBgLight?: string;
+  fieldBgDark?: string;
+  fieldBackgroundModeLight?: "solid" | "linear" | "radial";
+  fieldBackgroundModeDark?: "solid" | "linear" | "radial";
+  fieldBackgroundToLight?: string;
+  fieldBackgroundToDark?: string;
+  fieldBackgroundAngleLight?: number;
+  fieldBackgroundAngleDark?: number;
+  fieldBackgroundStopALight?: number;
+  fieldBackgroundStopADark?: number;
+  fieldBackgroundStopBLight?: number;
+  fieldBackgroundStopBDark?: number;
+  fieldBorderColorLight?: string;
+  fieldBorderColorDark?: string;
+  primaryButtonBorderColorLight?: string;
+  primaryButtonBorderColorDark?: string;
+  secondaryButtonBgLight?: string;
+  secondaryButtonBgDark?: string;
+  secondaryButtonTextColorLight?: string;
+  secondaryButtonTextColorDark?: string;
+  secondaryButtonBorderColorLight?: string;
+  secondaryButtonBorderColorDark?: string;
+  bookingCardActionBgLight?: string;
+  bookingCardActionBgDark?: string;
+  bookingCardActionTextColorLight?: string;
+  bookingCardActionTextColorDark?: string;
+  bookingCardActionBorderColorLight?: string;
+  bookingCardActionBorderColorDark?: string;
+  bookingCardTitleColorLight?: string;
+  bookingCardTitleColorDark?: string;
+  bookingCardTitleSizeLight?: number;
+  bookingCardTitleSizeDark?: number;
+  bookingCardTitleWeightLight?: number | null;
+  bookingCardTitleWeightDark?: number | null;
+  bookingCardSubtitleColorLight?: string;
+  bookingCardSubtitleColorDark?: string;
+  bookingCardSubtitleSizeLight?: number;
+  bookingCardSubtitleSizeDark?: number;
+  bookingCardSubtitleWeightLight?: number | null;
+  bookingCardSubtitleWeightDark?: number | null;
   buttonColor?: string;
   buttonColorLight?: string;
   buttonColorDark?: string;
@@ -138,6 +196,14 @@ type BlockStyle = {
   shadowSize?: number | null;
   gradientEnabled?: boolean;
   gradientDirection?: "vertical" | "horizontal";
+  gradientModeLight?: "solid" | "linear" | "radial";
+  gradientModeDark?: "solid" | "linear" | "radial";
+  gradientAngleLight?: number;
+  gradientAngleDark?: number;
+  gradientStopALight?: number;
+  gradientStopADark?: number;
+  gradientStopBLight?: number;
+  gradientStopBDark?: number;
   gradientFrom?: string;
   gradientTo?: string;
   textAlign?: "left" | "center" | "right";
@@ -206,7 +272,7 @@ const DEFAULT_BLOCK_COLUMNS = 6;
 const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
-const BOOKING_MAX_BLOCK_COLUMNS = 15;
+const BOOKING_MAX_BLOCK_COLUMNS = 16;
 const PUBLIC_WIDTH_REFERENCE = 1600;
 
 const normalizeHex = (value: string): string | null => {
@@ -334,6 +400,24 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   };
   const readColor = (key: string) =>
     typeof style[key] === "string" ? (style[key] as string) : "";
+  const sectionBackgroundPrefix =
+    block.type === "booking"
+      ? "bookingSectionBackground"
+      : block.type === "specialists"
+        ? "specialistSectionBackground"
+        : block.type === "locations"
+          ? "locationSectionBackground"
+          : block.type === "services"
+            ? "serviceSectionBackground"
+            : "servicesSectionBackground";
+  const sectionBackgroundValue = (suffix: string) =>
+    style[`${sectionBackgroundPrefix}${suffix}`] ?? style[`servicesSectionBackground${suffix}`];
+  const sectionBackgroundColor = (suffix: string) => {
+    const value = sectionBackgroundValue(suffix);
+    return typeof value === "string" ? value : "";
+  };
+  const sectionBackgroundNumber = (suffix: string) =>
+    numOrNull(sectionBackgroundValue(suffix) as number | string | null);
   const resolveColor = (lightKey: string, darkKey: string, legacyKey: string) => {
     const light = readColor(lightKey) || readColor(legacyKey);
     const dark = readColor(darkKey);
@@ -560,27 +644,23 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const gradientToDarkResolved =
     (style.gradientToDark as string) || theme.darkPalette.gradientTo;
   const servicesSectionBackgroundModeLight =
-    style.servicesSectionBackgroundModeLight === "linear" ||
-    style.servicesSectionBackgroundModeLight === "radial"
-      ? (style.servicesSectionBackgroundModeLight as "linear" | "radial")
+    sectionBackgroundValue("ModeLight") === "linear" ||
+    sectionBackgroundValue("ModeLight") === "radial"
+      ? (sectionBackgroundValue("ModeLight") as "linear" | "radial")
       : "solid";
   const servicesSectionBackgroundModeDark =
-    style.servicesSectionBackgroundModeDark === "linear" ||
-    style.servicesSectionBackgroundModeDark === "radial"
-      ? (style.servicesSectionBackgroundModeDark as "linear" | "radial")
+    sectionBackgroundValue("ModeDark") === "linear" ||
+    sectionBackgroundValue("ModeDark") === "radial"
+      ? (sectionBackgroundValue("ModeDark") as "linear" | "radial")
       : servicesSectionBackgroundModeLight;
   const servicesSectionBackgroundFromLightRaw =
-    readColor("servicesSectionBackgroundFromLight") ||
+    sectionBackgroundColor("FromLight") ||
     readColor("sectionBgLight") ||
     readColor("sectionBg");
   const servicesSectionBackgroundFromDarkRaw =
-    readColor("servicesSectionBackgroundFromDark") || readColor("sectionBgDark");
-  const servicesSectionBackgroundToLightRaw =
-    readColor("servicesSectionBackgroundToLight") ||
-    readColor("gradientToLight") ||
-    readColor("gradientTo");
-  const servicesSectionBackgroundToDarkRaw =
-    readColor("servicesSectionBackgroundToDark") || readColor("gradientToDark");
+    sectionBackgroundColor("FromDark") || readColor("sectionBgDark");
+  const servicesSectionBackgroundToLightRaw = sectionBackgroundColor("ToLight");
+  const servicesSectionBackgroundToDarkRaw = sectionBackgroundColor("ToDark");
   const servicesSectionBackgroundFromLight =
     servicesSectionBackgroundFromLightRaw || theme.lightPalette.panelColor;
   const servicesSectionBackgroundFromDark =
@@ -589,24 +669,12 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     servicesSectionBackgroundToLightRaw || servicesSectionBackgroundFromLight;
   const servicesSectionBackgroundToDark =
     servicesSectionBackgroundToDarkRaw || servicesSectionBackgroundFromDark;
-  const servicesSectionBackgroundAngleLightRaw = numOrNull(
-    style.servicesSectionBackgroundAngleLight as number | string | null
-  );
-  const servicesSectionBackgroundAngleDarkRaw = numOrNull(
-    style.servicesSectionBackgroundAngleDark as number | string | null
-  );
-  const servicesSectionBackgroundStopALightRaw = numOrNull(
-    style.servicesSectionBackgroundStopALight as number | string | null
-  );
-  const servicesSectionBackgroundStopADarkRaw = numOrNull(
-    style.servicesSectionBackgroundStopADark as number | string | null
-  );
-  const servicesSectionBackgroundStopBLightRaw = numOrNull(
-    style.servicesSectionBackgroundStopBLight as number | string | null
-  );
-  const servicesSectionBackgroundStopBDarkRaw = numOrNull(
-    style.servicesSectionBackgroundStopBDark as number | string | null
-  );
+  const servicesSectionBackgroundAngleLightRaw = sectionBackgroundNumber("AngleLight");
+  const servicesSectionBackgroundAngleDarkRaw = sectionBackgroundNumber("AngleDark");
+  const servicesSectionBackgroundStopALightRaw = sectionBackgroundNumber("StopALight");
+  const servicesSectionBackgroundStopADarkRaw = sectionBackgroundNumber("StopADark");
+  const servicesSectionBackgroundStopBLightRaw = sectionBackgroundNumber("StopBLight");
+  const servicesSectionBackgroundStopBDarkRaw = sectionBackgroundNumber("StopBDark");
   const servicesSectionBackgroundAngleLight =
     servicesSectionBackgroundAngleLightRaw === null
       ? 135
@@ -640,6 +708,132 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const resolvedBorder =
     (resolveColor("borderColorLight", "borderColorDark", "borderColor") || "").trim() ||
     (theme.mode === "dark" ? resolvedBorderPair.darkResolved : resolvedBorderPair.lightResolved);
+  const bookingBorderFallbackLight = hasBorderOverride ? resolvedBorderPair.lightResolved : "transparent";
+  const bookingBorderFallbackDark = hasBorderOverride ? resolvedBorderPair.darkResolved : "transparent";
+  const readBackgroundMode = (key: string, fallback: "solid" | "linear" | "radial" = "solid") =>
+    style[key] === "linear" || style[key] === "radial" || style[key] === "solid"
+      ? (style[key] as "solid" | "linear" | "radial")
+      : fallback;
+  const clampAngle = (value: unknown, fallback: number) => {
+    const parsed = numOrNull(value as number | string | null);
+    return parsed === null ? fallback : Math.max(0, Math.min(360, parsed));
+  };
+  const clampStop = (value: unknown, fallback: number) => {
+    const parsed = numOrNull(value as number | string | null);
+    return parsed === null ? fallback : Math.max(0, Math.min(100, parsed));
+  };
+  const panelBorderPair = resolvePair(
+    "panelBorderColorLight",
+    "panelBorderColorDark",
+    "panelBorderColor",
+    bookingBorderFallbackLight,
+    bookingBorderFallbackDark
+  );
+  const cardBgPair = resolvePair(
+    "cardBgLight",
+    "cardBgDark",
+    "cardBg",
+    subBlockBgPair.lightResolved,
+    subBlockBgPair.darkResolved
+  );
+  const cardBorderPair = resolvePair(
+    "cardBorderColorLight",
+    "cardBorderColorDark",
+    "cardBorderColor",
+    bookingBorderFallbackLight,
+    bookingBorderFallbackDark
+  );
+  const fieldBgPair = resolvePair(
+    "fieldBgLight",
+    "fieldBgDark",
+    "fieldBg",
+    cardBgPair.lightResolved,
+    cardBgPair.darkResolved
+  );
+  const fieldBorderPair = resolvePair(
+    "fieldBorderColorLight",
+    "fieldBorderColorDark",
+    "fieldBorderColor",
+    cardBorderPair.lightResolved,
+    cardBorderPair.darkResolved
+  );
+  const primaryButtonBorderPair = resolvePair(
+    "primaryButtonBorderColorLight",
+    "primaryButtonBorderColorDark",
+    "primaryButtonBorderColor",
+    "transparent",
+    "transparent"
+  );
+  const secondaryButtonBgPair = resolvePair(
+    "secondaryButtonBgLight",
+    "secondaryButtonBgDark",
+    "secondaryButtonBg",
+    cardBgPair.lightResolved,
+    cardBgPair.darkResolved
+  );
+  const secondaryButtonTextPair = resolvePair(
+    "secondaryButtonTextColorLight",
+    "secondaryButtonTextColorDark",
+    "secondaryButtonTextColor",
+    textPair.lightResolved,
+    textPair.darkResolved
+  );
+  const secondaryButtonBorderPair = resolvePair(
+    "secondaryButtonBorderColorLight",
+    "secondaryButtonBorderColorDark",
+    "secondaryButtonBorderColor",
+    cardBorderPair.lightResolved,
+    cardBorderPair.darkResolved
+  );
+  const bookingCardActionBgPair = resolvePair(
+    "bookingCardActionBgLight",
+    "bookingCardActionBgDark",
+    "bookingCardActionBg",
+    secondaryButtonBgPair.lightResolved,
+    secondaryButtonBgPair.darkResolved
+  );
+  const bookingCardActionTextPair = resolvePair(
+    "bookingCardActionTextColorLight",
+    "bookingCardActionTextColorDark",
+    "bookingCardActionTextColor",
+    secondaryButtonTextPair.lightResolved,
+    secondaryButtonTextPair.darkResolved
+  );
+  const bookingCardActionBorderPair = resolvePair(
+    "bookingCardActionBorderColorLight",
+    "bookingCardActionBorderColorDark",
+    "bookingCardActionBorderColor",
+    secondaryButtonBorderPair.lightResolved,
+    secondaryButtonBorderPair.darkResolved
+  );
+  const bookingCardTitleColorPair = resolvePair(
+    "bookingCardTitleColorLight",
+    "bookingCardTitleColorDark",
+    "bookingCardTitleColor",
+    "#111827",
+    "#F8FAFC"
+  );
+  const bookingCardSubtitleColorPair = resolvePair(
+    "bookingCardSubtitleColorLight",
+    "bookingCardSubtitleColorDark",
+    "bookingCardSubtitleColor",
+    "#6B7280",
+    "#CBD5E1"
+  );
+  const bookingCardNumber = (key: string, fallback: number, min: number, max: number) => {
+    const parsed = numOrNull(style[key] as number | string | null);
+    return parsed === null ? fallback : Math.max(min, Math.min(max, Math.round(parsed)));
+  };
+  const bookingCardWeight = (key: string, fallback: number | null) => {
+    const parsed = numOrNull(style[key] as number | string | null);
+    return parsed === null ? fallback : Math.max(100, Math.min(900, Math.round(parsed)));
+  };
+  const cardBackgroundModeLight = readBackgroundMode("cardBackgroundModeLight");
+  const cardBackgroundModeDark = readBackgroundMode("cardBackgroundModeDark", cardBackgroundModeLight);
+  const fieldBackgroundModeLight = readBackgroundMode("fieldBackgroundModeLight");
+  const fieldBackgroundModeDark = readBackgroundMode("fieldBackgroundModeDark", fieldBackgroundModeLight);
+  const gradientModeLight = readBackgroundMode("gradientModeLight", gradientEnabledLight ? "linear" : "solid");
+  const gradientModeDark = readBackgroundMode("gradientModeDark", gradientEnabledDark ? gradientModeLight : "solid");
   const normalizeAlign = (value: unknown): "left" | "center" | "right" =>
     value === "center" || value === "right" ? value : "left";
   const baseTextAlign = normalizeAlign(style.textAlign);
@@ -660,10 +854,76 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     useCustomWidth,
     radius: isMenuBlock ? 0 : numOrNull(style.radius as number),
     buttonRadius: isMenuBlock ? 0 : numOrNull(style.buttonRadius as number),
+    cardRadius: numOrNull(style.cardRadius as number),
+    bookingImageRadius: numOrNull(style.bookingImageRadius as number),
+    subBlockBgLight: readColor("subBlockBgLight") || readColor("subBlockBg"),
+    subBlockBgDark: readColor("subBlockBgDark"),
     subBlockBg: resolveColor("subBlockBgLight", "subBlockBgDark", "subBlockBg"),
+    sectionBgLight: readColor("sectionBgLight") || readColor("sectionBg"),
+    sectionBgDark: readColor("sectionBgDark"),
     sectionBg: resolveColor("sectionBgLight", "sectionBgDark", "sectionBg"),
+    blockBgLight: readColor("blockBgLight") || readColor("blockBg"),
+    blockBgDark: readColor("blockBgDark"),
     blockBg: resolveColor("blockBgLight", "blockBgDark", "blockBg"),
+    borderColorLight: readColor("borderColorLight") || readColor("borderColor"),
+    borderColorDark: readColor("borderColorDark"),
     borderColor: resolvedBorder,
+    panelBorderColorLight: panelBorderPair.lightResolved,
+    panelBorderColorDark: panelBorderPair.darkResolved,
+    cardBgLight: cardBgPair.lightResolved,
+    cardBgDark: cardBgPair.darkResolved,
+    cardBackgroundModeLight,
+    cardBackgroundModeDark,
+    cardBackgroundToLight: readColor("cardBackgroundToLight") || cardBgPair.lightResolved,
+    cardBackgroundToDark: readColor("cardBackgroundToDark") || cardBgPair.darkResolved,
+    cardBackgroundAngleLight: clampAngle(style.cardBackgroundAngleLight, 135),
+    cardBackgroundAngleDark: clampAngle(style.cardBackgroundAngleDark, clampAngle(style.cardBackgroundAngleLight, 135)),
+    cardBackgroundStopALight: clampStop(style.cardBackgroundStopALight, 0),
+    cardBackgroundStopADark: clampStop(style.cardBackgroundStopADark, clampStop(style.cardBackgroundStopALight, 0)),
+    cardBackgroundStopBLight: clampStop(style.cardBackgroundStopBLight, 100),
+    cardBackgroundStopBDark: clampStop(style.cardBackgroundStopBDark, clampStop(style.cardBackgroundStopBLight, 100)),
+    cardBorderColorLight: cardBorderPair.lightResolved,
+    cardBorderColorDark: cardBorderPair.darkResolved,
+    fieldBgLight: fieldBgPair.lightResolved,
+    fieldBgDark: fieldBgPair.darkResolved,
+    fieldBackgroundModeLight,
+    fieldBackgroundModeDark,
+    fieldBackgroundToLight: readColor("fieldBackgroundToLight") || fieldBgPair.lightResolved,
+    fieldBackgroundToDark: readColor("fieldBackgroundToDark") || fieldBgPair.darkResolved,
+    fieldBackgroundAngleLight: clampAngle(style.fieldBackgroundAngleLight, 135),
+    fieldBackgroundAngleDark: clampAngle(style.fieldBackgroundAngleDark, clampAngle(style.fieldBackgroundAngleLight, 135)),
+    fieldBackgroundStopALight: clampStop(style.fieldBackgroundStopALight, 0),
+    fieldBackgroundStopADark: clampStop(style.fieldBackgroundStopADark, clampStop(style.fieldBackgroundStopALight, 0)),
+    fieldBackgroundStopBLight: clampStop(style.fieldBackgroundStopBLight, 100),
+    fieldBackgroundStopBDark: clampStop(style.fieldBackgroundStopBDark, clampStop(style.fieldBackgroundStopBLight, 100)),
+    fieldBorderColorLight: fieldBorderPair.lightResolved,
+    fieldBorderColorDark: fieldBorderPair.darkResolved,
+    primaryButtonBorderColorLight: primaryButtonBorderPair.lightResolved,
+    primaryButtonBorderColorDark: primaryButtonBorderPair.darkResolved,
+    secondaryButtonBgLight: secondaryButtonBgPair.lightResolved,
+    secondaryButtonBgDark: secondaryButtonBgPair.darkResolved,
+    secondaryButtonTextColorLight: secondaryButtonTextPair.lightResolved,
+    secondaryButtonTextColorDark: secondaryButtonTextPair.darkResolved,
+    secondaryButtonBorderColorLight: secondaryButtonBorderPair.lightResolved,
+    secondaryButtonBorderColorDark: secondaryButtonBorderPair.darkResolved,
+    bookingCardActionBgLight: bookingCardActionBgPair.lightResolved,
+    bookingCardActionBgDark: bookingCardActionBgPair.darkResolved,
+    bookingCardActionTextColorLight: bookingCardActionTextPair.lightResolved,
+    bookingCardActionTextColorDark: bookingCardActionTextPair.darkResolved,
+    bookingCardActionBorderColorLight: bookingCardActionBorderPair.lightResolved,
+    bookingCardActionBorderColorDark: bookingCardActionBorderPair.darkResolved,
+    bookingCardTitleColorLight: bookingCardTitleColorPair.lightResolved,
+    bookingCardTitleColorDark: bookingCardTitleColorPair.darkResolved,
+    bookingCardTitleSizeLight: bookingCardNumber("bookingCardTitleSizeLight", 16, 10, 36),
+    bookingCardTitleSizeDark: bookingCardNumber("bookingCardTitleSizeDark", bookingCardNumber("bookingCardTitleSizeLight", 16, 10, 36), 10, 36),
+    bookingCardTitleWeightLight: bookingCardWeight("bookingCardTitleWeightLight", 600),
+    bookingCardTitleWeightDark: bookingCardWeight("bookingCardTitleWeightDark", bookingCardWeight("bookingCardTitleWeightLight", 600)),
+    bookingCardSubtitleColorLight: bookingCardSubtitleColorPair.lightResolved,
+    bookingCardSubtitleColorDark: bookingCardSubtitleColorPair.darkResolved,
+    bookingCardSubtitleSizeLight: bookingCardNumber("bookingCardSubtitleSizeLight", 14, 10, 32),
+    bookingCardSubtitleSizeDark: bookingCardNumber("bookingCardSubtitleSizeDark", bookingCardNumber("bookingCardSubtitleSizeLight", 14, 10, 32), 10, 32),
+    bookingCardSubtitleWeightLight: bookingCardWeight("bookingCardSubtitleWeightLight", 400),
+    bookingCardSubtitleWeightDark: bookingCardWeight("bookingCardSubtitleWeightDark", bookingCardWeight("bookingCardSubtitleWeightLight", 400)),
     buttonColor:
       theme.mode === "dark"
         ? buttonPairResolved.darkResolved || buttonPairResolved.lightResolved
@@ -710,6 +970,14 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     gradientToDarkResolved,
     gradientDirectionLight,
     gradientDirectionDark,
+    gradientModeLight,
+    gradientModeDark,
+    gradientAngleLight: clampAngle(style.gradientAngleLight, 135),
+    gradientAngleDark: clampAngle(style.gradientAngleDark, clampAngle(style.gradientAngleLight, 135)),
+    gradientStopALight: clampStop(style.gradientStopALight, 0),
+    gradientStopADark: clampStop(style.gradientStopADark, clampStop(style.gradientStopALight, 0)),
+    gradientStopBLight: clampStop(style.gradientStopBLight, 100),
+    gradientStopBDark: clampStop(style.gradientStopBDark, clampStop(style.gradientStopBLight, 100)),
     servicesSectionBackgroundModeLight,
     servicesSectionBackgroundModeDark,
     servicesSectionBackgroundFromLight,
@@ -831,9 +1099,15 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
+  const cardRadius = style.cardRadius ?? 24;
+  const bookingImageRadius = style.bookingImageRadius ?? Math.min(cardRadius, 18);
   const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
-  const shadowColor =
+  const shadowColorRaw =
     style.shadowColor || palette.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
+  const shadowColor =
+    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(shadowColorRaw.trim())
+      ? hexToRgbaString(shadowColorRaw, 0.16)
+      : shadowColorRaw;
   const textSize = style.textSize ?? palette.textSize ?? theme.textSize ?? 14;
   const subheadingSize =
     style.subheadingSize ?? palette.subheadingSize ?? theme.subheadingSize ?? textSize + 2;
@@ -841,21 +1115,119 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     style.headingSize ?? palette.headingSize ?? theme.headingSize ?? subheadingSize + 2;
   const sizeXs = Math.max(10, textSize - 2);
   const subBlockLight =
-    style.subBlockBgLightResolved || style.blockBgLightResolved || "var(--site-panel)";
+    style.cardBgLight || style.subBlockBgLightResolved || style.blockBgLightResolved || "var(--site-panel)";
   const subBlockDark =
-    style.subBlockBgDarkResolved || style.blockBgDarkResolved || "var(--site-panel)";
+    style.cardBgDark || style.subBlockBgDarkResolved || style.blockBgDarkResolved || "var(--site-panel)";
   const subBlockCurrent =
     theme.mode === "dark" ? subBlockDark : subBlockLight;
-    const bookingGradientLight = style.gradientEnabledLight
-      ? `linear-gradient(${style.gradientDirectionLight === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromLightResolved}, ${style.gradientToLightResolved})`
-      : "none";
-  const bookingGradientDark = style.gradientEnabledDark
-    ? `linear-gradient(${style.gradientDirectionDark === "horizontal" ? "to right" : "to bottom"}, ${style.gradientFromDarkResolved}, ${style.gradientToDarkResolved})`
-    : "none";
-  const bookingBorderLight = (style.borderColorLightResolved || "transparent").trim() || "transparent";
-  const bookingBorderDark = (style.borderColorDarkResolved || "transparent").trim() || "transparent";
-  const bookingBorderWidthLight = bookingBorderLight === "transparent" ? "0px" : "1px";
-  const bookingBorderWidthDark = bookingBorderDark === "transparent" ? "0px" : "1px";
+  const bookingPanelBackground = (
+    mode: unknown,
+    enabled: boolean,
+    direction: "vertical" | "horizontal",
+    from: string,
+    to: string,
+    angle: unknown,
+    stopA: unknown,
+    stopB: unknown
+  ) => {
+    if (!enabled && mode !== "linear" && mode !== "radial") return "none";
+    if (mode === "radial") {
+      const a = Number.isFinite(Number(stopA)) ? Math.max(0, Math.min(100, Number(stopA))) : 0;
+      const b = Number.isFinite(Number(stopB)) ? Math.max(0, Math.min(100, Number(stopB))) : 100;
+      return `radial-gradient(circle, ${from} ${a}%, ${to} ${b}%)`;
+    }
+    const deg = Number.isFinite(Number(angle)) ? Math.max(0, Math.min(360, Number(angle))) : null;
+    const linearDirection = deg === null ? (direction === "horizontal" ? "to right" : "to bottom") : `${deg}deg`;
+    return `linear-gradient(${linearDirection}, ${from}, ${to})`;
+  };
+  const bookingGradientLight = bookingPanelBackground(
+    style.gradientModeLight,
+    Boolean(style.gradientEnabledLight),
+    style.gradientDirectionLight ?? "vertical",
+    style.gradientFromLightResolved || "transparent",
+    style.gradientToLightResolved || "transparent",
+    style.gradientAngleLight,
+    style.gradientStopALight,
+    style.gradientStopBLight
+  );
+  const bookingGradientDark = bookingPanelBackground(
+    style.gradientModeDark,
+    Boolean(style.gradientEnabledDark),
+    style.gradientDirectionDark ?? "vertical",
+    style.gradientFromDarkResolved || "transparent",
+    style.gradientToDarkResolved || "transparent",
+    style.gradientAngleDark,
+    style.gradientStopADark,
+    style.gradientStopBDark
+  );
+  const cardGradientLight = bookingPanelBackground(
+    style.cardBackgroundModeLight,
+    style.cardBackgroundModeLight === "linear" || style.cardBackgroundModeLight === "radial",
+    "vertical",
+    style.cardBgLight || subBlockLight,
+    style.cardBackgroundToLight || style.cardBgLight || subBlockLight,
+    style.cardBackgroundAngleLight,
+    style.cardBackgroundStopALight,
+    style.cardBackgroundStopBLight
+  );
+  const cardGradientDark = bookingPanelBackground(
+    style.cardBackgroundModeDark,
+    style.cardBackgroundModeDark === "linear" || style.cardBackgroundModeDark === "radial",
+    "vertical",
+    style.cardBgDark || subBlockDark,
+    style.cardBackgroundToDark || style.cardBgDark || subBlockDark,
+    style.cardBackgroundAngleDark,
+    style.cardBackgroundStopADark,
+    style.cardBackgroundStopBDark
+  );
+  const fieldGradientLight = bookingPanelBackground(
+    style.fieldBackgroundModeLight,
+    style.fieldBackgroundModeLight === "linear" || style.fieldBackgroundModeLight === "radial",
+    "vertical",
+    style.fieldBgLight || subBlockLight,
+    style.fieldBackgroundToLight || style.fieldBgLight || subBlockLight,
+    style.fieldBackgroundAngleLight,
+    style.fieldBackgroundStopALight,
+    style.fieldBackgroundStopBLight
+  );
+  const fieldGradientDark = bookingPanelBackground(
+    style.fieldBackgroundModeDark,
+    style.fieldBackgroundModeDark === "linear" || style.fieldBackgroundModeDark === "radial",
+    "vertical",
+    style.fieldBgDark || subBlockDark,
+    style.fieldBackgroundToDark || style.fieldBgDark || subBlockDark,
+    style.fieldBackgroundAngleDark,
+    style.fieldBackgroundStopADark,
+    style.fieldBackgroundStopBDark
+  );
+  const bookingBorderLight = style.borderColorLight?.trim()
+    ? style.borderColorLightResolved || "transparent"
+    : "transparent";
+  const bookingBorderDark = style.borderColorDark?.trim()
+    ? style.borderColorDarkResolved || "transparent"
+    : "transparent";
+  const isVisibleBorder = (value: string | undefined) =>
+    Boolean(value && value.trim() && value.trim().toLowerCase() !== "transparent");
+  const bookingBorderWidthLight = [
+    bookingBorderLight,
+    style.panelBorderColorLight,
+    style.cardBorderColorLight,
+    style.fieldBorderColorLight,
+    style.primaryButtonBorderColorLight,
+    style.secondaryButtonBorderColorLight,
+  ].some(isVisibleBorder)
+    ? "1px"
+    : "0px";
+  const bookingBorderWidthDark = [
+    bookingBorderDark,
+    style.panelBorderColorDark,
+    style.cardBorderColorDark,
+    style.fieldBorderColorDark,
+    style.primaryButtonBorderColorDark,
+    style.secondaryButtonBorderColorDark,
+  ].some(isVisibleBorder)
+    ? "1px"
+    : "0px";
   const bookingBorderWidth = theme.mode === "dark" ? bookingBorderWidthDark : bookingBorderWidthLight;
   return {
     "--booking-bg-light": style.blockBgLightResolved || "var(--site-panel)",
@@ -865,6 +1237,38 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--booking-border-width-light": bookingBorderWidthLight,
     "--booking-border-width-dark": bookingBorderWidthDark,
     "--booking-border-width": bookingBorderWidth,
+    "--booking-panel-border-light": style.panelBorderColorLight || bookingBorderLight,
+    "--booking-panel-border-dark": style.panelBorderColorDark || bookingBorderDark,
+    "--booking-card-border-light": style.cardBorderColorLight || bookingBorderLight,
+    "--booking-card-border-dark": style.cardBorderColorDark || bookingBorderDark,
+    "--booking-field-border-light": style.fieldBorderColorLight || style.cardBorderColorLight || bookingBorderLight,
+    "--booking-field-border-dark": style.fieldBorderColorDark || style.cardBorderColorDark || bookingBorderDark,
+    "--booking-primary-button-border-light": style.primaryButtonBorderColorLight || "transparent",
+    "--booking-primary-button-border-dark": style.primaryButtonBorderColorDark || "transparent",
+    "--booking-secondary-button-bg-light": style.secondaryButtonBgLight || subBlockLight,
+    "--booking-secondary-button-bg-dark": style.secondaryButtonBgDark || subBlockDark,
+    "--booking-secondary-button-text-light": style.secondaryButtonTextColorLight || style.textColorLightResolved || "var(--site-text)",
+    "--booking-secondary-button-text-dark": style.secondaryButtonTextColorDark || style.textColorDarkResolved || "var(--site-text)",
+    "--booking-secondary-button-border-light": style.secondaryButtonBorderColorLight || style.cardBorderColorLight || bookingBorderLight,
+    "--booking-secondary-button-border-dark": style.secondaryButtonBorderColorDark || style.cardBorderColorDark || bookingBorderDark,
+    "--booking-card-action-bg-light": style.bookingCardActionBgLight || style.secondaryButtonBgLight || subBlockLight,
+    "--booking-card-action-bg-dark": style.bookingCardActionBgDark || style.secondaryButtonBgDark || subBlockDark,
+    "--booking-card-action-text-light": style.bookingCardActionTextColorLight || style.secondaryButtonTextColorLight || style.textColorLightResolved || "var(--site-text)",
+    "--booking-card-action-text-dark": style.bookingCardActionTextColorDark || style.secondaryButtonTextColorDark || style.textColorDarkResolved || "var(--site-text)",
+    "--booking-card-action-border-light": style.bookingCardActionBorderColorLight || style.secondaryButtonBorderColorLight || style.cardBorderColorLight || bookingBorderLight,
+    "--booking-card-action-border-dark": style.bookingCardActionBorderColorDark || style.secondaryButtonBorderColorDark || style.cardBorderColorDark || bookingBorderDark,
+    "--booking-card-title-color-light": style.bookingCardTitleColorLight || style.textColorLightResolved || "var(--site-text)",
+    "--booking-card-title-color-dark": style.bookingCardTitleColorDark || style.textColorDarkResolved || "var(--site-text)",
+    "--booking-card-title-size-light": `${style.bookingCardTitleSizeLight ?? 16}px`,
+    "--booking-card-title-size-dark": `${style.bookingCardTitleSizeDark ?? style.bookingCardTitleSizeLight ?? 16}px`,
+    "--booking-card-title-weight-light": String(style.bookingCardTitleWeightLight ?? 600),
+    "--booking-card-title-weight-dark": String(style.bookingCardTitleWeightDark ?? style.bookingCardTitleWeightLight ?? 600),
+    "--booking-card-subtitle-color-light": style.bookingCardSubtitleColorLight || style.textColorLightResolved || "var(--site-text)",
+    "--booking-card-subtitle-color-dark": style.bookingCardSubtitleColorDark || style.textColorDarkResolved || "var(--site-text)",
+    "--booking-card-subtitle-size-light": `${style.bookingCardSubtitleSizeLight ?? 14}px`,
+    "--booking-card-subtitle-size-dark": `${style.bookingCardSubtitleSizeDark ?? style.bookingCardSubtitleSizeLight ?? 14}px`,
+    "--booking-card-subtitle-weight-light": String(style.bookingCardSubtitleWeightLight ?? 400),
+    "--booking-card-subtitle-weight-dark": String(style.bookingCardSubtitleWeightDark ?? style.bookingCardSubtitleWeightLight ?? 400),
     "--booking-text-light": style.textColorLightResolved || "var(--site-text)",
     "--booking-text-dark": style.textColorDarkResolved || "var(--site-text)",
     "--booking-muted-light": style.mutedColorLightResolved || "var(--site-muted)",
@@ -878,12 +1282,24 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--booking-sub-bg-light": subBlockLight,
     "--booking-sub-bg-dark": subBlockDark,
     "--booking-sub-bg": subBlockCurrent,
+    "--booking-card-gradient-light": cardGradientLight,
+    "--booking-card-gradient-dark": cardGradientDark,
+    "--booking-field-bg-light": style.fieldBgLight || subBlockLight,
+    "--booking-field-bg-dark": style.fieldBgDark || subBlockDark,
+    "--booking-field-gradient-light": fieldGradientLight,
+    "--booking-field-gradient-dark": fieldGradientDark,
     "--bp-button-text": "var(--booking-button-text)",
     "--booking-gradient-light": bookingGradientLight,
     "--booking-gradient-dark": bookingGradientDark,
+    "--booking-gradient": theme.mode === "dark" ? bookingGradientDark : bookingGradientLight,
     "--bp-shadow-soft": shadowSize > 0 ? `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}` : "none",
     "--bp-radius": `${radius}px`,
     "--bp-button-radius": `${buttonRadius}px`,
+    "--booking-panel-radius": `${radius}px`,
+    "--booking-card-radius": `${cardRadius}px`,
+    "--booking-image-radius": `${bookingImageRadius}px`,
+    "--booking-button-radius": `${buttonRadius}px`,
+    "--booking-field-radius": `${Math.min(cardRadius, 18)}px`,
     "--bp-font-heading": style.fontHeading || palette.fontHeading || theme.fontHeading,
     "--bp-font-body": style.fontBody || palette.fontBody || theme.fontBody,
     "--bp-text-size-xs": `${sizeXs}px`,
@@ -2224,7 +2640,7 @@ export function buildBlockWrapperStyle(
       blockOuterColumns >= MAX_BLOCK_COLUMNS
         ? "100%"
         : responsiveBlockWidthCss(blockOuterColumns, true);
-    const servicesSectionBackgroundSource = isServicesBlock
+    const servicesSectionBackgroundSource = isServicesBlock || isBookingBlock
       ? {
           servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
           servicesSectionBackgroundFromLight: style.servicesSectionBackgroundFromLight,
@@ -2266,7 +2682,7 @@ export function buildBlockWrapperStyle(
             ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
-              : isServicesBlock
+              : isServicesBlock || isBookingBlock
               ? "var(--services-section-bg, var(--block-section-bg, var(--block-bg)))"
               : isGallery || isBookingBlock || isServicesBlock
               ? "var(--block-section-bg, var(--block-bg))"
@@ -2276,7 +2692,7 @@ export function buildBlockWrapperStyle(
             ? (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
-              : isServicesBlock
+              : isServicesBlock || isBookingBlock
               ? "var(--services-section-image, none)"
               : isGallery || isBookingBlock || isServicesBlock
               ? "none"

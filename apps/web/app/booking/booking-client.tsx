@@ -599,11 +599,9 @@ function ScenarioTabs({
             type="button"
             onClick={() => onChange(tab.key)}
             className={cn(
-              "rounded-2xl px-3 py-2 text-xs font-medium transition",
+              "booking-scenario-tab rounded-2xl border px-3 py-2 text-xs font-medium transition",
               "hover:-translate-y-[1px] hover:shadow-sm",
-              active
-                ? "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                : "bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+              active ? "is-active" : ""
             )}
           >
             {tab.label}
@@ -4532,7 +4530,7 @@ export default function BookingClient({
                   <div className="text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
                 </div>
                 <div className="flex flex-wrap justify-start lg:justify-end">
-                  <div className="flex w-full flex-wrap gap-1 rounded-2xl bg-[color:var(--bp-paper)] p-1">
+                  <div className="booking-scenario-shell flex w-full flex-wrap gap-1 rounded-2xl border p-1">
                     {[
                       { key: "dateFirst", label: "Дата" },
                       { key: "serviceFirst", label: "Услуга" },
@@ -4545,10 +4543,8 @@ export default function BookingClient({
                           type="button"
                           onClick={() => setScenario(item.key as Scenario)}
                           className={cn(
-                            "flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold transition",
-                            active
-                              ? "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                              : "text-[color:var(--bp-muted)] hover:bg-black/5"
+                            "booking-scenario-tab flex-1 rounded-xl border px-3 py-2 text-center text-xs font-semibold transition",
+                            active ? "is-active" : "hover:bg-black/5"
                           )}
                         >
                           {item.label}
@@ -4568,7 +4564,7 @@ export default function BookingClient({
                   <button
                     type="button"
                     onClick={resetAll}
-                    className="w-[120px] shrink-0 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
+                    className="booking-nav-secondary-button w-[120px] shrink-0 rounded-2xl border px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
                   >
                     Сбросить
                   </button>
@@ -4591,7 +4587,7 @@ export default function BookingClient({
                   type="button"
                   onClick={goPrev}
                   disabled={stepIndex === 0}
-                  className="min-w-[70px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  className="booking-nav-secondary-button min-w-[70px] rounded-2xl border px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                 >
                   Назад
                 </button>
@@ -4600,7 +4596,7 @@ export default function BookingClient({
                   type="button"
                   onClick={goNext}
                   disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                  className="min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  className="booking-nav-primary-button min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
                 >
                   Далее
                 </button>
@@ -4612,7 +4608,7 @@ export default function BookingClient({
                 type="button"
                 onClick={goPrev}
                 disabled={stepIndex === 0}
-                className="min-w-[70px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                className="booking-nav-secondary-button min-w-[70px] rounded-2xl border px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
               >
                 Назад
               </button>
@@ -4621,7 +4617,7 @@ export default function BookingClient({
                 type="button"
                 onClick={goNext}
                 disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                className="min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                className="booking-nav-primary-button min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
               >
                 Далее
               </button>
@@ -4671,17 +4667,17 @@ export default function BookingClient({
                                   }
                                 }}
                                 className={cn(
-                                  "h-full cursor-pointer rounded-3xl border p-4 text-left transition",
+                                  "booking-choice-card h-full cursor-pointer rounded-3xl border p-4 text-left transition",
                                   "hover:-translate-y-[1px] hover:shadow-sm",
                                   active
-                                    ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
-                                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                                    ? "border-[color:var(--bp-stroke)]"
+                                    : "border-[color:var(--bp-stroke)]"
                                 )}
                               >
                                 <div className="flex h-full flex-col gap-3">
                                   <div className="relative">
                                     {location.coverUrl ? (
-                                      <div className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
+                                      <div className="booking-card-media overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
                                         <img
                                           src={location.coverUrl}
                                           alt={location.name}
@@ -4689,7 +4685,7 @@ export default function BookingClient({
                                         />
                                       </div>
                                     ) : (
-                                      <div className="flex aspect-video items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="booking-card-media flex aspect-video items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
                                           {initials(location.name)}
                                         </div>
@@ -4719,22 +4715,22 @@ export default function BookingClient({
 
                                   <div className="mt-auto relative pb-9">
                                     <div>
-                                      <div className="text-base font-semibold leading-snug break-words">
+                                      <div className="booking-card-title text-base font-semibold leading-snug break-words">
                                         {location.name}
                                       </div>
-                                      <div className="mt-1 text-sm text-[color:var(--bp-muted)] break-words">
+                                      <div className="booking-card-subtitle mt-1 text-sm break-words">
                                         {location.address || "Адрес не указан"}
                                       </div>
-                                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                                      <div className="booking-card-subtitle mt-1 text-xs">
                                         {openStatus.label}
                                       </div>
                                     </div>
                                     <div
                                       className={cn(
-                                        "absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
+                                        "booking-card-action absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
                                         active
-                                          ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                          ? "is-active"
+                                          : ""
                                       )}
                                     >
                                       {active ? "Выбрано" : "Выбрать"}
@@ -4932,17 +4928,17 @@ export default function BookingClient({
                                 type="button"
                                 onClick={() => handleServiceToggle(service)}
                                 className={cn(
-                                "h-full rounded-3xl border p-4 text-left transition",
+                                "booking-choice-card h-full rounded-3xl border p-4 text-left transition",
                                 "hover:-translate-y-[1px] hover:shadow-sm",
                                 active
-                                  ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
-                                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                                  ? "border-[color:var(--bp-stroke)]"
+                                  : "border-[color:var(--bp-stroke)]"
                                 )}
                             >
                               <div className="flex h-full flex-col gap-3">
                                 <div className="relative">
                                   {service.coverUrl ? (
-                                    <div className="aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                    <div className="booking-card-media aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                       <img
                                         src={service.coverUrl}
                                         alt={service.name}
@@ -4950,7 +4946,7 @@ export default function BookingClient({
                                       />
                                     </div>
                                   ) : (
-                                    <div className="flex aspect-[8.5/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                    <div className="booking-card-media flex aspect-[8.5/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                       <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
                                         {initials(service.name)}
                                       </div>
@@ -4980,24 +4976,24 @@ export default function BookingClient({
 
                                 <div className="mt-auto relative pb-9">
                                   <div>
-                                    <div className="text-base font-semibold leading-snug break-words">
+                                    <div className="booking-card-title text-base font-semibold leading-snug break-words">
                                       {service.name}
                                     </div>
-                                    <div className="mt-1 text-sm font-semibold">
+                                    <div className="booking-card-subtitle mt-1 text-sm font-semibold">
                                       {showFromServiceMetrics
                                         ? `от ${formatMoneyRub(price)}`
                                         : formatMoneyRub(price)}
                                     </div>
-                                    <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                                    <div className="booking-card-subtitle mt-1 text-xs">
                                       {showFromServiceMetrics ? `от ${duration} мин` : `${duration} мин`}
                                     </div>
                                   </div>
                                   <div
                                     className={cn(
-                                      "absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
+                                      "booking-card-action absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
                                       active
-                                        ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                        ? "is-active"
+                                        : ""
                                     )}
                                   >
                                     {active ? "Выбрано" : "Выбрать"}
@@ -5101,17 +5097,17 @@ export default function BookingClient({
                                 type="button"
                                 onClick={() => setSpecialistId(sp.id)}
                                 className={cn(
-                                  "h-full rounded-3xl border p-4 text-left transition",
+                                  "booking-choice-card h-full rounded-3xl border p-4 text-left transition",
                                   "hover:-translate-y-[1px] hover:shadow-sm",
                                   active
-                                    ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]"
-                                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                                    ? "border-[color:var(--bp-stroke)]"
+                                    : "border-[color:var(--bp-stroke)]"
                                 )}
                               >
                                 <div className="flex h-full flex-col gap-3">
                                   <div className="relative">
                                     {sp.coverUrl || sp.avatarUrl ? (
-                                      <div className="aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="booking-card-media aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <img
                                           src={sp.coverUrl ?? sp.avatarUrl ?? ""}
                                           alt={sp.name}
@@ -5119,7 +5115,7 @@ export default function BookingClient({
                                         />
                                       </div>
                                     ) : (
-                                      <div className="flex aspect-[8.5/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      <div className="booking-card-media flex aspect-[8.5/9] items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
                                         <div className="text-2xl font-semibold text-[color:var(--bp-muted)]">
                                           {initials(sp.name)}
                                         </div>
@@ -5149,14 +5145,14 @@ export default function BookingClient({
 
                                   <div className="mt-auto relative pb-9">
                                     <div>
-                                      <div className="text-base font-semibold leading-snug break-words">
+                                      <div className="booking-card-title text-base font-semibold leading-snug break-words">
                                         {sp.name}
                                       </div>
-                                      <div className="mt-1 text-sm text-[color:var(--bp-muted)] break-words">
+                                      <div className="booking-card-subtitle mt-1 text-sm break-words">
                                         {sp.role || "Специалист"}
                                       </div>
                                       {selectedServices.length > 0 && (
-                                        <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                                        <div className="booking-card-subtitle mt-2 text-xs">
                                           {specialistServiceDuration != null
                                             ? `${specialistServiceDuration} мин`
                                             : "—"}
@@ -5169,10 +5165,10 @@ export default function BookingClient({
                                     </div>
                                     <div
                                       className={cn(
-                                        "absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
+                                        "booking-card-action absolute bottom-0 right-0 rounded-2xl border px-2 py-1 text-xs",
                                         active
-                                          ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)]"
-                                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-muted)]"
+                                          ? "is-active"
+                                          : ""
                                       )}
                                     >
                                       {active ? "Выбрано" : "Выбрать"}
@@ -5685,7 +5681,7 @@ export default function BookingClient({
                 }}
                 disabled={submitSuccess ? false : submitting}
                 aria-disabled={!submitSuccess && !canSubmit}
-                className={`w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
+                className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
                   !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
                 }`}
               >
