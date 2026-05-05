@@ -201,3 +201,19 @@ export function resolveSpecialistCardBackgroundVisual(
     stopB: `specialistCardBackgroundStopB${suffix}`,
   });
 }
+
+export function resolveLocationCardBackgroundVisual(
+  data: Record<string, unknown> | null,
+  fallbackColor: string,
+  mode: "light" | "dark" = "light"
+) {
+  const suffix = mode === "dark" ? "Dark" : "Light";
+  return resolveBackgroundVisual(data, fallbackColor, {
+    mode: `locationCardBackgroundMode${suffix}`,
+    from: `locationCardBackgroundFrom${suffix}`,
+    to: `locationCardBackgroundTo${suffix}`,
+    angle: `locationCardBackgroundAngle${suffix}`,
+    stopA: `locationCardBackgroundStopA${suffix}`,
+    stopB: `locationCardBackgroundStopB${suffix}`,
+  });
+}

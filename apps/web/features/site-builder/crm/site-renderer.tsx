@@ -15,6 +15,7 @@ import GallerySlider from "@/components/gallery-slider";
 import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import {
   resolveCoverBackgroundVisual,
+  resolveLocationCardBackgroundVisual,
   resolveMenuBlockBackgroundVisual,
   resolveMenuSectionBackgroundVisual,
   resolveServiceCardBackgroundVisual,
@@ -5067,17 +5068,46 @@ export function renderLocations(
   const maxVisibleItems = Number(data.maxVisibleItems);
   const cardBackgroundSource = {
     ...data,
-    specialistCardBackgroundFromLight:
-      readDataColor("specialistCardBackgroundFromLight") || style.subBlockBgLightResolved || style.subBlockBg || "#fafafa",
-    specialistCardBackgroundFromDark:
-      readDataColor("specialistCardBackgroundFromDark") || style.subBlockBgDarkResolved || "#24282e",
+    locationCardBackgroundFromLight:
+      readDataColor("locationCardBackgroundFromLight") ||
+      readDataColor("catalogCardBackgroundFromLight") ||
+      readDataColor("specialistCardBackgroundFromLight") ||
+      style.subBlockBgLightResolved ||
+      style.subBlockBg ||
+      "#fafafa",
+    locationCardBackgroundFromDark:
+      readDataColor("locationCardBackgroundFromDark") ||
+      readDataColor("catalogCardBackgroundFromDark") ||
+      readDataColor("specialistCardBackgroundFromDark") ||
+      style.subBlockBgDarkResolved ||
+      "#24282e",
+    locationCardBackgroundModeLight:
+      data.locationCardBackgroundModeLight ?? data.catalogCardBackgroundModeLight ?? data.specialistCardBackgroundModeLight,
+    locationCardBackgroundToLight:
+      data.locationCardBackgroundToLight ?? data.catalogCardBackgroundToLight ?? data.specialistCardBackgroundToLight,
+    locationCardBackgroundAngleLight:
+      data.locationCardBackgroundAngleLight ?? data.catalogCardBackgroundAngleLight ?? data.specialistCardBackgroundAngleLight,
+    locationCardBackgroundStopALight:
+      data.locationCardBackgroundStopALight ?? data.catalogCardBackgroundStopALight ?? data.specialistCardBackgroundStopALight,
+    locationCardBackgroundStopBLight:
+      data.locationCardBackgroundStopBLight ?? data.catalogCardBackgroundStopBLight ?? data.specialistCardBackgroundStopBLight,
+    locationCardBackgroundModeDark:
+      data.locationCardBackgroundModeDark ?? data.catalogCardBackgroundModeDark ?? data.specialistCardBackgroundModeDark,
+    locationCardBackgroundToDark:
+      data.locationCardBackgroundToDark ?? data.catalogCardBackgroundToDark ?? data.specialistCardBackgroundToDark,
+    locationCardBackgroundAngleDark:
+      data.locationCardBackgroundAngleDark ?? data.catalogCardBackgroundAngleDark ?? data.specialistCardBackgroundAngleDark,
+    locationCardBackgroundStopADark:
+      data.locationCardBackgroundStopADark ?? data.catalogCardBackgroundStopADark ?? data.specialistCardBackgroundStopADark,
+    locationCardBackgroundStopBDark:
+      data.locationCardBackgroundStopBDark ?? data.catalogCardBackgroundStopBDark ?? data.specialistCardBackgroundStopBDark,
   };
-  const cardBackgroundLight = resolveSpecialistCardBackgroundVisual(
+  const cardBackgroundLight = resolveLocationCardBackgroundVisual(
     cardBackgroundSource,
     "var(--block-sub-bg,var(--bp-paper))",
     "light"
   );
-  const cardBackgroundDark = resolveSpecialistCardBackgroundVisual(
+  const cardBackgroundDark = resolveLocationCardBackgroundVisual(
     cardBackgroundSource,
     cardBackgroundLight.backgroundColor,
     "dark"
@@ -5112,7 +5142,7 @@ export function renderLocations(
     const resolvedDesktopSize = Number.isFinite(Number(data[`${key}Size`])) ? desktopSize : legacyDesktopSize;
     const mobileSize = readDataNumberValue(
       `${key}MobileSize`,
-      key === "catalogCardTitle"
+      key === "locationCardTitle"
         ? Math.max(15, Math.min(28, Math.round(resolvedDesktopSize * 0.82)))
         : Math.max(12, Math.min(17, Math.round(resolvedDesktopSize * 0.9)))
     );
@@ -5218,23 +5248,23 @@ export function renderLocations(
         showImage={data.showImage !== false}
         imageAspectRatio={imageAspectRatio}
         imageRadius={Number.isFinite(imageRadius) ? imageRadius : 10}
-        imageFit={data.specialistCardImageFit === "contain" ? "contain" : "cover"}
+        imageFit={(data.locationCardImageFit ?? data.specialistCardImageFit) === "contain" ? "contain" : "cover"}
         imageZoomOnHover={data.imageZoomOnHover !== false}
-        imageZoomOnClick={data.specialistCardImageZoomOnClick === true}
-        modalMediaColumns={readDataNumber("specialistModalMediaColumns", 6)}
-        modalInfoColumns={readDataNumber("specialistModalInfoColumns", 6)}
+        imageZoomOnClick={(data.locationCardImageZoomOnClick ?? data.specialistCardImageZoomOnClick) === true}
+        modalMediaColumns={readDataNumber("locationModalMediaColumns", readDataNumber("specialistModalMediaColumns", 6))}
+        modalInfoColumns={readDataNumber("locationModalInfoColumns", readDataNumber("specialistModalInfoColumns", 6))}
         alignButtonsBottom={data.alignButtonsBottom !== false}
         cardBackgroundColorLight={cardBackgroundLight.backgroundColor}
         cardBackgroundImageLight={cardBackgroundLight.backgroundImage}
         cardBackgroundColorDark={cardBackgroundDark.backgroundColor}
         cardBackgroundImageDark={cardBackgroundDark.backgroundImage}
-        cardLiquidGlass={data.specialistCardLiquidGlass === true}
-        cardBackgroundStartOpacityLight={readDataNumber("specialistCardBackgroundStartOpacityLight", 0)}
-        cardBackgroundEndOpacityLight={readDataNumber("specialistCardBackgroundEndOpacityLight", 10)}
-        cardBackgroundStartOpacityDark={readDataNumber("specialistCardBackgroundStartOpacityDark", readDataNumber("specialistCardBackgroundStartOpacityLight", 0))}
-        cardBackgroundEndOpacityDark={readDataNumber("specialistCardBackgroundEndOpacityDark", readDataNumber("specialistCardBackgroundEndOpacityLight", 10))}
-        cardTitleTextStyle={cardTextStyle("catalogCardTitle", "#111827", "#F8FAFC", 18, 600, "specialistCardTitle")}
-        cardDescriptionTextStyle={cardTextStyle("catalogCardText", "#6B7280", "#CBD5E1", 14, undefined, "specialistCardDescription")}
+        cardLiquidGlass={(data.locationCardLiquidGlass ?? data.specialistCardLiquidGlass) === true}
+        cardBackgroundStartOpacityLight={readDataNumber("locationCardBackgroundStartOpacityLight", readDataNumber("specialistCardBackgroundStartOpacityLight", 0))}
+        cardBackgroundEndOpacityLight={readDataNumber("locationCardBackgroundEndOpacityLight", readDataNumber("specialistCardBackgroundEndOpacityLight", 10))}
+        cardBackgroundStartOpacityDark={readDataNumber("locationCardBackgroundStartOpacityDark", readDataNumber("specialistCardBackgroundStartOpacityDark", readDataNumber("locationCardBackgroundStartOpacityLight", readDataNumber("specialistCardBackgroundStartOpacityLight", 0))))}
+        cardBackgroundEndOpacityDark={readDataNumber("locationCardBackgroundEndOpacityDark", readDataNumber("specialistCardBackgroundEndOpacityDark", readDataNumber("locationCardBackgroundEndOpacityLight", readDataNumber("specialistCardBackgroundEndOpacityLight", 10))))}
+        cardTitleTextStyle={cardTextStyle("locationCardTitle", "#111827", "#F8FAFC", 18, 600, "catalogCardTitle")}
+        cardDescriptionTextStyle={cardTextStyle("locationCardText", "#6B7280", "#CBD5E1", 14, undefined, "catalogCardText")}
         cardClickEnabled={data.modalImageClickEnabled !== false}
         cardStyle={cardStyle}
         cardGapX={Number.isFinite(cardGapX) ? cardGapX : 20}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   TildaBackgroundColorField,
   TildaInlineColorField,
@@ -163,7 +163,7 @@ function MobileFontSizeIcon({ className = "h-4 w-4" }: { className?: string }) {
 }
 
 function defaultCatalogCardMobileTextSize(prefix: string, desktopSize: number) {
-  if (prefix === "catalogCardTitle") {
+  if (prefix === "locationCardTitle" || prefix === "catalogCardTitle") {
     return Math.max(15, Math.min(28, Math.round(desktopSize * 0.82)));
   }
   return Math.max(12, Math.min(17, Math.round(desktopSize * 0.9)));
@@ -250,6 +250,104 @@ function renderOpacitySelect(label: string, value: number, onChange: (value: num
 
 function readAlignment(value: unknown, fallback: "left" | "center" | "right") {
   return value === "left" || value === "center" || value === "right" ? value : fallback;
+}
+
+function clampLocationModalColumns(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(11, Math.round(parsed))) : fallback;
+}
+
+function LocationModalColumnsControl({
+  mediaColumns,
+  infoColumns,
+  onChange,
+}: {
+  mediaColumns: number;
+  infoColumns: number;
+  onChange: (mediaColumns: number, infoColumns: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const setMediaColumns = (nextMediaColumns: number) => {
+    const media = clampLocationModalColumns(nextMediaColumns, 6);
+    onChange(media, 12 - media);
+  };
+  const columnFromClientX = (clientX: number) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return mediaColumns;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.max(1, Math.min(11, Math.round(ratio * 12)));
+  };
+  const startDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const apply = (clientX: number) => setMediaColumns(columnFromClientX(clientX));
+    apply(event.clientX);
+    const handleMove = (nextEvent: PointerEvent) => apply(nextEvent.clientX);
+    const handleUp = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  };
+  const dividerPercent = (mediaColumns / 12) * 100;
+
+  return (
+    <div className="relative">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+        Ширина блоков
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="mt-2 flex w-full items-center justify-between border-b border-[color:var(--bp-stroke)] pb-2 text-left text-sm"
+      >
+        <span>
+          {mediaColumns} колонок | {infoColumns} колонок
+        </span>
+        <span className="text-xs leading-none">{open ? "\u25B4" : "\u25BE"}</span>
+      </button>
+      {open ? (
+        <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-[160] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 shadow-2xl">
+          <div
+            ref={(node) => {
+              trackRef.current = node;
+            }}
+            className="relative"
+          >
+            <div className="grid grid-cols-12 gap-1">
+              {Array.from({ length: 12 }, (_, index) => {
+                const isMedia = index < mediaColumns;
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setMediaColumns(index + 1)}
+                    className={`h-14 rounded-sm ${isMedia ? "bg-[#ff5a5f]" : "bg-[#c6cbd3]"}`}
+                    aria-label={`${index + 1} колонок`}
+                  />
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onPointerDown={startDrag}
+              className="absolute top-1/2 z-10 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#9ca3af] bg-white shadow"
+              style={{ left: `${dividerPercent}%` }}
+              aria-label="Изменить ширину блоков"
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-2 text-center text-sm text-[color:var(--bp-muted)]">
+            <span>{mediaColumns}</span>
+            <span>{infoColumns}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function readBackgroundMode(value: unknown): "solid" | "linear" | "radial" {
@@ -545,26 +643,26 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
   }
 
   if (activeSectionId === "servicesList") {
-    const cardLightMode = readBackgroundMode(data.specialistCardBackgroundModeLight);
-    const cardDarkMode = readBackgroundMode(data.specialistCardBackgroundModeDark ?? cardLightMode);
+    const cardLightMode = readBackgroundMode(data.locationCardBackgroundModeLight ?? data.catalogCardBackgroundModeLight ?? data.specialistCardBackgroundModeLight);
+    const cardDarkMode = readBackgroundMode(data.locationCardBackgroundModeDark ?? data.catalogCardBackgroundModeDark ?? data.specialistCardBackgroundModeDark ?? cardLightMode);
     const cardLightFrom =
-      readDataColor("specialistCardBackgroundFromLight", "") ||
+      readDataColor("locationCardBackgroundFromLight", readDataColor("catalogCardBackgroundFromLight", readDataColor("specialistCardBackgroundFromLight", ""))) ||
       readStyle("subBlockBgLight", readStyle("subBlockBg", "#fafafa"));
-    const cardLightTo = readDataColor("specialistCardBackgroundToLight", "") || cardLightFrom || "#fafafa";
+    const cardLightTo = readDataColor("locationCardBackgroundToLight", readDataColor("catalogCardBackgroundToLight", readDataColor("specialistCardBackgroundToLight", ""))) || cardLightFrom || "#fafafa";
     const cardDarkFrom =
-      readDataColor("specialistCardBackgroundFromDark", "") ||
+      readDataColor("locationCardBackgroundFromDark", readDataColor("catalogCardBackgroundFromDark", readDataColor("specialistCardBackgroundFromDark", ""))) ||
       readStyle("subBlockBgDark", "#24282e");
-    const cardDarkTo = readDataColor("specialistCardBackgroundToDark", "") || cardDarkFrom || "#24282e";
-    const cardLightAngle = readDataNumber("specialistCardBackgroundAngleLight", 135);
-    const cardDarkAngle = readDataNumber("specialistCardBackgroundAngleDark", cardLightAngle);
-    const cardLightStopA = readDataNumber("specialistCardBackgroundStopALight", 0);
-    const cardLightStopB = readDataNumber("specialistCardBackgroundStopBLight", 100);
-    const cardDarkStopA = readDataNumber("specialistCardBackgroundStopADark", cardLightStopA);
-    const cardDarkStopB = readDataNumber("specialistCardBackgroundStopBDark", cardLightStopB);
-    const cardLightStartOpacity = readDataNumber("specialistCardBackgroundStartOpacityLight", 0);
-    const cardLightEndOpacity = readDataNumber("specialistCardBackgroundEndOpacityLight", 10);
-    const cardDarkStartOpacity = readDataNumber("specialistCardBackgroundStartOpacityDark", cardLightStartOpacity);
-    const cardDarkEndOpacity = readDataNumber("specialistCardBackgroundEndOpacityDark", cardLightEndOpacity);
+    const cardDarkTo = readDataColor("locationCardBackgroundToDark", readDataColor("catalogCardBackgroundToDark", readDataColor("specialistCardBackgroundToDark", ""))) || cardDarkFrom || "#24282e";
+    const cardLightAngle = readDataNumberFallback("locationCardBackgroundAngleLight", "catalogCardBackgroundAngleLight", readDataNumber("specialistCardBackgroundAngleLight", 135));
+    const cardDarkAngle = readDataNumberFallback("locationCardBackgroundAngleDark", "catalogCardBackgroundAngleDark", readDataNumber("specialistCardBackgroundAngleDark", cardLightAngle));
+    const cardLightStopA = readDataNumberFallback("locationCardBackgroundStopALight", "catalogCardBackgroundStopALight", readDataNumber("specialistCardBackgroundStopALight", 0));
+    const cardLightStopB = readDataNumberFallback("locationCardBackgroundStopBLight", "catalogCardBackgroundStopBLight", readDataNumber("specialistCardBackgroundStopBLight", 100));
+    const cardDarkStopA = readDataNumberFallback("locationCardBackgroundStopADark", "catalogCardBackgroundStopADark", readDataNumber("specialistCardBackgroundStopADark", cardLightStopA));
+    const cardDarkStopB = readDataNumberFallback("locationCardBackgroundStopBDark", "catalogCardBackgroundStopBDark", readDataNumber("specialistCardBackgroundStopBDark", cardLightStopB));
+    const cardLightStartOpacity = readDataNumberFallback("locationCardBackgroundStartOpacityLight", "catalogCardBackgroundStartOpacityLight", readDataNumber("specialistCardBackgroundStartOpacityLight", 0));
+    const cardLightEndOpacity = readDataNumberFallback("locationCardBackgroundEndOpacityLight", "catalogCardBackgroundEndOpacityLight", readDataNumber("specialistCardBackgroundEndOpacityLight", 10));
+    const cardDarkStartOpacity = readDataNumberFallback("locationCardBackgroundStartOpacityDark", "catalogCardBackgroundStartOpacityDark", readDataNumber("specialistCardBackgroundStartOpacityDark", cardLightStartOpacity));
+    const cardDarkEndOpacity = readDataNumberFallback("locationCardBackgroundEndOpacityDark", "catalogCardBackgroundEndOpacityDark", readDataNumber("specialistCardBackgroundEndOpacityDark", cardLightEndOpacity));
     const showLiquidGlassControl =
       String(data.imageAspectRatio ?? "1 / 1") === "original" &&
       (data.cardStyle === "filled" || data.cardStyle === "boxed");
@@ -713,8 +811,8 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
         <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
           {showLiquidGlassControl ? (
             <FlatCheckbox
-              checked={data.specialistCardLiquidGlass === true}
-              onChange={(checked) => updateData({ specialistCardLiquidGlass: checked })}
+              checked={(data.locationCardLiquidGlass ?? data.specialistCardLiquidGlass) === true}
+              onChange={(checked) => updateData({ locationCardLiquidGlass: checked })}
               label="Жидкое стекло"
             />
           ) : null}
@@ -727,23 +825,23 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
             radialStopA={cardLightStopA}
             radialStopB={cardLightStopB}
             placeholder="#fafafa"
-            onModeChange={(value) => updateData({ specialistCardBackgroundModeLight: value })}
-            onSecondChange={(value) => updateData({ specialistCardBackgroundToLight: value })}
-            onAngleChange={(value) => updateData({ specialistCardBackgroundAngleLight: value })}
-            onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopALight: value })}
-            onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBLight: value })}
-            onChange={(value) => updateData({ specialistCardBackgroundFromLight: value })}
+            onModeChange={(value) => updateData({ locationCardBackgroundModeLight: value })}
+            onSecondChange={(value) => updateData({ locationCardBackgroundToLight: value })}
+            onAngleChange={(value) => updateData({ locationCardBackgroundAngleLight: value })}
+            onRadialStopAChange={(value) => updateData({ locationCardBackgroundStopALight: value })}
+            onRadialStopBChange={(value) => updateData({ locationCardBackgroundStopBLight: value })}
+            onChange={(value) => updateData({ locationCardBackgroundFromLight: value })}
           />
           <div className="grid grid-cols-2 gap-4">
             {renderOpacitySelect("Непрозрачность в начале", cardLightStartOpacity, (value) =>
-              updateData({ specialistCardBackgroundStartOpacityLight: value })
+              updateData({ locationCardBackgroundStartOpacityLight: value })
             )}
             {renderOpacitySelect("Непрозрачность в конце", cardLightEndOpacity, (value) =>
-              updateData({ specialistCardBackgroundEndOpacityLight: value })
+              updateData({ locationCardBackgroundEndOpacityLight: value })
             )}
           </div>
-          {renderCardTypographyControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#111827", 18, "600", false)}
-          {renderCardTypographyControl("Адрес", "catalogCardText", "specialistCardDescription", "#6B7280", 14)}
+          {renderCardTypographyControl("Заголовок", "locationCardTitle", "catalogCardTitle", "#111827", 18, "600", false)}
+          {renderCardTypographyControl("Адрес", "locationCardText", "catalogCardText", "#6B7280", 14)}
           <button
             type="button"
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
@@ -773,23 +871,23 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
                 radialStopA={cardDarkStopA}
                 radialStopB={cardDarkStopB}
                 placeholder="#24282e"
-                onModeChange={(value) => updateData({ specialistCardBackgroundModeDark: value })}
-                onSecondChange={(value) => updateData({ specialistCardBackgroundToDark: value })}
-                onAngleChange={(value) => updateData({ specialistCardBackgroundAngleDark: value })}
-                onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopADark: value })}
-                onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBDark: value })}
-                onChange={(value) => updateData({ specialistCardBackgroundFromDark: value })}
+                onModeChange={(value) => updateData({ locationCardBackgroundModeDark: value })}
+                onSecondChange={(value) => updateData({ locationCardBackgroundToDark: value })}
+                onAngleChange={(value) => updateData({ locationCardBackgroundAngleDark: value })}
+                onRadialStopAChange={(value) => updateData({ locationCardBackgroundStopADark: value })}
+                onRadialStopBChange={(value) => updateData({ locationCardBackgroundStopBDark: value })}
+                onChange={(value) => updateData({ locationCardBackgroundFromDark: value })}
               />
               <div className="grid grid-cols-2 gap-4">
                 {renderOpacitySelect("Непрозрачность в начале", cardDarkStartOpacity, (value) =>
-                  updateData({ specialistCardBackgroundStartOpacityDark: value })
+                  updateData({ locationCardBackgroundStartOpacityDark: value })
                 )}
                 {renderOpacitySelect("Непрозрачность в конце", cardDarkEndOpacity, (value) =>
-                  updateData({ specialistCardBackgroundEndOpacityDark: value })
+                  updateData({ locationCardBackgroundEndOpacityDark: value })
                 )}
               </div>
-              {renderCardDarkColorControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#F8FAFC")}
-              {renderCardDarkColorControl("Адрес", "catalogCardText", "specialistCardDescription", "#CBD5E1")}
+              {renderCardDarkColorControl("Заголовок", "locationCardTitle", "catalogCardTitle", "#F8FAFC")}
+              {renderCardDarkColorControl("Адрес", "locationCardText", "catalogCardText", "#CBD5E1")}
             </div>
           ) : null}
         </div>
@@ -798,12 +896,12 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
   }
 
   if (activeSectionId === "servicePage") {
-    const lightMode = readBackgroundMode(data.specialistCardBackgroundModeLight);
-    const darkMode = readBackgroundMode(data.specialistCardBackgroundModeDark ?? lightMode);
-    const lightFrom = readDataColor("specialistCardBackgroundFromLight", readStyle("subBlockBgLight", "#fafafa"));
-    const lightTo = readDataColor("specialistCardBackgroundToLight", lightFrom);
-    const darkFrom = readDataColor("specialistCardBackgroundFromDark", readStyle("subBlockBgDark", "#24282e"));
-    const darkTo = readDataColor("specialistCardBackgroundToDark", darkFrom);
+    const lightMode = readBackgroundMode(data.locationCardBackgroundModeLight ?? data.catalogCardBackgroundModeLight ?? data.specialistCardBackgroundModeLight);
+    const darkMode = readBackgroundMode(data.locationCardBackgroundModeDark ?? data.catalogCardBackgroundModeDark ?? data.specialistCardBackgroundModeDark ?? lightMode);
+    const lightFrom = readDataColor("locationCardBackgroundFromLight", readDataColor("catalogCardBackgroundFromLight", readDataColor("specialistCardBackgroundFromLight", readStyle("subBlockBgLight", "#fafafa"))));
+    const lightTo = readDataColor("locationCardBackgroundToLight", readDataColor("catalogCardBackgroundToLight", readDataColor("specialistCardBackgroundToLight", lightFrom)));
+    const darkFrom = readDataColor("locationCardBackgroundFromDark", readDataColor("catalogCardBackgroundFromDark", readDataColor("specialistCardBackgroundFromDark", readStyle("subBlockBgDark", "#24282e"))));
+    const darkTo = readDataColor("locationCardBackgroundToDark", readDataColor("catalogCardBackgroundToDark", readDataColor("specialistCardBackgroundToDark", darkFrom)));
     const renderLocationCardTypographyControl = (
       title: string,
       prefix: string,
@@ -879,24 +977,45 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
         onClear={() => updateData({ [`${prefix}ColorDark`]: "transparent" })}
       />
     );
+    const locationModalMediaColumns = clampLocationModalColumns(data.locationModalMediaColumns ?? data.specialistModalMediaColumns, 6);
+    const locationModalInfoColumnsRaw = clampLocationModalColumns(
+      data.locationModalInfoColumns ?? data.specialistModalInfoColumns,
+      12 - locationModalMediaColumns
+    );
+    const locationModalInfoColumns =
+      locationModalMediaColumns + locationModalInfoColumnsRaw === 12
+        ? locationModalInfoColumnsRaw
+        : 12 - locationModalMediaColumns;
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
+        <LocationModalColumnsControl
+          mediaColumns={locationModalMediaColumns}
+          infoColumns={locationModalInfoColumns}
+          onChange={(mediaColumns, infoColumns) =>
+            updateData({ locationModalMediaColumns: mediaColumns, locationModalInfoColumns: infoColumns })
+          }
+        />
         <TildaBackgroundColorField
           label="Цвет фона карточки филиала"
           value={lightFrom}
           mode={lightMode}
           secondValue={lightTo}
-          angle={readDataNumber("specialistCardBackgroundAngleLight", 135)}
-          radialStopA={readDataNumber("specialistCardBackgroundStopALight", 0)}
-          radialStopB={readDataNumber("specialistCardBackgroundStopBLight", 100)}
+          angle={readDataNumberFallback("locationCardBackgroundAngleLight", "catalogCardBackgroundAngleLight", readDataNumber("specialistCardBackgroundAngleLight", 135))}
+          radialStopA={readDataNumberFallback("locationCardBackgroundStopALight", "catalogCardBackgroundStopALight", readDataNumber("specialistCardBackgroundStopALight", 0))}
+          radialStopB={readDataNumberFallback("locationCardBackgroundStopBLight", "catalogCardBackgroundStopBLight", readDataNumber("specialistCardBackgroundStopBLight", 100))}
           placeholder="#fafafa"
-          onModeChange={(value) => updateData({ specialistCardBackgroundModeLight: value })}
-          onSecondChange={(value) => updateData({ specialistCardBackgroundToLight: value })}
-          onAngleChange={(value) => updateData({ specialistCardBackgroundAngleLight: value })}
-          onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopALight: value })}
-          onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBLight: value })}
-          onChange={(value) => updateData({ specialistCardBackgroundFromLight: value })}
+          onModeChange={(value) => updateData({ locationCardBackgroundModeLight: value })}
+          onSecondChange={(value) => updateData({ locationCardBackgroundToLight: value })}
+          onAngleChange={(value) => updateData({ locationCardBackgroundAngleLight: value })}
+          onRadialStopAChange={(value) => updateData({ locationCardBackgroundStopALight: value })}
+          onRadialStopBChange={(value) => updateData({ locationCardBackgroundStopBLight: value })}
+          onChange={(value) => updateData({ locationCardBackgroundFromLight: value })}
+        />
+        <FlatCheckbox
+          checked={(data.locationCardImageZoomOnClick ?? data.specialistCardImageZoomOnClick) === true}
+          onChange={(checked) => updateData({ locationCardImageZoomOnClick: checked })}
+          label="Увеличение изображения по клику"
         />
         <FlatCheckbox
           checked={data.showImage !== false}
@@ -913,50 +1032,55 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
           onChange={(checked) => updateData({ showDescription: checked })}
           label="Показывать описание и телефон"
         />
-        {renderFlatSelect("Масштабирование изображения", String(data.specialistCardImageFit ?? "cover"), (value) => updateData({ specialistCardImageFit: value }), [
+        {renderFlatSelect("Масштабирование изображения", String(data.locationCardImageFit ?? data.specialistCardImageFit ?? "cover"), (value) => updateData({ locationCardImageFit: value }), [
           { value: "cover", label: "Заполнять область" },
           { value: "contain", label: "Вписывать в область" },
         ])}
-        {renderFlatNumberInput("Скругление изображения", readDataNumber("imageRadius", 10), (value) => updateData({ imageRadius: value }), 0, 40)}
-        {renderFlatNumberInput("Внутренний отступ X", readDataNumber("cardPaddingX", 30), (value) => updateData({ cardPaddingX: value }), 0, 80)}
-        {renderFlatNumberInput("Внутренний отступ Y", readDataNumber("cardPaddingY", 30), (value) => updateData({ cardPaddingY: value }), 0, 80)}
-        {renderLocationCardTypographyControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#111827", 18, "600", false)}
-        {renderLocationCardTypographyControl("Адрес и описание", "catalogCardText", "specialistCardDescription", "#6B7280", 14)}
-        <button
-          type="button"
-          onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
-          className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
-          style={{
-            borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
-            backgroundColor: "transparent",
-            color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
-          }}
-        >
-          <span>Темная тема</span>
-          <span className="text-xs">{showDarkThemeAdvanced ? "\u25B4" : "\u25BE"}</span>
-        </button>
-        {showDarkThemeAdvanced ? (
-          <div className="space-y-4">
-            <TildaBackgroundColorField
-              label="Цвет фона карточки филиала"
-              value={darkFrom}
-              mode={darkMode}
-              secondValue={darkTo}
-              angle={readDataNumber("specialistCardBackgroundAngleDark", 135)}
-              radialStopA={readDataNumber("specialistCardBackgroundStopADark", 0)}
-              radialStopB={readDataNumber("specialistCardBackgroundStopBDark", 100)}
-              placeholder="#24282e"
-              onModeChange={(value) => updateData({ specialistCardBackgroundModeDark: value })}
-              onSecondChange={(value) => updateData({ specialistCardBackgroundToDark: value })}
-              onAngleChange={(value) => updateData({ specialistCardBackgroundAngleDark: value })}
-              onRadialStopAChange={(value) => updateData({ specialistCardBackgroundStopADark: value })}
-              onRadialStopBChange={(value) => updateData({ specialistCardBackgroundStopBDark: value })}
-              onChange={(value) => updateData({ specialistCardBackgroundFromDark: value })}
-            />
-            {renderLocationCardDarkColorControl("Заголовок", "catalogCardTitle", "specialistCardTitle", "#F8FAFC")}
-            {renderLocationCardDarkColorControl("Адрес и описание", "catalogCardText", "specialistCardDescription", "#CBD5E1")}
-          </div>
-        ) : null}
+        {renderFlatNumberPxInput("Скругление", readDataNumber("imageRadius", 10), (value) => updateData({ imageRadius: value }))}
+        {renderLocationCardTypographyControl("Заголовок", "locationCardTitle", "catalogCardTitle", "#111827", 18, "600", false)}
+        {renderLocationCardTypographyControl("Адрес и описание", "locationCardText", "catalogCardText", "#6B7280", 14)}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
+            className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
+            style={{
+              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              backgroundColor: "transparent",
+              color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
+            }}
+          >
+            <span className="inline-flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" />
+              </svg>
+              <span>Темная тема</span>
+            </span>
+            <span className="text-xs">{showDarkThemeAdvanced ? "\u25B4" : "\u25BE"}</span>
+          </button>
+          {showDarkThemeAdvanced ? (
+            <div className="space-y-4">
+              <TildaBackgroundColorField
+                label="Цвет фона карточки филиала"
+                value={darkFrom}
+                mode={darkMode}
+                secondValue={darkTo}
+                angle={readDataNumberFallback("locationCardBackgroundAngleDark", "catalogCardBackgroundAngleDark", readDataNumber("specialistCardBackgroundAngleDark", 135))}
+                radialStopA={readDataNumberFallback("locationCardBackgroundStopADark", "catalogCardBackgroundStopADark", readDataNumber("specialistCardBackgroundStopADark", 0))}
+                radialStopB={readDataNumberFallback("locationCardBackgroundStopBDark", "catalogCardBackgroundStopBDark", readDataNumber("specialistCardBackgroundStopBDark", 100))}
+                placeholder="#24282e"
+                onModeChange={(value) => updateData({ locationCardBackgroundModeDark: value })}
+                onSecondChange={(value) => updateData({ locationCardBackgroundToDark: value })}
+                onAngleChange={(value) => updateData({ locationCardBackgroundAngleDark: value })}
+                onRadialStopAChange={(value) => updateData({ locationCardBackgroundStopADark: value })}
+                onRadialStopBChange={(value) => updateData({ locationCardBackgroundStopBDark: value })}
+                onChange={(value) => updateData({ locationCardBackgroundFromDark: value })}
+              />
+              {renderLocationCardDarkColorControl("Заголовок", "locationCardTitle", "catalogCardTitle", "#F8FAFC")}
+              {renderLocationCardDarkColorControl("Адрес и описание", "locationCardText", "catalogCardText", "#CBD5E1")}
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
