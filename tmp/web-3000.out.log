@@ -1626,3 +1626,5 @@ prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { 
  GET /api/v1/public/booking/group-sessions?locationId=5&date=2026-05-05&account=severnaya-orhideya 200 in 1209ms (compile: 1160ms, render: 49ms)
  GET /crm/site 200 in 781ms (compile: 304ms, proxy.ts: 26ms, render: 451ms)
  GET /severnaya-orhideya_2 200 in 793ms (compile: 104ms, render: 689ms)
+ GET /crm/site 200 in 737ms (compile: 421ms, proxy.ts: 11ms, render: 305ms)
+ GET /severnaya-orhideya_2 200 in 748ms (compile: 201ms, render: 547ms)
