@@ -317,6 +317,10 @@ html {
   padding-bottom: var(--booking-mobile-summary-step-expanded-height, 240px) !important;
 }
 
+.booking-root--mobile:has(.booking-summary-panel.is-final.is-expanded.is-success) {
+  padding-bottom: var(--booking-mobile-summary-success-height, 280px) !important;
+}
+
 .booking-root--mobile .booking-scenario-panel,
 .booking-root--mobile .booking-step-panel,
 .booking-root--mobile .booking-summary-panel {
@@ -587,6 +591,12 @@ html {
   height: var(--booking-mobile-summary-expanded-height, 340px) !important;
   max-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
   min-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
+}
+
+.booking-root--mobile .booking-summary-panel.is-final.is-expanded.is-success {
+  height: var(--booking-mobile-summary-success-height, 280px) !important;
+  max-height: var(--booking-mobile-summary-success-height, 280px) !important;
+  min-height: var(--booking-mobile-summary-success-height, 280px) !important;
 }
 
 .booking-root--mobile .booking-summary-desktop {
@@ -1010,6 +1020,12 @@ html {
     height: var(--booking-mobile-summary-expanded-height, 340px) !important;
     max-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
     min-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
+  }
+
+  .booking-summary-panel.is-final.is-expanded.is-success {
+    height: var(--booking-mobile-summary-success-height, 280px) !important;
+    max-height: var(--booking-mobile-summary-success-height, 280px) !important;
+    min-height: var(--booking-mobile-summary-success-height, 280px) !important;
   }
 
   .booking-summary-desktop {

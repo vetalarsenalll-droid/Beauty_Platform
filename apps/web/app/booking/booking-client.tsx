@@ -5695,7 +5695,8 @@ export default function BookingClient({
             className={cn(
               "booking-summary-panel min-w-0 p-4 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:h-full lg:self-stretch",
               isMobileFinalSummary ? "is-final" : "is-step",
-              mobileSummaryExpanded ? "is-expanded" : "is-collapsed"
+              mobileSummaryExpanded ? "is-expanded" : "is-collapsed",
+              submitSuccess ? "is-success" : null
             )}
           >
             <div className="booking-summary-desktop space-y-4">
