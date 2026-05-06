@@ -53,7 +53,6 @@ export async function GET(request: Request) {
           select: {
             id: true,
             version: true,
-            content: true,
             publishedAt: true,
           },
         },
@@ -73,7 +72,6 @@ export async function GET(request: Request) {
           select: {
             id: true,
             version: true,
-            content: true,
             publishedAt: true,
           },
         },
@@ -83,9 +81,9 @@ export async function GET(request: Request) {
 
   const locationIds = locationsRaw.map((item) => String(item.id));
   const locationPhotos = await prisma.mediaLink.findMany({
-    where: { entityType: "location.photo", entityId: { in: locationIds } },
-    include: { asset: true },
-    orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+    where: { entityType: "location.photo", entityId: { in: locationIds }, isCover: true },
+    select: { entityId: true, asset: { select: { url: true } } },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
   });
 
   const locationCoverMap = new Map<string, string>();
@@ -117,7 +115,6 @@ export async function GET(request: Request) {
         isRequired: doc.isRequired,
         versionId: version.id,
         version: version.version,
-        content: version.content,
         publishedAt: version.publishedAt.toISOString(),
       };
     })
@@ -134,7 +131,6 @@ export async function GET(request: Request) {
         isRequired: doc.isRequired,
         versionId: version.id,
         version: version.version,
-        content: version.content,
         publishedAt: version.publishedAt.toISOString(),
       };
     })

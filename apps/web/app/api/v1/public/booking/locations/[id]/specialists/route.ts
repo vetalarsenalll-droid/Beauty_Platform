@@ -132,9 +132,9 @@ export async function GET(
   const specialistIds = specialists.map((item) => String(item.id));
   const specialistPhotos = specialistIds.length
     ? await prisma.mediaLink.findMany({
-        where: { entityType: "specialist.photo", entityId: { in: specialistIds } },
-        include: { asset: true },
-        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        where: { entityType: "specialist.photo", entityId: { in: specialistIds }, isCover: true },
+        select: { entityId: true, asset: { select: { url: true } } },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       })
     : [];
 

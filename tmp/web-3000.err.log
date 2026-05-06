@@ -1242,3 +1242,23 @@ Import trace for requested module:
 ../../node_modules/heic-decode/index.js
 ../../node_modules/heic-convert/index.js
 ./app/api/v1/crm/account/media/route.ts
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/api/v1/public/booking/availability/calendar'
+}
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/api/v1/public/booking/availability/calendar'
+}
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/api/v1/public/booking/availability/calendar'
+}
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/api/v1/public/booking/availability/calendar'
+}
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/api/v1/public/booking/availability/calendar'
+}

@@ -127,6 +127,17 @@ type SlotsData = {
   slots: Slot[];
 };
 
+type OffersData = {
+  date: string;
+  times: Array<{
+    time: string;
+    services: Array<{
+      serviceId: number;
+      specialistIds: number[];
+    }>;
+  }>;
+};
+
 type ClientProfile = {
   id: number | null;
   firstName: string | null;
@@ -158,7 +169,7 @@ type LegalDocument = {
   isRequired: boolean;
   versionId: number;
   version: number;
-  content: string;
+  content?: string;
   publishedAt: string;
 };
 
@@ -523,15 +534,6 @@ const monthLabelRu = (year: number, month1: number, timeZone: string) => {
 
 const daysInMonthUtc = (year: number, month1: number) => {
   return new Date(Date.UTC(year, month1, 0, 12, 0, 0)).getUTCDate();
-};
-
-const prettyDayYmd = (ymd: string, todayYmd: string) => {
-  if (ymd === todayYmd) return "Сегодня";
-  if (ymd === ymdAddDays(todayYmd, 1)) return "Завтра";
-  // dd.mm
-  const dd = Number(ymd.slice(8, 10));
-  const mm = Number(ymd.slice(5, 7));
-  return `${pad2(dd)}.${pad2(mm)}`;
 };
 
 const formatDateRu = (ymd: string) => {
@@ -1092,7 +1094,7 @@ export default function BookingClient({
   const [offersError, setOffersError] = useState<string | null>(null);
   const [groupOffersByTime, setGroupOffersByTime] = useState<Record<string, number[]>>({});
   const [dateFirstAvailableDates, setDateFirstAvailableDates] = useState<Set<string>>(new Set());
-  const [loadingDateFirstAvailability, setLoadingDateFirstAvailability] = useState(false);
+  const [, setLoadingDateFirstAvailability] = useState(false);
   const [dateFirstAvailabilityError, setDateFirstAvailabilityError] = useState<string | null>(null);
 
   // serviceFirst/specialistFirst: календарь доступности (у тебя уже есть endpoint)
@@ -1348,16 +1350,20 @@ export default function BookingClient({
   const submitSuccessRef = useRef(false);
 
   const [clientProfile, setClientProfile] = useState<ClientProfile | null>(null);
-  const [loadingClientProfile, setLoadingClientProfile] = useState(false);
+  const [, setLoadingClientProfile] = useState(false);
   const calendarKeyRef = useRef<string | null>(null);
   const calendarRequestIdRef = useRef(0);
+  const servicesCacheRef = useRef(new Map<string, Service[]>());
+  const specialistsCacheRef = useRef(new Map<string, Specialist[]>());
   const fullscreenLoaderShownAtRef = useRef<number | null>(null);
   const [overlayNextDeadline, setOverlayNextDeadline] = useState<number | null>(null);
 
   const accountTz = context?.account.timeZone || "UTC";
-  const slotStepMinutes = context?.account.slotStepMinutes ?? 15;
-  const legalDocs = context?.legalDocuments ?? [];
-  const platformLegalDocs = context?.platformLegalDocuments ?? [];
+  const legalDocs = useMemo(() => context?.legalDocuments ?? [], [context?.legalDocuments]);
+  const platformLegalDocs = useMemo(
+    () => context?.platformLegalDocuments ?? [],
+    [context?.platformLegalDocuments]
+  );
   const nowTz = useMemo(() => getNowInTimeZone(accountTz), [accountTz]);
   const todayYmdTz = nowTz.ymd;
   const holdOwnerMarker = clientProfile?.id ?? null;
@@ -1424,19 +1430,25 @@ export default function BookingClient({
     Number.isFinite(new Date(value).getTime()) &&
     new Date(value).getTime() > Date.now() + skewMs;
 
-  const sameServiceIds = (a: number[], b: number[]) =>
-    a.length === b.length && a.every((id, idx) => id === b[idx]);
+  const sameServiceIds = useCallback(
+    (a: number[], b: number[]) =>
+      a.length === b.length && a.every((id, idx) => id === b[idx]),
+    []
+  );
 
-  const holdMatchesSelection = (hold: ActiveHold | null, selection: NonNullable<typeof holdSelection>) =>
-    !!hold &&
-    hold.locationId === selection.locationId &&
-    hold.specialistId === selection.specialistId &&
-    hold.serviceId === selection.serviceId &&
-    sameServiceIds(hold.serviceIds, selection.serviceIds) &&
-    hold.date === selection.date &&
-    hold.time === selection.time;
+  const holdMatchesSelection = useCallback(
+    (hold: ActiveHold | null, selection: NonNullable<typeof holdSelection>) =>
+      !!hold &&
+      hold.locationId === selection.locationId &&
+      hold.specialistId === selection.specialistId &&
+      hold.serviceId === selection.serviceId &&
+      sameServiceIds(hold.serviceIds, selection.serviceIds) &&
+      hold.date === selection.date &&
+      hold.time === selection.time,
+    [sameServiceIds]
+  );
 
-  const reserveHold = async (selection: NonNullable<typeof holdSelection>, replaceHoldId?: number | null) => {
+  const reserveHold = useCallback(async (selection: NonNullable<typeof holdSelection>, replaceHoldId?: number | null) => {
     const hold = await fetchJson<{ holdId: number; expiresAt: string }>(
       buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" }),
       {
@@ -1456,9 +1468,9 @@ export default function BookingClient({
       }
     );
     return hold;
-  };
+  }, [accountSlug]);
 
-  const releaseHold = async (holdId: number) => {
+  const releaseHold = useCallback(async (holdId: number) => {
     await fetchJson<{ ok: boolean }>(
       buildUrl("/api/v1/public/booking/holds", { account: accountSlug ?? "" }),
       {
@@ -1469,7 +1481,7 @@ export default function BookingClient({
         body: JSON.stringify({ holdId }),
       }
     );
-  };
+  }, [accountSlug]);
 
   useEffect(() => {
     if (!holdSelection || submitSuccess) return;
@@ -1498,7 +1510,7 @@ export default function BookingClient({
     return () => {
       cancelled = true;
     };
-  }, [holdSelection, submitSuccess, activeHold]);
+  }, [holdSelection, submitSuccess, activeHold, holdMatchesSelection, reserveHold]);
 
   useEffect(() => {
     activeHoldRef.current = activeHold;
@@ -1763,9 +1775,13 @@ export default function BookingClient({
     ];
   }, [isDateFirst, isServiceFirst, isVisitPlanMode, isSingleSpecialistPlanMode]);
 
-  const stepsWithScenario = startScenario
-    ? [{ key: "scenario", title: "\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439" }, ...steps]
-    : steps;
+  const stepsWithScenario = useMemo(
+    () =>
+      startScenario
+        ? [{ key: "scenario", title: "\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439" }, ...steps]
+        : steps,
+    [startScenario, steps]
+  );
 
   const lastTrackedStepRef = useRef<{ key: string; index: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
@@ -1909,11 +1925,6 @@ export default function BookingClient({
       setSpecialistId(null);
     }
   }, [specialistId, isGroupService, specialists, loadingSpecialists, shouldLoadSpecialists, specialistsFetched]);
-
-  const gotoKey = (key: string) => {
-    const idx = stepsWithScenario.findIndex((s) => s.key === key);
-    if (idx >= 0) setStepIndex(idx);
-  };
 
   useEffect(() => {
     if (!bookingSessionKey || !currentStepKey) return;
@@ -2200,12 +2211,21 @@ export default function BookingClient({
           serviceIds: selectedServiceIds.length > 0 ? selectedServiceIds.join(",") : "",
           account: accountSlug ?? "",
         };
+    const cacheKey = buildUrl(`specialists:${safeLocationId}`, specialistParams);
+    const cached = specialistsCacheRef.current.get(cacheKey);
+    if (cached) {
+      setSpecialists(cached);
+      setLoadingSpecialists(false);
+      setSpecialistsFetched(true);
+      return;
+    }
 
     fetchJson<SpecialistsData>(
       buildUrl(`/api/v1/public/booking/locations/${safeLocationId}/specialists`, specialistParams)
     )
       .then((data) => {
         if (!mounted) return;
+        specialistsCacheRef.current.set(cacheKey, data.specialists);
         setSpecialists(data.specialists);
       })
       .catch((error: Error) => {
@@ -2297,6 +2317,16 @@ export default function BookingClient({
 
     // При выбранном специалисте всегда возвращаем computedPrice/duration под него
     const specialistForPricing = specialistId ?? null;
+    const cacheKey = buildUrl(`services:${safeLocationId}`, {
+      specialistId: specialistForPricing,
+      account: accountSlug ?? "",
+    });
+    const cached = servicesCacheRef.current.get(cacheKey);
+    if (cached) {
+      setServices(cached);
+      setLoadingServices(false);
+      return;
+    }
 
     fetchJson<ServicesData>(
       buildUrl(`/api/v1/public/booking/locations/${safeLocationId}/services`, {
@@ -2307,6 +2337,7 @@ export default function BookingClient({
       .then((data) => {
         if (!mounted) return;
         const raw = Array.isArray(data.services) ? data.services : [];
+        servicesCacheRef.current.set(cacheKey, raw);
         setServices(raw);
       })
       .catch((error: Error) => {
@@ -2447,12 +2478,14 @@ export default function BookingClient({
     specialistId,
     accountSlug,
     holdOwnerMarker,
+    accountTz,
     todayYmdTz,
     nowTz,
     dateYmd,
     debouncedCalendarQueryStartYmd,
     calendarQueryDays,
     shouldLoadCalendar,
+    isGroupService,
     currentStepKey,
   ]);
 
@@ -2506,40 +2539,26 @@ export default function BookingClient({
     setLoadingOffers(true);
     setOffersError(null);
 
-    const tasks = services.map((s) => () =>
-      fetchJson<SlotsData>(
-        buildUrl("/api/v1/public/booking/slots", {
-          locationId: safeLocationId,
-          date: dateYmd,
-          serviceId: s.id,
-          holdOwnerMarker,
-          account: accountSlug ?? "",
-        })
-      ).then((d) => ({
-        serviceId: s.id,
-        slots: Array.isArray(d.slots) ? d.slots : [],
-      }))
-    );
-
     (async () => {
       try {
-        const results = await runBatches(tasks, 6);
+        const data = await fetchJson<OffersData>(
+          buildUrl("/api/v1/public/booking/offers", {
+            locationId: safeLocationId,
+            date: dateYmd,
+            holdOwnerMarker,
+            account: accountSlug ?? "",
+          })
+        );
         if (!mounted) return;
 
-        const map: Record<string, Set<number>> = {};
-        for (const item of results) {
-          const times = uniqSortedTimes(item.slots.map((x) => x.time));
-          const filtered = filterPastTimes(dateYmd, times, nowTz);
-          for (const t of filtered) {
-            if (!map[t]) map[t] = new Set<number>();
-            map[t].add(item.serviceId);
-          }
-        }
-
         const plain: Record<string, number[]> = {};
-        Object.entries(map).forEach(([t, set]) => {
-          plain[t] = Array.from(set).sort((a, b) => a - b);
-        });
+        for (const item of data.times ?? []) {
+          if (isPastTimeOnDate(dateYmd, item.time, nowTz)) continue;
+          const serviceIds = (item.services ?? [])
+            .map((entry) => entry.serviceId)
+            .filter((id) => Number.isInteger(id) && id > 0);
+          if (serviceIds.length > 0) plain[item.time] = Array.from(new Set(serviceIds)).sort((a, b) => a - b);
+        }
 
         setOffersByTime(plain);
       } catch (e: unknown) {
@@ -2596,29 +2615,22 @@ export default function BookingClient({
     setLoadingDateFirstAvailability(true);
     setDateFirstAvailabilityError(null);
 
-    const tasks = servicesForDateFirst.map((s) => () =>
-      fetchJson<AvailabilityCalendar>(
-        buildUrl("/api/v1/public/booking/availability/calendar", {
-          locationId: safeLocationId,
-          serviceId: s.id,
-          start: debouncedCalendarQueryStartYmd,
-          days: calendarQueryDays,
-          holdOwnerMarker,
-          account: accountSlug ?? "",
-        })
-      ).then((d) => d.days ?? [])
-    );
-
     (async () => {
       try {
-        const results = await runBatches(tasks, 4);
+        const data = await fetchJson<AvailabilityCalendar>(
+          buildUrl("/api/v1/public/booking/availability/calendar", {
+            locationId: safeLocationId,
+            start: debouncedCalendarQueryStartYmd,
+            days: calendarQueryDays,
+            holdOwnerMarker,
+            account: accountSlug ?? "",
+          })
+        );
         if (!mounted) return;
 
         const set = new Set<string>();
-        for (const days of results) {
-          for (const day of days) {
-            if (day?.date) set.add(day.date);
-          }
+        for (const day of data.days ?? []) {
+          if (day?.date) set.add(day.date);
         }
         setDateFirstAvailableDates(set);
       } catch (e: unknown) {
@@ -2853,7 +2865,7 @@ export default function BookingClient({
     if (!holdId) return;
     setActiveHold(null);
     void releaseHold(holdId).catch(() => {});
-  }, [isGroupService, activeHold]);
+  }, [isGroupService, activeHold, releaseHold]);
 
   const specialistMetricsCacheRef = useRef(
     new Map<number, Map<number, { durationMin: number; price: number }>>()
@@ -4194,7 +4206,6 @@ export default function BookingClient({
       case "location":
         return !!locationId;
       case "datetime":
-        if (isDateFirst && selectedServiceIds.length === 0) return true;
         return isGroupService ? !!selectedGroupSessionId : !!timeChoice;
       case "service":
         if (isDateFirst && isGroupService && !timeChoice) return true;
@@ -4605,8 +4616,6 @@ export default function BookingClient({
     }
   };
 
-  const displayName = clientName.trim() ? clientName.trim() : "Гость";
-  const displayPhone = clientPhone.trim() ? clientPhone.trim() : "—";
   const progress =
     stepsWithScenario.length <= 1
       ? 0
@@ -4776,6 +4785,7 @@ export default function BookingClient({
                                   <div className="relative">
                                     {location.coverUrl ? (
                                       <div className="booking-card-media overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                           src={location.coverUrl}
                                           alt={location.name}
@@ -5037,6 +5047,7 @@ export default function BookingClient({
                                 <div className="relative">
                                   {service.coverUrl ? (
                                     <div className="booking-card-media aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
                                         src={service.coverUrl}
                                         alt={service.name}
@@ -5206,6 +5217,7 @@ export default function BookingClient({
                                   <div className="relative">
                                     {sp.coverUrl || sp.avatarUrl ? (
                                       <div className="booking-card-media aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                           src={sp.coverUrl ?? sp.avatarUrl ?? ""}
                                           alt={sp.name}

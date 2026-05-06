@@ -118,9 +118,11 @@ export async function GET(request: Request) {
   const daysParam = parsePositiveInt(searchParams.get("days"));
   const days = Math.min(Math.max(daysParam ?? DEFAULT_DAYS, 1), MAX_DAYS);
 
-  if (!locationId || selectedServiceIds.length === 0) {
-    return jsonError("INVALID_REQUEST", "Нужны locationId и serviceId.", null, 400);
+  if (!locationId) {
+    return jsonError("INVALID_REQUEST", "Нужен locationId.", null, 400);
   }
+
+  const anyServiceMode = selectedServiceIds.length === 0;
 
   const safeStart = startYmd < nowTz.ymd ? nowTz.ymd : startYmd;
   const endYmd = addDaysYmd(safeStart, days);
@@ -151,9 +153,10 @@ export async function GET(request: Request) {
 
   const services = await prisma.service.findMany({
     where: {
-      id: { in: selectedServiceIds },
+      ...(anyServiceMode ? {} : { id: { in: selectedServiceIds } }),
       accountId: resolved.account.id,
       isActive: true,
+      bookingType: "SINGLE",
       locations: { some: { locationId } },
     },
     select: {
@@ -165,11 +168,11 @@ export async function GET(request: Request) {
     },
   });
 
-  if (services.length !== selectedServiceIds.length) {
+  if (!anyServiceMode && services.length !== selectedServiceIds.length) {
     return jsonError("SERVICE_NOT_FOUND", "Услуга не найдена.", null, 404);
   }
 
-  if (services.some((service) => service.bookingType === "GROUP")) {
+  if (!services.length || services.some((service) => service.bookingType === "GROUP")) {
     return jsonOk({ start: safeStart, days: [] });
   }
 
@@ -177,7 +180,9 @@ export async function GET(request: Request) {
     where: {
       accountId: resolved.account.id,
       locations: { some: { locationId } },
-      AND: selectedServiceIds.map((id) => ({ services: { some: { serviceId: id } } })),
+      ...(anyServiceMode
+        ? { services: { some: { serviceId: { in: services.map((service) => service.id) } } } }
+        : { AND: selectedServiceIds.map((id) => ({ services: { some: { serviceId: id } } })) }),
       ...(specialistId ? { id: specialistId } : {}),
     },
     select: {
@@ -341,17 +346,36 @@ export async function GET(request: Request) {
 
   // duration per specialist for this service
   const durationBySpecialist = new Map<number, number>();
-  for (const sp of specialists) {
-    let totalDuration = 0;
-    for (const service of services) {
-      const override =
-        service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ?? null;
-      const levelCfg =
-        service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ?? null;
-      const dur = override ?? levelCfg ?? service.baseDurationMin;
-      totalDuration += Number.isFinite(dur) ? dur : 0;
+  if (!anyServiceMode) {
+    for (const sp of specialists) {
+      let totalDuration = 0;
+      for (const service of services) {
+        const override =
+          service.specialists.find((x) => x.specialistId === sp.id)?.durationOverrideMin ?? null;
+        const levelCfg =
+          service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ?? null;
+        const dur = override ?? levelCfg ?? service.baseDurationMin;
+        totalDuration += Number.isFinite(dur) ? dur : 0;
+      }
+      if (totalDuration > 0) durationBySpecialist.set(sp.id, totalDuration);
     }
-    if (totalDuration > 0) durationBySpecialist.set(sp.id, totalDuration);
+  }
+
+  const durationBySpecialistService = new Map<number, Map<number, number>>();
+  if (anyServiceMode) {
+    for (const sp of specialists) {
+      const byService = new Map<number, number>();
+      for (const service of services) {
+        const specialistConfig =
+          service.specialists.find((x) => x.specialistId === sp.id) ?? null;
+        if (!specialistConfig) continue;
+        const levelCfg =
+          service.levelConfigs.find((x) => x.levelId === sp.levelId)?.durationMin ?? null;
+        const dur = specialistConfig.durationOverrideMin ?? levelCfg ?? service.baseDurationMin;
+        if (Number.isFinite(dur) && dur > 0) byService.set(service.id, dur);
+      }
+      if (byService.size > 0) durationBySpecialistService.set(sp.id, byService);
+    }
   }
 
   // day -> minuteStart -> specialistIds
@@ -366,7 +390,9 @@ export async function GET(request: Request) {
 
     for (const sp of specialists) {
       const durationMin = durationBySpecialist.get(sp.id);
-      if (!durationMin) continue;
+      const serviceDurations = durationBySpecialistService.get(sp.id);
+      if (!anyServiceMode && !durationMin) continue;
+      if (anyServiceMode && !serviceDurations?.size) continue;
 
       const entry = scheduleBySpDay.get(`${sp.id}:${ymd}`);
       if (!entry || entry.type !== "WORKING") continue;
@@ -412,9 +438,17 @@ export async function GET(request: Request) {
       // generate starts where service fits
       for (const seg of free) {
         let t = ceilToStep(seg.start, slotStepMinutes);
-        for (; t + durationMin <= seg.end; t += slotStepMinutes) {
+        for (; t + (anyServiceMode ? slotStepMinutes : durationMin ?? 0) <= seg.end; t += slotStepMinutes) {
           // запрет прошедшего времени на сегодня
           if (ymd === nowTz.ymd && t <= nowTz.minutes) continue;
+          if (anyServiceMode) {
+            const hasFittingService = Array.from(serviceDurations?.values() ?? []).some(
+              (dur) => t + dur <= seg.end
+            );
+            if (!hasFittingService) continue;
+          } else if (!durationMin || t + durationMin > seg.end) {
+            continue;
+          }
 
           const m = dayTimeMap.get(ymd) ?? new Map<number, Set<number>>();
           const set = m.get(t) ?? new Set<number>();

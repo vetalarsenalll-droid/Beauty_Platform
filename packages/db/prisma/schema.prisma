@@ -1326,6 +1326,7 @@ model SpecialistService {
   service    Service           @relation(fields: [serviceId], references: [id])
 
   @@unique([specialistId, serviceId])
+  @@index([serviceId, specialistId])
 }
 
 model ServiceLocation {
@@ -1337,6 +1338,7 @@ model ServiceLocation {
   location Location @relation(fields: [locationId], references: [id])
 
   @@unique([serviceId, locationId])
+  @@index([locationId, serviceId])
 }
 
 model SpecialistLocation {
@@ -1348,6 +1350,7 @@ model SpecialistLocation {
   location   Location          @relation(fields: [locationId], references: [id])
 
   @@unique([specialistId, locationId])
+  @@index([locationId, specialistId])
 }
 
 model LocationManager {
@@ -1587,6 +1590,8 @@ model AppointmentHold {
   account    Account           @relation(fields: [accountId], references: [id])
 
   @@index([accountId, expiresAt])
+  @@index([accountId, specialistId, startAt])
+  @@index([accountId, expiresAt, startAt])
 }
 
 model ScheduleTemplate {
@@ -1679,6 +1684,8 @@ model ScheduleEntry {
   @@unique([specialistId, date])
   @@index([accountId, date])
   @@index([locationId, date])
+  @@index([accountId, locationId, date])
+  @@index([accountId, specialistId, date])
 }
 
 model ScheduleEntryBreak {
@@ -1707,6 +1714,8 @@ model BlockedSlot {
   specialist SpecialistProfile? @relation(fields: [specialistId], references: [id])
 
   @@index([accountId, startAt])
+  @@index([accountId, locationId, startAt])
+  @@index([accountId, specialistId, startAt])
 }
 
 model PaymentIntent {

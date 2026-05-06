@@ -87,9 +87,9 @@ export async function GET(
   const serviceIds = services.map((item) => String(item.id));
   const servicePhotos = serviceIds.length
     ? await prisma.mediaLink.findMany({
-        where: { entityType: "service.photo", entityId: { in: serviceIds } },
-        include: { asset: true },
-        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        where: { entityType: "service.photo", entityId: { in: serviceIds }, isCover: true },
+        select: { entityId: true, asset: { select: { url: true } } },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       })
     : [];
 
