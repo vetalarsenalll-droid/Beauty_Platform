@@ -168,6 +168,19 @@ export default function SiteClient({
     setSpecialists((prev) => prev.map((item) => (item.id === specialist.id ? specialist : item)));
   };
 
+  const selectEditorPage = (pageKey: SitePageKey, entity: CurrentEntity = null) => {
+    setActivePage(pageKey);
+    setCurrentEntity(entity);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (pageKey === "home" && entity === null) {
+      url.searchParams.delete("page");
+    } else {
+      url.searchParams.set("page", pageKey);
+    }
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  };
+
   const activeBlockTypes = useMemo(
     () =>
       new Set<BlockType>([
@@ -518,6 +531,17 @@ export default function SiteClient({
     (item): item is EntityProfileMenuItem =>
       isEntityProfileMenuItem(item) && item.entityType === "service"
   );
+  const availableLibraryBlockTypes = useMemo(
+    () =>
+      LIBRARY_BLOCK_TYPES.filter((type) => activePageKey === "booking" || type !== "booking"),
+    [activePageKey]
+  );
+
+  useEffect(() => {
+    if (libraryBlock === "booking" && activePageKey !== "booking") {
+      setLibraryBlock(null);
+    }
+  }, [activePageKey, libraryBlock]);
 
   const themeStyle = buildThemeStyle(activeTheme);
   const previewCanvasWidth =
@@ -601,8 +625,7 @@ export default function SiteClient({
                           key={`page:${item.key}`}
                           type="button"
                           onClick={() => {
-                            setActivePage(item.key);
-                            setCurrentEntity(null);
+                            selectEditorPage(item.key);
                             setPagesMenuOpen(false);
                             setPagesSearch("");
                           }}
@@ -631,8 +654,7 @@ export default function SiteClient({
                               key={`entity:${item.entityType}:${item.entityId}`}
                               type="button"
                               onClick={() => {
-                                setActivePage(item.key);
-                                setCurrentEntity({ type: item.entityType, id: item.entityId });
+                                selectEditorPage(item.key, { type: item.entityType, id: item.entityId });
                                 setPagesMenuOpen(false);
                                 setPagesSearch("");
                               }}
@@ -663,8 +685,7 @@ export default function SiteClient({
                               key={`entity:${item.entityType}:${item.entityId}`}
                               type="button"
                               onClick={() => {
-                                setActivePage(item.key);
-                                setCurrentEntity({ type: item.entityType, id: item.entityId });
+                                selectEditorPage(item.key, { type: item.entityType, id: item.entityId });
                                 setPagesMenuOpen(false);
                                 setPagesSearch("");
                               }}
@@ -695,8 +716,7 @@ export default function SiteClient({
                               key={`entity:${item.entityType}:${item.entityId}`}
                               type="button"
                               onClick={() => {
-                                setActivePage(item.key);
-                                setCurrentEntity({ type: item.entityType, id: item.entityId });
+                                selectEditorPage(item.key, { type: item.entityType, id: item.entityId });
                                 setPagesMenuOpen(false);
                                 setPagesSearch("");
                               }}
@@ -949,18 +969,16 @@ export default function SiteClient({
                 {isBlockActive && !rightPanel && (
                   <div className={controlsWrapClass}>
                     <div className="pointer-events-auto flex items-center gap-1">
-                      {block.type !== "booking" && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedId(block.id);
-                            setRightPanel("content");
-                          }}
-                          className={`${leftBtnClass} w-28`}
-                        >
-                          Контент
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(block.id);
+                          setRightPanel("content");
+                        }}
+                        className={`${leftBtnClass} w-28`}
+                      >
+                        Контент
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -1132,7 +1150,7 @@ export default function SiteClient({
             </div>
             <div className="p-4">
               <div className="flex flex-col gap-2">
-                {LIBRARY_BLOCK_TYPES.map((type) => (
+                {availableLibraryBlockTypes.map((type) => (
                   <button
                     key={type}
                     type="button"
@@ -1154,7 +1172,7 @@ export default function SiteClient({
           </aside>
         )}
 
-        {leftPanel === "library" && libraryBlock && (
+        {leftPanel === "library" && libraryBlock && availableLibraryBlockTypes.includes(libraryBlock) && (
           <aside
             className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             style={{ left: 320, top: floatingPanelsTop, bottom: 0 }}

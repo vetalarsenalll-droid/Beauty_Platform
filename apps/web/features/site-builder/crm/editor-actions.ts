@@ -132,6 +132,11 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     index?: number,
     variant?: "v1" | "v2" | "v3" | "v4" | "v5"
   ) => {
+    if (type === "booking" && args.activePage !== "booking") {
+      args.setInsertIndex(null);
+      return;
+    }
+
     const block = createBlock(type);
     const targetVariant = variant ?? block.variant;
     if (type === "menu") {

@@ -12,6 +12,11 @@ type ImageSource = {
   url?: string;
 };
 
+const flatTextareaClass =
+  "mt-2 min-h-32 w-full resize-y appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-[color:var(--bp-ink)] focus:shadow-none focus:outline-none focus:ring-0";
+const imageActionButtonClass =
+  "inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60";
+
 function resolveSocialHrefByKey(accountProfile: CrmPanelCtx["accountProfile"], key: SocialKey): string | null {
   const rawValue =
     key === "website"
@@ -223,7 +228,8 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
           value={(block.data.description as string) ?? ""}
           onChange={(event) => updateData({ description: event.target.value })}
           rows={5}
-          className="mt-2 w-full rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+          className={flatTextareaClass}
+          style={{ borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
         />
       </label>
 
@@ -337,7 +343,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
+          <div className="relative h-20 w-32 overflow-hidden rounded-none bg-[color:var(--bp-base)]">
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={previewUrl} alt="" className="h-full w-full object-cover" />
@@ -369,14 +375,14 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+            className={imageActionButtonClass}
           >
             {uploading ? "Загрузка..." : "Загрузить файл"}
           </button>
           <button
             type="button"
             onClick={() => setOpenLibrary((prev) => !prev)}
-            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
+            className={imageActionButtonClass}
           >
             Выбрать из загруженных
           </button>
@@ -384,7 +390,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
             type="button"
             onClick={() => setSource({ type: "none" })}
             disabled={!previewUrl}
-            className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+            className={imageActionButtonClass}
           >
             Убрать
           </button>
@@ -405,7 +411,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
               return (
                 <div
                   key={image.id}
-                  className={`relative rounded-lg border bg-[color:var(--bp-paper)] ${
+                  className={`relative rounded-none border bg-transparent ${
                     isSelected
                       ? "border-[color:var(--bp-save-close,var(--bp-accent))]"
                       : "border-[color:var(--bp-stroke)]"
@@ -430,7 +436,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                       setPendingDeleteImage((prev) => (prev?.id === image.id ? null : image));
                     }}
                     disabled={removingImageId === image.id}
-                    className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
+                    className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-none bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
                     aria-label="Удалить изображение"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -458,7 +464,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
               }}
             >
               <div
-                className="w-full max-w-[460px] rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
+                className="w-full max-w-[460px] rounded-none border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="text-base font-semibold leading-5">
@@ -468,7 +474,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                   <button
                     type="button"
                     onClick={() => setPendingDeleteImage(null)}
-                    className="inline-flex h-8 items-center justify-center rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs"
+                    className="inline-flex h-8 items-center justify-center rounded-none border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-xs"
                     disabled={removingImageId !== null}
                   >
                     Отмена
@@ -476,7 +482,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                   <button
                     type="button"
                     onClick={() => void removeLibraryImage(pendingDeleteImage)}
-                    className="inline-flex h-8 items-center justify-center rounded-md bg-[#dc2626] px-3 text-xs font-medium text-white disabled:opacity-60"
+                    className="inline-flex h-8 items-center justify-center rounded-none bg-[#dc2626] px-3 text-xs font-medium text-white disabled:opacity-60"
                     disabled={removingImageId !== null}
                   >
                     {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}

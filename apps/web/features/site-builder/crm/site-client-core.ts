@@ -136,7 +136,7 @@ export const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[
     { id: "catalog", label: "Список специалистов" },
   ],
   loader: [{ id: "main", label: "Контент блока" }],
-  booking: [{ id: "main", label: "Контент блока" }],
+  booking: [{ id: "documents", label: "Документы и согласия" }],
   aisha: [{ id: "main", label: "Контент блока" }],
 };
 

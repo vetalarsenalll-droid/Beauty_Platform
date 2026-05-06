@@ -14,6 +14,11 @@ type Slide = {
   imageUrl: string;
 };
 
+const flatTextareaClass =
+  "mt-2 min-h-32 w-full resize-y appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-[color:var(--bp-ink)] focus:shadow-none focus:outline-none focus:ring-0";
+const imageActionButtonClass =
+  "inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60";
+
 function normalizeSlides(raw: unknown): Slide[] {
   const input = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
   const slides = input
@@ -275,9 +280,9 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
         return (
           <div
             key={slide.id}
-            className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+            className="border-b border-[color:var(--bp-stroke)] bg-transparent"
           >
-            <div className="flex items-center justify-between gap-2 p-4">
+            <div className="flex items-center justify-between gap-2 py-4">
               <button
                 type="button"
                 onClick={toggleExpanded}
@@ -301,7 +306,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     event.stopPropagation();
                     moveSlide(-1);
                   }}
-                  className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs"
                   disabled={index === 0}
                 >
                   ↑
@@ -312,7 +317,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     event.stopPropagation();
                     moveSlide(1);
                   }}
-                  className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs"
                   disabled={index === slides.length - 1}
                 >
                   ↓
@@ -323,7 +328,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     event.stopPropagation();
                     removeSlide();
                   }}
-                  className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
+                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs"
                   disabled={slides.length <= 1}
                 >
                   Удалить
@@ -332,7 +337,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
             </div>
 
             {isExpanded ? (
-            <div className="space-y-3 px-4 pb-4">
+            <div className="space-y-3 pb-4">
               {renderCoverFlatTextInput("Заголовок", slide.title, (value) => updateSlide({ title: value }))}
               <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                 <div className="min-h-[32px] leading-4">Описание</div>
@@ -340,7 +345,8 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   value={slide.description}
                   onChange={(event) => updateSlide({ description: event.target.value })}
                   rows={5}
-                  className="mt-2 w-full rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+                  className={flatTextareaClass}
+                  style={{ borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
                 />
               </label>
               {renderCoverFlatTextInput("Текст кнопки", slide.buttonText, (value) => updateSlide({ buttonText: value }))}
@@ -389,7 +395,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
+                  <div className="relative h-20 w-32 overflow-hidden rounded-none bg-[color:var(--bp-base)]">
                     {slide.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
@@ -412,7 +418,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                       fileInputRef.current?.click();
                     }}
                     disabled={uploading}
-                    className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+                    className={imageActionButtonClass}
                   >
                     {uploading ? "Загрузка..." : "Загрузить файл"}
                   </button>
@@ -421,7 +427,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     onClick={() =>
                       setOpenLibraryForSlideId((prev) => (prev === slide.id ? null : slide.id))
                     }
-                    className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm"
+                    className={imageActionButtonClass}
                   >
                     Выбрать из загруженных
                   </button>
@@ -429,7 +435,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     type="button"
                     onClick={() => updateSlide({ imageUrl: "" })}
                     disabled={!slide.imageUrl}
-                    className="inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60"
+                    className={imageActionButtonClass}
                   >
                     Убрать
                   </button>
@@ -451,7 +457,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                       return (
                         <div
                           key={image.id}
-                          className={`relative overflow-hidden rounded-lg border bg-[color:var(--bp-paper)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)] ${
+                          className={`relative overflow-hidden rounded-none border bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)] ${
                             isSelected
                               ? "border-[color:var(--bp-save-close,var(--bp-accent))]"
                               : "border-[color:var(--bp-stroke)]"
@@ -485,7 +491,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                               setPendingDeleteImageSlideId(slide.id);
                             }}
                             disabled={removingImageId === image.id}
-                            className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
+                            className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-none bg-white/90 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60"
                             aria-label="Удалить изображение"
                           >
                             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -526,7 +532,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
             },
           ]);
         }}
-        className="w-full rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm font-semibold"
+        className="w-full rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-3 text-sm font-semibold"
       >
         Добавить слайд
       </button>
@@ -541,7 +547,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
               }}
             >
               <div
-                className="w-full max-w-[460px] rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
+                className="w-full max-w-[460px] rounded-none border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-lg"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="text-base font-semibold">
@@ -554,7 +560,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                       setPendingDeleteImage(null);
                       setPendingDeleteImageSlideId(null);
                     }}
-                    className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
+                    className="rounded-none border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2 text-xs"
                     disabled={removingImageId !== null}
                   >
                     Отмена
@@ -562,7 +568,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   <button
                     type="button"
                     onClick={() => void removeLibraryImage(pendingDeleteImage)}
-                    className="rounded-md bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+                    className="rounded-none bg-[#dc2626] px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
                     disabled={removingImageId !== null}
                   >
                     {removingImageId === pendingDeleteImage.id ? "Удаление..." : "Удалить"}
