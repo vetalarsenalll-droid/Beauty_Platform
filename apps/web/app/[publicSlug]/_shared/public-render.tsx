@@ -1093,9 +1093,15 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     "booking"
   );
+  const mobileBlockWidthColumns = clampBlockColumns(
+    style.mobileBlockWidthColumns ?? BOOKING_MAX_BLOCK_COLUMNS,
+    "booking"
+  );
   const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
+  const mobileBlockWidthVisualColumns = bookingContentColumns(mobileBlockWidthColumns);
   const bookingCardsColumns = bookingCardsPerRow(blockWidthColumns);
   const blockWidthPercent = (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
+  const mobileBlockWidthPercent = (mobileBlockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
   const radius = style.radius ?? palette.radius ?? theme.radius;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
@@ -1307,6 +1313,7 @@ function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
     "--bp-text-size-base": `${subheadingSize}px`,
     "--bp-text-size-lg": `${headingSize}px`,
     "--bp-content-width": `${blockWidthPercent}%`,
+    "--bp-content-width-mobile": `${mobileBlockWidthPercent}%`,
     "--bp-cards-cols": String(bookingCardsColumns),
   } as Record<string, string>;
 }
@@ -1341,8 +1348,47 @@ function renderBooking(
 ) {
   const style = normalizeStyle(block, theme);
   const cssVars = buildBookingVars(style, theme);
+  const servicesSectionBackgroundSource = {
+    servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
+    servicesSectionBackgroundFromLight: style.servicesSectionBackgroundFromLight,
+    servicesSectionBackgroundToLight: style.servicesSectionBackgroundToLight,
+    servicesSectionBackgroundAngleLight: style.servicesSectionBackgroundAngleLight,
+    servicesSectionBackgroundStopALight: style.servicesSectionBackgroundStopALight,
+    servicesSectionBackgroundStopBLight: style.servicesSectionBackgroundStopBLight,
+    servicesSectionBackgroundModeDark: style.servicesSectionBackgroundModeDark,
+    servicesSectionBackgroundFromDark: style.servicesSectionBackgroundFromDark,
+    servicesSectionBackgroundToDark: style.servicesSectionBackgroundToDark,
+    servicesSectionBackgroundAngleDark: style.servicesSectionBackgroundAngleDark,
+    servicesSectionBackgroundStopADark: style.servicesSectionBackgroundStopADark,
+    servicesSectionBackgroundStopBDark: style.servicesSectionBackgroundStopBDark,
+  };
+  const servicesSectionBackgroundLight = resolveServicesSectionBackgroundVisual(
+    servicesSectionBackgroundSource,
+    style.sectionBgLightResolved || theme.lightPalette.panelColor,
+    "light"
+  );
+  const servicesSectionBackgroundDark = resolveServicesSectionBackgroundVisual(
+    servicesSectionBackgroundSource,
+    style.sectionBgDarkResolved || theme.darkPalette.panelColor,
+    "dark"
+  );
   return (
-    <div className="booking-root" style={cssVars}>
+    <div
+      className="site-block site-block-booking booking-root p-0"
+      style={{
+        ...cssVars,
+        paddingTop: typeof style.marginTop === "number" ? style.marginTop : undefined,
+        paddingBottom: typeof style.marginBottom === "number" ? style.marginBottom : undefined,
+        backgroundColor: "var(--services-section-bg, var(--block-section-bg, transparent))",
+        backgroundImage: "var(--services-section-image, none)",
+        ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
+        ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
+        ["--services-section-bg-light" as string]: servicesSectionBackgroundLight.backgroundColor,
+        ["--services-section-bg-dark" as string]: servicesSectionBackgroundDark.backgroundColor,
+        ["--services-section-image-light" as string]: servicesSectionBackgroundLight.backgroundImage,
+        ["--services-section-image-dark" as string]: servicesSectionBackgroundDark.backgroundImage,
+      } as CSSProperties}
+    >
       <div className="booking-bleed">
         <PublicBookingClient
           accountSlug={accountSlug}

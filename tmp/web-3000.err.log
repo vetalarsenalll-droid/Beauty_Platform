@@ -1115,3 +1115,88 @@ Import trace for requested module:
   608 |       : "solid"; {
   digest: '2690485818'
 }
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/specialists/[id]/media/route.ts
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/crm/site'
+}

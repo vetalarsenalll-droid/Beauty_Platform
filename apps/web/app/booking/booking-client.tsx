@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { SiteLoaderConfig } from "@/lib/site-builder";
 import SiteLoader from "@/components/site-loader";
@@ -544,15 +544,13 @@ const formatDateRu = (ymd: string) => {
 // UI
 // ============================================================================
 
-function SoftPanel({
-  children,
-  className,
-}: {
+const SoftPanel = forwardRef<HTMLDivElement, {
   children: ReactNode;
   className?: string;
-}) {
+}>(function SoftPanel({ children, className }, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         "booking-panel rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]",
         // тени оставляем в проекте как были, пользователь попросил убрать тени у календаря
@@ -563,13 +561,13 @@ function SoftPanel({
       {children}
     </div>
   );
-}
+});
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="h-2 w-full rounded-full bg-black/5">
+    <div className="booking-progress h-2 w-full rounded-full bg-black/5">
       <div
-        className="h-2 rounded-full bg-[color:var(--bp-accent)]"
+        className="booking-progress-fill h-2 rounded-full bg-[color:var(--bp-accent)]"
         style={{ width: `${Math.max(0, Math.min(100, value * 100))}%` }}
       />
     </div>
@@ -1771,8 +1769,60 @@ export default function BookingClient({
 
   const lastTrackedStepRef = useRef<{ key: string; index: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
+  const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
+  const bookingRootRef = useRef<HTMLDivElement | null>(null);
+  const stepPanelRef = useRef<HTMLDivElement | null>(null);
+  const summaryPanelRef = useRef<HTMLDivElement | null>(null);
   const currentStepKey = stepsWithScenario[stepIndex]?.key;
   const prevStepsRef = useRef(stepsWithScenario);
+
+  useEffect(() => {
+    if (currentStepKey !== "details") setMobileSummaryExpanded(false);
+  }, [currentStepKey]);
+
+  useLayoutEffect(() => {
+    const root = bookingRootRef.current;
+    const stepPanel = stepPanelRef.current;
+    const summaryPanel = summaryPanelRef.current;
+    if (!root || !stepPanel || !summaryPanel || typeof window === "undefined") return;
+
+    let frame = 0;
+    const updateMobileStepHeight = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const isMobileLayout =
+          window.matchMedia("(max-width: 639px)").matches ||
+          root.classList.contains("booking-root--mobile");
+        if (!isMobileLayout) {
+          root.style.removeProperty("--booking-mobile-step-height");
+          root.style.removeProperty("--booking-mobile-summary-height");
+          return;
+        }
+
+        const stepTop = stepPanel.getBoundingClientRect().top;
+        const summaryRect = summaryPanel.getBoundingClientRect();
+        const summaryTop = summaryRect.top;
+        const available = Math.max(260, summaryTop - stepTop);
+        root.style.setProperty("--booking-mobile-step-height", `${Math.round(available)}px`);
+        root.style.setProperty("--booking-mobile-summary-height", `${Math.round(summaryRect.height)}px`);
+      });
+    };
+
+    updateMobileStepHeight();
+    const resizeObserver = new ResizeObserver(updateMobileStepHeight);
+    resizeObserver.observe(root);
+    resizeObserver.observe(stepPanel);
+    resizeObserver.observe(summaryPanel);
+    window.addEventListener("resize", updateMobileStepHeight);
+    window.addEventListener("scroll", updateMobileStepHeight, true);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateMobileStepHeight);
+      window.removeEventListener("scroll", updateMobileStepHeight, true);
+    };
+  }, [currentStepKey, mobileSummaryExpanded]);
 
   useEffect(() => {
     const prevSteps = prevStepsRef.current;
@@ -3935,6 +3985,51 @@ export default function BookingClient({
     if (!timeChoice || !effectiveServiceDuration) return "";
     return addMinutes(timeChoice, effectiveServiceDuration);
   }, [timeChoice, effectiveServiceDuration]);
+  const summaryTimeLabel = timeChoice
+    ? `${timeChoice}${slotEnd ? `–${slotEnd}` : ""}`
+    : "—";
+  const mobilePlanLabel = chainSummaryItems.length
+    ? `${chainSummaryItems.length} услуг${chainComplete ? "" : ", заполните план"}`
+    : "—";
+  const mobileCurrentSummaryRows = (() => {
+    switch (currentStepKey) {
+      case "scenario":
+        return [{ label: "Сценарий", value: stepsWithScenario[stepIndex]?.title || "—" }];
+      case "location":
+        return [{ label: "Локация", value: selectedLocation?.name || "Выберите локацию" }];
+      case "datetime":
+        return [
+          { label: "Дата", value: summaryDateLabel || "—" },
+          { label: "Время", value: summaryTimeLabel },
+        ];
+      case "service":
+        return [{ label: "Услуга", value: summaryServiceLabel || "Выберите услугу" }];
+      case "specialist":
+        return [{ label: "Специалист", value: selectedSpecialist?.name || "Выберите специалиста" }];
+      case "chain":
+        return [{ label: "План визита", value: mobilePlanLabel }];
+      case "details":
+        return [];
+      default:
+        return [{ label: "Шаг", value: stepsWithScenario[stepIndex]?.title || "—" }];
+    }
+  })();
+  const mobileFinalSummaryRows = [
+    { label: "Локация", value: selectedLocation?.name || "—" },
+    { label: "Дата", value: summaryDateLabel || "—" },
+    { label: isVisitPlanMode ? "План визита" : "Услуга", value: isVisitPlanMode ? mobilePlanLabel : summaryServiceLabel || "—" },
+    { label: "Специалист", value: selectedSpecialist?.name || (isVisitPlanMode && !isSingleSpecialistPlanMode ? "По плану" : "—") },
+    { label: "Время", value: summaryTimeLabel },
+    { label: isVisitPlanMode ? "Итого" : "Стоимость", value: servicePriceLabel },
+  ];
+  const isMobileFinalSummary = currentStepKey === "details";
+  const mobileVisibleSummaryRows = isMobileFinalSummary
+    ? mobileSummaryExpanded
+      ? mobileFinalSummaryRows
+      : []
+    : mobileSummaryExpanded
+      ? mobileFinalSummaryRows
+      : mobileCurrentSummaryRows;
 
   const nameReady = clientName.trim().length >= 2;
   const isRuPhoneValid = (raw: string) => {
@@ -4315,6 +4410,7 @@ export default function BookingClient({
           payload: { participantId, groupSessionId: selectedGroupSessionId },
         });
         setSubmitSuccess(true);
+        setMobileSummaryExpanded(true);
         markGroupSessionBooked(selectedGroupSessionId);
         idempotencyKeyRef.current = null;
       } catch (error) {
@@ -4406,6 +4502,7 @@ export default function BookingClient({
         });
 
         setSubmitSuccess(true);
+        setMobileSummaryExpanded(true);
         idempotencyKeyRef.current = null;
         return;
       } catch (error) {
@@ -4499,6 +4596,7 @@ export default function BookingClient({
         payload: { appointmentId },
       });
       setSubmitSuccess(true);
+      setMobileSummaryExpanded(true);
       idempotencyKeyRef.current = null;
     } catch (error) {
       setSubmitError(humanizeBookingError(error));
@@ -4514,7 +4612,7 @@ export default function BookingClient({
       ? 0
       : stepIndex / (stepsWithScenario.length - 1);
   return (
-    <div className="booking-root min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
+    <div ref={bookingRootRef} className="booking-root min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
       <div className="mx-auto w-full p-0" style={{ maxWidth: "var(--bp-content-width, 1024px)" }}>
         <div className="h-0" />
 
@@ -4525,11 +4623,11 @@ export default function BookingClient({
           <SoftPanel className="booking-scenario-panel min-w-0 p-4 lg:col-start-1 lg:row-start-1">
             <div className="flex flex-col gap-4">
               <div className="w-full space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-[110px] text-right text-xs text-[color:var(--bp-muted)]">Сценарий записи</div>
-                  <div className="text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
+                <div className="booking-scenario-head flex items-center justify-between">
+                  <div className="booking-scenario-title w-[110px] text-right text-xs text-[color:var(--bp-muted)]">Сценарий записи</div>
+                  <div className="booking-scenario-hint text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
                 </div>
-                <div className="flex flex-wrap justify-start lg:justify-end">
+                <div className="booking-scenario-tabs-row flex flex-wrap justify-start lg:justify-end">
                   <div className="booking-scenario-shell flex w-full flex-wrap gap-1 rounded-2xl border p-1">
                     {[
                       { key: "dateFirst", label: "Дата" },
@@ -4554,17 +4652,17 @@ export default function BookingClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
+                <div className="booking-progress-row flex items-center gap-3">
+                  <div className="booking-progress-track flex-1">
                     <ProgressBar value={progress} />
                   </div>
-                  <div className="w-[120px] shrink-0 text-right text-xs text-[color:var(--bp-muted)]">
+                  <div className="booking-step-count w-[120px] shrink-0 text-right text-xs text-[color:var(--bp-muted)]">
                     Шаг {stepIndex + 1} из {stepsWithScenario.length}
                   </div>
                   <button
                     type="button"
                     onClick={resetAll}
-                    className="booking-nav-secondary-button w-[120px] shrink-0 rounded-2xl border px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
+                    className="booking-reset-button booking-nav-secondary-button w-[120px] shrink-0 rounded-2xl border px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
                   >
                     Сбросить
                   </button>
@@ -4574,7 +4672,7 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="booking-step-panel min-w-0 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
+          <SoftPanel ref={stepPanelRef} className="booking-step-panel min-w-0 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
             <div className="booking-step-header flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">
@@ -4876,7 +4974,7 @@ export default function BookingClient({
                     <div className="booking-service-toolbar flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 flex-1">
                         <div className="-mx-1 overflow-hidden px-1 sm:mx-0 sm:px-0">
-                          <div className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+                          <div className="booking-filter-scroll flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                           {serviceCategoryTabs.map((tab) => {
                             const active = selectedServiceCategory === tab.key;
                             return (
@@ -5020,10 +5118,10 @@ export default function BookingClient({
 
                 {currentStepKey === "specialist" && (
                   <div className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="booking-service-toolbar flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 flex-1">
                         <div className="-mx-1 overflow-hidden px-1 sm:mx-0 sm:px-0">
-                          <div className="flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+                          <div className="booking-filter-scroll flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                           {specialistCategoryTabs.map((tab) => {
                             const active = selectedSpecialistCategory === tab.key;
                             return (
@@ -5049,7 +5147,7 @@ export default function BookingClient({
                         value={specialistQuery}
                         onChange={(event) => setSpecialistQuery(event.target.value)}
                         placeholder="Поиск специалиста"
-                        className="h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm sm:w-[280px] sm:flex-none"
+                        className="booking-search-input h-10 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 text-sm sm:w-[280px] sm:flex-none"
                       />
                     </div>
 
@@ -5592,8 +5690,15 @@ export default function BookingClient({
             </div>
           </SoftPanel>
 
-          <SoftPanel className="booking-summary-panel min-w-0 p-4 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:h-full lg:self-stretch">
-            <div className="space-y-4">
+          <SoftPanel
+            ref={summaryPanelRef}
+            className={cn(
+              "booking-summary-panel min-w-0 p-4 sm:p-6 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:h-full lg:self-stretch",
+              isMobileFinalSummary ? "is-final" : "is-step",
+              mobileSummaryExpanded ? "is-expanded" : "is-collapsed"
+            )}
+          >
+            <div className="booking-summary-desktop space-y-4">
               <div className="text-base font-semibold">Сводка</div>
               <div className="space-y-2">
                 <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
@@ -5634,14 +5739,7 @@ export default function BookingClient({
                 ) : (
                   <>
                     <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
-                    <SummaryRow
-                      label="Время"
-                      value={
-                        timeChoice
-                          ? `${timeChoice}${slotEnd ? `–${slotEnd}` : ""}`
-                          : "—"
-                      }
-                    />
+                    <SummaryRow label="Время" value={summaryTimeLabel} />
                   </>
                 )}
                 <SummaryRow
@@ -5695,6 +5793,80 @@ export default function BookingClient({
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="booking-summary-mobile hidden">
+              <div className="booking-summary-mobile-head flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold">
+                  {mobileSummaryExpanded || isMobileFinalSummary ? "Сводка записи" : stepsWithScenario[stepIndex]?.title || "Сводка"}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileSummaryExpanded((value) => !value)}
+                  className="booking-nav-secondary-button rounded-2xl border px-3 py-1.5 text-xs"
+                  aria-expanded={mobileSummaryExpanded}
+                >
+                  {mobileSummaryExpanded ? "Свернуть" : "Развернуть"}
+                </button>
+              </div>
+
+              {mobileVisibleSummaryRows.length ? (
+                <div className="booking-summary-mobile-rows mt-2">
+                  {mobileVisibleSummaryRows.map((row) => (
+                    <SummaryRow key={row.label} label={row.label} value={row.value} />
+                  ))}
+                </div>
+              ) : null}
+
+              {isMobileFinalSummary && mobileSummaryExpanded ? (
+                <div className="booking-summary-mobile-feedback mt-2 space-y-1 text-xs text-[color:var(--bp-muted)]">
+                  {submitError && <div className="text-sm text-red-600">{submitError}</div>}
+                  {submitSuccess && (
+                    <div className="text-sm text-green-700">Запись оформлена</div>
+                  )}
+                  {groupAlreadyBooked && !submitSuccess && (
+                    <div className="text-xs text-amber-600">
+                      Вы уже бронировали этот групповой сеанс с этого устройства.
+                    </div>
+                  )}
+                  {!submitSuccess && !canSubmit && summaryHint ? (
+                    <>
+                      {submitBlockingReasons.map((reason, index) => (
+                        <div key={`${reason}-${index}`}>{reason}</div>
+                      ))}
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {isMobileFinalSummary ? (
+                <div className="booking-summary-mobile-action mt-3 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (submitSuccess) {
+                        resetAll();
+                        return;
+                      }
+                      if (!canSubmit) {
+                        setMobileSummaryExpanded(true);
+                        setSubmitError(
+                          summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
+                        );
+                        return;
+                      }
+                      void submitAppointment();
+                    }}
+                    disabled={submitSuccess ? false : submitting}
+                    aria-disabled={!submitSuccess && !canSubmit}
+                    className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
+                      !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </SoftPanel>
 

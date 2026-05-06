@@ -644,8 +644,13 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
   booking: {
     style: {
       ...defaultBlockStyle,
+      marginTop: 30,
+      marginBottom: 30,
       blockWidth: LEGACY_WIDTH_REFERENCE,
       blockWidthColumns: MAX_BLOCK_COLUMNS,
+      mobileBlockWidthColumns: BOOKING_MAX_BLOCK_COLUMNS,
+      radius: 5,
+      shadowSize: 0,
       headingSize: 18,
       subheadingSize: 16,
       textSize: 14,

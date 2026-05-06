@@ -37,6 +37,7 @@ import type {
 } from "@/features/site-builder/shared/site-data";
 import {
   BLOCK_OFFSET_STEP_PX,
+  BOOKING_MAX_BLOCK_COLUMNS,
   BLOCK_WIDTH_STEP,
   COVER_BACKGROUND_POSITION_VALUES,
   DEFAULT_BLOCK_COLUMNS,
@@ -2418,15 +2419,21 @@ export function buildBookingVars(style: BlockStyle, theme: SiteTheme, previewVie
       : style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     "booking"
   );
+  const mobileBlockWidthColumns = clampBlockColumns(
+    style.mobileBlockWidthColumns ?? BOOKING_MAX_BLOCK_COLUMNS,
+    "booking"
+  );
   const blockWidthVisualColumns = bookingContentColumns(blockWidthColumns);
+  const mobileBlockWidthVisualColumns = bookingContentColumns(mobileBlockWidthColumns);
   const bookingCardsColumns = bookingCardsPerRow(blockWidthColumns);
   const blockWidthPercent = (blockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
+  const mobileBlockWidthPercent = (mobileBlockWidthVisualColumns / MAX_BLOCK_COLUMNS) * 100;
   const palette = theme.mode === "dark" ? theme.darkPalette : theme.lightPalette;
-  const radius = style.radius ?? palette.radius ?? theme.radius;
+  const radius = style.radius ?? 5;
   const buttonRadius = style.buttonRadius ?? palette.buttonRadius ?? theme.buttonRadius;
   const cardRadius = style.cardRadius ?? 24;
   const bookingImageRadius = style.bookingImageRadius ?? Math.min(cardRadius, 18);
-  const shadowSize = style.shadowSize ?? palette.shadowSize ?? theme.shadowSize ?? 0;
+  const shadowSize = style.shadowSize ?? 0;
   const shadowColorRaw =
     style.shadowColor || palette.shadowColor || theme.shadowColor || "rgba(17, 24, 39, 0.12)";
   const shadowColor =
@@ -2650,6 +2657,7 @@ export function buildBookingVars(style: BlockStyle, theme: SiteTheme, previewVie
     "--bp-text-size-base": `${subheadingSize}px`,
     "--bp-text-size-lg": `${headingSize}px`,
     "--bp-content-width": `${blockWidthPercent}%`,
+    "--bp-content-width-mobile": `${mobileBlockWidthPercent}%`,
     "--bp-cards-cols": String(bookingCardsColumns),
   } as Record<string, string>;
 }

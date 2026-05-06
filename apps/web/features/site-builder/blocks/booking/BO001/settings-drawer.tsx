@@ -223,7 +223,7 @@ export function BO001SettingsDrawer({ block, activeTheme, activeSectionId, updat
       <div className="space-y-6 px-1 pb-8 pt-1">
         <div className="space-y-4">
           <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Панели</div>
-          {flatNumber("Радиус панелей", style.radius ?? activeTheme.radius ?? 24, (value) => updateStyle({ radius: value }), 0, 48)}
+          {flatNumber("Радиус панелей", style.radius ?? 5, (value) => updateStyle({ radius: value }), 0, 48)}
           <TildaBackgroundColorField
             label="Фон панелей"
             value={color("gradientFromLight", color("blockBgLight", "#ffffff"))}
@@ -241,7 +241,7 @@ export function BO001SettingsDrawer({ block, activeTheme, activeSectionId, updat
             onChange={(value) => updateStyle({ blockBgLight: value, blockBg: value, gradientFromLight: value })}
           />
           <TildaInlineColorField compact label="Обводка панелей" value={color("panelBorderColorLight", color("borderColorLight", activeTheme.borderColor))} placeholder={activeTheme.borderColor} onChange={(value) => updateStyle({ panelBorderColorLight: value })} onClear={() => updateStyle({ panelBorderColorLight: "transparent" })} />
-          {flatNumber("Размер тени", style.shadowSize ?? 5, (value) => updateStyle({ shadowSize: value }), 0, 48)}
+          {flatNumber("Размер тени", style.shadowSize ?? 0, (value) => updateStyle({ shadowSize: value }), 0, 48)}
           <TildaInlineColorField compact label="Цвет тени" value={color("shadowColor", "#111827")} placeholder="#111827" onChange={(value) => updateStyle({ shadowColor: value })} onClear={() => updateStyle({ shadowColor: "transparent" })} />
         </div>
 
