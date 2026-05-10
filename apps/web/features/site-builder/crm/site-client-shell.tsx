@@ -111,6 +111,24 @@ const isPageMenuItem = (item: PagesMenuItem): item is PageMenuItem => item.kind 
 const isEntityProfileMenuItem = (item: PagesMenuItem): item is EntityProfileMenuItem =>
   item.kind === "entity-profile";
 
+function buildCurrentPublicUrl(
+  publicSlug: string | null | undefined,
+  accountSlug: string,
+  activePage: SitePageKey,
+  currentEntity: CurrentEntity
+) {
+  if (!publicSlug) return null;
+  const basePath = `/${publicSlug}`;
+  if (currentEntity?.type === "location") return `${basePath}/locations/${currentEntity.id}`;
+  if (currentEntity?.type === "service") return `${basePath}/services/${currentEntity.id}`;
+  if (currentEntity?.type === "specialist") return `${basePath}/specialists/${currentEntity.id}`;
+  if (currentEntity?.type === "promo") return `${basePath}/promos/${currentEntity.id}`;
+  if (activePage === "home") return basePath;
+  if (activePage === "booking") return `${basePath}/booking`;
+  if (activePage === "client") return `/c?account=${accountSlug}`;
+  return `${basePath}/${activePage}`;
+}
+
 export default function SiteClient({
   initialActivePage = "home",
   initialPreviewMode = "desktop",
@@ -496,7 +514,7 @@ export default function SiteClient({
     animationMs: PANEL_ANIMATION_MS,
   });
 
-  const publicUrl = account.publicSlug ? `/${account.publicSlug}` : null;
+  const publicUrl = buildCurrentPublicUrl(account.publicSlug, account.slug, activePageKey, currentEntity);
   const projectTitle = account.name?.trim() || account.publicSlug || account.slug || "Мой сайт";
   const {
     pagesMenuOpen,
