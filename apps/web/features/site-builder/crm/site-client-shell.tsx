@@ -149,6 +149,7 @@ export default function SiteClient({
   const [editableLocations, setEditableLocations] = useState<LocationItem[]>(locations);
   const [services, setServices] = useState<ServiceItem[]>(initialServices);
   const [specialists, setSpecialists] = useState<SpecialistItem[]>(initialSpecialists);
+  const [publishedPageUrl, setPublishedPageUrl] = useState<string | null>(null);
   const {
     draft,
     setDraft,
@@ -492,6 +493,48 @@ export default function SiteClient({
     setMessage,
     setPublicPage,
   });
+  const hasMountedDraftAutosaveRef = useRef(false);
+  const draftAutosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveDraftSilentlyRef = useRef(saveDraftSilently);
+
+  useEffect(() => {
+    saveDraftSilentlyRef.current = saveDraftSilently;
+  }, [saveDraftSilently]);
+
+  useEffect(() => {
+    const flushDraft = () => {
+      if (!hasMountedDraftAutosaveRef.current) return;
+      if (draftAutosaveTimerRef.current) {
+        clearTimeout(draftAutosaveTimerRef.current);
+        draftAutosaveTimerRef.current = null;
+      }
+      void saveDraftSilentlyRef.current({ keepalive: true });
+    };
+    window.addEventListener("pagehide", flushDraft);
+    window.addEventListener("beforeunload", flushDraft);
+    return () => {
+      window.removeEventListener("pagehide", flushDraft);
+      window.removeEventListener("beforeunload", flushDraft);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasMountedDraftAutosaveRef.current) {
+      hasMountedDraftAutosaveRef.current = true;
+      return;
+    }
+    if (draftAutosaveTimerRef.current) {
+      clearTimeout(draftAutosaveTimerRef.current);
+    }
+    draftAutosaveTimerRef.current = setTimeout(() => {
+      void saveDraftSilentlyRef.current();
+    }, 800);
+    return () => {
+      if (draftAutosaveTimerRef.current) {
+        clearTimeout(draftAutosaveTimerRef.current);
+      }
+    };
+  }, [draft]);
   const {
     isRightPanelVisible,
     showPanelExitConfirm,
@@ -570,9 +613,70 @@ export default function SiteClient({
   const selectedBlockVersion = selectedBlock ? resolveBlockVersion({ block: selectedBlock }) : null;
   const floatingPanelsTop = rightPanel ? 0 : 56;
   const builderCanvasBg = activeTheme.mode === "dark" ? "#111318" : "#f6f7f9";
+  const publishEntity =
+    currentEntity?.type === "location"
+      ? { type: "locations" as const, id: currentEntity.id }
+      : currentEntity?.type === "service"
+        ? { type: "services" as const, id: currentEntity.id }
+        : currentEntity?.type === "specialist"
+          ? { type: "specialists" as const, id: currentEntity.id }
+          : currentEntity?.type === "promo"
+            ? { type: "promos" as const, id: currentEntity.id }
+            : null;
+  const handlePublishCurrentPage = async () => {
+    if (!publicUrl) return;
+    const ok = await savePublic(true, {
+      pageKey: activePageKey,
+      entity: publishEntity,
+    });
+    if (ok) {
+      const absoluteUrl =
+        typeof window === "undefined" ? publicUrl : new URL(publicUrl, window.location.origin).toString();
+      setPublishedPageUrl(absoluteUrl);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
+      {publishedPageUrl && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center bg-black/30 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="published-page-title"
+          onClick={() => setPublishedPageUrl(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-6 text-[color:var(--bp-ink)] shadow-[var(--bp-shadow)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div id="published-page-title" className="text-lg font-semibold">
+              Страница опубликована!
+            </div>
+            <div className="mt-4 text-sm text-[color:var(--bp-muted)]">Ссылка настраницу:</div>
+            <div className="mt-2 break-all text-sm font-semibold">
+              {publishedPageUrl}
+            </div>
+            <a
+              href={publishedPageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex rounded-md bg-[color:var(--bp-accent)] px-8 py-3 text-base font-semibold text-white"
+            >
+              Открыть страницу
+            </a>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPublishedPageUrl(null)}
+                className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {message && (
         <div
           role="status"
@@ -866,23 +970,15 @@ export default function SiteClient({
               </svg>
             </button>
             {publicUrl && (
-              <a
-                href={publicUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-5 py-2 text-sm"
+              <button
+                type="button"
+                onClick={handlePublishCurrentPage}
+                className="rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={saving === "public"}
               >
-                Открыть сайт
-              </a>
+                Опубликовать
+              </button>
             )}
-            <button
-              type="button"
-              onClick={() => savePublic(true)}
-              className="rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white"
-              disabled={saving === "public"}
-            >
-              Опубликовать
-            </button>
           </div>
         </div>
         </div>

@@ -21,6 +21,14 @@ type SetDraftTracked = (
   options?: { recordHistory?: boolean; groupKey?: string }
 ) => void;
 
+type PublishScope = {
+  pageKey?: SitePageKey;
+  entity?: {
+    type: "locations" | "services" | "specialists" | "promos";
+    id: string | number;
+  } | null;
+};
+
 type BuildEditorActionsArgs = {
   accountName: string;
   activePage: SitePageKey;
@@ -354,7 +362,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     }
   };
 
-  const savePublic = async (publish: boolean): Promise<boolean> => {
+  const savePublic = async (publish: boolean, scope?: PublishScope): Promise<boolean> => {
     args.setSaving("public");
     args.setMessage(null);
     const currentDraft = args.draftRef.current;
@@ -363,7 +371,12 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
       const response = await fetch("/api/v1/crm/settings/public-page", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftJson: payloadDraft, publish }),
+        body: JSON.stringify({
+          draftJson: payloadDraft,
+          publish,
+          publishPage: scope?.pageKey,
+          publishEntity: scope?.entity ?? null,
+        }),
       });
       if (response.ok) {
         const data = await response.json();
@@ -381,13 +394,14 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     }
   };
 
-  const saveDraftSilently = async () => {
+  const saveDraftSilently = async (options?: { keepalive?: boolean }) => {
     const currentDraft = args.draftRef.current;
     const payloadDraft = { ...currentDraft, blocks: currentDraft.pages?.home ?? currentDraft.blocks };
     try {
       const response = await fetch("/api/v1/crm/settings/public-page", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        keepalive: options?.keepalive,
         body: JSON.stringify({ draftJson: payloadDraft, publish: false }),
       });
       if (!response.ok) return;

@@ -9,6 +9,7 @@ import {
   type SiteDraft,
   type SitePageKey,
 } from "@/lib/site-builder";
+import { ProjectPublishButton } from "./project-publish-button";
 
 const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
@@ -30,6 +31,21 @@ const PAGE_KEYS: SitePageKey[] = [
   "promos",
 ];
 
+const getPageBlocksSnapshot = (draft: SiteDraft, key: SitePageKey) =>
+  key === "home" ? draft.pages?.home ?? draft.blocks : draft.pages?.[key] ?? [];
+
+const hasUnpublishedPageChanges = (
+  draft: SiteDraft,
+  publishedDraft: SiteDraft | null,
+  key: SitePageKey
+) => {
+  if (!publishedDraft) return (draft.pages?.[key]?.length ?? 0) > 0;
+  return (
+    JSON.stringify(getPageBlocksSnapshot(draft, key)) !==
+    JSON.stringify(getPageBlocksSnapshot(publishedDraft, key))
+  );
+};
+
 export default async function CrmSiteProjectPage() {
   const session = await requireCrmPermission("crm.settings.read");
 
@@ -45,6 +61,11 @@ export default async function CrmSiteProjectPage() {
       draftJson: true,
       status: true,
       updatedAt: true,
+      publishedVersion: {
+        select: {
+          contentJson: true,
+        },
+      },
     },
   });
 
@@ -63,10 +84,18 @@ export default async function CrmSiteProjectPage() {
           draftJson: true,
           status: true,
           updatedAt: true,
+          publishedVersion: {
+            select: {
+              contentJson: true,
+            },
+          },
         },
       });
 
   const safeDraft = normalizeDraft((page.draftJson ?? defaultDraft) as SiteDraft, accountName);
+  const publishedDraft = page.publishedVersion?.contentJson
+    ? normalizeDraft(page.publishedVersion.contentJson as SiteDraft, accountName)
+    : null;
 
   const [locationsCount, servicesCount, specialistsCount, promosCount] = await Promise.all([
     prisma.location.count({ where: { accountId: session.accountId } }),
@@ -120,22 +149,33 @@ export default async function CrmSiteProjectPage() {
       <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 sm:p-6">
         <div className="mb-4 text-sm font-medium text-[color:var(--bp-muted)]">Страницы проекта</div>
         <div className="divide-y divide-[color:var(--bp-stroke)]">
-          {availablePageKeys.map((key) => (
-            <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div>
-                <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{PAGE_LABELS[key]}</div>
-                <div className="text-xs text-[color:var(--bp-muted)]">
-                  Блоков в странице: {safeDraft.pages?.[key]?.length ?? 0}
+          {availablePageKeys.map((key) => {
+            const hasUnpublishedChanges = hasUnpublishedPageChanges(safeDraft, publishedDraft, key);
+            return (
+              <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div>
+                  <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{PAGE_LABELS[key]}</div>
+                  <div className="text-xs text-[color:var(--bp-muted)]">
+                    Блоков в странице: {safeDraft.pages?.[key]?.length ?? 0}
+                  </div>
+                  {hasUnpublishedChanges && (
+                    <div className="mt-1 text-xs font-medium text-[#b45309]">
+                      Последние изменения не опубликованы
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/crm/site?page=${key}`}
+                    className="rounded-full border border-[color:var(--bp-stroke)] px-4 py-2 text-sm hover:bg-[color:var(--bp-paper)]"
+                  >
+                    Редактировать
+                  </Link>
+                  <ProjectPublishButton draftJson={safeDraft} pageKey={key} />
                 </div>
               </div>
-              <Link
-                href={`/crm/site?page=${key}`}
-                className="rounded-full border border-[color:var(--bp-stroke)] px-4 py-2 text-sm hover:bg-[color:var(--bp-paper)]"
-              >
-                Редактировать
-              </Link>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

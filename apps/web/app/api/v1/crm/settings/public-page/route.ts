@@ -1,7 +1,15 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
-import { createDefaultDraft, DEFAULT_ACCOUNT_NAME, normalizeDraft, type SiteDraft } from "@/lib/site-builder";
+import {
+  createDefaultDraft,
+  DEFAULT_ACCOUNT_NAME,
+  normalizeDraft,
+  type SiteDraft,
+  type SiteEntityPages,
+  type SitePages,
+  type SitePageKey,
+} from "@/lib/site-builder";
 import { Prisma } from "@prisma/client";
 
 const parseJson = (value: unknown) => {
@@ -44,8 +52,9 @@ async function ensurePage(accountId: number) {
   });
 }
 
-async function publishPage(pageId: number, draftJson: object) {
+async function publishPage(pageId: number, contentJson: object, draftJson: object = contentJson) {
   let lastError: unknown = null;
+  const contentJsonInput = contentJson as Prisma.InputJsonValue;
   const draftJsonInput = draftJson as Prisma.InputJsonValue;
 
   for (let attempt = 0; attempt < MAX_PUBLISH_RETRIES; attempt += 1) {
@@ -61,7 +70,7 @@ async function publishPage(pageId: number, draftJson: object) {
             data: {
               publicPageId: pageId,
               version: nextVersion,
-              contentJson: draftJsonInput,
+              contentJson: contentJsonInput,
             },
           });
 
@@ -85,6 +94,74 @@ async function publishPage(pageId: number, draftJson: object) {
   }
 
   throw (lastError as Error) ?? new Error("Publish failed");
+}
+
+const SITE_PAGE_KEYS = new Set<SitePageKey>([
+  "home",
+  "booking",
+  "client",
+  "locations",
+  "services",
+  "specialists",
+  "promos",
+]);
+
+const ENTITY_PAGE_KEYS = new Set<keyof SiteEntityPages>([
+  "locations",
+  "services",
+  "specialists",
+  "promos",
+]);
+
+function mergePublishedPageDraft(
+  baseDraft: SiteDraft,
+  currentDraft: SiteDraft,
+  pageKey: SitePageKey,
+  entity: { type: keyof SiteEntityPages; id: string } | null
+): SiteDraft {
+  const next: SiteDraft = JSON.parse(JSON.stringify(baseDraft)) as SiteDraft;
+
+  if (entity && ENTITY_PAGE_KEYS.has(entity.type)) {
+    const sourceBlocks =
+      currentDraft.entityPages?.[entity.type]?.[entity.id] ??
+      currentDraft.pages?.[pageKey] ??
+      [];
+    next.entityPages = { ...(next.entityPages ?? {}) };
+    next.entityPages[entity.type] = {
+      ...(next.entityPages[entity.type] ?? {}),
+      [entity.id]: sourceBlocks,
+    };
+  } else {
+    const sourceBlocks =
+      pageKey === "home"
+        ? currentDraft.pages?.home ?? currentDraft.blocks
+        : currentDraft.pages?.[pageKey] ?? [];
+    const basePages: SitePages = next.pages ?? currentDraft.pages ?? {
+      home: next.blocks,
+      booking: [],
+      client: [],
+      locations: [],
+      services: [],
+      specialists: [],
+      promos: [],
+    };
+    next.pages = {
+      ...basePages,
+      [pageKey]: sourceBlocks,
+    };
+    if (pageKey === "home") {
+      next.blocks = sourceBlocks;
+    }
+  }
+
+  if (currentDraft.pageThemes?.[pageKey]) {
+    next.pageThemes = {
+      ...(next.pageThemes ?? {}),
+      [pageKey]: currentDraft.pageThemes[pageKey],
+    };
+  }
+
+  return next;
 }
 
 export async function GET() {
@@ -128,9 +205,48 @@ export async function PATCH(request: Request) {
   const rawDraftJson = parseJson(body.draftJson) ?? parseJson(page.draftJson) ?? {};
   const draftJson = normalizeDraft(rawDraftJson as SiteDraft, accountName);
   const publish = body.publish === true;
+  const publishPageRaw = typeof body.publishPage === "string" ? body.publishPage : "";
+  const publishPageKey = SITE_PAGE_KEYS.has(publishPageRaw as SitePageKey)
+    ? (publishPageRaw as SitePageKey)
+    : null;
+  const publishEntityRaw =
+    body.publishEntity && typeof body.publishEntity === "object"
+      ? (body.publishEntity as Record<string, unknown>)
+      : null;
+  const publishEntityType: keyof SiteEntityPages | null =
+    publishEntityRaw?.type === "locations" ||
+    publishEntityRaw?.type === "services" ||
+    publishEntityRaw?.type === "specialists" ||
+    publishEntityRaw?.type === "promos"
+      ? publishEntityRaw.type
+      : null;
+  const publishEntityId =
+    typeof publishEntityRaw?.id === "string" || typeof publishEntityRaw?.id === "number"
+      ? String(publishEntityRaw.id)
+      : "";
+  const publishEntity =
+    publishEntityType && publishEntityId ? { type: publishEntityType, id: publishEntityId } : null;
+
+  let publishedDraftJson = draftJson;
+  if (publish && publishPageKey) {
+    const publishedVersion = page.publishedVersionId
+      ? await prisma.publicPageVersion.findUnique({
+          where: { id: page.publishedVersionId },
+          select: { contentJson: true },
+        })
+      : null;
+    const baseDraft = normalizeDraft(
+      (publishedVersion?.contentJson ?? createDefaultDraft(accountName)) as SiteDraft,
+      accountName
+    );
+    publishedDraftJson = normalizeDraft(
+      mergePublishedPageDraft(baseDraft, draftJson, publishPageKey, publishEntity),
+      accountName
+    );
+  }
 
   const updated = publish
-    ? await publishPage(page.id, draftJson)
+    ? await publishPage(page.id, publishedDraftJson, draftJson)
     : await prisma.publicPage.update({
         where: { id: page.id },
         data: { draftJson: draftJson as Prisma.InputJsonValue },
