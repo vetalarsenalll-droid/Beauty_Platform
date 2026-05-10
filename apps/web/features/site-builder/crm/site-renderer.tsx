@@ -1907,6 +1907,26 @@ export function BlockPreview({
   const isAisha = block.type === "aisha";
   const isLoader = block.type === "loader";
   const isServices = block.type === "services" || block.type === "specialists" || block.type === "locations";
+  const isFlatSection =
+    block.type === "about" ||
+    block.type === "heading" ||
+    block.type === "text" ||
+    block.type === "image" ||
+    block.type === "gallery" ||
+    block.type === "form" ||
+    block.type === "button" ||
+    block.type === "advantages" ||
+    block.type === "project" ||
+    block.type === "footer" ||
+    block.type === "team" ||
+    block.type === "news" ||
+    block.type === "widget" ||
+    block.type === "locationProfile" ||
+    block.type === "serviceProfile" ||
+    block.type === "specialistProfile" ||
+    block.type === "reviews" ||
+    block.type === "contacts" ||
+    block.type === "promos";
   const coverData = isCover ? (block.data as Record<string, unknown>) : null;
   const coverScrollEffect =
     coverData?.coverScrollEffect === "fixed" || coverData?.coverScrollEffect === "parallax"
@@ -1996,7 +2016,7 @@ export function BlockPreview({
     : "none";
   const blockFont = style.fontBody || theme.fontBody;
   const loaderUsesCustomWidth = isLoader && Boolean(style.useCustomWidth) && Boolean(style.blockWidthColumns);
-  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices
+  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -2075,20 +2095,20 @@ export function BlockPreview({
       }}
       className={`text-left relative${block.type === "booking" ? " booking-preview" : ""}`}
       style={{
-        width: isGallery || isBooking || isMenu || isCover || isAisha || isServices || (isLoader && !loaderUsesCustomWidth)
+        width: isGallery || isBooking || isMenu || isCover || isAisha || isServices || isFlatSection || (isLoader && !loaderUsesCustomWidth)
           ? "100%"
           : gridWidthPercent,
         maxWidth: "100%",
-        marginLeft: isGallery || isBooking || isMenu || isCover || isAisha || isServices || (isLoader && !loaderUsesCustomWidth)
+        marginLeft: isGallery || isBooking || isMenu || isCover || isAisha || isServices || isFlatSection || (isLoader && !loaderUsesCustomWidth)
           ? "auto"
           : gridLeftPercent,
-        marginRight: isGallery || isBooking || isMenu || isCover || isAisha || isServices || (isLoader && !loaderUsesCustomWidth)
+        marginRight: isGallery || isBooking || isMenu || isCover || isAisha || isServices || isFlatSection || (isLoader && !loaderUsesCustomWidth)
           ? "auto"
           : 0,
-        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices ? style.marginBottom : undefined,
+        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? style.marginBottom : undefined,
         backgroundColor: isLoader
           ? "transparent"
           : isMenu
@@ -2097,7 +2117,7 @@ export function BlockPreview({
             ? "transparent"
           : isCover
             ? coverBackground.backgroundColor
-          : isServices || isBooking
+          : isServices || isBooking || isFlatSection
               ? servicesSectionBackground.backgroundColor
             : sectionBg,
         backgroundImage: isLoader
@@ -2106,14 +2126,14 @@ export function BlockPreview({
             ? coverBackground.backgroundImage
           : isMenu
             ? menuSectionBackground.backgroundImage
-            : isServices || isBooking
+            : isServices || isBooking || isFlatSection
               ? servicesSectionBackground.backgroundImage
             : "none",
       }}
     >
       <div
         style={
-          isGallery && !isFullscreenGallery
+          (isGallery && !isFullscreenGallery) || isFlatSection
             ? {
                 width: gridWidthPercent,
                 maxWidth: "100%",
@@ -2126,23 +2146,23 @@ export function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader || isServices ? 0 : blockRadius,
-            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader || isServices
+            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? 0 : blockRadius,
+            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader || isServices
+            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isGallery || isCover || isAisha || isLoader || isServices || shadowSize <= 0
+              isBooking || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-ink" as string]: textColor,
@@ -2375,6 +2395,36 @@ export function renderBlock(
       );
     case "about":
       return renderAbout(block, account, accountProfile, theme, style);
+    case "heading":
+      return renderHeadingBlock(block, theme, style);
+    case "text":
+      return renderTextBlock(block, theme, style);
+    case "image":
+      return renderImageBlock(block, theme, style);
+    case "gallery":
+      return renderManualGalleryBlock(block, theme, style, previewViewportWidth);
+    case "form":
+      return renderFormBlock(block, theme, style);
+    case "button":
+      return renderButtonBlock(block, account, theme, style);
+    case "advantages":
+      return renderAdvantagesBlock(block, theme, style, previewViewportWidth);
+    case "project":
+      return renderProjectBlock(block, theme, style, previewViewportWidth);
+    case "footer":
+      return renderFooterBlock(block, account, accountProfile, locations, theme, style, previewViewportWidth);
+    case "team":
+      return renderTeamBlock(block, account, locations, specialists, theme, style, currentEntity, previewViewportWidth);
+    case "news":
+      return renderNewsBlock(block, theme, style, previewViewportWidth);
+    case "widget":
+      return renderWidgetBlock(block, theme, style);
+    case "locationProfile":
+      return renderLocationProfileBlock(block, account, accountProfile, locations, services, specialists, theme, style, currentEntity, previewViewportWidth);
+    case "serviceProfile":
+      return renderServiceProfileBlock(block, account, locations, services, specialists, theme, style, currentEntity, previewViewportWidth);
+    case "specialistProfile":
+      return renderSpecialistProfileBlock(block, account, locations, services, specialists, theme, style, currentEntity, previewViewportWidth);
     case "client":
       return renderClient(block, account, theme, style);
     case "booking":
@@ -6793,6 +6843,302 @@ export function renderReviews(
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+const asString = (value: unknown, fallback = "") =>
+  typeof value === "string" ? value : fallback;
+
+const asArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+function simpleGridClass(previewViewportWidth: number | undefined, desktopCols: 2 | 3) {
+  return resolvePreviewGridClassName(previewViewportWidth, `md:grid-cols-${desktopCols}`, desktopCols);
+}
+
+export function renderHeadingBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const eyebrow = asString(data.eyebrow).trim();
+  const title = asString(data.title, "Заголовок").trim();
+  const subtitle = asString(data.subtitle).trim();
+  return (
+    <div className="mx-auto max-w-4xl text-center">
+      {eyebrow && <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">{eyebrow}</div>}
+      <h2 className="font-semibold" style={headingStyle(style, theme)}>{title}</h2>
+      {subtitle && <p className="mt-3 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</p>}
+    </div>
+  );
+}
+
+export function renderTextBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const title = asString(data.title).trim();
+  const text = asString(data.text).trim();
+  const columns = Number(data.columns) === 2 ? 2 : 1;
+  return (
+    <div>
+      {title && <h3 className="font-semibold" style={headingStyle(style, theme)}>{title}</h3>}
+      {text && (
+        <div
+          className={`${title ? "mt-4" : ""} whitespace-pre-line text-[color:var(--bp-muted)] ${columns === 2 ? "md:columns-2 md:gap-10" : ""}`}
+          style={textStyle(style, theme)}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function renderImageBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const imageUrl = asString(data.imageUrl).trim();
+  const title = asString(data.title).trim();
+  const subtitle = asString(data.subtitle).trim();
+  const imageFit = data.imageFit === "contain" ? "contain" : "cover";
+  const aspectRatio = asString(data.imageAspectRatio, "16 / 9");
+  return (
+    <div>
+      {title && <h3 className="font-semibold" style={headingStyle(style, theme)}>{title}</h3>}
+      {subtitle && <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</p>}
+      <div className={`${title || subtitle ? "mt-5" : ""} overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]`} style={{ borderRadius: style.radius ?? theme.radius, aspectRatio }}>
+        {imageUrl ? (
+          <img src={imageUrl} alt={asString(data.alt, title)} className="h-full w-full" style={{ objectFit: imageFit }} />
+        ) : (
+          <div className="flex h-full min-h-[220px] items-center justify-center text-sm text-[color:var(--bp-muted)]">Добавьте изображение</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function renderManualGalleryBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const images = asArray<{ url?: string; alt?: string }>(data.images).filter((item) => asString(item.url).trim());
+  const title = asString(data.title, "Галерея").trim();
+  const subtitle = asString(data.subtitle).trim();
+  const aspectRatio = asString(data.imageAspectRatio, "1 / 1");
+  return (
+    <div>
+      {title && <h3 className="font-semibold" style={headingStyle(style, theme)}>{title}</h3>}
+      {subtitle && <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</p>}
+      <div className={`mt-5 grid gap-4 ${simpleGridClass(previewViewportWidth, 3)}`}>
+        {(images.length ? images : [{}, {}, {}]).map((image, index) => (
+          <div key={index} className="overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]" style={{ borderRadius: style.cardRadius ?? style.radius ?? theme.radius, aspectRatio }}>
+            {image.url ? <img src={image.url} alt={image.alt ?? ""} className="h-full w-full object-cover" /> : <div className="flex h-full min-h-[160px] items-center justify-center text-sm text-[color:var(--bp-muted)]">Фото</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function renderFormBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const fields = asArray<string>(data.fields);
+  const title = asString(data.title, "Оставить заявку");
+  const subtitle = asString(data.subtitle);
+  const labelByField: Record<string, string> = { name: "Имя", phone: "Телефон", email: "Email", comment: "Комментарий" };
+  return (
+    <div className="mx-auto max-w-2xl">
+      <h3 className="font-semibold" style={headingStyle(style, theme)}>{title}</h3>
+      {subtitle && <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</p>}
+      <form className="mt-5 space-y-3">
+        {(fields.length ? fields : ["name", "phone", "comment"]).map((field) => (
+          field === "comment" ? (
+            <textarea key={field} rows={4} placeholder={labelByField[field] ?? field} className="w-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm outline-none" style={{ borderRadius: style.buttonRadius ?? theme.buttonRadius }} />
+          ) : (
+            <input key={field} placeholder={labelByField[field] ?? field} className="w-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm outline-none" style={{ borderRadius: style.buttonRadius ?? theme.buttonRadius }} />
+          )
+        ))}
+        <button type="button" className="px-5 py-3 text-sm font-semibold" style={{ backgroundColor: style.buttonColor || theme.buttonColor, color: style.buttonTextColor || theme.buttonTextColor, borderRadius: style.buttonRadius ?? theme.buttonRadius }}>
+          {asString(data.buttonText, "Отправить")}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export function renderButtonBlock(block: SiteBlock, account: AccountInfo, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const align = data.align === "left" || data.align === "right" ? data.align : "center";
+  const page = asString(data.page);
+  const href =
+    asString(data.href).trim() ||
+    (page === "booking"
+      ? buildBookingLink({ publicSlug: account.publicSlug || account.slug })
+      : "#");
+  return (
+    <div className={align === "left" ? "text-left" : align === "right" ? "text-right" : "text-center"}>
+      <a href={href} className="inline-flex px-6 py-3 text-sm font-semibold" style={{ backgroundColor: style.buttonColor || theme.buttonColor, color: style.buttonTextColor || theme.buttonTextColor, borderRadius: style.buttonRadius ?? theme.buttonRadius }}>
+        {asString(data.text, "Записаться")}
+      </a>
+    </div>
+  );
+}
+
+export function renderAdvantagesBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const items = asArray<{ title?: string; text?: string }>(data.items);
+  return (
+    <div>
+      <h3 className="font-semibold" style={headingStyle(style, theme)}>{asString(data.title, "Преимущества")}</h3>
+      {asString(data.subtitle) && <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{asString(data.subtitle)}</p>}
+      <div className={`mt-5 grid gap-4 ${simpleGridClass(previewViewportWidth, 3)}`}>
+        {items.map((item, index) => (
+          <div key={index} className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5" style={{ borderRadius: style.cardRadius ?? style.radius ?? theme.radius }}>
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{item.title}</div>
+            {item.text && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{item.text}</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function renderProjectBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const imageUrl = asString(data.imageUrl).trim();
+  const isNarrow = typeof previewViewportWidth === "number" && previewViewportWidth < 760;
+  return (
+    <div className={`grid gap-6 ${isNarrow ? "grid-cols-1" : "md:grid-cols-2"} items-center`}>
+      <div>
+        <h3 className="font-semibold" style={headingStyle(style, theme)}>{asString(data.title, "О проекте")}</h3>
+        <p className="mt-4 whitespace-pre-line text-[color:var(--bp-muted)]" style={textStyle(style, theme)}>{asString(data.text)}</p>
+      </div>
+      <div className="overflow-hidden bg-[color:var(--bp-paper)]" style={{ borderRadius: style.radius ?? theme.radius, aspectRatio: "4 / 3" }}>
+        {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-[color:var(--bp-muted)]">Изображение проекта</div>}
+      </div>
+    </div>
+  );
+}
+
+export function renderFooterBlock(block: SiteBlock, account: AccountInfo, accountProfile: AccountProfile, locations: LocationItem[], theme: SiteTheme, style: BlockStyle, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const location = locations[0];
+  const socialUrls: Record<string, string | undefined> = {
+    website: accountProfile.websiteUrl,
+    instagram: accountProfile.instagramUrl,
+    whatsapp: accountProfile.whatsappUrl,
+    telegram: accountProfile.telegramUrl,
+    max: accountProfile.maxUrl,
+    vk: accountProfile.vkUrl,
+    viber: accountProfile.viberUrl,
+    pinterest: accountProfile.pinterestUrl,
+    facebook: accountProfile.facebookUrl,
+    tiktok: accountProfile.tiktokUrl,
+    youtube: accountProfile.youtubeUrl,
+    twitter: accountProfile.twitterUrl,
+    dzen: accountProfile.dzenUrl,
+    ok: accountProfile.okUrl,
+  };
+  return (
+    <footer className={`grid gap-5 ${simpleGridClass(previewViewportWidth, 3)}`}>
+      <div>
+        <h3 className="font-semibold" style={headingStyle(style, theme)}>{asString(data.title, account.name)}</h3>
+        {asString(data.subtitle) && <p className="mt-2 text-[color:var(--bp-muted)]">{asString(data.subtitle)}</p>}
+      </div>
+      <div className="space-y-2 text-sm text-[color:var(--bp-muted)]">
+        {data.showPhone !== false && accountProfile.phone && <div>{accountProfile.phone}</div>}
+        {data.showEmail !== false && accountProfile.email && <div>{accountProfile.email}</div>}
+        {data.showAddress !== false && (accountProfile.address || location?.address) && <div>{accountProfile.address || location?.address}</div>}
+      </div>
+      {data.showSocials !== false && (
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(SOCIAL_LABELS).map(([key, label]) => {
+            const url = socialUrls[key];
+            return url ? <a key={key} href={String(url)} className="border border-[color:var(--bp-stroke)] px-3 py-2 text-xs text-[color:var(--bp-ink)]" style={{ borderRadius: style.buttonRadius ?? theme.buttonRadius }}>{label}</a> : null;
+          })}
+        </div>
+      )}
+    </footer>
+  );
+}
+
+export function renderTeamBlock(block: SiteBlock, account: AccountInfo, locations: LocationItem[], specialists: SpecialistItem[], theme: SiteTheme, style: BlockStyle, currentEntity: CurrentEntity, previewViewportWidth?: number) {
+  return renderSpecialists(
+    { ...block, type: "specialists", data: { ...block.data, showSearch: false, showSort: false, showCategoryTabs: false } },
+    account,
+    locations,
+    specialists,
+    theme,
+    style,
+    currentEntity,
+    previewViewportWidth
+  );
+}
+
+export function renderNewsBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const items = asArray<{ title?: string; text?: string; date?: string }>(data.items);
+  return (
+    <div>
+      <h3 className="font-semibold" style={headingStyle(style, theme)}>{asString(data.title, "Новости")}</h3>
+      {asString(data.subtitle) && <p className="mt-2 text-[color:var(--bp-muted)]">{asString(data.subtitle)}</p>}
+      <div className={`mt-5 grid gap-4 ${simpleGridClass(previewViewportWidth, 3)}`}>
+        {items.map((item, index) => (
+          <article key={index} className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5" style={{ borderRadius: style.cardRadius ?? style.radius ?? theme.radius }}>
+            {item.date && <div className="mb-2 text-xs text-[color:var(--bp-muted)]">{item.date}</div>}
+            <h4 className="font-semibold text-[color:var(--bp-ink)]">{item.title}</h4>
+            {item.text && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{item.text}</p>}
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function renderWidgetBlock(block: SiteBlock, theme: SiteTheme, style: BlockStyle) {
+  const data = block.data as Record<string, unknown>;
+  const embedCode = asString(data.embedCode).trim();
+  return (
+    <div className="border border-dashed border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 text-sm text-[color:var(--bp-muted)]" style={{ borderRadius: style.radius ?? theme.radius }}>
+      <div className="font-semibold text-[color:var(--bp-ink)]">{asString(data.title, "Виджет")}</div>
+      <div className="mt-2">{embedCode ? "Код виджета сохранен. Публичное выполнение внешнего кода будет подключено отдельной безопасной настройкой." : asString(data.fallbackText, "Здесь будет внешний виджет.")}</div>
+    </div>
+  );
+}
+
+export function renderLocationProfileBlock(block: SiteBlock, account: AccountInfo, accountProfile: AccountProfile, locations: LocationItem[], services: ServiceItem[], specialists: SpecialistItem[], theme: SiteTheme, style: BlockStyle, currentEntity: CurrentEntity, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const id = Number(data.locationId) || (currentEntity?.type === "location" ? currentEntity.id : null);
+  const location = locations.find((item) => item.id === id) ?? locations[0];
+  if (!location) return renderContacts(block, account, accountProfile, locations, theme, style, previewViewportWidth);
+  const scopedServices = services.filter((service) => service.locationIds.includes(location.id));
+  const scopedSpecialists = specialists.filter((specialist) => specialist.locationIds.includes(location.id));
+  return (
+    <div className="space-y-8">
+      {renderLocations({ ...block, type: "locations", data: { ...block.data, mode: "selected", ids: [location.id], showSearch: false } }, account, accountProfile, [location], theme, style, currentEntity, previewViewportWidth)}
+      {data.showServices !== false && renderServices({ ...block, type: "services", data: { title: "Услуги локации", mode: "all", showSearch: false, showSort: false, showCategoryTabs: false } }, account, [location], scopedServices, theme, style, currentEntity, previewViewportWidth)}
+      {data.showSpecialists !== false && renderSpecialists({ ...block, type: "specialists", data: { title: "Специалисты локации", mode: "all", showSearch: false, showSort: false, showCategoryTabs: false } }, account, [location], scopedSpecialists, theme, style, currentEntity, previewViewportWidth)}
+    </div>
+  );
+}
+
+export function renderServiceProfileBlock(block: SiteBlock, account: AccountInfo, locations: LocationItem[], services: ServiceItem[], specialists: SpecialistItem[], theme: SiteTheme, style: BlockStyle, currentEntity: CurrentEntity, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const id = Number(data.serviceId) || (currentEntity?.type === "service" ? currentEntity.id : null);
+  const service = services.find((item) => item.id === id) ?? services[0];
+  if (!service) return renderTextBlock({ ...block, data: { title: "Услуга не выбрана", text: "Выберите услугу в настройках блока." } }, theme, style);
+  const scopedSpecialists = specialists.filter((item) => service.specialistIds?.includes(item.id));
+  return (
+    <div className="space-y-8">
+      {renderServices({ ...block, type: "services", data: { ...block.data, mode: "selected", ids: [service.id], showSearch: false, showSort: false, showCategoryTabs: false } }, account, locations, [service], theme, style, currentEntity, previewViewportWidth)}
+      {data.showSpecialists !== false && renderSpecialists({ ...block, type: "specialists", data: { title: "Кто выполняет услугу", mode: "all", showSearch: false, showSort: false, showCategoryTabs: false } }, account, locations, scopedSpecialists, theme, style, currentEntity, previewViewportWidth)}
+    </div>
+  );
+}
+
+export function renderSpecialistProfileBlock(block: SiteBlock, account: AccountInfo, locations: LocationItem[], services: ServiceItem[], specialists: SpecialistItem[], theme: SiteTheme, style: BlockStyle, currentEntity: CurrentEntity, previewViewportWidth?: number) {
+  const data = block.data as Record<string, unknown>;
+  const id = Number(data.specialistId) || (currentEntity?.type === "specialist" ? currentEntity.id : null);
+  const specialist = specialists.find((item) => item.id === id) ?? specialists[0];
+  if (!specialist) return renderTextBlock({ ...block, data: { title: "Специалист не выбран", text: "Выберите специалиста в настройках блока." } }, theme, style);
+  const scopedServices = services.filter((item) => item.specialistIds?.includes(specialist.id));
+  return (
+    <div className="space-y-8">
+      {renderSpecialists({ ...block, type: "specialists", data: { ...block.data, mode: "selected", ids: [specialist.id], showSearch: false, showSort: false, showCategoryTabs: false } }, account, locations, [specialist], theme, style, currentEntity, previewViewportWidth)}
+      {data.showServices !== false && renderServices({ ...block, type: "services", data: { title: "Услуги специалиста", mode: "all", showSearch: false, showSort: false, showCategoryTabs: false } }, account, locations, scopedServices, theme, style, currentEntity, previewViewportWidth)}
     </div>
   );
 }

@@ -1309,6 +1309,153 @@ export function BlockEditor({
         </>
       )}
 
+      {block.type === "heading" && (
+        <>
+          <FieldText label="Надзаголовок" value={(block.data.eyebrow as string) ?? ""} onChange={(value) => updateData({ eyebrow: value })} />
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldTextarea label="Подзаголовок" value={(block.data.subtitle as string) ?? ""} onChange={(value) => updateData({ subtitle: value })} />
+        </>
+      )}
+
+      {block.type === "text" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldTextarea label="Текст" value={(block.data.text as string) ?? ""} onChange={(value) => updateData({ text: value })} />
+          <label className="text-sm">
+            Колонки
+            <select
+              value={String(block.data.columns ?? 1)}
+              onChange={(event) => updateData({ columns: Number(event.target.value) })}
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+            >
+              <option value="1">1</option>
+              <option value="2">2</option>
+            </select>
+          </label>
+        </>
+      )}
+
+      {block.type === "image" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldText label="Подзаголовок" value={(block.data.subtitle as string) ?? ""} onChange={(value) => updateData({ subtitle: value })} />
+          <FieldText label="URL изображения" value={(block.data.imageUrl as string) ?? ""} onChange={(value) => updateData({ imageUrl: value })} />
+          <FieldText label="Alt-текст" value={(block.data.alt as string) ?? ""} onChange={(value) => updateData({ alt: value })} />
+        </>
+      )}
+
+      {block.type === "gallery" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldText label="Подзаголовок" value={(block.data.subtitle as string) ?? ""} onChange={(value) => updateData({ subtitle: value })} />
+          <FieldTextarea
+            label="Изображения, по одному URL на строку"
+            value={Array.isArray(block.data.images) ? (block.data.images as Array<{ url?: string }>).map((item) => item.url ?? "").join("\n") : ""}
+            onChange={(value) => updateData({ images: value.split(/\r?\n/).map((url) => ({ url: url.trim() })).filter((item) => item.url) })}
+          />
+        </>
+      )}
+
+      {block.type === "form" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldText label="Подзаголовок" value={(block.data.subtitle as string) ?? ""} onChange={(value) => updateData({ subtitle: value })} />
+          <FieldText label="Текст кнопки" value={(block.data.buttonText as string) ?? ""} onChange={(value) => updateData({ buttonText: value })} />
+          <FieldText label="Текст после отправки" value={(block.data.successText as string) ?? ""} onChange={(value) => updateData({ successText: value })} />
+        </>
+      )}
+
+      {block.type === "button" && (
+        <>
+          <FieldText label="Текст кнопки" value={(block.data.text as string) ?? ""} onChange={(value) => updateData({ text: value })} />
+          <FieldText label="Ссылка" value={(block.data.href as string) ?? ""} onChange={(value) => updateData({ href: value })} />
+          <label className="text-sm">
+            Выравнивание
+            <select
+              value={(block.data.align as string) ?? "center"}
+              onChange={(event) => updateData({ align: event.target.value })}
+              className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
+            >
+              <option value="left">Слева</option>
+              <option value="center">По центру</option>
+              <option value="right">Справа</option>
+            </select>
+          </label>
+        </>
+      )}
+
+      {(block.type === "advantages" || block.type === "news") && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldText label="Подзаголовок" value={(block.data.subtitle as string) ?? ""} onChange={(value) => updateData({ subtitle: value })} />
+          <FieldTextarea
+            label={block.type === "news" ? "Новости: заголовок | текст | дата" : "Пункты: заголовок | текст"}
+            value={Array.isArray(block.data.items) ? (block.data.items as Array<{ title?: string; text?: string; date?: string }>).map((item) => [item.title ?? "", item.text ?? "", item.date ?? ""].filter(Boolean).join(" | ")).join("\n") : ""}
+            onChange={(value) =>
+              updateData({
+                items: value.split(/\r?\n/).filter(Boolean).map((line) => {
+                  const [title = "", text = "", date = ""] = line.split("|").map((part) => part.trim());
+                  return block.type === "news" ? { title, text, date } : { title, text };
+                }),
+              })
+            }
+          />
+        </>
+      )}
+
+      {block.type === "project" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldTextarea label="Текст" value={(block.data.text as string) ?? ""} onChange={(value) => updateData({ text: value })} />
+          <FieldText label="URL изображения" value={(block.data.imageUrl as string) ?? ""} onChange={(value) => updateData({ imageUrl: value })} />
+        </>
+      )}
+
+      {block.type === "footer" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldText label="Подзаголовок" value={(block.data.subtitle as string) ?? ""} onChange={(value) => updateData({ subtitle: value })} />
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showSocials !== false} onChange={(event) => updateData({ showSocials: event.target.checked })} />Показывать соцсети</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showAddress !== false} onChange={(event) => updateData({ showAddress: event.target.checked })} />Показывать адрес</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showPhone !== false} onChange={(event) => updateData({ showPhone: event.target.checked })} />Показывать телефон</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showEmail !== false} onChange={(event) => updateData({ showEmail: event.target.checked })} />Показывать email</label>
+        </>
+      )}
+
+      {block.type === "team" && (
+        <EntityListEditor block={block} items={specialists.map((item) => ({ id: item.id, label: item.name }))} onChange={updateData} />
+      )}
+
+      {block.type === "widget" && (
+        <>
+          <FieldText label="Заголовок" value={(block.data.title as string) ?? ""} onChange={(value) => updateData({ title: value })} />
+          <FieldTextarea label="Код или идентификатор виджета" value={(block.data.embedCode as string) ?? ""} onChange={(value) => updateData({ embedCode: value })} />
+          <FieldText label="Текст-заглушка" value={(block.data.fallbackText as string) ?? ""} onChange={(value) => updateData({ fallbackText: value })} />
+        </>
+      )}
+
+      {block.type === "locationProfile" && (
+        <>
+          <label className="text-sm">Локация<select value={String(block.data.locationId ?? "")} onChange={(event) => updateData({ locationId: event.target.value ? Number(event.target.value) : null })} className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"><option value="">Текущая/первая</option>{locations.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showServices !== false} onChange={(event) => updateData({ showServices: event.target.checked })} />Показывать услуги</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showSpecialists !== false} onChange={(event) => updateData({ showSpecialists: event.target.checked })} />Показывать специалистов</label>
+        </>
+      )}
+
+      {block.type === "serviceProfile" && (
+        <>
+          <label className="text-sm">Услуга<select value={String(block.data.serviceId ?? "")} onChange={(event) => updateData({ serviceId: event.target.value ? Number(event.target.value) : null })} className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"><option value="">Текущая/первая</option>{services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showSpecialists !== false} onChange={(event) => updateData({ showSpecialists: event.target.checked })} />Показывать специалистов</label>
+        </>
+      )}
+
+      {block.type === "specialistProfile" && (
+        <>
+          <label className="text-sm">Специалист<select value={String(block.data.specialistId ?? "")} onChange={(event) => updateData({ specialistId: event.target.value ? Number(event.target.value) : null })} className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"><option value="">Текущий/первый</option>{specialists.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.data.showServices !== false} onChange={(event) => updateData({ showServices: event.target.checked })} />Показывать услуги</label>
+        </>
+      )}
+
             {block.type === "aisha" && (
         <>
           <FieldText
@@ -1345,6 +1492,21 @@ export function BlockEditor({
         block.type !== "works" &&
         block.type !== "reviews" &&
         block.type !== "contacts" &&
+        block.type !== "heading" &&
+        block.type !== "text" &&
+        block.type !== "image" &&
+        block.type !== "gallery" &&
+        block.type !== "form" &&
+        block.type !== "button" &&
+        block.type !== "advantages" &&
+        block.type !== "project" &&
+        block.type !== "footer" &&
+        block.type !== "team" &&
+        block.type !== "news" &&
+        block.type !== "widget" &&
+        block.type !== "locationProfile" &&
+        block.type !== "serviceProfile" &&
+        block.type !== "specialistProfile" &&
         block.type !== "aisha" && (
           <>
             <FieldText

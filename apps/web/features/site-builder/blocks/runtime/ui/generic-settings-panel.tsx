@@ -12,16 +12,15 @@ export function renderGenericSettingsPanel(ctx: CrmPanelCtx): ReactNode {
         event.stopPropagation();
         setActivePanelSectionId((prev) => (prev === section.id ? null : section.id));
       }}
-      className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+      className="flex w-full items-center justify-between border-0 border-b px-0 py-4 text-left text-sm transition"
       style={{
         borderColor: activePanelSectionId === section.id ? panelTheme.accent : panelTheme.border,
-        backgroundColor: panelTheme.panel,
+        backgroundColor: "transparent",
         color: activePanelSectionId === section.id ? panelTheme.text : panelTheme.muted,
       }}
     >
       <span>{section.label}</span>
-      <span className="text-xs">›</span>
+      <span className="text-xs">{">"}</span>
     </button>
   ));
 }
-

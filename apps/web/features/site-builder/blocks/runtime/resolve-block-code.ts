@@ -27,5 +27,21 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
     return "SP001";
   }
   if (block.type === "booking") return "BO001";
-  return "AI001";
+  if (block.type === "aisha") return "AI001";
+  if (block.type === "heading") return "HD001";
+  if (block.type === "text") return "TX001";
+  if (block.type === "image") return "IM001";
+  if (block.type === "gallery") return "GA001";
+  if (block.type === "form") return "FO001";
+  if (block.type === "button") return "BT001";
+  if (block.type === "advantages") return "AD001";
+  if (block.type === "project") return "PR001";
+  if (block.type === "footer") return "FT001";
+  if (block.type === "team") return "TM001";
+  if (block.type === "news") return "NW001";
+  if (block.type === "widget") return "WG001";
+  if (block.type === "locationProfile") return "LP001";
+  if (block.type === "serviceProfile") return "SVP001";
+  if (block.type === "specialistProfile") return "SPP001";
+  return "GEN001";
 }

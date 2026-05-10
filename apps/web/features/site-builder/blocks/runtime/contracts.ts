@@ -27,7 +27,23 @@ export type BlockCode =
   | "SE001"
   | "SP001"
   | "BO001"
-  | "AI001";
+  | "AI001"
+  | "HD001"
+  | "TX001"
+  | "IM001"
+  | "GA001"
+  | "FO001"
+  | "BT001"
+  | "AD001"
+  | "PR001"
+  | "FT001"
+  | "TM001"
+  | "NW001"
+  | "WG001"
+  | "LP001"
+  | "SVP001"
+  | "SPP001"
+  | "GEN001";
 
 export type BlockVersion = {
   blockCode: BlockCode;

@@ -15,6 +15,22 @@ import { SE001 } from "../services/SE001/version";
 import { SP001 } from "../specialists/SP001/version";
 import { BO001 } from "../booking/BO001/version";
 import { AI001 } from "../aisha/AI001/version";
+import { makeGenericVersion } from "./ui/generic-version";
+import { HD001 } from "../heading/HD001/version";
+import { TX001 } from "../text/TX001/version";
+import { IM001 } from "../image/IM001/version";
+import { GA001 } from "../gallery/GA001/version";
+import { FO001 } from "../form/FO001/version";
+import { BT001 } from "../button/BT001/version";
+import { AD001 } from "../advantages/AD001/version";
+import { PR001 } from "../project/PR001/version";
+import { FT001 } from "../footer/FT001/version";
+import { TM001 } from "../team/TM001/version";
+import { NW001 } from "../news/NW001/version";
+import { WG001 } from "../widget/WG001/version";
+import { LP001 } from "../location-profile/LP001/version";
+import { SVP001 } from "../service-profile/SVP001/version";
+import { SPP001 } from "../specialist-profile/SPP001/version";
 
 export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersion {
   const code = resolveBlockCode(ctx.block);
@@ -47,5 +63,37 @@ export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersi
       return BO001;
     case "AI001":
       return AI001;
+    case "HD001":
+      return HD001;
+    case "TX001":
+      return TX001;
+    case "IM001":
+      return IM001;
+    case "GA001":
+      return GA001;
+    case "FO001":
+      return FO001;
+    case "BT001":
+      return BT001;
+    case "AD001":
+      return AD001;
+    case "PR001":
+      return PR001;
+    case "FT001":
+      return FT001;
+    case "TM001":
+      return TM001;
+    case "NW001":
+      return NW001;
+    case "WG001":
+      return WG001;
+    case "LP001":
+      return LP001;
+    case "SVP001":
+      return SVP001;
+    case "SPP001":
+      return SPP001;
+    case "GEN001":
+      return makeGenericVersion("GEN001", ctx.block.type, ctx.block.variant);
   }
 }

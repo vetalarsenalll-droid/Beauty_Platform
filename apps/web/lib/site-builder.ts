@@ -52,6 +52,21 @@ export type BlockType =
   | "menu"
   | "loader"
   | "about"
+  | "heading"
+  | "text"
+  | "image"
+  | "gallery"
+  | "form"
+  | "button"
+  | "advantages"
+  | "project"
+  | "footer"
+  | "team"
+  | "news"
+  | "widget"
+  | "locationProfile"
+  | "serviceProfile"
+  | "specialistProfile"
   | "client"
   | "booking"
   | "locations"
@@ -100,6 +115,21 @@ export type SiteEntityPages = {
 };
 
 export const BLOCK_LABELS: Record<BlockType, string> = {
+  heading: "Заголовок",
+  text: "Текстовый блок",
+  image: "Изображение",
+  gallery: "Галерея",
+  form: "Форма",
+  button: "Кнопка",
+  advantages: "Преимущества",
+  project: "О проекте",
+  footer: "Подвал",
+  team: "Команда",
+  news: "Новости",
+  widget: "Виджет",
+  locationProfile: "Профиль локации",
+  serviceProfile: "Профиль услуги",
+  specialistProfile: "Профиль специалиста",
   cover: "Главный экран",
   menu: "Меню",
   loader: "Лоадер",
@@ -123,16 +153,31 @@ export const BLOCK_VARIANTS: Record<
   cover: ["v1", "v2", "v3"],
   menu: ["v1", "v2", "v3"],
   loader: ["v1", "v2", "v3"],
-  about: ["v1", "v2"],
+  about: ["v1"],
+  heading: ["v1"],
+  text: ["v1"],
+  image: ["v1"],
+  gallery: ["v1"],
+  form: ["v1"],
+  button: ["v1"],
+  advantages: ["v1"],
+  project: ["v1"],
+  footer: ["v1"],
+  team: ["v1"],
+  news: ["v1"],
+  widget: ["v1"],
+  locationProfile: ["v1"],
+  serviceProfile: ["v1"],
+  specialistProfile: ["v1"],
   client: ["v1"],
   booking: ["v1"],
   locations: ["v1"],
   services: ["v1"],
   specialists: ["v1"],
   works: ["v1", "v2"],
-  reviews: ["v1", "v2"],
-  contacts: ["v1", "v2"],
-  promos: ["v1", "v2"],
+  reviews: ["v1"],
+  contacts: ["v1"],
+  promos: ["v1"],
   aisha: ["v1"],
 };
 
