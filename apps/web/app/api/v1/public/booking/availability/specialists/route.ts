@@ -75,6 +75,7 @@ export async function GET(request: Request) {
       type: "WORKING",
       date: { gte: startRange.dayStartUtc, lt: endRange.dayStartUtc },
     },
+    distinct: ["specialistId"],
     select: { specialistId: true },
   });
 

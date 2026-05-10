@@ -1101,7 +1101,7 @@ export default function BookingClient({
   const [offersError, setOffersError] = useState<string | null>(null);
   const [groupOffersByTime, setGroupOffersByTime] = useState<Record<string, number[]>>({});
   const [dateFirstAvailableDates, setDateFirstAvailableDates] = useState<Set<string>>(new Set());
-  const [, setLoadingDateFirstAvailability] = useState(false);
+  const [loadingDateFirstAvailability, setLoadingDateFirstAvailability] = useState(false);
   const [dateFirstAvailabilityError, setDateFirstAvailabilityError] = useState<string | null>(null);
 
   // serviceFirst/specialistFirst: календарь доступности (у тебя уже есть endpoint)
@@ -1112,6 +1112,7 @@ export default function BookingClient({
   // dateFirst: слоты по выбранной услуге на дату (для выбора специалиста на timeChoice)
   const [dateFirstServiceSlots, setDateFirstServiceSlots] = useState<Slot[]>([]);
   const [loadingDateFirstServiceSlots, setLoadingDateFirstServiceSlots] = useState(false);
+  const [dateFirstServiceSlotsFetched, setDateFirstServiceSlotsFetched] = useState(false);
   const [dateFirstServiceSlotsError, setDateFirstServiceSlotsError] = useState<string | null>(null);
   const [singlePlanEligibleSpecialistIds, setSinglePlanEligibleSpecialistIds] = useState<Set<number> | null>(null);
   const [loadingSinglePlanSpecialists, setLoadingSinglePlanSpecialists] = useState(false);
@@ -1909,7 +1910,10 @@ export default function BookingClient({
     currentStepKey === "specialist" ||
     currentStepKey === "chain" ||
     currentStepKey === "details" ||
-    (isSpecialistFirst && currentStepKey === "service");
+    (isSpecialistFirst && currentStepKey === "location" && !!locationId) ||
+    (isSpecialistFirst && currentStepKey === "service") ||
+    (isServiceFirst && currentStepKey === "datetime" && selectedServiceIds.length > 0) ||
+    (isDateFirst && currentStepKey === "service" && selectedServiceIds.length > 0 && !!timeChoice);
   const shouldLoadCalendar =
     !isDateFirst && (currentStepKey === "datetime" || currentStepKey === "details");
   const shouldLoadDateFirstAvailability =
@@ -1920,7 +1924,10 @@ export default function BookingClient({
       currentStepKey === "details");
   const shouldLoadDateFirstServiceSlots =
     isDateFirst &&
-    (currentStepKey === "specialist" || currentStepKey === "chain" || currentStepKey === "details");
+    (currentStepKey === "service" ||
+      currentStepKey === "specialist" ||
+      currentStepKey === "chain" ||
+      currentStepKey === "details");
 
   useEffect(() => {
     if (!specialistId) return;
@@ -2774,28 +2781,34 @@ export default function BookingClient({
     if (!shouldLoadDateFirstServiceSlots) {
       setDateFirstServiceSlots([]);
       setLoadingDateFirstServiceSlots(false);
+      setDateFirstServiceSlotsFetched(false);
       setDateFirstServiceSlotsError(null);
       return;
     }
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
       setDateFirstServiceSlots([]);
+      setDateFirstServiceSlotsFetched(false);
       return;
     }
     if (!selectedServiceIds.length || !dateYmd || !timeChoice) {
       setDateFirstServiceSlots([]);
+      setDateFirstServiceSlotsFetched(false);
       return;
     }
     if (isPastYmd(dateYmd, todayYmdTz)) {
       setDateFirstServiceSlots([]);
+      setDateFirstServiceSlotsFetched(true);
       return;
     }
     if (isPastTimeOnDate(dateYmd, timeChoice, nowTz)) {
       setDateFirstServiceSlots([]);
+      setDateFirstServiceSlotsFetched(true);
       return;
     }
 
     let mounted = true;
     setLoadingDateFirstServiceSlots(true);
+    setDateFirstServiceSlotsFetched(false);
     setDateFirstServiceSlotsError(null);
     const slotServiceId = isChainMode ? chainPrimaryServiceId : serviceId;
     const slotServiceIds = isChainMode
@@ -2829,6 +2842,7 @@ export default function BookingClient({
       .finally(() => {
         if (!mounted) return;
         setLoadingDateFirstServiceSlots(false);
+        setDateFirstServiceSlotsFetched(true);
       });
 
     return () => {
@@ -3640,20 +3654,38 @@ export default function BookingClient({
 
   const isCalendarWindowTransitioning = !isDateFirst && loadingCalendar;
   const isTimesPanelLoading = isGroupService
-    ? groupSessionsLoading
+    ? groupSessionsLoading || (groupAvailabilityLoading && availableTimesForCurrentStep.length === 0)
     : isDateFirst
-    ? loadingOffers
+    ? loadingOffers || (loadingDateFirstAvailability && availableTimesForCurrentStep.length === 0)
     : isCalendarWindowTransitioning && availableTimesForCurrentStep.length === 0;
+  const isSpecialistBaseListPending =
+    shouldLoadSpecialists && (loadingSpecialists || !specialistsFetched);
+  const isSpecialistWorkdaysPending =
+    isSpecialistFirst &&
+    shouldLoadSpecialists &&
+    !workdaySpecsError &&
+    (loadingWorkdaySpecs || workdaySpecialistIds === null);
+  const isDateFirstSpecialistSlotsPending =
+    isDateFirst &&
+    shouldLoadDateFirstServiceSlots &&
+    selectedServiceIds.length > 0 &&
+    Boolean(timeChoice) &&
+    !dateFirstServiceSlotsError &&
+    (loadingDateFirstServiceSlots || !dateFirstServiceSlotsFetched);
+  const isSpecialistStepDataPending =
+    currentStepKey === "specialist" &&
+    (isSpecialistBaseListPending ||
+      isSpecialistWorkdaysPending ||
+      isDateFirstSpecialistSlotsPending ||
+      loadingSinglePlanSpecialists);
   const isStepLoadingOverlay =
     (currentStepKey === "location" && loadingContext) ||
     (currentStepKey === "service" && loadingServices) ||
-    (currentStepKey === "specialist" &&
-      (loadingSpecialists || loadingWorkdaySpecs || loadingDateFirstServiceSlots || loadingSinglePlanSpecialists)) ||
-    (currentStepKey === "datetime" && (isTimesPanelLoading || groupAvailabilityLoading));
+    (currentStepKey === "specialist" && isSpecialistStepDataPending) ||
+    (currentStepKey === "datetime" && isTimesPanelLoading);
   const shouldShowFullscreenLoaderOverlay =
     Boolean(effectiveInlineLoader?.showBookingInline) &&
-    (((overlayNextDeadline !== null) && isStepLoadingOverlay) ||
-      (currentStepKey === "datetime" && isTimesPanelLoading));
+    (isStepLoadingOverlay || overlayNextDeadline !== null);
   const [showFullscreenLoaderOverlay, setShowFullscreenLoaderOverlay] = useState(false);
   useEffect(() => {
     if (overlayNextDeadline === null) return;
@@ -5200,7 +5232,14 @@ export default function BookingClient({
                       </>
                     )}
 
-                    {!loadingSpecialists &&
+                    {isSpecialistStepDataPending && (
+                      <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
+                        Загрузка специалистов...
+                      </div>
+                    )}
+
+                    {!isSpecialistStepDataPending &&
+                      !loadingSpecialists &&
                       !loadingWorkdaySpecs &&
                       !specialistsError &&
                       (isSpecialistFirst || (!isSpecialistFirst && selectedServiceIds.length > 0 && !!timeChoice)) &&
