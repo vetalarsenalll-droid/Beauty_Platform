@@ -62,6 +62,7 @@ type Specialist = {
   id: number;
   name: string;
   role: string | null;
+  levelId?: number | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
   servicePrice?: number | null;
@@ -3855,15 +3856,18 @@ export default function BookingClient({
   ]);
 
   const specialistCategoryTabs = useMemo(() => {
-    const categories = new Map<string, string>();
+    const levels = new Map<string, string>();
     for (const specialist of specialistsForSpecialistStep) {
-      for (const category of specialist.categories ?? []) {
-        if (!categories.has(category.slug)) {
-          categories.set(category.slug, category.name);
-        }
+      const label = specialist.role?.trim();
+      if (!label) continue;
+      const key = specialist.levelId
+        ? `level:${specialist.levelId}`
+        : `level:${label.toLowerCase()}`;
+      if (!levels.has(key)) {
+        levels.set(key, label);
       }
     }
-    return [{ key: "all", label: "Все" }, ...Array.from(categories, ([key, label]) => ({ key, label }))];
+    return [{ key: "all", label: "Все" }, ...Array.from(levels, ([key, label]) => ({ key, label }))];
   }, [specialistsForSpecialistStep]);
 
   useEffect(() => {
@@ -3875,11 +3879,14 @@ export default function BookingClient({
 
   const specialistsByCategory = useMemo(() => {
     if (selectedSpecialistCategory === "all") return specialistsForSpecialistStep;
-    return specialistsForSpecialistStep.filter((specialist) =>
-      (specialist.categories ?? []).some(
-        (category) => category.slug === selectedSpecialistCategory
-      )
-    );
+    return specialistsForSpecialistStep.filter((specialist) => {
+      const label = specialist.role?.trim();
+      if (!label) return false;
+      const key = specialist.levelId
+        ? `level:${specialist.levelId}`
+        : `level:${label.toLowerCase()}`;
+      return key === selectedSpecialistCategory;
+    });
   }, [specialistsForSpecialistStep, selectedSpecialistCategory]);
 
   const specialistsForSpecialistStepFiltered = useMemo(() => {
