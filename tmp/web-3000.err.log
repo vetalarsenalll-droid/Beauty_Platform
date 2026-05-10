@@ -1262,3 +1262,7 @@ Import trace for requested module:
     at JSON.parse (<anonymous>) {
   page: '/api/v1/public/booking/availability/calendar'
 }
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/crm/schedule'
+}

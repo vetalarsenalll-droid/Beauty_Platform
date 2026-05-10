@@ -31,7 +31,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
     loaderConfig,
     layout: {
       rootTag: "div",
-      rootClassName: "flex min-h-screen w-full flex-col pt-0 pb-12",
+      rootClassName: "flex min-h-screen w-full flex-col pt-0 pb-0",
     },
   });
 }

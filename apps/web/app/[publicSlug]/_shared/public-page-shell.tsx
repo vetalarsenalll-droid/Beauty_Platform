@@ -147,6 +147,7 @@ export function renderPublicPageShell({
     : 1120;
   const blocks = resolveBlocksForPage(data, pageKey, currentEntity);
   const themeStyle = buildThemeStyle(palette);
+  let bookingPageBackgroundStyle: CSSProperties | null = null;
   const content = blocks.map((block) => {
     let style = normalizeStyle(block, themeForRender);
     if (block.type === "menu") {
@@ -194,10 +195,19 @@ export function renderPublicPageShell({
       ? {
           ...wrapper.style,
           borderColor: "transparent",
-          backgroundColor: "transparent",
           boxShadow: "none",
         }
       : wrapper.style;
+    if (pageKey === "booking" && isBooking && bookingPageBackgroundStyle === null) {
+      bookingPageBackgroundStyle = Object.fromEntries(
+        Object.entries(wrapper.style).filter(
+          ([key]) =>
+            key.startsWith("--") ||
+            key === "backgroundColor" ||
+            key === "backgroundImage"
+        )
+      ) as CSSProperties;
+    }
 
     return (
       <section key={block.id} className={wrapperClassName} style={wrapperStyle}>
@@ -229,15 +239,44 @@ export function renderPublicPageShell({
   const innerClassName = layout?.innerClassName ?? "flex w-full flex-col pt-0 pb-0";
   const rootStyle: CSSProperties = {
     ...themeStyle,
+    ...(bookingPageBackgroundStyle ?? {}),
     backgroundColor: "var(--site-surface)",
     backgroundImage: "var(--site-gradient)",
     color: "var(--site-text)",
     fontFamily: "var(--site-font-body)",
     gap: blockGap,
   };
+  if (bookingPageBackgroundStyle) {
+    const modeSuffix = initialMode === "dark" ? "dark" : "light";
+    const blockBg = bookingPageBackgroundStyle[
+      `--block-bg-${modeSuffix}` as keyof CSSProperties
+    ] as string | undefined;
+    const blockSectionBg = bookingPageBackgroundStyle[
+      `--block-section-bg-${modeSuffix}` as keyof CSSProperties
+    ] as string | undefined;
+    const servicesSectionBg = bookingPageBackgroundStyle[
+      `--services-section-bg-${modeSuffix}` as keyof CSSProperties
+    ] as string | undefined;
+    const servicesSectionImage = bookingPageBackgroundStyle[
+      `--services-section-image-${modeSuffix}` as keyof CSSProperties
+    ] as string | undefined;
+    rootStyle["--block-bg" as string] = blockBg;
+    rootStyle["--block-section-bg" as string] = blockSectionBg || blockBg;
+    rootStyle["--services-section-bg" as string] =
+      servicesSectionBg || blockSectionBg || blockBg;
+    rootStyle["--services-section-image" as string] = servicesSectionImage || "none";
+    rootStyle.backgroundColor = bookingPageBackgroundStyle.backgroundColor;
+    rootStyle.backgroundImage = bookingPageBackgroundStyle.backgroundImage;
+  }
 
   return (
-    <RootTag id="public-site-root" data-site-theme={initialMode} className={rootClassName} style={rootStyle}>
+    <RootTag
+      id="public-site-root"
+      data-site-theme={initialMode}
+      data-public-page={pageKey}
+      className={rootClassName}
+      style={rootStyle}
+    >
       {useInnerColumn ? (
         <div className={innerClassName} style={{ gap: blockGap }}>
           {content}

@@ -1348,47 +1348,8 @@ function renderBooking(
 ) {
   const style = normalizeStyle(block, theme);
   const cssVars = buildBookingVars(style, theme);
-  const servicesSectionBackgroundSource = {
-    servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
-    servicesSectionBackgroundFromLight: style.servicesSectionBackgroundFromLight,
-    servicesSectionBackgroundToLight: style.servicesSectionBackgroundToLight,
-    servicesSectionBackgroundAngleLight: style.servicesSectionBackgroundAngleLight,
-    servicesSectionBackgroundStopALight: style.servicesSectionBackgroundStopALight,
-    servicesSectionBackgroundStopBLight: style.servicesSectionBackgroundStopBLight,
-    servicesSectionBackgroundModeDark: style.servicesSectionBackgroundModeDark,
-    servicesSectionBackgroundFromDark: style.servicesSectionBackgroundFromDark,
-    servicesSectionBackgroundToDark: style.servicesSectionBackgroundToDark,
-    servicesSectionBackgroundAngleDark: style.servicesSectionBackgroundAngleDark,
-    servicesSectionBackgroundStopADark: style.servicesSectionBackgroundStopADark,
-    servicesSectionBackgroundStopBDark: style.servicesSectionBackgroundStopBDark,
-  };
-  const servicesSectionBackgroundLight = resolveServicesSectionBackgroundVisual(
-    servicesSectionBackgroundSource,
-    style.sectionBgLightResolved || theme.lightPalette.panelColor,
-    "light"
-  );
-  const servicesSectionBackgroundDark = resolveServicesSectionBackgroundVisual(
-    servicesSectionBackgroundSource,
-    style.sectionBgDarkResolved || theme.darkPalette.panelColor,
-    "dark"
-  );
   return (
-    <div
-      className="site-block site-block-booking booking-root p-0"
-      style={{
-        ...cssVars,
-        paddingTop: typeof style.marginTop === "number" ? style.marginTop : undefined,
-        paddingBottom: typeof style.marginBottom === "number" ? style.marginBottom : undefined,
-        backgroundColor: "var(--services-section-bg, var(--block-section-bg, transparent))",
-        backgroundImage: "var(--services-section-image, none)",
-        ["--block-section-bg-light" as string]: style.sectionBgLightResolved,
-        ["--block-section-bg-dark" as string]: style.sectionBgDarkResolved,
-        ["--services-section-bg-light" as string]: servicesSectionBackgroundLight.backgroundColor,
-        ["--services-section-bg-dark" as string]: servicesSectionBackgroundDark.backgroundColor,
-        ["--services-section-image-light" as string]: servicesSectionBackgroundLight.backgroundImage,
-        ["--services-section-image-dark" as string]: servicesSectionBackgroundDark.backgroundImage,
-      } as CSSProperties}
-    >
+    <div className="booking-root p-0" style={cssVars}>
       <div className="booking-bleed">
         <PublicBookingClient
           accountSlug={accountSlug}

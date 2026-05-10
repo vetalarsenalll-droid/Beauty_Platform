@@ -763,9 +763,9 @@ function DatePickerLike({
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            "booking-soft-accent-hover inline-flex items-center gap-2 rounded-2xl",
-            "border border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)] px-3 py-2",
-            "shadow-none transition hover:-translate-y-[1px] hover:shadow-none",
+            "inline-flex items-center gap-2 rounded-2xl",
+            "border border-transparent bg-[color:var(--bp-paper)] px-3 py-2",
+            "shadow-none transition hover:-translate-y-[1px] hover:bg-black/5 hover:shadow-none",
             "focus:outline-none focus:ring-0 focus-visible:ring-0"
           )}
           aria-expanded={expanded}
@@ -779,8 +779,8 @@ function DatePickerLike({
             type="button"
             onClick={goPrev}
             className={cn(
-              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[color:var(--bp-accent)] shadow-none",
-              "bg-transparent transition hover:shadow-none",
+              "inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-transparent shadow-none",
+              "bg-transparent transition hover:bg-black/5 hover:shadow-none",
               "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             )}
             aria-label={expanded ? "Предыдущий месяц" : "Предыдущая неделя"}
@@ -792,8 +792,8 @@ function DatePickerLike({
             type="button"
             onClick={goNext}
             className={cn(
-              "booking-soft-accent-hover inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[color:var(--bp-accent)] shadow-none",
-              "bg-transparent transition hover:shadow-none",
+              "inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-transparent shadow-none",
+              "bg-transparent transition hover:bg-black/5 hover:shadow-none",
               "focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             )}
             aria-label={expanded ? "Следующий месяц" : "Следующая неделя"}
@@ -921,11 +921,11 @@ function TimeGrid({
               onClick={() => onSelect(t)}
               className={cn(
                 "flex min-h-10 flex-col items-center justify-center gap-1 rounded-2xl border px-1.5 py-1 text-sm font-medium transition",
-                !active && "booking-soft-accent-hover",
-                "hover:-translate-y-[1px] hover:shadow-sm",
+                !active && "hover:bg-black/5",
+                "hover:-translate-y-[1px] hover:border-transparent hover:shadow-none",
                 active
-                  ? "border-[color:var(--bp-stroke)] bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] hover:translate-y-0 hover:shadow-none"
-                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                  ? "border-transparent bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] hover:translate-y-0 hover:shadow-none"
+                  : "border-transparent bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
               )}
             >
               <span>{t}</span>
