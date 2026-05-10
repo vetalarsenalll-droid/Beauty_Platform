@@ -19,6 +19,14 @@ const flatTextareaClass =
 const imageActionButtonClass =
   "inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60";
 
+function renderSectionTitle(title: string) {
+  return (
+    <div className="border-b border-[color:var(--bp-stroke)] pb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+      {title}
+    </div>
+  );
+}
+
 function normalizeSlides(raw: unknown): Slide[] {
   const input = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
   const slides = input
@@ -235,19 +243,18 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
 
 
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-          Слайды
-        </div>
+        <div className="min-w-0 flex-1">{renderSectionTitle("Слайды")}</div>
         <button
           type="button"
           onClick={toggleAllSlides}
-          className="inline-flex items-center gap-2 px-0 py-2 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+          className="inline-flex shrink-0 items-center gap-2 px-0 py-2 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
         >
           <span className="text-sm leading-none">{isAllExpanded ? "▴" : "▾"}</span>
           {isAllExpanded ? "Свернуть все" : "Развернуть все"}
         </button>
       </div>
 
+      <div className="space-y-3">
       {slides.map((slide, index) => {
         const updateSlide = (patch: Partial<Slide>) => updateSlideById(slide.id, patch);
         const moveSlide = (dir: -1 | 1) => {
@@ -280,34 +287,42 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
         return (
           <div
             key={slide.id}
-            className="border-b border-[color:var(--bp-stroke)] bg-transparent"
+            className="overflow-hidden rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
           >
-            <div className="flex items-center justify-between gap-2 py-4">
+            <div className="flex items-center gap-2 p-3">
               <button
                 type="button"
                 onClick={toggleExpanded}
-                className="flex min-w-0 items-center gap-2 text-left"
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 aria-label={isExpanded ? "Свернуть слайд" : "Развернуть слайд"}
               >
-                <span className="text-sm leading-none text-[color:var(--bp-muted)]">
-                  {isExpanded ? "▴" : "▾"}
-                </span>
-                <span className="text-sm font-semibold">Слайд {index + 1}</span>
-                {slide.title.trim() ? (
-                  <span className="truncate text-sm text-[color:var(--bp-muted)]">
-                    {slide.title.trim()}
-                  </span>
-                ) : null}
+                <div className="h-14 w-16 shrink-0 overflow-hidden rounded-md bg-[color:var(--bp-surface)]">
+                  {slide.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-[color:var(--bp-ink)]">
+                    Слайд {index + 1}
+                    {slide.title.trim() ? ` · ${slide.title.trim()}` : ""}
+                  </div>
+                  <div className="truncate text-xs text-[color:var(--bp-muted)]">
+                    {slide.description.trim() || "Описание не заполнено"}
+                  </div>
+                </div>
+                <span className="text-sm text-[color:var(--bp-muted)]">{isExpanded ? "\u25B4" : "\u25BE"}</span>
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
                     moveSlide(-1);
                   }}
-                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs"
+                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-40"
                   disabled={index === 0}
+                  aria-label="Переместить слайд выше"
                 >
                   ↑
                 </button>
@@ -317,8 +332,9 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     event.stopPropagation();
                     moveSlide(1);
                   }}
-                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs"
+                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-40"
                   disabled={index === slides.length - 1}
+                  aria-label="Переместить слайд ниже"
                 >
                   ↓
                 </button>
@@ -328,7 +344,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     event.stopPropagation();
                     removeSlide();
                   }}
-                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs"
+                  className="rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-1 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-40"
                   disabled={slides.length <= 1}
                 >
                   Удалить
@@ -337,7 +353,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
             </div>
 
             {isExpanded ? (
-            <div className="space-y-3 pb-4">
+            <div className="space-y-3 px-3 pb-4 pt-1">
               {renderCoverFlatTextInput("Заголовок", slide.title, (value) => updateSlide({ title: value }))}
               <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                 <div className="min-h-[32px] leading-4">Описание</div>
@@ -514,6 +530,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
           </div>
         );
       })}
+      </div>
 
       <button
         type="button"
@@ -532,7 +549,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
             },
           ]);
         }}
-        className="w-full rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-3 text-sm font-semibold"
+        className="w-full rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-3 text-sm font-semibold"
       >
         Добавить слайд
       </button>
