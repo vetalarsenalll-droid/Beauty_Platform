@@ -84,11 +84,26 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       },
     }),
     prisma.service.findMany({
-      where: { accountId: account.id },
+      where: { accountId: account.id, isActive: true },
       orderBy: { name: "asc" },
       include: {
-        category: { select: { name: true } },
+        category: { select: { name: true, slug: true } },
         locations: { select: { locationId: true } },
+        specialists: {
+          select: {
+            specialistId: true,
+            priceOverride: true,
+            durationOverrideMin: true,
+            specialist: { select: { levelId: true } },
+          },
+        },
+        levelConfigs: {
+          select: {
+            levelId: true,
+            price: true,
+            durationMin: true,
+          },
+        },
       },
     }),
     prisma.specialistProfile.findMany({
@@ -292,8 +307,37 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     name: service.name,
     description: service.description,
     categoryName: service.category?.name ?? null,
+    categorySlug: service.category?.slug ?? null,
+    allowMultiServiceBooking: service.allowMultiServiceBooking,
+    bookingType: service.bookingType,
+    groupCapacityDefault: service.groupCapacityDefault,
     baseDurationMin: service.baseDurationMin,
     basePrice: Number(service.basePrice),
+    minDurationMin:
+      service.specialists.length > 0
+        ? Math.min(
+            ...service.specialists.map((binding) => {
+              const levelConfig = binding.specialist.levelId
+                ? service.levelConfigs.find((item) => item.levelId === binding.specialist.levelId)
+                : null;
+              return binding.durationOverrideMin || levelConfig?.durationMin || service.baseDurationMin;
+            })
+          )
+        : service.baseDurationMin,
+    minPrice:
+      service.specialists.length > 0
+        ? Math.min(
+            ...service.specialists.map((binding) => {
+              const levelConfig = binding.specialist.levelId
+                ? service.levelConfigs.find((item) => item.levelId === binding.specialist.levelId)
+                : null;
+              return Number(binding.priceOverride) || Number(levelConfig?.price) || Number(service.basePrice);
+            })
+          )
+        : Number(service.basePrice),
+    computedDurationMin: service.baseDurationMin,
+    computedPrice: Number(service.basePrice),
+    specialistIds: service.specialists.map((item) => item.specialistId),
     coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
     photoUrls: servicePhotoMap.get(String(service.id)) ?? [],
     locationIds: service.locations.map((item) => item.locationId),
@@ -309,6 +353,9 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       name: fullName || specialist.user.email || "Без имени",
       bio: specialist.bio,
       level: specialist.level?.name ?? null,
+      role: specialist.level?.name ?? null,
+      levelId: specialist.levelId,
+      avatarUrl: profileData?.avatarUrl ?? null,
       locationIds: specialist.locations.map((item) => item.locationId),
       coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
       photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],

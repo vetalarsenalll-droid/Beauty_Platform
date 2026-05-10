@@ -53,6 +53,34 @@ type PublicBookingClientProps = {
       publishedAt: string;
     }>;
   } | null;
+  initialServices?: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    categoryName?: string | null;
+    categorySlug?: string | null;
+    baseDurationMin: number;
+    basePrice: number;
+    computedDurationMin?: number | null;
+    computedPrice?: number | null;
+    minDurationMin?: number | null;
+    minPrice?: number | null;
+    specialistIds?: number[];
+    allowMultiServiceBooking?: boolean;
+    bookingType?: "SINGLE" | "GROUP";
+    groupCapacityDefault?: number | null;
+    coverUrl?: string | null;
+    locationIds?: number[];
+  }>;
+  initialSpecialists?: Array<{
+    id: number;
+    name: string;
+    role: string | null;
+    levelId?: number | null;
+    avatarUrl?: string | null;
+    coverUrl?: string | null;
+    locationIds?: number[];
+  }>;
 };
 
 export default function PublicBookingClient({
@@ -60,6 +88,8 @@ export default function PublicBookingClient({
   accountPublicSlug,
   loaderConfig,
   initialContext,
+  initialServices,
+  initialSpecialists,
 }: PublicBookingClientProps) {
   return (
     <BookingClient
@@ -67,6 +97,8 @@ export default function PublicBookingClient({
       accountPublicSlug={accountPublicSlug}
       loaderConfig={loaderConfig}
       initialContext={initialContext}
+      initialServices={initialServices}
+      initialSpecialists={initialSpecialists}
     />
   );
 }

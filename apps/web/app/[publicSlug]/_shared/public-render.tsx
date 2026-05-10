@@ -1171,6 +1171,8 @@ export function renderBlock(
         locations,
         legalDocuments,
         platformLegalDocuments,
+        services,
+        specialists,
         theme,
         loaderConfig
       );
@@ -1455,6 +1457,8 @@ function renderBooking(
   locations: LocationItem[],
   legalDocuments: LegalDocumentItem[],
   platformLegalDocuments: LegalDocumentItem[],
+  services: ServiceItem[],
+  specialists: SpecialistItem[],
   theme: SiteTheme,
   loaderConfig?: SiteLoaderConfig | null
 ) {
@@ -1487,6 +1491,34 @@ function renderBooking(
           accountPublicSlug={publicSlug}
           loaderConfig={loaderConfig}
           initialContext={initialContext}
+          initialServices={services.map((service) => ({
+            id: service.id,
+            name: service.name,
+            description: service.description,
+            categoryName: service.categoryName ?? null,
+            categorySlug: service.categorySlug ?? null,
+            baseDurationMin: service.baseDurationMin,
+            basePrice: service.basePrice,
+            computedDurationMin: service.computedDurationMin ?? service.baseDurationMin,
+            computedPrice: service.computedPrice ?? service.basePrice,
+            minDurationMin: service.minDurationMin ?? service.baseDurationMin,
+            minPrice: service.minPrice ?? service.basePrice,
+            specialistIds: service.specialistIds ?? [],
+            allowMultiServiceBooking: service.allowMultiServiceBooking,
+            bookingType: service.bookingType,
+            groupCapacityDefault: service.groupCapacityDefault,
+            coverUrl: service.coverUrl,
+            locationIds: service.locationIds,
+          }))}
+          initialSpecialists={specialists.map((specialist) => ({
+            id: specialist.id,
+            name: specialist.name,
+            role: specialist.role ?? specialist.level ?? null,
+            levelId: specialist.levelId ?? null,
+            avatarUrl: specialist.avatarUrl ?? null,
+            coverUrl: specialist.coverUrl,
+            locationIds: specialist.locationIds,
+          }))}
         />
       </div>
     </div>

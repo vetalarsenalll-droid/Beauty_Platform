@@ -88,8 +88,17 @@ export type SiteServiceItem = {
   description: string | null;
   categoryId?: number | null;
   categoryName?: string | null;
+  categorySlug?: string | null;
   baseDurationMin: number;
   basePrice: number;
+  minDurationMin?: number | null;
+  minPrice?: number | null;
+  computedDurationMin?: number | null;
+  computedPrice?: number | null;
+  specialistIds?: number[];
+  allowMultiServiceBooking?: boolean;
+  bookingType?: "SINGLE" | "GROUP";
+  groupCapacityDefault?: number | null;
   coverUrl: string | null;
   photoUrls: string[];
   photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
@@ -114,6 +123,8 @@ export type SiteSpecialistItem = {
   bio?: string | null;
   levelId?: number | null;
   level: string | null;
+  role?: string | null;
+  avatarUrl?: string | null;
   locationIds: number[];
   coverUrl: string | null;
   photoUrls?: string[];

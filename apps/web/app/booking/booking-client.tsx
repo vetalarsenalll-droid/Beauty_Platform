@@ -11,6 +11,8 @@ type BookingClientProps = {
   accountPublicSlug?: string;
   loaderConfig?: SiteLoaderConfig | null;
   initialContext?: ContextData | null;
+  initialServices?: Array<Service & { locationIds?: number[] }>;
+  initialSpecialists?: Array<Specialist & { locationIds?: number[] }>;
 };
 
 type PublicAccount = {
@@ -123,6 +125,11 @@ type ServicesData = {
 
 type SpecialistsData = {
   specialists: Specialist[];
+};
+
+type BootstrapData = ContextData & {
+  services?: Array<Service & { locationIds?: number[] }>;
+  specialists?: Array<Specialist & { locationIds?: number[] }>;
 };
 
 type SlotsData = {
@@ -976,6 +983,8 @@ export default function BookingClient({
   accountPublicSlug,
   loaderConfig,
   initialContext = null,
+  initialServices = [],
+  initialSpecialists = [],
 }: BookingClientProps) {
   const persistedStateRef = useRef<BookingPersistedState | null>(
     loadPersistedBookingState(accountSlug, accountPublicSlug)
@@ -1363,6 +1372,11 @@ export default function BookingClient({
   const calendarRequestIdRef = useRef(0);
   const servicesCacheRef = useRef(new Map<string, Service[]>());
   const specialistsCacheRef = useRef(new Map<string, Specialist[]>());
+  const calendarCacheRef = useRef(new Map<string, AvailabilityCalendar>());
+  const offersCacheRef = useRef(new Map<string, Record<string, number[]>>());
+  const initialServicesRef = useRef(initialServices);
+  const initialSpecialistsRef = useRef(initialSpecialists);
+  const lastSeededLocationIdRef = useRef<number | null>(null);
   const fullscreenLoaderShownAtRef = useRef<number | null>(null);
   const [overlayNextDeadline, setOverlayNextDeadline] = useState<number | null>(null);
 
@@ -1889,6 +1903,7 @@ export default function BookingClient({
     [bookingSessionKey, scenario, locationId, serviceId, selectedServiceIds, specialistId, dateYmd, timeChoice, accountSlug]
   );
   const shouldLoadServices =
+    !!locationId ||
     (isDateFirst &&
       (currentStepKey === "datetime" ||
         currentStepKey === "service" ||
@@ -1907,6 +1922,7 @@ export default function BookingClient({
         currentStepKey === "chain" ||
         currentStepKey === "details"));
   const shouldLoadSpecialists =
+    !!locationId ||
     currentStepKey === "specialist" ||
     currentStepKey === "chain" ||
     currentStepKey === "details" ||
@@ -2108,16 +2124,26 @@ export default function BookingClient({
 
   // ---------- context
   useEffect(() => {
+    if (hasInitialContextRef.current) {
+      setLoadingContext(false);
+      setContextError(null);
+      return;
+    }
+
     let mounted = true;
-    setLoadingContext(!hasInitialContextRef.current);
+    setLoadingContext(true);
     setContextError(null);
 
-    fetchJson<ContextData>(
-      buildUrl("/api/v1/public/booking/context", { account: accountSlug ?? "" })
+    fetchJson<BootstrapData>(
+      buildUrl("/api/v1/public/booking/bootstrap", { account: accountSlug ?? "" })
     )
       .then((data) => {
         if (!mounted) return;
         setContext(data);
+        const bootServices = Array.isArray(data.services) ? data.services : [];
+        const bootSpecialists = Array.isArray(data.specialists) ? data.specialists : [];
+        if (bootServices.length > 0) initialServicesRef.current = bootServices;
+        if (bootSpecialists.length > 0) initialSpecialistsRef.current = bootSpecialists;
         if (data.locations.length === 1) {
           const firstId = Number(data.locations[0].id);
           setLocationId(Number.isInteger(firstId) ? firstId : null);
@@ -2314,6 +2340,58 @@ export default function BookingClient({
   // ---------- services
   useEffect(() => {
     const safeLocationId = Number(locationId);
+    if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) return;
+    const isNewSeededLocation = lastSeededLocationIdRef.current !== safeLocationId;
+
+    if (!specialistId) {
+      const seededServices = initialServicesRef.current
+        .filter((service) => service.locationIds?.includes(safeLocationId))
+        .map((service) => {
+          const next = { ...service };
+          delete next.locationIds;
+          return next;
+        });
+      if (seededServices.length > 0) {
+        const servicesCacheKey = buildUrl(`services:${safeLocationId}`, {
+          specialistId: null,
+          account: accountSlug ?? "",
+        });
+        if (!servicesCacheRef.current.has(servicesCacheKey)) {
+          servicesCacheRef.current.set(servicesCacheKey, seededServices);
+        }
+        if (services.length === 0 || isNewSeededLocation) {
+          setServices(seededServices);
+        }
+      }
+    }
+
+    const seededSpecialists = initialSpecialistsRef.current
+      .filter((specialist) => specialist.locationIds?.includes(safeLocationId))
+      .map((specialist) => {
+        const next = { ...specialist };
+        delete next.locationIds;
+        return next;
+      });
+    if (seededSpecialists.length > 0) {
+      const specialistsCacheKey = buildUrl(`specialists:${safeLocationId}`, {
+        serviceId: "",
+        serviceIds: "",
+        account: accountSlug ?? "",
+      });
+      if (!specialistsCacheRef.current.has(specialistsCacheKey)) {
+        specialistsCacheRef.current.set(specialistsCacheKey, seededSpecialists);
+      }
+      if (specialists.length === 0 || isNewSeededLocation) {
+        setSpecialists(seededSpecialists);
+        setSpecialistsFetched(true);
+      }
+    }
+
+    lastSeededLocationIdRef.current = safeLocationId;
+  }, [locationId, specialistId, accountSlug, services.length, specialists.length]);
+
+  useEffect(() => {
+    const safeLocationId = Number(locationId);
     if (!shouldLoadServices) {
       setLoadingServices(false);
       setServicesError(null);
@@ -2403,7 +2481,6 @@ export default function BookingClient({
       holdOwnerMarker ?? "",
       debouncedCalendarQueryStartYmd,
       calendarQueryDays,
-      currentStepKey ?? "",
     ].join("|");
 
     if (calendarKeyRef.current === calendarKey) {
@@ -2430,6 +2507,13 @@ export default function BookingClient({
     }
     if (isSpecialistFirst && (selectedServiceIds.length === 0 || !specialistId)) {
       setCalendar(null);
+      return;
+    }
+
+    const cachedCalendar = calendarCacheRef.current.get(calendarKey);
+    if (cachedCalendar) {
+      setCalendar(cachedCalendar);
+      setLoadingCalendar(false);
       return;
     }
 
@@ -2463,6 +2547,7 @@ export default function BookingClient({
           .filter((d) => d.times.length > 0);
 
         const next: AvailabilityCalendar = { start: data?.start ?? todayYmdTz, days: cleanedDays };
+        calendarCacheRef.current.set(calendarKey, next);
         setCalendar(next);
 
       })
@@ -2501,7 +2586,6 @@ export default function BookingClient({
     calendarQueryDays,
     shouldLoadCalendar,
     isGroupService,
-    currentStepKey,
   ]);
 
   // ---------- dateFirst: offersByTime (time -> serviceIds)
@@ -2548,6 +2632,21 @@ export default function BookingClient({
       }
     }
 
+    const offersCacheKey = buildUrl("offers", {
+      locationId: safeLocationId,
+      date: dateYmd,
+      holdOwnerMarker,
+      account: accountSlug ?? "",
+      today: todayYmdTz,
+    });
+    const cachedOffers = offersCacheRef.current.get(offersCacheKey);
+    if (cachedOffers) {
+      setOffersByTime(cachedOffers);
+      setOffersError(null);
+      setLoadingOffers(false);
+      return;
+    }
+
     let mounted = true;
     setLoadingOffers(true);
     setOffersError(null);
@@ -2573,6 +2672,7 @@ export default function BookingClient({
           if (serviceIds.length > 0) plain[item.time] = Array.from(new Set(serviceIds)).sort((a, b) => a - b);
         }
 
+        offersCacheRef.current.set(offersCacheKey, plain);
         setOffersByTime(plain);
       } catch (e: unknown) {
         if (!mounted) return;
@@ -2624,6 +2724,31 @@ export default function BookingClient({
       return;
     }
 
+    const calendarKey = [
+      "date",
+      safeLocationId,
+      "",
+      "",
+      "",
+      accountSlug ?? "",
+      accountTz,
+      todayYmdTz,
+      holdOwnerMarker ?? "",
+      debouncedCalendarQueryStartYmd,
+      calendarQueryDays,
+    ].join("|");
+    const cachedCalendar = calendarCacheRef.current.get(calendarKey);
+    if (cachedCalendar) {
+      const set = new Set<string>();
+      for (const day of cachedCalendar.days ?? []) {
+        if (day?.date) set.add(day.date);
+      }
+      setDateFirstAvailableDates(set);
+      setDateFirstAvailabilityError(null);
+      setLoadingDateFirstAvailability(false);
+      return;
+    }
+
     let mounted = true;
     setLoadingDateFirstAvailability(true);
     setDateFirstAvailabilityError(null);
@@ -2645,6 +2770,7 @@ export default function BookingClient({
         for (const day of data.days ?? []) {
           if (day?.date) set.add(day.date);
         }
+        calendarCacheRef.current.set(calendarKey, data);
         setDateFirstAvailableDates(set);
       } catch (e: unknown) {
         if (!mounted) return;
@@ -2668,6 +2794,8 @@ export default function BookingClient({
     holdOwnerMarker,
     debouncedCalendarQueryStartYmd,
     calendarQueryDays,
+    accountTz,
+    todayYmdTz,
   ]);
 
   // ---------- dateFirst: group offers by time (time -> group serviceIds)
@@ -3710,11 +3838,7 @@ export default function BookingClient({
     if (!showFullscreenLoaderOverlay) return;
     const shownAt = fullscreenLoaderShownAtRef.current ?? Date.now();
     const elapsed = Date.now() - shownAt;
-    const configuredMinVisibleMs =
-      effectiveInlineLoader?.fixedDurationEnabled && Number.isFinite(effectiveInlineLoader.fixedDurationSec)
-        ? Math.max(1, Math.round(effectiveInlineLoader.fixedDurationSec)) * 1000
-        : 240;
-    const minVisibleMs = configuredMinVisibleMs;
+    const minVisibleMs = 0;
     const hideDelay = Math.max(0, minVisibleMs - elapsed);
     const timer = window.setTimeout(() => {
       setShowFullscreenLoaderOverlay(false);
@@ -4287,7 +4411,6 @@ export default function BookingClient({
       setPendingStepKey("datetime");
       return;
     }
-    setOverlayNextDeadline(Date.now() + 900);
     setStepIndex((v) => Math.min(stepsWithScenario.length - 1, v + 1));
   };
   const goPrev = () => {
