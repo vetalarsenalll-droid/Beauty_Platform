@@ -35,6 +35,9 @@ export type SiteTheme = SiteThemePalette & {
   darkPalette: SiteThemePalette;
 };
 
+const DEFAULT_LIGHT_SURFACE_COLOR = "#f6f7f9";
+const LEGACY_LIGHT_SURFACE_COLORS = new Set(["#f5f2f0"]);
+
 export type SiteDraft = {
   version: 1;
   theme: SiteTheme;
@@ -885,9 +888,9 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     contentWidth: 1120,
     gradientEnabled: false,
     gradientDirection: "vertical",
-    gradientFrom: "#F7F3F0",
-    gradientTo: "#FFF7F2",
-    surfaceColor: "#F5F2F0",
+    gradientFrom: DEFAULT_LIGHT_SURFACE_COLOR,
+    gradientTo: "#ffffff",
+    surfaceColor: DEFAULT_LIGHT_SURFACE_COLOR,
     panelColor: "#FFFFFF",
     textColor: "#111827",
     mutedColor: "#6B7280",
@@ -966,7 +969,15 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
   const normalizePalette = (
     palette: Partial<SiteThemePalette> | undefined,
     fallback: SiteThemePalette
-  ): SiteThemePalette => ({
+  ): SiteThemePalette => {
+    const rawSurfaceColor =
+      typeof palette?.surfaceColor === "string" ? palette.surfaceColor : fallback.surfaceColor;
+    const normalizedSurfaceColor =
+      LEGACY_LIGHT_SURFACE_COLORS.has(rawSurfaceColor.trim().toLowerCase())
+        ? DEFAULT_LIGHT_SURFACE_COLOR
+        : rawSurfaceColor;
+
+    return {
     fontHeading: palette?.fontHeading || fallback.fontHeading,
     fontBody: palette?.fontBody || fallback.fontBody,
     accentColor: palette?.accentColor || fallback.accentColor,
@@ -987,7 +998,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
         : fallback.gradientDirection,
     gradientFrom: palette?.gradientFrom || fallback.gradientFrom,
     gradientTo: palette?.gradientTo || fallback.gradientTo,
-    surfaceColor: palette?.surfaceColor || fallback.surfaceColor,
+    surfaceColor: normalizedSurfaceColor,
     panelColor: palette?.panelColor || fallback.panelColor,
     textColor: palette?.textColor || fallback.textColor,
     mutedColor: palette?.mutedColor || fallback.mutedColor,
@@ -1017,7 +1028,8 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
     clientCardBg: palette?.clientCardBg || fallback.clientCardBg,
     clientButtonColor: palette?.clientButtonColor || fallback.clientButtonColor,
     clientButtonTextColor: palette?.clientButtonTextColor || fallback.clientButtonTextColor,
-  });
+    };
+  };
   const normalizeBlocks = (blocks: SiteBlock[]) =>
     blocks
       .filter((block) => block && typeof block === "object")
