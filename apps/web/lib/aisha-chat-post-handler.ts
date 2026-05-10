@@ -13,6 +13,7 @@ import { createFailSoftHandler, preparePostTurn, saveTurn } from "@/lib/aisha-tu
 import { handleClientActionsDomain } from "@/lib/aisha-handle-client-actions";
 import { handleBookingDomain } from "@/lib/aisha-handle-booking";
 import { handleChatOnlyDomain } from "@/lib/aisha-handle-chat-only";
+import { runWithAiUsageContext } from "@/lib/ai-usage";
 import type { Action } from "@/lib/aisha-chat-types";
 
 const {
@@ -98,6 +99,9 @@ export async function handlePublicAiChatPost(request: Request) {
   if (!resolved.account) return failSoft("account_not_found");
 
   try {
+    return await runWithAiUsageContext(
+      { accountId: resolved.account.id, threadId: thread.id, actionId: turnAction.id },
+      async () => {
     const turnContext = await buildTurnContext({
       threadId: thread.id,
       message,
@@ -1114,6 +1118,8 @@ export async function handlePublicAiChatPost(request: Request) {
     });
 
     return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d });
+      },
+    );
   } catch (e) {
     return failSoft(e instanceof Error ? e.message : "unknown_error");
   }

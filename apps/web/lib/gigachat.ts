@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { recordAiUsage } from "@/lib/ai-usage";
 
 type ChatRole = "system" | "user" | "assistant";
 
@@ -16,6 +17,10 @@ type GigaChatCompletionResult = {
     completionTokens: number | null;
     totalTokens: number | null;
   };
+};
+
+type GigaChatCompletionOptions = {
+  purpose?: string;
 };
 
 type OAuthResponse = {
@@ -176,7 +181,10 @@ async function requestCompletion(messages: ChatMessage[], accessToken: string) {
   );
 }
 
-export async function createGigaChatCompletion(messages: ChatMessage[]): Promise<GigaChatCompletionResult> {
+export async function createGigaChatCompletion(
+  messages: ChatMessage[],
+  options: GigaChatCompletionOptions = {},
+): Promise<GigaChatCompletionResult> {
   let accessToken = await fetchAccessToken();
   let response: Response;
 
@@ -218,7 +226,7 @@ export async function createGigaChatCompletion(messages: ChatMessage[]): Promise
     throw new Error("GigaChat completion failed: empty content");
   }
 
-  return {
+  const result = {
     content,
     model: payload.model || resolveModel(),
     finishReason: choice?.finish_reason ?? null,
@@ -228,4 +236,13 @@ export async function createGigaChatCompletion(messages: ChatMessage[]): Promise
       totalTokens: payload.usage?.total_tokens ?? null,
     },
   };
+
+  await recordAiUsage({
+    provider: "gigachat",
+    model: result.model,
+    purpose: options.purpose ?? "completion",
+    usage: result.usage,
+  });
+
+  return result;
 }

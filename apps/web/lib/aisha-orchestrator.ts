@@ -335,7 +335,7 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
     const completion = await createGigaChatCompletion([
       { role: "system", content: "Извлекай структуру. Только JSON." },
       { role: "user", content: prompt },
-    ]);
+    ], { purpose: "nlu" });
     const parsed = extractJsonObject(completion.content);
     if (!parsed) {
       markNluFailure(scopeKey);
@@ -399,7 +399,7 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     const completion = await createGigaChatCompletion([
       { role: "system", content: "Ты вежливый ассистент. Не выдумывай факты, опирайся только на переданный контекст." },
       { role: "user", content: prompt },
-    ]);
+    ], { purpose: "smalltalk" });
     const text = completion.content?.trim();
     return text ? clampReplyText(text, 900, 6) : null;
   } catch {
@@ -492,7 +492,7 @@ export async function runAishaChatAction(args: RunAishaChatActionArgs): Promise<
     const completion = await createGigaChatCompletion([
       { role: "system", content: "Классифицируй действие и ответь JSON-объектом." },
       { role: "user", content: prompt },
-    ]);
+    ], { purpose: "chat_action" });
     const parsed = extractJsonObject(completion.content);
     if (!parsed) return { action: "answer_only", reply: null, confidence: 0, source: "fallback" };
     const out = normalizeChatAction(parsed);
@@ -545,7 +545,7 @@ export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Pr
     const completion = await createGigaChatCompletion([
       { role: "system", content: "Сформулируй один короткий мост к записи. Факты не выдумывать." },
       { role: "user", content: prompt },
-    ]);
+    ], { purpose: "booking_bridge" });
     const out = completion.content?.trim();
     if (!out) return null;
     return clampReplyText(out, 220, 1);
@@ -578,7 +578,7 @@ export async function runAishaNaturalizeReply(args: RunAishaNaturalizeArgs): Pro
     const completion = await createGigaChatCompletion([
       { role: "system", content: "Перефразируй только стиль. Факты не менять." },
       { role: "user", content: prompt },
-    ]);
+    ], { purpose: "naturalize_reply" });
     const text = completion.content?.trim();
     if (!text) return null;
     return clampReplyText(text, 260, 2);

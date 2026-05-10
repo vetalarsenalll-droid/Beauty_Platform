@@ -2146,6 +2146,43 @@ model AiAction {
   logs   AiLog[]
 }
 
+model AiUsage {
+  id               Int      @id @default(autoincrement())
+  accountId        Int?
+  threadId         Int?
+  actionId         Int?
+  provider         String
+  model            String
+  purpose          String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  costPerTokenRub  Decimal  @db.Decimal(18, 10)
+  costRub          Decimal  @db.Decimal(18, 6)
+  markupPercent    Int      @default(40)
+  chargedRub       Decimal  @db.Decimal(18, 6)
+  createdAt        DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([threadId])
+  @@index([actionId])
+  @@index([provider, model])
+}
+
+model AiBalanceLedger {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  usageId   Int?
+  type      String
+  amountRub Decimal  @db.Decimal(18, 6)
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([usageId])
+  @@index([type])
+}
+
 model AiLog {
   id        Int      @id @default(autoincrement())
   actionId  Int?
