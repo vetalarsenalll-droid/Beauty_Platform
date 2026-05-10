@@ -3,6 +3,7 @@ import { AppointmentStatus, Prisma, ScheduleEntryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeRuPhone } from "@/lib/phone";
 import { requireCrmPermission } from "@/lib/auth";
+import { publishCalendarEvent } from "@/lib/calendar-events";
 
 type ServiceItemPayload = {
   serviceId: number;
@@ -483,6 +484,13 @@ export async function POST(request: Request) {
     },
   });
 
+  publishCalendarEvent({
+    accountId: session.accountId,
+    kind: "appointment.created",
+    entityId: appointment.id,
+    locationId: body.locationId,
+    specialistId: body.staffId,
+  });
+
   return NextResponse.json(serializeAppointment(updated ?? appointment));
 }
-

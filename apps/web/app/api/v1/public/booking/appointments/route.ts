@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { normalizeRuPhone } from "@/lib/phone";
+import { publishCalendarEvent } from "@/lib/calendar-events";
 import {
   verifyHoldProofToken,
   BOOKING_HOLD_COOKIE,
@@ -667,8 +668,7 @@ export async function POST(request: Request) {
 
       if (sessionKey) {
         const sessionTimestamp = new Date();
-        const txAny = tx as any;
-        await txAny.onlineBookingSession.upsert({
+        await tx.onlineBookingSession.upsert({
           where: {
             accountId_sessionKey: {
               accountId: resolved.account.id,
@@ -749,6 +749,13 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json(responsePayload);
     response.cookies.delete(BOOKING_HOLD_COOKIE);
+    publishCalendarEvent({
+      accountId: resolved.account.id,
+      kind: "appointment.created",
+      entityId: result.appointmentId,
+      locationId,
+      specialistId,
+    });
     return response;
   } catch (error) {
     if (idempotencyRecordId) {

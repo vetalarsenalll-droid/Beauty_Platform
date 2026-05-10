@@ -2,6 +2,7 @@
 import { GroupSessionStatus, ScheduleEntryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
+import { publishCalendarEvent } from "@/lib/calendar-events";
 
 const toNum = (value: unknown): number | null => {
   const n = typeof value === "number" ? value : Number(value);
@@ -260,6 +261,14 @@ export async function POST(request: Request) {
       source: body.source ?? "crm",
       comment: body.comment ?? null,
     },
+  });
+
+  publishCalendarEvent({
+    accountId: session.accountId,
+    kind: "group-session.changed",
+    entityId: created.id,
+    locationId: created.locationId,
+    specialistId: created.specialistId,
   });
 
   return NextResponse.json({

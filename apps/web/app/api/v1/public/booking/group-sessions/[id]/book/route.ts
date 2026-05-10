@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeRuPhone } from "@/lib/phone";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { resolvePublicAccount } from "@/lib/public-booking";
+import { publishCalendarEvent } from "@/lib/calendar-events";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const resolved = await resolvePublicAccount(request);
@@ -146,7 +147,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
     }
 
-    return { participantId: participant.id };
+    return {
+      participantId: participant.id,
+      groupSessionId: groupSession.id,
+      locationId: groupSession.locationId,
+      specialistId: groupSession.specialistId,
+    };
   });
 
   if ("error" in result) {
@@ -160,6 +166,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const info = map[errorKey] ?? { code: "ERROR", message: "Не удалось записаться.", status: 400 };
     return jsonError(info.code, info.message, null, info.status);
   }
+
+  publishCalendarEvent({
+    accountId: resolved.account.id,
+    kind: "group-session.participant.created",
+    entityId: result.groupSessionId,
+    locationId: result.locationId,
+    specialistId: result.specialistId,
+  });
 
   return jsonOk({ participantId: result.participantId });
 }

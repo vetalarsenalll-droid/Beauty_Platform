@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
+import { publishCalendarEvent } from "@/lib/calendar-events";
 
 const toNum = (value: unknown): number | null => {
   const n = typeof value === "number" ? value : Number(value);
@@ -60,12 +61,25 @@ export async function POST(request: Request, { params }: Params) {
       data: { bookedCount: groupSession.bookedCount + 1 },
     });
 
-    return { participant };
+    return {
+      participant,
+      groupSessionId: groupSession.id,
+      locationId: groupSession.locationId,
+      specialistId: groupSession.specialistId,
+    };
   });
 
   if ("error" in result) {
     return NextResponse.json({ message: result.error }, { status: 409 });
   }
+
+  publishCalendarEvent({
+    accountId: session.accountId,
+    kind: "group-session.participant.created",
+    entityId: result.groupSessionId,
+    locationId: result.locationId,
+    specialistId: result.specialistId,
+  });
 
   return NextResponse.json({ id: result.participant.id });
 }

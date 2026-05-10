@@ -640,6 +640,29 @@ export default function JournalView({
   };
 
   useEffect(() => {
+    const source = new EventSource("/api/v1/crm/calendar/events");
+    let refreshTimer: number | null = null;
+
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) return;
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        router.refresh();
+      }, 250);
+    };
+
+    source.addEventListener("calendar-change", scheduleRefresh);
+
+    return () => {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+      source.removeEventListener("calendar-change", scheduleRefresh);
+      source.close();
+    };
+  }, [router]);
+
+  useEffect(() => {
     const handler = (event: MouseEvent) => {
       const target = event.target as Node;
       if (filtersRef.current && !filtersRef.current.contains(target)) {
