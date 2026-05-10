@@ -274,6 +274,8 @@ const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
 const BOOKING_MAX_BLOCK_COLUMNS = 16;
 const PUBLIC_WIDTH_REFERENCE = 1600;
+const DEFAULT_PUBLIC_SECTION_BG_LIGHT = "#f6f7f9";
+const DEFAULT_PUBLIC_SECTION_BG_DARK = "#111318";
 
 const normalizeHex = (value: string): string | null => {
   const trimmed = value.trim();
@@ -400,6 +402,28 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   };
   const readColor = (key: string) =>
     typeof style[key] === "string" ? (style[key] as string) : "";
+  const colorKey = (value: string) => normalizeHex(value) ?? value.trim().toLowerCase();
+  const isLegacyUnselectedSectionBgLight = (value: string) => {
+    const key = colorKey(value);
+    if (!key) return false;
+    return new Set([
+      colorKey(theme.lightPalette.surfaceColor),
+      colorKey(theme.lightPalette.panelColor),
+      "#f5f2f0",
+      "#f7f3f0",
+      "#fff7f2",
+    ]).has(key);
+  };
+  const isLegacyUnselectedSectionBgDark = (value: string) => {
+    const key = colorKey(value);
+    if (!key) return false;
+    return new Set([
+      colorKey(theme.darkPalette.surfaceColor),
+      colorKey(theme.darkPalette.panelColor),
+      "#14161a",
+      "#16181d",
+    ]).has(key);
+  };
   const sectionBackgroundPrefix =
     block.type === "booking"
       ? "bookingSectionBackground"
@@ -415,6 +439,24 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
   const sectionBackgroundColor = (suffix: string) => {
     const value = sectionBackgroundValue(suffix);
     return typeof value === "string" ? value : "";
+  };
+  const normalizeUnselectedSectionBgLight = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === "transparent") return "";
+    return isLegacyUnselectedSectionBgLight(trimmed) ? "" : trimmed;
+  };
+  const normalizeUnselectedSectionBgDark = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === "transparent") return "";
+    return isLegacyUnselectedSectionBgDark(trimmed) ? "" : trimmed;
+  };
+  const isUnselectedSectionBgLight = (value: string) => {
+    const trimmed = value.trim();
+    return !trimmed || trimmed.toLowerCase() === "transparent" || isLegacyUnselectedSectionBgLight(trimmed);
+  };
+  const isUnselectedSectionBgDark = (value: string) => {
+    const trimmed = value.trim();
+    return !trimmed || trimmed.toLowerCase() === "transparent" || isLegacyUnselectedSectionBgDark(trimmed);
   };
   const sectionBackgroundNumber = (suffix: string) =>
     numOrNull(sectionBackgroundValue(suffix) as number | string | null);
@@ -469,13 +511,33 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.panelColor,
     theme.darkPalette.panelColor
   );
-  const sectionBgPair = resolvePair(
+  const rawSectionBgPair = resolvePair(
     "sectionBgLight",
     "sectionBgDark",
     "sectionBg",
-    theme.lightPalette.panelColor,
-    theme.darkPalette.panelColor
+    DEFAULT_PUBLIC_SECTION_BG_LIGHT,
+    DEFAULT_PUBLIC_SECTION_BG_DARK
   );
+  const legacySectionBgLight = readColor("sectionBgLight") || readColor("sectionBg");
+  const legacySectionBgDark = readColor("sectionBgDark");
+  const explicitSectionBgLight = normalizeUnselectedSectionBgLight(
+    sectionBackgroundColor("FromLight")
+  );
+  const explicitSectionBgDark = normalizeUnselectedSectionBgDark(
+    sectionBackgroundColor("FromDark")
+  );
+  const hasExplicitSectionBgLight = Boolean(explicitSectionBgLight);
+  const hasExplicitSectionBgDark = Boolean(explicitSectionBgDark);
+  const sectionBgPair = {
+    lightResolved:
+      !hasExplicitSectionBgLight && isUnselectedSectionBgLight(legacySectionBgLight)
+        ? DEFAULT_PUBLIC_SECTION_BG_LIGHT
+        : rawSectionBgPair.lightResolved,
+    darkResolved:
+      !hasExplicitSectionBgDark && isUnselectedSectionBgDark(legacySectionBgDark)
+        ? DEFAULT_PUBLIC_SECTION_BG_DARK
+        : rawSectionBgPair.darkResolved,
+  };
   const rawBlockWidth = numOrNull(style.blockWidth as number);
   const rawBlockWidthColumns = numOrNull(style.blockWidthColumns as number);
   const rawMobileBlockWidthColumns = numOrNull(style.mobileBlockWidthColumns as number);
@@ -653,18 +715,29 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     sectionBackgroundValue("ModeDark") === "radial"
       ? (sectionBackgroundValue("ModeDark") as "linear" | "radial")
       : servicesSectionBackgroundModeLight;
+  const legacyServicesSectionBackgroundFromLight =
+    readColor("sectionBgLight") || readColor("sectionBg");
+  const legacyServicesSectionBackgroundFromDark = readColor("sectionBgDark");
   const servicesSectionBackgroundFromLightRaw =
-    sectionBackgroundColor("FromLight") ||
-    readColor("sectionBgLight") ||
-    readColor("sectionBg");
+    explicitSectionBgLight ||
+    (isUnselectedSectionBgLight(legacyServicesSectionBackgroundFromLight)
+      ? ""
+      : legacyServicesSectionBackgroundFromLight);
   const servicesSectionBackgroundFromDarkRaw =
-    sectionBackgroundColor("FromDark") || readColor("sectionBgDark");
-  const servicesSectionBackgroundToLightRaw = sectionBackgroundColor("ToLight");
-  const servicesSectionBackgroundToDarkRaw = sectionBackgroundColor("ToDark");
+    explicitSectionBgDark ||
+    (isUnselectedSectionBgDark(legacyServicesSectionBackgroundFromDark)
+      ? ""
+      : legacyServicesSectionBackgroundFromDark);
+  const servicesSectionBackgroundToLightRaw = normalizeUnselectedSectionBgLight(
+    sectionBackgroundColor("ToLight")
+  );
+  const servicesSectionBackgroundToDarkRaw = normalizeUnselectedSectionBgDark(
+    sectionBackgroundColor("ToDark")
+  );
   const servicesSectionBackgroundFromLight =
-    servicesSectionBackgroundFromLightRaw || theme.lightPalette.panelColor;
+    servicesSectionBackgroundFromLightRaw || DEFAULT_PUBLIC_SECTION_BG_LIGHT;
   const servicesSectionBackgroundFromDark =
-    servicesSectionBackgroundFromDarkRaw || theme.darkPalette.panelColor;
+    servicesSectionBackgroundFromDarkRaw || DEFAULT_PUBLIC_SECTION_BG_DARK;
   const servicesSectionBackgroundToLight =
     servicesSectionBackgroundToLightRaw || servicesSectionBackgroundFromLight;
   const servicesSectionBackgroundToDark =
@@ -2665,12 +2738,12 @@ export function buildBlockWrapperStyle(
       : null;
     const servicesSectionBackgroundLight = resolveServicesSectionBackgroundVisual(
       servicesSectionBackgroundSource,
-      style.sectionBgLightResolved || theme.lightPalette.panelColor,
+      style.sectionBgLightResolved || DEFAULT_PUBLIC_SECTION_BG_LIGHT,
       "light"
     );
     const servicesSectionBackgroundDark = resolveServicesSectionBackgroundVisual(
       servicesSectionBackgroundSource,
-      style.sectionBgDarkResolved || theme.darkPalette.panelColor,
+      style.sectionBgDarkResolved || DEFAULT_PUBLIC_SECTION_BG_DARK,
       "dark"
     );
       return {

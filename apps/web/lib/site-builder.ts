@@ -735,6 +735,26 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
   },
 });
 
+const createBookingBlock = (): SiteBlock => ({
+  id: makeBlockId(),
+  type: "booking",
+  variant: "v1",
+  data: {
+    style: {
+      marginTop: 30,
+      marginBottom: 30,
+      blockWidth: 1400,
+      blockWidthColumns: 12,
+      mobileBlockWidthColumns: 12,
+      radius: 5,
+      shadowSize: 0,
+      headingSize: 18,
+      subheadingSize: 16,
+      textSize: 14,
+    },
+  },
+});
+
 export const createDefaultDraft = (accountName: string): SiteDraft => {
   const safeAccountName = accountName?.trim() || DEFAULT_ACCOUNT_NAME;
   const homeBlocks: SiteBlock[] = [
@@ -854,6 +874,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       },
     },
   ];
+  const bookingBlocks: SiteBlock[] = [createBookingBlock()];
 
   const baseTheme: SiteThemePalette = {
     fontHeading: "var(--font-manrope), sans-serif",
@@ -916,7 +937,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     blocks: homeBlocks,
     pages: {
       home: homeBlocks,
-      booking: [],
+      booking: bookingBlocks,
       client: [],
       locations: [],
       services: [],
