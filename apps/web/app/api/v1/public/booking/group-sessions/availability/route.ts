@@ -61,30 +61,43 @@ export async function GET(request: Request) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
   }
 
-  const endYmd = addDaysYmd(start, days);
+  const safeStart = start < nowTz.ymd ? nowTz.ymd : start;
+  const endYmd = addDaysYmd(safeStart, days);
   if (!endYmd) {
     return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   }
 
-  const rangeStart = zonedDayRangeUtc(start, tz);
+  const rangeStart = zonedDayRangeUtc(safeStart, tz);
   const rangeEnd = zonedDayRangeUtc(endYmd, tz);
   if (!rangeStart || !rangeEnd) {
     return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   }
 
   if (endYmd < nowTz.ymd) {
-    return jsonOk({ start, days: [] });
+    return jsonOk({ start: safeStart, days: [] });
   }
+  const now = new Date();
 
   const sessions = await prisma.groupSession.findMany({
     where: {
       accountId: resolved.account.id,
       locationId,
-      serviceId,
+      location: { status: "ACTIVE" },
+      service: {
+        id: serviceId,
+        isActive: true,
+        bookingType: "GROUP",
+        locations: { some: { locationId } },
+      },
       startAt: { lt: rangeEnd.dayStartUtc },
       endAt: { gt: rangeStart.dayStartUtc },
+      AND: [{ startAt: { gt: now } }],
       status: { not: "CANCELLED" },
-      ...(specialistId ? { specialistId } : {}),
+      specialist: {
+        accountId: resolved.account.id,
+        locations: { some: { locationId } },
+        ...(specialistId ? { id: specialistId } : {}),
+      },
     },
     select: {
       startAt: true,
@@ -107,12 +120,12 @@ export async function GET(request: Request) {
 
   const list: Array<{ date: string }> = [];
   for (let i = 0; i < days; i += 1) {
-    const ymd = addDaysYmd(start, i);
+    const ymd = addDaysYmd(safeStart, i);
     if (!ymd) continue;
     if (availableDates.has(ymd)) {
       list.push({ date: ymd });
     }
   }
 
-  return jsonOk({ start, days: list });
+  return jsonOk({ start: safeStart, days: list });
 }

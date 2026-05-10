@@ -10,6 +10,7 @@ type BookingClientProps = {
   accountSlug?: string;
   accountPublicSlug?: string;
   loaderConfig?: SiteLoaderConfig | null;
+  initialContext?: ContextData | null;
 };
 
 type PublicAccount = {
@@ -973,11 +974,13 @@ export default function BookingClient({
   accountSlug,
   accountPublicSlug,
   loaderConfig,
+  initialContext = null,
 }: BookingClientProps) {
   const persistedStateRef = useRef<BookingPersistedState | null>(
     loadPersistedBookingState(accountSlug, accountPublicSlug)
   );
   const restoringFromStorageRef = useRef(false);
+  const hasInitialContextRef = useRef(Boolean(initialContext));
   const skipScenarioResetOnceRef = useRef(false);
   const skipLocationResetOnceRef = useRef(false);
   const skipServiceResetOnceRef = useRef(false);
@@ -1060,11 +1063,14 @@ export default function BookingClient({
     [groupBookedStorageKey]
   );
 
-  const [context, setContext] = useState<ContextData | null>(null);
-  const [loadingContext, setLoadingContext] = useState(true);
+  const [context, setContext] = useState<ContextData | null>(initialContext);
+  const [loadingContext, setLoadingContext] = useState(!initialContext);
   const [contextError, setContextError] = useState<string | null>(null);
 
-  const [locationId, setLocationId] = useState<number | null>(null);
+  const [locationId, setLocationId] = useState<number | null>(() => {
+    const firstId = initialContext?.locations.length === 1 ? Number(initialContext.locations[0].id) : null;
+    return Number.isInteger(firstId) ? firstId : null;
+  });
 
   const [services, setServices] = useState<Service[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
@@ -2095,7 +2101,7 @@ export default function BookingClient({
   // ---------- context
   useEffect(() => {
     let mounted = true;
-    setLoadingContext(true);
+    setLoadingContext(!hasInitialContextRef.current);
     setContextError(null);
 
     fetchJson<ContextData>(
@@ -2267,6 +2273,7 @@ export default function BookingClient({
     let mounted = true;
     setLoadingWorkdaySpecs(true);
     setWorkdaySpecsError(null);
+    setWorkdaySpecialistIds(null);
 
     fetchJson<AvailabilitySpecialists>(
       buildUrl("/api/v1/public/booking/availability/specialists", {
@@ -3705,7 +3712,7 @@ export default function BookingClient({
   const specialistsByChosenDateTime = useMemo(() => {
     if (isSpecialistFirst) {
       const set = workdaySpecialistIds;
-      if (!set) return specialists;
+      if (!set) return [];
       return specialists.filter((s) => set.has(s.id));
     }
 
@@ -4333,11 +4340,13 @@ export default function BookingClient({
       const paramsToDrop = [
         "locationId",
         "serviceId",
+        "serviceIds",
         "specialistId",
         "date",
         "time",
         "scenario",
         "start",
+        "plan",
       ];
       let changed = false;
       for (const key of paramsToDrop) {
@@ -5187,6 +5196,7 @@ export default function BookingClient({
                     )}
 
                     {!loadingSpecialists &&
+                      !loadingWorkdaySpecs &&
                       !specialistsError &&
                       (isSpecialistFirst || (!isSpecialistFirst && selectedServiceIds.length > 0 && !!timeChoice)) &&
                       (!isDateFirst || (!loadingDateFirstServiceSlots && selectedServiceIds.length > 0 && !!timeChoice)) && (

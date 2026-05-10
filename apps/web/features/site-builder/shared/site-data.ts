@@ -5,6 +5,7 @@ export type SiteAccountInfo = {
   name: string;
   slug: string;
   timeZone: string;
+  slotStepMinutes?: number;
 };
 
 export type SiteAccountInfoWithPublicSlug = SiteAccountInfo & {
@@ -65,6 +66,17 @@ export type SiteLocationItem = {
   description?: string | null;
   phone: string | null;
   coverUrl: string | null;
+  hours?: Array<{
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }>;
+  exceptions?: Array<{
+    date: string;
+    isClosed: boolean;
+    startTime: string | null;
+    endTime: string | null;
+  }>;
   photoUrls?: string[];
   photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
   geo: { lat: number; lng: number } | null;
@@ -125,6 +137,17 @@ export type SiteWorkPhotos = {
   specialists: Array<{ entityId: string; url: string }>;
 };
 
+export type SiteLegalDocumentItem = {
+  id: number;
+  title: string;
+  description?: string | null;
+  isRequired: boolean;
+  versionId: number;
+  version: number;
+  content?: string;
+  publishedAt: string;
+};
+
 export type PublicSiteData = {
   account: SiteAccountInfo;
   publicSlug: string;
@@ -136,4 +159,6 @@ export type PublicSiteData = {
   specialists: SiteSpecialistItem[];
   promos: SitePromoItem[];
   workPhotos: SiteWorkPhotos;
+  legalDocuments: SiteLegalDocumentItem[];
+  platformLegalDocuments: SiteLegalDocumentItem[];
 };

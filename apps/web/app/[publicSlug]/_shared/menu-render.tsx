@@ -174,12 +174,17 @@ export async function renderPublicMenuFrame(
       <section className={wrapper.className} style={wrapper.style as CSSProperties}>
         {renderBlock(
           menuBlock,
+          data.account.id,
           data.account.name,
           data.account.slug,
+          data.account.timeZone,
+          data.account.slotStepMinutes,
           data.publicSlug,
           data.branding,
           data.accountProfile,
           data.locations,
+          data.legalDocuments,
+          data.platformLegalDocuments,
           data.services,
           data.specialists,
           data.promos,

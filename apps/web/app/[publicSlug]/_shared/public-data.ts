@@ -1,10 +1,12 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { parsePublicSlugId } from "@/lib/public-slug";
+import { getAccountSlotStepMinutes } from "@/lib/public-booking";
 import { normalizeDraft, type SiteDraft } from "@/lib/site-builder";
 import type {
   PublicSiteData,
   SiteAccountProfile as AccountProfile,
   SiteBranding as Branding,
+  SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
   SiteServiceItem as ServiceItem,
@@ -45,11 +47,41 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     (publicPage?.publishedVersion?.contentJson ?? publicPage?.draftJson ?? null) as SiteDraft | null;
   const draft = normalizeDraft(sourceJson, account.name);
 
-  const [locations, services, specialists, promotions, profile, branding] = await Promise.all([
+  const [
+    slotStepMinutes,
+    locations,
+    services,
+    specialists,
+    promotions,
+    profile,
+    branding,
+    legalDocs,
+    platformLegalDocs,
+  ] = await Promise.all([
+    getAccountSlotStepMinutes(account.id),
     prisma.location.findMany({
-      where: { accountId: account.id },
-      orderBy: { name: "asc" },
-      include: { geoPoint: true },
+      where: { accountId: account.id, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        geoPoint: true,
+        hours: {
+          select: {
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+          },
+          orderBy: { dayOfWeek: "asc" },
+        },
+        exceptions: {
+          select: {
+            date: true,
+            isClosed: true,
+            startTime: true,
+            endTime: true,
+          },
+          orderBy: { date: "asc" },
+        },
+      },
     }),
     prisma.service.findMany({
       where: { accountId: account.id },
@@ -78,6 +110,37 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     }),
     prisma.accountBranding.findUnique({
       where: { accountId: account.id },
+    }),
+    prisma.legalDocument.findMany({
+      where: { accountId: account.id },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        isRequired: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true, version: true, publishedAt: true },
+        },
+      },
+    }),
+    prisma.platformLegalDocument.findMany({
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        isRequired: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true, version: true, publishedAt: true },
+        },
+      },
     }),
   ]);
 
@@ -205,6 +268,13 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       ? { lat: location.geoPoint.lat, lng: location.geoPoint.lng }
       : null,
     coverUrl: locationCoverMap.get(String(location.id)) ?? null,
+    hours: location.hours,
+    exceptions: location.exceptions.map((item) => ({
+      date: item.date.toISOString().slice(0, 10),
+      isClosed: item.isClosed,
+      startTime: item.startTime,
+      endTime: item.endTime,
+    })),
     photoUrls: locationPhotos
       .filter((item) => item.entityId === String(location.id))
       .map((item) => item.asset.url),
@@ -256,8 +326,36 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     codes: promo.promoCodes.map((code) => code.code),
   }));
 
+  const legalDocuments: LegalDocumentItem[] = legalDocs.flatMap((doc) => {
+    const version = doc.versions[0];
+    if (!version) return [];
+    return {
+      id: doc.id,
+      title: doc.title,
+      description: doc.description ?? null,
+      isRequired: doc.isRequired,
+      versionId: version.id,
+      version: version.version,
+      publishedAt: version.publishedAt.toISOString(),
+    };
+  });
+
+  const platformLegalDocuments: LegalDocumentItem[] = platformLegalDocs.flatMap((doc) => {
+    const version = doc.versions[0];
+    if (!version) return [];
+    return {
+      id: doc.id,
+      title: doc.title,
+      description: doc.description ?? null,
+      isRequired: doc.isRequired,
+      versionId: version.id,
+      version: version.version,
+      publishedAt: version.publishedAt.toISOString(),
+    };
+  });
+
   return {
-    account,
+    account: { ...account, slotStepMinutes },
     publicSlug,
     draft,
     accountProfile,
@@ -267,6 +365,8 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     specialists: specialistItems,
     promos: promoItems,
     workPhotos,
+    legalDocuments,
+    platformLegalDocuments,
   };
 }
 

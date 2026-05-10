@@ -18,6 +18,7 @@ import {
 import type {
   SiteAccountProfile as AccountProfile,
   SiteBranding as Branding,
+  SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
   SiteServiceItem as ServiceItem,
@@ -1092,12 +1093,17 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
 
 export function renderBlock(
   block: SiteBlock,
+  accountId: number,
   accountName: string,
   accountSlug: string,
+  accountTimeZone: string,
+  accountSlotStepMinutes: number | undefined,
   publicSlug: string,
   branding: Branding,
   profile: AccountProfile,
   locations: LocationItem[],
+  legalDocuments: LegalDocumentItem[],
+  platformLegalDocuments: LegalDocumentItem[],
   services: ServiceItem[],
   specialists: SpecialistItem[],
   promos: PromoItem[],
@@ -1141,7 +1147,20 @@ export function renderBlock(
     case "loader":
       return null;
     case "booking":
-      return renderBooking(block, accountSlug, publicSlug, theme, loaderConfig);
+      return renderBooking(
+        block,
+        accountId,
+        accountName,
+        accountSlug,
+        accountTimeZone,
+        accountSlotStepMinutes,
+        publicSlug,
+        locations,
+        legalDocuments,
+        platformLegalDocuments,
+        theme,
+        loaderConfig
+      );
     case "locations":
       return renderLocations(block, publicSlug, locations, current, theme);
     case "services":
@@ -1414,13 +1433,39 @@ function gridSpanLeftCss(start: number): string {
 
 function renderBooking(
   block: SiteBlock,
+  accountId: number,
+  accountName: string,
   accountSlug: string,
+  accountTimeZone: string,
+  accountSlotStepMinutes: number | undefined,
   publicSlug: string,
+  locations: LocationItem[],
+  legalDocuments: LegalDocumentItem[],
+  platformLegalDocuments: LegalDocumentItem[],
   theme: SiteTheme,
   loaderConfig?: SiteLoaderConfig | null
 ) {
   const style = normalizeStyle(block, theme);
   const cssVars = buildBookingVars(style, theme);
+  const initialContext = {
+    account: {
+      id: accountId,
+      name: accountName,
+      slug: accountSlug,
+      timeZone: accountTimeZone || "UTC",
+      slotStepMinutes: accountSlotStepMinutes,
+    },
+    locations: locations.map((location) => ({
+      id: location.id,
+      name: location.name,
+      address: location.address || null,
+      coverUrl: location.coverUrl ?? null,
+      hours: location.hours,
+      exceptions: location.exceptions,
+    })),
+    legalDocuments,
+    platformLegalDocuments,
+  };
   return (
     <div className="booking-root p-0" style={cssVars}>
       <div className="booking-bleed">
@@ -1428,6 +1473,7 @@ function renderBooking(
           accountSlug={accountSlug}
           accountPublicSlug={publicSlug}
           loaderConfig={loaderConfig}
+          initialContext={initialContext}
         />
       </div>
     </div>

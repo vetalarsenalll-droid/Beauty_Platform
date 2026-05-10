@@ -31,16 +31,28 @@ export async function GET(request: Request) {
   const range = zonedDayRangeUtc(dateValue, tz);
   if (!range) return jsonError("INVALID_DATE", "Некорректная дата.", null, 400);
   const { dayStartUtc, dayEndUtc } = range;
+  const now = new Date();
 
   const sessions = await prisma.groupSession.findMany({
     where: {
       accountId: resolved.account.id,
       locationId,
+      location: { status: "ACTIVE" },
       startAt: { lt: dayEndUtc },
       endAt: { gt: dayStartUtc },
+      AND: [{ startAt: { gt: now } }],
       status: { not: "CANCELLED" },
-      ...(serviceId ? { serviceId } : {}),
-      ...(specialistId ? { specialistId } : {}),
+      service: {
+        isActive: true,
+        bookingType: "GROUP",
+        locations: { some: { locationId } },
+        ...(serviceId ? { id: serviceId } : {}),
+      },
+      specialist: {
+        accountId: resolved.account.id,
+        locations: { some: { locationId } },
+        ...(specialistId ? { id: specialistId } : {}),
+      },
     },
     include: {
       service: { select: { id: true, name: true } },

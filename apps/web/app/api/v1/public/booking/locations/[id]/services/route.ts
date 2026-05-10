@@ -72,6 +72,7 @@ export async function GET(
           specialistId: true,
           priceOverride: true,
           durationOverrideMin: true,
+          specialist: { select: { levelId: true } },
         },
       },
       levelConfigs: {
@@ -104,6 +105,24 @@ export async function GET(
     const specialistIds = service.specialists.map((item) => item.specialistId);
     const basePrice = toNumber(service.basePrice);
     const baseDuration = service.baseDurationMin;
+    const specialistMetrics = service.specialists.map((binding) => {
+      const specialistLevelId = binding.specialist.levelId ?? null;
+      const levelConfig = specialistLevelId
+        ? service.levelConfigs.find((item) => item.levelId === specialistLevelId)
+        : null;
+      return {
+        price: toNumber(binding.priceOverride) || toNumber(levelConfig?.price) || basePrice,
+        durationMin: binding.durationOverrideMin || levelConfig?.durationMin || baseDuration,
+      };
+    });
+    const minPrice =
+      specialistMetrics.length > 0
+        ? Math.min(...specialistMetrics.map((item) => item.price).filter((value) => Number.isFinite(value)))
+        : basePrice;
+    const minDurationMin =
+      specialistMetrics.length > 0
+        ? Math.min(...specialistMetrics.map((item) => item.durationMin).filter((value) => Number.isFinite(value)))
+        : baseDuration;
 
     let computedPrice = basePrice;
     let computedDurationMin = baseDuration;
@@ -130,6 +149,8 @@ export async function GET(
       groupCapacityDefault: service.groupCapacityDefault,
       baseDurationMin: baseDuration,
       basePrice,
+      minDurationMin: Number.isFinite(minDurationMin) ? minDurationMin : baseDuration,
+      minPrice: Number.isFinite(minPrice) ? minPrice : basePrice,
       computedDurationMin,
       computedPrice,
       specialistIds,

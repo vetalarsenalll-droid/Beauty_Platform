@@ -213,12 +213,17 @@ export function renderPublicPageShell({
       <section key={block.id} className={wrapperClassName} style={wrapperStyle}>
         {renderBlock(
           block,
+          data.account.id,
           data.account.name,
           data.account.slug,
+          data.account.timeZone,
+          data.account.slotStepMinutes,
           publicSlug,
           data.branding,
           data.accountProfile,
           data.locations,
+          data.legalDocuments,
+          data.platformLegalDocuments,
           data.services,
           data.specialists,
           data.promos,
@@ -237,7 +242,8 @@ export function renderPublicPageShell({
     layout?.rootClassName ?? "flex min-h-screen w-full flex-col pb-0";
   const useInnerColumn = layout?.useInnerColumn ?? false;
   const innerClassName = layout?.innerClassName ?? "flex w-full flex-col pt-0 pb-0";
-  const rootStyle: CSSProperties = {
+  type PublicRootStyle = CSSProperties & Record<string, string | number | undefined>;
+  const rootStyle: PublicRootStyle = {
     ...themeStyle,
     ...(bookingPageBackgroundStyle ?? {}),
     backgroundColor: "var(--site-surface)",
@@ -247,26 +253,19 @@ export function renderPublicPageShell({
     gap: blockGap,
   };
   if (bookingPageBackgroundStyle) {
+    const backgroundStyle = bookingPageBackgroundStyle as PublicRootStyle;
     const modeSuffix = initialMode === "dark" ? "dark" : "light";
-    const blockBg = bookingPageBackgroundStyle[
-      `--block-bg-${modeSuffix}` as keyof CSSProperties
-    ] as string | undefined;
-    const blockSectionBg = bookingPageBackgroundStyle[
-      `--block-section-bg-${modeSuffix}` as keyof CSSProperties
-    ] as string | undefined;
-    const servicesSectionBg = bookingPageBackgroundStyle[
-      `--services-section-bg-${modeSuffix}` as keyof CSSProperties
-    ] as string | undefined;
-    const servicesSectionImage = bookingPageBackgroundStyle[
-      `--services-section-image-${modeSuffix}` as keyof CSSProperties
-    ] as string | undefined;
-    rootStyle["--block-bg" as string] = blockBg;
-    rootStyle["--block-section-bg" as string] = blockSectionBg || blockBg;
-    rootStyle["--services-section-bg" as string] =
+    const blockBg = backgroundStyle[`--block-bg-${modeSuffix}`] as string | undefined;
+    const blockSectionBg = backgroundStyle[`--block-section-bg-${modeSuffix}`] as string | undefined;
+    const servicesSectionBg = backgroundStyle[`--services-section-bg-${modeSuffix}`] as string | undefined;
+    const servicesSectionImage = backgroundStyle[`--services-section-image-${modeSuffix}`] as string | undefined;
+    rootStyle["--block-bg"] = blockBg;
+    rootStyle["--block-section-bg"] = blockSectionBg || blockBg;
+    rootStyle["--services-section-bg"] =
       servicesSectionBg || blockSectionBg || blockBg;
-    rootStyle["--services-section-image" as string] = servicesSectionImage || "none";
-    rootStyle.backgroundColor = bookingPageBackgroundStyle.backgroundColor;
-    rootStyle.backgroundImage = bookingPageBackgroundStyle.backgroundImage;
+    rootStyle["--services-section-image"] = servicesSectionImage || "none";
+    rootStyle.backgroundColor = backgroundStyle.backgroundColor;
+    rootStyle.backgroundImage = backgroundStyle.backgroundImage;
   }
 
   return (

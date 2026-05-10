@@ -1266,3 +1266,76 @@ Import trace for requested module:
     at JSON.parse (<anonymous>) {
   page: '/crm/schedule'
 }
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/account/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/account/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/account/media/route.ts
+⚠ ../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+Critical dependency: require function is used in a way in which dependencies cannot be statically extracted
+
+Import trace for requested module:
+../../node_modules/libheif-js/libheif-wasm/libheif-bundle.js
+../../node_modules/libheif-js/wasm-bundle.js
+../../node_modules/heic-decode/index.js
+../../node_modules/heic-convert/index.js
+./app/api/v1/crm/account/media/route.ts
+⨯ TypeError: Cannot read properties of null (reading 'lightPalette')
+    at normalizeStyle (app\[publicSlug]\_shared\public-render.tsx:505:34)
+    at renderMenu (app\[publicSlug]\_shared\public-render.tsx:2920:17)
+    at renderBlock (app\[publicSlug]\_shared\public-render.tsx:1127:14)
+    at eval (app\[publicSlug]\_shared\public-page-shell.tsx:214:21)
+    at Array.map (<anonymous>)
+    at renderPublicPageShell (app\[publicSlug]\_shared\public-page-shell.tsx:151:26)
+    at PublicBookingPage (app\[publicSlug]\booking\page.tsx:26:31)
+  503 |     !readColor("borderColorLight").trim() &&
+  504 |     !readColor("borderColorDark").trim();
+> 505 |   const themeBorderLight = theme.lightPalette.borderColor?.trim() || "transparent";
+      |                                  ^
+  506 |   const themeBorderDark = theme.darkPalette.borderColor?.trim() || "transparent";
+  507 |   const subBlockBgPair = resolvePair(
+  508 |     "subBlockBgLight", {
+  digest: '895272962'
+}
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOSPC: no space left on device, write
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOSPC: no space left on device, write
+⚠ Failed to reload dynamic routes: Error: ENOSPC: no space left on device, write
+    at ignore-listed frames {
+  errno: -4055,
+  code: 'ENOSPC',
+  syscall: 'write'
+}
+[Error: ENOSPC: no space left on device, write] {
+  errno: -4055,
+  code: 'ENOSPC',
+  syscall: 'write'
+}
+[Error: ENOSPC: no space left on device, write] {
+  errno: -4055,
+  code: 'ENOSPC',
+  syscall: 'write'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOSPC: no space left on device, write

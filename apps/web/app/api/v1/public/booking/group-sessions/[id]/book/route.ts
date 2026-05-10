@@ -52,9 +52,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const result = await prisma.$transaction(async (tx) => {
     const groupSession = await tx.groupSession.findFirst({
-      where: { id: sessionId, accountId: resolved.account.id, status: { not: "CANCELLED" } },
+      where: {
+        id: sessionId,
+        accountId: resolved.account.id,
+        status: { not: "CANCELLED" },
+        startAt: { gt: new Date() },
+        location: { status: "ACTIVE" },
+        service: {
+          isActive: true,
+          bookingType: "GROUP",
+        },
+        specialist: { accountId: resolved.account.id },
+      },
+      include: {
+        service: { select: { locations: { select: { locationId: true } } } },
+        specialist: { select: { locations: { select: { locationId: true } } } },
+      },
     });
     if (!groupSession) return { error: "NOT_FOUND" as const };
+    const serviceLocationIds = groupSession.service.locations.map((item) => item.locationId);
+    const specialistLocationIds = groupSession.specialist.locations.map((item) => item.locationId);
+    if (
+      !serviceLocationIds.includes(groupSession.locationId) ||
+      !specialistLocationIds.includes(groupSession.locationId)
+    ) {
+      return { error: "NOT_FOUND" as const };
+    }
     if (groupSession.bookedCount >= groupSession.capacity) return { error: "SESSION_FULL" as const };
 
     const clientByPhone = clientPhone
