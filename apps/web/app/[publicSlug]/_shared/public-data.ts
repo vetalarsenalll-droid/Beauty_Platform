@@ -111,6 +111,9 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       include: {
         user: { include: { profile: true } },
         level: true,
+        categories: {
+          include: { category: { select: { id: true, name: true, slug: true } } },
+        },
         locations: true,
       },
       orderBy: { createdAt: "asc" },
@@ -356,6 +359,11 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       role: specialist.level?.name ?? null,
       levelId: specialist.levelId,
       avatarUrl: profileData?.avatarUrl ?? null,
+      categories: specialist.categories.map((entry) => ({
+        id: entry.category.id,
+        name: entry.category.name,
+        slug: entry.category.slug,
+      })),
       locationIds: specialist.locations.map((item) => item.locationId),
       coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
       photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],

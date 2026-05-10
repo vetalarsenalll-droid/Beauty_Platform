@@ -78,8 +78,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ) {
       return { error: "NOT_FOUND" as const };
     }
-    if (groupSession.bookedCount >= groupSession.capacity) return { error: "SESSION_FULL" as const };
-
     const clientByPhone = clientPhone
       ? await tx.client.findFirst({
           where: { accountId: resolved.account.id, phone: clientPhone },
@@ -119,6 +117,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     if (existing) return { error: "ALREADY_EXISTS" as const };
 
+    const seatClaim = await tx.groupSession.updateMany({
+      where: {
+        id: groupSession.id,
+        bookedCount: { lt: groupSession.capacity },
+      },
+      data: { bookedCount: { increment: 1 } },
+    });
+    if (seatClaim.count !== 1) return { error: "SESSION_FULL" as const };
+
     const participant = await tx.groupSessionParticipant.create({
       data: {
         groupSessionId: groupSession.id,
@@ -126,11 +133,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         status: "NEW",
         price: groupSession.pricePerClient ?? null,
       },
-    });
-
-    await tx.groupSession.update({
-      where: { id: groupSession.id },
-      data: { bookedCount: groupSession.bookedCount + 1 },
     });
 
     if (requestedLegalVersionIds.length) {

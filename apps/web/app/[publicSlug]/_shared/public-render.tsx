@@ -1517,6 +1517,7 @@ function renderBooking(
             levelId: specialist.levelId ?? null,
             avatarUrl: specialist.avatarUrl ?? null,
             coverUrl: specialist.coverUrl,
+            categories: specialist.categories ?? [],
             locationIds: specialist.locationIds,
           }))}
         />

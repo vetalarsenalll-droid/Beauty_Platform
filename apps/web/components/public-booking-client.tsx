@@ -79,6 +79,7 @@ type PublicBookingClientProps = {
     levelId?: number | null;
     avatarUrl?: string | null;
     coverUrl?: string | null;
+    categories?: Array<{ id: number; name: string; slug: string }>;
     locationIds?: number[];
   }>;
 };

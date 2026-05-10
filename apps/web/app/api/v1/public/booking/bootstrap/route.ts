@@ -121,6 +121,9 @@ export async function GET(request: NextRequest) {
         levelId: true,
         level: { select: { name: true } },
         locations: { select: { locationId: true } },
+        categories: {
+          include: { category: { select: { id: true, name: true, slug: true } } },
+        },
         user: {
           select: {
             email: true,
@@ -223,6 +226,11 @@ export async function GET(request: NextRequest) {
     avatarUrl: specialist.user.profile?.avatarUrl ?? null,
     coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
     locationIds: specialist.locations.map((item) => item.locationId),
+    categories: specialist.categories.map((entry) => ({
+      id: entry.category.id,
+      name: entry.category.name,
+      slug: entry.category.slug,
+    })),
   }));
 
   const legalDocuments = legalDocs.flatMap((doc) => {

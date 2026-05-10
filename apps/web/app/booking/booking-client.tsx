@@ -203,6 +203,13 @@ type BookingPersistedState = {
   updatedAt: number;
 };
 
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const DYNAMIC_AVAILABILITY_CACHE_TTL_MS = 15_000;
+
 const pad2 = (value: number) => String(value).padStart(2, "0");
 
 const formatMoneyRub = (value: number) => {
@@ -320,6 +327,20 @@ const buildUrl = (
   });
   const query = search.toString();
   return query ? `${path}?${query}` : path;
+};
+
+const getFreshCacheValue = <T,>(cache: Map<string, CacheEntry<T>>, key: string) => {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+};
+
+const setExpiringCacheValue = <T,>(cache: Map<string, CacheEntry<T>>, key: string, value: T) => {
+  cache.set(key, { value, expiresAt: Date.now() + DYNAMIC_AVAILABILITY_CACHE_TTL_MS });
 };
 
 const BOOKING_STATE_VERSION = 1;
@@ -1372,8 +1393,8 @@ export default function BookingClient({
   const calendarRequestIdRef = useRef(0);
   const servicesCacheRef = useRef(new Map<string, Service[]>());
   const specialistsCacheRef = useRef(new Map<string, Specialist[]>());
-  const calendarCacheRef = useRef(new Map<string, AvailabilityCalendar>());
-  const offersCacheRef = useRef(new Map<string, Record<string, number[]>>());
+  const calendarCacheRef = useRef(new Map<string, CacheEntry<AvailabilityCalendar>>());
+  const offersCacheRef = useRef(new Map<string, CacheEntry<Record<string, number[]>>>());
   const initialServicesRef = useRef(initialServices);
   const initialSpecialistsRef = useRef(initialSpecialists);
   const lastSeededLocationIdRef = useRef<number | null>(null);
@@ -1391,6 +1412,12 @@ export default function BookingClient({
   const holdOwnerMarker = clientProfile?.id ?? null;
   const effectiveInlineLoader =
     loaderConfig && loaderConfig.showBookingInline ? loaderConfig : null;
+
+  const clearAvailabilityCaches = useCallback(() => {
+    calendarCacheRef.current.clear();
+    offersCacheRef.current.clear();
+    calendarKeyRef.current = null;
+  }, []);
 
   const idempotencyKeyRef = useRef<string | null>(null);
   const holdRequestIdRef = useRef(0);
@@ -1518,6 +1545,7 @@ export default function BookingClient({
       try {
         const hold = await reserveHold(holdSelection, activeHold?.holdId ?? null);
         if (cancelled || requestId !== holdRequestIdRef.current) return;
+        clearAvailabilityCaches();
         setActiveHold({
           holdId: hold.holdId,
           expiresAt: hold.expiresAt,
@@ -1525,6 +1553,7 @@ export default function BookingClient({
         });
       } catch (error) {
         if (cancelled || requestId !== holdRequestIdRef.current) return;
+        clearAvailabilityCaches();
         setSubmitError(humanizeBookingError(error));
       }
     })();
@@ -1532,7 +1561,7 @@ export default function BookingClient({
     return () => {
       cancelled = true;
     };
-  }, [holdSelection, submitSuccess, activeHold, holdMatchesSelection, reserveHold]);
+  }, [holdSelection, submitSuccess, activeHold, holdMatchesSelection, reserveHold, clearAvailabilityCaches]);
 
   useEffect(() => {
     activeHoldRef.current = activeHold;
@@ -2048,13 +2077,13 @@ export default function BookingClient({
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
-    calendarKeyRef.current = null;
+    clearAvailabilityCaches();
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
     setSubmitError(null);
     setSubmitSuccess(false);
     setStepIndex(0);
-  }, [scenario]);
+  }, [scenario, clearAvailabilityCaches]);
 
   useEffect(() => {
     if (skipLocationResetOnceRef.current) {
@@ -2070,13 +2099,13 @@ export default function BookingClient({
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
-    calendarKeyRef.current = null;
+    clearAvailabilityCaches();
     setWorkdaySpecialistIds(null);
     setWorkdaySpecsError(null);
     setSubmitError(null);
     setSubmitSuccess(false);
     setStepIndex(0);
-  }, [locationId]);
+  }, [locationId, clearAvailabilityCaches]);
 
   useEffect(() => {
     if (skipDateResetOnceRef.current) {
@@ -2483,13 +2512,6 @@ export default function BookingClient({
       calendarQueryDays,
     ].join("|");
 
-    if (calendarKeyRef.current === calendarKey) {
-      // тот же набор параметров: не оставляем UI в состоянии бесконечной загрузки
-      setLoadingCalendar(false);
-      return;
-    }
-    calendarKeyRef.current = calendarKey;
-
     setCalendarError(null);
 
     if (!Number.isInteger(safeLocationId) || safeLocationId <= 0) {
@@ -2510,13 +2532,15 @@ export default function BookingClient({
       return;
     }
 
-    const cachedCalendar = calendarCacheRef.current.get(calendarKey);
+    const cachedCalendar = getFreshCacheValue(calendarCacheRef.current, calendarKey);
     if (cachedCalendar) {
+      calendarKeyRef.current = calendarKey;
       setCalendar(cachedCalendar);
       setLoadingCalendar(false);
       return;
     }
 
+    calendarKeyRef.current = calendarKey;
     let mounted = true;
     const requestId = calendarRequestIdRef.current + 1;
     calendarRequestIdRef.current = requestId;
@@ -2547,7 +2571,7 @@ export default function BookingClient({
           .filter((d) => d.times.length > 0);
 
         const next: AvailabilityCalendar = { start: data?.start ?? todayYmdTz, days: cleanedDays };
-        calendarCacheRef.current.set(calendarKey, next);
+        setExpiringCacheValue(calendarCacheRef.current, calendarKey, next);
         setCalendar(next);
 
       })
@@ -2639,7 +2663,7 @@ export default function BookingClient({
       account: accountSlug ?? "",
       today: todayYmdTz,
     });
-    const cachedOffers = offersCacheRef.current.get(offersCacheKey);
+    const cachedOffers = getFreshCacheValue(offersCacheRef.current, offersCacheKey);
     if (cachedOffers) {
       setOffersByTime(cachedOffers);
       setOffersError(null);
@@ -2672,7 +2696,7 @@ export default function BookingClient({
           if (serviceIds.length > 0) plain[item.time] = Array.from(new Set(serviceIds)).sort((a, b) => a - b);
         }
 
-        offersCacheRef.current.set(offersCacheKey, plain);
+        setExpiringCacheValue(offersCacheRef.current, offersCacheKey, plain);
         setOffersByTime(plain);
       } catch (e: unknown) {
         if (!mounted) return;
@@ -2737,7 +2761,7 @@ export default function BookingClient({
       debouncedCalendarQueryStartYmd,
       calendarQueryDays,
     ].join("|");
-    const cachedCalendar = calendarCacheRef.current.get(calendarKey);
+    const cachedCalendar = getFreshCacheValue(calendarCacheRef.current, calendarKey);
     if (cachedCalendar) {
       const set = new Set<string>();
       for (const day of cachedCalendar.days ?? []) {
@@ -2770,7 +2794,7 @@ export default function BookingClient({
         for (const day of data.days ?? []) {
           if (day?.date) set.add(day.date);
         }
-        calendarCacheRef.current.set(calendarKey, data);
+        setExpiringCacheValue(calendarCacheRef.current, calendarKey, data);
         setDateFirstAvailableDates(set);
       } catch (e: unknown) {
         if (!mounted) return;
@@ -4547,7 +4571,7 @@ export default function BookingClient({
     setOffersByTime({});
     setDateFirstAvailableDates(new Set());
     setCalendar(null);
-    calendarKeyRef.current = null;
+    clearAvailabilityCaches();
     setStepIndex(0);
     if (holdToRelease) {
       void releaseHold(holdToRelease).catch(() => {});
@@ -4589,11 +4613,13 @@ export default function BookingClient({
           stepTitle: "Завершено записью",
           payload: { participantId, groupSessionId: selectedGroupSessionId },
         });
+        clearAvailabilityCaches();
         setSubmitSuccess(true);
         setMobileSummaryExpanded(true);
         markGroupSessionBooked(selectedGroupSessionId);
         idempotencyKeyRef.current = null;
       } catch (error) {
+        clearAvailabilityCaches();
         setSubmitError(humanizeBookingError(error));
       } finally {
         setSubmitting(false);
@@ -4677,15 +4703,17 @@ export default function BookingClient({
         logBookingStep({
           stepKey: "completed",
           stepIndex: stepsWithScenario.length,
-          stepTitle: "Ð—Ð°Ð²ÐµÑ€ÑˆÐµÐ½Ð¾ Ð·Ð°Ð¿Ð¸ÑÑŒÑŽ",
+          stepTitle: "Завершено записью",
           payload: { appointmentIds, groupBookingId },
         });
 
+        clearAvailabilityCaches();
         setSubmitSuccess(true);
         setMobileSummaryExpanded(true);
         idempotencyKeyRef.current = null;
         return;
       } catch (error) {
+        clearAvailabilityCaches();
         for (const holdId of createdHoldIds) {
           void releaseHold(holdId).catch(() => {});
         }
@@ -4775,10 +4803,12 @@ export default function BookingClient({
         stepTitle: "Завершено записью",
         payload: { appointmentId },
       });
+      clearAvailabilityCaches();
       setSubmitSuccess(true);
       setMobileSummaryExpanded(true);
       idempotencyKeyRef.current = null;
     } catch (error) {
+      clearAvailabilityCaches();
       setSubmitError(humanizeBookingError(error));
     } finally {
       setSubmitting(false);

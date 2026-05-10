@@ -125,6 +125,7 @@ export type SiteSpecialistItem = {
   level: string | null;
   role?: string | null;
   avatarUrl?: string | null;
+  categories?: Array<{ id: number; name: string; slug: string }>;
   locationIds: number[];
   coverUrl: string | null;
   photoUrls?: string[];
