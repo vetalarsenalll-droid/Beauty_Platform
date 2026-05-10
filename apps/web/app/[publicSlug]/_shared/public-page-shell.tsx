@@ -264,8 +264,20 @@ export function renderPublicPageShell({
     rootStyle["--services-section-bg"] =
       servicesSectionBg || blockSectionBg || blockBg;
     rootStyle["--services-section-image"] = servicesSectionImage || "none";
-    rootStyle.backgroundColor = backgroundStyle.backgroundColor;
-    rootStyle.backgroundImage = backgroundStyle.backgroundImage;
+    const nextBackgroundColor =
+      typeof backgroundStyle.backgroundColor === "string"
+        ? backgroundStyle.backgroundColor.trim()
+        : "";
+    const nextBackgroundImage =
+      typeof backgroundStyle.backgroundImage === "string"
+        ? backgroundStyle.backgroundImage.trim()
+        : "";
+    if (nextBackgroundColor && nextBackgroundColor.toLowerCase() !== "transparent") {
+      rootStyle.backgroundColor = nextBackgroundColor;
+    }
+    if (nextBackgroundImage && nextBackgroundImage.toLowerCase() !== "none") {
+      rootStyle.backgroundImage = nextBackgroundImage;
+    }
   }
 
   return (

@@ -277,6 +277,7 @@ const BOOKING_MAX_BLOCK_COLUMNS = 16;
 const PUBLIC_WIDTH_REFERENCE = 1600;
 const DEFAULT_PUBLIC_SECTION_BG_LIGHT = "#f6f7f9";
 const DEFAULT_PUBLIC_SECTION_BG_DARK = "#111318";
+const DEFAULT_PUBLIC_TRANSPARENT_BG = "transparent";
 
 const normalizeHex = (value: string): string | null => {
   const trimmed = value.trim();
@@ -512,31 +513,43 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     theme.lightPalette.panelColor,
     theme.darkPalette.panelColor
   );
+  const sectionFallbackLight =
+    block.type === "booking" ? DEFAULT_PUBLIC_TRANSPARENT_BG : DEFAULT_PUBLIC_SECTION_BG_LIGHT;
+  const sectionFallbackDark =
+    block.type === "booking" ? DEFAULT_PUBLIC_TRANSPARENT_BG : DEFAULT_PUBLIC_SECTION_BG_DARK;
   const rawSectionBgPair = resolvePair(
     "sectionBgLight",
     "sectionBgDark",
     "sectionBg",
-    DEFAULT_PUBLIC_SECTION_BG_LIGHT,
-    DEFAULT_PUBLIC_SECTION_BG_DARK
+    sectionFallbackLight,
+    sectionFallbackDark
   );
   const legacySectionBgLight = readColor("sectionBgLight") || readColor("sectionBg");
   const legacySectionBgDark = readColor("sectionBgDark");
-  const explicitSectionBgLight = normalizeUnselectedSectionBgLight(
-    sectionBackgroundColor("FromLight")
-  );
-  const explicitSectionBgDark = normalizeUnselectedSectionBgDark(
-    sectionBackgroundColor("FromDark")
-  );
+  const hasSectionBackgroundValue = (suffix: string) =>
+    hasOwn(`${sectionBackgroundPrefix}${suffix}`) || hasOwn(`servicesSectionBackground${suffix}`);
+  const explicitSectionBgLightRaw = sectionBackgroundColor("FromLight").trim();
+  const explicitSectionBgDarkRaw = sectionBackgroundColor("FromDark").trim();
+  const explicitSectionBgLightIsTransparent = explicitSectionBgLightRaw.toLowerCase() === "transparent";
+  const explicitSectionBgDarkIsTransparent = explicitSectionBgDarkRaw.toLowerCase() === "transparent";
+  const explicitSectionBgLight =
+    block.type === "booking" && hasSectionBackgroundValue("FromLight") && !explicitSectionBgLightIsTransparent
+      ? explicitSectionBgLightRaw
+      : normalizeUnselectedSectionBgLight(explicitSectionBgLightRaw);
+  const explicitSectionBgDark =
+    block.type === "booking" && hasSectionBackgroundValue("FromDark") && !explicitSectionBgDarkIsTransparent
+      ? explicitSectionBgDarkRaw
+      : normalizeUnselectedSectionBgDark(explicitSectionBgDarkRaw);
   const hasExplicitSectionBgLight = Boolean(explicitSectionBgLight);
   const hasExplicitSectionBgDark = Boolean(explicitSectionBgDark);
   const sectionBgPair = {
     lightResolved:
       !hasExplicitSectionBgLight && isUnselectedSectionBgLight(legacySectionBgLight)
-        ? DEFAULT_PUBLIC_SECTION_BG_LIGHT
+        ? sectionFallbackLight
         : rawSectionBgPair.lightResolved,
     darkResolved:
       !hasExplicitSectionBgDark && isUnselectedSectionBgDark(legacySectionBgDark)
-        ? DEFAULT_PUBLIC_SECTION_BG_DARK
+        ? sectionFallbackDark
         : rawSectionBgPair.darkResolved,
   };
   const rawBlockWidth = numOrNull(style.blockWidth as number);
@@ -736,9 +749,9 @@ export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
     sectionBackgroundColor("ToDark")
   );
   const servicesSectionBackgroundFromLight =
-    servicesSectionBackgroundFromLightRaw || DEFAULT_PUBLIC_SECTION_BG_LIGHT;
+    servicesSectionBackgroundFromLightRaw || sectionFallbackLight;
   const servicesSectionBackgroundFromDark =
-    servicesSectionBackgroundFromDarkRaw || DEFAULT_PUBLIC_SECTION_BG_DARK;
+    servicesSectionBackgroundFromDarkRaw || sectionFallbackDark;
   const servicesSectionBackgroundToLight =
     servicesSectionBackgroundToLightRaw || servicesSectionBackgroundFromLight;
   const servicesSectionBackgroundToDark =

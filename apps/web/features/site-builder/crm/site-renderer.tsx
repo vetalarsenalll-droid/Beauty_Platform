@@ -425,6 +425,9 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     !readColor("borderColorDark").trim();
   const themeBorderLight = theme.lightPalette.borderColor?.trim() || "transparent";
   const themeBorderDark = theme.darkPalette.borderColor?.trim() || "transparent";
+  const isBookingBlock = block.type === "booking";
+  const sectionFallbackLight = isBookingBlock ? "transparent" : theme.lightPalette.panelColor;
+  const sectionFallbackDark = isBookingBlock ? "transparent" : theme.darkPalette.panelColor;
   const blockBgPair = resolvePair(
     "blockBgLight",
     "blockBgDark",
@@ -436,8 +439,8 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     "sectionBgLight",
     "sectionBgDark",
     "sectionBg",
-    theme.lightPalette.panelColor,
-    theme.darkPalette.panelColor
+    sectionFallbackLight,
+    sectionFallbackDark
   );
   const subBlockBgPair = resolvePair(
     "subBlockBgLight",
@@ -637,8 +640,8 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     sectionBackgroundColor("FromDark") || readColor("sectionBgDark");
   const servicesSectionBackgroundToLightRaw = sectionBackgroundColor("ToLight");
   const servicesSectionBackgroundToDarkRaw = sectionBackgroundColor("ToDark");
-  const servicesSectionBackgroundFromLight = servicesSectionBackgroundFromLightRaw || theme.lightPalette.panelColor;
-  const servicesSectionBackgroundFromDark = servicesSectionBackgroundFromDarkRaw || theme.darkPalette.panelColor;
+  const servicesSectionBackgroundFromLight = servicesSectionBackgroundFromLightRaw || sectionFallbackLight;
+  const servicesSectionBackgroundFromDark = servicesSectionBackgroundFromDarkRaw || sectionFallbackDark;
   const servicesSectionBackgroundToLight = servicesSectionBackgroundToLightRaw || servicesSectionBackgroundFromLight;
   const servicesSectionBackgroundToDark = servicesSectionBackgroundToDarkRaw || servicesSectionBackgroundFromDark;
   const servicesSectionBackgroundAngleLightRaw = sectionBackgroundNumber("AngleLight");

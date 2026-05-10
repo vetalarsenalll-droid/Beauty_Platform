@@ -5,6 +5,19 @@ import { useRouter } from "next/navigation";
 
 const DAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
+function dayOfWeekMon0(date: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  const dowSun0 = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return (dowSun0 + 6) % 7;
+}
+
 type Hour = {
   dayOfWeek: number;
   startTime: string;
@@ -71,8 +84,8 @@ export default function LocationHoursForm({
           id: item.id,
           date: item.date,
           isClosed: item.isClosed,
-          startTime: item.startTime ?? "09:00",
-          endTime: item.endTime ?? "18:00",
+          startTime: item.startTime ?? "",
+          endTime: item.endTime ?? "",
         })),
     [exceptions]
   );
@@ -98,14 +111,22 @@ export default function LocationHoursForm({
     );
   };
 
+  const getWeeklyHoursForDate = (date: string) => {
+    const dayOfWeek = dayOfWeekMon0(date);
+    if (dayOfWeek == null) return { startTime: "", endTime: "" };
+    const day = days.find((item) => item.dayOfWeek === dayOfWeek);
+    if (!day?.enabled) return { startTime: "", endTime: "" };
+    return { startTime: day.startTime, endTime: day.endTime };
+  };
+
   const addException = () => {
     setExceptionRows((prev) => [
       ...prev,
       {
         date: "",
         isClosed: true,
-        startTime: "09:00",
-        endTime: "18:00",
+        startTime: "",
+        endTime: "",
       },
     ]);
   };
@@ -225,10 +246,15 @@ export default function LocationHoursForm({
         ) : null}
 
         {exceptionRows.map((row, index) => (
-          <div
-            key={`${row.id ?? "new"}-${index}`}
-            className="grid items-center gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/60 px-3 py-3 md:grid-cols-[1fr_auto_auto_auto]"
-          >
+          (() => {
+            const weeklyHours = row.isClosed
+              ? getWeeklyHoursForDate(row.date)
+              : { startTime: row.startTime, endTime: row.endTime };
+            return (
+              <div
+                key={`${row.id ?? "new"}-${index}`}
+                className="grid items-center gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/60 px-3 py-3 md:grid-cols-[1fr_auto_auto_auto]"
+              >
             <div className="grid gap-3 sm:grid-cols-[180px_1fr_1fr]">
               <input
                 type="date"
@@ -238,7 +264,7 @@ export default function LocationHoursForm({
               />
               <input
                 type="time"
-                value={row.startTime}
+                value={weeklyHours.startTime}
                 onChange={(event) =>
                   updateException(index, { startTime: event.target.value })
                 }
@@ -247,7 +273,7 @@ export default function LocationHoursForm({
               />
               <input
                 type="time"
-                value={row.endTime}
+                value={weeklyHours.endTime}
                 onChange={(event) =>
                   updateException(index, { endTime: event.target.value })
                 }
@@ -276,9 +302,11 @@ export default function LocationHoursForm({
               onClick={() => removeException(index)}
               className="inline-flex items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-3 py-2 text-xs font-semibold"
             >
-              Удалить
-            </button>
-          </div>
+                Удалить
+              </button>
+              </div>
+            );
+          })()
         ))}
       </div>
 

@@ -2531,14 +2531,12 @@ export default function BookingClient({
         setOffersByTime({});
         setOffersError(null);
         setLoadingOffers(false);
-        setDateYmd(ymdAddDays(todayYmdTz, 1));
         return;
       }
       if (todayRange && todayRange.endMinutes !== null && nowTz.minutes >= todayRange.endMinutes) {
         setOffersByTime({});
         setOffersError(null);
         setLoadingOffers(false);
-        setDateYmd(ymdAddDays(todayYmdTz, 1));
         return;
       }
     }

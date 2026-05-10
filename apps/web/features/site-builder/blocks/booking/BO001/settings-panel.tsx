@@ -147,8 +147,8 @@ export function BO001SettingsPanel(ctx: CrmPanelCtx) {
   const marginTopLines = Math.max(0, Math.min(7, Math.round((style.marginTop / COVER_LINE_STEP_PX) * 2) / 2));
   const marginBottomLines = Math.max(0, Math.min(7, Math.round((style.marginBottom / COVER_LINE_STEP_PX) * 2) / 2));
   const lightSectionBg =
-    readRaw("servicesSectionBackgroundFromLight") || readRaw("sectionBgLight") || readRaw("sectionBg") || "#ffffff";
-  const darkSectionBg = readRaw("servicesSectionBackgroundFromDark") || readRaw("sectionBgDark") || "#16181d";
+    readRaw("servicesSectionBackgroundFromLight") || readRaw("sectionBgLight") || readRaw("sectionBg") || "transparent";
+  const darkSectionBg = readRaw("servicesSectionBackgroundFromDark") || readRaw("sectionBgDark") || "transparent";
   const lightBackgroundMode =
     style.servicesSectionBackgroundModeLight === "linear" || style.servicesSectionBackgroundModeLight === "radial"
       ? style.servicesSectionBackgroundModeLight
