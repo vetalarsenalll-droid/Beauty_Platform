@@ -10,6 +10,7 @@ import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
+import { LocationsCatalog } from "@/features/site-builder/blocks/locations/locations-catalog";
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
@@ -3906,15 +3907,13 @@ function renderLocations(
         marginRight: 0,
       }}
     >
-      <SpecialistsCatalog
+      <LocationsCatalog
         variant={block.variant === "v2" ? "v2" : "v1"}
         listView={data.listView === "list" ? "list" : "tile"}
         title={typeof data.title === "string" ? data.title : "Филиалы"}
         subtitle={subtitle}
         items={catalogItems}
         publicSlug={publicSlug}
-        entityBasePath="locations"
-        bookingEntity="location"
         locations={locations.map((location) => ({ id: location.id, name: location.name }))}
         cardsPerRow={cardsPerRow}
         mobileCardsPerRow={Number(data.mobileCardsPerRow) === 1 ? 1 : 2}
@@ -3963,9 +3962,13 @@ function renderLocations(
         showImage={data.showImage !== false}
         imageAspectRatio={typeof data.imageAspectRatio === "string" ? data.imageAspectRatio : "1 / 1"}
         imageRadius={Number.isFinite(Number(data.imageRadius)) ? Number(data.imageRadius) : 10}
-        imageFit={data.specialistCardImageFit === "contain" ? "contain" : "cover"}
-        imageZoomOnHover={data.imageZoomOnHover !== false}
-        imageZoomOnClick={data.specialistCardImageZoomOnClick === true}
+        imageFit={(data.locationCardImageFit ?? data.specialistCardImageFit) === "contain" ? "contain" : "cover"}
+        imageZoomOnHover={data.imageZoomOnHover === true}
+        imageZoomOnClick={
+          data.locationCardImageZoomOnClick === true ||
+          data.modalImageZoomOnClick === true ||
+          data.specialistCardImageZoomOnClick === true
+        }
         alignButtonsBottom={data.alignButtonsBottom !== false}
         cardClickEnabled={data.modalImageClickEnabled !== false}
         cardStyle={data.cardStyle === "filled" || data.cardStyle === "boxed" ? "filled" : "plain"}

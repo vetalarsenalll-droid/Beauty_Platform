@@ -26,6 +26,7 @@ import {
 } from "@/features/site-builder/shared/background-visuals";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
+import { LocationsCatalog } from "@/features/site-builder/blocks/locations/locations-catalog";
 import type {
   SiteAccountInfoWithPublicSlug as AccountInfo,
   SiteBranding as Branding,
@@ -1238,7 +1239,11 @@ export function FlatCheckbox({
             : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
         }`}
       >
-        ?
+        <span
+          className={`h-2 w-1 rotate-45 border-b border-r ${
+            checked ? "border-[#ff5a5f]" : "border-transparent"
+          }`}
+        />
       </span>
       <span>{label}</span>
     </label>
@@ -5710,15 +5715,13 @@ export function renderLocations(
         marginRight: 0,
       }}
     >
-      <SpecialistsCatalog
+      <LocationsCatalog
         variant={block.variant === "v2" ? "v2" : "v1"}
         listView={listView}
         title={typeof data.title === "string" ? data.title : "Филиалы"}
         subtitle={subtitle}
         items={catalogItems}
         publicSlug={account.publicSlug}
-        entityBasePath="locations"
-        bookingEntity="location"
         locations={locations.map((location) => ({ id: location.id, name: location.name }))}
         cardsPerRow={cardsPerRow}
         mobileCardsPerRow={mobileCardsPerRow}
@@ -5768,8 +5771,12 @@ export function renderLocations(
         imageAspectRatio={imageAspectRatio}
         imageRadius={Number.isFinite(imageRadius) ? imageRadius : 10}
         imageFit={(data.locationCardImageFit ?? data.specialistCardImageFit) === "contain" ? "contain" : "cover"}
-        imageZoomOnHover={data.imageZoomOnHover !== false}
-        imageZoomOnClick={(data.locationCardImageZoomOnClick ?? data.specialistCardImageZoomOnClick) === true}
+        imageZoomOnHover={data.imageZoomOnHover === true}
+        imageZoomOnClick={
+          data.locationCardImageZoomOnClick === true ||
+          data.modalImageZoomOnClick === true ||
+          data.specialistCardImageZoomOnClick === true
+        }
         modalMediaColumns={readDataNumber("locationModalMediaColumns", readDataNumber("specialistModalMediaColumns", 6))}
         modalInfoColumns={readDataNumber("locationModalInfoColumns", readDataNumber("specialistModalInfoColumns", 6))}
         alignButtonsBottom={data.alignButtonsBottom !== false}

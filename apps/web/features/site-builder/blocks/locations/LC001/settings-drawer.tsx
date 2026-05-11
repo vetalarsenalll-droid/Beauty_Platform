@@ -1013,7 +1013,11 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
           onChange={(value) => updateData({ locationCardBackgroundFromLight: value })}
         />
         <FlatCheckbox
-          checked={(data.locationCardImageZoomOnClick ?? data.specialistCardImageZoomOnClick) === true}
+          checked={
+            data.locationCardImageZoomOnClick === true ||
+            data.modalImageZoomOnClick === true ||
+            data.specialistCardImageZoomOnClick === true
+          }
           onChange={(checked) => updateData({ locationCardImageZoomOnClick: checked })}
           label="Увеличение изображения по клику"
         />

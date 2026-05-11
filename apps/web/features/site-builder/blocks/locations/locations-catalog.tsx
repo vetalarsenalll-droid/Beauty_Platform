@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 
-export type SpecialistCatalogItem = {
+export type LocationCatalogItem = {
   id: number;
   name: string;
   bio?: string | null;
@@ -14,15 +14,15 @@ export type SpecialistCatalogItem = {
   photoUrls?: string[];
 };
 
-type ActiveSpecialistModalState = {
-  specialistId: number;
+type ActiveLocationModalState = {
+  locationId: number;
   imageIndex: number;
 } | null;
 
-type SpecialistsCatalogProps = {
+type LocationsCatalogProps = {
   title: string;
   subtitle?: string;
-  items: SpecialistCatalogItem[];
+  items: LocationCatalogItem[];
   publicSlug?: string | null;
   locations?: Array<{ id: number; name: string }>;
   currentLocationId?: number | null;
@@ -99,8 +99,6 @@ type SpecialistsCatalogProps = {
   detailsButtonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
   previewViewportWidth?: number;
-  entityBasePath?: "specialists" | "locations";
-  bookingEntity?: "specialist" | "location";
   emptyText?: string;
 };
 
@@ -139,8 +137,8 @@ function rgbaFromHex(hex: string, opacity: number) {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-function uniqueSpecialistImages(specialist: SpecialistCatalogItem) {
-  return Array.from(new Set([...(specialist.photoUrls ?? []), specialist.coverUrl ?? ""].filter(Boolean)));
+function uniqueLocationImages(location: LocationCatalogItem) {
+  return Array.from(new Set([...(location.photoUrls ?? []), location.coverUrl ?? ""].filter(Boolean)));
 }
 
 function normalizeSearch(value: string) {
@@ -189,8 +187,8 @@ function useWindowViewportWidth() {
   return width;
 }
 
-function SpecialistModal({
-  specialist,
+function LocationModal({
+  location,
   imageIndex,
   bookingHref,
   buttonText,
@@ -208,7 +206,7 @@ function SpecialistModal({
   descriptionTextStyle,
   previewViewportWidth,
 }: {
-  specialist: SpecialistCatalogItem;
+  location: LocationCatalogItem;
   imageIndex: number;
   bookingHref: string | null;
   buttonText: string;
@@ -226,7 +224,7 @@ function SpecialistModal({
   descriptionTextStyle?: CSSProperties;
   previewViewportWidth?: number;
 }) {
-  const images = useMemo(() => uniqueSpecialistImages(specialist), [specialist]);
+  const images = useMemo(() => uniqueLocationImages(location), [location]);
   const [activeImageIndex, setActiveImageIndex] = useState(
     Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0))
   );
@@ -341,7 +339,7 @@ function SpecialistModal({
   const mobileDescriptionTextStyle: CSSProperties = isMobileModal
     ? { ...descriptionTextStyle, fontSize: 16, lineHeight: 1.45 }
     : descriptionTextStyle ?? {};
-  const description = typeof specialist.bio === "string" ? specialist.bio.trim() : "";
+  const description = typeof location.bio === "string" ? location.bio.trim() : "";
   const modalChromeButtonStyle: CSSProperties = {
     color:
       typeof titleTextStyle?.color === "string" && titleTextStyle.color.trim()
@@ -518,7 +516,7 @@ function SpecialistModal({
               <UnoptimizedImage
                 ref={imageRef}
                 src={currentImage}
-                alt={specialist.name}
+                alt={location.name}
                 draggable={false}
                 className={`${isImageFocusMode ? "max-h-full max-w-full" : "h-full w-full"} transition duration-300 ${
                   imageZoomOnHover && zoomLevel === 0 ? "hover:scale-[1.04]" : ""
@@ -564,13 +562,13 @@ function SpecialistModal({
 
         {!isImageFocusMode ? (
           <div className={`flex w-full flex-col ${isMobileModal ? "pt-5" : "py-2"}`} style={modalInfoStyle}>
-            {specialist.level ? (
-              <div className="specialist-card-text uppercase tracking-[0.18em]" style={mobileDescriptionTextStyle}>
-                {specialist.level}
+            {location.level ? (
+              <div className="location-card-text uppercase tracking-[0.18em]" style={mobileDescriptionTextStyle}>
+                {location.level}
               </div>
             ) : null}
-            <h3 className="specialist-card-text mt-3 leading-tight" style={mobileTitleTextStyle}>
-              {specialist.name}
+            <h3 className="location-card-text mt-3 leading-tight" style={mobileTitleTextStyle}>
+              {location.name}
             </h3>
             {bookingHref ? (
               <a href={bookingHref} className={`${isMobileModal ? "mt-5" : "mt-8"} inline-flex w-fit items-center justify-center px-6 py-3 text-base`} style={buttonStyle}>
@@ -578,7 +576,7 @@ function SpecialistModal({
               </a>
             ) : null}
             {showDescription && description ? (
-              <p className={`specialist-card-text ${isMobileModal ? "mt-6" : "mt-10 leading-8"}`} style={mobileDescriptionTextStyle}>
+              <p className={`location-card-text ${isMobileModal ? "mt-6" : "mt-10 leading-8"}`} style={mobileDescriptionTextStyle}>
                 {description}
               </p>
             ) : null}
@@ -586,7 +584,7 @@ function SpecialistModal({
               <div className="mt-8 grid grid-cols-5 gap-3">
                 {images.map((url, idx) => (
                   <button
-                    key={`${specialist.id}-${idx}`}
+                    key={`${location.id}-${idx}`}
                     type="button"
                     onClick={() => {
                       setActiveImageIndex(idx);
@@ -609,7 +607,7 @@ function SpecialistModal({
   );
 }
 
-export function SpecialistsCatalog({
+export function LocationsCatalog({
   title,
   subtitle = "",
   items,
@@ -621,9 +619,9 @@ export function SpecialistsCatalog({
   cardsPerRow = 4,
   mobileCardsPerRow = 2,
   showCategoryTabs = true,
-  categoryAllLabel = "Все специалисты",
+  categoryAllLabel = "Все локации",
   showSearch = true,
-  searchPlaceholder = "Поиск специалиста",
+  searchPlaceholder = "Поиск локации",
   showSort = true,
   defaultSort = "default",
   searchSortAlignment = "right",
@@ -687,10 +685,8 @@ export function SpecialistsCatalog({
   detailsButtonStyle,
   textAlign = "left",
   previewViewportWidth,
-  entityBasePath = "specialists",
-  bookingEntity = "specialist",
-  emptyText = "Нет специалистов для отображения.",
-}: SpecialistsCatalogProps) {
+  emptyText = "Нет локаций для отображения.",
+}: LocationsCatalogProps) {
   const catalogRef = useRef<HTMLElement | null>(null);
   const [activeThemeMode, setActiveThemeMode] = useState<"light" | "dark">("light");
   const [query, setQuery] = useState("");
@@ -702,7 +698,7 @@ export function SpecialistsCatalog({
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [areMobileFiltersOpen, setAreMobileFiltersOpen] = useState(false);
-  const [activeModal, setActiveModal] = useState<ActiveSpecialistModalState>(null);
+  const [activeModal, setActiveModal] = useState<ActiveLocationModalState>(null);
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -790,23 +786,18 @@ export function SpecialistsCatalog({
   const displayItems = usePagination
     ? filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
     : filteredItems.slice(0, visibleCount);
-  const activeModalSpecialist = activeModal
-    ? displayItems.find((item) => item.id === activeModal.specialistId) ??
-      filteredItems.find((item) => item.id === activeModal.specialistId) ??
-      items.find((item) => item.id === activeModal.specialistId) ??
+  const activeModalLocation = activeModal
+    ? displayItems.find((item) => item.id === activeModal.locationId) ??
+      filteredItems.find((item) => item.id === activeModal.locationId) ??
+      items.find((item) => item.id === activeModal.locationId) ??
       null
     : null;
   const activeModalBookingHref =
-    activeModalSpecialist && publicSlug
+    activeModalLocation && publicSlug
       ? buildBookingLink({
           publicSlug,
-          locationId:
-            bookingEntity === "location"
-              ? activeModalSpecialist.id
-              : activeLocationId ??
-                (activeModalSpecialist.locationIds.length === 1 ? activeModalSpecialist.locationIds[0] : null),
-          specialistId: bookingEntity === "specialist" ? activeModalSpecialist.id : null,
-          scenario: bookingEntity === "location" ? "dateFirst" : "specialistFirst",
+          locationId: activeModalLocation.id,
+          scenario: "dateFirst",
         })
       : null;
 
@@ -817,7 +808,7 @@ export function SpecialistsCatalog({
   const hasPreviewViewport =
     typeof effectiveViewportWidth === "number" && Number.isFinite(effectiveViewportWidth);
   const isNarrowPreviewViewport = hasPreviewViewport && effectiveViewportWidth < 640;
-  const useSingleLocationCardLayout = bookingEntity === "location" && filteredItems.length === 1;
+  const useSingleLocationCardLayout = filteredItems.length === 1;
   const gridClassName =
     useSingleLocationCardLayout || listView === "list"
       ? "grid-cols-1"
@@ -958,7 +949,7 @@ export function SpecialistsCatalog({
   return (
     <section
       ref={catalogRef}
-      className="bp-specialists-catalog"
+      className="bp-locations-catalog"
       data-empty-text={emptyText}
       style={{
         textAlign,
@@ -1242,25 +1233,20 @@ export function SpecialistsCatalog({
           rowGap: Math.max(0, cardGapY),
         }}
       >
-        {displayItems.map((specialist) => {
+        {displayItems.map((location) => {
           const bookingHref = publicSlug
             ? buildBookingLink({
                 publicSlug,
-                locationId:
-                  bookingEntity === "location"
-                    ? specialist.id
-                    : activeLocationId ??
-                      (specialist.locationIds.length === 1 ? specialist.locationIds[0] : null),
-                specialistId: bookingEntity === "specialist" ? specialist.id : null,
-                scenario: bookingEntity === "location" ? "dateFirst" : "specialistFirst",
+                locationId: location.id,
+                scenario: "dateFirst",
               })
             : "#";
-          const profileHref = publicSlug ? `/${publicSlug}/${entityBasePath}/${specialist.id}` : "#";
+          const profileHref = publicSlug ? `/${publicSlug}/locations/${location.id}` : "#";
           const canOpenCardByClick = Boolean(publicSlug);
           const isListCard = listView === "list";
           const isImageInsetCard = imageAspectRatio === "original";
           const isSingleLocationCard = useSingleLocationCardLayout && !isListCard && !isImageInsetCard;
-          const hasCoverImage = Boolean(specialist.coverUrl);
+          const hasCoverImage = Boolean(location.coverUrl);
           const hasFilledInfoPanel = isImageInsetCard && normalizedCardStyle === "filled" && !isListCard;
           const hasGlassInfoPanel = hasFilledInfoPanel && hasCoverImage && cardLiquidGlass;
           const isFilledCard = normalizedCardStyle === "filled" || isImageInsetCard;
@@ -1285,16 +1271,16 @@ export function SpecialistsCatalog({
             ? 12
             : hasPreviewViewport
               ? cardPaddingX
-              : `var(--specialist-card-padding-x, ${cardPaddingX}px)`;
+              : `var(--location-card-padding-x, ${cardPaddingX}px)`;
           const contentPaddingY = shouldCompactTileSpacing
             ? 12
             : hasPreviewViewport
               ? cardPaddingY
-              : `var(--specialist-card-padding-y, ${cardPaddingY}px)`;
+              : `var(--location-card-padding-y, ${cardPaddingY}px)`;
           const insetPanelPadding =
             typeof contentPaddingY === "number"
               ? Math.max(12, Math.round(contentPaddingY * 0.5))
-              : `var(--specialist-card-inset-panel-padding, ${Math.max(12, Math.round(cardPaddingY * 0.5))}px)`;
+              : `var(--location-card-inset-panel-padding, ${Math.max(12, Math.round(cardPaddingY * 0.5))}px)`;
           const imageInsetCardMinHeight = shouldCompactTileSpacing ? 300 : 420;
           const compactTitleStyle: CSSProperties = shouldCompactTileSpacing
             ? {
@@ -1312,9 +1298,9 @@ export function SpecialistsCatalog({
                 }
               : {
                   ...(resolvedCardTitleTextStyle ?? {}),
-                  fontSize: "var(--specialist-card-title-font-size, 18px)",
-                  lineHeight: "var(--specialist-card-title-line-height, 1.25)",
-                  minHeight: "var(--specialist-card-title-min-height, 45px)",
+                  fontSize: "var(--location-card-title-font-size, 18px)",
+                  lineHeight: "var(--location-card-title-line-height, 1.25)",
+                  minHeight: "var(--location-card-title-min-height, 45px)",
                   width: "100%",
                 };
           const compactDescriptionStyle: CSSProperties = shouldCompactTileSpacing
@@ -1327,8 +1313,8 @@ export function SpecialistsCatalog({
               ? resolvedCardDescriptionTextStyle ?? {}
               : {
                   ...(resolvedCardDescriptionTextStyle ?? {}),
-                  fontSize: "var(--specialist-card-level-font-size, 14px)",
-                  lineHeight: "var(--specialist-card-level-line-height, 1.2)",
+                  fontSize: "var(--location-card-level-font-size, 14px)",
+                  lineHeight: "var(--location-card-level-line-height, 1.2)",
                 };
           const titleStyle = compactTitleStyle;
           const descriptionStyle = compactDescriptionStyle;
@@ -1341,8 +1327,8 @@ export function SpecialistsCatalog({
                   lineHeight: "var(--catalog-card-button-line-height, normal)",
                   padding: "var(--catalog-card-button-padding-y, 8px) var(--catalog-card-button-padding-x, 16px)",
                 };
-          const openSpecialistModal = () => {
-            setActiveModal({ specialistId: specialist.id, imageIndex: 0 });
+          const openLocationModal = () => {
+            setActiveModal({ locationId: location.id, imageIndex: 0 });
           };
           const singleLocationCardPadding =
             normalizedCardStyle === "filled" ? `${contentPaddingY}px ${contentPaddingX}px` : undefined;
@@ -1350,7 +1336,7 @@ export function SpecialistsCatalog({
 
           return (
             <article
-              key={specialist.id}
+              key={location.id}
               className={`group ${isImageInsetCard && !isListCard ? "relative overflow-hidden" : ""} ${isFilledCard && !isListCard ? "overflow-hidden" : ""} ${
                 isSingleLocationCard
                   ? hasPreviewViewport
@@ -1373,7 +1359,7 @@ export function SpecialistsCatalog({
                   ? (event) => {
                       const target = event.target as HTMLElement | null;
                       if (target?.closest("a,button,input,select,textarea")) return;
-                      openSpecialistModal();
+                      openLocationModal();
                     }
                   : undefined
               }
@@ -1383,7 +1369,7 @@ export function SpecialistsCatalog({
                       if (event.target !== event.currentTarget) return;
                       if (event.key !== "Enter" && event.key !== " ") return;
                       event.preventDefault();
-                      openSpecialistModal();
+                      openLocationModal();
                     }
                   : undefined
               }
@@ -1413,7 +1399,7 @@ export function SpecialistsCatalog({
                   isImageInsetCard && !isListCard
                     ? hasPreviewViewport
                       ? imageInsetCardMinHeight
-                      : "var(--specialist-image-inset-card-min-height, 420px)"
+                      : "var(--location-image-inset-card-min-height, 420px)"
                     : undefined,
               }}
             >
@@ -1422,7 +1408,7 @@ export function SpecialistsCatalog({
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    openSpecialistModal();
+                    openLocationModal();
                   }}
                   className={`block w-full border-0 bg-transparent p-0 text-left ${
                     isImageInsetCard && !isListCard
@@ -1444,9 +1430,9 @@ export function SpecialistsCatalog({
                       borderRadius: imageBorderRadius,
                     }}
                   >
-                  {specialist.coverUrl ? (
+                  {location.coverUrl ? (
                     <UnoptimizedImage
-                      src={specialist.coverUrl}
+                      src={location.coverUrl}
                       alt=""
                       className={`h-full w-full transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
                       style={{ objectFit: isImageInsetCard ? "cover" : imageFit }}
@@ -1456,10 +1442,10 @@ export function SpecialistsCatalog({
                       Нет фото
                     </div>
                   )}
-                  {hasGlassInfoPanel && specialist.coverUrl ? (
+                  {hasGlassInfoPanel && location.coverUrl ? (
                     <UnoptimizedImage
                       aria-hidden="true"
-                      src={specialist.coverUrl}
+                      src={location.coverUrl}
                       alt=""
                       className="pointer-events-none absolute inset-0 h-full w-full scale-[1.08]"
                       style={{
@@ -1551,10 +1537,10 @@ export function SpecialistsCatalog({
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
-                    openSpecialistModal();
+                    openLocationModal();
                   }}
-                  className={`specialist-card-text relative z-[1] border-0 bg-transparent p-0 text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline ${
-                    isSingleLocationCard && showLevel && specialist.level ? "mt-3" : ""
+                  className={`location-card-text relative z-[1] border-0 bg-transparent p-0 text-lg font-semibold leading-tight text-[color:var(--block-text,var(--bp-ink))] no-underline ${
+                    isSingleLocationCard && showLevel && location.level ? "mt-3" : ""
                   }`}
                   style={{
                     ...titleStyle,
@@ -1563,16 +1549,16 @@ export function SpecialistsCatalog({
                     order: isSingleLocationCard ? 2 : undefined,
                   }}
                 >
-                  {specialist.name}
+                  {location.name}
                 </button>
-                {showLevel && specialist.level && (
+                {showLevel && location.level && (
                   <div
-                    className={`bp-specialist-card-level specialist-card-text relative z-[1] text-sm text-[color:var(--block-muted,var(--bp-muted))] ${
+                    className={`bp-location-card-level location-card-text relative z-[1] text-sm text-[color:var(--block-muted,var(--bp-muted))] ${
                       isSingleLocationCard ? "uppercase tracking-[0.18em]" : "mt-3"
                     }`}
                     style={{ ...descriptionStyle, order: isSingleLocationCard ? 1 : undefined }}
                   >
-                    {specialist.level}
+                    {location.level}
                   </div>
                 )}
                 {((showDetailsButton && detailsButtonText) || (showButton && buttonText)) && publicSlug && (
@@ -1625,7 +1611,7 @@ export function SpecialistsCatalog({
 
         {displayItems.length === 0 && (
           <div className="border border-dashed border-[color:var(--block-border,var(--bp-stroke))] p-6 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
-            Нет специалистов для отображения.
+            Нет локаций для отображения.
           </div>
         )}
       </div>
@@ -1672,9 +1658,9 @@ export function SpecialistsCatalog({
         </div>
       ) : null}
 
-      {activeModalSpecialist ? (
-        <SpecialistModal
-          specialist={activeModalSpecialist}
+      {activeModalLocation ? (
+        <LocationModal
+          location={activeModalLocation}
           imageIndex={activeModal?.imageIndex ?? 0}
           bookingHref={activeModalBookingHref}
           buttonText={buttonText}
@@ -1697,3 +1683,4 @@ export function SpecialistsCatalog({
     </section>
   );
 }
+

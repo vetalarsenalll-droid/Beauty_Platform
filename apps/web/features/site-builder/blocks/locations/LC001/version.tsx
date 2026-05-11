@@ -123,7 +123,12 @@ export const LC001: BlockVersion = {
       subtitle: data.subtitle ?? locationDefaults.subtitle,
       ids: Array.isArray(data.ids) ? data.ids : [],
       locationCardImageFit: readMigratedValue(data, "locationCardImageFit", "specialistCardImageFit"),
-      locationCardImageZoomOnClick: readMigratedValue(data, "locationCardImageZoomOnClick", "specialistCardImageZoomOnClick"),
+      locationCardImageZoomOnClick: readMigratedValue(
+        data,
+        "locationCardImageZoomOnClick",
+        "modalImageZoomOnClick",
+        "specialistCardImageZoomOnClick"
+      ),
       locationCardClickEnabled: readMigratedValue(data, "locationCardClickEnabled", "modalImageClickEnabled"),
       locationModalMediaColumns: readMigratedValue(data, "locationModalMediaColumns", "specialistModalMediaColumns"),
       locationModalInfoColumns: readMigratedValue(data, "locationModalInfoColumns", "specialistModalInfoColumns"),
