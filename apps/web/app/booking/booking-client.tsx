@@ -3156,7 +3156,7 @@ export default function BookingClient({
       if (!location) return null;
       const workUrls = (location.workPhotoUrls?.length ? location.workPhotoUrls : [])
         .concat(workPhotos.locations?.filter((item) => item.entityId === String(location.id)).map((item) => item.url) ?? []);
-      const photos = Array.from(new Set([...workUrls, ...(location.photoUrls ?? []), location.coverUrl ?? ""]));
+      const photos = Array.from(new Set(workUrls));
       return (
         <BookingEntityInfoPanel
           title={location.name}
@@ -3174,7 +3174,7 @@ export default function BookingClient({
       if (!service) return null;
       const workUrls = (service.workPhotoUrls?.length ? service.workPhotoUrls : [])
         .concat(workPhotos.services?.filter((item) => item.entityId === String(service.id)).map((item) => item.url) ?? []);
-      const photos = Array.from(new Set([...workUrls, ...(service.photoUrls ?? []), service.coverUrl ?? ""]));
+      const photos = Array.from(new Set(workUrls));
       return (
         <BookingEntityInfoPanel
           title={service.name}
@@ -3194,7 +3194,7 @@ export default function BookingClient({
     if (!specialist) return null;
     const workUrls = (specialist.workPhotoUrls?.length ? specialist.workPhotoUrls : [])
       .concat(workPhotos.specialists?.filter((item) => item.entityId === String(specialist.id)).map((item) => item.url) ?? []);
-    const photos = Array.from(new Set([...workUrls, ...(specialist.photoUrls ?? []), specialist.coverUrl ?? "", specialist.avatarUrl ?? ""]));
+    const photos = Array.from(new Set(workUrls));
     return (
       <BookingEntityInfoPanel
         title={specialist.name}
