@@ -43,10 +43,7 @@ export default function PublicSiteOverlayLoader({
   }, [pathname, searchParams, visible, enabledConfig]);
 
   useEffect(() => {
-    if (!enabledConfig) {
-      setVisible(false);
-      return;
-    }
+    if (!enabledConfig) return;
 
     const handleClick = (event: MouseEvent) => {
       if (event.defaultPrevented) return;

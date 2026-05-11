@@ -97,7 +97,10 @@ export const PAGE_KEYS: SitePageKey[] = [
   "specialists",
   "promos",
 ];
-export const isSystemBlockType = (_type: unknown): boolean => false;
+export const isSystemBlockType = (_type?: unknown): boolean => {
+  void _type;
+  return false;
+};
 export const QUICK_BLOCK_TYPES: BlockType[] = ["cover"];
 
 export const MOBILE_VIEWPORTS = {

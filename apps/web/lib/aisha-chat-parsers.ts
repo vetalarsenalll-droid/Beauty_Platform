@@ -1,6 +1,35 @@
 import type { DraftLike } from "@/lib/booking-tools";
 
 type Mode = "SELF" | "ASSISTANT";
+type DraftPlanItem = NonNullable<NonNullable<DraftLike["planJson"]>[number]>;
+
+function normalizePlanJson(value: unknown): DraftPlanItem[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+      const raw = item as Record<string, unknown>;
+      const serviceId = Number(raw.serviceId);
+      if (!Number.isInteger(serviceId) || serviceId <= 0) return null;
+      const specialistIdNumber = raw.specialistId == null ? NaN : Number(raw.specialistId);
+      return {
+        serviceId,
+        specialistId: Number.isInteger(specialistIdNumber) && specialistIdNumber > 0 ? specialistIdNumber : null,
+        date: typeof raw.date === "string" ? raw.date : null,
+        time: typeof raw.time === "string" ? raw.time : null,
+      };
+    })
+    .filter((item): item is DraftPlanItem => Boolean(item));
+}
+
+function normalizeBookingMode(value: unknown): DraftLike["bookingMode"] {
+  return value === "single_specialist_multi" || value === "chain_multi_specialist" ? value : null;
+}
+
+function normalizeConsentConfirmedAt(value: unknown): string | null {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === "string" && value ? value : null;
+}
 
 const norm = (v: string) =>
   v
@@ -20,11 +49,11 @@ export const draftView = (d: {
   clientName: string | null;
   clientPhone: string | null;
   clientEmail?: string | null;
-  planJson?: Array<{ serviceId: number; specialistId: number | null; date: string | null; time: string | null }> | null;
-  bookingMode?: "single_specialist_multi" | "chain_multi_specialist" | null;
+  planJson?: unknown;
+  bookingMode?: unknown;
   mode: string | null;
   status: string;
-  consentConfirmedAt: Date | null;
+  consentConfirmedAt: unknown;
 }): DraftLike => ({
   locationId: d.locationId,
   serviceId: d.serviceId,
@@ -35,11 +64,11 @@ export const draftView = (d: {
   clientName: d.clientName,
   clientPhone: d.clientPhone,
   clientEmail: d.clientEmail ?? null,
-  planJson: Array.isArray(d.planJson) ? d.planJson : [],
-  bookingMode: d.bookingMode ?? null,
+  planJson: normalizePlanJson(d.planJson),
+  bookingMode: normalizeBookingMode(d.bookingMode),
   mode: d.mode === "SELF" || d.mode === "ASSISTANT" ? (d.mode as Mode) : null,
   status: d.status,
-  consentConfirmedAt: d.consentConfirmedAt ? d.consentConfirmedAt.toISOString() : null,
+  consentConfirmedAt: normalizeConsentConfirmedAt(d.consentConfirmedAt),
 });
 
 export const toYmd = (dt: Date) => dt.toISOString().slice(0, 10);

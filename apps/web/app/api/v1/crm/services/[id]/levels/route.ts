@@ -150,8 +150,6 @@ export async function PATCH(request: Request, { params }: Params) {
   const existing = await prisma.serviceLevelConfig.findMany({
     where: { serviceId: service.id },
   });
-  const existingIds = new Set(existing.map((config) => config.levelId));
-
   await prisma.$transaction(async (tx) => {
     const toDelete = existing
       .filter((config) => !levelIds.includes(config.levelId))

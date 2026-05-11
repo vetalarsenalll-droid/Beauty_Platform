@@ -32,10 +32,6 @@ export default async function ClientProfilePage({
     );
   }
 
-  const fullName = `${client.firstName ?? ""} ${client.lastName ?? ""}`.trim();
-  const displayName =
-    fullName || client.phone || client.email || "Без имени";
-
   return (
     <div className="flex flex-col gap-6">
 

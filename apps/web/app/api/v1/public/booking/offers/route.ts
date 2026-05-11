@@ -14,7 +14,6 @@ import {
 import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
 
 type Window = { start: number; end: number };
-const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
 
 function mergeWindows(list: Window[]) {
   const sorted = list

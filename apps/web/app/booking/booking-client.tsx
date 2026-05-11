@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { SiteLoaderConfig } from "@/lib/site-builder";
@@ -220,7 +221,7 @@ const formatMoneyRub = (value: number) => {
       maximumFractionDigits: 0,
     }).format(value);
   } catch {
-    return `${value} ₽`;
+    return `${value} ?`;
   }
 };
 
@@ -801,7 +802,7 @@ function DatePickerLike({
           aria-expanded={expanded}
         >
           <span className="text-[14px] font-semibold text-[color:var(--bp-ink)]">{monthLabel}</span>
-          <span className="text-[14px] text-[color:var(--bp-muted)]">{expanded ? "▴" : "▾"}</span>
+          <span className="text-[14px] text-[color:var(--bp-muted)]">{expanded ? "?" : "?"}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -1265,7 +1266,7 @@ export default function BookingClient({
     });
   }, []);
 
-  // ✅ дата теперь в TZ аккаунта (YMD), и инициализируем после того, как узнаем TZ
+  // ? дата теперь в TZ аккаунта (YMD), и инициализируем после того, как узнаем TZ
   const [dateYmd, setDateYmd] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -1596,7 +1597,7 @@ export default function BookingClient({
       }
     };
   }, [accountSlug]);
-  // ✅ один раз синхронизируем дату с today в TZ аккаунта после загрузки контекста
+  // ? один раз синхронизируем дату с today в TZ аккаунта после загрузки контекста
   const didInitDateRef = useRef(false);
   useEffect(() => {
     if (!context?.account?.timeZone) return;
@@ -2131,7 +2132,7 @@ export default function BookingClient({
       return;
     }
     if (!selectedServiceIds.length) return;
-    // ✅ В dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
+    // ? В dateFirst время выбрано раньше — его НЕ сбрасываем при выборе услуги
     if (isDateFirst) {
       if (isGroupService) {
         setSelectedGroupSessionId(null);
@@ -2139,7 +2140,7 @@ export default function BookingClient({
       return;
     }
 
-    // ✅ Для serviceFirst/specialistFirst смена услуги меняет доступность времени
+    // ? Для serviceFirst/specialistFirst смена услуги меняет доступность времени
     setTimeChoice(null);
     if (isGroupService) {
       setSelectedGroupSessionId(null);
@@ -4984,8 +4985,7 @@ export default function BookingClient({
                                   <div className="relative">
                                     {location.coverUrl ? (
                                       <div className="booking-card-media overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
+                                        <UnoptimizedImage
                                           src={location.coverUrl}
                                           alt={location.name}
                                           className="aspect-video w-full object-cover"
@@ -5055,7 +5055,7 @@ export default function BookingClient({
 
                 {currentStepKey === "datetime" && (
                   <div className="space-y-4">
-                    {/* ✅ Новый календарь как на примере (без теней, выбор — черная обводка) */}
+                    {/* ? Новый календарь как на примере (без теней, выбор — черная обводка) */}
                     <DatePickerLike
                       value={dateYmd}
                       timeZone={accountTz}
@@ -5246,8 +5246,7 @@ export default function BookingClient({
                                 <div className="relative">
                                   {service.coverUrl ? (
                                     <div className="booking-card-media aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
+                                      <UnoptimizedImage
                                         src={service.coverUrl}
                                         alt={service.name}
                                         className="h-full w-full object-cover"
@@ -5424,8 +5423,7 @@ export default function BookingClient({
                                   <div className="relative">
                                     {sp.coverUrl || sp.avatarUrl ? (
                                       <div className="booking-card-media aspect-[8.5/9] overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
+                                        <UnoptimizedImage
                                           src={sp.coverUrl ?? sp.avatarUrl ?? ""}
                                           alt={sp.name}
                                           className="h-full w-full object-cover object-top"

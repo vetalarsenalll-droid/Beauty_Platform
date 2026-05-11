@@ -12,6 +12,7 @@ import { getOffers } from "@/lib/booking-tools";
 import type { ChatUi, ChatUiOption } from "@/lib/booking-flow";
 
 type FlowResult = { handled: boolean; reply?: string; ui?: ChatUi | null };
+type ClientBooking = Awaited<ReturnType<typeof getClientBookings>>[number];
 
 type ClientFlowArgs = {
   message: string;
@@ -40,40 +41,40 @@ function buildClientActionsMenuUi(): ChatUi {
 }
 
 
-function bookingSpecialistName(item: any) {
+function bookingSpecialistName(item: ClientBooking) {
   const first = item?.specialist?.user?.profile?.firstName ?? "";
   const last = item?.specialist?.user?.profile?.lastName ?? "";
   const full = `${first} ${last}`.trim();
   return full || "Специалист не указан";
 }
 
-function bookingLocationName(item: any) {
+function bookingLocationName(item: ClientBooking) {
   return item?.location?.name ?? "Локация не указана";
 }
 
-function bookingServiceName(item: any) {
+function bookingServiceName(item: ClientBooking) {
   return item?.services?.[0]?.service?.name ?? "Услуга";
 }
 
-function bookingShortLabel(item: any, accountTimeZone: string) {
+function bookingShortLabel(item: ClientBooking, accountTimeZone: string) {
   return `#${item.id} · ${bookingLocationName(item)} · ${bookingSpecialistName(item)} · ${bookingServiceName(item)} · ${formatDateTimeInTz(item.startAt, accountTimeZone)}`;
 }
 
-function bookingDetailsText(item: any, accountTimeZone: string) {
-  const services = (item.services ?? []).map((s: any) => s?.service?.name).filter(Boolean);
+function bookingDetailsText(item: ClientBooking, accountTimeZone: string) {
+  const services = (item.services ?? []).map((s) => s?.service?.name).filter(Boolean);
   const serviceText = services.length ? services.join(", ") : "Услуга";
   return `Запись #${item.id}\nЛокация: ${bookingLocationName(item)}\nСпециалист: ${bookingSpecialistName(item)}\nУслуги: ${serviceText}\nДата и время: ${formatDateTimeInTz(item.startAt, accountTimeZone)}\nСтатус: ${item.status}`;
 }
 
-function bookingOptionLabel(item: any, accountTimeZone: string) {
+function bookingOptionLabel(item: ClientBooking, accountTimeZone: string) {
   return `#${item.id} · ${bookingLocationName(item)} · ${bookingSpecialistName(item)} · ${bookingServiceName(item)} · ${formatDateTimeInTz(item.startAt, accountTimeZone)}`;
 }
 
-function bookingCancelOptionLabel(item: any, accountTimeZone: string) {
+function bookingCancelOptionLabel(item: ClientBooking, accountTimeZone: string) {
   return `Отменить #${item.id} · ${bookingLocationName(item)} · ${bookingSpecialistName(item)} · ${bookingServiceName(item)} · ${formatDateTimeInTz(item.startAt, accountTimeZone)}`;
 }
 
-function bookingRescheduleOptionLabel(item: any, accountTimeZone: string) {
+function bookingRescheduleOptionLabel(item: ClientBooking, accountTimeZone: string) {
   return `Перенести #${item.id} · ${bookingLocationName(item)} · ${bookingSpecialistName(item)} · ${bookingServiceName(item)} · ${formatDateTimeInTz(item.startAt, accountTimeZone)}`;
 }
 function rescheduleQuickTimeOptions(appointmentId: number): ChatUiOption[] {
@@ -94,7 +95,7 @@ function parsePage(messageNorm: string) {
 
 function listBookingsResponse(args: {
   title: string;
-  items: any[];
+  items: ClientBooking[];
   page: number;
   scopeValue: string;
   accountTimeZone: string;
@@ -217,7 +218,7 @@ function parseRuDateToYmd(messageNorm: string, todayYmd: string) {
   if (dmText) {
     const day = String(Number(dmText[1])).padStart(2, "0");
     const month = monthMap.get(dmText[2].toLowerCase()) ?? "01";
-    let year = dmText[3] ? Number(dmText[3]) : Number(todayYmd.slice(0, 4));
+    const year = dmText[3] ? Number(dmText[3]) : Number(todayYmd.slice(0, 4));
     let candidate = `${year}-${month}-${day}`;
     if (!dmText[3] && candidate < todayYmd) candidate = `${year + 1}-${month}-${day}`;
     return candidate;
@@ -252,7 +253,7 @@ function parseDateTime(messageNorm: string, todayYmd: string) {
 }
 
 
-function extractPrimaryServiceId(item: any) {
+function extractPrimaryServiceId(item: ClientBooking) {
   const raw = item?.services?.[0]?.serviceId;
   const n = Number(raw);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -414,9 +415,9 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     const dateFilter = parseRuDateToYmd(messageNorm, todayYmd);
     const timeFilter = parseTime(messageNorm);
 
-    const applyFilters = (arr: any[]) =>
+    const applyFilters = (arr: ClientBooking[]) =>
       arr.filter((x) => {
-        const serviceNames = (x.services ?? []).map((s: any) => String(s?.service?.name ?? "").toLowerCase());
+        const serviceNames = (x.services ?? []).map((s) => String(s?.service?.name ?? "").toLowerCase());
         if (serviceFilter && !serviceNames.some((n: string) => n.includes(serviceFilter.toLowerCase()))) return false;
         if (specialistFilter) {
           const raw = JSON.stringify(x).toLowerCase();
@@ -582,8 +583,8 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     }
     const cancelled = await cancelClientBooking({ accountId, clientId, appointmentId: id });
     if (!cancelled.ok) {
-      if ((cancelled as any).reason === "cancellation_window_blocked") {
-        const policyHours = (cancelled as any).policyHours;
+      if (cancelled.reason === "cancellation_window_blocked") {
+        const policyHours = cancelled.policyHours;
         return {
           handled: true,
           reply: `Не могу отменить: по правилам отмена доступна не позднее чем за ${formatPolicyHoursHuman(
@@ -759,8 +760,8 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     const endAt = new Date(startAt.getTime() + durationMs);
     const moved = await rescheduleClientBooking({ accountId, clientId, appointmentId: id, startAt, endAt });
     if (!moved.ok) {
-      if ((moved as any).reason === "reschedule_window_blocked") {
-        const policyHours = (moved as any).policyHours;
+      if (moved.reason === "reschedule_window_blocked") {
+        const policyHours = moved.policyHours;
         return {
           handled: true,
           reply: `Не могу перенести: по правилам перенос доступен не позднее чем за ${formatPolicyHoursHuman(
@@ -775,7 +776,7 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
           },
         };
       }
-      if ((moved as any).reason === "slot_busy") {
+      if (moved.reason === "slot_busy") {
         return {
           handled: true,
           reply: "Не получилось перенести: выбранный слот уже занят. Выберите другое время.",

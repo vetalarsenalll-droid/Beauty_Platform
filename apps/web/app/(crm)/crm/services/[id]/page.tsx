@@ -1,3 +1,4 @@
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import Link from "next/link";
 import { requireCrmPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -180,7 +181,7 @@ export default async function ServiceProfilePage({
           </div>
           <div className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)]/60">
             {coverPhoto ? (
-              <img
+              <UnoptimizedImage
                 src={coverPhoto.url}
                 alt=""
                 className="h-48 w-full object-cover"

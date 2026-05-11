@@ -3,8 +3,6 @@ import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-to
 import { prisma } from "@/lib/prisma";
 import { normalizeDraft, resolveAishaWidgetConfig } from "@/lib/site-builder";
 
-const prismaAny = prisma as any;
-
 type AccountProfileLite = {
   description: string | null;
   address: string | null;
@@ -27,7 +25,7 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
   assistantName: string;
 }> {
   const [locationsRaw, servicesRaw, specialistsRaw, requiredDocs, accountProfile, customPrompt, publicPage] = await Promise.all([
-    prismaAny.location.findMany({
+    prisma.location.findMany({
       where: { accountId, status: "ACTIVE" },
       select: { id: true, name: true, address: true, description: true },
       orderBy: { createdAt: "asc" },

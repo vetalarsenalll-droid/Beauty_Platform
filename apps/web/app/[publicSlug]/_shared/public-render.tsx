@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
+import Link from "next/link";
 import { buildBookingLink } from "@/lib/booking-links";
 import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
@@ -274,7 +275,6 @@ const MIN_BLOCK_COLUMNS = 1;
 const MAX_BLOCK_COLUMNS = 12;
 const BOOKING_MIN_BLOCK_COLUMNS = 10;
 const BOOKING_MAX_BLOCK_COLUMNS = 16;
-const PUBLIC_WIDTH_REFERENCE = 1600;
 const DEFAULT_PUBLIC_SECTION_BG_LIGHT = "#f6f7f9";
 const DEFAULT_PUBLIC_SECTION_BG_DARK = "#111318";
 const DEFAULT_PUBLIC_TRANSPARENT_BG = "transparent";
@@ -320,18 +320,6 @@ function bookingCardsPerRow(columns: number): number {
   if (preset <= 2) return 2;
   if (preset <= 4) return 3;
   return 4;
-}
-
-function responsiveBlockWidthCss(columns: number, useEdgePad = true): string {
-  const clampedColumns = Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, columns));
-  if (clampedColumns >= MAX_BLOCK_COLUMNS) {
-    return "100%";
-  }
-  const targetPx = Math.round((PUBLIC_WIDTH_REFERENCE * clampedColumns) / MAX_BLOCK_COLUMNS);
-  if (!useEdgePad) {
-    return `min(${targetPx}px, 100%)`;
-  }
-  return `min(${targetPx}px, calc(100% - (var(--site-edge-pad, 0px) * 2)))`;
 }
 
 function defaultMobileHeadingSize(desktopSize: number) {
@@ -1156,7 +1144,7 @@ export function renderBlock(
         accountLinkOverride
       );
     case "about":
-      return renderAbout(block, accountName, profile, theme);
+      return renderAbout(block, accountName, profile);
     case "loader":
       return null;
     case "booking":
@@ -1183,7 +1171,7 @@ export function renderBlock(
     case "specialists":
       return renderSpecialists(block, publicSlug, locations, specialists, current, theme);
     case "promos":
-      return renderPromos(block, publicSlug, promos, current, theme);
+      return renderPromos(block, publicSlug, promos, current);
     case "works":
       return renderWorks(block, workPhotos, current, theme);
     case "reviews":
@@ -2807,11 +2795,6 @@ export function buildBlockWrapperStyle(
       mobileServicesGrid.end
     );
     const mobileServicesLeftCss = gridSpanLeftCss(mobileServicesGrid.start);
-    const contentWidth = responsiveBlockWidthCss(blockOuterColumns, true);
-    const menuWidth =
-      blockOuterColumns >= MAX_BLOCK_COLUMNS
-        ? "100%"
-        : responsiveBlockWidthCss(blockOuterColumns, true);
     const servicesSectionBackgroundSource = isServicesBlock || isBookingBlock
       ? {
           servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
@@ -3072,7 +3055,7 @@ function renderMenu(
 
   const logoImageNode =
     showLogo && branding.logoUrl ? (
-      <img src={branding.logoUrl} alt="" style={{ height: logoImageHeight, width: "auto" }} />
+      <UnoptimizedImage src={branding.logoUrl} alt="" style={{ height: logoImageHeight, width: "auto" }} />
     ) : null;
   const companyNameNode = showCompanyName ? (
     <span
@@ -3189,7 +3172,7 @@ function renderMenu(
             title={SOCIAL_LABELS[item.key] ?? item.key}
             aria-label={SOCIAL_LABELS[item.key] ?? item.key}
           >
-            <img
+            <UnoptimizedImage
               src={SOCIAL_ICONS[item.key]}
               alt={SOCIAL_LABELS[item.key] ?? item.key}
               className="h-5 w-5"
@@ -3754,8 +3737,7 @@ function IconMenu() {
 function renderAbout(
   block: SiteBlock,
   accountName: string,
-  profile: AccountProfile,
-  _theme: SiteTheme
+  profile: AccountProfile
 ) {
   const data = block.data as Record<string, unknown>;
   const text = (data.text as string) || profile.description || "";
@@ -4669,8 +4651,7 @@ function renderPromos(
   block: SiteBlock,
   publicSlug: string,
   promos: PromoItem[],
-  current: CurrentEntity,
-  _theme: SiteTheme
+  current: CurrentEntity
 ) {
   const data = block.data as Record<string, unknown>;
   const mode = (data.mode as string) ?? "all";
@@ -4707,7 +4688,7 @@ function renderPromos(
               {promo.name}
             </Link>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ₽`}
+              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ?`}
               {promo.startsAt || promo.endsAt ? " В· " : ""}
               {promo.startsAt ? `с ${promo.startsAt}` : ""}
               {promo.endsAt ? ` по ${promo.endsAt}` : ""}

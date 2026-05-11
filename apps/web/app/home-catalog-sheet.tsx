@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import HomeSearchBar from "./home-search-bar";
 
@@ -105,7 +106,7 @@ export default function HomeCatalogSheet({ categories }: HomeCatalogSheetProps) 
                   {columns.map((group, index) => (
                     <div key={`col-${index}`} className="space-y-2">
                       {group.map((category) => (
-                        <a
+                        <Link
                           key={category.key}
                           href={`/?category=${encodeURIComponent(category.key)}`}
                           className="group flex items-center gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel,rgba(0,0,0,0.02))] px-3 py-2 text-sm transition hover:border-[color:var(--bp-accent)]"
@@ -121,7 +122,7 @@ export default function HomeCatalogSheet({ categories }: HomeCatalogSheetProps) 
                           <span className="font-medium text-[color:var(--bp-ink)]">
                             {category.label}
                           </span>
-                        </a>
+                        </Link>
                       ))}
                     </div>
                   ))}
@@ -133,15 +134,15 @@ export default function HomeCatalogSheet({ categories }: HomeCatalogSheetProps) 
                       Быстрые действия
                     </div>
                     <div className="mt-4 space-y-3 text-sm">
-                      <a href="/?collection=ai" className="block rounded-xl bg-white px-4 py-3 shadow-[var(--bp-shadow)]">
+                      <Link href="/?collection=ai" className="block rounded-xl bg-white px-4 py-3 shadow-[var(--bp-shadow)]">
                         AI‑подбор услуги
-                      </a>
-                      <a href="/?collection=top" className="block rounded-xl bg-white px-4 py-3 shadow-[var(--bp-shadow)]">
+                      </Link>
+                      <Link href="/?collection=top" className="block rounded-xl bg-white px-4 py-3 shadow-[var(--bp-shadow)]">
                         Топ‑специалисты недели
-                      </a>
-                      <a href="/?collection=nearby" className="block rounded-xl bg-white px-4 py-3 shadow-[var(--bp-shadow)]">
+                      </Link>
+                      <Link href="/?collection=nearby" className="block rounded-xl bg-white px-4 py-3 shadow-[var(--bp-shadow)]">
                         Онлайн‑запись рядом
-                      </a>
+                      </Link>
                     </div>
                   </div>
 
@@ -150,7 +151,7 @@ export default function HomeCatalogSheet({ categories }: HomeCatalogSheetProps) 
                       Подборки
                     </div>
                     {featured.map((category) => (
-                      <a
+                      <Link
                         key={`featured-${category.key}`}
                         href={`/?category=${encodeURIComponent(category.key)}`}
                         className="group relative flex h-24 items-end overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-black/40 p-4 text-sm font-semibold text-white"
@@ -165,7 +166,7 @@ export default function HomeCatalogSheet({ categories }: HomeCatalogSheetProps) 
                         />
                         <div className="absolute inset-0 bg-black/35" />
                         <span className="relative z-10">{category.label}</span>
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 </div>

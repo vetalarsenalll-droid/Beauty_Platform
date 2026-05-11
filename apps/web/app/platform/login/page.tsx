@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function PlatformLoginPage() {
@@ -14,15 +14,11 @@ export default function PlatformLoginPage() {
 function PlatformLoginPageContent() {
   const [email, setEmail] = useState("admin@beauty.local");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const params = useSearchParams();
-
-  useEffect(() => {
-    if (params.get("error") === "forbidden") {
-      setError("Нет доступа к разделу.");
-    }
-  }, [params]);
+  const [error, setError] = useState<string | null>(() =>
+    params.get("error") === "forbidden" ? "Нет доступа к разделу." : null
+  );
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,7 +34,7 @@ function PlatformLoginPageContent() {
     setLoading(false);
 
     if (!response.ok) {
-      setError("Неверный email или пароль.");
+      setError("РќРµРІРµСЂРЅС‹Р№ email РёР»Рё РїР°СЂРѕР»СЊ.");
       return;
     }
 
@@ -52,10 +48,10 @@ function PlatformLoginPageContent() {
           Platform Admin
         </div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Вход для владельца
+          Р’С…РѕРґ РґР»СЏ РІР»Р°РґРµР»СЊС†Р°
         </h1>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Доступ к управлению платформой и системным настройкам.
+          Р”РѕСЃС‚СѓРї Рє СѓРїСЂР°РІР»РµРЅРёСЋ РїР»Р°С‚С„РѕСЂРјРѕР№ Рё СЃРёСЃС‚РµРјРЅС‹Рј РЅР°СЃС‚СЂРѕР№РєР°Рј.
         </p>
         <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit}>
           <label className="text-sm font-medium">
@@ -69,12 +65,12 @@ function PlatformLoginPageContent() {
             />
           </label>
           <label className="text-sm font-medium">
-            Пароль
+            РџР°СЂРѕР»СЊ
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
+              placeholder="вЂўвЂўвЂўвЂўвЂўвЂўвЂўвЂў"
               className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
             />
           </label>
@@ -88,7 +84,7 @@ function PlatformLoginPageContent() {
             disabled={loading}
             className="mt-2 inline-flex items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-5 py-3 text-sm font-semibold text-white shadow-[var(--bp-shadow)] transition hover:bg-[color:var(--bp-accent-strong)] disabled:opacity-60"
           >
-            {loading ? "Вход..." : "Войти"}
+            {loading ? "Р’С…РѕРґ..." : "Р’РѕР№С‚Рё"}
           </button>
         </form>
       </div>

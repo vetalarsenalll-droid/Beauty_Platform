@@ -171,6 +171,8 @@ export default function ClientDashboard(props: ClientDashboardProps) {
   const nextAppointment = upcoming[0] ?? null;
   const lastVisit = history[0] ?? null;
   const latestReview = reviewItems[0] ?? null;
+  const nextAppointmentStartAtIso = nextAppointment?.startAtIso ?? null;
+  const lastVisitStartAtIso = lastVisit?.startAtIso ?? null;
 
   const loyaltySummary = useMemo(() => {
     const balance = loyalty.balance ?? 0;
@@ -179,20 +181,20 @@ export default function ClientDashboard(props: ClientDashboardProps) {
   }, [loyalty.balance]);
 
   const smartHint = useMemo(() => {
-    if (nextAppointment?.startAtIso) {
-      const days = daysDiff(new Date(), new Date(nextAppointment.startAtIso));
+    if (nextAppointmentStartAtIso) {
+      const days = daysDiff(new Date(), new Date(nextAppointmentStartAtIso));
       if (days <= 0) return "Сегодня у вас запланирован визит. При необходимости можно перенести.";
       if (days === 1) return "До визита остался 1 день. Можно заранее подтвердить запись.";
       return `До следующего визита ${days} дней. Если планы изменились — перенесите запись заранее.`;
     }
-    if (lastVisit?.startAtIso) {
-      const days = Math.abs(daysDiff(new Date(lastVisit.startAtIso), new Date()));
+    if (lastVisitStartAtIso) {
+      const days = Math.abs(daysDiff(new Date(lastVisitStartAtIso), new Date()));
       if (days < 7) return "Вы недавно были у нас. Хотите повторить услугу позже?";
       if (days < 30) return "Прошло несколько недель с последнего визита. Предложить удобное время?";
       return "Давно не виделись. Мы можем быстро подобрать удобное время записи.";
     }
     return "Начните с первой записи — мы подскажем лучшие варианты по времени и мастерам.";
-  }, [nextAppointment?.startAtIso, lastVisit?.startAtIso]);
+  }, [nextAppointmentStartAtIso, lastVisitStartAtIso]);
 
   const handleOrgChange = (value: string) => {
     if (!value) {

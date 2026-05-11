@@ -314,7 +314,6 @@ function IconDots() {
 
 export default function ScheduleView({
   staff,
-  initialTypes: _initialTypes,
   locations,
   initialLocationId,
 }: ScheduleViewProps) {

@@ -18,11 +18,6 @@ type EntryPayload = {
   breaks?: BreakPayload[];
 };
 
-type ScheduleRequest = {
-  entries: EntryPayload[];
-  forceReplaceLocation?: boolean;
-};
-
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
@@ -547,18 +542,19 @@ export async function POST(request: Request) {
 
     const response = jsonOk({ updated: entries.length });
     return applyCrmAccessCookie(response, auth);
-  } catch (err: any) {
-    if (err?.kind === "LOCATION_CONFLICT") {
+  } catch (err: unknown) {
+    const conflict = err as { kind?: string; specialistId?: number; date?: string; existingLocationId?: number; existingLocationName?: string; requestedLocationId?: number };
+    if (conflict.kind === "LOCATION_CONFLICT") {
       return applyCrmAccessCookie(
         jsonError(
           "LOCATION_CONFLICT",
-          `Нельзя сохранить: у специалиста уже есть график на ${err.date} в локации "${err.existingLocationName}".`,
+          `Нельзя сохранить: у специалиста уже есть график на ${conflict.date} в локации "${conflict.existingLocationName}".`,
           {
-            specialistId: err.specialistId,
-            date: err.date,
-            existingLocationId: err.existingLocationId,
-            existingLocationName: err.existingLocationName,
-            requestedLocationId: err.requestedLocationId,
+            specialistId: conflict.specialistId,
+            date: conflict.date,
+            existingLocationId: conflict.existingLocationId,
+            existingLocationName: conflict.existingLocationName,
+            requestedLocationId: conflict.requestedLocationId,
           },
           409
         ),

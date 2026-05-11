@@ -7,8 +7,6 @@ import { buildPublicSlugId } from "@/lib/public-slug";
 import { resolvePublicAccount } from "@/lib/public-booking";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
-const prismaAny = prisma as any;
-
 export async function handlePublicAiChatGet(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -134,7 +132,7 @@ export async function handlePublicAiChatDelete(request: Request) {
     },
   });
 
-  await prismaAny.aiBookingDraft.upsert({
+  await prisma.aiBookingDraft.upsert({
     where: { threadId: newThread.id },
     create: { threadId: newThread.id, status: "COLLECTING", serviceIds: [], planJson: [] },
     update: {},

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { jsonError, jsonOk } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -52,8 +53,7 @@ export async function POST(request: Request) {
   const now = new Date();
   const accountId = resolved.account.id;
 
-  const db = prisma as any;
-  const session = await db.onlineBookingSession.upsert({
+  const session = await prisma.onlineBookingSession.upsert({
     where: {
       accountId_sessionKey: {
         accountId,
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     select: { id: true },
   });
 
-  await db.onlineBookingStep.create({
+  await prisma.onlineBookingStep.create({
     data: {
       accountId,
       sessionId: session.id,
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       specialistId: Number.isInteger(Number(body.specialistId)) ? Number(body.specialistId) : null,
       date: typeof body.date === "string" ? body.date : null,
       time: typeof body.time === "string" ? body.time : null,
-      payload: body.payload ?? null,
+      payload: body.payload == null ? Prisma.JsonNull : (body.payload as Prisma.InputJsonValue),
       createdAt: now,
     },
   });

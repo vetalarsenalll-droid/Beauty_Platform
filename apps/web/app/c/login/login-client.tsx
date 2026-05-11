@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type ClientLoginPageProps = {
@@ -11,14 +11,9 @@ export default function ClientLoginPage({ initialAccountSlug = "" }: ClientLogin
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [accountSlug, setAccountSlug] = useState(initialAccountSlug);
+  const [accountSlug] = useState(() => params.get("account") ?? initialAccountSlug);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const account = params.get("account");
-    if (account) setAccountSlug(account);
-  }, [params]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

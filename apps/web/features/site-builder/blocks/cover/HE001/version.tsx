@@ -57,8 +57,8 @@ export const HE001: BlockVersion = {
     return (
       <SiteCoverSettingsPrimary
         panelTheme={ctx.panelTheme}
-        coverWidthButtonRef={ctx.coverWidthButtonRef}
-        coverWidthPopoverRef={ctx.coverWidthPopoverRef}
+        coverWidthButtonRef={ctx.getCoverWidthButtonRef()}
+        coverWidthPopoverRef={ctx.getCoverWidthPopoverRef()}
         coverWidthModalOpen={ctx.coverWidthModalOpen}
         setCoverWidthModalOpen={ctx.setCoverWidthModalOpen}
         coverGridSpan={cover.coverGridSpan}

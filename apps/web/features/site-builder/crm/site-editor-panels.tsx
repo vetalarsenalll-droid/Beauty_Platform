@@ -1,11 +1,7 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  BLOCK_LABELS,
   BLOCK_VARIANTS,
-  type BlockType,
   type SiteBlock,
-  type SitePageKey,
   type SiteTheme,
 } from "@/lib/site-builder";
 import type {
@@ -21,7 +17,6 @@ import {
   BOOKING_MIN_PRESET,
   BLOCK_OFFSET_MAX_PX,
   BLOCK_OFFSET_STEP_PX,
-  COVER_BACKGROUND_POSITION_OPTIONS,
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
   DEFAULT_BLOCK_COLUMNS,
@@ -30,9 +25,6 @@ import {
   GRID_MIN_COLUMN,
   LEGACY_WIDTH_REFERENCE,
   MAX_BLOCK_COLUMNS,
-  PAGE_KEYS,
-  PAGE_LABELS,
-  SOCIAL_LABELS,
   THEME_FONTS,
   bookingColumnsFromPreset,
   bookingPresetFromColumns,
@@ -48,18 +40,11 @@ import {
 } from "./site-client-core";
 import type {
   CoverBackgroundMode,
-  CssVars,
-  CurrentEntity,
-  EditorSection,
-  MobileViewportKey,
 } from "./site-client-core";
 import {
-  BlockPreview,
   EntityListEditor,
   FieldText,
   FieldTextarea,
-  FlatCheckbox,
-  SliderTrack,
   TildaInlineNumberField,
   type BlockStyle,
   isValidColorValue,
@@ -747,9 +732,6 @@ export function CoverGridWidthControl({
 
 export function BlockEditor({
   block,
-  accountName,
-  branding,
-  accountProfile,
   locations,
   services,
   specialists,
@@ -768,22 +750,6 @@ export function BlockEditor({
   activeSectionId: string;
   onChange: (next: SiteBlock) => void;
 }) {
-  type SocialKey =
-    | "website"
-    | "instagram"
-    | "whatsapp"
-    | "telegram"
-    | "max"
-    | "vk"
-    | "viber"
-    | "pinterest"
-    | "facebook"
-    | "tiktok"
-    | "youtube"
-    | "twitter"
-    | "dzen"
-    | "ok";
-
   const updateData = (patch: Record<string, unknown>) => {
     onChange({ ...block, data: { ...block.data, ...patch } });
   };
@@ -1596,10 +1562,8 @@ export function BlockStyleEditor({
   const lightBorderColor = readRaw("borderColorLight") || readRaw("borderColor");
   const darkBorderColor = readRaw("borderColorDark");
   const lightButtonColor = readRaw("buttonColorLight") || readRaw("buttonColor");
-  const darkButtonColor = readRaw("buttonColorDark");
   const lightButtonTextColor =
     readRaw("buttonTextColorLight") || readRaw("buttonTextColor");
-  const darkButtonTextColor = readRaw("buttonTextColorDark");
   const lightTextColor = readRaw("textColorLight") || readRaw("textColor");
   const darkTextColor = readRaw("textColorDark");
   const lightMutedColor = readRaw("mutedColorLight") || readRaw("mutedColor");

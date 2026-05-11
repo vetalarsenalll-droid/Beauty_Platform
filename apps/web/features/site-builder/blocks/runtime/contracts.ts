@@ -87,8 +87,8 @@ export type CrmPanelCtx = {
   coverDrawerKey: "slider" | "typography" | "button" | "animation" | null;
   setCoverDrawerKey: Dispatch<SetStateAction<"slider" | "typography" | "button" | "animation" | null>>;
 
-  coverWidthButtonRef: RefObject<HTMLButtonElement | null>;
-  coverWidthPopoverRef: RefObject<HTMLDivElement | null>;
+  getCoverWidthButtonRef: () => RefObject<HTMLButtonElement | null>;
+  getCoverWidthPopoverRef: () => RefObject<HTMLDivElement | null>;
   coverWidthModalOpen: boolean;
   setCoverWidthModalOpen: Dispatch<SetStateAction<boolean>>;
 

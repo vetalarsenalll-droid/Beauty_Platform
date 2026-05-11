@@ -1,3 +1,4 @@
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import type { SiteSpecialistItem as SpecialistItem } from "@/features/site-builder/shared/site-data";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
@@ -359,7 +360,7 @@ function SpecialistCardEditor({
         <div className="flex items-center gap-3">
           <div className="h-20 w-28 overflow-hidden rounded-md bg-[color:var(--bp-surface)]">
             {specialist.coverUrl ? (
-              <img src={specialist.coverUrl} alt="" className="h-full w-full object-cover" />
+              <UnoptimizedImage src={specialist.coverUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-[color:var(--bp-muted)]">
                 Нет фото
@@ -427,7 +428,7 @@ function SpecialistCardEditor({
                       className="block w-full disabled:opacity-60"
                       title={photo.id < 0 ? "Для выбора нужна перезагрузка страницы" : "Выбрать фотографию"}
                     >
-                      <img src={photo.url} alt="" className="aspect-[4/3] w-full object-cover" />
+                      <UnoptimizedImage src={photo.url} alt="" className="aspect-[4/3] w-full object-cover" />
                     </button>
                     {photo.id > 0 ? (
                       <button
@@ -532,7 +533,7 @@ function SpecialistCardsEditor({ ctx }: { ctx: CrmPanelCtx }) {
               >
                 <div className="h-14 w-16 shrink-0 overflow-hidden rounded-md bg-[color:var(--bp-surface)]">
                   {specialist.coverUrl ? (
-                    <img src={specialist.coverUrl} alt="" className="h-full w-full object-cover" />
+                    <UnoptimizedImage src={specialist.coverUrl} alt="" className="h-full w-full object-cover" />
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">

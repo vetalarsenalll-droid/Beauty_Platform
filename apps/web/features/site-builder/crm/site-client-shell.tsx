@@ -12,34 +12,16 @@ import {
   type SitePageKey,
 } from "@/lib/site-builder";
 import type {
-  SiteBranding as Branding,
-  SiteEditorAccountProfile as AccountProfile,
   SiteLocationItem as LocationItem,
-  SitePromoItem as PromoItem,
   SiteServiceItem as ServiceItem,
   SiteSpecialistItem as SpecialistItem,
 } from "@/features/site-builder/shared/site-data";
 import {
-  BOOKING_MAX_PRESET,
-  BOOKING_MIN_PRESET,
   CONTENT_SECTIONS_BY_BLOCK,
-  FONT_WEIGHTS,
-  GRID_MAX_COLUMN,
-  GRID_MIN_COLUMN,
   MOBILE_VIEWPORTS,
-  PAGE_LABELS,
   PANEL_ANIMATION_MS,
   SETTINGS_SECTIONS_BY_BLOCK,
-  SOCIAL_LABELS,
-  THEME_FONTS,
-  bookingColumnsFromPreset,
-  bookingPresetFromColumns,
-  clamp01,
-  createBlock,
-  defaultBlockStyle,
-  hexToRgbaString,
   isSystemBlockType,
-  parseBackdropColor,
   variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type {
@@ -51,13 +33,7 @@ import type {
 } from "@/features/site-builder/crm/site-client-core";
 import {
   BlockPreview,
-  CoverImageEditor,
-  EntityListEditor,
-  FieldText,
-  FieldTextarea,
-  FlatCheckbox,
   InsertSlot,
-  TildaInlineNumberField,
   normalizeBlockStyle,
 } from "@/features/site-builder/crm/site-renderer";
 import { useDraftHistory } from "@/features/site-builder/crm/use-draft-history";
@@ -145,14 +121,13 @@ export default function SiteClient({
   promos,
   workPhotos,
 }: SiteClientProps) {
-  const [publicPage, setPublicPage] = useState(initialPublicPage);
+  const [, setPublicPage] = useState(initialPublicPage);
   const [editableLocations, setEditableLocations] = useState<LocationItem[]>(locations);
   const [services, setServices] = useState<ServiceItem[]>(initialServices);
   const [specialists, setSpecialists] = useState<SpecialistItem[]>(initialSpecialists);
   const [publishedPageUrl, setPublishedPageUrl] = useState<string | null>(null);
   const {
     draft,
-    setDraft,
     draftRef,
     setDraftTracked,
     undoDraft,
@@ -235,23 +210,31 @@ export default function SiteClient({
       ]),
     []
   );
-  const homeBlocks = (draft.pages?.home ?? draft.blocks).filter((block) =>
-    activeBlockTypes.has(block.type)
+  const homeBlocks = useMemo(
+    () => (draft.pages?.home ?? draft.blocks).filter((block) => activeBlockTypes.has(block.type)),
+    [activeBlockTypes, draft.blocks, draft.pages]
   );
   const activePageKey: SitePageKey = activePage;
   const isSystemPage = activePageKey === "booking";
-  const pageBlocks: SiteBlock[] = (draft.pages?.[activePageKey] ?? draft.blocks).filter((block) =>
-    activeBlockTypes.has(block.type)
+  const pageBlocks: SiteBlock[] = useMemo(
+    () =>
+      (draft.pages?.[activePageKey] ?? draft.blocks).filter((block) =>
+        activeBlockTypes.has(block.type)
+      ),
+    [activeBlockTypes, activePageKey, draft.blocks, draft.pages]
   );
   const homeMenuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const shouldShareMenu =
     homeMenuBlock && (homeMenuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
   const sharedMenuBlock = activePage === "home" || !shouldShareMenu ? null : homeMenuBlock;
-  const displayBlocks: SiteBlock[] = sharedMenuBlock
-    ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.id !== sharedMenuBlock.id)]
-    : pageBlocks;
+  const displayBlocks: SiteBlock[] = useMemo(
+    () =>
+      sharedMenuBlock
+        ? [sharedMenuBlock, ...pageBlocks.filter((block) => block.id !== sharedMenuBlock.id)]
+        : pageBlocks,
+    [pageBlocks, sharedMenuBlock]
+  );
   const loaderConfig = resolveSiteLoaderConfig(draft);
-  const firstDisplayBlockIsMenu = displayBlocks[0]?.type === "menu";
   const [selectedId, setSelectedId] = useState<string | null>(
     displayBlocks[0]?.id ?? null
   );
@@ -480,9 +463,7 @@ export default function SiteClient({
   const {
     updateBlock,
     setThemeMode,
-    updateBlocks,
     insertBlock,
-    removeBlock,
     moveBlock,
     confirmRemoveBlock,
     adjustSpacingAt,
@@ -554,7 +535,6 @@ export default function SiteClient({
     isRightPanelVisible,
     showPanelExitConfirm,
     setShowPanelExitConfirm,
-    closeRightPanel,
     savePanelDraft,
     requestClosePanel,
     closePanelWithoutSave,
@@ -1389,8 +1369,8 @@ export default function SiteClient({
                       setActivePanelSectionId,
                       coverDrawerKey,
                       setCoverDrawerKey,
-                      coverWidthButtonRef,
-                      coverWidthPopoverRef,
+                      getCoverWidthButtonRef: () => coverWidthButtonRef,
+                      getCoverWidthPopoverRef: () => coverWidthPopoverRef,
                       coverWidthModalOpen,
                       setCoverWidthModalOpen,
                       updateBlock,
@@ -1418,8 +1398,8 @@ export default function SiteClient({
                       setActivePanelSectionId,
                       coverDrawerKey,
                       setCoverDrawerKey,
-                      coverWidthButtonRef,
-                      coverWidthPopoverRef,
+                      getCoverWidthButtonRef: () => coverWidthButtonRef,
+                      getCoverWidthPopoverRef: () => coverWidthPopoverRef,
                       coverWidthModalOpen,
                       setCoverWidthModalOpen,
                       updateBlock,
@@ -1512,8 +1492,8 @@ export default function SiteClient({
                     setActivePanelSectionId,
                     coverDrawerKey,
                     setCoverDrawerKey,
-                    coverWidthButtonRef,
-                    coverWidthPopoverRef,
+                    getCoverWidthButtonRef: () => coverWidthButtonRef,
+                    getCoverWidthPopoverRef: () => coverWidthPopoverRef,
                     coverWidthModalOpen,
                     setCoverWidthModalOpen,
                     updateBlock,

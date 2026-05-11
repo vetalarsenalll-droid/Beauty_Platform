@@ -41,100 +41,6 @@ function stripLegalRefs(text: string) {
     .trim();
 }
 
-function isDateTimeInfoReply(content: string) {
-  const text = content.trim();
-  if (/^Сейчас\s+\d{2}\.\d{2}\.\d{4},\s*(?:[01]\d|2[0-3]):[0-5]\d\.?$/i.test(text)) return true;
-  if (/^Сегодня\s+\d{2}\.\d{2}\.\d{4}\.?$/i.test(text)) return true;
-  return false;
-}
-
-function shouldExtractTimeQuickReplies(content: string) {
-  if (isDateTimeInfoReply(content)) return false;
-  if (/филиал/i.test(content) || /location/i.test(content)) return false;
-  if (/проверьте данные:|как завершим запись|для оформления нужно согласие/i.test(content)) return false;
-  // If assistant asks to choose location/branch, show only branch buttons.
-  if (/(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content)) return false;
-  return (
-    /(?:выберите|напишите|укажите|доступны|свободны|окна|слоты|времена|как завершим запись|подтверждени|согласен)/i.test(
-      content,
-    ) || /(?:^|\n)\s*\d{1,2}\.\s+/.test(content)
-  );
-}
-
-function extractQuickReplies(content: string): QuickReply[] {
-  const replies: QuickReply[] = [];
-  const isLocationSelectionReply =
-    /(выберите филиал|можно выбрать филиал|филиал кнопкой ниже)/i.test(content) ||
-    /филиал/i.test(content) ||
-    /location/i.test(content);
-  const add = (label: string, value?: string, href?: string) => {
-    const l = label.trim();
-    const v = (value ?? label).trim();
-    if (!l || !v) return;
-    if (replies.some((x) => x.value === v || (!!href && x.href === href))) return;
-    replies.push({ label: l, value: v, href });
-  };
-  const hasMoreTimes = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
-
-  // Priority actions must be visible even when we cap quick replies.
-  if (hasMoreTimes) {
-    add("Показать все", "покажи все свободное время");
-  }
-
-  const numberedLines = Array.from(content.matchAll(/(?:^|\n)\s*(\d{1,2})\.\s+([^\n]+)/g));
-  if (numberedLines.length) {
-    for (const m of numberedLines.slice(0, 10)) {
-      const indexValue = m[1]?.trim() ?? "";
-      const raw = (m[2] ?? "").trim();
-      const normalized = raw.replace(/\s+/g, " ");
-      const beforeColon = normalized.split(":")[0]?.trim() ?? normalized;
-      const cleanLabel = beforeColon
-        .replace(/^(сам|сама)\b.*$/i, "Самостоятельно")
-        .replace(/^(оформить|через ассистента)\b.*$/i, "Через ассистента")
-        .replace(/\(\+\s*ещ[её]\s*\d+\)/iu, "")
-        .replace(/\b([01]\d|2[0-3]):([0-5]\d)\b/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 48);
-      if (cleanLabel) {
-        add(cleanLabel, cleanLabel);
-      } else if (!isLocationSelectionReply && indexValue) {
-        add(indexValue, indexValue);
-      }
-    }
-  } else {
-    const numbered = Array.from(content.matchAll(/(?:^|\n)\s*(\d{1,2})\.\s+/g)).map((m) => m[1]);
-    if (numbered.length && !isLocationSelectionReply) {
-      for (const n of numbered.slice(0, 10)) add(n ?? "");
-    }
-  }
-
-  const times = Array.from(content.matchAll(/\b([01]\d|2[0-3]):([0-5]\d)\b/g)).map((m) => `${m[1]}:${m[2]}`);
-  if (times.length && shouldExtractTimeQuickReplies(content) && !isLocationSelectionReply) {
-    const hasNegativeSingleTimeError = /нет доступных услуг|недоступн|укажите другое время/i.test(content) && times.length <= 1;
-    const hasTimeListContext =
-      /доступны времена|есть окна|ближайшие времена|свободных окон|в филиалах|выберите время/i.test(content) || times.length >= 2;
-    if (hasNegativeSingleTimeError || !hasTimeListContext) {
-      // Do not create a looping single-time button from error messages.
-    } else {
-    const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
-    const timeLimit = hasCollapsedTail ? 12 : 120;
-    for (const tm of times.slice(0, timeLimit)) add(tm, tm);
-    }
-  }
-
-  if (/сам\(а\)|сам в форме|онлайн-записи|как завершим запись/i.test(content)) {
-    add("Самостоятельно", "самостоятельно");
-    add("Через ассистента", "оформи через ассистента");
-  }
-  if (/нажмите кнопку «?записаться»? ниже|если все верно.*\b«?да»?\b/i.test(content)) add("Записаться", "да");
-
-  const hasCollapsedTail = /\(\+\s*ещ[её]\s*\d+\)/iu.test(content);
-  const finalLimit = hasCollapsedTail ? 24 : 120;
-  const filtered = isLocationSelectionReply ? replies.filter((x) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(x.value)) : replies;
-  return filtered.slice(0, finalLimit);
-}
-
 function parseYmd(ymd: string) {
   const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
@@ -667,7 +573,6 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     previewViewportWidth <= 480;
   const isInlineMobileFullscreen = open && isMobilePreviewViewport;
   const isFixedMobileFullscreen = open && isMobileViewport && !isInlineMobileFullscreen;
-  const isMobileFullscreen = isInlineMobileFullscreen || isFixedMobileFullscreen;
   const rootClass = isFixedMobileFullscreen
     ? "public-ai-widget fixed inset-0 z-[170]"
     : isInlineMobileFullscreen

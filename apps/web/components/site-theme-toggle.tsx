@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SiteThemePalette } from "@/lib/site-builder";
 
 type SiteThemeToggleProps = {
@@ -59,7 +59,7 @@ export default function SiteThemeToggle({
   const lightVars = useMemo(() => paletteToVars(lightPalette), [lightPalette]);
   const darkVars = useMemo(() => paletteToVars(darkPalette), [darkPalette]);
 
-  const applyMode = (nextMode: "light" | "dark") => {
+  const applyMode = useCallback((nextMode: "light" | "dark") => {
     const target =
       document.getElementById(targetId) ?? document.documentElement;
     const vars = nextMode === "dark" ? darkVars : lightVars;
@@ -91,7 +91,7 @@ export default function SiteThemeToggle({
       document.cookie = `${cookieKey}=${nextMode}; path=/; max-age=31536000; SameSite=Lax`;
       window.dispatchEvent(new CustomEvent("site-theme-change", { detail: { mode: nextMode } }));
     }
-  };
+  }, [cookieKey, darkVars, lightVars, storageKey, targetId]);
 
   useEffect(() => {
     setCurrentMode(mode);
@@ -99,7 +99,7 @@ export default function SiteThemeToggle({
 
   useEffect(() => {
     applyMode(currentMode);
-  }, [currentMode, darkVars, lightVars, targetId]);
+  }, [applyMode, currentMode]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {

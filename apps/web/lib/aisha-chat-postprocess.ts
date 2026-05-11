@@ -4,7 +4,6 @@ import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-to
 import {
   applyDraftConsistencyGuard,
   asksWhyNoAnswer,
-  buildBookingBridgeFallback,
   buildChatOnlyActionUi,
   buildOutOfScopeConversationalReply,
   dedupeQuickReplyOptions,
@@ -16,7 +15,6 @@ import {
   isBookingOrAccountCue,
   isGeneralQuestionOutsideBooking,
   isGreetingText,
-  isOutOfDomainPrompt,
   isPauseConversationMessage,
   keepReplyShort,
   looksLikeHardBookingPushReply,
@@ -25,6 +23,7 @@ import {
   looksLikeServiceClaimInReply,
   sanitizeAssistantReplyText,
 } from "@/lib/aisha-routing-helpers";
+import type { DraftLike } from "@/lib/booking-tools";
 
 const norm = (v: string) =>
   v
@@ -60,15 +59,14 @@ export async function postProcessReply(args: {
   specialists: SpecialistLite[];
   accountId: number;
   assistantName: string;
-  accountProfile: any;
+  accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
   knownClientName: string | null;
   conversationalReply: string | null;
   contextualBookingBridge: string | null;
-  draft: any;
+  draft: DraftLike;
 }): Promise<{ reply: string; nextUi: ChatUi | null; guardReason: string | null }> {
-  let {
-    reply,
-    nextUi,
+  let { reply, nextUi } = args;
+  const {
     route,
     intent,
     messageForRouting,
@@ -80,13 +78,10 @@ export async function postProcessReply(args: {
     hasDraftContext,
     consecutiveNonBookingTurns,
     consecutiveToxicTurns,
-    explicitOutOfScopeCue,
     explicitServiceComplaint,
     explicitLocationsFollowUp,
     explicitAddressCue,
     bridgeFocusDate,
-    bridgeFocusTimePreference,
-    bridgeFocusServiceName,
     locations,
     services,
     specialists,

@@ -84,14 +84,6 @@ function formatYmdRu(ymd: string | null | undefined) {
   return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
-function formatTimesShort(times: string[], limit: number | null = 12) {
-  if (!times.length) return "";
-  if (limit == null || limit <= 0) return times.join(", ");
-  const head = times.slice(0, limit);
-  const rest = Math.max(0, times.length - head.length);
-  return rest > 0 ? `${head.join(", ")} (+еще ${rest})` : head.join(", ");
-}
-
 function addDaysYmd(ymd: string, days: number) {
   const [y, mo, d] = ymd.split("-").map(Number);
   const dt = new Date(Date.UTC(y, (mo || 1) - 1, d || 1, 12, 0, 0));
@@ -104,42 +96,6 @@ function dateDistanceDays(fromYmd: string, toYmd: string) {
   const from = Date.UTC(fy, (fm || 1) - 1, fd || 1, 12, 0, 0);
   const to = Date.UTC(ty, (tm || 1) - 1, td || 1, 12, 0, 0);
   return Math.round((to - from) / 86400000);
-}
-
-function dateOptionFromYmd(ymd: string, todayYmd: string): ChatUiOption {
-  const [yy, mm, dd] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(yy, (mm || 1) - 1, dd || 1, 12, 0, 0));
-  const monthsGen = [
-    "января",
-    "февраля",
-    "марта",
-    "апреля",
-    "мая",
-    "июня",
-    "июля",
-    "августа",
-    "сентября",
-    "октября",
-    "ноября",
-    "декабря",
-  ];
-  const weekdays = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
-  const diff = dateDistanceDays(todayYmd, ymd);
-  const short = `${String(dd).padStart(2, "0")}.${String(mm).padStart(2, "0")}`;
-  if (diff === 0) return optionFromLabel(`Сегодня, ${short}`, "сегодня");
-  if (diff === 1) return optionFromLabel(`Завтра, ${short}`, "завтра");
-  if (diff === 2) return optionFromLabel(`Послезавтра, ${short}`, "послезавтра");
-  const weekday = weekdays[dt.getUTCDay()] ?? "";
-  const value = ymd;
-  return optionFromLabel(`${weekday}, ${short}`, value);
-}
-
-function sequentialDateOptions(fromYmd: string, todayYmd: string, count = 6): ChatUiOption[] {
-  const opts: ChatUiOption[] = [];
-  for (let i = 0; i < count; i += 1) {
-    opts.push(dateOptionFromYmd(addDaysYmd(fromYmd, i), todayYmd));
-  }
-  return opts;
 }
 
 
@@ -389,6 +345,7 @@ function buildDateContextQuickOptions(dateYmd: string, locationsCount: number): 
 
 
 function buildTimeOptionsWithControls(times: string[], limit: number | null = null): ChatUiOption[] {
+  void limit;
   const shown = times;
   const controls: ChatUiOption[] = [];
   controls.push(optionFromLabel("Выбрать другую дату", "другое число хочу выбрать"));
@@ -873,37 +830,6 @@ function buildTimeSuggestionOptions(rows: Array<{ name: string; times: string[] 
     .slice(0, 24)
     .forEach((tm) => push(tm, tm));
   return options;
-}
-
-async function findNearestLocationWindows(args: {
-  origin: string;
-  accountSlug: string;
-  locations: LocationLite[];
-  fromDate: string;
-  serviceId: number | null;
-  preference: "morning" | "day" | "evening" | null;
-  daysAhead?: number;
-  limit?: number | null;
-}) {
-  const { origin, accountSlug, locations, fromDate, serviceId, preference, daysAhead = 14, limit = 30 } = args;
-  const [yy, mm, dd] = fromDate.split("-").map(Number);
-  const start = new Date(Date.UTC(yy, (mm || 1) - 1, dd || 1, 12, 0, 0));
-  for (let i = 0; i < daysAhead; i += 1) {
-    const d = new Date(start);
-    d.setUTCDate(start.getUTCDate() + i);
-    const ymd = d.toISOString().slice(0, 10);
-    const rows = await collectLocationWindows({
-      origin,
-      accountSlug,
-      locations,
-      date: ymd,
-      serviceId,
-      preference,
-      limit,
-    });
-    if (rows.length) return { date: ymd, rows };
-  }
-  return null;
 }
 
 async function findNearestDateWindows(args: {
@@ -2010,7 +1936,6 @@ if (!d.serviceId) {
   }
   const servicesForSelectionByCategory = filterServicesByCategory(servicesForSelection, selectedServiceCategoryFilter);
   if (!d.serviceId && d.specialistId && !servicesForSelection.length) {
-    const selectedSpecialistName = specialists.find((x) => x.id === d.specialistId)?.name ?? "выбранный специалист";
     const alternativeSpecialists = specialists.filter((s) => {
       if (!d.locationId || !s.locationIds.includes(d.locationId)) return false;
       if (s.id === d.specialistId) return false;
@@ -2586,7 +2511,6 @@ if (!d.serviceId) {
         : await getSlots(origin, account.slug, d.locationId!, d.serviceId!, d.date!, holdOwnerMarker ?? undefined);
       const suggestedTimes = times.filter((tm) => tm !== d.time).slice(0, 8);
       if (times.length) {
-        const serviceName = services.find((x) => x.id === d.serviceId)?.name ?? "выбранная услуга";
         const shownTimes = (suggestedTimes.length ? suggestedTimes : times.slice(0, 8)).map((tm) => optionFromLabel(tm));
         return {
           handled: true,

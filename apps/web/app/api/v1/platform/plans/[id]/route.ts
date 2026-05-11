@@ -117,17 +117,18 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const response = jsonOk(mapPlan(updated as DbPlan));
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2002") {
-      const target = Array.isArray(error?.meta?.target)
-        ? error.meta.target[0]
-        : error?.meta?.target;
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2002") {
+      const target = Array.isArray(caught.meta?.target)
+        ? caught.meta.target[0]
+        : caught.meta?.target;
       const field = target === "name" ? "name" : "code";
       const message =
         field === "name" ? "Название уже используется" : "Код уже используется";
       return jsonError("DUPLICATE", message, { field }, 409);
     }
-    if (error?.code === "P2025") {
+    if (caught.code === "P2025") {
       return jsonError("NOT_FOUND", "Тариф не найден", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось обновить тариф", null, 500);

@@ -106,12 +106,14 @@ export function BO001SettingsPanel(ctx: CrmPanelCtx) {
     panelTheme,
     activePanelSectionId,
     setActivePanelSectionId,
-    coverWidthButtonRef,
-    coverWidthPopoverRef,
+    getCoverWidthButtonRef,
+    getCoverWidthPopoverRef,
     coverWidthModalOpen,
     setCoverWidthModalOpen,
     updateBlock,
   } = ctx;
+  const coverWidthButtonRef = getCoverWidthButtonRef();
+  const coverWidthPopoverRef = getCoverWidthPopoverRef();
   const [showDarkThemeAdvanced, setShowDarkThemeAdvanced] = useState(false);
   const [showMobileWidthControl, setShowMobileWidthControl] = useState(false);
   const [widthPopoverOpen, setWidthPopoverOpen] = useState<"desktop" | "mobile" | null>(null);

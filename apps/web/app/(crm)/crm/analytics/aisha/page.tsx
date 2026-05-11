@@ -1,7 +1,7 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { requireCrmPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { AnalyticsTabs } from "../_components/analytics-tabs";
 
 const DEFAULT_DAYS = 30;
 const DEFAULT_PAGE_SIZE = 20;
@@ -165,11 +165,6 @@ function parsePositiveInt(value: string, fallback: number) {
   return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
-function isComplaintText(text: string) {
-  const t = text.toLowerCase();
-  return COMPLAINT_KEYWORDS.some((k) => t.includes(k));
-}
-
 function includesAny(text: string, words: string[]) {
   const t = text.toLowerCase();
   return words.some((w) => t.includes(w));
@@ -197,7 +192,7 @@ function paginationWindow(current: number, total: number, maxLinks: number) {
   if (total <= maxLinks) return Array.from({ length: total }, (_, i) => i + 1);
   const half = Math.floor(maxLinks / 2);
   let start = Math.max(1, current - half);
-  let end = Math.min(total, start + maxLinks - 1);
+  const end = Math.min(total, start + maxLinks - 1);
   start = Math.max(1, end - maxLinks + 1);
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 }
@@ -260,7 +255,7 @@ export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
   anchorDate.setHours(0, 0, 0, 0);
   const since = new Date(anchorDate.getTime() - days * 24 * 60 * 60 * 1000);
 
-  const threadWhere: any = {
+  const threadWhere: Prisma.AiThreadWhereInput = {
     accountId,
     createdAt: { gte: since },
   };

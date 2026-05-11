@@ -1,3 +1,4 @@
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import type { SiteLocationItem as LocationItem } from "@/features/site-builder/shared/site-data";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
@@ -307,7 +308,7 @@ function LocationCardEditor({
         <div className="flex items-center gap-3">
           <div className="h-20 w-28 overflow-hidden rounded-md bg-[color:var(--bp-surface)]">
             {location.coverUrl ? (
-              <img src={location.coverUrl} alt="" className="h-full w-full object-cover" />
+              <UnoptimizedImage src={location.coverUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-[color:var(--bp-muted)]">
                 Нет фото
@@ -375,7 +376,7 @@ function LocationCardEditor({
                       className="block w-full disabled:opacity-60"
                       title={photo.id < 0 ? "Для выбора нужна перезагрузка страницы" : "Выбрать фотографию"}
                     >
-                      <img src={photo.url} alt="" className="aspect-[4/3] w-full object-cover" />
+                      <UnoptimizedImage src={photo.url} alt="" className="aspect-[4/3] w-full object-cover" />
                     </button>
                     {photo.id > 0 ? (
                       <button
@@ -471,7 +472,7 @@ function LocationCardsEditor({ ctx }: { ctx: CrmPanelCtx }) {
                 className="flex w-full items-center gap-3 p-3 text-left"
               >
                 <div className="h-14 w-16 shrink-0 overflow-hidden rounded-md bg-[color:var(--bp-surface)]">
-                  {location.coverUrl ? <img src={location.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+                  {location.coverUrl ? <UnoptimizedImage src={location.coverUrl} alt="" className="h-full w-full object-cover" /> : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-[color:var(--bp-ink)]">{location.name}</div>

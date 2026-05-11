@@ -1,5 +1,6 @@
 ﻿import type { ChatUi } from "@/lib/booking-flow";
-import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
+import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
+import type { AishaNlu } from "@/lib/aisha-orchestrator";
 import {
   serviceQuickOption,
   specialistQuickOption,
@@ -19,7 +20,7 @@ type ResolutionPayload = {
   reply: string;
   action: null;
   ui: ChatUi;
-  draft: any;
+  draft: DraftLike;
 };
 
 function norm(v: string) {
@@ -420,7 +421,7 @@ async function persistClarificationAndBuildPayload(args: {
   nextThreadKey: string | null;
   reply: string;
   ui: ChatUi;
-  d: any;
+  d: DraftLike;
 }) {
   const { threadId, nextThreadKey, reply, ui, d } = args;
   d.status = "COLLECTING";
@@ -441,9 +442,9 @@ export function resolveTypoBookingIntent(messageNorm: string) {
 
 export async function handleUnknownServiceResolution(args: {
   shouldEnrichDraftForBooking: boolean;
-  d: any;
+  d: DraftLike;
   t: string;
-  nlu: any;
+  nlu: AishaNlu | null | undefined;
   threadId: number;
   nextThreadKey: string | null;
   services: ServiceLite[];
@@ -526,7 +527,7 @@ export async function handleEntityClarificationResolution(args: {
   messageForRouting: string;
   nowYmd: string;
   t: string;
-  d: any;
+  d: DraftLike;
   threadId: number;
   nextThreadKey: string | null;
   locations: LocationLite[];
@@ -561,7 +562,8 @@ export async function handleEntityClarificationResolution(args: {
     d.status === "WAITING_CONFIRMATION" ||
     d.status === "WAITING_CONSENT",
   );
-  const specialistScope = d.locationId ? specialists.filter((s) => s.locationIds.includes(d.locationId)) : specialists;
+  const locationId = d.locationId;
+  const specialistScope = locationId ? specialists.filter((s) => s.locationIds.includes(locationId)) : specialists;
 
   if (!d.specialistId && ((bookingLike && isSpecialistDirectRequest(messageNorm)) || isExactSpecialistButtonChoice)) {
     const requestedSpecialist = extractRequestedSpecialistPhrase(messageNorm) ?? (isExactSpecialistButtonChoice ? messageNorm : null);

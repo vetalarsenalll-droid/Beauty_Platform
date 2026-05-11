@@ -1,7 +1,7 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { requireCrmPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { AnalyticsTabs } from "../_components/analytics-tabs";
 import { OnlineBookingFilters } from "./filters";
 
 const DEFAULT_DAYS = 30;
@@ -58,7 +58,7 @@ function formatYmdReadable(ymd: string) {
   return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short", year: "numeric" }).format(dt);
 }
 
-function splitStepsByCompletion<T extends { stepKey?: string | null }>(steps: T[]) {
+function splitStepsByCompletion<T extends StepWithPayload & { stepKey?: string | null }>(steps: T[]) {
   if (!steps.length) return [];
   const segments: Array<{ steps: T[]; completed: boolean; appointmentId: number | null }> = [];
   let current: T[] = [];
@@ -76,8 +76,14 @@ function splitStepsByCompletion<T extends { stepKey?: string | null }>(steps: T[
   return segments;
 }
 
-function extractAppointmentIdFromStep(step: any) {
-  const raw = step?.payload?.appointmentId ?? step?.payload?.appointment_id ?? null;
+type StepWithPayload = { payload?: Prisma.JsonValue | null };
+
+function extractAppointmentIdFromStep(step: StepWithPayload) {
+  const payload =
+    step.payload && typeof step.payload === "object" && !Array.isArray(step.payload)
+      ? step.payload
+      : null;
+  const raw = payload?.appointmentId ?? payload?.appointment_id ?? null;
   const num = Number(raw);
   return Number.isInteger(num) && num > 0 ? num : null;
 }
@@ -142,7 +148,7 @@ function paginationWindow(current: number, total: number, maxLinks: number) {
   if (total <= maxLinks) return Array.from({ length: total }, (_, i) => i + 1);
   const half = Math.floor(maxLinks / 2);
   let start = Math.max(1, current - half);
-  let end = Math.min(total, start + maxLinks - 1);
+  const end = Math.min(total, start + maxLinks - 1);
   start = Math.max(1, end - maxLinks + 1);
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 }
@@ -175,16 +181,17 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
   const trendPageSize = 10;
 
   const periodDays = period === "year" ? 365 : period === "week" ? 7 : DEFAULT_DAYS;
-  const since = new Date(Date.now() - periodDays * 86_400_000);
+  const now = new Date();
+  const since = new Date(now.getTime() - periodDays * 86_400_000);
 
-  const where: any = {
+  const where: Prisma.OnlineBookingSessionWhereInput = {
     accountId,
     startedAt: { gte: since },
   };
 
   if (q) {
     const dateRange = parseQueryDateRange(q);
-    const orFilters: any[] = [
+    const orFilters: Prisma.OnlineBookingSessionWhereInput[] = [
       { appointment: { client: { phone: { contains: q } } } },
       { appointment: { client: { firstName: { contains: q, mode: "insensitive" } } } },
       { appointment: { client: { lastName: { contains: q, mode: "insensitive" } } } },
@@ -219,11 +226,10 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
     where.appointmentId = null;
   }
 
-  const db = prisma as any;
   const [totalFiltered, completedCount, sessions, filteredSessionIds, trendSessions, aiAssistantAppointments] = await Promise.all([
-    db.onlineBookingSession.count({ where }),
-    db.onlineBookingSession.count({ where: { ...where, appointmentId: { not: null } } }),
-    db.onlineBookingSession.findMany({
+    prisma.onlineBookingSession.count({ where }),
+    prisma.onlineBookingSession.count({ where: { ...where, appointmentId: { not: null } } }),
+    prisma.onlineBookingSession.findMany({
       where,
       orderBy: { startedAt: "desc" },
       skip: (page - 1) * safePageSize,
@@ -247,8 +253,8 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
         steps: { orderBy: { createdAt: "asc" } },
       },
     }),
-    q ? db.onlineBookingSession.findMany({ where, select: { id: true } }) : Promise.resolve([] as Array<{ id: number }>),
-    db.onlineBookingSession.findMany({
+    q ? prisma.onlineBookingSession.findMany({ where, select: { id: true } }) : Promise.resolve([] as Array<{ id: number }>),
+    prisma.onlineBookingSession.findMany({
       where,
       select: { startedAt: true, appointmentId: true },
     }),
@@ -262,7 +268,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
   ]);
 
   const filteredIds = q ? filteredSessionIds.map((item: { id: number }) => item.id) : null;
-  const steps = await db.onlineBookingStep.findMany({
+  const steps = await prisma.onlineBookingStep.findMany({
     where: filteredIds
       ? { accountId, sessionId: { in: filteredIds }, createdAt: { gte: since } }
       : { accountId, createdAt: { gte: since } },
@@ -293,7 +299,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
 
   const trendMap = new Map<string, TrendRow>();
   for (let i = periodDays - 1; i >= 0; i -= 1) {
-    const dt = new Date(Date.now() - i * 86_400_000);
+    const dt = new Date(now.getTime() - i * 86_400_000);
     const ymd = toYmdInTz(dt);
     trendMap.set(ymd, { ymd, sessions: 0, completed: 0 });
   }
@@ -406,7 +412,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
   );
   const appointmentMap = new Map(appointmentDetails.map((item) => [item.id, item]));
 
-  const bookingCards = sessions.flatMap((sessionItem: any) => {
+  const bookingCards = sessions.flatMap((sessionItem) => {
     const segments = splitStepsByCompletion(sessionItem.steps);
     const lastCompletedIndex = segments.reduce((acc, seg, i) => (seg.completed ? i : acc), -1);
     return segments
@@ -544,13 +550,13 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <div className="mt-4 space-y-4">
-          {[...bookingCards].sort((a: any, b: any) => {
+          {[...bookingCards].sort((a, b) => {
             const aLast = a.steps[a.steps.length - 1]?.createdAt ?? a.session?.lastSeenAt ?? a.session?.startedAt;
             const bLast = b.steps[b.steps.length - 1]?.createdAt ?? b.session?.lastSeenAt ?? b.session?.startedAt;
             const aTime = aLast ? new Date(aLast).getTime() : 0;
             const bTime = bLast ? new Date(bLast).getTime() : 0;
             return bTime - aTime;
-          }).map((item: any, index: number) => {
+          }).map((item, index) => {
             const appointment = item.appointment ?? null;
             const clientName = appointment?.client
               ? [appointment.client.firstName, appointment.client.lastName].filter(Boolean).join(" ")
@@ -626,7 +632,7 @@ export default async function OnlineBookingAnalyticsPage({ searchParams }: PageP
                       {item.steps.length === 0 ? (
                         <div className="text-xs text-[color:var(--bp-muted)]">Шаги не зафиксированы.</div>
                       ) : (
-                        item.steps.map((step: any) => {
+                        item.steps.map((step) => {
                           const parts: string[] = [];
                           if (step.locationId) {
                             parts.push(

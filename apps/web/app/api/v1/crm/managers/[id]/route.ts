@@ -284,8 +284,9 @@ export async function PATCH(
       createdAt: assignment.createdAt.toISOString(),
     });
     return applyCrmAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2002") {
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2002") {
       return jsonError(
         "DUPLICATE",
         "Email уже используется.",

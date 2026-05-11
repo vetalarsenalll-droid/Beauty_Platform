@@ -1,5 +1,6 @@
 "use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 
@@ -243,10 +244,13 @@ function SpecialistModal({
   const isImageFocusMode = zoomLevel > 0;
 
   useEffect(() => {
-    setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
-    setZoomLevel(0);
-    setPan({ x: 0, y: 0 });
-    setIsDraggingImage(false);
+    const raf = window.requestAnimationFrame(() => {
+      setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
+      setZoomLevel(0);
+      setPan({ x: 0, y: 0 });
+      setIsDraggingImage(false);
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [imageIndex, images.length]);
 
   useEffect(() => {
@@ -511,7 +515,7 @@ function SpecialistModal({
             onMouseLeave={() => setIsDraggingImage(false)}
           >
             {currentImage ? (
-              <img
+              <UnoptimizedImage
                 ref={imageRef}
                 src={currentImage}
                 alt={specialist.name}
@@ -592,7 +596,7 @@ function SpecialistModal({
                     style={{ borderColor: idx === activeImageIndex ? "var(--bp-ink)" : "rgba(15,16,18,0.12)" }}
                   >
                     <div className="aspect-square">
-                      <img src={url} alt="" className="h-full w-full object-cover" />
+                      <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
                     </div>
                   </button>
                 ))}
@@ -703,7 +707,6 @@ export function SpecialistsCatalog({
   const pageSize = clampInt(maxVisibleItems, 8, 1, 100);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const windowViewportWidth = useWindowViewportWidth();
 
   const columns = clampInt(cardsPerRow, 4, 1, 6);
   const mobileColumns = clampInt(mobileCardsPerRow, 2, 1, 2);
@@ -739,12 +742,16 @@ export function SpecialistsCatalog({
   }, [activeLocationId, items, normalizedQuery, selectedLevel, sort]);
 
   useEffect(() => {
-    setSort(defaultSort || "default");
+    const raf = window.requestAnimationFrame(() => setSort(defaultSort || "default"));
+    return () => window.cancelAnimationFrame(raf);
   }, [defaultSort]);
 
   useEffect(() => {
-    setPage(1);
-    setVisibleCount(pageSize);
+    const raf = window.requestAnimationFrame(() => {
+      setPage(1);
+      setVisibleCount(pageSize);
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [activeLocationId, normalizedQuery, selectedLevel, sort, pageSize, usePagination]);
 
   useEffect(() => {
@@ -1444,7 +1451,7 @@ export function SpecialistsCatalog({
                     }}
                   >
                   {specialist.coverUrl ? (
-                    <img
+                    <UnoptimizedImage
                       src={specialist.coverUrl}
                       alt=""
                       className={`h-full w-full transition duration-300 ${imageZoomOnHover ? "group-hover:scale-[1.04]" : ""}`}
@@ -1456,7 +1463,7 @@ export function SpecialistsCatalog({
                     </div>
                   )}
                   {hasGlassInfoPanel && specialist.coverUrl ? (
-                    <img
+                    <UnoptimizedImage
                       aria-hidden="true"
                       src={specialist.coverUrl}
                       alt=""

@@ -13,7 +13,6 @@ import {
   buildToxicReply,
   filterSpecialistsByLevel,
   formatYmdRu,
-  isGeneralQuestionOutsideBooking,
   isGreetingText,
   isOutOfDomainPrompt,
   isPauseConversationMessage,
@@ -120,7 +119,7 @@ export async function runBookingFlowBranch(args: {
   intent: string;
   locationChosenThisTurn: boolean;
   choiceNum: number | null;
-  d: any;
+  d: DraftLike;
   origin: string;
   account: { id: number; slug: string; timeZone: string };
   locations: LocationLite[];

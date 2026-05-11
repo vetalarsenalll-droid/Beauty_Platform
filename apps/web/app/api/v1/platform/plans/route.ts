@@ -112,11 +112,12 @@ export async function POST(request: Request) {
 
     const response = jsonOk(mapPlan(created as DbPlan), 201);
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2002") {
-      const target = Array.isArray(error?.meta?.target)
-        ? error.meta.target[0]
-        : error?.meta?.target;
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2002") {
+      const target = Array.isArray(caught.meta?.target)
+        ? caught.meta.target[0]
+        : caught.meta?.target;
       const field = target === "name" ? "name" : "code";
       const message =
         field === "name" ? "Название уже используется" : "Код уже используется";

@@ -9,11 +9,11 @@ export function handleChatOnlyDomain(args: {
   buildBasicArgs: Parameters<typeof buildBasicChatInfoReply>[0];
   askSpecialistsArgs: Parameters<typeof handleAskSpecialistsBranch>[0];
 }): { handled: boolean; reply: string; ui: ChatUi | null } {
-  const basic = buildBasicChatInfoReply(args.buildBasicArgs as any);
+  const basic = buildBasicChatInfoReply(args.buildBasicArgs);
   if (basic.handled) return { handled: true, reply: basic.reply, ui: basic.ui ?? null };
 
   if (args.intent === "ask_specialists") {
-    const specialistsBranch = handleAskSpecialistsBranch(args.askSpecialistsArgs as any);
+    const specialistsBranch = handleAskSpecialistsBranch(args.askSpecialistsArgs);
     if (specialistsBranch.handled) return { handled: true, reply: specialistsBranch.reply, ui: specialistsBranch.ui ?? null };
   }
 

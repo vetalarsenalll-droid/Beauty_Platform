@@ -96,8 +96,6 @@ export function SiteCoverDrawerSections({
     const sliderDotActiveColorDark = String(data.coverSliderDotActiveColorDark ?? sliderDotActiveColor);
     const sliderDotBorderColorDark = String(data.coverSliderDotBorderColorDark ?? sliderDotBorderColor);
 
-    const opacityOptions = ["", ...Array.from({ length: 11 }, (_, i) => String(i * 10))];
-
     return (
       <div className="space-y-4 pb-10">
         <div className="grid grid-cols-2 gap-4">

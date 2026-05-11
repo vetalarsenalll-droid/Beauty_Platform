@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { requireCrmPermission } from "@/lib/auth";
-import { AnalyticsTabs } from "./_components/analytics-tabs";
 
 export default async function CrmAnalyticsPage() {
   await requireCrmPermission("crm.analytics.read");
@@ -21,12 +21,12 @@ export default async function CrmAnalyticsPage() {
           <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
             Диалоги, жалобы, качество распознавания и конверсия AI-ассистента в запись.
           </p>
-          <a
+          <Link
             href="/crm/analytics/aisha"
             className="mt-4 inline-flex rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm text-[color:var(--bp-ink)] transition hover:border-[color:var(--bp-accent)]"
           >
             Открыть аналитику AI-ассистента
-          </a>
+          </Link>
         </article>
 
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
@@ -34,12 +34,12 @@ export default async function CrmAnalyticsPage() {
           <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
             Воронка шагов, конверсия и детали прохождения записи клиентами на сайте.
           </p>
-          <a
+          <Link
             href="/crm/analytics/online-booking"
             className="mt-4 inline-flex rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm text-[color:var(--bp-ink)] transition hover:border-[color:var(--bp-accent)]"
           >
             Открыть аналитику онлайн-записи
-          </a>
+          </Link>
         </article>
       </section>
     </div>

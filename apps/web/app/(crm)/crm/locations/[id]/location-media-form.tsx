@@ -1,5 +1,6 @@
 "use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -266,7 +267,7 @@ export default function LocationMediaForm({
             >
               <div className="relative aspect-[4/3] bg-[color:var(--bp-panel)]/60">
                 {item.previewUrl ? (
-                  <img
+                  <UnoptimizedImage
                     src={item.previewUrl}
                     alt=""
                     className="h-full w-full object-cover"
@@ -310,7 +311,7 @@ export default function LocationMediaForm({
               className="overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)]"
             >
               <div className="relative aspect-[4/3] bg-[color:var(--bp-panel)]/60">
-                <img
+                <UnoptimizedImage
                   src={item.url}
                   alt=""
                   className="h-full w-full object-cover"

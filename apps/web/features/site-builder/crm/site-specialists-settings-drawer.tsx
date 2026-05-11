@@ -354,7 +354,6 @@ export function SiteSpecialistsSettingsDrawer({
   block,
   activeTheme,
   activeSectionId,
-  locations,
   updateBlock,
 }: {
   block: SiteBlock;

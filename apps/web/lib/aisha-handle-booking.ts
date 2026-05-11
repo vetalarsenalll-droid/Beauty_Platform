@@ -1,11 +1,12 @@
 ﻿import type { ChatUi } from "@/lib/booking-flow";
 import { buildDirectBookingKickoffReply, runBookingFlowBranch } from "@/lib/aisha-chat-reply-builder";
 import type { Action } from "@/lib/aisha-chat-types";
+import type { LocationLite } from "@/lib/booking-tools";
 
 export async function handleBookingDomain(args: {
   directBookingKickoffFallback: boolean;
   date: string | null;
-  locations: Array<{ name: string }>;
+  locations: LocationLite[];
   explicitDraftServiceQuestion: boolean;
   draftServiceName: string | null;
   draftLocationName: string | null;
@@ -19,7 +20,7 @@ export async function handleBookingDomain(args: {
   let { currentReply: reply, currentStatus: nextStatus, currentAction: nextAction, currentUi: nextUi } = args;
 
   if (args.directBookingKickoffFallback) {
-    const kickoff = buildDirectBookingKickoffReply({ date: args.date, locations: args.locations as any });
+    const kickoff = buildDirectBookingKickoffReply({ date: args.date, locations: args.locations });
     return { handled: true, reply: kickoff.reply, nextStatus, nextAction, nextUi: kickoff.ui };
   }
 

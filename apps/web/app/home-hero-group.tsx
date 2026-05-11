@@ -30,12 +30,6 @@ function HeroDots({
   paused: boolean;
   onSelect: (index: number) => void;
 }) {
-  const [progressKey, setProgressKey] = useState(0);
-
-  useEffect(() => {
-    setProgressKey((prev) => prev + 1);
-  }, [activeIndex, intervalMs]);
-
   const dots = useMemo(() => Array.from({ length: total }, (_, i) => i), [total]);
 
   if (total <= 1) return null;
@@ -56,7 +50,7 @@ function HeroDots({
           >
             {active ? (
               <span
-                key={`${progressKey}-${dot}`}
+                key={`${activeIndex}-${intervalMs}-${dot}`}
                 className="absolute inset-0 origin-left rounded-full bg-[color:var(--bp-accent)]"
                 style={{
                   animationName: "bp-slide-progress",
@@ -95,10 +89,6 @@ export default function HomeHeroGroup({
     }, intervalMs);
     return () => window.clearInterval(id);
   }, [mainTotal, intervalMs, paused]);
-
-  useEffect(() => {
-    if (mainTotal > 0 && index >= mainTotal) setIndex(0);
-  }, [index, mainTotal]);
 
   const mainIndex = mainTotal ? index % mainTotal : 0;
   const sideIndex = sideTotal ? index % sideTotal : 0;

@@ -1,4 +1,5 @@
-﻿import { SOCIAL_LABELS } from "@/features/site-builder/crm/site-client-core";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
+import { SOCIAL_LABELS } from "@/features/site-builder/crm/site-client-core";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
@@ -295,7 +296,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                 ))}
               </select>
               <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-                ▾
+                ?
               </span>
             </div>
           </label>
@@ -338,15 +339,14 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
             <option value="custom">Своё изображение</option>
           </select>
           <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-            ▾
+            ?
           </span>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="relative h-20 w-32 overflow-hidden rounded-none bg-[color:var(--bp-base)]">
             {previewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+              <UnoptimizedImage src={previewUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[10px] text-[color:var(--bp-muted)]">
                 Нет
@@ -425,8 +425,7 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
                     aria-label="Выбрать изображение"
                   >
                     <div className="flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[inherit] bg-[color:var(--bp-base)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.url} alt="" className="h-full w-full object-cover" />
+                      <UnoptimizedImage src={image.url} alt="" className="h-full w-full object-cover" />
                     </div>
                   </button>
                   <button

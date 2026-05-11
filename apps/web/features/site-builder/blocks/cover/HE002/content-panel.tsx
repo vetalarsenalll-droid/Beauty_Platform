@@ -1,4 +1,5 @@
-﻿import { PAGE_KEYS, PAGE_LABELS } from "@/features/site-builder/crm/site-client-core";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
+import { PAGE_KEYS, PAGE_LABELS } from "@/features/site-builder/crm/site-client-core";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useEffect, useRef, useState } from "react";
@@ -249,7 +250,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
           onClick={toggleAllSlides}
           className="inline-flex shrink-0 items-center gap-2 px-0 py-2 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
         >
-          <span className="text-sm leading-none">{isAllExpanded ? "▴" : "▾"}</span>
+          <span className="text-sm leading-none">{isAllExpanded ? "?" : "?"}</span>
           {isAllExpanded ? "Свернуть все" : "Развернуть все"}
         </button>
       </div>
@@ -298,8 +299,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
               >
                 <div className="h-14 w-16 shrink-0 overflow-hidden rounded-md bg-[color:var(--bp-surface)]">
                   {slide.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
+                    <UnoptimizedImage src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -324,7 +324,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   disabled={index === 0}
                   aria-label="Переместить слайд выше"
                 >
-                  ↑
+                  ^
                 </button>
                 <button
                   type="button"
@@ -336,7 +336,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                   disabled={index === slides.length - 1}
                   aria-label="Переместить слайд ниже"
                 >
-                  ↓
+                  v
                 </button>
                 <button
                   type="button"
@@ -396,7 +396,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                     ))}
                   </select>
                   <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-                    ▾
+                    ?
                   </span>
                 </div>
               </label>
@@ -413,8 +413,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                 <div className="flex items-center gap-3">
                   <div className="relative h-20 w-32 overflow-hidden rounded-none bg-[color:var(--bp-base)]">
                     {slide.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
+                      <UnoptimizedImage src={slide.imageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-[color:var(--bp-muted)]">
                         Нет
@@ -490,8 +489,7 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
                             aria-label="Выбрать изображение"
                           >
                             <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={image.url} alt="" className="h-full w-full object-cover" />
+                              <UnoptimizedImage src={image.url} alt="" className="h-full w-full object-cover" />
                             </div>
                           </button>
                           <button

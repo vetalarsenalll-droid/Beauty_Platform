@@ -1,12 +1,12 @@
 "use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useMemo, useState } from "react";
 import {
   HERO_SETTING_KEY,
   HeroConfig,
   HeroLinkType,
   HeroSlide,
-  isSlideReady,
 } from "@/lib/marketplace-hero";
 
 type AccountOption = { id: number; name: string; slug: string };
@@ -485,7 +485,7 @@ function SlideEditor({
           </div>
           {slide.imageUrl ? (
             <div className="mt-2 overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white">
-              <img
+              <UnoptimizedImage
                 src={slide.imageUrl}
                 alt="Превью"
                 className="h-48 w-full object-cover"

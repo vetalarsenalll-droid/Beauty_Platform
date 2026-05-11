@@ -50,14 +50,6 @@ export default function HomeHeroSlider({
     return () => window.clearInterval(id);
   }, [isControlled, disableAuto, total, intervalMs, effectivePaused]);
 
-  useEffect(() => {
-    if (!isControlled && indexInternal >= total) setIndexInternal(0);
-  }, [indexInternal, total, isControlled]);
-
-  const [progressKey, setProgressKey] = useState(0);
-  useEffect(() => {
-    setProgressKey((prev) => prev + 1);
-  }, [index, intervalMs]);
   const dots = useMemo(() => Array.from({ length: total }, (_, i) => i), [total]);
   const safeIndex = total ? ((index % total) + total) % total : 0;
   const slide = slides[safeIndex];
@@ -140,7 +132,7 @@ export default function HomeHeroSlider({
               >
                 {active ? (
                   <span
-                    key={`${progressKey}-${dot}`}
+                    key={`${safeIndex}-${intervalMs}-${dot}`}
                     className="absolute inset-0 origin-left rounded-full bg-[color:var(--bp-accent)]"
                     style={{
                       animationName: "bp-slide-progress",

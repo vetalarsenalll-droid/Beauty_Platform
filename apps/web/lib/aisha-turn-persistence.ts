@@ -9,8 +9,7 @@ import { ANTI_HALLUCINATION_RULES } from "@/lib/dialog-policy";
 import { INTENT_ACTION_MATRIX } from "@/lib/intent-action-matrix";
 import type { Action, Body, PreparedPostTurn } from "@/lib/aisha-chat-types";
 import type { ChatUi } from "@/lib/booking-flow";
-
-const prismaAny = prisma as any;
+import type { DraftLike } from "@/lib/booking-tools";
 
 export async function preparePostTurn(request: Request): Promise<{ response: Response } | { prepared: PreparedPostTurn }> {
   const resolved = await resolvePublicAccount(request);
@@ -70,7 +69,7 @@ export async function preparePostTurn(request: Request): Promise<{ response: Res
 export function createFailSoftHandler(args: {
   threadId: number;
   nextThreadKey: string | null;
-  draft: any;
+  draft: Parameters<typeof draftView>[0];
   turnActionId: number;
   message: string;
 }) {
@@ -105,11 +104,11 @@ export async function saveTurn(args: {
   guardReason: string | null;
   useNluIntent: boolean;
   messageForRouting: string;
-  d: any;
+  d: DraftLike;
 }) {
   await prisma.$transaction([
     prisma.aiMessage.create({ data: { threadId: args.threadId, role: "assistant", content: args.reply } }),
-    prismaAny.aiBookingDraft.update({
+    prisma.aiBookingDraft.update({
       where: { threadId: args.threadId },
       data: {
         locationId: args.d.locationId,

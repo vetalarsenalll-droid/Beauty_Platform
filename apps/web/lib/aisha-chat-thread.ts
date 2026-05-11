@@ -2,8 +2,6 @@
 import { prisma } from "@/lib/prisma";
 import { createHmac, timingSafeEqual } from "crypto";
 
-const prismaAny = prisma as any;
-
 export type ClientMembership = {
   clientId: number | null;
   accountId: number;
@@ -134,7 +132,7 @@ export async function getThread(args: {
     thread = await prisma.aiThread.update({ where: { id: thread.id }, data: { userId } });
   }
   const ensuredThread = thread;
-  const draft = await prismaAny.aiBookingDraft.upsert({
+  const draft = await prisma.aiBookingDraft.upsert({
     where: { threadId: ensuredThread.id },
     create: { threadId: ensuredThread.id, status: "COLLECTING", serviceIds: [], planJson: [] },
     update: {},

@@ -135,8 +135,6 @@ const [collapsed, setCollapsed] = useState(false);
   const staffHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const effectiveCollapsed = collapsed && !mobileOpen;
-  const isSchedulePage =
-    pathname.startsWith("/crm/schedule") || pathname.startsWith("/crm/calendar");
   const isSiteBuilderPage = pathname === "/crm/site";
 
   const initials = useMemo(() => {

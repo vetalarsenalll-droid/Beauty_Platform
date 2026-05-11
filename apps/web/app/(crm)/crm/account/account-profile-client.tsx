@@ -1,5 +1,6 @@
 "use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useMemo, useState } from "react";
 
 type AccountProfile = {
@@ -505,7 +506,7 @@ export default function AccountProfileClient({
               ) : null}
             </div>
             {branding.logoUrl ? (
-              <img
+              <UnoptimizedImage
                 src={branding.logoUrl}
                 alt=""
                 className="h-24 w-24 rounded-xl object-cover"
@@ -542,7 +543,7 @@ export default function AccountProfileClient({
               ) : null}
             </div>
             {branding.coverUrl ? (
-              <img
+              <UnoptimizedImage
                 src={branding.coverUrl}
                 alt=""
                 className="h-24 w-full rounded-xl object-cover"
@@ -622,7 +623,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             Сайт
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/website.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/website.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.websiteUrl}
                 onChange={(event) =>
@@ -639,7 +640,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             Instagram
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/instagram.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/instagram.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.instagramUrl}
                 onChange={(event) =>
@@ -656,7 +657,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             WhatsApp
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/whatsapp.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/whatsapp.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.whatsappUrl}
                 onChange={(event) =>
@@ -673,7 +674,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             Telegram
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/telegram.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/telegram.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.telegramUrl}
                 onChange={(event) =>
@@ -690,7 +691,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             MAX
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/max.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/max.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.maxUrl}
                 onChange={(event) =>
@@ -704,7 +705,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             VK
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/vk.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/vk.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.vkUrl}
                 onChange={(event) =>
@@ -718,7 +719,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             Viber
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/viber.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/viber.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.viberUrl}
                 onChange={(event) =>
@@ -732,7 +733,7 @@ export default function AccountProfileClient({
           <label className="text-sm">
             Pinterest
             <div className="mt-2 flex items-center gap-2">
-              <img src="/assets/socials/pinterest.png" alt="" className="h-6 w-6" />
+              <UnoptimizedImage src="/assets/socials/pinterest.png" alt="" className="h-6 w-6" />
               <input
                 value={profile.pinterestUrl}
                 onChange={(event) =>

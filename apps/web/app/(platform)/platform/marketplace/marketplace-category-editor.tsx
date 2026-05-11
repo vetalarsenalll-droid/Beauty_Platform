@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useMemo, useState } from "react";
 import {
   CATEGORY_SETTING_KEY,
@@ -146,7 +147,7 @@ export default function MarketplaceCategoryEditor({
             </div>
             {item.imageUrl ? (
               <div className="mt-3 overflow-hidden rounded-2xl border border-[color:var(--bp-stroke)] bg-white">
-                <img
+                <UnoptimizedImage
                   src={item.imageUrl}
                   alt={item.label}
                   className="h-32 w-full object-cover"

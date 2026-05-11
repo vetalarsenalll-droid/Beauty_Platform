@@ -3,7 +3,7 @@ import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
 import { parseChoiceFromText } from "@/lib/aisha-chat-thread";
 import { decidePublicAiRoute, type PublicAiRoute } from "@/lib/aisha-chat-router";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
-import type { AishaNluIntent } from "@/lib/aisha-orchestrator";
+import type { AishaNlu, AishaNluIntent } from "@/lib/aisha-orchestrator";
 import * as routing from "@/lib/aisha-routing-helpers";
 
 const NLU_INTENT_CONFIDENCE_THRESHOLD = 0.38;
@@ -24,12 +24,12 @@ export function buildIntentContext(args: {
   d: DraftLike;
   nowYmd: string;
   recentMessages: Array<{ role: string; content: string }>;
-  nluResult: { nlu?: any; source: string };
+  nluResult: { nlu?: AishaNlu | null; source: string };
   locations: LocationLite[];
   services: ServiceLite[];
   specialists: SpecialistLite[];
 }): {
-  nlu: any;
+  nlu: AishaNlu | null;
   pendingClientAction: ReturnType<typeof routing.extractPendingClientAction>;
   confirmPendingClientAction: boolean | ReturnType<typeof routing.extractPendingClientAction>;
   continuePendingCancelChoice: boolean;
@@ -118,7 +118,7 @@ export function buildIntentContext(args: {
   useNluIntent: boolean;
 } {
   const { message, t, d, nowYmd, recentMessages, nluResult, locations, services, specialists } = args;
-  const nlu = nluResult.nlu;
+  const nlu = nluResult.nlu ?? null;
 
   const pendingClientAction = routing.extractPendingClientAction([...recentMessages].reverse());
   const confirmPendingClientAction = routing.isLooseConfirmation(message) && pendingClientAction;

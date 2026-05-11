@@ -1,5 +1,6 @@
 "use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
 import type { SiteServiceItem as ServiceItem } from "@/features/site-builder/shared/site-data";
@@ -274,7 +275,6 @@ function ServiceModal({
   buttonText,
   showDescription,
   showMeta,
-  galleryBgColor,
   modalBackgroundColor,
   modalBackgroundImage,
   mediaColumns,
@@ -284,7 +284,6 @@ function ServiceModal({
   imageAspectRatio,
   controls,
   arrowSize,
-  arrowThickness,
   arrowColor,
   arrowHoverColor,
   arrowBgColor,
@@ -367,10 +366,13 @@ function ServiceModal({
   const showThumbnails = controls === "thumbnails" && images.length > 1 && thumbnailsPosition === "bottom";
 
   useEffect(() => {
-    setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
-    setZoomLevel(0);
-    setPan({ x: 0, y: 0 });
-    setIsDraggingImage(false);
+    const raf = window.requestAnimationFrame(() => {
+      setActiveImageIndex(Math.min(Math.max(imageIndex, 0), Math.max(images.length - 1, 0)));
+      setZoomLevel(0);
+      setPan({ x: 0, y: 0 });
+      setIsDraggingImage(false);
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [imageIndex, images.length]);
 
   useEffect(() => {
@@ -706,7 +708,7 @@ function ServiceModal({
             onMouseLeave={() => setIsDraggingImage(false)}
           >
             {currentImage ? (
-              <img
+              <UnoptimizedImage
                 ref={imageRef}
                 src={currentImage}
                 alt={service.name}
@@ -828,7 +830,7 @@ function ServiceModal({
                   }}
                 >
                   <div className="aspect-square">
-                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
                   </div>
                 </button>
               ))}
@@ -897,7 +899,6 @@ export function ServicesCatalog({
   locationTextColorDark,
   locationActiveColorDark,
   themeMode,
-  showDescription,
   showPrice,
   showDuration,
   showButton,
@@ -1008,26 +1009,35 @@ export function ServicesCatalog({
   const pageSize = clamp(maxVisibleItems, 1, 100, 8);
   const [page, setPage] = useState(1);
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const windowViewportWidth = useWindowViewportWidth();
 
   useEffect(() => {
-    setSortMode(defaultSort);
-    setIsSortOpen(false);
+    const raf = window.requestAnimationFrame(() => {
+      setSortMode(defaultSort);
+      setIsSortOpen(false);
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [defaultSort]);
 
   useEffect(() => {
     if (areMobileFiltersOpen) return;
-    setIsSortOpen(false);
-    setIsLocationOpen(false);
+    const raf = window.requestAnimationFrame(() => {
+      setIsSortOpen(false);
+      setIsLocationOpen(false);
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [areMobileFiltersOpen]);
 
   useEffect(() => {
-    setActiveCategory("__all__");
+    const raf = window.requestAnimationFrame(() => setActiveCategory("__all__"));
+    return () => window.cancelAnimationFrame(raf);
   }, [selectedLocationId]);
 
   useEffect(() => {
-    setPage(1);
-    setVisibleCount(pageSize);
+    const raf = window.requestAnimationFrame(() => {
+      setPage(1);
+      setVisibleCount(pageSize);
+    });
+    return () => window.cancelAnimationFrame(raf);
   }, [activeCategory, selectedLocationId, searchQuery, sortMode, pageSize, usePagination]);
 
   const activeSortOption =
@@ -1213,7 +1223,8 @@ export function ServicesCatalog({
     : "relative min-w-0 sm:w-[250px]";
 
   useEffect(() => {
-    setActiveThemeMode(themeMode === "dark" ? "dark" : "light");
+    const raf = window.requestAnimationFrame(() => setActiveThemeMode(themeMode === "dark" ? "dark" : "light"));
+    return () => window.cancelAnimationFrame(raf);
   }, [themeMode]);
 
   useEffect(() => {
@@ -1253,7 +1264,8 @@ export function ServicesCatalog({
   useEffect(() => {
     if (activeCategory === "__all__") return;
     if (categories.includes(activeCategory)) return;
-    setActiveCategory("__all__");
+    const raf = window.requestAnimationFrame(() => setActiveCategory("__all__"));
+    return () => window.cancelAnimationFrame(raf);
   }, [activeCategory, categories]);
 
   const filteredItems = scopedItems
@@ -1861,7 +1873,7 @@ export function ServicesCatalog({
                       }}
                     >
                       {primaryImage ? (
-                        <img
+                        <UnoptimizedImage
                           src={primaryImage}
                           alt={service.name}
                           className={`h-full w-full transition duration-300 ${
@@ -1879,7 +1891,7 @@ export function ServicesCatalog({
                         </div>
                       )}
                       {primaryImage && secondaryImage ? (
-                        <img
+                        <UnoptimizedImage
                           src={secondaryImage}
                           alt=""
                           className="absolute inset-0 h-full w-full opacity-0 transition duration-300 group-hover:opacity-100"
@@ -1887,7 +1899,7 @@ export function ServicesCatalog({
                         />
                       ) : null}
                       {hasGlassInfoPanel && primaryImage ? (
-                        <img
+                        <UnoptimizedImage
                           aria-hidden="true"
                           src={primaryImage}
                           alt=""
@@ -1936,7 +1948,7 @@ export function ServicesCatalog({
                       }}
                     >
                       {primaryImage ? (
-                        <img
+                        <UnoptimizedImage
                           src={primaryImage}
                           alt={service.name}
                           className={`h-full w-full transition duration-300 ${
@@ -1954,7 +1966,7 @@ export function ServicesCatalog({
                         </div>
                       )}
                       {primaryImage && secondaryImage ? (
-                        <img
+                        <UnoptimizedImage
                           src={secondaryImage}
                           alt=""
                           className="absolute inset-0 h-full w-full opacity-0 transition duration-300 group-hover:opacity-100"
@@ -1962,7 +1974,7 @@ export function ServicesCatalog({
                         />
                       ) : null}
                       {hasGlassInfoPanel && primaryImage ? (
-                        <img
+                        <UnoptimizedImage
                           aria-hidden="true"
                           src={primaryImage}
                           alt=""

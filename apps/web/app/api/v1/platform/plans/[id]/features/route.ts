@@ -117,8 +117,9 @@ export async function DELETE(request: Request, { params }: Params) {
 
     const response = jsonOk({ key });
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2025") {
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2025") {
       return jsonError("NOT_FOUND", "Лимит не найден", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось удалить лимит", null, 500);

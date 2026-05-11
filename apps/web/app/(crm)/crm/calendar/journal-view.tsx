@@ -469,10 +469,6 @@ export default function JournalView({
   const [viewMode, setViewMode] = useState<"day" | "week" | "list">("day");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const isWeekView = viewMode === "week";
-  const isListView = viewMode === "list";
-  const isDayView = !isWeekView;
-
   const [selectedStaffId, setSelectedStaffId] = useState(staff[0]?.id ?? 0);
 
   // ✅ выбранная локация
@@ -488,7 +484,6 @@ export default function JournalView({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sellOpen, setSellOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [statusMenuId, setStatusMenuId] = useState<number | null>(null);
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<{
@@ -528,6 +523,9 @@ export default function JournalView({
   const dragPointerDownAtRef = useRef<number | null>(null);
   const dragArmedRef = useRef(false);
   const dragArmTimeoutRef = useRef<number | null>(null);
+  const handleAppointmentDropRef = useRef<
+    ((appointmentId: number, rowIndex: number, colIndex: number, offsetMinutes: number) => void) | null
+  >(null);
   const [dragHoldActiveId, setDragHoldActiveId] = useState<number | null>(null);
   const isInteractiveTarget = (target: EventTarget | null) => {
     if (!(target instanceof HTMLElement)) return false;
@@ -597,7 +595,7 @@ export default function JournalView({
         dragArmTimeoutRef.current = null;
       }
       if (draggingAppointmentId && dragHoverTarget && dragArmedRef.current) {
-        handleAppointmentDrop(
+        handleAppointmentDropRef.current?.(
           draggingAppointmentId,
           dragHoverTarget.rowIndex,
           dragHoverTarget.colIndex,
@@ -669,7 +667,6 @@ export default function JournalView({
         setFiltersOpen(false);
       }
       if (sellRef.current && !sellRef.current.contains(target)) {
-        setSellOpen(false);
       }
       if (statusMenuRef.current && !statusMenuRef.current.contains(target)) {
         setStatusMenuId(null);
@@ -851,7 +848,7 @@ export default function JournalView({
     if (computedEnd && computedEnd !== editorForm.endTime) {
       setEditorForm((prev) => (prev ? { ...prev, endTime: computedEnd } : prev));
     }
-  }, [editorForm?.startTime, editorForm?.durationMin]);
+  }, [editorForm]);
 
   const getMinServiceDurationFor = useCallback(
     (staffId: number, locationId: number) => {
@@ -974,6 +971,7 @@ export default function JournalView({
     editorForm?.date,
     editorForm?.durationMin,
     editorForm?.serviceIds,
+    editorForm,
     editorState,
     minServiceDuration,
   ]);
@@ -1055,9 +1053,9 @@ export default function JournalView({
     return map;
   }, [scheduleEntriesForLocation]);
 
-  const getScheduleEntry = (staffId: number, date: Date) => {
+  const getScheduleEntry = useCallback((staffId: number, date: Date) => {
     return scheduleByKey.get(`${staffId}:${formatDateKey(date)}`);
-  };
+  }, [scheduleByKey]);
 
   const blockedAppointmentStatuses = useMemo(() => new Set(["CANCELLED", "NO_SHOW"]), []);
   const appointmentsByKey = useMemo(() => {
@@ -1725,7 +1723,7 @@ export default function JournalView({
     setEditorState({ mode: "edit-group", session });
   };
 
-  const handleAppointmentDrop = async (
+  const handleAppointmentDrop = useCallback(async (
     appointmentId: number,
     rowIndex: number,
     colIndex: number,
@@ -1828,7 +1826,17 @@ export default function JournalView({
         })();
       },
     });
-  };
+  }, [
+    appointmentItems,
+    canStartSlotWithDuration,
+    currentDate,
+    dayStartMinutes,
+    selectedLocationId,
+    selectedStaffId,
+    staffForLocation,
+    viewMode,
+    weekDays,
+  ]);
 
   const handleEditorClose = () => {
     setEditorState(null);
@@ -1841,7 +1849,7 @@ export default function JournalView({
       const nextItems = prev.serviceItems.filter((_, i) => i !== index);
       return applyServicesToForm(prev, nextItems);
     });
-  }, [editorState?.mode]);
+  }, [applyServicesToForm, editorState?.mode]);
 
   const goToDate = (nextDate: Date) => {
     const normalized = startOfDay(nextDate);
@@ -2177,6 +2185,10 @@ export default function JournalView({
     }
   };
 
+  useEffect(() => {
+    handleAppointmentDropRef.current = handleAppointmentDrop;
+  }, [handleAppointmentDrop]);
+
   const handleParticipantStatusChange = async (participantId: number, status: string) => {
     if (!editorForm?.groupSessionId) return;
     setParticipantUpdatingId(participantId);
@@ -2235,9 +2247,6 @@ export default function JournalView({
     }
   };
 
-  const isGroupTerminal =
-    editorState?.mode === "edit-group" &&
-    (editorForm?.status === "DONE" || editorForm?.status === "CANCELLED");
   const isEditorLocked =
     (editorState?.mode === "edit" &&
       isTerminalAppointmentStatus(editorState.appointment.status));

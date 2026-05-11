@@ -25,10 +25,15 @@ const actions: ActionCard[] = [
   },
 ];
 
+function getCurrentTimestamp() {
+  return Date.now();
+}
+
 export default async function PlatformHome() {
   await requirePlatformSession();
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const nowMs = getCurrentTimestamp();
+  const sevenDaysAgo = new Date(nowMs - 7 * 24 * 60 * 60 * 1000);
 
   const [activeAccounts, newAccounts, pendingOutbox, healthChecks] =
     await Promise.all([
@@ -46,7 +51,7 @@ export default async function PlatformHome() {
       ? null
       : Math.round(
           pendingOutbox.reduce(
-            (sum, item) => sum + (Date.now() - item.createdAt.getTime()),
+            (sum, item) => sum + (nowMs - item.createdAt.getTime()),
             0
           ) /
             pendingOutbox.length /

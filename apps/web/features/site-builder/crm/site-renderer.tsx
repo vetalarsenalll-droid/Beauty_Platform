@@ -1,4 +1,5 @@
-﻿import * as React from "react";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
+import * as React from "react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type {
   SiteAishaWidgetConfig,
@@ -1237,7 +1238,7 @@ export function FlatCheckbox({
             : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
         }`}
       >
-        ✓
+        ?
       </span>
       <span>{label}</span>
     </label>
@@ -1755,7 +1756,7 @@ export function CoverImageEditor({
             <option value="custom">Своё изображение</option>
           </select>
           <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-            ▾
+            ?
           </span>
         </div>
       </label>
@@ -1763,8 +1764,7 @@ export function CoverImageEditor({
       {previewUrl ? (
         <div className="flex items-center gap-3">
           <div className="relative h-20 w-32 overflow-hidden rounded-md bg-[color:var(--bp-base)]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt="Превью обложки" className="h-full w-full object-cover" />
+            <UnoptimizedImage src={previewUrl} alt="Превью обложки" className="h-full w-full object-cover" />
           </div>
           <div className="text-xs text-[color:var(--bp-muted)]">Изображение выбрано</div>
         </div>
@@ -1800,8 +1800,7 @@ export function CoverImageEditor({
                       aria-label="Выбрать изображение"
                     >
                       <div className="flex aspect-[16/10] w-full items-center justify-center bg-[color:var(--bp-base)]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image.url} alt="" className="h-full w-full object-cover" />
+                        <UnoptimizedImage src={image.url} alt="" className="h-full w-full object-cover" />
                       </div>
                     </button>
                     <button
@@ -1810,7 +1809,7 @@ export function CoverImageEditor({
                       disabled={removingId === image.id}
                       className="absolute right-1 top-1 inline-flex h-6 items-center justify-center rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bp-save-close,var(--bp-accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bp-paper)]"
                     >
-                      {removingId === image.id ? "..." : "×"}
+                      {removingId === image.id ? "..." : "?"}
                     </button>
                   </div>
                 );
@@ -4707,8 +4706,7 @@ export function renderMenuBlock(
     previewViewportWidth < 960;
   const logoImageNode =
     showLogo && branding.logoUrl ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <UnoptimizedImage
         src={branding.logoUrl}
         alt=""
         className="block"
@@ -4862,8 +4860,7 @@ export function renderMenuBlock(
             style={{ width: socialIconSize, height: socialIconSize }}
             title={SOCIAL_LABELS[item.key]}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <UnoptimizedImage
               src={SOCIAL_ICONS[item.key]}
               alt=""
               className="h-7 w-7"
@@ -6903,7 +6900,7 @@ export function renderImageBlock(block: SiteBlock, theme: SiteTheme, style: Bloc
       {subtitle && <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</p>}
       <div className={`${title || subtitle ? "mt-5" : ""} overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]`} style={{ borderRadius: style.radius ?? theme.radius, aspectRatio }}>
         {imageUrl ? (
-          <img src={imageUrl} alt={asString(data.alt, title)} className="h-full w-full" style={{ objectFit: imageFit }} />
+          <UnoptimizedImage src={imageUrl} alt={asString(data.alt, title)} className="h-full w-full" style={{ objectFit: imageFit }} />
         ) : (
           <div className="flex h-full min-h-[220px] items-center justify-center text-sm text-[color:var(--bp-muted)]">Добавьте изображение</div>
         )}
@@ -6925,7 +6922,7 @@ export function renderManualGalleryBlock(block: SiteBlock, theme: SiteTheme, sty
       <div className={`mt-5 grid gap-4 ${simpleGridClass(previewViewportWidth, 3)}`}>
         {(images.length ? images : [{}, {}, {}]).map((image, index) => (
           <div key={index} className="overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]" style={{ borderRadius: style.cardRadius ?? style.radius ?? theme.radius, aspectRatio }}>
-            {image.url ? <img src={image.url} alt={image.alt ?? ""} className="h-full w-full object-cover" /> : <div className="flex h-full min-h-[160px] items-center justify-center text-sm text-[color:var(--bp-muted)]">Фото</div>}
+            {image.url ? <UnoptimizedImage src={image.url} alt={image.alt ?? ""} className="h-full w-full object-cover" /> : <div className="flex h-full min-h-[160px] items-center justify-center text-sm text-[color:var(--bp-muted)]">Фото</div>}
           </div>
         ))}
       </div>
@@ -7007,7 +7004,7 @@ export function renderProjectBlock(block: SiteBlock, theme: SiteTheme, style: Bl
         <p className="mt-4 whitespace-pre-line text-[color:var(--bp-muted)]" style={textStyle(style, theme)}>{asString(data.text)}</p>
       </div>
       <div className="overflow-hidden bg-[color:var(--bp-paper)]" style={{ borderRadius: style.radius ?? theme.radius, aspectRatio: "4 / 3" }}>
-        {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-[color:var(--bp-muted)]">Изображение проекта</div>}
+        {imageUrl ? <UnoptimizedImage src={imageUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-[color:var(--bp-muted)]">Изображение проекта</div>}
       </div>
     </div>
   );

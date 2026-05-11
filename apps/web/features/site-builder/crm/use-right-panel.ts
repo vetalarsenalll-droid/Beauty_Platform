@@ -52,27 +52,44 @@ export function useRightPanel({
   );
 
   useEffect(() => {
+    let raf: number | null = null;
+    const syncPanelBaseline = (sync: () => void) => {
+      raf = window.requestAnimationFrame(sync);
+    };
     if (!rightPanel) {
-      setPanelBaselineKey(null);
-      setPanelBaselineSignature(null);
-      setPanelBaselineBlock(null);
-      setShowPanelExitConfirm(false);
-      return;
+      syncPanelBaseline(() => {
+        setPanelBaselineKey(null);
+        setPanelBaselineSignature(null);
+        setPanelBaselineBlock(null);
+        setShowPanelExitConfirm(false);
+      });
+      return () => {
+        if (raf !== null) window.cancelAnimationFrame(raf);
+      };
     }
-    if (!panelTargetKey || !currentPanelSignature) return;
+    if (!panelTargetKey || !currentPanelSignature) {
+      return () => {
+        if (raf !== null) window.cancelAnimationFrame(raf);
+      };
+    }
     if (panelBaselineKey !== panelTargetKey) {
-      setPanelBaselineKey(panelTargetKey);
-      setPanelBaselineSignature(currentPanelSignature);
-      setPanelBaselineBlock(
-        selectedBlock
-          ? (JSON.parse(JSON.stringify(selectedBlock)) as SiteBlock)
-          : null
-      );
-      setActivePanelSectionId(null);
-      setCoverDrawerKey(null);
-      setCoverWidthModalOpen(false);
-      setShowPanelExitConfirm(false);
+      syncPanelBaseline(() => {
+        setPanelBaselineKey(panelTargetKey);
+        setPanelBaselineSignature(currentPanelSignature);
+        setPanelBaselineBlock(
+          selectedBlock
+            ? (JSON.parse(JSON.stringify(selectedBlock)) as SiteBlock)
+            : null
+        );
+        setActivePanelSectionId(null);
+        setCoverDrawerKey(null);
+        setCoverWidthModalOpen(false);
+        setShowPanelExitConfirm(false);
+      });
     }
+    return () => {
+      if (raf !== null) window.cancelAnimationFrame(raf);
+    };
   }, [
     rightPanel,
     panelTargetKey,
@@ -90,8 +107,10 @@ export function useRightPanel({
       clearTimeout(rightPanelCloseTimerRef.current);
       rightPanelCloseTimerRef.current = null;
     }
-    setIsRightPanelVisible(false);
-    const raf = window.requestAnimationFrame(() => setIsRightPanelVisible(true));
+    const raf = window.requestAnimationFrame(() => {
+      setIsRightPanelVisible(false);
+      window.requestAnimationFrame(() => setIsRightPanelVisible(true));
+    });
     return () => window.cancelAnimationFrame(raf);
   }, [rightPanel]);
 

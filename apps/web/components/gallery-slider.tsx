@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
+import { useState } from "react";
 
 type GallerySliderProps = {
   images: string[];
@@ -41,16 +42,6 @@ export default function GallerySlider({
 }: GallerySliderProps) {
   const [current, setCurrent] = useState(0);
 
-  useEffect(() => {
-    if (images.length === 0) {
-      setCurrent(0);
-      return;
-    }
-    if (current >= images.length) {
-      setCurrent(images.length - 1);
-    }
-  }, [current, images.length]);
-
   if (images.length === 0) {
     return (
       <div
@@ -63,6 +54,7 @@ export default function GallerySlider({
   }
 
   const canSlide = images.length > 1;
+  const safeCurrent = Math.min(current, images.length - 1);
   const prev = () => setCurrent((value) => (value - 1 + images.length) % images.length);
   const next = () => setCurrent((value) => (value + 1) % images.length);
   const frameBackgroundColor =
@@ -85,8 +77,8 @@ export default function GallerySlider({
           boxSizing: "border-box",
         }}
       >
-        <img
-          src={images[current]}
+        <UnoptimizedImage
+          src={images[safeCurrent]}
           alt=""
           className="h-full w-full"
           style={{ objectFit: imageFit }}
@@ -99,7 +91,7 @@ export default function GallerySlider({
                 type="button"
                 onClick={() => setCurrent(index)}
                 className="h-2.5 w-2.5 rounded-full transition"
-                style={{ backgroundColor: index === current ? dotActiveColor : dotInactiveColor }}
+                style={{ backgroundColor: index === safeCurrent ? dotActiveColor : dotInactiveColor }}
                 aria-label={`Слайд ${index + 1}`}
                 title={`Слайд ${index + 1}`}
               />
@@ -141,7 +133,7 @@ export default function GallerySlider({
               type="button"
               onClick={() => setCurrent(index)}
               className="h-2.5 w-2.5 rounded-full transition"
-              style={{ backgroundColor: index === current ? dotActiveColor : dotInactiveColor }}
+              style={{ backgroundColor: index === safeCurrent ? dotActiveColor : dotInactiveColor }}
               aria-label={`Слайд ${index + 1}`}
               title={`Слайд ${index + 1}`}
             />

@@ -3,6 +3,8 @@ import type { RequiredLegalDocumentLite } from "@/lib/aisha-chat-preload";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { PublicAiRoute } from "@/lib/aisha-chat-router";
+import type { buildIntentContext } from "@/lib/aisha-chat-intent-context";
+import type { draftView } from "@/lib/aisha-chat-parsers";
 import type { resolvePublicAccount } from "@/lib/public-booking";
 import type { getClientSession } from "@/lib/auth";
 import type { resolveClientForAccount } from "@/lib/aisha-chat-thread";
@@ -24,7 +26,7 @@ export type PreparedPostTurn = {
   session: Awaited<ReturnType<typeof getClientSession>>;
   client: Awaited<ReturnType<typeof resolveClientForAccount>>;
   thread: { id: number; clientId: number | null };
-  draft: any;
+  draft: Parameters<typeof draftView>[0];
   nextThreadKey: string | null;
   turnAction: { id: number };
 };
@@ -44,8 +46,8 @@ export type TurnContext = {
   clientTimeZone: string | null;
   t: string;
   d: DraftLike;
-  nluResult: { nlu?: any; source: string };
-  intentContext: any;
+  nluResult: { nlu?: unknown; source: string };
+  intentContext: ReturnType<typeof buildIntentContext>;
 };
 
 export type DraftDecision = {

@@ -116,8 +116,9 @@ export async function PATCH(
 
     const response = jsonOk(mapTemplate(updated as DbTemplate));
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2025") {
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2025") {
       return jsonError("NOT_FOUND", "Шаблон не найден", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось обновить шаблон", null, 500);
@@ -155,8 +156,9 @@ export async function DELETE(
 
     const response = jsonOk({ id: templateId, isActive: false });
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2025") {
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2025") {
       return jsonError("NOT_FOUND", "Шаблон не найден", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось отключить шаблон", null, 500);

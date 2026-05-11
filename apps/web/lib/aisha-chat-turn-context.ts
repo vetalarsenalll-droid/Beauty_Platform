@@ -20,7 +20,7 @@ export async function buildTurnContext(args: {
   message: string;
   body: { clientTodayYmd?: unknown; clientTimeZone?: unknown };
   account: { id: number; slug: string; timeZone: string };
-  draft: any;
+  draft: Parameters<typeof draftView>[0];
 }): Promise<TurnContext> {
   const { threadId, message, body, account, draft } = args;
 

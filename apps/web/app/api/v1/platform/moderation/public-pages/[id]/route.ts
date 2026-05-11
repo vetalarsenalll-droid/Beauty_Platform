@@ -57,8 +57,9 @@ export async function PATCH(
       updatedAt: updated.updatedAt.toISOString(),
     });
     return applyAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.code === "P2025") {
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.code === "P2025") {
       return jsonError("NOT_FOUND", "Публичная страница не найдена", null, 404);
     }
     return jsonError("SERVER_ERROR", "Не удалось обновить статус", null, 500);

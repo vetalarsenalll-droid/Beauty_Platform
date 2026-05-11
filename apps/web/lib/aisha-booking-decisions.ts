@@ -14,7 +14,7 @@ import {
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { DraftDecision } from "@/lib/aisha-chat-types";
 import { LEXICON } from "@/lib/aisha-lexicon";
-import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
+import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 
 const has = (m: string, r: RegExp) => r.test(m.toLowerCase());
 
@@ -53,7 +53,7 @@ export function computeBookingDecisions(args: {
   explicitNearestAvailability: boolean;
   explicitAvailabilityPeriod: boolean;
   explicitCalendarCue: boolean;
-  d: any;
+  d: DraftLike;
   message: string;
 }): DraftDecision {
   const {

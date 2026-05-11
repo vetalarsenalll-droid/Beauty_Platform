@@ -1,5 +1,6 @@
 "use client";
 
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -194,7 +195,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Сайт
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/website.png"
               alt=""
               className="h-6 w-6"
@@ -210,7 +211,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Instagram
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/instagram.png"
               alt=""
               className="h-6 w-6"
@@ -228,7 +229,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           WhatsApp
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/whatsapp.png"
               alt=""
               className="h-6 w-6"
@@ -244,7 +245,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Telegram
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/telegram.png"
               alt=""
               className="h-6 w-6"
@@ -262,7 +263,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           MAX
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/max.png"
               alt=""
               className="h-6 w-6"
@@ -278,7 +279,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           VK
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/vk.png"
               alt=""
               className="h-6 w-6"
@@ -294,7 +295,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Viber
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/viber.png"
               alt=""
               className="h-6 w-6"
@@ -312,7 +313,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Pinterest
           <div className="flex items-center gap-2">
-            <img
+            <UnoptimizedImage
               src="/assets/socials/pinterest.png"
               alt=""
               className="h-6 w-6"

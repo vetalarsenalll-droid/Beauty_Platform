@@ -363,7 +363,6 @@ export function SiteServicesSettingsDrawer({
   block,
   activeTheme,
   activeSectionId,
-  locations,
   updateBlock,
 }: {
   block: SiteBlock;

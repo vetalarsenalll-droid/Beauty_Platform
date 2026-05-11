@@ -318,8 +318,9 @@ export async function POST(request: Request) {
 
     const response = jsonOk(mapSpecialist(result as DbSpecialist), 201);
     return applyCrmAccessCookie(response, auth);
-  } catch (error: any) {
-    if (error?.message === "SPECIALIST_EXISTS") {
+  } catch (error: unknown) {
+    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
+    if (caught.message === "SPECIALIST_EXISTS") {
       return jsonError(
         "DUPLICATE",
         "Специалист с таким email уже существует.",
@@ -327,7 +328,7 @@ export async function POST(request: Request) {
         409
       );
     }
-    if (error?.message === "USER_TYPE") {
+    if (caught.message === "USER_TYPE") {
       return jsonError(
         "VALIDATION_FAILED",
         "Пользователь с таким email не является сотрудником.",
@@ -335,7 +336,7 @@ export async function POST(request: Request) {
         400
       );
     }
-    if (error?.code === "P2002") {
+    if (caught.code === "P2002") {
       return jsonError(
         "DUPLICATE",
         "Email уже используется.",
