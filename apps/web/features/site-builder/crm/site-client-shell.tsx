@@ -79,6 +79,7 @@ const SITE_MOBILE_VIEWPORT_STORAGE_KEY = "site-builder:mobile-viewport";
 const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
 const SITE_MOBILE_VIEWPORT_COOKIE_KEY = "site_builder_mobile_viewport";
 const SITE_PREFERENCES_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const LIBRARY_PANEL_ANIMATION_MS = 220;
 
 function getLibraryBlockCode(type: BlockType, variant: SiteBlock["variant"]): BlockCode {
   if (type === "menu") {
@@ -283,7 +284,13 @@ export default function SiteClient({
     displayBlocks[0]?.id ?? null
   );
   const [leftPanel, setLeftPanel] = useState<"library" | null>(null);
+  const [libraryPanelMounted, setLibraryPanelMounted] = useState(false);
+  const [isLibraryPanelVisible, setIsLibraryPanelVisible] = useState(false);
+  const [libraryPanelClosing, setLibraryPanelClosing] = useState(false);
   const [libraryBlock, setLibraryBlock] = useState<BlockType | null>(null);
+  const [libraryVariantsBlock, setLibraryVariantsBlock] = useState<BlockType | null>(null);
+  const [isLibraryVariantsVisible, setIsLibraryVariantsVisible] = useState(false);
+  const [shouldAnimateLibraryVariants, setShouldAnimateLibraryVariants] = useState(false);
   const [rightPanel, setRightPanel] = useState<"content" | "settings" | null>(
     null
   );
@@ -307,6 +314,69 @@ export default function SiteClient({
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [spacingAnchorBlockId, setSpacingAnchorBlockId] = useState<string | null>(null);
   const slotRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (leftPanel === "library") {
+      setLibraryPanelMounted(true);
+      return;
+    }
+  }, [leftPanel]);
+
+  useEffect(() => {
+    if (!libraryPanelMounted) return;
+    if (leftPanel === "library") {
+      setLibraryPanelClosing(false);
+      setIsLibraryPanelVisible(false);
+      const raf = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setIsLibraryPanelVisible(true));
+      });
+      return () => window.cancelAnimationFrame(raf);
+    }
+
+    setIsLibraryPanelVisible(false);
+    setLibraryPanelClosing(true);
+    const timeout = window.setTimeout(() => {
+      setLibraryPanelMounted(false);
+      setLibraryPanelClosing(false);
+      setLibraryBlock(null);
+      setLibraryVariantsBlock(null);
+      setIsLibraryVariantsVisible(false);
+      setShouldAnimateLibraryVariants(false);
+    }, LIBRARY_PANEL_ANIMATION_MS);
+    return () => window.clearTimeout(timeout);
+  }, [leftPanel, libraryPanelMounted]);
+
+  useEffect(() => {
+    if (libraryBlock) {
+      setLibraryVariantsBlock(libraryBlock);
+      if (!shouldAnimateLibraryVariants) {
+        setIsLibraryVariantsVisible(true);
+        return;
+      }
+      setIsLibraryVariantsVisible(false);
+      const raf = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => setIsLibraryVariantsVisible(true));
+      });
+      return () => window.cancelAnimationFrame(raf);
+    }
+
+    setShouldAnimateLibraryVariants(true);
+    setIsLibraryVariantsVisible(false);
+    const timeout = window.setTimeout(() => {
+      setLibraryVariantsBlock(null);
+    }, LIBRARY_PANEL_ANIMATION_MS);
+    return () => window.clearTimeout(timeout);
+  }, [libraryBlock, shouldAnimateLibraryVariants]);
+
+  const closeLibraryPanel = () => {
+    setLeftPanel(null);
+  };
+
+  const toggleLibraryBlock = (type: BlockType) => {
+    const isClosingCurrentBlock = libraryBlock === type;
+    setShouldAnimateLibraryVariants(libraryBlock === null || isClosingCurrentBlock);
+    setLibraryBlock(isClosingCurrentBlock ? null : type);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -650,7 +720,8 @@ export default function SiteClient({
     setThemeMode(activeTheme.mode === "dark" ? "light" : "dark");
   const panelTheme = resolvePanelTheme(activeTheme.mode);
   const selectedBlockVersion = selectedBlock ? resolveBlockVersion({ block: selectedBlock }) : null;
-  const floatingPanelsTop = rightPanel ? 0 : 56;
+  const isFloatingPanelVisible = isRightPanelVisible || isLibraryPanelVisible || libraryPanelClosing;
+  const floatingPanelsTop = isFloatingPanelVisible ? 0 : 56;
   const builderCanvasBg = activeTheme.mode === "dark" ? "#111318" : "#f6f7f9";
   const publishEntity =
     currentEntity?.type === "location"
@@ -731,7 +802,7 @@ export default function SiteClient({
         <div
           data-site-builder-toolbar="true"
           className={`fixed top-0 left-0 right-0 z-[230] border border-x-0 border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 sm:px-6 lg:px-8 transition-all duration-[220ms] ease-out ${
-            isRightPanelVisible ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
+            isFloatingPanelVisible ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
           }`}
         >
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
@@ -1283,25 +1354,36 @@ export default function SiteClient({
           </div>
         </main>
 
-        {leftPanel === "library" && (
+        {libraryPanelMounted && (
+          <>
+          <button
+            type="button"
+            className="fixed inset-x-0 bottom-0 z-[210] cursor-default bg-transparent"
+            style={{ top: floatingPanelsTop }}
+            aria-label="Закрыть библиотеку блоков"
+            onClick={closeLibraryPanel}
+          />
           <aside
-            className={`fixed z-[220] overflow-hidden border shadow-[var(--bp-shadow)] ${
-              activeTheme.mode === "dark"
-                ? "border-[#2b2b2b] bg-[#111111] text-[#f3f4f6]"
-                : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]"
+            className={`fixed z-[220] overflow-hidden transition-transform duration-[220ms] ease-out ${
+              isLibraryPanelVisible && !libraryPanelClosing ? "translate-x-0" : "-translate-x-full"
+            } ${
+              activeTheme.mode === "dark" ? "text-[#f3f4f6]" : "text-[color:var(--bp-ink)]"
             }`}
-            style={{ left: 0, top: floatingPanelsTop, bottom: 0, width: libraryBlock ? "min(760px, 72vw)" : "240px" }}
+            style={{ left: 0, top: floatingPanelsTop, bottom: 0, width: libraryVariantsBlock ? "min(760px, 72vw)" : "240px" }}
           >
             <div className="flex h-full min-h-0">
-              <div className={`flex w-[240px] shrink-0 flex-col ${libraryBlock ? "border-r border-[color:var(--bp-stroke)]" : ""}`}>
+              <div
+                className={`relative z-10 flex w-[240px] shrink-0 flex-col border-r shadow-[var(--bp-shadow)] ${
+                  activeTheme.mode === "dark"
+                    ? "border-[#2b2b2b] bg-[#111111]"
+                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)]"
+                }`}
+              >
                 <div className="flex h-14 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4">
                   <div className="text-sm font-semibold">Библиотека блоков</div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setLeftPanel(null);
-                      setLibraryBlock(null);
-                    }}
+                    onClick={closeLibraryPanel}
                     className="grid h-8 w-8 place-items-center text-2xl leading-none text-[color:var(--bp-muted)] transition-colors hover:text-[color:var(--bp-ink)]"
                     aria-label="Закрыть библиотеку блоков"
                   >
@@ -1313,8 +1395,8 @@ export default function SiteClient({
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setLibraryBlock((current) => (current === type ? null : type))}
-                      className={`flex min-h-12 w-full items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 text-left text-sm transition-colors ${
+                      onClick={() => toggleLibraryBlock(type)}
+                      className={`flex h-12 w-full flex-shrink-0 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 text-left text-sm leading-none transition-colors ${
                         libraryBlock === type
                           ? "bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
                           : "bg-transparent text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-paper)]"
@@ -1327,12 +1409,23 @@ export default function SiteClient({
                 </div>
               </div>
 
-              {libraryBlock && availableLibraryBlockTypes.includes(libraryBlock) ? (
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div
+                className={`relative z-0 flex h-full w-[520px] shrink-0 flex-col overflow-hidden border-r shadow-[var(--bp-shadow)] transition-transform duration-[220ms] ease-out ${
+                  libraryVariantsBlock && availableLibraryBlockTypes.includes(libraryVariantsBlock) && isLibraryVariantsVisible
+                    ? "translate-x-0"
+                    : "-translate-x-full"
+                } ${
+                  activeTheme.mode === "dark"
+                    ? "border-[#2b2b2b] bg-[#111111]"
+                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)]"
+                }`}
+                aria-hidden={!libraryVariantsBlock || !availableLibraryBlockTypes.includes(libraryVariantsBlock)}
+              >
+                <div className="flex h-full min-w-0 flex-col">
                 <div className="flex h-14 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4">
                   <div>
                     <div className="text-sm font-semibold">
-                      {BLOCK_LABELS[libraryBlock]}
+                      {libraryVariantsBlock ? BLOCK_LABELS[libraryVariantsBlock] : ""}
                     </div>
                     <div className="mt-0.5 text-xs text-[color:var(--bp-muted)]">Нажмите на превью, чтобы добавить блок</div>
                   </div>
@@ -1340,16 +1433,15 @@ export default function SiteClient({
 
                 <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   <div className="divide-y divide-[color:var(--bp-stroke)]">
-                    {getBlockVariants(libraryBlock).map((variant) => {
-                      const blockCode = getLibraryBlockCode(libraryBlock, variant);
+                    {libraryVariantsBlock ? getBlockVariants(libraryVariantsBlock).map((variant) => {
+                      const blockCode = getLibraryBlockCode(libraryVariantsBlock, variant);
                       return (
                         <button
                           key={variant}
                           type="button"
                           onClick={() => {
-                            insertBlock(libraryBlock, insertIndex ?? displayBlocks.length, variant);
-                            setLeftPanel(null);
-                            setLibraryBlock(null);
+                            insertBlock(libraryVariantsBlock, insertIndex ?? displayBlocks.length, variant);
+                            closeLibraryPanel();
                           }}
                           className="block w-full bg-transparent p-5 text-left transition-colors hover:bg-[color:var(--bp-paper)]"
                         >
@@ -1357,7 +1449,7 @@ export default function SiteClient({
                             <div className="relative aspect-[19/9] bg-[color:var(--bp-surface)]">
                               <UnoptimizedImage
                                 src={getLibraryPreviewSrc(blockCode)}
-                                alt={`${blockCode} ${BLOCK_LABELS[libraryBlock]}`}
+                                alt={`${blockCode} ${BLOCK_LABELS[libraryVariantsBlock]}`}
                                 className="h-full w-full object-cover"
                                 height={427}
                                 width={900}
@@ -1369,18 +1461,19 @@ export default function SiteClient({
                               {blockCode}
                             </span>
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold">{BLOCK_LABELS[libraryBlock]}</div>
+                              <div className="text-sm font-semibold">{BLOCK_LABELS[libraryVariantsBlock]}</div>
                             </div>
                           </div>
                         </button>
                       );
-                    })}
+                    }) : null}
                   </div>
                 </div>
+                </div>
               </div>
-              ) : null}
             </div>
           </aside>
+          </>
         )}
 
         <SiteRightPanelFrame
