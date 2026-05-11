@@ -720,7 +720,8 @@ export default function SiteClient({
     setThemeMode(activeTheme.mode === "dark" ? "light" : "dark");
   const panelTheme = resolvePanelTheme(activeTheme.mode);
   const selectedBlockVersion = selectedBlock ? resolveBlockVersion({ block: selectedBlock }) : null;
-  const isFloatingPanelVisible = isRightPanelVisible || isLibraryPanelVisible || libraryPanelClosing;
+  const isFloatingPanelVisible =
+    Boolean(rightPanel) || libraryPanelMounted || isRightPanelVisible || isLibraryPanelVisible || libraryPanelClosing;
   const floatingPanelsTop = isFloatingPanelVisible ? 0 : 56;
   const builderCanvasBg = activeTheme.mode === "dark" ? "#111318" : "#f6f7f9";
   const publishEntity =
