@@ -1007,31 +1007,20 @@ function BookingEntityInfoPanel({
   description,
   photos,
   metaRows,
-  onBack,
 }: {
   title: string;
   subtitle: string;
   description?: string | null;
   photos: string[];
   metaRows?: Array<{ label: string; value: string | null | undefined }>;
-  onBack: () => void;
 }) {
   const visiblePhotos = photos.filter(Boolean).slice(0, 12);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs font-medium text-[color:var(--bp-muted)]">{subtitle}</div>
-          <h3 className="mt-1 text-xl font-semibold leading-tight text-[color:var(--bp-ink)]">{title}</h3>
-        </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="booking-nav-secondary-button rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-xs font-semibold transition hover:-translate-y-[1px] hover:shadow-sm"
-        >
-          Назад
-        </button>
+      <div className="min-w-0">
+        <div className="text-xs font-medium text-[color:var(--bp-muted)]">{subtitle}</div>
+        <h3 className="mt-1 text-xl font-semibold leading-tight text-[color:var(--bp-ink)]">{title}</h3>
       </div>
 
       {metaRows?.some((row) => row.value) ? (
@@ -1049,7 +1038,6 @@ function BookingEntityInfoPanel({
             ))}
         </div>
       ) : null}
-
       <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
         <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Описание</div>
         <div className="mt-2 whitespace-pre-line text-sm leading-6 text-[color:var(--bp-muted)]">
@@ -3164,7 +3152,6 @@ export default function BookingClient({
           description={location.description}
           metaRows={[{ label: "Адрес", value: location.address }]}
           photos={photos}
-          onBack={() => setInfoView(null)}
         />
       );
     }
@@ -3185,7 +3172,6 @@ export default function BookingClient({
             { label: "Стоимость", value: formatMoneyRub(service.computedPrice ?? service.basePrice) },
           ]}
           photos={photos}
-          onBack={() => setInfoView(null)}
         />
       );
     }
@@ -3202,7 +3188,6 @@ export default function BookingClient({
         description={specialist.bio}
         metaRows={[{ label: "Уровень", value: specialist.role }]}
         photos={photos}
-        onBack={() => setInfoView(null)}
       />
     );
   }, [context?.locations, infoView, serviceById, specialistById, workPhotos]);
@@ -5065,44 +5050,68 @@ export default function BookingClient({
               </div>
 
               <div className="booking-desktop-nav ml-auto hidden items-center gap-2 sm:flex">
-                <button
-                  type="button"
-                  onClick={goPrev}
-                  disabled={stepIndex === 0}
-                  className="booking-nav-secondary-button min-w-[70px] rounded-2xl border px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-                >
-                  Назад
-                </button>
+                {infoView ? (
+                  <button
+                    type="button"
+                    onClick={() => setInfoView(null)}
+                    className="booking-nav-primary-button min-w-[150px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm"
+                  >
+                    Вернуться к выбору
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goPrev}
+                      disabled={stepIndex === 0}
+                      className="booking-nav-secondary-button min-w-[70px] rounded-2xl border px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                    >
+                      Назад
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                  className="booking-nav-primary-button min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-                >
-                  Далее
-                </button>
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
+                      className="booking-nav-primary-button min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                    >
+                      Далее
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="booking-mobile-nav sticky top-[132px] z-30 -mt-9 mb-3 flex justify-end gap-2 sm:hidden">
-              <button
-                type="button"
-                onClick={goPrev}
-                disabled={stepIndex === 0}
-                className="booking-nav-secondary-button min-w-[70px] rounded-2xl border px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-              >
-                Назад
-              </button>
+              {infoView ? (
+                <button
+                  type="button"
+                  onClick={() => setInfoView(null)}
+                  className="booking-nav-primary-button min-w-[150px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm"
+                >
+                  Вернуться к выбору
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    disabled={stepIndex === 0}
+                    className="booking-nav-secondary-button min-w-[70px] rounded-2xl border px-4 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  >
+                    Назад
+                  </button>
 
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
-                className="booking-nav-primary-button min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
-              >
-                Далее
-              </button>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    disabled={!canNext || stepIndex === stepsWithScenario.length - 1}
+                    className="booking-nav-primary-button min-w-[70px] rounded-2xl bg-[color:var(--bp-accent)] px-4 py-2 text-xs font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40"
+                  >
+                    Далее
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="booking-step-body mt-4 pt-4 lg:min-h-0 lg:flex-1">
