@@ -86,19 +86,38 @@ export async function GET(
   });
 
   const serviceIds = services.map((item) => String(item.id));
-  const servicePhotos = serviceIds.length
-    ? await prisma.mediaLink.findMany({
-        where: { entityType: "service.photo", entityId: { in: serviceIds }, isCover: true },
-        select: { entityId: true, asset: { select: { url: true } } },
-        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-      })
-    : [];
+  const [servicePhotos, serviceWorkPhotos] = await Promise.all([
+    serviceIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "service.photo", entityId: { in: serviceIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+    serviceIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "service.work", entityId: { in: serviceIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+  ]);
 
   const serviceCoverMap = new Map<string, string>();
+  const servicePhotoMap = new Map<string, string[]>();
   servicePhotos.forEach((item) => {
     if (!serviceCoverMap.has(item.entityId)) {
       serviceCoverMap.set(item.entityId, item.asset.url);
     }
+    const current = servicePhotoMap.get(item.entityId) ?? [];
+    current.push(item.asset.url);
+    servicePhotoMap.set(item.entityId, current);
+  });
+  const serviceWorkPhotoMap = new Map<string, string[]>();
+  serviceWorkPhotos.forEach((item) => {
+    const current = serviceWorkPhotoMap.get(item.entityId) ?? [];
+    current.push(item.asset.url);
+    serviceWorkPhotoMap.set(item.entityId, current);
   });
 
   const output = services.map((service) => {
@@ -155,6 +174,8 @@ export async function GET(
       computedPrice,
       specialistIds,
       coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
+      photoUrls: servicePhotoMap.get(String(service.id)) ?? [],
+      workPhotoUrls: serviceWorkPhotoMap.get(String(service.id)) ?? [],
       categoryName: service.category?.name ?? null,
       categorySlug: service.category?.slug ?? null,
     };

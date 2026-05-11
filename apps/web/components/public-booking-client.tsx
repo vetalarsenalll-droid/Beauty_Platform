@@ -19,7 +19,10 @@ type PublicBookingClientProps = {
       id: number;
       name: string;
       address: string | null;
+      description?: string | null;
       coverUrl?: string | null;
+      photoUrls?: string[];
+      workPhotoUrls?: string[];
       hours?: Array<{
         dayOfWeek: number;
         startTime: string;
@@ -52,6 +55,11 @@ type PublicBookingClientProps = {
       content?: string;
       publishedAt: string;
     }>;
+    workPhotos?: {
+      locations?: Array<{ entityId: string; url: string }>;
+      services?: Array<{ entityId: string; url: string }>;
+      specialists?: Array<{ entityId: string; url: string }>;
+    };
   } | null;
   initialServices?: Array<{
     id: number;
@@ -70,18 +78,28 @@ type PublicBookingClientProps = {
     bookingType?: "SINGLE" | "GROUP";
     groupCapacityDefault?: number | null;
     coverUrl?: string | null;
+    photoUrls?: string[];
+    workPhotoUrls?: string[];
     locationIds?: number[];
   }>;
   initialSpecialists?: Array<{
     id: number;
     name: string;
     role: string | null;
+    bio?: string | null;
     levelId?: number | null;
     avatarUrl?: string | null;
     coverUrl?: string | null;
+    photoUrls?: string[];
+    workPhotoUrls?: string[];
     categories?: Array<{ id: number; name: string; slug: string }>;
     locationIds?: number[];
   }>;
+  initialWorkPhotos?: {
+    locations?: Array<{ entityId: string; url: string }>;
+    services?: Array<{ entityId: string; url: string }>;
+    specialists?: Array<{ entityId: string; url: string }>;
+  };
 };
 
 export default function PublicBookingClient({
@@ -91,6 +109,7 @@ export default function PublicBookingClient({
   initialContext,
   initialServices,
   initialSpecialists,
+  initialWorkPhotos,
 }: PublicBookingClientProps) {
   return (
     <BookingClient
@@ -100,6 +119,7 @@ export default function PublicBookingClient({
       initialContext={initialContext}
       initialServices={initialServices}
       initialSpecialists={initialSpecialists}
+      initialWorkPhotos={initialWorkPhotos}
     />
   );
 }

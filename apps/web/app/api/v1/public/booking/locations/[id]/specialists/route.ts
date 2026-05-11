@@ -80,6 +80,7 @@ export async function GET(
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
+      bio: true,
       levelId: true,
       level: { select: { name: true } },
       categories: {
@@ -130,19 +131,38 @@ export async function GET(
   }
 
   const specialistIds = specialists.map((item) => String(item.id));
-  const specialistPhotos = specialistIds.length
-    ? await prisma.mediaLink.findMany({
-        where: { entityType: "specialist.photo", entityId: { in: specialistIds }, isCover: true },
-        select: { entityId: true, asset: { select: { url: true } } },
-        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-      })
-    : [];
+  const [specialistPhotos, specialistWorkPhotos] = await Promise.all([
+    specialistIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "specialist.photo", entityId: { in: specialistIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+    specialistIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "specialist.work", entityId: { in: specialistIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+  ]);
 
   const specialistCoverMap = new Map<string, string>();
+  const specialistPhotoMap = new Map<string, string[]>();
   specialistPhotos.forEach((item) => {
     if (!specialistCoverMap.has(item.entityId)) {
       specialistCoverMap.set(item.entityId, item.asset.url);
     }
+    const current = specialistPhotoMap.get(item.entityId) ?? [];
+    current.push(item.asset.url);
+    specialistPhotoMap.set(item.entityId, current);
+  });
+  const specialistWorkPhotoMap = new Map<string, string[]>();
+  specialistWorkPhotos.forEach((item) => {
+    const current = specialistWorkPhotoMap.get(item.entityId) ?? [];
+    current.push(item.asset.url);
+    specialistWorkPhotoMap.set(item.entityId, current);
   });
 
   const output = specialists.map((item) => {
@@ -179,10 +199,13 @@ export async function GET(
     return {
       id: item.id,
       name: buildSpecialistName(item),
+      bio: item.bio,
       role: item.level?.name ?? null,
       levelId: item.levelId,
       avatarUrl: item.user.profile?.avatarUrl ?? null,
       coverUrl: specialistCoverMap.get(String(item.id)) ?? null,
+      photoUrls: specialistPhotoMap.get(String(item.id)) ?? [],
+      workPhotoUrls: specialistWorkPhotoMap.get(String(item.id)) ?? [],
       servicePrice,
       serviceDurationMin,
       categories: item.categories.map((entry) => ({

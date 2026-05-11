@@ -1161,6 +1161,7 @@ export function renderBlock(
         platformLegalDocuments,
         services,
         specialists,
+        workPhotos,
         theme,
         loaderConfig
       );
@@ -1447,6 +1448,7 @@ function renderBooking(
   platformLegalDocuments: LegalDocumentItem[],
   services: ServiceItem[],
   specialists: SpecialistItem[],
+  workPhotos: WorkPhotos,
   theme: SiteTheme,
   loaderConfig?: SiteLoaderConfig | null
 ) {
@@ -1464,12 +1466,18 @@ function renderBooking(
       id: location.id,
       name: location.name,
       address: location.address || null,
+      description: location.description ?? null,
       coverUrl: location.coverUrl ?? null,
+      photoUrls: location.photoUrls ?? [],
+      workPhotoUrls: workPhotos.locations
+        .filter((item) => item.entityId === String(location.id))
+        .map((item) => item.url),
       hours: location.hours,
       exceptions: location.exceptions,
     })),
     legalDocuments,
     platformLegalDocuments,
+    workPhotos,
   };
   return (
     <div className="booking-root p-0" style={cssVars}>
@@ -1496,18 +1504,28 @@ function renderBooking(
             bookingType: service.bookingType,
             groupCapacityDefault: service.groupCapacityDefault,
             coverUrl: service.coverUrl,
+            photoUrls: service.photoUrls ?? [],
+            workPhotoUrls: workPhotos.services
+              .filter((item) => item.entityId === String(service.id))
+              .map((item) => item.url),
             locationIds: service.locationIds,
           }))}
           initialSpecialists={specialists.map((specialist) => ({
             id: specialist.id,
             name: specialist.name,
             role: specialist.role ?? specialist.level ?? null,
+            bio: specialist.bio ?? null,
             levelId: specialist.levelId ?? null,
             avatarUrl: specialist.avatarUrl ?? null,
             coverUrl: specialist.coverUrl,
+            photoUrls: specialist.photoUrls ?? [],
+            workPhotoUrls: workPhotos.specialists
+              .filter((item) => item.entityId === String(specialist.id))
+              .map((item) => item.url),
             categories: specialist.categories ?? [],
             locationIds: specialist.locationIds,
           }))}
+          initialWorkPhotos={workPhotos}
         />
       </div>
     </div>

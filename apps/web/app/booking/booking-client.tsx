@@ -14,6 +14,7 @@ type BookingClientProps = {
   initialContext?: ContextData | null;
   initialServices?: Array<Service & { locationIds?: number[] }>;
   initialSpecialists?: Array<Specialist & { locationIds?: number[] }>;
+  initialWorkPhotos?: BookingWorkPhotos;
 };
 
 type PublicAccount = {
@@ -28,7 +29,10 @@ type Location = {
   id: number;
   name: string;
   address: string | null;
+  description?: string | null;
   coverUrl?: string | null;
+  photoUrls?: string[];
+  workPhotoUrls?: string[];
   hours?: Array<{
     dayOfWeek: number;
     startTime: string;
@@ -59,15 +63,20 @@ type Service = {
   bookingType?: "SINGLE" | "GROUP";
   groupCapacityDefault?: number | null;
   coverUrl?: string | null;
+  photoUrls?: string[];
+  workPhotoUrls?: string[];
 };
 
 type Specialist = {
   id: number;
   name: string;
   role: string | null;
+  bio?: string | null;
   levelId?: number | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
+  photoUrls?: string[];
+  workPhotoUrls?: string[];
   servicePrice?: number | null;
   serviceDurationMin?: number | null;
   categories?: Array<{
@@ -118,6 +127,7 @@ type ContextData = {
   locations: Location[];
   legalDocuments?: LegalDocument[];
   platformLegalDocuments?: LegalDocument[];
+  workPhotos?: BookingWorkPhotos;
 };
 
 type ServicesData = {
@@ -186,6 +196,15 @@ type LegalDocument = {
 type TimeBucket = "all" | "morning" | "day" | "evening";
 type Scenario = "dateFirst" | "serviceFirst" | "specialistFirst";
 type BookingUiStepKey = "scenario" | "location" | "service" | "specialist" | "datetime" | "chain" | "details";
+type BookingInfoView = {
+  kind: "location" | "service" | "specialist";
+  id: number;
+};
+type BookingWorkPhotos = {
+  locations?: Array<{ entityId: string; url: string }>;
+  services?: Array<{ entityId: string; url: string }>;
+  specialists?: Array<{ entityId: string; url: string }>;
+};
 type BookingPersistedState = {
   scenario: Scenario;
   startScenario: boolean;
@@ -802,7 +821,11 @@ function DatePickerLike({
           aria-expanded={expanded}
         >
           <span className="text-[14px] font-semibold text-[color:var(--bp-ink)]">{monthLabel}</span>
-          <span className="text-[14px] text-[color:var(--bp-muted)]">{expanded ? "?" : "?"}</span>
+          <span
+            aria-hidden
+            className="h-[5px] w-[5px] border-b border-r border-[color:var(--bp-muted)] transition-transform"
+            style={{ transform: expanded ? "rotate(225deg)" : "rotate(45deg)" }}
+          />
         </button>
 
         <div className="flex items-center gap-2">
@@ -978,6 +1001,89 @@ function TimeGrid({
   );
 }
 
+function BookingEntityInfoPanel({
+  title,
+  subtitle,
+  description,
+  photos,
+  metaRows,
+  onBack,
+}: {
+  title: string;
+  subtitle: string;
+  description?: string | null;
+  photos: string[];
+  metaRows?: Array<{ label: string; value: string | null | undefined }>;
+  onBack: () => void;
+}) {
+  const visiblePhotos = photos.filter(Boolean).slice(0, 12);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-medium text-[color:var(--bp-muted)]">{subtitle}</div>
+          <h3 className="mt-1 text-xl font-semibold leading-tight text-[color:var(--bp-ink)]">{title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="booking-nav-secondary-button rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-xs font-semibold transition hover:-translate-y-[1px] hover:shadow-sm"
+        >
+          Назад
+        </button>
+      </div>
+
+      {metaRows?.some((row) => row.value) ? (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {metaRows
+            .filter((row) => row.value)
+            .map((row) => (
+              <div
+                key={row.label}
+                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3"
+              >
+                <div className="text-[11px] font-medium text-[color:var(--bp-muted)]">{row.label}</div>
+                <div className="mt-1 text-sm font-semibold text-[color:var(--bp-ink)]">{row.value}</div>
+              </div>
+            ))}
+        </div>
+      ) : null}
+
+      <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
+        <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Описание</div>
+        <div className="mt-2 whitespace-pre-line text-sm leading-6 text-[color:var(--bp-muted)]">
+          {description?.trim() || "Описание пока не добавлено."}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Примеры работ</div>
+        {visiblePhotos.length > 0 ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {visiblePhotos.map((url, index) => (
+              <div
+                key={`${url}-${index}`}
+                className="overflow-hidden rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+              >
+                <UnoptimizedImage
+                  src={url}
+                  alt={`${title} - пример ${index + 1}`}
+                  className="aspect-video w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]">
+            Примеры работ пока не добавлены.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SummaryRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -1007,6 +1113,7 @@ export default function BookingClient({
   initialContext = null,
   initialServices = [],
   initialSpecialists = [],
+  initialWorkPhotos = {},
 }: BookingClientProps) {
   const persistedStateRef = useRef<BookingPersistedState | null>(
     loadPersistedBookingState(accountSlug, accountPublicSlug)
@@ -1038,6 +1145,7 @@ export default function BookingClient({
   const [pendingSpecialistId, setPendingSpecialistId] = useState<number | null>(null);
   const [initialNavApplied, setInitialNavApplied] = useState(false);
   const [pendingStepKey, setPendingStepKey] = useState<BookingUiStepKey | null>(null);
+  const [infoView, setInfoView] = useState<BookingInfoView | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -1096,6 +1204,9 @@ export default function BookingClient({
   );
 
   const [context, setContext] = useState<ContextData | null>(initialContext);
+  const [workPhotos, setWorkPhotos] = useState<BookingWorkPhotos>(
+    initialContext?.workPhotos ?? initialWorkPhotos
+  );
   const [loadingContext, setLoadingContext] = useState(!initialContext);
   const [contextError, setContextError] = useState<string | null>(null);
 
@@ -2170,6 +2281,7 @@ export default function BookingClient({
       .then((data) => {
         if (!mounted) return;
         setContext(data);
+        setWorkPhotos(data.workPhotos ?? {});
         const bootServices = Array.isArray(data.services) ? data.services : [];
         const bootSpecialists = Array.isArray(data.specialists) ? data.specialists : [];
         if (bootServices.length > 0) initialServicesRef.current = bootServices;
@@ -3031,6 +3143,69 @@ export default function BookingClient({
     () => new Map(specialists.map((sp) => [sp.id, sp])),
     [specialists]
   );
+
+  const openInfoView = (kind: BookingInfoView["kind"], id: number) => {
+    setInfoView({ kind, id });
+  };
+
+  const infoPanel = useMemo(() => {
+    if (!infoView) return null;
+
+    if (infoView.kind === "location") {
+      const location = context?.locations.find((item) => item.id === infoView.id);
+      if (!location) return null;
+      const workUrls = (location.workPhotoUrls?.length ? location.workPhotoUrls : [])
+        .concat(workPhotos.locations?.filter((item) => item.entityId === String(location.id)).map((item) => item.url) ?? []);
+      const photos = Array.from(new Set([...workUrls, ...(location.photoUrls ?? []), location.coverUrl ?? ""]));
+      return (
+        <BookingEntityInfoPanel
+          title={location.name}
+          subtitle="Локация"
+          description={location.description}
+          metaRows={[{ label: "Адрес", value: location.address }]}
+          photos={photos}
+          onBack={() => setInfoView(null)}
+        />
+      );
+    }
+
+    if (infoView.kind === "service") {
+      const service = serviceById.get(infoView.id);
+      if (!service) return null;
+      const workUrls = (service.workPhotoUrls?.length ? service.workPhotoUrls : [])
+        .concat(workPhotos.services?.filter((item) => item.entityId === String(service.id)).map((item) => item.url) ?? []);
+      const photos = Array.from(new Set([...workUrls, ...(service.photoUrls ?? []), service.coverUrl ?? ""]));
+      return (
+        <BookingEntityInfoPanel
+          title={service.name}
+          subtitle="Услуга"
+          description={service.description}
+          metaRows={[
+            { label: "Длительность", value: `${service.computedDurationMin ?? service.baseDurationMin} мин` },
+            { label: "Стоимость", value: formatMoneyRub(service.computedPrice ?? service.basePrice) },
+          ]}
+          photos={photos}
+          onBack={() => setInfoView(null)}
+        />
+      );
+    }
+
+    const specialist = specialistById.get(infoView.id);
+    if (!specialist) return null;
+    const workUrls = (specialist.workPhotoUrls?.length ? specialist.workPhotoUrls : [])
+      .concat(workPhotos.specialists?.filter((item) => item.entityId === String(specialist.id)).map((item) => item.url) ?? []);
+    const photos = Array.from(new Set([...workUrls, ...(specialist.photoUrls ?? []), specialist.coverUrl ?? "", specialist.avatarUrl ?? ""]));
+    return (
+      <BookingEntityInfoPanel
+        title={specialist.name}
+        subtitle="Специалист"
+        description={specialist.bio}
+        metaRows={[{ label: "Уровень", value: specialist.role }]}
+        photos={photos}
+        onBack={() => setInfoView(null)}
+      />
+    );
+  }, [context?.locations, infoView, serviceById, specialistById, workPhotos]);
 
   useEffect(() => {
     if (!isGroupService) return;
@@ -4932,12 +5107,13 @@ export default function BookingClient({
 
             <div className="booking-step-body mt-4 pt-4 lg:min-h-0 lg:flex-1">
               <div className="booking-step-scroll min-h-[620px] pl-0 pr-[2px] -mr-2 sm:pr-[6px] sm:-mr-3 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
-                {currentStepKey === "scenario" && (
+                {infoView && infoPanel}
+                {!infoView && currentStepKey === "scenario" && (
                   <div className="space-y-3">
                     <ScenarioTabs value={scenario} onChange={setScenario} />
                   </div>
                 )}
-                {currentStepKey === "location" && (
+                {!infoView && currentStepKey === "location" && (
                   <div className="space-y-3">
                     {contextError && <div className="text-sm text-red-600">{contextError}</div>}
 
@@ -4958,9 +5134,6 @@ export default function BookingClient({
                               nowTz,
                               accountTz
                             );
-                            const locationProfileHref = accountPublicSlug
-                              ? `/${accountPublicSlug}/locations/${location.id}`
-                              : "#";
                             return (
                               <article
                                 key={location.id}
@@ -5004,9 +5177,12 @@ export default function BookingClient({
                                       className="pointer-events-none absolute -right-2 -top-2 z-[1] h-8 w-8 rounded-full bg-[color:var(--bp-paper)]"
                                     />
 
-                                    <a
-                                      href={locationProfileHref}
-                                      onClick={(event) => event.stopPropagation()}
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openInfoView("location", location.id);
+                                      }}
                                       className={cn(
                                         "absolute -right-1 -top-1 z-[2] inline-flex h-6 w-6 items-center justify-center rounded-full",
                                         "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] transition hover:opacity-90"
@@ -5017,7 +5193,7 @@ export default function BookingClient({
                                       <span className="inline-flex items-center justify-center text-[11px] font-semibold leading-none">
                                         i
                                       </span>
-                                    </a>
+                                    </button>
                                   </div>
 
                                   <div className="mt-auto relative pb-9">
@@ -5053,7 +5229,7 @@ export default function BookingClient({
                   </div>
                 )}
 
-                {currentStepKey === "datetime" && (
+                {!infoView && currentStepKey === "datetime" && (
                   <div className="space-y-4">
                     {/* ? Новый календарь как на примере (без теней, выбор — черная обводка) */}
                     <DatePickerLike
@@ -5178,7 +5354,7 @@ export default function BookingClient({
                   </div>
                 )}
 
-                {currentStepKey === "service" && (
+                {!infoView && currentStepKey === "service" && (
                   <div className="space-y-3">
                     <div className="booking-service-toolbar flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 flex-1">
@@ -5225,17 +5401,21 @@ export default function BookingClient({
                             ? service.minDurationMin ?? service.baseDurationMin ?? 0
                             : service.computedDurationMin ?? service.baseDurationMin ?? 0;
                           const active = selectedServiceIds.includes(service.id);
-                          const serviceProfileHref = accountPublicSlug
-                            ? `/${accountPublicSlug}/services/${service.id}`
-                            : "#";
-
                           return (
-                              <button
+                              <article
                                 key={service.id}
-                                type="button"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => handleServiceToggle(service)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    handleServiceToggle(service);
+                                  }
+                                }}
                                 className={cn(
                                 "booking-choice-card h-full rounded-3xl border p-4 text-left transition",
+                                "cursor-pointer",
                                 "hover:-translate-y-[1px] hover:shadow-sm",
                                 active
                                   ? "border-[color:var(--bp-stroke)]"
@@ -5265,9 +5445,12 @@ export default function BookingClient({
                                     className="pointer-events-none absolute -right-2 -top-2 z-[1] h-8 w-8 rounded-full bg-[color:var(--bp-paper)]"
                                   />
 
-                                  <a
-                                    href={serviceProfileHref}
-                                    onClick={(event) => event.stopPropagation()}
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openInfoView("service", service.id);
+                                    }}
                                     className={cn(
                                       "absolute -right-1 -top-1 z-[2] inline-flex h-6 w-6 items-center justify-center rounded-full",
                                       "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] transition hover:opacity-90"
@@ -5278,7 +5461,7 @@ export default function BookingClient({
                                     <span className="inline-flex items-center justify-center text-[11px] font-semibold leading-none">
                                       i
                                     </span>
-                                  </a>
+                                  </button>
                                 </div>
 
                                 <div className="mt-auto relative pb-9">
@@ -5307,7 +5490,7 @@ export default function BookingClient({
                                   </div>
                                 </div>
                               </div>
-                            </button>
+                            </article>
                           );
                         })}
 
@@ -5325,7 +5508,7 @@ export default function BookingClient({
                   </div>
                 )}
 
-                {currentStepKey === "specialist" && (
+                {!infoView && currentStepKey === "specialist" && (
                   <div className="space-y-3">
                     <div className="booking-service-toolbar flex flex-col gap-3 sm:flex-row sm:items-center">
                       <div className="min-w-0 flex-1">
@@ -5399,20 +5582,25 @@ export default function BookingClient({
                         <div className="booking-cards-grid grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
                           {specialistsForSpecialistStepFiltered.map((sp) => {
                             const active = sp.id === specialistId;
-                            const specialistProfileHref = accountPublicSlug
-                              ? `/${accountPublicSlug}/specialists/${sp.id}`
-                              : "#";
                             const specialistServiceDuration =
                               sp.serviceDurationMin ?? serviceDuration ?? null;
                             const specialistServicePrice =
                               sp.servicePrice ?? servicePrice ?? null;
                             return (
-                              <button
+                              <article
                                 key={sp.id}
-                                type="button"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setSpecialistId(sp.id)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setSpecialistId(sp.id);
+                                  }
+                                }}
                                 className={cn(
                                   "booking-choice-card h-full rounded-3xl border p-4 text-left transition",
+                                  "cursor-pointer",
                                   "hover:-translate-y-[1px] hover:shadow-sm",
                                   active
                                     ? "border-[color:var(--bp-stroke)]"
@@ -5442,9 +5630,12 @@ export default function BookingClient({
                                       className="pointer-events-none absolute -right-2 -top-2 z-[1] h-8 w-8 rounded-full bg-[color:var(--bp-paper)]"
                                     />
 
-                                    <a
-                                      href={specialistProfileHref}
-                                      onClick={(event) => event.stopPropagation()}
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openInfoView("specialist", sp.id);
+                                      }}
                                       className={cn(
                                         "absolute -right-1 -top-1 z-[2] inline-flex h-6 w-6 items-center justify-center rounded-full",
                                         "bg-[color:var(--bp-accent)] text-[color:var(--bp-button-text)] transition hover:opacity-90"
@@ -5455,7 +5646,7 @@ export default function BookingClient({
                                       <span className="inline-flex items-center justify-center text-[11px] font-semibold leading-none">
                                         i
                                       </span>
-                                    </a>
+                                    </button>
                                   </div>
 
                                   <div className="mt-auto relative pb-9">
@@ -5490,7 +5681,7 @@ export default function BookingClient({
                                     </div>
                                   </div>
                                 </div>
-                              </button>
+                              </article>
                             );
                           })}
 
@@ -5505,7 +5696,7 @@ export default function BookingClient({
                 )}
 
                 
-                {currentStepKey === "chain" && (
+                {!infoView && currentStepKey === "chain" && (
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-sm text-[color:var(--bp-muted)]">
                       {isSingleSpecialistPlanMode
@@ -5753,7 +5944,7 @@ export default function BookingClient({
                   </div>
                 )}
 
-                {currentStepKey === "details" && (
+                {!infoView && currentStepKey === "details" && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4">
                       <div className="p-4">

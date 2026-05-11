@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         address: true,
+        description: true,
         hours: {
           select: { dayOfWeek: true, startTime: true, endTime: true },
           orderBy: { dayOfWeek: "asc" },
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
       select: {
         id: true,
+        bio: true,
         levelId: true,
         level: { select: { name: true } },
         locations: { select: { locationId: true } },
@@ -137,24 +139,45 @@ export async function GET(request: NextRequest) {
   const locationIds = locationsRaw.map((item) => String(item.id));
   const serviceIds = services.map((item) => String(item.id));
   const specialistIds = specialists.map((item) => String(item.id));
-  const [locationPhotos, servicePhotos, specialistPhotos] = await Promise.all([
+  const [locationPhotos, servicePhotos, specialistPhotos, locationWorkPhotos, serviceWorkPhotos, specialistWorkPhotos] = await Promise.all([
     locationIds.length
       ? prisma.mediaLink.findMany({
-          where: { entityType: "location.photo", entityId: { in: locationIds }, isCover: true },
+          where: { entityType: "location.photo", entityId: { in: locationIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+    serviceIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "service.photo", entityId: { in: serviceIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+    specialistIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "specialist.photo", entityId: { in: specialistIds } },
+          select: { entityId: true, asset: { select: { url: true } } },
+          orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }, { id: "asc" }],
+        })
+      : [],
+    locationIds.length
+      ? prisma.mediaLink.findMany({
+          where: { entityType: "location.work", entityId: { in: locationIds } },
           select: { entityId: true, asset: { select: { url: true } } },
           orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         })
       : [],
     serviceIds.length
       ? prisma.mediaLink.findMany({
-          where: { entityType: "service.photo", entityId: { in: serviceIds }, isCover: true },
+          where: { entityType: "service.work", entityId: { in: serviceIds } },
           select: { entityId: true, asset: { select: { url: true } } },
           orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         })
       : [],
     specialistIds.length
       ? prisma.mediaLink.findMany({
-          where: { entityType: "specialist.photo", entityId: { in: specialistIds }, isCover: true },
+          where: { entityType: "specialist.work", entityId: { in: specialistIds } },
           select: { entityId: true, asset: { select: { url: true } } },
           orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         })
@@ -172,9 +195,27 @@ export async function GET(request: NextRequest) {
   const serviceCoverMap = toCoverMap(servicePhotos);
   const specialistCoverMap = toCoverMap(specialistPhotos);
 
+  const toPhotoMap = (items: Array<{ entityId: string; asset: { url: string } }>) => {
+    const map = new Map<string, string[]>();
+    items.forEach((item) => {
+      const current = map.get(item.entityId) ?? [];
+      current.push(item.asset.url);
+      map.set(item.entityId, current);
+    });
+    return map;
+  };
+  const locationPhotoMap = toPhotoMap(locationPhotos);
+  const servicePhotoMap = toPhotoMap(servicePhotos);
+  const specialistPhotoMap = toPhotoMap(specialistPhotos);
+  const locationWorkPhotoMap = toPhotoMap(locationWorkPhotos);
+  const serviceWorkPhotoMap = toPhotoMap(serviceWorkPhotos);
+  const specialistWorkPhotoMap = toPhotoMap(specialistWorkPhotos);
+
   const locations = locationsRaw.map((location) => ({
     ...location,
     coverUrl: locationCoverMap.get(String(location.id)) ?? null,
+    photoUrls: locationPhotoMap.get(String(location.id)) ?? [],
+    workPhotoUrls: locationWorkPhotoMap.get(String(location.id)) ?? [],
     exceptions: location.exceptions.map((item) => ({
       date: item.date.toISOString().slice(0, 10),
       isClosed: item.isClosed,
@@ -214,6 +255,8 @@ export async function GET(request: NextRequest) {
       computedPrice: basePrice,
       specialistIds: service.specialists.map((item) => item.specialistId),
       coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
+      photoUrls: servicePhotoMap.get(String(service.id)) ?? [],
+      workPhotoUrls: serviceWorkPhotoMap.get(String(service.id)) ?? [],
       locationIds: service.locations.map((item) => item.locationId),
     };
   });
@@ -221,10 +264,13 @@ export async function GET(request: NextRequest) {
   const outputSpecialists = specialists.map((specialist) => ({
     id: specialist.id,
     name: buildSpecialistName(specialist),
+    bio: specialist.bio,
     role: specialist.level?.name ?? null,
     levelId: specialist.levelId,
     avatarUrl: specialist.user.profile?.avatarUrl ?? null,
     coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
+    photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],
+    workPhotoUrls: specialistWorkPhotoMap.get(String(specialist.id)) ?? [],
     locationIds: specialist.locations.map((item) => item.locationId),
     categories: specialist.categories.map((entry) => ({
       id: entry.category.id,
@@ -268,5 +314,10 @@ export async function GET(request: NextRequest) {
     platformLegalDocuments,
     services: outputServices,
     specialists: outputSpecialists,
+    workPhotos: {
+      locations: locationWorkPhotos.map((item) => ({ entityId: item.entityId, url: item.asset.url })),
+      services: serviceWorkPhotos.map((item) => ({ entityId: item.entityId, url: item.asset.url })),
+      specialists: specialistWorkPhotos.map((item) => ({ entityId: item.entityId, url: item.asset.url })),
+    },
   });
 }
