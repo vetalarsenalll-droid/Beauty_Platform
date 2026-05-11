@@ -173,9 +173,20 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
       const serviceName = norm(x.name);
       if (!serviceName) return false;
       return new RegExp(`\\b${escapeRegExp(serviceName)}\\b`, "i").test(messageNorm);
-    });
+  });
   const direct = byBoundary ?? services.find((x) => messageNorm.includes(norm(x.name)));
   if (direct) return direct;
+
+  const stemServiceToken = (token: string) =>
+    token
+      .replace(/(иями|ями|ами|ого|ему|ыми|ими|ой|ей|ою|ею|ий|ый|ая|яя|ое|ее|ых|их|ую|юю|ом|ем|ам|ям|ах|ях|а|я|ы|и|е|у|ю)$/u, "")
+      .trim();
+  const messageStems = new Set(messageTokens.map(stemServiceToken).filter((x) => x.length >= 3));
+  const inflectedMatches = services.filter((service) => {
+    const serviceStems = tokenizeForFuzzy(service.name).map(stemServiceToken).filter((x) => x.length >= 3);
+    return serviceStems.length > 0 && serviceStems.every((stem) => messageStems.has(stem));
+  });
+  if (inflectedMatches.length === 1) return inflectedMatches[0]!;
 
   const broadRoots = [
     "маник",
@@ -390,38 +401,52 @@ export function formatYmdRu(ymd: string) {
   return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
+const escapeRegExpLiteral = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function replaceWholeText(input: string, source: string, replacement: string) {
+  const pattern = escapeRegExpLiteral(source).replace(/\s+/g, "\\s+");
+  return input.replace(new RegExp(`(^|[^\\p{L}\\p{N}_])${pattern}(?=$|[^\\p{L}\\p{N}_])`, "giu"), `$1${replacement}`);
+}
+
+const ASSISTANT_LITERAL_REPLACEMENTS: Array<[string, string]> = [
+  ["подсобить", "помочь"],
+  ["подсоблю", "помогу"],
+  ["подсобишь", "поможешь"],
+  ["подсобите", "помогу"],
+  ["для тебя", "для вас"],
+  ["ты", "вы"],
+  ["тебе", "вам"],
+  ["тебя", "вас"],
+  ["тобой", "вами"],
+  ["твой", "ваш"],
+  ["твоя", "ваша"],
+  ["твое", "ваше"],
+  ["твои", "ваши"],
+  ["твоего", "вашего"],
+  ["твоей", "вашей"],
+  ["твою", "вашу"],
+  ["твоим", "вашим"],
+  ["твоими", "вашими"],
+  ["твоем", "вашем"],
+  ["выбирай", "выберите"],
+  ["выбери", "выберите"],
+  ["выберитете", "выберите"],
+  ["спрашивай", "спрашивайте"],
+  ["задавай", "задавайте"],
+  ["напиши", "напишите"],
+  ["пиши", "пишите"],
+  ["смотри", "смотрите"],
+  ["переходи", "переходите"],
+  ["обращайся", "обращайтесь"],
+  ["подберем", "подберу"],
+];
+
 export function sanitizeAssistantReplyText(reply: string) {
-  return reply
-    .replace(/подсобить/gi, "помочь")
-    .replace(/подсоблю/gi, "помогу")
-    .replace(/подсобишь/gi, "поможешь")
-    .replace(/подсобите/gi, "помогу")
-    .replace(/для тебя/gi, "для вас")
-    .replace(/\bты\b/gi, "вы")
-    .replace(/\bтебе\b/gi, "вам")
-    .replace(/\bтебя\b/gi, "вас")
-    .replace(/\bтобой\b/gi, "вами")
-    .replace(/\bтвой\b/gi, "ваш")
-    .replace(/\bтвоя\b/gi, "ваша")
-    .replace(/\bтвое\b/gi, "ваше")
-    .replace(/\bтвои\b/gi, "ваши")
-    .replace(/\bтвоего\b/gi, "вашего")
-    .replace(/\bтвоей\b/gi, "вашей")
-    .replace(/\bтвою\b/gi, "вашу")
-    .replace(/\bтвоим\b/gi, "вашим")
-    .replace(/\bтвоими\b/gi, "вашими")
-    .replace(/\bтвоем\b/gi, "вашем")
-    .replace(/выбирай/gi, "выберите")
-    .replace(/выбери/gi, "выберите")
-    .replace(/выберитете/gi, "выберите")
-    .replace(/спрашивай/gi, "спрашивайте")
-    .replace(/задавай/gi, "задавайте")
-    .replace(/напиши/gi, "напишите")
-    .replace(/пиши/gi, "пишите")
-    .replace(/смотри/gi, "смотрите")
-    .replace(/переходи/gi, "переходите")
-    .replace(/обращайся/gi, "обращайтесь")
-    .replace(/подберем/gi, "подберу")
+  let sanitized = reply;
+  for (const [source, replacement] of ASSISTANT_LITERAL_REPLACEMENTS) {
+    sanitized = replaceWholeText(sanitized, source, replacement);
+  }
+  return sanitized
     .replace(/\bзаписыва(?:юсь|емся|ешься|етесь)\b/gi, "помогаю с записью")
     .replace(/\bконсультир(?:уюсь|уемся|уешься|уетесь)\b/gi, "консультирую")
     .replace(/\bя\s+тут,?\s+чтобы\s+подсказать\b/gi, "Я здесь, чтобы помочь")
@@ -1178,7 +1203,7 @@ export function isBookingDeclineMessage(messageNorm: string) {
 }
 
 export function isBookingChangeMessage(messageNorm: string) {
-  return /(?:не то|неверно|измени|другое|другую|не на|перенеси|другой)/iu.test(messageNorm);
+  return /(?:не то|неверно|измени|изменить|смени|сменить|поменяй|поменять|другое|другую|другой|другая|не на|не этот|не эта|не то время|не тот филиал|перенеси|выбери друг)/iu.test(messageNorm);
 }
 
 export function isConversationalHeuristicIntent(intent: AishaIntent) {

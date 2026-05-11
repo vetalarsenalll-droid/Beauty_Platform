@@ -3084,6 +3084,13 @@ if (!d.serviceId) {
   }
 
   if (wantsEditTime && d.locationId && d.date && selectedServiceIdsForBooking.length) {
+    const explicitNewTime = parseTime(messageNorm);
+    if (explicitNewTime) {
+      d.time = explicitNewTime;
+      d.planJson = [];
+      d.mode = null;
+      d.consentConfirmedAt = null;
+    } else {
     let times: string[] = [];
     if (d.specialistId && selectedServiceIdsForBooking.length > 1) {
       times = await findValidSingleSpecialistStartTimes({
@@ -3192,6 +3199,7 @@ if (!d.serviceId) {
       nextStatus: "COLLECTING",
       ui: { kind: "quick_replies", options: buildTimeOptionsWithControls(times, 24) },
     };
+    }
   }
 
   if (wantsEditSpecialist && d.locationId && selectedServiceIdsForBooking.length) {

@@ -3,7 +3,7 @@ import { buildPublicSlugId } from "@/lib/public-slug";
 import { runAishaBookingBridge, runAishaChatAction, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import type { ChatUi } from "@/lib/booking-flow";
 import * as aishaRoutingHelpers from "@/lib/aisha-routing-helpers";
-import { parseDate } from "@/lib/aisha-chat-parsers";
+import { parseDate, parseName, parsePhone } from "@/lib/aisha-chat-parsers";
 import { buildTurnContext } from "@/lib/aisha-chat-turn-context";
 import { applyDraftMutations } from "@/lib/aisha-draft-mutations";
 import { computeBookingDecisions } from "@/lib/aisha-booking-decisions";
@@ -525,6 +525,24 @@ export async function handlePublicAiChatPost(request: Request) {
     );
     const forceBookingFlowForChainEdit = hasChainPlanForEditing && chainPlanEditCue;
     if (forceBookingFlowForChainEdit) {
+      shouldRunBookingFlowResolved = true;
+      route = "booking-flow";
+    }
+    const hasContactDetailsUpdate =
+      Boolean(parsePhone(message)) ||
+      (isAssistantConfirmationStage && Boolean(parseName(message))) ||
+      /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя|телефон|номер)/iu.test(messageForRouting);
+    if (
+      !shouldRunBookingFlowResolved &&
+      hasContactDetailsUpdate &&
+      d.locationId &&
+      d.serviceId &&
+      d.date &&
+      d.time &&
+      d.specialistId &&
+      !explicitBookingDecline &&
+      !explicitServiceComplaint
+    ) {
       shouldRunBookingFlowResolved = true;
       route = "booking-flow";
     }

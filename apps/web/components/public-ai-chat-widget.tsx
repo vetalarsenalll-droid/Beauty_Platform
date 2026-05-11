@@ -42,18 +42,6 @@ function isDateTimeInfoReply(content: string) {
   return false;
 }
 
-function isTransientAssistantPrompt(msg: ChatMessage) {
-  if (msg.role !== "assistant") return false;
-  if (msg.ui?.kind === "consent") return true;
-  const t = msg.content.toLowerCase();
-  return (
-    /нужны имя и номер телефона клиента/i.test(t) ||
-    /укажите, пожалуйста, номер телефона клиента/i.test(t) ||
-    /укажите, пожалуйста, имя клиента/i.test(t) ||
-    /напишите одним сообщением.*\+7/i.test(t)
-  );
-}
-
 function shouldExtractTimeQuickReplies(content: string) {
   if (isDateTimeInfoReply(content)) return false;
   if (/филиал/i.test(content) || /location/i.test(content)) return false;
@@ -544,11 +532,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const sendRawMessage = async (rawText: string) => {
     const userText = rawText.trim();
     if (!userText || loading) return;
-    setMessages((prev) => {
-      const last = prev[prev.length - 1];
-      const base = last && isTransientAssistantPrompt(last) ? prev.slice(0, -1) : prev;
-      return [...base, { role: "user", content: userText }];
-    });
+    setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setLoading(true);
 
     try {

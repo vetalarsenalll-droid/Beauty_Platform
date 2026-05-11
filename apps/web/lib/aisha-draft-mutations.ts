@@ -10,17 +10,55 @@ import {
   hasExplicitConsentGrant,
   isToxicDisplayName,
 } from "@/lib/aisha-routing-helpers";
-import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
+import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 
 const has = (m: string, r: RegExp) => r.test(m.toLowerCase());
 
+type DraftMutationNlu = {
+  locationId?: number | null;
+  serviceId?: number | null;
+  date?: unknown;
+  clientPhone?: string | null;
+  clientEmail?: string | null;
+  clientName?: string | null;
+} | null;
+
+type DraftMutationClient = {
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+} | null;
+
+function resetBookingResolution(d: DraftLike) {
+  d.specialistId = null;
+  d.bookingMode = null;
+  d.planJson = [];
+  d.mode = null;
+  d.consentConfirmedAt = null;
+  d.status = "COLLECTING";
+}
+
+function resetTimeAndBookingResolution(d: DraftLike) {
+  d.time = null;
+  resetBookingResolution(d);
+}
+
+function isNonNameClientText(value: string | null | undefined) {
+  if (!value) return false;
+  return has(
+    value,
+    /^(?:оформи(?:\s+через\s+ассистента)?|через\s+ассистента|самостоятельно|сам|записаться|да|нет|согласен(?:\s+на\s+обработку.*)?|согласна(?:\s+на\s+обработку.*)?)$/i,
+  );
+}
+
 export function applyDraftMutations(args: {
-  d: any;
+  d: DraftLike;
   message: string;
   t: string;
   nowYmd: string;
-  nlu: any;
-  client: any;
+  nlu: DraftMutationNlu;
+  client: DraftMutationClient;
   services: ServiceLite[];
   locations: LocationLite[];
   specialists: SpecialistLite[];
@@ -61,14 +99,35 @@ export function applyDraftMutations(args: {
     d.status = "COLLECTING";
   }
 
+  const explicitLocationChangeRequest = has(
+    message,
+    /(поменяй|поменять|смени|сменить|измени|изменить|друг(?:ой|ая|ую)|выбери|перенеси)\s+(?:филиал|локац|адрес)|(?:филиал|локац|адрес)\s+(?:поменяй|поменять|смени|сменить|измени|изменить|друг(?:ой|ая|ую))/i,
+  );
   const hadLocationBefore = Boolean(d.locationId);
-  if (!d.locationId && shouldEnrichDraftForBooking) {
+  let locationChangedThisTurn = false;
+  if (shouldEnrichDraftForBooking) {
     const byName = locationByText(t, locations);
-    if (byName) d.locationId = byName.id;
-    else if (choiceNum && choiceNum >= 1 && choiceNum <= locations.length) d.locationId = locations[choiceNum - 1]!.id;
-    else if (hasLocationCue(t) && nlu?.locationId && locations.some((x) => x.id === nlu.locationId)) d.locationId = nlu.locationId;
+    const byChoice =
+      !d.locationId && choiceNum && choiceNum >= 1 && choiceNum <= locations.length ? locations[choiceNum - 1]!.id : null;
+    const byNlu = hasLocationCue(t) && nlu?.locationId && locations.some((x) => x.id === nlu.locationId) ? nlu.locationId : null;
+    const nextLocationId = byName?.id ?? byChoice ?? byNlu ?? null;
+
+    if (nextLocationId && (!d.locationId || explicitLocationChangeRequest) && d.locationId !== nextLocationId) {
+      d.locationId = nextLocationId;
+      locationChangedThisTurn = true;
+      resetTimeAndBookingResolution(d);
+      const selectedServiceIds = Array.from(
+        new Set<number>([
+          ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
+          ...(d.serviceId ? [Number(d.serviceId)] : []),
+        ]),
+      ).filter((id) => Number.isInteger(id) && id > 0);
+      const validServiceIds = selectedServiceIds.filter((id) => services.some((x) => x.id === id && x.locationIds.includes(nextLocationId)));
+      d.serviceIds = validServiceIds;
+      d.serviceId = validServiceIds[0] ?? null;
+    }
   }
-  const locationChosenThisTurn = !hadLocationBefore && Boolean(d.locationId);
+  const locationChosenThisTurn = (!hadLocationBefore && Boolean(d.locationId)) || locationChangedThisTurn;
 
   const selectedServiceIdsBefore = Array.from(
     new Set<number>([
@@ -102,7 +161,10 @@ export function applyDraftMutations(args: {
 
   if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
     const serviceInquiry = isServiceInquiryMessage(message, t);
-    const explicitServiceChangeRequest = has(message, /(смени|измени|другую услугу|не на|не эту услугу|выбери услугу|по услуге)/i);
+    const explicitServiceChangeRequest = has(
+      message,
+      /(поменяй|поменять|смени|сменить|измени|изменить|друг(?:ую|ая)|не на|не эту услугу|не та услуга|выбери услугу|по услуге)/i,
+    );
     const canUseNumberForServiceSelection = !d.time || !d.serviceId || explicitServiceChangeRequest;
     const addServiceRequest = has(
       message,
@@ -158,9 +220,7 @@ export function applyDraftMutations(args: {
       if (!append) {
         d.serviceIds = [nextServiceId];
         d.serviceId = nextServiceId;
-        d.specialistId = null;
-        d.bookingMode = null;
-        d.planJson = [];
+        resetBookingResolution(d);
         return;
       }
 
@@ -173,17 +233,13 @@ export function applyDraftMutations(args: {
       if (!canAppend) {
         d.serviceIds = [nextServiceId];
         d.serviceId = nextServiceId;
-        d.specialistId = null;
-        d.bookingMode = null;
-        d.planJson = [];
+        resetBookingResolution(d);
         return;
       }
       const merged = Array.from(new Set([...currentSelectedServiceIds, nextServiceId]));
       d.serviceIds = merged;
       d.serviceId = merged[0] ?? null;
-      d.specialistId = null;
-      d.bookingMode = null;
-      d.planJson = [];
+      resetBookingResolution(d);
     };
 
     let multiServiceApplied = false;
@@ -197,17 +253,13 @@ export function applyDraftMutations(args: {
           const ids = uniqueMatches.map((svc) => svc.id);
           d.serviceIds = ids;
           d.serviceId = ids[0] ?? null;
-          d.specialistId = null;
-          d.bookingMode = null;
-          d.planJson = [];
+          resetBookingResolution(d);
           multiServiceApplied = true;
         } else {
           const first = uniqueMatches[0]!;
           d.serviceIds = [first.id];
           d.serviceId = first.id;
-          d.specialistId = null;
-          d.bookingMode = null;
-          d.planJson = [];
+          resetBookingResolution(d);
           multiServiceApplied = true;
         }
       }
@@ -277,8 +329,15 @@ export function applyDraftMutations(args: {
     })();
 
     const parsedTime = parseTime(message);
-    d.date = parsedMonthDateFromRaw || parsedDate || d.date || pickSafeNluDate(nlu?.date, nowYmd);
-    d.time = parsedTime || d.time;
+    const nextDate = parsedMonthDateFromRaw || parsedDate || (!d.date ? pickSafeNluDate(nlu?.date, nowYmd) : null);
+    if (nextDate && d.date !== nextDate) {
+      d.date = nextDate;
+      resetTimeAndBookingResolution(d);
+    }
+    if (parsedTime && d.time !== parsedTime) {
+      d.time = parsedTime;
+      resetBookingResolution(d);
+    }
 
     const selectedSpecialistByText = specialistByText(t, specialists);
     if (selectedSpecialistByText) d.specialistId = selectedSpecialistByText.id;
@@ -319,14 +378,19 @@ export function applyDraftMutations(args: {
 
   const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
   const parsedMessageName = parseName(message);
+  const nonNameClientText = isNonNameClientText(message);
   const looksLikeStandaloneName =
     /^[\p{L}'-]{2,}(?:\s+[\p{L}'-]{2,}){0,2}$/u.test(message.trim()) &&
     !/[0-9]/.test(message) &&
     !/[?!.]/.test(message) &&
+    !nonNameClientText &&
     !/^(?:как|кто|что|где|почему|зачем|привет|здравствуйте|спасибо|ок|окей|ладно|хорошо|знаешь)$/i.test(message.trim());
-  let parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName ? parsedMessageName : null;
+  let parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName || Boolean(parsedMessagePhone) ? parsedMessageName : null;
   if (parsedMessageNameSafe && isToxicDisplayName(parsedMessageNameSafe)) {
     parsedMessageNameSafe = null;
+  }
+  if (isNonNameClientText(d.clientName)) {
+    d.clientName = null;
   }
   const shouldCaptureClientName =
     d.mode === "ASSISTANT" ||

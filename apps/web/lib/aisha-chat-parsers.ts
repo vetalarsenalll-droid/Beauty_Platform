@@ -239,10 +239,16 @@ export const parseEmail = (m: string) => {
 };
 
 export const parseName = (m: string) => {
+  const explicitRu = m.match(
+    /(?:меня\s+зовут|мо[её]\s+имя|имя\s+клиента|клиент[:\s]+)\s*([\p{L}'-]{2,}(?:\s+[\p{L}'-]{2,})?)/iu,
+  )?.[1];
+  if (explicitRu) return explicitRu.trim();
   const explicit = m.match(/(?:меня зовут|имя)\s+([\p{L}-]{2,}(?:\s+[\p{L}-]{2,})?)/iu)?.[1];
   if (explicit) return explicit.trim();
   const inlineWithPhone = m.match(/^\s*([\p{L}-]{2,})(?:\s+([\p{L}-]{2,}))?[\s,;:]+(?:\+7|8|\d{3,})/iu);
   if (inlineWithPhone) return [inlineWithPhone[1], inlineWithPhone[2]].filter(Boolean).join(" ").trim();
+  const standalone = m.match(/^\s*[\p{L}'-]{2,}(?:\s+[\p{L}'-]{2,}){0,2}\s*$/iu);
+  if (standalone) return standalone[0].trim();
   return null;
 };
 
