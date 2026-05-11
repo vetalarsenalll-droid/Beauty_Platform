@@ -10,9 +10,9 @@ type PageParams = {
 export default async function PublicLegalPage({
   params,
 }: {
-  params: Promise<PageParams> | PageParams;
+  params: Promise<PageParams>;
 }) {
-  const resolved = await Promise.resolve(params);
+  const resolved = await params;
   const parsed = parsePublicSlugId(resolved.publicSlug);
   const versionId = Number(resolved.versionId);
 

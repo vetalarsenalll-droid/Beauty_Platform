@@ -16,11 +16,11 @@ export default async function BookingLegalPage({
   params,
   searchParams,
 }: {
-  params: Promise<PageParams> | PageParams;
-  searchParams?: Promise<PageSearch> | PageSearch;
+  params: Promise<PageParams>;
+  searchParams?: Promise<PageSearch>;
 }) {
-  const resolvedParams = await Promise.resolve(params);
-  const resolvedSearch = await Promise.resolve(searchParams);
+  const resolvedParams = await params;
+  const resolvedSearch = searchParams ? await searchParams : undefined;
   const versionId = Number(resolvedParams.versionId);
   const accountSlug = resolvedSearch?.account;
 

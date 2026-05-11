@@ -590,8 +590,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               assistantUi.kind === "consent" ||
               assistantUi.kind === "date_picker" ||
               assistantUi.kind === "complaint_form"),
-        ) ||
-        extractQuickReplies(assistantReply).length > 0;
+        );
       if (isStructuredReply) {
         await new Promise((resolve) => window.setTimeout(resolve, 420));
       }
@@ -779,9 +778,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   msg.role === "assistant"
                     ? ui?.kind === "quick_replies"
                       ? ui.options
-                      : ui
-                      ? []
-                      : extractQuickReplies(msg.content)
+                      : []
                     : [];
                 const legalLinks =
                   ui?.kind === "consent"

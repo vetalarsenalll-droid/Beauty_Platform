@@ -349,6 +349,15 @@ export function buildBasicChatInfoReply(args: {
   }
 
   if (intent === "identity") {
+    const modelVendorQuestion =
+      /(llm|модель|нейросет\p{L}*|искусственн\p{L}*\s+интеллект|гигачат|gigachat|giga\s*chat|gpt|сбер|sber|провайдер|разработчик|кто\s+тебя\s+создал|на\s+какой\s+модели)/iu.test(
+        norm(messageForRouting),
+      );
+    if (modelVendorQuestion) {
+      reply = "Я виртуальный ассистент записи. Помогаю с услугами, временем, специалистами и оформлением записи.";
+      return { handled: true, reply, ui };
+    }
+
     if (explicitWorkplaceRoleCue) {
       const salonName = accountName || "нашем салоне";
       reply = `Я ${assistantName}, виртуальный ассистент записи в «${salonName}». Помогаю с выбором услуг, специалистов и оформлением записи.`;
@@ -356,11 +365,16 @@ export function buildBasicChatInfoReply(args: {
       const fallback = `Я ${assistantName}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
       const assistantNameNorm = norm(assistantName);
       const assistantNamePattern = assistantNameNorm ? new RegExp(`\\b${escapeRegExp(assistantNameNorm)}\\b`, "i") : null;
+      const forbiddenModelIdentity = conversationalReply
+        ? /(сбер|sber|гигачат|gigachat|giga\s*chat|gpt|llm|языковая модель|нейросетевая модель|нейросеть|large language model|\bAssistent\b)/i.test(
+            norm(conversationalReply),
+          )
+        : false;
       const hasIdentityCue = conversationalReply
         ? /ассистент/i.test(norm(conversationalReply)) ||
           (assistantNamePattern ? assistantNamePattern.test(norm(conversationalReply)) : false)
         : false;
-      reply = conversationalReply && hasIdentityCue ? conversationalReply : fallback;
+      reply = conversationalReply && hasIdentityCue && !forbiddenModelIdentity ? conversationalReply : fallback;
     }
     return { handled: true, reply, ui };
   }

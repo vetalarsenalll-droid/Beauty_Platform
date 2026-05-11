@@ -387,6 +387,10 @@ export async function handlePublicAiChatPost(request: Request) {
     const shouldEnrichDraftForBooking = decisions.shouldEnrichDraftForBooking;
     const shouldRunBookingFlow = decisions.shouldRunBookingFlow;
     const bookingMessageNorm = decisions.bookingMessageNorm;
+    const clientActionsHavePriority = route === "client-actions" || Boolean(forceClientActions);
+    const canMutateBookingDraft = !clientActionsHavePriority;
+    const shouldEnrichDraftForBookingResolved = canMutateBookingDraft ? shouldEnrichDraftForBooking : false;
+    const shouldRunBookingFlowInitial = canMutateBookingDraft ? shouldRunBookingFlow : false;
 
     const explicitDateInMessage = parseDate(messageForRouting, nowYmd);
     if (explicitDateInMessage) {
@@ -403,8 +407,8 @@ export async function handlePublicAiChatPost(request: Request) {
     const previouslySelectedSpecialistName: string | null = null;
 
     const entityClarification = await handleEntityClarificationResolution({
-      shouldEnrichDraftForBooking,
-      shouldRunBookingFlow,
+      shouldEnrichDraftForBooking: shouldEnrichDraftForBookingResolved,
+      shouldRunBookingFlow: shouldRunBookingFlowInitial,
       messageForRouting,
       nowYmd,
       t,
@@ -417,6 +421,28 @@ export async function handlePublicAiChatPost(request: Request) {
       recentMessages,
     });
     if (entityClarification.handled && entityClarification.payload) {
+      await saveTurn({
+        threadId: thread.id,
+        turnActionId: turnAction.id,
+        message,
+        reply: entityClarification.payload.reply,
+        intent,
+        route,
+        nluConfidence,
+        mappedNluIntent,
+        nluSource: nluResult.source,
+        nluIntent: nlu?.intent ?? null,
+        nextStatus: d.status,
+        nextAction: null,
+        nextUi: entityClarification.payload.ui,
+        confirmPendingClientAction: Boolean(confirmPendingClientAction),
+        pendingClientActionType: pendingClientAction?.type ?? null,
+        routeReason,
+        guardReason: "entity_clarification",
+        useNluIntent,
+        messageForRouting,
+        d,
+      });
       return jsonOk(entityClarification.payload);
     }
 
@@ -430,8 +456,8 @@ export async function handlePublicAiChatPost(request: Request) {
       services,
       locations,
       specialists,
-      shouldEnrichDraftForBooking,
-      shouldRunBookingFlow,
+      shouldEnrichDraftForBooking: shouldEnrichDraftForBookingResolved,
+      shouldRunBookingFlow: shouldRunBookingFlowInitial,
       choiceNum,
       explicitBookingDecline,
       messageForRouting,
@@ -453,8 +479,8 @@ export async function handlePublicAiChatPost(request: Request) {
       intent = "ask_specialists";
       route = "chat-only";
     }
-    let shouldRunBookingFlowResolved = specialistFollowUpByHistory ? false : shouldRunBookingFlow;
-    if (!shouldRunBookingFlowResolved && locationChosenThisTurn && (hasDraftContext || shouldEnrichDraftForBooking || explicitBookingText)) {
+    let shouldRunBookingFlowResolved = specialistFollowUpByHistory ? false : shouldRunBookingFlowInitial;
+    if (!shouldRunBookingFlowResolved && locationChosenThisTurn && (hasDraftContext || shouldEnrichDraftForBookingResolved || explicitBookingText)) {
       shouldRunBookingFlowResolved = true;
       route = "booking-flow";
     }
@@ -551,14 +577,18 @@ export async function handlePublicAiChatPost(request: Request) {
       shouldRunBookingFlowResolved = false;
       route = "chat-only";
     }
+    if (clientActionsHavePriority) {
+      shouldRunBookingFlowResolved = false;
+      route = "client-actions";
+    }
 
-    if (!d.date && (d.locationId || d.serviceId || d.specialistId || shouldRunBookingFlow)) {
+    if (!d.date && (d.locationId || d.serviceId || d.specialistId || shouldRunBookingFlowInitial)) {
       const bookingDateHintAfterMutations = findRecentBookingDateHint(nowYmd, messageForRouting, recentMessages);
       if (bookingDateHintAfterMutations) d.date = bookingDateHintAfterMutations;
     }
 
     const unknownService = await handleUnknownServiceResolution({
-      shouldEnrichDraftForBooking,
+      shouldEnrichDraftForBooking: shouldEnrichDraftForBookingResolved,
       d,
       t,
       nlu,
@@ -569,6 +599,28 @@ export async function handlePublicAiChatPost(request: Request) {
       locations,
     });
     if (unknownService.handled && unknownService.payload) {
+      await saveTurn({
+        threadId: thread.id,
+        turnActionId: turnAction.id,
+        message,
+        reply: unknownService.payload.reply,
+        intent,
+        route,
+        nluConfidence,
+        mappedNluIntent,
+        nluSource: nluResult.source,
+        nluIntent: nlu?.intent ?? null,
+        nextStatus: d.status,
+        nextAction: null,
+        nextUi: unknownService.payload.ui,
+        confirmPendingClientAction: Boolean(confirmPendingClientAction),
+        pendingClientActionType: pendingClientAction?.type ?? null,
+        routeReason,
+        guardReason: "unknown_service_clarification",
+        useNluIntent,
+        messageForRouting,
+        d,
+      });
       return jsonOk(unknownService.payload);
     }
 
@@ -659,7 +711,9 @@ export async function handlePublicAiChatPost(request: Request) {
       !has(messageForRouting, /(мои записи|мою запись|у меня записи|какие у меня.*запис\p{L}*|статист|профил|кабинет|отмени|перенеси)/iu);
     let contextualBookingBridge: string | null = null;
 
-    const bookingDomainResult = guardedUnknownServiceInBooking
+    const bookingDomainResult = route === "client-actions"
+      ? { handled: false, reply, nextStatus, nextAction, nextUi }
+      : guardedUnknownServiceInBooking
         ? { handled: true, reply, nextStatus, nextAction, nextUi }
       : await handleBookingDomain({
           directBookingKickoffFallback,
@@ -1012,7 +1066,7 @@ export async function handlePublicAiChatPost(request: Request) {
         }
       }
     }
-    if (!nextUi && route === "chat-only" && !shouldRunBookingFlow && (intent === "ask_services" || intent === "ask_price")) {
+    if (!nextUi && route === "chat-only" && !shouldRunBookingFlowInitial && (intent === "ask_services" || intent === "ask_price")) {
       const matchedService = serviceByText(norm(reply), services) ?? serviceByText(t, services);
       if (matchedService) {
         nextUi = {
@@ -1031,7 +1085,7 @@ export async function handlePublicAiChatPost(request: Request) {
       }
     }
 
-    if (route === "chat-only" && !shouldRunBookingFlow && !explicitServiceComplaint) {
+    if (route === "chat-only" && !shouldRunBookingFlowInitial && !explicitServiceComplaint) {
       contextualBookingBridge = await runAishaBookingBridge({
         accountId: resolved.account.id,
         assistantName,
@@ -1057,7 +1111,7 @@ export async function handlePublicAiChatPost(request: Request) {
       messageForRouting,
       t,
       explicitDateTimeQuery,
-      shouldRunBookingFlow,
+      shouldRunBookingFlow: shouldRunBookingFlowInitial,
       shouldHardReturnToDomain,
       shouldSoftReturnToBooking,
       hasDraftContext,
@@ -1093,7 +1147,7 @@ export async function handlePublicAiChatPost(request: Request) {
       const hasBookingChoiceUi =
         nextUi?.kind === "quick_replies" &&
         nextUi.options.some((o) => /северная орхидея|записаться|утро|день|вечер|^\d{2}:\d{2}$/i.test((o.value ?? o.label ?? "").trim()));
-      if (looksLikeForcedBookingReply || hasBookingChoiceUi || route === "booking-flow" || shouldRunBookingFlow) {
+      if (looksLikeForcedBookingReply || hasBookingChoiceUi || route === "booking-flow" || shouldRunBookingFlowInitial) {
         reply = "Хорошо, без записи. Можем просто пообщаться. Если захотите, помогу с услугами, специалистами или свободным временем.";
         nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
         route = "chat-only";

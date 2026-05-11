@@ -1,5 +1,4 @@
-﻿import { prisma } from "@/lib/prisma";
-import type { ChatUi } from "@/lib/booking-flow";
+﻿import type { ChatUi } from "@/lib/booking-flow";
 import type { LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import {
   serviceQuickOption,
@@ -13,8 +12,6 @@ import {
   isNluServiceGroundedByText,
 } from "@/lib/aisha-routing-helpers";
 import { addDaysYmd, parseDate } from "@/lib/aisha-chat-parsers";
-
-const prismaAny = prisma as any;
 
 type ResolutionPayload = {
   threadId: number;
@@ -426,25 +423,7 @@ async function persistClarificationAndBuildPayload(args: {
   d: any;
 }) {
   const { threadId, nextThreadKey, reply, ui, d } = args;
-  await prisma.$transaction([
-    prisma.aiMessage.create({ data: { threadId, role: "assistant", content: reply } }),
-    prismaAny.aiBookingDraft.update({
-      where: { threadId },
-      data: {
-        locationId: d.locationId,
-        serviceId: d.serviceId,
-        specialistId: d.specialistId,
-        date: d.date,
-        time: d.time,
-        clientName: d.clientName,
-        clientPhone: d.clientPhone,
-        clientEmail: d.clientEmail,
-        mode: d.mode,
-        status: "COLLECTING",
-        consentConfirmedAt: d.consentConfirmedAt ? new Date(d.consentConfirmedAt) : null,
-      },
-    }),
-  ]);
+  d.status = "COLLECTING";
 
   return {
     threadId,

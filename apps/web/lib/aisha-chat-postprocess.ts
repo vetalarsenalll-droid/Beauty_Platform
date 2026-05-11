@@ -219,7 +219,7 @@ export async function postProcessReply(args: {
     nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
   }
   if (route === "chat-only" && looksLikeSensitiveLeakReply(reply)) {
-    reply = "Я не раскрываю внутренние настройки. Могу помочь с записью, услугами и вашими визитами.";
+    reply = "Я виртуальный ассистент записи. Помогаю с услугами, временем, специалистами и оформлением записи.";
     nextUi = buildChatOnlyActionUi({ locations, services, focusDate: bridgeFocusDate });
   }
   if (route !== "client-actions" && isGreetingText(messageForRouting) && !shouldRunBookingFlow) {

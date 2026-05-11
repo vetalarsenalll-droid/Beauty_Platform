@@ -443,6 +443,7 @@ const ASSISTANT_LITERAL_REPLACEMENTS: Array<[string, string]> = [
 
 export function sanitizeAssistantReplyText(reply: string) {
   let sanitized = reply;
+  sanitized = sanitized.replace(/\bAssistent\b/g, "Ассистент");
   for (const [source, replacement] of ASSISTANT_LITERAL_REPLACEMENTS) {
     sanitized = replaceWholeText(sanitized, source, replacement);
   }
@@ -723,7 +724,7 @@ export function hasUnapprovedClientNameAddressingInReply(args: {
 
 export function looksLikeSensitiveLeakReply(text: string) {
   const t = norm(text);
-  return /(system prompt|internal prompt|hidden instruction|internal instruction|api key|token|access key|secret|password|ignore.*instruction|jailbreak)/i.test(t);
+  return /(system prompt|internal prompt|hidden instruction|internal instruction|api key|token|access key|secret|password|ignore.*instruction|jailbreak|сбер|sber|гигачат|gigachat|giga\s*chat|llm|large language model|языковая модель|нейросетевая модель|нейросеть|искусственный интеллект от|модель .*создан)/i.test(t);
 }
 
 export function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
@@ -829,7 +830,7 @@ export function isServiceComplaintMessage(messageNorm: string) {
 }
 
 export function asksAssistantQualification(messageNorm: string) {
-  return /(ты\s+квалифицированный\s+сотрудник|ты\s+сотрудник|ты\s+человек|реальный\s+человек|живой\s+человек)/i.test(
+  return /(ты\s+квалифицированный\s+сотрудник|ты\s+сотрудник|ты\s+человек|реальный\s+человек|живой\s+человек|что\s+ты\s+за\s+(?:llm|модель|нейросет\p{L}*|ai|ии)|какая\s+ты\s+(?:llm\s+)?модель|какая\s+модель|ты\s+(?:llm|gpt|гигачат|gigachat|giga\s*chat|сбер|sber)|на\s+какой\s+модели|чья\s+ты\s+модель)/iu.test(
     messageNorm,
   );
 }
@@ -1354,7 +1355,7 @@ export function intentFromHeuristics(message: string): AishaIntent {
   if (mentionsServiceTopic(message)) return "ask_services";
   if (has(message, /(окошк|свобод|слот|на сегодня|на завтра|на вечер|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём)/i))
     return "ask_availability";
-  if (has(message, /(кто ты|как тебя зовут|твое имя|твоё имя)/i)) return "identity";
+  if (has(message, /(кто ты|как тебя зовут|твое имя|твоё имя|что\s+ты\s+за\s+(?:llm|модель|нейросет\p{L}*|ai|ии)|какая\s+ты\s+(?:llm\s+)?модель|какая\s+модель|на\s+какой\s+модели|чья\s+ты\s+модель)/iu)) return "identity";
   if (has(message, /(что умеешь|чем занимаешься|что ты можешь)/i)) return "capabilities";
   if (isGreetingText(message)) return "greeting";
   if (has(message, /(как дела|как жизнь|что нового|че каво|чё каво)/i)) return "smalltalk";
