@@ -11,11 +11,17 @@ type AccountProfileLite = {
   phone: string | null;
 } | null;
 
+export type RequiredLegalDocumentLite = {
+  title: string;
+  versionId: number;
+};
+
 export async function loadPublicAiChatContext(accountId: number): Promise<{
   locations: LocationLite[];
   services: ServiceLite[];
   specialists: SpecialistLite[];
   requiredVersionIds: number[];
+  requiredLegalDocuments: RequiredLegalDocumentLite[];
   accountProfile: AccountProfileLite;
   customPrompt: string | null;
   assistantName: string;
@@ -61,6 +67,7 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
       where: { accountId },
       select: {
         isRequired: true,
+        title: true,
         versions: { where: { isActive: true }, orderBy: { version: "desc" }, take: 1, select: { id: true } },
       },
     }),
@@ -110,17 +117,18 @@ export async function loadPublicAiChatContext(accountId: number): Promise<{
     };
   });
 
-  const requiredVersionIds = (() => {
-    const required = requiredDocs
-      .filter((d) => d.isRequired)
-      .map((d) => d.versions[0]?.id)
-      .filter((x): x is number => Number.isInteger(x));
-    if (required.length) return required;
-    return requiredDocs.map((d) => d.versions[0]?.id).filter((x): x is number => Number.isInteger(x));
-  })();
+  const requiredLegalDocuments = requiredDocs
+    .filter((d) => d.isRequired)
+    .map((d) => {
+      const versionId = d.versions[0]?.id;
+      if (!Number.isInteger(versionId)) return null;
+      return { title: d.title, versionId };
+    })
+    .filter((x): x is RequiredLegalDocumentLite => Boolean(x));
+  const requiredVersionIds = requiredLegalDocuments.map((doc) => doc.versionId);
 
   const draft = normalizeDraft((publicPage?.draftJson ?? null) as object | null);
   const assistantName = resolveAishaWidgetConfig(draft).assistantName || "Ассистент";
 
-  return { locations, services, specialists, requiredVersionIds, accountProfile, customPrompt, assistantName };
+  return { locations, services, specialists, requiredVersionIds, requiredLegalDocuments, accountProfile, customPrompt, assistantName };
 }

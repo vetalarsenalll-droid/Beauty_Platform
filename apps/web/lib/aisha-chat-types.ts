@@ -1,4 +1,5 @@
 ﻿import type { ChatUi } from "@/lib/booking-flow";
+import type { RequiredLegalDocumentLite } from "@/lib/aisha-chat-preload";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { PublicAiRoute } from "@/lib/aisha-chat-router";
@@ -34,6 +35,7 @@ export type TurnContext = {
   services: ServiceLite[];
   specialists: SpecialistLite[];
   requiredVersionIds: number[];
+  requiredLegalDocuments: RequiredLegalDocumentLite[];
   accountProfile: { description: string | null; address: string | null; phone: string | null } | null;
   customPrompt: string | null;
   assistantName: string;

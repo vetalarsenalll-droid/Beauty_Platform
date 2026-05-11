@@ -3,12 +3,18 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
 
-type Message = { id?: number; role: "user" | "assistant"; content: string };
+type Message = { id?: number; role: "user" | "assistant"; content: string; ui?: ChatUi | null };
 type ChatAction = { type: "open_booking"; bookingUrl: string } | null;
 type QuickReply = { label: string; value: string; href?: string };
 type ChatUi =
   | { kind: "quick_replies"; options: QuickReply[] }
-  | { kind: "consent"; options: QuickReply[]; legalLinks: string[]; consentValue: string }
+  | {
+      kind: "consent";
+      options: QuickReply[];
+      legalLinks: string[];
+      legalDocuments?: Array<{ title: string; href: string }>;
+      consentValue: string;
+    }
   | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null }
   | { kind: "complaint_form"; placeholder?: string; submitLabel?: string; minLength?: number; maxLength?: number };
 type ChatMessage = Message & { ui?: ChatUi | null };
@@ -518,7 +524,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         saveThreadState(storageKey, nextThreadId, nextThreadKey);
       }
       const apiMessages = Array.isArray(payload.data.messages) ? (payload.data.messages as Message[]) : [];
-      setMessages(apiMessages.length > 0 ? apiMessages.map((m) => ({ ...m, ui: null })) : []);
+      setMessages(apiMessages.length > 0 ? apiMessages.map((m) => ({ ...m, ui: m.ui ?? null })) : []);
       setTypingMessageIndex(null);
       setTypingTarget("");
       setTypingVisible("");
@@ -781,6 +787,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   ui?.kind === "consent"
                     ? ui.legalLinks
                     : Array.from(new Set(Array.from(msg.content.matchAll(/\/[A-Za-z0-9_-]+\/legal\/\d+/g)).map((m) => m[0]).filter(Boolean)));
+                const legalDocumentLinks =
+                  ui?.kind === "consent" && Array.isArray(ui.legalDocuments) && ui.legalDocuments.length
+                    ? ui.legalDocuments
+                    : legalLinks.map((href, i) => ({ href, title: `Документ ${i + 1}` }));
                 const showConsentControl =
                   msg.role === "assistant" &&
                   (ui?.kind === "consent" || /согласие на обработку персональных данных/i.test(msg.content));
@@ -1111,22 +1121,22 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                     ) : null}
                     {showConsentControl && !isTypingThis ? (
                       <div className={consentShellClass}>
-                        {legalLinks.length ? (
+                        {legalDocumentLinks.length ? (
                           <div className="mb-2 flex flex-wrap gap-2">
-                            {legalLinks.map((href, i) => (
+                            {legalDocumentLinks.map((doc, i) => (
                               <button
-                                key={`consent-link-${i}-${href}`}
+                                key={`consent-link-${i}-${doc.href}`}
                                 type="button"
                                 disabled={!isLastAssistant}
                                 onClick={() => {
                                   if (typeof window !== "undefined") {
-                                    window.open(href, "_blank", "noopener,noreferrer");
+                                    window.open(doc.href, "_blank", "noopener,noreferrer");
                                   }
                                 }}
                                 style={buttonRadiusStyle}
                                 className={`rounded-lg border px-3 py-1.5 text-xs disabled:opacity-60 ${currentMode === "dark" ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/10" : "border-[color:var(--ai-border,#d1d5db)] bg-white text-[color:var(--ai-text,#111827)]"}`}
                               >
-                                Текст ПДн {i + 1}
+                                {doc.title}
                               </button>
                             ))}
                           </div>

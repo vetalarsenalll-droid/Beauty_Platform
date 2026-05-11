@@ -3,6 +3,7 @@ import { getClientSession } from "@/lib/auth";
 import { draftView } from "@/lib/aisha-chat-parsers";
 import { asThreadId, asThreadKey, buildThreadKey, canAccessThread, getThread, isThreadSecretConfigured, resolveClientForAccount } from "@/lib/aisha-chat-thread";
 import { prisma } from "@/lib/prisma";
+import { buildPublicSlugId } from "@/lib/public-slug";
 import { resolvePublicAccount } from "@/lib/public-booking";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
@@ -47,7 +48,42 @@ export async function handlePublicAiChatGet(request: Request) {
   });
   messages.reverse();
 
-  return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, messages, draft: draftView(draft) });
+  const requiredDocs = await prisma.legalDocument.findMany({
+    where: { accountId: resolved.account.id, isRequired: true },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    select: {
+      title: true,
+      versions: { where: { isActive: true }, orderBy: { version: "desc" }, take: 1, select: { id: true } },
+    },
+  });
+  const publicSlug = buildPublicSlugId(resolved.account.slug, resolved.account.id);
+  const legalDocuments = requiredDocs.flatMap((doc) => {
+    const versionId = doc.versions[0]?.id;
+    if (!versionId) return [];
+    return { title: doc.title, href: `/${publicSlug}/legal/${versionId}` };
+  });
+  const legalLinks = legalDocuments.map((doc) => doc.href);
+  const messagesWithUi = messages.map((message) => {
+    if (
+      message.role === "assistant" &&
+      legalDocuments.length > 0 &&
+      /для оформления нужно согласие на обработку персональных данных/i.test(message.content)
+    ) {
+      return {
+        ...message,
+        ui: {
+          kind: "consent" as const,
+          options: [],
+          legalLinks,
+          legalDocuments,
+          consentValue: "Согласен на обработку персональных данных",
+        },
+      };
+    }
+    return message;
+  });
+
+  return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, messages: messagesWithUi, draft: draftView(draft) });
 }
 
 export async function handlePublicAiChatDelete(request: Request) {

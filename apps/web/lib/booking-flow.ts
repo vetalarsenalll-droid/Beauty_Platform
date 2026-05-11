@@ -37,7 +37,13 @@ const norm = (v: string) =>
     .trim();
 export type ChatUi =
   | { kind: "quick_replies"; options: ChatUiOption[] }
-  | { kind: "consent"; options: ChatUiOption[]; legalLinks: string[]; consentValue: string }
+  | {
+      kind: "consent";
+      options: ChatUiOption[];
+      legalLinks: string[];
+      legalDocuments?: Array<{ title: string; href: string }>;
+      consentValue: string;
+    }
   | { kind: "date_picker"; minDate: string; maxDate: string; initialDate?: string | null; availableDates?: string[] | null }
   | { kind: "complaint_form"; placeholder?: string; submitLabel?: string; minLength?: number; maxLength?: number };
 
@@ -55,6 +61,7 @@ type FlowCtx = {
   specialists: SpecialistLite[];
   previouslySelectedSpecialistName?: string | null;
   requiredVersionIds: number[];
+  requiredLegalDocuments?: Array<{ title: string; versionId: number }>;
   request: Request;
   publicSlug: string;
   todayYmd: string;
@@ -1419,6 +1426,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     specialists,
     previouslySelectedSpecialistName,
     requiredVersionIds,
+    requiredLegalDocuments = [],
     request,
     choice,
     publicSlug,
@@ -3603,7 +3611,7 @@ if (!d.serviceId) {
         reply:
           "Для оформления через ассистента нужны имя и номер телефона клиента. " +
           `${invalidPhoneHint ? `${invalidPhoneHint} ` : ""}` +
-          "Напишите одним сообщением, например: «Надежда +7XXXXXXXXXX».",
+          "Напишите одним сообщением, например: «Надежда 8XXXXXXXXXX».",
         nextStatus: "WAITING_CONSENT",
       };
     }
@@ -3612,7 +3620,7 @@ if (!d.serviceId) {
         handled: true,
         reply:
           `${invalidPhoneHint ? `${invalidPhoneHint} ` : ""}` +
-          "Укажите, пожалуйста, номер телефона клиента в формате +7XXXXXXXXXX или 8XXXXXXXXXX.",
+          "Укажите, пожалуйста, номер телефона клиента в формате 8XXXXXXXXXX или +7XXXXXXXXXX.",
         nextStatus: "WAITING_CONSENT",
       };
     }
@@ -3625,6 +3633,10 @@ if (!d.serviceId) {
 
   if (!d.consentConfirmedAt) {
     const legalLinks = Array.from(new Set(requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`)));
+    const legalDocuments = requiredLegalDocuments.map((doc) => ({
+      title: doc.title,
+      href: `/${publicSlug}/legal/${doc.versionId}`,
+    }));
     return {
       handled: true,
       reply: "Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.",
@@ -3633,6 +3645,7 @@ if (!d.serviceId) {
         kind: "consent",
         options: [],
         legalLinks,
+        legalDocuments,
         consentValue: "Согласен на обработку персональных данных",
       },
     };

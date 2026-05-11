@@ -116,6 +116,7 @@ export async function handlePublicAiChatPost(request: Request) {
       services,
       specialists,
       requiredVersionIds,
+      requiredLegalDocuments,
       accountProfile,
       assistantName,
 
@@ -687,6 +688,7 @@ export async function handlePublicAiChatPost(request: Request) {
             specialists,
             previouslySelectedSpecialistName,
             requiredVersionIds,
+            requiredLegalDocuments,
             request,
             publicSlug,
             todayYmd: nowYmd,

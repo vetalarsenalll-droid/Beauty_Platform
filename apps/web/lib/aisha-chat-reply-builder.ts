@@ -128,6 +128,7 @@ export async function runBookingFlowBranch(args: {
   specialists: SpecialistLite[];
   previouslySelectedSpecialistName: string | null;
   requiredVersionIds: number[];
+  requiredLegalDocuments?: Array<{ title: string; versionId: number }>;
   request: Request;
   publicSlug: string;
   todayYmd: string;
@@ -154,6 +155,7 @@ export async function runBookingFlowBranch(args: {
     specialists,
     previouslySelectedSpecialistName,
     requiredVersionIds,
+    requiredLegalDocuments = [],
     request,
     publicSlug,
     todayYmd,
@@ -198,6 +200,7 @@ export async function runBookingFlowBranch(args: {
     specialists,
     previouslySelectedSpecialistName,
     requiredVersionIds,
+    requiredLegalDocuments,
     request,
     publicSlug,
     todayYmd,
