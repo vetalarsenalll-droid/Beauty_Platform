@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 import {
   BLOCK_LABELS,
   type BlockType,
@@ -22,7 +23,6 @@ import {
   PANEL_ANIMATION_MS,
   SETTINGS_SECTIONS_BY_BLOCK,
   isSystemBlockType,
-  variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type {
   CurrentEntity,
@@ -49,6 +49,7 @@ import {
   LIBRARY_BLOCK_TYPES,
   getBlockVariants,
 } from "@/features/site-builder/blocks/block-registry";
+import type { BlockCode } from "@/features/site-builder/blocks/runtime/contracts";
 import { resolveBlockVersion } from "@/features/site-builder/blocks/runtime/resolve-block-version";
 
 function DesktopPreviewIcon({ className = "h-5 w-5" }: { className?: string }) {
@@ -78,6 +79,49 @@ const SITE_MOBILE_VIEWPORT_STORAGE_KEY = "site-builder:mobile-viewport";
 const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
 const SITE_MOBILE_VIEWPORT_COOKIE_KEY = "site_builder_mobile_viewport";
 const SITE_PREFERENCES_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function getLibraryBlockCode(type: BlockType, variant: SiteBlock["variant"]): BlockCode {
+  if (type === "menu") {
+    if (variant === "v2") return "ME002";
+    if (variant === "v3") return "ME003";
+    return "ME001";
+  }
+  if (type === "cover") {
+    if (variant === "v3") return "HE003";
+    if (variant === "v2") return "HE002";
+    return "HE001";
+  }
+  if (type === "loader") {
+    if (variant === "v2") return "LO002";
+    if (variant === "v3") return "LO003";
+    return "LO001";
+  }
+  if (type === "locations") return "LC001";
+  if (type === "services") return "SE001";
+  if (type === "specialists") return "SP001";
+  if (type === "booking") return "BO001";
+  if (type === "aisha") return "AI001";
+  if (type === "heading") return "HD001";
+  if (type === "text") return "TX001";
+  if (type === "image") return "IM001";
+  if (type === "gallery") return "GA001";
+  if (type === "form") return "FO001";
+  if (type === "button") return "BT001";
+  if (type === "advantages") return "AD001";
+  if (type === "project") return "PR001";
+  if (type === "footer") return "FT001";
+  if (type === "team") return "TM001";
+  if (type === "news") return "NW001";
+  if (type === "widget") return "WG001";
+  if (type === "locationProfile") return "LP001";
+  if (type === "serviceProfile") return "SVP001";
+  if (type === "specialistProfile") return "SPP001";
+  return "GEN001";
+}
+
+function getLibraryPreviewSrc(code: BlockCode) {
+  return `/api/v1/site-builder/block-preview/${code}`;
+}
 
 type PageMenuItem = Extract<PagesMenuItem, { kind: "page" }>;
 type EntityProfileMenuItem = Extract<PagesMenuItem, { kind: "entity-profile" }>;
@@ -1241,84 +1285,100 @@ export default function SiteClient({
 
         {leftPanel === "library" && (
           <aside
-            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            style={{ left: 0, top: floatingPanelsTop, bottom: 0 }}
+            className={`fixed z-[220] overflow-hidden border shadow-[var(--bp-shadow)] ${
+              activeTheme.mode === "dark"
+                ? "border-[#2b2b2b] bg-[#111111] text-[#f3f4f6]"
+                : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]"
+            }`}
+            style={{ left: 0, top: floatingPanelsTop, bottom: 0, width: libraryBlock ? "min(760px, 72vw)" : "240px" }}
           >
-            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
-              <div className="text-sm font-semibold">Библиотека блоков</div>
-              <button
-                type="button"
-                onClick={() => {
-                  setLeftPanel(null);
-                  setLibraryBlock(null);
-                }}
-                className="text-xs text-[color:var(--bp-muted)]"
-              >
-                Закрыть
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="flex flex-col gap-2">
-                {availableLibraryBlockTypes.map((type) => (
+            <div className="flex h-full min-h-0">
+              <div className={`flex w-[240px] shrink-0 flex-col ${libraryBlock ? "border-r border-[color:var(--bp-stroke)]" : ""}`}>
+                <div className="flex h-14 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4">
+                  <div className="text-sm font-semibold">Библиотека блоков</div>
                   <button
-                    key={type}
                     type="button"
-                    onClick={() => setLibraryBlock(type)}
-                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm ${
-                      libraryBlock === type
-                        ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-paper)]"
-                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
-                    }`}
+                    onClick={() => {
+                      setLeftPanel(null);
+                      setLibraryBlock(null);
+                    }}
+                    className="grid h-8 w-8 place-items-center text-2xl leading-none text-[color:var(--bp-muted)] transition-colors hover:text-[color:var(--bp-ink)]"
+                    aria-label="Закрыть библиотеку блоков"
                   >
-                    <span>{BLOCK_LABELS[type]}</span>
-                    <span className="text-xs text-[color:var(--bp-muted)]">
-                      Варианты
-                    </span>
+                    ×
                   </button>
-                ))}
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  {availableLibraryBlockTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setLibraryBlock((current) => (current === type ? null : type))}
+                      className={`flex min-h-12 w-full items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 text-left text-sm transition-colors ${
+                        libraryBlock === type
+                          ? "bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                          : "bg-transparent text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-paper)]"
+                      }`}
+                    >
+                      <span className="min-w-0 truncate">{BLOCK_LABELS[type]}</span>
+                      <span className="ml-3 text-xs text-[color:var(--bp-muted)]">{getBlockVariants(type).length}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </aside>
-        )}
 
-        {leftPanel === "library" && libraryBlock && availableLibraryBlockTypes.includes(libraryBlock) && (
-          <aside
-            className="fixed z-[140] w-[320px] overflow-y-auto border border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] shadow-[var(--bp-shadow)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            style={{ left: 320, top: floatingPanelsTop, bottom: 0 }}
-          >
-            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-4 py-3">
-              <div className="text-sm font-semibold">
-                {BLOCK_LABELS[libraryBlock]}
+              {libraryBlock && availableLibraryBlockTypes.includes(libraryBlock) ? (
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex h-14 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4">
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {BLOCK_LABELS[libraryBlock]}
+                    </div>
+                    <div className="mt-0.5 text-xs text-[color:var(--bp-muted)]">Нажмите на превью, чтобы добавить блок</div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="divide-y divide-[color:var(--bp-stroke)]">
+                    {getBlockVariants(libraryBlock).map((variant) => {
+                      const blockCode = getLibraryBlockCode(libraryBlock, variant);
+                      return (
+                        <button
+                          key={variant}
+                          type="button"
+                          onClick={() => {
+                            insertBlock(libraryBlock, insertIndex ?? displayBlocks.length, variant);
+                            setLeftPanel(null);
+                            setLibraryBlock(null);
+                          }}
+                          className="block w-full bg-transparent p-5 text-left transition-colors hover:bg-[color:var(--bp-paper)]"
+                        >
+                          <div className="overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                            <div className="relative aspect-[19/9] bg-[color:var(--bp-surface)]">
+                              <UnoptimizedImage
+                                src={getLibraryPreviewSrc(blockCode)}
+                                alt={`${blockCode} ${BLOCK_LABELS[libraryBlock]}`}
+                                className="h-full w-full object-cover"
+                                height={427}
+                                width={900}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-3 flex items-start gap-3">
+                            <span className="rounded-full bg-[color:var(--bp-muted)] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              {blockCode}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold">{BLOCK_LABELS[libraryBlock]}</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setLibraryBlock(null)}
-                className="text-xs text-[color:var(--bp-muted)]"
-              >
-                Назад
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              {getBlockVariants(libraryBlock).map((variant) => (
-                <button
-                  key={variant}
-                  type="button"
-                  onClick={() => {
-                    insertBlock(libraryBlock, insertIndex ?? displayBlocks.length, variant);
-                    setLeftPanel(null);
-                    setLibraryBlock(null);
-                  }}
-                  className="w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-left"
-                >
-                  <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-                    {BLOCK_LABELS[libraryBlock]}
-                  </div>
-                  <div className="mt-2 text-sm font-semibold">{variantsLabel[variant]}</div>
-                  <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
-                    Выберите вариант дизайна
-                  </div>
-                </button>
-              ))}
+              ) : null}
             </div>
           </aside>
         )}
