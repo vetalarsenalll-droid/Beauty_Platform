@@ -1941,6 +1941,7 @@ export default function BookingClient({
   const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
   const bookingRootRef = useRef<HTMLDivElement | null>(null);
   const stepPanelRef = useRef<HTMLDivElement | null>(null);
+  const stepScrollRef = useRef<HTMLDivElement | null>(null);
   const summaryPanelRef = useRef<HTMLDivElement | null>(null);
   const currentStepKey = stepsWithScenario[stepIndex]?.key;
   const prevStepsRef = useRef(stepsWithScenario);
@@ -1948,6 +1949,12 @@ export default function BookingClient({
   useEffect(() => {
     if (currentStepKey !== "details") setMobileSummaryExpanded(false);
   }, [currentStepKey]);
+
+  useLayoutEffect(() => {
+    const stepScroll = stepScrollRef.current;
+    if (!stepScroll) return;
+    stepScroll.scrollTo({ top: 0, left: 0 });
+  }, [currentStepKey, stepIndex]);
 
   useLayoutEffect(() => {
     const root = bookingRootRef.current;
@@ -5198,7 +5205,7 @@ export default function BookingClient({
             </div>
 
             <div className="booking-step-body mt-4 pt-4 lg:min-h-0 lg:flex-1">
-              <div className="booking-step-scroll min-h-[620px] pl-0 pr-[2px] -mr-2 sm:pr-[6px] sm:-mr-3 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
+              <div ref={stepScrollRef} className="booking-step-scroll min-h-[620px] pl-0 pr-[2px] -mr-2 sm:pr-[6px] sm:-mr-3 lg:h-full lg:min-h-0 lg:overflow-y-auto [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--bp-accent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--bp-accent)]">
                 {infoView && infoPanel}
                 {!infoView && currentStepKey === "scenario" && (
                   <div className="space-y-3">
