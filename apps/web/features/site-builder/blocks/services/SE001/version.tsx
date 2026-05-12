@@ -95,6 +95,7 @@ export const SE001: BlockVersion = {
       detailsButtonColorDark: data.detailsButtonColorDark ?? "transparent",
       detailsButtonTextColorDark: data.detailsButtonTextColorDark ?? "#f8fafc",
       detailsButtonBorderColorDark: data.detailsButtonBorderColorDark ?? "transparent",
+      serviceCardImageFit: data.serviceCardImageFit ?? "cover",
       modalImageFit: data.modalImageFit ?? "cover",
       style: {
         ...style,
@@ -160,6 +161,7 @@ export const SE001: BlockVersion = {
         detailsButtonColorDark: "transparent",
         detailsButtonTextColorDark: "#f8fafc",
         detailsButtonBorderColorDark: "transparent",
+        serviceCardImageFit: "cover",
         modalImageFit: "cover",
         style: {
           ...defaultBlockStyle,

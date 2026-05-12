@@ -680,6 +680,15 @@ export function SiteServicesSettingsDrawer({
             { value: "original", label: "Вписать в карточку" },
           ]
         )}
+        {renderFlatSelect(
+          "Масштабирование изображения",
+          String(data.serviceCardImageFit ?? "cover"),
+          (value) => updateData({ serviceCardImageFit: value }),
+          [
+            { value: "contain", label: "Вписывать в область" },
+            { value: "cover", label: "Заполнять область" },
+          ]
+        )}
         {renderFlatTextInput(
           "Вертикальный отступ между карточками",
           String(data.cardGapY ?? 40),

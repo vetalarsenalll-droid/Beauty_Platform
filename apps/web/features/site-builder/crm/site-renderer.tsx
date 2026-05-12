@@ -5929,6 +5929,7 @@ export function renderServices(
     typeof data.modalGalleryBgColor === "string" && data.modalGalleryBgColor.trim()
       ? data.modalGalleryBgColor.trim()
       : "#ebebeb";
+  const serviceCardImageFit = data.serviceCardImageFit === "contain" ? "contain" : "cover";
   const modalImageFit = data.modalImageFit === "contain" ? "contain" : "cover";
   const modalImageRadiusRaw = Number(data.modalImageRadius);
   const modalImageRadius = Number.isFinite(modalImageRadiusRaw)
@@ -6182,6 +6183,7 @@ export function renderServices(
         cardGapX={cardGapX}
         cardGapY={cardGapY}
         imageAspectRatio={imageAspectRatio}
+        serviceCardImageFit={serviceCardImageFit}
         imageRadius={imageRadius}
         cardPaddingX={cardPaddingX}
         cardPaddingY={cardPaddingY}

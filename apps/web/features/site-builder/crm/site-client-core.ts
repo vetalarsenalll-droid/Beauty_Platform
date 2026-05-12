@@ -811,6 +811,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     showAddress: true,
     showPhone: true,
     showContacts: false,
+    locationCardImageFit: "cover",
     showButton: true,
     buttonText: "Записаться",
     style: {
@@ -898,6 +899,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     maxVisibleItems: 8,
     usePagination: false,
     modalGalleryBgColor: "#ebebeb",
+    serviceCardImageFit: "cover",
     modalImageFit: "cover",
     modalImageRadius: 8,
     modalImageAspectRatio: "1 / 1",

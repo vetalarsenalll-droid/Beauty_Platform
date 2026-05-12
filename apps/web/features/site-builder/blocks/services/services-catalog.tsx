@@ -65,6 +65,7 @@ type ServiceCatalogProps = {
   cardGapX: number;
   cardGapY: number;
   imageAspectRatio: string;
+  serviceCardImageFit?: "contain" | "cover";
   imageRadius: number;
   cardPaddingX: number;
   cardPaddingY: number;
@@ -925,6 +926,7 @@ export function ServicesCatalog({
   cardGapX,
   cardGapY,
   imageAspectRatio,
+  serviceCardImageFit = "cover",
   imageRadius,
   cardPaddingX,
   cardPaddingY,
@@ -1883,7 +1885,7 @@ export function ServicesCatalog({
                                 ? "group-hover:scale-[1.03]"
                                 : ""
                           }`}
-                          style={{ objectFit: "cover" }}
+                          style={{ objectFit: isImageInsetCard ? "cover" : serviceCardImageFit }}
                         />
                       ) : (
                         <div className="relative z-[1] flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
@@ -1895,7 +1897,7 @@ export function ServicesCatalog({
                           src={secondaryImage}
                           alt=""
                           className="absolute inset-0 h-full w-full opacity-0 transition duration-300 group-hover:opacity-100"
-                          style={{ objectFit: "cover" }}
+                          style={{ objectFit: isImageInsetCard ? "cover" : serviceCardImageFit }}
                         />
                       ) : null}
                       {hasGlassInfoPanel && primaryImage ? (
@@ -1958,7 +1960,7 @@ export function ServicesCatalog({
                                 ? "group-hover:scale-[1.03]"
                                 : ""
                           }`}
-                          style={{ objectFit: "cover" }}
+                          style={{ objectFit: isImageInsetCard ? "cover" : serviceCardImageFit }}
                         />
                       ) : (
                         <div className="relative z-[1] flex h-full w-full items-center justify-center px-4 text-center text-sm text-[color:var(--block-muted,var(--bp-muted))]">
@@ -1970,7 +1972,7 @@ export function ServicesCatalog({
                           src={secondaryImage}
                           alt=""
                           className="absolute inset-0 h-full w-full opacity-0 transition duration-300 group-hover:opacity-100"
-                          style={{ objectFit: "cover" }}
+                          style={{ objectFit: isImageInsetCard ? "cover" : serviceCardImageFit }}
                         />
                       ) : null}
                       {hasGlassInfoPanel && primaryImage ? (

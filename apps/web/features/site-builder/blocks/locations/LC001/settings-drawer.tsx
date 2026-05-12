@@ -772,6 +772,10 @@ export function LC001SettingsDrawer({ block, activeTheme, activeSectionId, locat
           { value: "16 / 9", label: "16:9 Широкое" },
           { value: "original", label: "Вписать в карточку" },
         ])}
+        {renderFlatSelect("Масштабирование изображения", String(data.locationCardImageFit ?? data.specialistCardImageFit ?? "cover"), (value) => updateData({ locationCardImageFit: value }), [
+          { value: "contain", label: "Вписывать в область" },
+          { value: "cover", label: "Заполнять область" },
+        ])}
         {renderFlatTextInput("Отступ между колонками", String(data.cardGapX ?? 20), (value) => updateData({ cardGapX: Number(value) || 0 }), "20")}
         {renderFlatTextInput("Вертикальный отступ между карточками", String(data.cardGapY ?? 40), (value) => updateData({ cardGapY: Number(value) || 0 }), "40")}
         {renderFlatTextInput("Скругление изображения", String(data.imageRadius ?? 10), (value) => updateData({ imageRadius: Number(value) || 0 }), "10")}
