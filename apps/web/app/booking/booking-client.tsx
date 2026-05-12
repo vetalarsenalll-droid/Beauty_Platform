@@ -4418,7 +4418,6 @@ export default function BookingClient({
       ready: Boolean(selectedSpecialist) || (isVisitPlanMode && !isSingleSpecialistPlanMode && chainSpecialistsReady),
     },
   ];
-  const futureTotalLabel = `${serviceDurationLabel} · ${servicePriceLabel}`;
 
   const nameReady = clientName.trim().length >= 2;
   const isRuPhoneValid = (raw: string) => {
@@ -6202,6 +6201,10 @@ export default function BookingClient({
           >
             {designVariant === "future" ? (
               <div className="booking-route-panel flex h-full flex-col gap-4">
+                <div className="booking-route-title text-xs text-[color:var(--bp-muted)]">
+                  Сводка
+                </div>
+
                 <div className="booking-route-list space-y-2">
                   {futureRouteItems.map((item, index) => (
                     <div
@@ -6226,12 +6229,7 @@ export default function BookingClient({
                   ))}
                 </div>
 
-                <div className="mt-auto space-y-3">
-                  <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
-                    <div className="text-[11px] font-medium text-[color:var(--bp-muted)]">Итого</div>
-                    <div className="mt-1 text-sm font-semibold">{futureTotalLabel}</div>
-                  </div>
-
+                <div className="booking-route-action mt-auto space-y-3">
                   {submitError && <div className="text-sm text-red-600">{submitError}</div>}
                   {submitSuccess && <div className="text-sm text-green-700">Запись оформлена</div>}
                   {groupAlreadyBooked && !submitSuccess && (

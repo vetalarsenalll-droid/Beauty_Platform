@@ -1857,9 +1857,14 @@ textarea::placeholder {
   position: relative;
 }
 
+.booking-root--future .booking-route-list > * + * {
+  margin-top: 6px !important;
+}
+
 .booking-root--future .booking-route-item {
   border-color: transparent;
   background: transparent;
+  padding: 7px 12px;
 }
 
 .booking-root--future .booking-route-item.is-ready {
@@ -1911,7 +1916,8 @@ textarea::placeholder {
   .booking-root--future .booking-shell-grid {
     grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-    min-height: 680px;
+    height: 680px;
+    min-height: 0;
   }
 
   .booking-root--future .booking-scenario-panel {
@@ -1923,21 +1929,67 @@ textarea::placeholder {
     position: static;
     grid-column: 1;
     grid-row: 1 / span 2;
-    height: auto;
+    height: 680px;
+    min-height: 0;
     align-self: stretch;
+    overflow: hidden;
+    padding: 16px 20px 20px;
   }
 
   .booking-root--future .booking-step-panel {
     grid-column: 2;
     grid-row: 1 / span 2;
-    height: auto;
-    min-height: 680px;
+    height: 680px;
+    min-height: 0;
     border-top: 0;
     border-left: var(--booking-border-width, 1px) solid var(--booking-panel-border);
   }
 
-  .booking-root--future .booking-step-scroll {
+  .booking-root--future .booking-route-panel {
+    display: flex;
+    height: 100%;
     min-height: 0;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+  }
+
+  .booking-root--future .booking-route-title {
+    line-height: 1.25;
+  }
+
+  .booking-root--future .booking-route-panel .booking-route-index {
+    height: 26px;
+    width: 26px;
+  }
+
+  .booking-root--future .booking-route-panel .text-\[11px\] {
+    line-height: 1.15;
+  }
+
+  .booking-root--future .booking-route-panel .text-sm {
+    line-height: 1.25;
+  }
+
+  .booking-root--future .booking-route-action {
+    margin-top: auto !important;
+    padding-bottom: 0;
+  }
+
+  .booking-root--future .booking-route-panel .booking-primary-button {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .booking-root--future .booking-step-body {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .booking-root--future .booking-step-scroll {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
   }
 }
 
