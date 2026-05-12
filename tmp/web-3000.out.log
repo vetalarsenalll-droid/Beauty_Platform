@@ -279,3 +279,4 @@ prisma:error transaction failed to commit
  GET /platform/accounts/1 200 in 974ms (compile: 681ms, proxy.ts: 18ms, render: 275ms)
  GET /severnaya-orhideya_2/booking 200 in 981ms (compile: 234ms, render: 747ms)
  POST /api/v1/public/booking/steps?account=severnaya-orhideya 200 in 765ms (compile: 712ms, render: 52ms)
+○ Compiling /api/v1/crm/settings/public-page ...
