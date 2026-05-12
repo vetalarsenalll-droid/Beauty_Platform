@@ -28,6 +28,7 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
   }
   if (block.type === "booking") return "BO001";
   if (block.type === "aisha") return "AI001";
+  if (block.type === "about") return "AB001";
   if (block.type === "heading") return "HD001";
   if (block.type === "text") return "TX001";
   if (block.type === "image") return "IM001";
@@ -38,6 +39,10 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
   if (block.type === "team") return "TM001";
   if (block.type === "news") return "NW001";
   if (block.type === "widget") return "WG001";
+  if (block.type === "works") return block.variant === "v2" ? "WO002" : "WO001";
+  if (block.type === "reviews") return "RV001";
+  if (block.type === "contacts") return "CT001";
+  if (block.type === "promos") return "PM001";
   if (block.type === "locationProfile") return "LP001";
   if (block.type === "serviceProfile") return "SVP001";
   if (block.type === "specialistProfile") return "SPP001";

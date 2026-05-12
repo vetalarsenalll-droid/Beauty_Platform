@@ -15,6 +15,7 @@ import { SE001 } from "../services/SE001/version";
 import { SP001 } from "../specialists/SP001/version";
 import { BO001 } from "../booking/BO001/version";
 import { AI001 } from "../aisha/AI001/version";
+import { AB001 } from "../about/AB001/version";
 import { makeGenericVersion } from "./ui/generic-version";
 import { HD001 } from "../heading/HD001/version";
 import { TX001 } from "../text/TX001/version";
@@ -26,6 +27,11 @@ import { FT001 } from "../footer/FT001/version";
 import { TM001 } from "../team/TM001/version";
 import { NW001 } from "../news/NW001/version";
 import { WG001 } from "../widget/WG001/version";
+import { WO001 } from "../works/WO001/version";
+import { WO002 } from "../works/WO002/version";
+import { RV001 } from "../reviews/RV001/version";
+import { CT001 } from "../contacts/CT001/version";
+import { PM001 } from "../promos/PM001/version";
 import { LP001 } from "../location-profile/LP001/version";
 import { SVP001 } from "../service-profile/SVP001/version";
 import { SPP001 } from "../specialist-profile/SPP001/version";
@@ -61,6 +67,8 @@ export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersi
       return BO001;
     case "AI001":
       return AI001;
+    case "AB001":
+      return AB001;
     case "HD001":
       return HD001;
     case "TX001":
@@ -81,6 +89,16 @@ export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersi
       return NW001;
     case "WG001":
       return WG001;
+    case "WO001":
+      return WO001;
+    case "WO002":
+      return WO002;
+    case "RV001":
+      return RV001;
+    case "CT001":
+      return CT001;
+    case "PM001":
+      return PM001;
     case "LP001":
       return LP001;
     case "SVP001":
