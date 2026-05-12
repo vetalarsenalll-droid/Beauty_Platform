@@ -6238,6 +6238,14 @@ export default function BookingClient({
                     </div>
                   )}
 
+                  {!submitSuccess && !canSubmit && summaryHint && (
+                    <div className="space-y-1 text-xs text-[color:var(--bp-muted)]">
+                      {submitBlockingReasons.map((reason, index) => (
+                        <div key={`${reason}-${index}`}>{reason}</div>
+                      ))}
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -6261,19 +6269,11 @@ export default function BookingClient({
                   >
                     {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
                   </button>
-
-                  {!submitSuccess && !canSubmit && summaryHint && (
-                    <div className="space-y-1 text-xs text-[color:var(--bp-muted)]">
-                      {submitBlockingReasons.map((reason, index) => (
-                        <div key={`${reason}-${index}`}>{reason}</div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
               <>
-            <div className="booking-summary-desktop space-y-4">
+            <div className="booking-summary-desktop flex h-full flex-col gap-4">
               <div className="text-base font-semibold">Сводка</div>
               <div className="space-y-2">
                 <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
@@ -6331,47 +6331,49 @@ export default function BookingClient({
                 />
               </div>
 
-              {submitError && <div className="text-sm text-red-600">{submitError}</div>}
-              {submitSuccess && (
-                <div className="text-sm text-green-700">Запись оформлена</div>
-              )}
-              {groupAlreadyBooked && !submitSuccess && (
-                <div className="text-xs text-amber-600">
-                  Вы уже бронировали этот групповой сеанс с этого устройства.
-                </div>
-              )}
+              <div className="booking-summary-action mt-auto space-y-3">
+                {submitError && <div className="text-sm text-red-600">{submitError}</div>}
+                {submitSuccess && (
+                  <div className="text-sm text-green-700">Запись оформлена</div>
+                )}
+                {groupAlreadyBooked && !submitSuccess && (
+                  <div className="text-xs text-amber-600">
+                    Вы уже бронировали этот групповой сеанс с этого устройства.
+                  </div>
+                )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (submitSuccess) {
-                    resetAll();
-                    return;
-                  }
-                  if (!canSubmit) {
-                    setSubmitError(
-                      summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
-                    );
-                    return;
-                  }
-                  void submitAppointment();
-                }}
-                disabled={submitSuccess ? false : submitting}
-                aria-disabled={!submitSuccess && !canSubmit}
-                className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
-                  !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
-                }`}
-              >
-                {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
-              </button>
+                {!submitSuccess && !canSubmit && summaryHint && (
+                  <div className="space-y-1 text-xs text-[color:var(--bp-muted)]">
+                    {submitBlockingReasons.map((reason, index) => (
+                      <div key={`${reason}-${index}`}>{reason}</div>
+                    ))}
+                  </div>
+                )}
 
-              {!submitSuccess && !canSubmit && summaryHint && (
-                <div className="space-y-1 text-xs text-[color:var(--bp-muted)]">
-                  {submitBlockingReasons.map((reason, index) => (
-                    <div key={`${reason}-${index}`}>{reason}</div>
-                  ))}
-                </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (submitSuccess) {
+                      resetAll();
+                      return;
+                    }
+                    if (!canSubmit) {
+                      setSubmitError(
+                        summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
+                      );
+                      return;
+                    }
+                    void submitAppointment();
+                  }}
+                  disabled={submitSuccess ? false : submitting}
+                  aria-disabled={!submitSuccess && !canSubmit}
+                  className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
+                    !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
+                </button>
+              </div>
             </div>
 
             <div className="booking-summary-mobile hidden">
