@@ -14,6 +14,7 @@ import { LC001 } from "../locations/LC001/version";
 import { SE001 } from "../services/SE001/version";
 import { SP001 } from "../specialists/SP001/version";
 import { BO001 } from "../booking/BO001/version";
+import { BO002 } from "../booking/BO002/version";
 import { AI001 } from "../aisha/AI001/version";
 import { AB001 } from "../about/AB001/version";
 import { makeGenericVersion } from "./ui/generic-version";
@@ -65,6 +66,8 @@ export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersi
       return SP001;
     case "BO001":
       return BO001;
+    case "BO002":
+      return BO002;
     case "AI001":
       return AI001;
     case "AB001":

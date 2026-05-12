@@ -27,6 +27,7 @@ export type BlockCode =
   | "SE001"
   | "SP001"
   | "BO001"
+  | "BO002"
   | "AI001"
   | "HD001"
   | "TX001"

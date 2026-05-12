@@ -26,7 +26,7 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
   if (block.type === "specialists") {
     return "SP001";
   }
-  if (block.type === "booking") return "BO001";
+  if (block.type === "booking") return block.variant === "v2" ? "BO002" : "BO001";
   if (block.type === "aisha") return "AI001";
   if (block.type === "about") return "AB001";
   if (block.type === "heading") return "HD001";

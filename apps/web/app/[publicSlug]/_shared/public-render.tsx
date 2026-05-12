@@ -1455,6 +1455,7 @@ function renderBooking(
 ) {
   const style = normalizeStyle(block, theme);
   const cssVars = buildBookingVars(style, theme);
+  const bookingDesignVariant = block.variant === "v2" ? "future" : "classic";
   const initialContext = {
     account: {
       id: accountId,
@@ -1481,12 +1482,16 @@ function renderBooking(
     workPhotos,
   };
   return (
-    <div className="booking-root p-0" style={cssVars}>
+    <div
+      className={`booking-root p-0${bookingDesignVariant === "future" ? " booking-root--future" : ""}`}
+      style={cssVars}
+    >
       <div className="booking-bleed">
         <PublicBookingClient
           accountSlug={accountSlug}
           accountPublicSlug={publicSlug}
           loaderConfig={loaderConfig}
+          designVariant={bookingDesignVariant}
           initialContext={initialContext}
           initialServices={services.map((service) => ({
             id: service.id,

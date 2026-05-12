@@ -18,6 +18,7 @@ const BLOCK_PREVIEW_PATHS: Partial<Record<BlockCode, string>> = {
   SE001: "services/SE001",
   SP001: "specialists/SP001",
   BO001: "booking/BO001",
+  BO002: "booking/BO002",
   AI001: "aisha/AI001",
   AB001: "about/AB001",
   HD001: "heading/HD001",

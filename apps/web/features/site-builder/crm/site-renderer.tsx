@@ -2730,6 +2730,7 @@ export function renderBooking(
   const accountSlug = account.slug;
   const accountPublicSlug = account.publicSlug ?? undefined;
   const cssVars = buildBookingVars(style, theme, previewViewportWidth);
+  const bookingDesignVariant = block.variant === "v2" ? "future" : "classic";
   const previewViewportClass =
     typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth)
       ? previewViewportWidth < 640
@@ -2739,12 +2740,16 @@ export function renderBooking(
           : ""
       : "";
   return (
-    <div className={`booking-root${previewViewportClass}`} style={cssVars}>
+    <div
+      className={`booking-root${bookingDesignVariant === "future" ? " booking-root--future" : ""}${previewViewportClass}`}
+      style={cssVars}
+    >
       <div className="booking-bleed">
         <BookingClient
           accountSlug={accountSlug}
           accountPublicSlug={accountPublicSlug}
           loaderConfig={loaderConfig}
+          designVariant={bookingDesignVariant}
         />
       </div>
     </div>

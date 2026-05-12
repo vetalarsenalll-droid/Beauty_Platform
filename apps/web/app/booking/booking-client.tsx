@@ -15,6 +15,7 @@ type BookingClientProps = {
   initialServices?: Array<Service & { locationIds?: number[] }>;
   initialSpecialists?: Array<Specialist & { locationIds?: number[] }>;
   initialWorkPhotos?: BookingWorkPhotos;
+  designVariant?: "classic" | "future";
 };
 
 type PublicAccount = {
@@ -1102,6 +1103,7 @@ export default function BookingClient({
   initialServices = [],
   initialSpecialists = [],
   initialWorkPhotos = {},
+  designVariant = "classic",
 }: BookingClientProps) {
   const persistedStateRef = useRef<BookingPersistedState | null>(
     loadPersistedBookingState(accountSlug, accountPublicSlug)
@@ -4382,9 +4384,9 @@ export default function BookingClient({
   const mobileFinalSummaryRows = [
     { label: "Локация", value: selectedLocation?.name || "—" },
     { label: "Дата", value: summaryDateLabel || "—" },
+    { label: "Время", value: summaryTimeLabel },
     { label: isVisitPlanMode ? "План визита" : "Услуга", value: isVisitPlanMode ? mobilePlanLabel : summaryServiceLabel || "—" },
     { label: "Специалист", value: selectedSpecialist?.name || (isVisitPlanMode && !isSingleSpecialistPlanMode ? "По плану" : "—") },
-    { label: "Время", value: summaryTimeLabel },
     { label: isVisitPlanMode ? "Итого" : "Стоимость", value: servicePriceLabel },
   ];
   const isMobileFinalSummary = currentStepKey === "details";
@@ -4395,6 +4397,28 @@ export default function BookingClient({
     : mobileSummaryExpanded
       ? mobileFinalSummaryRows
       : mobileCurrentSummaryRows;
+  const futureRouteItems = [
+    { key: "location", label: "Локация", value: selectedLocation?.name || "Не выбрана", ready: Boolean(selectedLocation) },
+    { key: "date", label: "Дата", value: summaryDateLabel || "Не выбрана", ready: Boolean(dateYmd) },
+    { key: "time", label: "Время", value: summaryTimeLabel === "—" ? "Не выбрано" : summaryTimeLabel, ready: summaryTimeLabel !== "—" },
+    {
+      key: "service",
+      label: isVisitPlanMode ? "План визита" : "Услуга",
+      value: isVisitPlanMode
+        ? mobilePlanLabel === "—" ? "Не выбран" : mobilePlanLabel
+        : summaryServiceLabel === "—" ? "Не выбрана" : summaryServiceLabel,
+      ready: isVisitPlanMode ? chainSummaryItems.length > 0 : selectedServiceIds.length > 0,
+    },
+    { key: "duration", label: "Длительность", value: serviceDurationLabel, ready: serviceDurationLabel !== "—" },
+    { key: "price", label: "Стоимость", value: servicePriceLabel, ready: servicePriceLabel !== "—" },
+    {
+      key: "specialist",
+      label: "Специалист",
+      value: selectedSpecialist?.name || (isVisitPlanMode && !isSingleSpecialistPlanMode ? "По плану визита" : "Не выбран"),
+      ready: Boolean(selectedSpecialist) || (isVisitPlanMode && !isSingleSpecialistPlanMode && chainSpecialistsReady),
+    },
+  ];
+  const futureTotalLabel = `${serviceDurationLabel} · ${servicePriceLabel}`;
 
   const nameReady = clientName.trim().length >= 2;
   const isRuPhoneValid = (raw: string) => {
@@ -4981,7 +5005,13 @@ export default function BookingClient({
       ? 0
       : stepIndex / (stepsWithScenario.length - 1);
   return (
-    <div ref={bookingRootRef} className="booking-root min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]">
+    <div
+      ref={bookingRootRef}
+      className={cn(
+        "booking-root min-h-dvh w-full bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]",
+        designVariant === "future" && "booking-root--future"
+      )}
+    >
       <div className="mx-auto w-full p-0" style={{ maxWidth: "var(--bp-content-width, 1024px)" }}>
         <div className="h-0" />
 
@@ -4989,12 +5019,17 @@ export default function BookingClient({
           className="booking-shell-grid grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:grid-rows-[auto_auto]"
           style={{ marginTop: "var(--booking-top-gap, 1rem)" }}
         >
+          {designVariant !== "future" ? (
           <SoftPanel className="booking-scenario-panel min-w-0 p-4 lg:col-start-1 lg:row-start-1">
-            <div className="flex flex-col gap-4">
+            <div className={cn("flex flex-col gap-4", designVariant === "future" && "booking-route-head")}>
               <div className="w-full space-y-3">
                 <div className="booking-scenario-head flex items-center justify-between">
-                  <div className="booking-scenario-title w-[110px] text-right text-xs text-[color:var(--bp-muted)]">Сценарий записи</div>
-                  <div className="booking-scenario-hint text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
+                  <div className="booking-scenario-title w-[110px] text-right text-xs text-[color:var(--bp-muted)]">
+                    Сценарий записи
+                  </div>
+                  <div className="booking-scenario-hint text-[11px] text-[color:var(--bp-muted)]">
+                    Можно переключить
+                  </div>
                 </div>
                 <div className="booking-scenario-tabs-row flex flex-wrap justify-start lg:justify-end">
                   <div className="booking-scenario-shell flex w-full flex-wrap gap-1 rounded-2xl border p-1">
@@ -5040,8 +5075,57 @@ export default function BookingClient({
 
             </div>
           </SoftPanel>
+          ) : null}
 
           <SoftPanel ref={stepPanelRef} className="booking-step-panel min-w-0 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:flex lg:h-[600px] lg:flex-col">
+            {designVariant === "future" ? (
+              <div className="booking-future-toolbar mb-4">
+                <div className="booking-future-toolbar-labels mb-2 flex items-center justify-between gap-4">
+                  <div className="text-xs text-[color:var(--bp-muted)]">Сценарий записи</div>
+                  <div className="text-[11px] text-[color:var(--bp-muted)]">Можно переключить</div>
+                </div>
+                <div className="booking-future-toolbar-row flex flex-wrap items-center gap-3">
+                  <div className="booking-scenario-shell flex flex-wrap gap-1 rounded-2xl border p-1">
+                    {[
+                      { key: "dateFirst", label: "Дата" },
+                      { key: "serviceFirst", label: "Услуга" },
+                      { key: "specialistFirst", label: "Специалист" },
+                    ].map((item) => {
+                      const active = scenario === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => setScenario(item.key as Scenario)}
+                          className={cn(
+                            "booking-scenario-tab rounded-xl border px-3 py-2 text-center text-xs font-semibold transition",
+                            active ? "is-active" : "hover:bg-black/5"
+                          )}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="booking-progress-row flex min-w-[220px] flex-1 items-center gap-3">
+                    <div className="booking-progress-track hidden flex-1 sm:block">
+                      <ProgressBar value={progress} />
+                    </div>
+                    <div className="booking-step-count shrink-0 text-right text-xs text-[color:var(--bp-muted)]">
+                      {stepIndex + 1}/{stepsWithScenario.length}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetAll}
+                      className="booking-reset-button booking-nav-secondary-button shrink-0 rounded-2xl border px-3 py-2 text-xs transition hover:-translate-y-[1px] hover:shadow-sm"
+                    >
+                      Сбросить
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="booking-step-header flex items-center justify-between gap-3">
               <div>
                 <div className="text-lg font-semibold">
@@ -6116,13 +6200,94 @@ export default function BookingClient({
               submitSuccess ? "is-success" : null
             )}
           >
+            {designVariant === "future" ? (
+              <div className="booking-route-panel flex h-full flex-col gap-4">
+                <div className="booking-route-list space-y-2">
+                  {futureRouteItems.map((item, index) => (
+                    <div
+                      key={item.key}
+                      className={cn(
+                        "booking-route-item flex gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3",
+                        item.ready && "is-ready"
+                      )}
+                    >
+                      <div className="booking-route-index flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] text-xs font-semibold">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-medium text-[color:var(--bp-muted)]">
+                          {item.label}
+                        </div>
+                        <div className="mt-1 truncate text-sm font-semibold text-[color:var(--bp-ink)]">
+                          {item.value}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-auto space-y-3">
+                  <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
+                    <div className="text-[11px] font-medium text-[color:var(--bp-muted)]">Итого</div>
+                    <div className="mt-1 text-sm font-semibold">{futureTotalLabel}</div>
+                  </div>
+
+                  {submitError && <div className="text-sm text-red-600">{submitError}</div>}
+                  {submitSuccess && <div className="text-sm text-green-700">Запись оформлена</div>}
+                  {groupAlreadyBooked && !submitSuccess && (
+                    <div className="text-xs text-amber-600">
+                      Вы уже бронировали этот групповой сеанс с этого устройства.
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (submitSuccess) {
+                        resetAll();
+                        return;
+                      }
+                      if (!canSubmit) {
+                        setSubmitError(
+                          summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
+                        );
+                        return;
+                      }
+                      void submitAppointment();
+                    }}
+                    disabled={submitSuccess ? false : submitting}
+                    aria-disabled={!submitSuccess && !canSubmit}
+                    className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
+                      !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
+                  </button>
+
+                  {!submitSuccess && !canSubmit && summaryHint && (
+                    <div className="space-y-1 text-xs text-[color:var(--bp-muted)]">
+                      {submitBlockingReasons.map((reason, index) => (
+                        <div key={`${reason}-${index}`}>{reason}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="booking-summary-desktop space-y-4">
               <div className="text-base font-semibold">Сводка</div>
               <div className="space-y-2">
                 <SummaryRow label="Локация" value={selectedLocation?.name || "—"} />
                 <SummaryRow label="Дата" value={summaryDateLabel || "—"} />
                 {!isVisitPlanMode ? (
+                  <SummaryRow label="Время" value={summaryTimeLabel} />
+                ) : null}
+                {!isVisitPlanMode ? (
                   <SummaryRow label="Услуга" value={summaryServiceLabel || "—"} />
+                ) : null}
+                {!isVisitPlanMode ? (
+                  <SummaryRow label="Длительность" value={serviceDurationLabel} />
                 ) : null}
                 {isVisitPlanMode ? (
                   <div className="space-y-3">
@@ -6157,13 +6322,11 @@ export default function BookingClient({
                 ) : (
                   <>
                     <SummaryRow label="Специалист" value={selectedSpecialist?.name || "—"} />
-                    <SummaryRow label="Время" value={summaryTimeLabel} />
                   </>
                 )}
-                <SummaryRow
-                  label={isVisitPlanMode ? "Общая длительность" : "Длительность"}
-                  value={serviceDurationLabel}
-                />
+                {isVisitPlanMode ? (
+                  <SummaryRow label="Общая длительность" value={serviceDurationLabel} />
+                ) : null}
                 <SummaryRow
                   label={isVisitPlanMode ? "Общая стоимость" : "Стоимость"}
                   value={servicePriceLabel}
@@ -6286,6 +6449,8 @@ export default function BookingClient({
                 </div>
               ) : null}
             </div>
+              </>
+            )}
           </SoftPanel>
 
         </div>

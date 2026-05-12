@@ -101,7 +101,7 @@ function getLibraryBlockCode(type: BlockType, variant: SiteBlock["variant"]): Bl
   if (type === "locations") return "LC001";
   if (type === "services") return "SE001";
   if (type === "specialists") return "SP001";
-  if (type === "booking") return "BO001";
+  if (type === "booking") return variant === "v2" ? "BO002" : "BO001";
   if (type === "aisha") return "AI001";
   if (type === "about") return "AB001";
   if (type === "heading") return "HD001";

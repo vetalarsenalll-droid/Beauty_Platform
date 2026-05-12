@@ -170,7 +170,7 @@ export const BLOCK_VARIANTS: Record<
   serviceProfile: ["v1"],
   specialistProfile: ["v1"],
   client: ["v1"],
-  booking: ["v1"],
+  booking: ["v1", "v2"],
   locations: ["v1"],
   services: ["v1"],
   specialists: ["v1"],

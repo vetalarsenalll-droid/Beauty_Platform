@@ -100,6 +100,7 @@ type PublicBookingClientProps = {
     services?: Array<{ entityId: string; url: string }>;
     specialists?: Array<{ entityId: string; url: string }>;
   };
+  designVariant?: "classic" | "future";
 };
 
 export default function PublicBookingClient({
@@ -110,6 +111,7 @@ export default function PublicBookingClient({
   initialServices,
   initialSpecialists,
   initialWorkPhotos,
+  designVariant,
 }: PublicBookingClientProps) {
   return (
     <BookingClient
@@ -120,6 +122,7 @@ export default function PublicBookingClient({
       initialServices={initialServices}
       initialSpecialists={initialSpecialists}
       initialWorkPhotos={initialWorkPhotos}
+      designVariant={designVariant}
     />
   );
 }
