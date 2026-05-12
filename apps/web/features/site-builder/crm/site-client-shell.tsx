@@ -47,6 +47,7 @@ import { SiteRightPanelFrame } from "@/features/site-builder/crm/site-right-pane
 import {
   QUICK_ADD_BLOCK_TYPES,
   LIBRARY_BLOCK_TYPES,
+  PRIMARY_LIBRARY_BLOCK_TYPES,
   getBlockVariants,
 } from "@/features/site-builder/blocks/block-registry";
 import type { BlockCode } from "@/features/site-builder/blocks/runtime/contracts";
@@ -1401,7 +1402,7 @@ export default function SiteClient({
                         libraryBlock === type
                           ? "bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
                           : "bg-transparent text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-paper)]"
-                      }`}
+                      } ${PRIMARY_LIBRARY_BLOCK_TYPES.has(type) ? "font-bold" : "font-normal"}`}
                     >
                       <span className="min-w-0 truncate">{BLOCK_LABELS[type]}</span>
                       <span className="ml-3 text-xs text-[color:var(--bp-muted)]">{getBlockVariants(type).length}</span>

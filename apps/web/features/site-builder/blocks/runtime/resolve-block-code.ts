@@ -31,11 +31,9 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
   if (block.type === "heading") return "HD001";
   if (block.type === "text") return "TX001";
   if (block.type === "image") return "IM001";
-  if (block.type === "gallery") return "GA001";
   if (block.type === "form") return "FO001";
   if (block.type === "button") return "BT001";
   if (block.type === "advantages") return "AD001";
-  if (block.type === "project") return "PR001";
   if (block.type === "footer") return "FT001";
   if (block.type === "team") return "TM001";
   if (block.type === "news") return "NW001";

@@ -7,33 +7,31 @@ export type BlockRegistryItem = {
 };
 
 export const BLOCK_REGISTRY: BlockRegistryItem[] = [
-  { type: "cover", quickAdd: true, availableInLibrary: true },
   { type: "menu", quickAdd: false, availableInLibrary: true },
-  { type: "loader", quickAdd: false, availableInLibrary: true },
-  { type: "heading", quickAdd: true, availableInLibrary: true },
-  { type: "text", quickAdd: true, availableInLibrary: true },
-  { type: "image", quickAdd: true, availableInLibrary: true },
-  { type: "gallery", quickAdd: false, availableInLibrary: true },
-  { type: "form", quickAdd: true, availableInLibrary: true },
-  { type: "button", quickAdd: true, availableInLibrary: true },
-  { type: "advantages", quickAdd: true, availableInLibrary: true },
-  { type: "project", quickAdd: true, availableInLibrary: true },
-  { type: "footer", quickAdd: false, availableInLibrary: true },
-  { type: "team", quickAdd: false, availableInLibrary: true },
-  { type: "news", quickAdd: false, availableInLibrary: true },
-  { type: "widget", quickAdd: false, availableInLibrary: true },
-  { type: "locationProfile", quickAdd: false, availableInLibrary: true },
-  { type: "serviceProfile", quickAdd: false, availableInLibrary: true },
-  { type: "specialistProfile", quickAdd: false, availableInLibrary: true },
-  { type: "about", quickAdd: false, availableInLibrary: true },
+  { type: "cover", quickAdd: true, availableInLibrary: true },
   { type: "locations", quickAdd: false, availableInLibrary: true },
   { type: "services", quickAdd: false, availableInLibrary: true },
   { type: "specialists", quickAdd: false, availableInLibrary: true },
-  { type: "works", quickAdd: false, availableInLibrary: true },
-  { type: "reviews", quickAdd: false, availableInLibrary: true },
-  { type: "contacts", quickAdd: false, availableInLibrary: true },
   { type: "promos", quickAdd: false, availableInLibrary: true },
+  { type: "reviews", quickAdd: false, availableInLibrary: true },
+  { type: "works", quickAdd: false, availableInLibrary: true },
+  { type: "form", quickAdd: true, availableInLibrary: true },
+  { type: "contacts", quickAdd: false, availableInLibrary: true },
+  { type: "footer", quickAdd: false, availableInLibrary: true },
+  { type: "heading", quickAdd: true, availableInLibrary: true },
+  { type: "text", quickAdd: true, availableInLibrary: true },
+  { type: "image", quickAdd: true, availableInLibrary: true },
+  { type: "button", quickAdd: true, availableInLibrary: true },
+  { type: "advantages", quickAdd: true, availableInLibrary: true },
+  { type: "team", quickAdd: false, availableInLibrary: true },
+  { type: "news", quickAdd: false, availableInLibrary: true },
+  { type: "widget", quickAdd: false, availableInLibrary: true },
+  { type: "about", quickAdd: false, availableInLibrary: true },
   { type: "aisha", quickAdd: false, availableInLibrary: true },
+  { type: "loader", quickAdd: false, availableInLibrary: true },
+  { type: "locationProfile", quickAdd: false, availableInLibrary: true },
+  { type: "serviceProfile", quickAdd: false, availableInLibrary: true },
+  { type: "specialistProfile", quickAdd: false, availableInLibrary: true },
   { type: "booking", quickAdd: false, availableInLibrary: true },
 ];
 
@@ -51,13 +49,33 @@ export function getBlockRegistryItem(type: BlockType): BlockRegistryItem {
   );
 }
 
-export const QUICK_ADD_BLOCK_TYPES: BlockType[] = BLOCK_REGISTRY
-  .filter((item) => item.quickAdd)
-  .map((item) => item.type);
+export const QUICK_ADD_BLOCK_TYPES: BlockType[] = [
+  "cover",
+  "heading",
+  "text",
+  "image",
+  "form",
+  "button",
+  "advantages",
+].filter((type) => getBlockRegistryItem(type).quickAdd);
 
 export const LIBRARY_BLOCK_TYPES: BlockType[] = BLOCK_REGISTRY
   .filter((item) => item.availableInLibrary)
   .map((item) => item.type);
+
+export const PRIMARY_LIBRARY_BLOCK_TYPES = new Set<BlockType>([
+  "menu",
+  "cover",
+  "locations",
+  "services",
+  "specialists",
+  "promos",
+  "reviews",
+  "works",
+  "form",
+  "contacts",
+  "footer",
+]);
 
 export function getBlockLabel(type: BlockType): string {
   return BLOCK_LABELS[type];
