@@ -1858,11 +1858,12 @@ textarea::placeholder {
 }
 
 .booking-root--future .booking-route-item {
-  background: color-mix(in srgb, var(--booking-bg) 84%, var(--bp-paper));
+  border-color: transparent;
+  background: transparent;
 }
 
 .booking-root--future .booking-route-item.is-ready {
-  border-color: color-mix(in srgb, var(--bp-accent) 48%, var(--booking-panel-border));
+  border-color: transparent;
 }
 
 .booking-root--future .booking-future-toolbar-labels {
@@ -1874,12 +1875,13 @@ textarea::placeholder {
 }
 
 .booking-root--future .booking-future-toolbar .booking-scenario-shell {
-  width: 310px;
+  width: 360px;
   max-width: 100%;
 }
 
 .booking-root--future .booking-future-toolbar .booking-scenario-tab {
-  flex: 1 1 0;
+  flex: 0 0 calc((100% - 8px) / 3);
+  min-width: 0;
 }
 
 .booking-root--future .booking-future-toolbar .booking-progress-row {

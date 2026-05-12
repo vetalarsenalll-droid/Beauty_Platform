@@ -6207,7 +6207,7 @@ export default function BookingClient({
                     <div
                       key={item.key}
                       className={cn(
-                        "booking-route-item flex gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3",
+                        "booking-route-item flex gap-3 rounded-2xl p-3",
                         item.ready && "is-ready"
                       )}
                     >
