@@ -340,6 +340,8 @@ check(
     /serviceTopicMatches\(t, scopedServices\.length \? scopedServices : services\)/.test(fuzzy) &&
     /dedupeOptions\(topicMatches\.map\(serviceQuickOption\)\)/.test(fuzzy) &&
     /if \(topicMatches\.length\) \{[\s\S]*route = "chat-only"[\s\S]*shouldRunBookingFlowResolved = false/.test(postHandler) &&
+    /Нашла подходящую услугу\. Подтвердите выбор/.test(postHandler) &&
+    /Нашла подходящую услугу\. Подтвердите выбор/.test(fuzzy) &&
     /const sample = priceOptions[\s\S]*?topicMatches\.length \? priceOptions\.map\(serviceQuickOption\) : serviceOptionsWithTabs\(servicesScopedByLocation, priceOptions\)/.test(postHandler),
 );
 

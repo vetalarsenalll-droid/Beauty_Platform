@@ -755,7 +755,9 @@ export async function handlePublicAiChatPost(request: Request) {
             .join("; ");
           route = "chat-only";
           shouldRunBookingFlowResolved = false;
-          reply = asksPrice && sample
+          reply = topicMatches.length === 1
+            ? `Нашла подходящую услугу. Подтвердите выбор: ${serviceQuickOption(topicMatches[0]!).label}`
+            : asksPrice && sample
             ? "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
             : "У нас есть несколько вариантов. Какой именно вам подходит?";
           nextUi = { kind: "quick_replies", options: topicMatches.map(serviceQuickOption) };
@@ -1145,7 +1147,9 @@ export async function handlePublicAiChatPost(request: Request) {
             .map((x) => serviceQuickOption(x).label)
             .join("; ");
           reply = topicMatches.length
-            ? "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
+            ? topicMatches.length === 1
+              ? `Нашла подходящую услугу. Подтвердите выбор: ${serviceQuickOption(topicMatches[0]!).label}`
+              : "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
             : sample
               ? "Точное совпадение не нашла. По стоимости могу сориентировать так: " + sample + ". Выберите услугу кнопкой ниже."
               : "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
@@ -1180,7 +1184,9 @@ export async function handlePublicAiChatPost(request: Request) {
         } else {
           const topicMatches = serviceTopicMatches(t, servicesByCategory);
           if (topicMatches.length) {
-            reply = "У нас есть несколько вариантов. Какой именно вам подходит?";
+            reply = topicMatches.length === 1
+              ? `Нашла подходящую услугу. Подтвердите выбор: ${serviceQuickOption(topicMatches[0]!).label}`
+              : "У нас есть несколько вариантов. Какой именно вам подходит?";
             nextUi = { kind: "quick_replies", options: topicMatches.map(serviceQuickOption) };
           } else {
             const requested = extractRequestedServicePhrase(t);

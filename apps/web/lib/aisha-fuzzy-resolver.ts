@@ -538,7 +538,9 @@ export async function handleUnknownServiceResolution(args: {
       .map((service) => serviceQuickOption(service).label)
       .join("; ");
     const reply =
-      asksPrice && sample
+      topicMatches.length === 1
+        ? `Нашла подходящую услугу. Подтвердите выбор: ${serviceQuickOption(topicMatches[0]!).label}`
+        : asksPrice && sample
         ? "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
         : "У нас есть несколько вариантов. Какой именно вам подходит?";
     const ui: ChatUi = { kind: "quick_replies", options: dedupeOptions(topicMatches.map(serviceQuickOption)) };
