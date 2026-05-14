@@ -37,7 +37,6 @@ export type AishaNluIntent =
 
 export type AishaNlu = {
   intent: AishaNluIntent;
-  reply?: string | null;
   confidence?: number | null;
   locationId?: number | null;
   serviceId?: number | null;
@@ -132,6 +131,14 @@ type RunAishaNaturalizeArgs = {
 
 const NLU_FAIL_THRESHOLD = 3;
 const NLU_COOLDOWN_MS = 2 * 60_000;
+const NLU_MAX_LOCATIONS = 20;
+const NLU_MAX_SERVICES = 80;
+const NLU_MAX_SPECIALISTS = 80;
+const LLM_MAX_LOCATIONS = 20;
+const LLM_MAX_SERVICES = 50;
+const LLM_MAX_SPECIALISTS = 50;
+const BRIDGE_MAX_LOCATIONS = 5;
+const BRIDGE_MAX_SERVICES = 8;
 type NluState = { failures: number; disabledUntil: number };
 const nluStateByScope = new Map<string, NluState>();
 
@@ -206,6 +213,28 @@ function isHmTime(v: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 }
 
+function normalizeCatalogText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function prioritizeCatalogByMessage<T extends { name: string }>(items: T[], message: string): T[] {
+  const messageNorm = normalizeCatalogText(message);
+  if (!messageNorm) return items;
+  return [...items].sort((a, b) => {
+    const aName = normalizeCatalogText(a.name);
+    const bName = normalizeCatalogText(b.name);
+    const aHit = aName.length > 1 && messageNorm.includes(aName);
+    const bHit = bName.length > 1 && messageNorm.includes(bName);
+    if (aHit !== bHit) return aHit ? -1 : 1;
+    return 0;
+  });
+}
+
 function extractJsonObject(text: string) {
   const s = text.indexOf("{");
   const e = text.lastIndexOf("}");
@@ -276,7 +305,6 @@ function normalizeNlu(parsed: Record<string, unknown>): AishaNlu {
 
   return {
     intent,
-    reply: typeof parsed.reply === "string" ? parsed.reply.trim().slice(0, 500) : null,
     confidence:
       typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
         ? Math.max(0, Math.min(1, parsed.confidence))
@@ -296,6 +324,9 @@ function normalizeNlu(parsed: Record<string, unknown>): AishaNlu {
 export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluResult> {
   const scopeKey = `account:${args.account.id}`;
   if (!canUseNlu(scopeKey)) return { nlu: null, source: "fallback", reason: "disabled_or_no_key" };
+  const rankedLocations = prioritizeCatalogByMessage(args.locations, args.message);
+  const rankedServices = prioritizeCatalogByMessage(args.services, args.message);
+  const rankedSpecialists = prioritizeCatalogByMessage(args.specialists, args.message);
 
   const context = {
     account: {
@@ -307,9 +338,9 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
       profile: args.accountProfile,
     },
     draft: args.draft,
-    locations: args.locations,
-    services: args.services.map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })),
-    specialists: args.specialists,
+    locations: rankedLocations.slice(0, NLU_MAX_LOCATIONS),
+    services: rankedServices.slice(0, NLU_MAX_SERVICES).map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })),
+    specialists: rankedSpecialists.slice(0, NLU_MAX_SPECIALISTS),
     recentMessages: args.recentMessages.slice(-10),
   };
 
@@ -321,10 +352,9 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
     "date формат YYYY-MM-DD, time формат HH:mm.",
     `Допустимые intents: ${ALLOWED_INTENTS.join(", ")}.`,
     "Для confidence верни число от 0 до 1.",
-    "Для smalltalk/gratitude можно добавить короткий вежливый reply на русском.",
+    "Не генерируй пользовательский ответ. Верни только классификацию и entity candidates.",
     "JSON schema:",
-    '{"intent":"unknown","reply":null,"confidence":0.0,"locationId":null,"serviceId":null,"specialistId":null,"date":null,"time":null,"timePreference":null,"clientName":null,"clientPhone":null,"clientEmail":null}',
-    args.systemPrompt ? `CUSTOM_SYSTEM_PROMPT: ${args.systemPrompt}` : "",
+    '{"intent":"unknown","confidence":0.0,"locationId":null,"serviceId":null,"specialistId":null,"date":null,"time":null,"timePreference":null,"clientName":null,"clientPhone":null,"clientEmail":null}',
     `CONTEXT: ${JSON.stringify(context)}`,
     `USER_MESSAGE: ${args.message}`,
   ]
@@ -352,6 +382,9 @@ export async function runAishaNlu(args: RunAishaNluArgs): Promise<RunAishaNluRes
 
 export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promise<string | null> {
   if (!process.env.GIGACHAT_AUTH_KEY?.trim()) return null;
+  const rankedLocations = prioritizeCatalogByMessage(args.locations, args.message);
+  const rankedServices = prioritizeCatalogByMessage(args.services, args.message);
+  const rankedSpecialists = prioritizeCatalogByMessage(args.specialists, args.message);
 
   const prompt = [
     "Говорите как ассистент: используйте формулировки «помогаю/подберу/оформлю», не используйте формы «записываюсь/консультируюсь», обращайтесь к клиенту на «Вы/Вам».",
@@ -388,9 +421,9 @@ export async function runAishaSmallTalkReply(args: RunAishaSmallTalkArgs): Promi
     `Текущее время (HH:mm): ${args.nowHm}`,
     `Дата в черновике: ${args.draftDate ?? "null"}`,
     `Время в черновике: ${args.draftTime ?? "null"}`,
-    `Локации: ${JSON.stringify(args.locations.slice(0, 20))}`,
-    `Услуги: ${JSON.stringify(args.services.slice(0, 50).map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })))}`,
-    `Специалисты: ${JSON.stringify(args.specialists.slice(0, 50))}`,
+    `Локации: ${JSON.stringify(rankedLocations.slice(0, LLM_MAX_LOCATIONS))}`,
+    `Услуги: ${JSON.stringify(rankedServices.slice(0, LLM_MAX_SERVICES).map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })))}`,
+    `Специалисты: ${JSON.stringify(rankedSpecialists.slice(0, LLM_MAX_SPECIALISTS))}`,
     `История: ${JSON.stringify(args.recentMessages.slice(-10))}`,
     `Сообщение пользователя: ${args.message}`,
   ]
@@ -465,12 +498,15 @@ export async function runAishaChatAction(args: RunAishaChatActionArgs): Promise<
   if (!canUseNlu(scopeKey)) {
     return { action: "answer_only", reply: null, confidence: 0, source: "fallback" };
   }
+  const rankedLocations = prioritizeCatalogByMessage(args.locations, args.message);
+  const rankedServices = prioritizeCatalogByMessage(args.services, args.message);
+  const rankedSpecialists = prioritizeCatalogByMessage(args.specialists, args.message);
 
   const context = {
     profile: args.accountProfile,
-    locations: args.locations.map((x) => ({ id: x.id, name: x.name, address: x.address })),
-    services: args.services.map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })),
-    specialists: args.specialists.map((x) => ({ id: x.id, name: x.name, levelName: x.levelName ?? null })),
+    locations: rankedLocations.slice(0, LLM_MAX_LOCATIONS).map((x) => ({ id: x.id, name: x.name, address: x.address })),
+    services: rankedServices.slice(0, LLM_MAX_SERVICES).map((x) => ({ id: x.id, name: x.name, duration: x.baseDurationMin, price: x.basePrice })),
+    specialists: rankedSpecialists.slice(0, LLM_MAX_SPECIALISTS).map((x) => ({ id: x.id, name: x.name, levelName: x.levelName ?? null })),
     recentMessages: args.recentMessages.slice(-8),
   };
 
@@ -508,6 +544,8 @@ export async function runAishaChatAction(args: RunAishaChatActionArgs): Promise<
 
 export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Promise<string | null> {
   if (!canUseNlu("account:" + args.accountId)) return null;
+  const rankedLocations = prioritizeCatalogByMessage(args.locations, args.message);
+  const rankedServices = prioritizeCatalogByMessage(args.services, args.message);
 
   const prompt = [
     "Ты " + args.assistantName + ", дружелюбный ассистент записи.",
@@ -530,8 +568,8 @@ export async function runAishaBookingBridge(args: RunAishaBookingBridgeArgs): Pr
     "Текущее время (HH:mm): " + args.nowHm,
     "Дата в черновике: " + (args.draftDate ?? "null"),
     "Время в черновике: " + (args.draftTime ?? "null"),
-    "Локации: " + JSON.stringify(args.locations.slice(0, 5).map((x) => ({ id: x.id, name: x.name }))),
-    "Услуги: " + JSON.stringify(args.services.slice(0, 8).map((x) => ({ id: x.id, name: x.name }))),
+    "Локации: " + JSON.stringify(rankedLocations.slice(0, BRIDGE_MAX_LOCATIONS).map((x) => ({ id: x.id, name: x.name }))),
+    "Услуги: " + JSON.stringify(rankedServices.slice(0, BRIDGE_MAX_SERVICES).map((x) => ({ id: x.id, name: x.name }))),
     args.focusServiceName ? "Фокус-услуга: " + args.focusServiceName : "",
     args.focusLocationName ? "Фокус-локация: " + args.focusLocationName : "",
     args.focusDate ? "Фокус-дата: " + args.focusDate : "",

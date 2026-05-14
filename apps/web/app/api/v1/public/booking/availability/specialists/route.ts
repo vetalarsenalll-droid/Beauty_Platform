@@ -58,6 +58,8 @@ export async function GET(request: Request) {
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: resolved.account.id,
+      isPublic: true,
+      user: { status: "ACTIVE" },
       locations: { some: { locationId } },
     },
     select: { id: true },

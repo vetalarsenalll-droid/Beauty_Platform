@@ -50,6 +50,8 @@ export async function GET(request: Request) {
       },
       specialist: {
         accountId: resolved.account.id,
+        isPublic: true,
+        user: { status: "ACTIVE" },
         locations: { some: { locationId } },
         ...(specialistId ? { id: specialistId } : {}),
       },

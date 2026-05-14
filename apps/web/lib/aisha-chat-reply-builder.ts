@@ -60,8 +60,13 @@ export async function runClientActionsBranch(args: {
   origin: string;
   clientId: number | null;
   threadClientId: number | null;
+  pendingClientAction?:
+    | { type: "cancel"; appointmentId: number }
+    | { type: "reschedule"; appointmentId: number; date: string; hh: string; mm: string }
+    | { type: "cancel_choice" }
+    | null;
 }): Promise<{ reply: string; ui: ChatUi | null }> {
-  const { messageForRouting, accountId, accountTimeZone, accountSlug, origin, clientId, threadClientId } = args;
+  const { messageForRouting, accountId, accountTimeZone, accountSlug, origin, clientId, threadClientId, pendingClientAction = null } = args;
 
   const effectiveClientId = clientId ?? threadClientId ?? null;
   const authLevel: AuthLevel = clientId ? "full" : threadClientId ? "thread_only" : "none";
@@ -74,6 +79,7 @@ export async function runClientActionsBranch(args: {
     authMode: authLevel === "none" ? "full" : authLevel,
     origin,
     accountSlug,
+    pendingClientAction,
   });
 
   if (clientFlow.handled) {

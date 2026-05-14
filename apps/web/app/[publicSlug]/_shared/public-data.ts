@@ -90,6 +90,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
         category: { select: { name: true, slug: true } },
         locations: { select: { locationId: true } },
         specialists: {
+          where: { specialist: { isPublic: true, user: { status: "ACTIVE" } } },
           select: {
             specialistId: true,
             priceOverride: true,
@@ -107,7 +108,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       },
     }),
     prisma.specialistProfile.findMany({
-      where: { accountId: account.id },
+      where: { accountId: account.id, isPublic: true, user: { status: "ACTIVE" } },
       include: {
         user: { include: { profile: true } },
         level: true,

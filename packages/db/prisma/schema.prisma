@@ -1199,6 +1199,7 @@ model SpecialistProfile {
   userId    Int
   levelId   Int?
   bio       String?
+  isPublic  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1222,6 +1223,7 @@ model SpecialistProfile {
 
   @@unique([accountId, userId])
   @@index([accountId, createdAt])
+  @@index([accountId, isPublic])
 }
 
 model SpecialistLevelHistory {
@@ -2213,12 +2215,16 @@ model AiSetting {
 model AiBookingDraft {
   id                 Int       @id @default(autoincrement())
   threadId           Int       @unique
+  version            Int       @default(0)
   locationId         Int?
   serviceId          Int?
   serviceIds         Int[]     @default([])
   specialistId       Int?
   bookingMode        String?
   planJson           Json?
+  bookingAttemptKey  String?
+  completedAppointmentId Int?
+  completedAt        DateTime?
   date               String?
   time               String?
   clientName         String?
@@ -2231,6 +2237,8 @@ model AiBookingDraft {
   updatedAt          DateTime  @updatedAt
 
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([bookingAttemptKey])
 }
 
 model OnlineBookingSession {

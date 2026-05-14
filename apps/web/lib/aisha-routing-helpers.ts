@@ -226,6 +226,37 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
   return fuzzy ?? null;
 }
 
+export function serviceTopicMatches(messageNorm: string, services: ServiceLite[]) {
+  const t = norm(messageNorm);
+  if (!t || /^\s*категория:\s*.+$/iu.test(t)) return [];
+
+  const topicRules: Array<{ cue: RegExp; match: RegExp }> = [
+    { cue: /маник|маникюр/iu, match: /маник/iu },
+    { cue: /педик|педикюр/iu, match: /педик/iu },
+    { cue: /ногт|ногтев|ногти/iu, match: /маник|педик|ногт|гель|лак|наращ|коррекц|дизайн|spa|рук/iu },
+    { cue: /стриж|волос|парикмах/iu, match: /стриж|окраш|тонир|уклад|полиров|кератин|волос|кожи головы/iu },
+    { cue: /ресниц/iu, match: /ресниц/iu },
+    { cue: /бров/iu, match: /бров/iu },
+  ];
+
+  const active = topicRules.filter((rule) => rule.cue.test(t));
+  if (!active.length) return [];
+
+  const matches = services.filter((service) => {
+    const haystack = norm([service.name, service.categoryName ?? "", service.description ?? ""].join(" "));
+    return active.some((rule) => rule.match.test(haystack));
+  });
+
+  const selectedCategory = uniqueServiceCategories(matches).length === 1 ? norm(uniqueServiceCategories(matches)[0] ?? "") : "";
+  if (selectedCategory) {
+    const byCategory = services.filter((service) => norm(service.categoryName ?? "") === selectedCategory);
+    const narrowByName = matches.filter((service) => active.some((rule) => rule.match.test(norm(service.name))));
+    return narrowByName.length ? narrowByName : byCategory;
+  }
+
+  return matches;
+}
+
 export function findServiceMatchesInText(messageNorm: string, services: ServiceLite[]) {
   if (!messageNorm) return [];
   const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

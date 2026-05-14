@@ -31,6 +31,11 @@ function normalizeConsentConfirmedAt(value: unknown): string | null {
   return typeof value === "string" && value ? value : null;
 }
 
+function normalizeDateTimeIso(value: unknown): string | null {
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === "string" && value ? value : null;
+}
+
 const norm = (v: string) =>
   v
     .toLowerCase()
@@ -40,6 +45,7 @@ const norm = (v: string) =>
     .trim();
 
 export const draftView = (d: {
+  version?: number | null;
   locationId: number | null;
   serviceId: number | null;
   serviceIds?: number[] | null;
@@ -51,10 +57,14 @@ export const draftView = (d: {
   clientEmail?: string | null;
   planJson?: unknown;
   bookingMode?: unknown;
+  bookingAttemptKey?: string | null;
+  completedAppointmentId?: number | null;
+  completedAt?: unknown;
   mode: string | null;
   status: string;
   consentConfirmedAt: unknown;
 }): DraftLike => ({
+  version: typeof d.version === "number" ? d.version : 0,
   locationId: d.locationId,
   serviceId: d.serviceId,
   serviceIds: Array.isArray(d.serviceIds) ? d.serviceIds : [],
@@ -66,6 +76,9 @@ export const draftView = (d: {
   clientEmail: d.clientEmail ?? null,
   planJson: normalizePlanJson(d.planJson),
   bookingMode: normalizeBookingMode(d.bookingMode),
+  bookingAttemptKey: typeof d.bookingAttemptKey === "string" && d.bookingAttemptKey ? d.bookingAttemptKey : null,
+  completedAppointmentId: Number.isInteger(d.completedAppointmentId) ? d.completedAppointmentId : null,
+  completedAt: normalizeDateTimeIso(d.completedAt),
   mode: d.mode === "SELF" || d.mode === "ASSISTANT" ? (d.mode as Mode) : null,
   status: d.status,
   consentConfirmedAt: normalizeConsentConfirmedAt(d.consentConfirmedAt),

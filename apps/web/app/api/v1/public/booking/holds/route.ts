@@ -152,6 +152,8 @@ export async function POST(request: Request) {
       where: {
         id: specialistId,
         accountId: resolved.account.id,
+        isPublic: true,
+        user: { status: "ACTIVE" },
         locations: { some: { locationId } },
         AND: selectedServiceIds.map((id) => ({ services: { some: { serviceId: id } } })),
       },
@@ -172,6 +174,7 @@ export async function POST(request: Request) {
         bookingType: true,
         groupCapacityDefault: true,
         specialists: {
+          where: { specialist: { isPublic: true, user: { status: "ACTIVE" } } },
           select: {
             specialistId: true,
             durationOverrideMin: true,

@@ -5027,7 +5027,7 @@ export default function BookingClient({
         >
           {designVariant !== "future" ? (
           <SoftPanel className="booking-scenario-panel min-w-0 p-4 lg:col-start-1 lg:row-start-1">
-            <div className={cn("flex flex-col gap-4", designVariant === "future" && "booking-route-head")}>
+            <div className="flex flex-col gap-4">
               <div className="w-full space-y-3">
                 <div className="booking-scenario-head flex items-center justify-between">
                   <div className="booking-scenario-title w-[110px] text-right text-xs text-[color:var(--bp-muted)]">

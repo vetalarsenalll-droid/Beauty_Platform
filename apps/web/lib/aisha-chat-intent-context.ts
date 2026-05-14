@@ -2,8 +2,10 @@
 import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
 import { parseChoiceFromText } from "@/lib/aisha-chat-thread";
 import { decidePublicAiRoute, type PublicAiRoute } from "@/lib/aisha-chat-router";
+import type { RouteDecision } from "@/lib/aisha-route-contract";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaNlu, AishaNluIntent } from "@/lib/aisha-orchestrator";
+import { extractPendingClientActionFromMessage, type PendingClientAction } from "@/lib/aisha-pending-client-action";
 import * as routing from "@/lib/aisha-routing-helpers";
 
 const NLU_INTENT_CONFIDENCE_THRESHOLD = 0.38;
@@ -30,8 +32,8 @@ export function buildIntentContext(args: {
   specialists: SpecialistLite[];
 }): {
   nlu: AishaNlu | null;
-  pendingClientAction: ReturnType<typeof routing.extractPendingClientAction>;
-  confirmPendingClientAction: boolean | ReturnType<typeof routing.extractPendingClientAction>;
+  pendingClientAction: PendingClientAction | null;
+  confirmPendingClientAction: PendingClientAction | null;
   continuePendingCancelChoice: boolean;
   messageForRouting: string;
   selectedLocationByMessage: LocationLite | null;
@@ -101,7 +103,7 @@ export function buildIntentContext(args: {
   looksLikeSpecialistChoiceText: boolean;
   explicitBookingText: boolean;
   hasDraftContext: boolean;
-  forceClientActions: boolean | ReturnType<typeof routing.extractPendingClientAction>;
+  forceClientActions: boolean | PendingClientAction | null;
   isConsentStage: boolean;
   shouldStayInAssistantStages: boolean;
   isConsentStageMessage: boolean;
@@ -113,22 +115,26 @@ export function buildIntentContext(args: {
   forceBookingAwaitingService: boolean;
   forceBookingOnDateOnlyInDraft: boolean;
   forceChatOnlyConversational: boolean;
+  specialistFollowUpLocationId: number | null;
   route: PublicAiRoute;
   routeReason: string;
+  routeDecision: RouteDecision;
   useNluIntent: boolean;
 } {
   const { message, t, d, nowYmd, recentMessages, nluResult, locations, services, specialists } = args;
   const nlu = nluResult.nlu ?? null;
 
-  const pendingClientAction = routing.extractPendingClientAction([...recentMessages].reverse());
-  const confirmPendingClientAction = routing.isLooseConfirmation(message) && pendingClientAction;
+  const pendingClientAction = extractPendingClientActionFromMessage(message);
+  const confirmPendingClientAction = pendingClientAction;
   const continuePendingCancelChoice =
     pendingClientAction?.type === "cancel_choice" && has(message, /^(последн(юю|яя|ее|ая)|ближайш(ую|ая|ее)|ее|её|эту)$/i);
 
   const messageForRouting = confirmPendingClientAction
     ? pendingClientAction.type === "cancel"
       ? `подтверждаю отмену #${pendingClientAction.appointmentId}`
-      : `подтверждаю перенос #${pendingClientAction.appointmentId} на ${pendingClientAction.date} ${pendingClientAction.hh}:${pendingClientAction.mm}`
+      : pendingClientAction.type === "reschedule"
+        ? `подтверждаю перенос #${pendingClientAction.appointmentId} на ${pendingClientAction.date} ${pendingClientAction.hh}:${pendingClientAction.mm}`
+        : message
     : continuePendingCancelChoice
       ? has(message, /ближайш/i)
         ? "отмени ближайшую запись"
@@ -166,12 +172,10 @@ export function buildIntentContext(args: {
     (routing.asksWhoPerformsServices(norm(lastUserText)) ||
       routing.asksSpecialistsByShortText(norm(lastUserText)) ||
       /кто\s+.*работает/i.test(lastUserText));
-  if (specialistFollowUpByLocation && specialistFollowUpLocation) {
-    d.locationId = specialistFollowUpLocation.id;
-  }
-  if (!specialistFollowUpByLocation && specialistFollowUpByPrevUser && specialistFollowUpLocation) {
-    d.locationId = specialistFollowUpLocation.id;
-  }
+  const specialistFollowUpLocationId =
+    specialistFollowUpLocation && (specialistFollowUpByLocation || specialistFollowUpByPrevUser)
+      ? specialistFollowUpLocation.id
+      : null;
 
   const explicitCapabilitiesPhrase = has(messageForRouting, /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i);
   const explicitSmalltalkCue = has(messageForRouting, /(как оно|чем занята|чем занят|расскажи что[-\s]?нибудь|поболтаем|давай поговорим|поговорим|что нового|как дела|как жизнь|че каво|чё каво)/i);
@@ -245,6 +249,27 @@ export function buildIntentContext(args: {
   const explicitServiceSpecialistQuestion = routing.asksWhoPerformsServices(norm(messageForRouting));
   const explicitDraftServiceQuestion = routing.asksDraftServiceQuestion(norm(messageForRouting));
   const explicitCategoryFilterRequest = Boolean(selectedServiceCategoryFilter);
+  const hasCriticalNluConfirmation = (() => {
+    if (mappedNluIntent === "cancel_my_booking") {
+      return Boolean(confirmPendingClientAction) || explicitClientCancelConfirm || (explicitClientCancelPhrase && !cancelMeansDraftAbort && hasClientCancelContext);
+    }
+    if (mappedNluIntent === "reschedule_my_booking") {
+      return Boolean(confirmPendingClientAction) || explicitClientRescheduleConfirm || explicitClientReschedulePhrase || explicitClientRescheduleRequest;
+    }
+    if (mappedNluIntent === "client_profile") {
+      return has(messageForRouting, /(мои данные|мой профиль|моя анкета|личн(?:ый|ого)\s+кабинет|покажи мои|измени мои данные|обнови мои данные)/iu);
+    }
+    if (mappedNluIntent === "confirm") {
+      return d.status === "WAITING_CONFIRMATION" && has(messageForRouting, /^(да|верно|подтверждаю|записаться|оформи(?:ть)?|все верно|всё верно)$/iu);
+    }
+    if (mappedNluIntent === "consent") {
+      return d.mode === "ASSISTANT" && d.status === "WAITING_CONSENT" && has(messageForRouting, /(согласен|согласна|персональн|обработк[ау]\s+персональных данных|даю согласие)/iu);
+    }
+    return true;
+  })();
+  const blockedUnconfirmedCriticalNluIntent =
+    intent === mappedNluIntent && routing.isCriticalIntent(mappedNluIntent) && !hasCriticalNluConfirmation;
+  if (blockedUnconfirmedCriticalNluIntent) intent = heuristicIntent;
 
   if (explicitClientReschedulePhrase || explicitClientRescheduleRequest) intent = "reschedule_my_booking";
   if (specialistFollowUpByLocation) intent = "ask_specialists";
@@ -441,6 +466,30 @@ export function buildIntentContext(args: {
   });
 
   const useNluIntent = intent === mappedNluIntent && mappedNluIntent !== "unknown";
+  const routeGuards = [
+    explicitDateTimeQuery ? "explicit_date_time_query" : null,
+    forceChatOnlyConversational ? "chat_only_conversational" : null,
+    forceChatOnlyInfoIntent ? "chat_only_info_intent" : null,
+    forceClientActions ? "client_actions" : null,
+    forceBookingByContext ? "booking_context" : null,
+    forceBookingOnPromptedLocationChoice ? "prompted_location_choice" : null,
+    forceBookingOnServiceSelection ? "service_selection" : null,
+    forceBookingAwaitingService ? "awaiting_service" : null,
+    forceBookingOnSpecialistQueryInDraft ? "specialist_query_in_draft" : null,
+    forceBookingOnDateOnlyInDraft ? "date_only_in_draft" : null,
+    blockedUnconfirmedCriticalNluIntent ? "unconfirmed_critical_nlu_intent" : null,
+  ].filter((x): x is string => Boolean(x));
+  const routeDecision: RouteDecision = {
+    route,
+    intent,
+    confidence: useNluIntent ? nluConfidence : 1,
+    source: forceClientActions || forceBookingByContext || forceChatOnlyConversational || forceChatOnlyInfoIntent ? "context" : useNluIntent ? "nlu" : "heuristic",
+    reason: routeReason,
+    guards: routeGuards,
+    canMutateDraft: route === "booking-flow" && !forceClientActions && !forceChatOnlyConversational && !forceChatOnlyInfoIntent,
+    canCallLlm: route === "chat-only" || route === "booking-flow",
+    canShowCta: route !== "client-actions" && !explicitServiceComplaint && intent !== "abuse_or_toxic" && intent !== "out_of_scope",
+  };
 
   return {
     nlu,
@@ -527,8 +576,10 @@ export function buildIntentContext(args: {
     forceBookingAwaitingService,
     forceBookingOnDateOnlyInDraft,
     forceChatOnlyConversational,
+    specialistFollowUpLocationId,
     route,
     routeReason,
+    routeDecision,
     useNluIntent,
   };
 }

@@ -95,6 +95,8 @@ export async function GET(request: Request) {
       status: { not: "CANCELLED" },
       specialist: {
         accountId: resolved.account.id,
+        isPublic: true,
+        user: { status: "ACTIVE" },
         locations: { some: { locationId } },
         ...(specialistId ? { id: specialistId } : {}),
       },

@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
         basePrice: true,
         locations: { select: { locationId: true } },
         specialists: {
+          where: { specialist: { isPublic: true, user: { status: "ACTIVE" } } },
           select: {
             specialistId: true,
             priceOverride: true,
@@ -114,6 +115,8 @@ export async function GET(request: NextRequest) {
     prisma.specialistProfile.findMany({
       where: {
         accountId: account.id,
+        isPublic: true,
+        user: { status: "ACTIVE" },
         ...(hasLocation ? { locations: { some: { locationId: Number(locationId) } } } : {}),
       },
       orderBy: { createdAt: "asc" },

@@ -13,6 +13,7 @@
   SpecialistLite,
 } from "@/lib/booking-tools";
 import { parseTime } from "@/lib/aisha-chat-parsers";
+import { randomUUID } from "crypto";
 
 export type BookingState =
   | "IDLE"
@@ -3576,9 +3577,18 @@ if (!d.serviceId) {
   }
 
   const confirmedByUser = isAffirmative(messageNorm);
+  if (d.completedAppointmentId && d.completedAt) {
+    nextStatus = "COMPLETED";
+    return {
+      handled: true,
+      nextStatus,
+      reply: `Запись уже оформлена.\n${bookingSummary(d, locations, services, specialists)}\nНомер записи: ${d.completedAppointmentId}.`,
+    };
+  }
   // Enforce a dedicated confirmation step: user must first see confirmation with button,
   // then send explicit confirmation in the next turn.
   if (d.status !== "WAITING_CONFIRMATION" || !confirmedByUser) {
+    if (!d.bookingAttemptKey) d.bookingAttemptKey = randomUUID();
     nextStatus = "WAITING_CONFIRMATION";
     return {
       handled: true,
@@ -3597,8 +3607,16 @@ if (!d.serviceId) {
     services,
     preferredClientId,
     holdOwnerMarker,
+    bookingAttemptKey: d.bookingAttemptKey,
   });
   if (!created.ok) {
+    if (created.code === "booking_in_progress") {
+      return {
+        handled: true,
+        reply: "Запись уже оформляется. Подождите несколько секунд, пожалуйста.",
+        nextStatus: "WAITING_CONFIRMATION",
+      };
+    }
     if (created.code === "slot_busy") {
       const times =
         d.locationId && d.serviceId && d.date
@@ -3635,6 +3653,8 @@ if (!d.serviceId) {
   }
 
   nextStatus = "COMPLETED";
+  d.completedAppointmentId = created.appointmentId;
+  d.completedAt = new Date().toISOString();
   return {
     handled: true,
     nextStatus,

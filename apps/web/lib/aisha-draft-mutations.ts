@@ -52,6 +52,66 @@ function isNonNameClientText(value: string | null | undefined) {
   );
 }
 
+function applyClientDraftMutations(args: {
+  d: DraftLike;
+  message: string;
+  nlu: DraftMutationNlu;
+  client: DraftMutationClient;
+}) {
+  const { d, message, nlu, client } = args;
+  const parsedNluPhone = typeof nlu?.clientPhone === "string" ? parsePhone(nlu.clientPhone) : null;
+  const parsedDraftPhone = d.clientPhone ? parsePhone(d.clientPhone) : null;
+  const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
+  const parsedMessagePhone = parsePhone(message);
+  d.clientPhone = parsedMessagePhone || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
+
+  const parsedNluEmail = typeof nlu?.clientEmail === "string" ? parseEmail(nlu.clientEmail) : null;
+  const parsedDraftEmail = d.clientEmail ? parseEmail(d.clientEmail) : null;
+  const parsedClientEmail = client?.email ? parseEmail(client.email) : null;
+  const parsedMessageEmail = parseEmail(message);
+  d.clientEmail = parsedMessageEmail || parsedNluEmail || parsedDraftEmail || parsedClientEmail || null;
+
+  const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
+  const parsedMessageName = parseName(message);
+  const nonNameClientText = isNonNameClientText(message);
+  const looksLikeStandaloneName =
+    /^[\p{L}'-]{2,}(?:\s+[\p{L}'-]{2,}){0,2}$/u.test(message.trim()) &&
+    !/[0-9]/.test(message) &&
+    !/[?!.]/.test(message) &&
+    !nonNameClientText &&
+    !/^(?:как|кто|что|где|почему|зачем|привет|здравствуйте|спасибо|ок|окей|ладно|хорошо|знаешь)$/i.test(message.trim());
+  let parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName || Boolean(parsedMessagePhone) ? parsedMessageName : null;
+  if (parsedMessageNameSafe && isToxicDisplayName(parsedMessageNameSafe)) {
+    parsedMessageNameSafe = null;
+  }
+  if (isNonNameClientText(d.clientName)) {
+    d.clientName = null;
+  }
+  const shouldCaptureClientName =
+    d.mode === "ASSISTANT" ||
+    d.status === "WAITING_CONSENT" ||
+    d.status === "WAITING_CONFIRMATION" ||
+    Boolean(parsedMessagePhone) ||
+    explicitNameCue;
+
+  if (shouldCaptureClientName) {
+    d.clientName =
+      parsedMessageNameSafe ||
+      (explicitNameCue ? nlu?.clientName ?? null : null) ||
+      d.clientName ||
+      [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() ||
+      null;
+  }
+
+  const explicitConsentText =
+    d.mode === "ASSISTANT" &&
+    (d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION") &&
+    hasExplicitConsentGrant(message);
+  if (explicitConsentText) {
+    d.consentConfirmedAt = new Date().toISOString();
+  }
+}
+
 export function applyDraftMutations(args: {
   d: DraftLike;
   message: string;
@@ -99,13 +159,15 @@ export function applyDraftMutations(args: {
     d.status = "COLLECTING";
   }
 
+  const canMutateBookingDraft = shouldEnrichDraftForBooking || shouldRunBookingFlow || explicitBookingDecline;
+
   const explicitLocationChangeRequest = has(
     message,
     /(поменяй|поменять|смени|сменить|измени|изменить|друг(?:ой|ая|ую)|выбери|перенеси)\s+(?:филиал|локац|адрес)|(?:филиал|локац|адрес)\s+(?:поменяй|поменять|смени|сменить|измени|изменить|друг(?:ой|ая|ую))/i,
   );
   const hadLocationBefore = Boolean(d.locationId);
   let locationChangedThisTurn = false;
-  if (shouldEnrichDraftForBooking) {
+  if (shouldEnrichDraftForBooking && canMutateBookingDraft) {
     const byName = locationByText(t, locations);
     const byChoice =
       !d.locationId && choiceNum && choiceNum >= 1 && choiceNum <= locations.length ? locations[choiceNum - 1]!.id : null;
@@ -128,6 +190,15 @@ export function applyDraftMutations(args: {
     }
   }
   const locationChosenThisTurn = (!hadLocationBefore && Boolean(d.locationId)) || locationChangedThisTurn;
+  const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
+  if (!canMutateBookingDraft) {
+    return { locationChosenThisTurn: false, scopedServices };
+  }
+  const canMutateClientDraft =
+    shouldRunBookingFlow ||
+    d.mode === "ASSISTANT" ||
+    d.status === "WAITING_CONSENT" ||
+    d.status === "WAITING_CONFIRMATION";
 
   const selectedServiceIdsBefore = Array.from(
     new Set<number>([
@@ -149,7 +220,6 @@ export function applyDraftMutations(args: {
     d.specialistId = null;
   }
 
-  const scopedServices = services.filter((x) => (d.locationId ? x.locationIds.includes(d.locationId) : true));
   const serviceTextMatch = serviceByText(t, scopedServices);
   const multiServiceHint = /(\sи\s|\s&\s|,|;|\s\+\s|\sплюс\s)/iu.test(t);
   const multiServiceMatches = multiServiceHint ? findServiceMatchesInText(t, scopedServices) : [];
@@ -364,56 +434,8 @@ export function applyDraftMutations(args: {
     d.specialistId = selectedSpecialistByText.id;
   }
 
-  const parsedNluPhone = typeof nlu?.clientPhone === "string" ? parsePhone(nlu.clientPhone) : null;
-  const parsedDraftPhone = d.clientPhone ? parsePhone(d.clientPhone) : null;
-  const parsedClientPhone = client?.phone ? parsePhone(client.phone) : null;
-  const parsedMessagePhone = parsePhone(message);
-  d.clientPhone = parsedMessagePhone || parsedNluPhone || parsedDraftPhone || parsedClientPhone || null;
-
-  const parsedNluEmail = typeof nlu?.clientEmail === "string" ? parseEmail(nlu.clientEmail) : null;
-  const parsedDraftEmail = d.clientEmail ? parseEmail(d.clientEmail) : null;
-  const parsedClientEmail = client?.email ? parseEmail(client.email) : null;
-  const parsedMessageEmail = parseEmail(message);
-  d.clientEmail = parsedMessageEmail || parsedNluEmail || parsedDraftEmail || parsedClientEmail || null;
-
-  const explicitNameCue = has(message, /(меня\s+зовут|имя\s+клиента|клиент[:\s]|мое\s+имя|моё\s+имя)/i);
-  const parsedMessageName = parseName(message);
-  const nonNameClientText = isNonNameClientText(message);
-  const looksLikeStandaloneName =
-    /^[\p{L}'-]{2,}(?:\s+[\p{L}'-]{2,}){0,2}$/u.test(message.trim()) &&
-    !/[0-9]/.test(message) &&
-    !/[?!.]/.test(message) &&
-    !nonNameClientText &&
-    !/^(?:как|кто|что|где|почему|зачем|привет|здравствуйте|спасибо|ок|окей|ладно|хорошо|знаешь)$/i.test(message.trim());
-  let parsedMessageNameSafe = explicitNameCue || looksLikeStandaloneName || Boolean(parsedMessagePhone) ? parsedMessageName : null;
-  if (parsedMessageNameSafe && isToxicDisplayName(parsedMessageNameSafe)) {
-    parsedMessageNameSafe = null;
-  }
-  if (isNonNameClientText(d.clientName)) {
-    d.clientName = null;
-  }
-  const shouldCaptureClientName =
-    d.mode === "ASSISTANT" ||
-    d.status === "WAITING_CONSENT" ||
-    d.status === "WAITING_CONFIRMATION" ||
-    Boolean(parsedMessagePhone) ||
-    explicitNameCue;
-
-  if (shouldCaptureClientName) {
-    d.clientName =
-      parsedMessageNameSafe ||
-      (explicitNameCue ? nlu?.clientName ?? null : null) ||
-      d.clientName ||
-      [client?.firstName, client?.lastName].filter(Boolean).join(" ").trim() ||
-      null;
-  }
-
-  const explicitConsentText =
-    d.mode === "ASSISTANT" &&
-    (d.status === "WAITING_CONSENT" || d.status === "WAITING_CONFIRMATION") &&
-    hasExplicitConsentGrant(message);
-  if (explicitConsentText) {
-    d.consentConfirmedAt = new Date().toISOString();
+  if (canMutateClientDraft) {
+    applyClientDraftMutations({ d, message, nlu, client });
   }
 
   const normalizedServiceIds = Array.from(

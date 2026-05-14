@@ -1,6 +1,18 @@
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { PublicAiRoute } from "@/lib/aisha-chat-router";
 
+export type RouteDecision = {
+  route: PublicAiRoute;
+  intent: AishaIntent;
+  confidence: number;
+  source: "heuristic" | "nlu" | "context" | "guard";
+  reason: string;
+  guards: string[];
+  canMutateDraft: boolean;
+  canCallLlm: boolean;
+  canShowCta: boolean;
+};
+
 export const ROUTE_REASON = {
   CHAT_ONLY_DATETIME: "chat_only_datetime",
   CHAT_ONLY_INFO: "chat_only_info_intent",
@@ -42,4 +54,35 @@ export function resolveRouteByContract(args: RouteContractInput, routeForIntentF
   }
 
   return { route: routeForIntentFn(args.intent), routeReason: ROUTE_REASON.POLICY_MATRIX };
+}
+
+export type FinalRouteDecisionInput = {
+  initialDecision: RouteDecision;
+  route: PublicAiRoute;
+  intent: AishaIntent;
+  routeReason: string;
+  guards?: Array<string | null | undefined>;
+  shouldRunBookingFlow?: boolean;
+};
+
+export function applyRouteDecisionGuards(args: FinalRouteDecisionInput): RouteDecision {
+  const guards = Array.from(
+    new Set([
+      ...args.initialDecision.guards,
+      ...(args.guards ?? []).filter((x): x is string => Boolean(x)),
+    ]),
+  );
+  const hasLateGuard = guards.length > args.initialDecision.guards.length;
+
+  return {
+    ...args.initialDecision,
+    route: args.route,
+    intent: args.intent,
+    source: hasLateGuard ? "guard" : args.initialDecision.source,
+    reason: (args.guards ?? []).find((x): x is string => Boolean(x)) ?? args.routeReason,
+    guards,
+    canMutateDraft: args.route === "booking-flow" && Boolean(args.shouldRunBookingFlow),
+    canCallLlm: args.route === "chat-only" || args.route === "booking-flow",
+    canShowCta: args.route !== "client-actions" && args.intent !== "abuse_or_toxic" && args.intent !== "out_of_scope",
+  };
 }

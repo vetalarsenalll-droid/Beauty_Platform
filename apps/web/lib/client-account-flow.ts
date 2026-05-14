@@ -1,6 +1,5 @@
 import {
   cancelClientBooking,
-  findLatestUpcomingBooking,
   getBookingPolicy,
   getClientBookings,
   getClientStats,
@@ -10,6 +9,7 @@ import {
 import { zonedTimeToUtc } from "@/lib/public-booking";
 import { getOffers } from "@/lib/booking-tools";
 import type { ChatUi, ChatUiOption } from "@/lib/booking-flow";
+import { appendPendingClientActionToken, type PendingClientAction } from "@/lib/aisha-pending-client-action";
 
 type FlowResult = { handled: boolean; reply?: string; ui?: ChatUi | null };
 type ClientBooking = Awaited<ReturnType<typeof getClientBookings>>[number];
@@ -23,6 +23,7 @@ type ClientFlowArgs = {
   authMode?: "full" | "thread_only";
   origin?: string | null;
   accountSlug?: string | null;
+  pendingClientAction?: PendingClientAction | null;
 };
 
 const has = (m: string, r: RegExp) => r.test(m);
@@ -37,6 +38,18 @@ function buildClientActionsMenuUi(): ChatUi {
   return {
     kind: "quick_replies",
     options: clientActionsMenuOptions(),
+  };
+}
+
+function buildFullAuthRequiredResult(accountSlug: string | null): FlowResult {
+  const loginUrl = accountSlug ? `/c/login?account=${encodeURIComponent(accountSlug)}` : "/c/login";
+  return {
+    handled: true,
+    reply: "Для персональных данных нужна активная авторизация. Нажмите кнопку ниже, чтобы войти в личный кабинет.",
+    ui: {
+      kind: "quick_replies",
+      options: [qr("Войти в личный кабинет", "Открыть личный кабинет", loginUrl)],
+    },
   };
 }
 
@@ -353,8 +366,36 @@ function parseRescheduleConfirm(text: string) {
   const mm = String(match[4]);
   return { id, date, hh, mm };
 }
+
+function pendingCancelMatches(pending: PendingClientAction | null, id: number | null) {
+  return pending?.type === "cancel" && (!id || pending.appointmentId === id);
+}
+
+function pendingRescheduleMatches(
+  pending: PendingClientAction | null,
+  confirmation: { id: number; date: string; hh: string; mm: string },
+) {
+  return (
+    pending?.type === "reschedule" &&
+    pending.appointmentId === confirmation.id &&
+    pending.date === confirmation.date &&
+    pending.hh === confirmation.hh &&
+    pending.mm === confirmation.mm
+  );
+}
+
 export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowResult> {
-  const { message, messageNorm, accountId, accountTimeZone, clientId, authMode = "full", origin = null, accountSlug = null } = args;
+  const {
+    message,
+    messageNorm,
+    accountId,
+    accountTimeZone,
+    clientId,
+    authMode = "full",
+    origin = null,
+    accountSlug = null,
+    pendingClientAction = null,
+  } = args;
   if (!clientId) return { handled: false };
 
   const todayYmd = ymdFromDateInTz(new Date(), accountTimeZone);
@@ -390,6 +431,10 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
 
   if (!asksMyBookings && !asksLatestSingle && !asksNearest && !asksPast && !asksUpcomingList && !asksPastList && !asksAllBookings && !asksAllPast && !asksStats && !asksCancel && !asksReschedule && !asksRepeat && !asksProfile && !(parseAppointmentId(messageNorm) != null && has(messageNorm, /(подроб|расшифр|детал|покажи запись|запись\s*#|запись\s*№)/i))) {
     if (!cancelConfirmId && !cancelConfirmBare && !rescheduleConfirm) return { handled: false };
+  }
+
+  if (authMode !== "full") {
+    return buildFullAuthRequiredResult(accountSlug);
   }
 
   if (asksMyBookings || asksLatestSingle || asksNearest || asksPast || asksUpcomingList || asksPastList || asksAllBookings || asksAllPast || (parseAppointmentId(messageNorm) != null && has(messageNorm, /(подроб|расшифр|детал|покажи запись|запись\s*#|запись\s*№)/i))) {
@@ -530,9 +575,6 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
   }
 
   if (asksProfile) {
-    if (authMode !== "full") {
-      return { handled: true, reply: "Для изменения профиля нужна активная авторизация." };
-    }
     const newPhone = parsePhone(message);
     if (newPhone) {
       const updated = await updateClientPhone({ accountId, clientId, phone: newPhone });
@@ -542,9 +584,6 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
   }
 
   if (asksCancel) {
-    if (authMode !== "full") {
-      return { handled: true, reply: "Для отмены записи нужна активная авторизация." };
-    }
     const id = parseAppointmentId(messageNorm);
     const all = await getClientBookings({ accountId, clientId, limit: 50 });
     const now = new Date();
@@ -567,20 +606,26 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     return {
       handled: true,
       reply: `Проверьте отмену: #${id} — ${formatDateTimeInTz(target.startAt, accountTimeZone)}.${policy.cancellationWindowHours != null ? ` Отмена доступна не позднее чем за ${formatPolicyHoursHuman(policy.cancellationWindowHours)} до визита.` : ""}`,
-      ui: { kind: "quick_replies", options: [qr(`Подтверждаю отмену #${id}`, `подтверждаю отмену #${id}`), qr("Назад к моим записям", "какие у меня записи")] },
+      ui: {
+        kind: "quick_replies",
+        options: [
+          qr(`Подтверждаю отмену #${id}`, appendPendingClientActionToken(`confirm cancel #${id}`, { type: "cancel", appointmentId: id })),
+          qr("Назад к моим записям", "какие у меня записи"),
+        ],
+      },
     };
   }
 
   if (cancelConfirmId || cancelConfirmBare) {
-    if (authMode !== "full") {
-      return { handled: true, reply: "Для отмены записи нужна активная авторизация." };
-    }
     let id = cancelConfirmId ? Number(cancelConfirmId) : null;
-    if (!id) {
-      const nearest = await findLatestUpcomingBooking({ accountId, clientId });
-      if (!nearest) return { handled: true, reply: "Не нашла запись для подтверждения отмены. Укажите номер: «подтверждаю отмену #ID»." };
-      id = nearest.id;
+    if (!pendingCancelMatches(pendingClientAction, id) || pendingClientAction?.type !== "cancel") {
+      return {
+        handled: true,
+        reply: "Сначала выберите запись для отмены и подтвердите действие кнопкой из чата.",
+        ui: buildClientActionsMenuUi(),
+      };
     }
+    id = pendingClientAction.appointmentId;
     const cancelled = await cancelClientBooking({ accountId, clientId, appointmentId: id });
     if (!cancelled.ok) {
       if (cancelled.reason === "cancellation_window_blocked") {
@@ -598,10 +643,6 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
   }
 
   if (asksReschedule) {
-    if (authMode !== "full") {
-      return { handled: true, reply: "Для переноса записи нужна активная авторизация." };
-    }
-
     const idFromText = parseAppointmentId(messageNorm);
     const dt = parseDateTime(messageNorm, todayYmd);
     const all = await getClientBookings({ accountId, clientId, limit: 50 });
@@ -737,7 +778,16 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
       ui: {
         kind: "quick_replies",
         options: [
-          qr("Потверждаю перенос", `подтверждаю перенос #${target.id} на ${formatYmdRu(dt.date)} ${dt.time}`),
+          qr(
+            "Потверждаю перенос",
+            appendPendingClientActionToken(`confirm reschedule #${target.id} ${dt.date} ${dt.time}`, {
+              type: "reschedule",
+              appointmentId: target.id,
+              date: dt.date,
+              hh: dt.time.slice(0, 2),
+              mm: dt.time.slice(3, 5),
+            }),
+          ),
           qr("Выбрать другое время", `перенести #${target.id} на ${formatYmdRu(dt.date)}`),
         ],
       },
@@ -745,8 +795,12 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
   }
 
   if (rescheduleConfirm) {
-    if (authMode !== "full") {
-      return { handled: true, reply: "Для переноса записи нужна активная авторизация." };
+    if (!pendingRescheduleMatches(pendingClientAction, rescheduleConfirm)) {
+      return {
+        handled: true,
+        reply: "Сначала выберите запись, новую дату и время для переноса, затем подтвердите действие кнопкой из чата.",
+        ui: buildClientActionsMenuUi(),
+      };
     }
     const id = rescheduleConfirm.id;
     const date = rescheduleConfirm.date;

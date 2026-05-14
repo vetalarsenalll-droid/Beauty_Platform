@@ -12,6 +12,7 @@ import {
 export type Mode = "SELF" | "ASSISTANT";
 
 export type DraftLike = {
+  version?: number;
   locationId: number | null;
   serviceId: number | null;
   serviceIds?: number[] | null;
@@ -28,6 +29,9 @@ export type DraftLike = {
     time: string | null;
   }> | null;
   bookingMode?: "single_specialist_multi" | "chain_multi_specialist" | null;
+  bookingAttemptKey?: string | null;
+  completedAppointmentId?: number | null;
+  completedAt?: string | null;
   mode: Mode | null;
   status: string;
   consentConfirmedAt: string | null;
@@ -254,6 +258,7 @@ type CreateBookingArgs = {
   services: ServiceLite[];
   preferredClientId?: number | null;
   holdOwnerMarker?: number | null;
+  bookingAttemptKey?: string | null;
 };
 
 type LocationCalendarLite = {
@@ -395,7 +400,7 @@ export async function reserveAssistantSlotHold(args: {
 }
 
 export async function createAssistantBooking(args: CreateBookingArgs) {
-  const { d, accountId, accountTz, requiredVersionIds, request, services, preferredClientId = null, holdOwnerMarker = null } = args;
+  const { d, accountId, accountTz, requiredVersionIds, request, services, preferredClientId = null, holdOwnerMarker = null, bookingAttemptKey = null } = args;
   const selectedServiceIds = Array.from(
     new Set<number>([
       ...(Array.isArray(d.serviceIds) ? d.serviceIds : []),
@@ -452,8 +457,43 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
   const normalizedEmail = normalizeEmail(d.clientEmail);
 
   try {
+    const assistantBookingIdempotencyKey = bookingAttemptKey ? `assistant-booking:${accountId}:${bookingAttemptKey}` : null;
+    if (assistantBookingIdempotencyKey) {
+      const completedAttempt = await prisma.idempotencyKey.findUnique({
+        where: { accountId_key: { accountId, key: assistantBookingIdempotencyKey } },
+        select: { status: true, response: true },
+      });
+      if (completedAttempt?.status === "COMPLETED") {
+        const response = completedAttempt.response as { appointmentId?: unknown; appointmentIds?: unknown } | null;
+        const appointmentId = Number(response?.appointmentId);
+        const appointmentIds = Array.isArray(response?.appointmentIds)
+          ? response.appointmentIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+          : [];
+        if (Number.isInteger(appointmentId) && appointmentId > 0) {
+          return { ok: true as const, appointmentId, appointmentIds: appointmentIds.length ? appointmentIds : [appointmentId] };
+        }
+      }
+      if (completedAttempt?.status === "PROCESSING") {
+        return { ok: false as const, code: "booking_in_progress" as const };
+      }
+    }
+
     const appointmentResult = await prisma.$transaction(
       async (tx) => {
+        let assistantBookingAttemptId: number | null = null;
+        if (assistantBookingIdempotencyKey) {
+          const attempt = await tx.idempotencyKey.create({
+            data: {
+              accountId,
+              key: assistantBookingIdempotencyKey,
+              requestHash: bookingAttemptKey ?? assistantBookingIdempotencyKey,
+              status: "PROCESSING",
+            },
+            select: { id: true },
+          });
+          assistantBookingAttemptId = attempt.id;
+        }
+
         const clientByPreferred = preferredClientId
           ? await tx.client.findFirst({
               where: { id: preferredClientId, accountId },
@@ -708,6 +748,15 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
           }
 
           await createLegalAcceptances(createdAppointmentIds);
+          if (assistantBookingAttemptId) {
+            await tx.idempotencyKey.update({
+              where: { id: assistantBookingAttemptId },
+              data: {
+                status: "COMPLETED",
+                response: { appointmentId: createdAppointmentIds[0] ?? null, appointmentIds: createdAppointmentIds },
+              },
+            });
+          }
           return { type: "chain" as const, appointmentIds: createdAppointmentIds };
         }
 
@@ -848,6 +897,15 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
           data: { appointmentId: appt.id, actorType: "assistant", toStatus: "NEW" },
         });
         await createLegalAcceptances([appt.id]);
+        if (assistantBookingAttemptId) {
+          await tx.idempotencyKey.update({
+            where: { id: assistantBookingAttemptId },
+            data: {
+              status: "COMPLETED",
+              response: { appointmentId: appt.id, appointmentIds: [appt.id] },
+            },
+          });
+        }
         return { type: "single" as const, appointmentId: appt.id };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -871,6 +929,9 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     if (appointmentResult === "slot_busy") {
       return { ok: false as const, code: "slot_busy" as const };
     }
+    if ((appointmentResult as unknown) === "booking_in_progress") {
+      return { ok: false as const, code: "booking_in_progress" as const };
+    }
     if (!appointmentResult) {
       return { ok: false as const, code: "slot_busy" as const };
     }
@@ -881,6 +942,24 @@ export async function createAssistantBooking(args: CreateBookingArgs) {
     return { ok: true as const, appointmentId: appointmentResult.appointmentId, appointmentIds: [appointmentResult.appointmentId] };
   } catch (error) {
     const code = (error as { code?: string } | null)?.code ?? "";
+    if (code === "P2002" && bookingAttemptKey) {
+      const assistantBookingIdempotencyKey = `assistant-booking:${accountId}:${bookingAttemptKey}`;
+      const completedAttempt = await prisma.idempotencyKey.findUnique({
+        where: { accountId_key: { accountId, key: assistantBookingIdempotencyKey } },
+        select: { status: true, response: true },
+      });
+      if (completedAttempt?.status === "COMPLETED") {
+        const response = completedAttempt.response as { appointmentId?: unknown; appointmentIds?: unknown } | null;
+        const appointmentId = Number(response?.appointmentId);
+        const appointmentIds = Array.isArray(response?.appointmentIds)
+          ? response.appointmentIds.map(Number).filter((id) => Number.isInteger(id) && id > 0)
+          : [];
+        if (Number.isInteger(appointmentId) && appointmentId > 0) {
+          return { ok: true as const, appointmentId, appointmentIds: appointmentIds.length ? appointmentIds : [appointmentId] };
+        }
+      }
+      return { ok: false as const, code: "booking_in_progress" as const };
+    }
     if (code === "P2034") {
       return { ok: false as const, code: "slot_busy" as const };
     }

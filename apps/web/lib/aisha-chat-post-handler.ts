@@ -3,7 +3,7 @@ import { buildPublicSlugId } from "@/lib/public-slug";
 import { runAishaBookingBridge, runAishaChatAction, runAishaSmallTalkReply } from "@/lib/aisha-orchestrator";
 import type { ChatUi } from "@/lib/booking-flow";
 import * as aishaRoutingHelpers from "@/lib/aisha-routing-helpers";
-import { parseDate, parseName, parsePhone } from "@/lib/aisha-chat-parsers";
+import { draftView, parseDate, parseName, parsePhone } from "@/lib/aisha-chat-parsers";
 import { buildTurnContext } from "@/lib/aisha-chat-turn-context";
 import { applyDraftMutations } from "@/lib/aisha-draft-mutations";
 import { computeBookingDecisions } from "@/lib/aisha-booking-decisions";
@@ -15,15 +15,18 @@ import { handleBookingDomain } from "@/lib/aisha-handle-booking";
 import { handleChatOnlyDomain } from "@/lib/aisha-handle-chat-only";
 import { runWithAiUsageContext } from "@/lib/ai-usage";
 import type { Action } from "@/lib/aisha-chat-types";
+import { applyRouteDecisionGuards } from "@/lib/aisha-route-contract";
 
 const {
   locationByText,
   serviceByText,
+  serviceTopicMatches,
   isGreetingText,
   filterServicesByCategory,
   filterSpecialistsByLevel,
   specialistLevelTabOptions,
   serviceOptionsWithTabs,
+  serviceQuickOption,
   specialistOptionsWithTabs,
   looksLikeUnknownServiceRequest,
   asksServiceExistence,
@@ -87,13 +90,14 @@ function findRecentBookingDateHint(nowYmd: string, messageForRouting: string, re
 export async function handlePublicAiChatPost(request: Request) {
   const prepared = await preparePostTurn(request);
   if ("response" in prepared) return prepared.response;
-  const { resolved, body, message, client, thread, draft, nextThreadKey, turnAction } = prepared.prepared;
+  const { resolved, body, message, client, thread, draft, nextThreadKey, turnAction, idempotencyRecordId } = prepared.prepared;
   const failSoft = createFailSoftHandler({
     threadId: thread.id,
     nextThreadKey,
     draft,
     turnActionId: turnAction.id,
     message,
+    idempotencyRecordId,
   });
 
   if (!resolved.account) return failSoft("account_not_found");
@@ -219,6 +223,24 @@ export async function handlePublicAiChatPost(request: Request) {
 
     let intent = intentContext.intent;
     let route = intentContext.route;
+    const initialRouteDecision = intentContext.routeDecision;
+    const draftBeforeDebug = draftView(draft);
+    const buildDebugTrace = (guardReason?: string | null) => ({
+      rawMessage: message,
+      normalizedMessage: messageForRouting,
+      nluResult,
+      draftBefore: draftBeforeDebug,
+      guardResults: [{ reason: guardReason ?? null }],
+    });
+    const buildFinalRouteDecision = (guards: Array<string | null | undefined> = [], shouldRunBookingFlow?: boolean) =>
+      applyRouteDecisionGuards({
+        initialDecision: initialRouteDecision,
+        route,
+        intent,
+        routeReason,
+        guards,
+        shouldRunBookingFlow,
+      });
 
     const messageNormForRouteGuard = norm(messageForRouting);
     const explicitAppointmentDetailsRequest =
@@ -301,6 +323,7 @@ export async function handlePublicAiChatPost(request: Request) {
           };
       const nextStatus = d.status;
       const nextAction: Action = null;
+      const responsePayload = { threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d };
 
       await saveTurn({
         threadId: thread.id,
@@ -323,9 +346,17 @@ export async function handlePublicAiChatPost(request: Request) {
         useNluIntent,
         messageForRouting,
         d,
+        idempotencyRecordId,
+        responsePayload,
+        routeTrace: {
+          initialRouteDecision,
+          finalRouteDecision: buildFinalRouteDecision([shouldConfirmComplaint ? "complaint_follow_up" : "explicit_service_complaint"], false),
+          shouldRunBookingFlow: false,
+        },
+        debugTrace: buildDebugTrace(shouldConfirmComplaint ? "complaint_follow_up" : "explicit_service_complaint"),
       });
 
-      return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d });
+      return jsonOk(responsePayload);
     }
 
     if (
@@ -388,21 +419,23 @@ export async function handlePublicAiChatPost(request: Request) {
     const shouldRunBookingFlow = decisions.shouldRunBookingFlow;
     const bookingMessageNorm = decisions.bookingMessageNorm;
     const clientActionsHavePriority = route === "client-actions" || Boolean(forceClientActions);
-    const canMutateBookingDraft = !clientActionsHavePriority;
+    const canMutateBookingDraft = route === "booking-flow" && !clientActionsHavePriority;
     const shouldEnrichDraftForBookingResolved = canMutateBookingDraft ? shouldEnrichDraftForBooking : false;
     const shouldRunBookingFlowInitial = canMutateBookingDraft ? shouldRunBookingFlow : false;
 
-    const explicitDateInMessage = parseDate(messageForRouting, nowYmd);
-    if (explicitDateInMessage) {
-      d.date = explicitDateInMessage;
-    } else if (!d.date) {
-      const bookingDateHint = [
-        messageForRouting,
-        ...recentMessages.filter((m) => m.role === "user").map((m) => m.content ?? ""),
-      ]
-        .map((txt) => parseDate(txt, nowYmd))
-        .find((x): x is string => Boolean(x));
-      if (bookingDateHint) d.date = bookingDateHint;
+    if (canMutateBookingDraft && (shouldEnrichDraftForBookingResolved || shouldRunBookingFlowInitial)) {
+      const explicitDateInMessage = parseDate(messageForRouting, nowYmd);
+      if (explicitDateInMessage) {
+        d.date = explicitDateInMessage;
+      } else if (!d.date) {
+        const bookingDateHint = [
+          messageForRouting,
+          ...recentMessages.filter((m) => m.role === "user").map((m) => m.content ?? ""),
+        ]
+          .map((txt) => parseDate(txt, nowYmd))
+          .find((x): x is string => Boolean(x));
+        if (bookingDateHint) d.date = bookingDateHint;
+      }
     }
     const previouslySelectedSpecialistName: string | null = null;
 
@@ -421,6 +454,7 @@ export async function handlePublicAiChatPost(request: Request) {
       recentMessages,
     });
     if (entityClarification.handled && entityClarification.payload) {
+      const responsePayload = entityClarification.payload;
       await saveTurn({
         threadId: thread.id,
         turnActionId: turnAction.id,
@@ -442,8 +476,16 @@ export async function handlePublicAiChatPost(request: Request) {
         useNluIntent,
         messageForRouting,
         d,
+        idempotencyRecordId,
+        responsePayload,
+        routeTrace: {
+          initialRouteDecision,
+          finalRouteDecision: buildFinalRouteDecision(["entity_clarification"], shouldRunBookingFlowInitial),
+          shouldRunBookingFlow: shouldRunBookingFlowInitial,
+        },
+        debugTrace: buildDebugTrace("entity_clarification"),
       });
-      return jsonOk(entityClarification.payload);
+      return jsonOk(responsePayload);
     }
 
     const draftMutation = applyDraftMutations({
@@ -486,7 +528,7 @@ export async function handlePublicAiChatPost(request: Request) {
     }
     const explicitAssistantModeChoice = /(через\s+ассистента|оформи)/i.test(messageForRouting);
     const explicitSelfModeChoice = /(самостоятельно|сам\b)/i.test(messageForRouting);
-    if (d.locationId && d.serviceId && d.date && d.time && (explicitAssistantModeChoice || explicitSelfModeChoice)) {
+    if (canMutateBookingDraft && d.locationId && d.serviceId && d.date && d.time && (explicitAssistantModeChoice || explicitSelfModeChoice)) {
       d.mode = explicitAssistantModeChoice ? "ASSISTANT" : "SELF";
       shouldRunBookingFlowResolved = true;
       route = "booking-flow";
@@ -582,7 +624,7 @@ export async function handlePublicAiChatPost(request: Request) {
       route = "client-actions";
     }
 
-    if (!d.date && (d.locationId || d.serviceId || d.specialistId || shouldRunBookingFlowInitial)) {
+    if (canMutateBookingDraft && !d.date && (d.locationId || d.serviceId || d.specialistId || shouldRunBookingFlowInitial)) {
       const bookingDateHintAfterMutations = findRecentBookingDateHint(nowYmd, messageForRouting, recentMessages);
       if (bookingDateHintAfterMutations) d.date = bookingDateHintAfterMutations;
     }
@@ -599,6 +641,7 @@ export async function handlePublicAiChatPost(request: Request) {
       locations,
     });
     if (unknownService.handled && unknownService.payload) {
+      const responsePayload = unknownService.payload;
       await saveTurn({
         threadId: thread.id,
         turnActionId: turnAction.id,
@@ -620,8 +663,16 @@ export async function handlePublicAiChatPost(request: Request) {
         useNluIntent,
         messageForRouting,
         d,
+        idempotencyRecordId,
+        responsePayload,
+        routeTrace: {
+          initialRouteDecision,
+          finalRouteDecision: buildFinalRouteDecision(["unknown_service_clarification"], shouldRunBookingFlowResolved),
+          shouldRunBookingFlow: shouldRunBookingFlowResolved,
+        },
+        debugTrace: buildDebugTrace("unknown_service_clarification"),
       });
-      return jsonOk(unknownService.payload);
+      return jsonOk(responsePayload);
     }
 
     const origin = new URL(request.url).origin;
@@ -766,6 +817,7 @@ export async function handlePublicAiChatPost(request: Request) {
         origin,
         clientId: client?.clientId ?? null,
         threadClientId: thread.clientId ?? null,
+        pendingClientAction,
       });
       reply = clientActionsResult.reply;
       nextUi = clientActionsResult.ui;
@@ -826,7 +878,6 @@ export async function handlePublicAiChatPost(request: Request) {
       } else if (intent === "ask_services") {
         const locationFromMessage = locationByText(t, locations);
         const selectedLocationIdForServices = locationFromMessage?.id ?? d.locationId ?? null;
-        if (selectedLocationIdForServices && d.locationId !== selectedLocationIdForServices) d.locationId = selectedLocationIdForServices;
         const selectedLocationForServices = selectedLocationIdForServices ? locations.find((x) => x.id === selectedLocationIdForServices) ?? null : null;
         const servicesScopedByLocation = selectedLocationIdForServices
           ? services.filter((x) => x.locationIds.includes(selectedLocationIdForServices))
@@ -835,9 +886,6 @@ export async function handlePublicAiChatPost(request: Request) {
           (d.specialistId ? specialists.find((s) => s.id === d.specialistId) ?? null : null) ||
           selectedSpecialistByMessage ||
           specialistByText(t, specialists);
-        if (specialistForServices && d.specialistId !== specialistForServices.id) {
-          d.specialistId = specialistForServices.id;
-        }
         const servicesScopedBySpecialist =
           specialistForServices && specialistForServices.serviceIds?.length
             ? servicesScopedByLocation.filter((x) => specialistForServices.serviceIds.includes(x.id))
@@ -873,11 +921,9 @@ export async function handlePublicAiChatPost(request: Request) {
             ],
           };
         } else if (specialistQuestionInsideServices && serviceForSpecialistQuestion) {
-          d.serviceId = serviceForSpecialistQuestion.id;
           const locationFromMessage = locationByText(t, locations);
           const selectedLocationId = locationFromMessage?.id ?? d.locationId ?? null;
           if (selectedLocationId) {
-            d.locationId = selectedLocationId;
             const selectedLocation = locations.find((x) => x.id === selectedLocationId) ?? null;
             const scoped = specialists
               .filter((s) => s.locationIds.includes(selectedLocationId))
@@ -998,12 +1044,13 @@ export async function handlePublicAiChatPost(request: Request) {
       } else if (intent === "ask_price") {
         const locationFromMessage = locationByText(t, locations);
         const selectedLocationIdForServices = locationFromMessage?.id ?? d.locationId ?? null;
-        if (selectedLocationIdForServices && d.locationId !== selectedLocationIdForServices) d.locationId = selectedLocationIdForServices;
         const servicesScopedByLocation = selectedLocationIdForServices
           ? services.filter((x) => x.locationIds.includes(selectedLocationIdForServices))
           : services;
         const servicesByCategory = filterServicesByCategory(servicesScopedByLocation, selectedServiceCategoryFilter);
         const selectedByText = serviceByText(t, servicesByCategory);
+        const topicMatches = selectedByText ? [] : serviceTopicMatches(t, servicesByCategory);
+        const priceOptions = topicMatches.length ? topicMatches : servicesByCategory;
         if (selectedByText) {
           const description = (selectedByText.description ?? "").trim();
           reply = buildServiceDetailsReply({
@@ -1019,20 +1066,22 @@ export async function handlePublicAiChatPost(request: Request) {
               { label: "Показать другие услуги", value: "какие услуги есть" },
             ],
           };
-                } else {
-          const sample = servicesByCategory
+        } else {
+          const sample = priceOptions
             .slice(0, 3)
-            .map((x) => x.name + " — от " + Math.round(x.basePrice) + " ₽, от " + x.baseDurationMin + " мин")
+            .map((x) => serviceQuickOption(x).label)
             .join("; ");
           reply = sample
             ? "Точное совпадение не нашла. По стоимости могу сориентировать так: " + sample + ". Выберите услугу кнопкой ниже."
             : "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
-          nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesByCategory) };
+          nextUi = {
+            kind: "quick_replies",
+            options: topicMatches.length ? priceOptions.map(serviceQuickOption) : serviceOptionsWithTabs(servicesScopedByLocation, priceOptions),
+          };
         }
       } else if (mentionsServiceTopic(t)) {
         const locationFromMessage = locationByText(t, locations);
         const selectedLocationIdForServices = locationFromMessage?.id ?? d.locationId ?? null;
-        if (selectedLocationIdForServices && d.locationId !== selectedLocationIdForServices) d.locationId = selectedLocationIdForServices;
         const servicesScopedByLocation = selectedLocationIdForServices
           ? services.filter((x) => x.locationIds.includes(selectedLocationIdForServices))
           : services;
@@ -1168,6 +1217,7 @@ export async function handlePublicAiChatPost(request: Request) {
       reply = `${reply} Выберите услугу или время.`;
     }
 
+    const responsePayload = { threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d };
     await saveTurn({
       threadId: thread.id,
       turnActionId: turnAction.id,
@@ -1189,9 +1239,17 @@ export async function handlePublicAiChatPost(request: Request) {
       useNluIntent,
       messageForRouting,
       d,
+      idempotencyRecordId,
+      responsePayload,
+      routeTrace: {
+        initialRouteDecision,
+        finalRouteDecision: buildFinalRouteDecision([guardReason], shouldRunBookingFlowResolved),
+        shouldRunBookingFlow: shouldRunBookingFlowResolved,
+      },
+      debugTrace: buildDebugTrace(guardReason),
     });
 
-    return jsonOk({ threadId: thread.id, threadKey: nextThreadKey, reply, action: nextAction, ui: nextUi, draft: d });
+    return jsonOk(responsePayload);
       },
     );
   } catch (e) {

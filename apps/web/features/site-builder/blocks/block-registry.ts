@@ -49,21 +49,15 @@ export function getBlockRegistryItem(type: BlockType): BlockRegistryItem {
   );
 }
 
-export const QUICK_ADD_BLOCK_TYPES: BlockType[] = [
-  "cover",
-  "heading",
-  "text",
-  "image",
-  "form",
-  "button",
-  "advantages",
-].filter((type) => getBlockRegistryItem(type).quickAdd);
+export const QUICK_ADD_BLOCK_TYPES: BlockType[] = BLOCK_REGISTRY
+  .filter((item) => item.quickAdd)
+  .map((item) => item.type);
 
 export const LIBRARY_BLOCK_TYPES: BlockType[] = BLOCK_REGISTRY
   .filter((item) => item.availableInLibrary)
   .map((item) => item.type);
 
-export const PRIMARY_LIBRARY_BLOCK_TYPES = new Set<BlockType>([
+const PRIMARY_LIBRARY_BLOCK_TYPE_VALUES = [
   "menu",
   "cover",
   "locations",
@@ -75,7 +69,9 @@ export const PRIMARY_LIBRARY_BLOCK_TYPES = new Set<BlockType>([
   "form",
   "contacts",
   "footer",
-]);
+] satisfies BlockType[];
+
+export const PRIMARY_LIBRARY_BLOCK_TYPES = new Set<BlockType>(PRIMARY_LIBRARY_BLOCK_TYPE_VALUES);
 
 export function getBlockLabel(type: BlockType): string {
   return BLOCK_LABELS[type];

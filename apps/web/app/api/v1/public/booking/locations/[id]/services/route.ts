@@ -44,6 +44,8 @@ export async function GET(
           where: {
             id: specialistId,
             accountId: resolved.account.id,
+            isPublic: true,
+            user: { status: "ACTIVE" },
             locations: { some: { locationId } },
           },
           select: { id: true, levelId: true },
@@ -68,6 +70,7 @@ export async function GET(
       baseDurationMin: true,
       basePrice: true,
       specialists: {
+        where: { specialist: { isPublic: true, user: { status: "ACTIVE" } } },
         select: {
           specialistId: true,
           priceOverride: true,

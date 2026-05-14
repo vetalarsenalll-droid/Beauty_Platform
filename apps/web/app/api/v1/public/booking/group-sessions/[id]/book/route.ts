@@ -63,7 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           isActive: true,
           bookingType: "GROUP",
         },
-        specialist: { accountId: resolved.account.id },
+        specialist: { accountId: resolved.account.id, isPublic: true, user: { status: "ACTIVE" } },
       },
       include: {
         service: { select: { locations: { select: { locationId: true } } } },

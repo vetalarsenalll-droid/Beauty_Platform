@@ -106,6 +106,8 @@ export async function GET(request: Request) {
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: resolved.account.id,
+      isPublic: true,
+      user: { status: "ACTIVE" },
       locations: { some: { locationId } },
       ...(selectedServiceIds.length > 0
         ? {
@@ -200,6 +202,7 @@ export async function GET(request: Request) {
             id: true,
             baseDurationMin: true,
             specialists: {
+              where: { specialist: { isPublic: true, user: { status: "ACTIVE" } } },
               select: { specialistId: true, durationOverrideMin: true },
             },
             levelConfigs: {

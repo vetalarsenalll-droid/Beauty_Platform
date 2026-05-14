@@ -163,7 +163,7 @@ export async function GET(request: Request) {
       id: true,
       bookingType: true,
       baseDurationMin: true,
-      specialists: { select: { specialistId: true, durationOverrideMin: true } },
+      specialists: { where: { specialist: { isPublic: true, user: { status: "ACTIVE" } } }, select: { specialistId: true, durationOverrideMin: true } },
       levelConfigs: { select: { levelId: true, durationMin: true } },
     },
   });
@@ -179,6 +179,8 @@ export async function GET(request: Request) {
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: resolved.account.id,
+      isPublic: true,
+      user: { status: "ACTIVE" },
       locations: { some: { locationId } },
       ...(anyServiceMode
         ? { services: { some: { serviceId: { in: services.map((service) => service.id) } } } }

@@ -3,6 +3,7 @@ import type { RequiredLegalDocumentLite } from "@/lib/aisha-chat-preload";
 import type { DraftLike, LocationLite, ServiceLite, SpecialistLite } from "@/lib/booking-tools";
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { PublicAiRoute } from "@/lib/aisha-chat-router";
+import type { RouteDecision } from "@/lib/aisha-route-contract";
 import type { buildIntentContext } from "@/lib/aisha-chat-intent-context";
 import type { draftView } from "@/lib/aisha-chat-parsers";
 import type { resolvePublicAccount } from "@/lib/public-booking";
@@ -15,6 +16,7 @@ export type Body = {
   threadKey?: unknown;
   clientTodayYmd?: unknown;
   clientTimeZone?: unknown;
+  clientRequestId?: unknown;
 };
 
 export type Action = { type: "open_booking"; bookingUrl: string } | null;
@@ -29,6 +31,7 @@ export type PreparedPostTurn = {
   draft: Parameters<typeof draftView>[0];
   nextThreadKey: string | null;
   turnAction: { id: number };
+  idempotencyRecordId: number | null;
 };
 
 export type TurnContext = {
@@ -56,6 +59,20 @@ export type DraftDecision = {
   shouldRunBookingFlow: boolean;
   bookingMessageNorm: string;
   locationChosenThisTurn: boolean;
+};
+
+export type TurnRouteTrace = {
+  initialRouteDecision?: RouteDecision;
+  finalRouteDecision?: RouteDecision;
+  shouldRunBookingFlow?: boolean;
+};
+
+export type TurnDebugTrace = {
+  rawMessage?: string;
+  normalizedMessage?: string;
+  nluResult?: unknown;
+  draftBefore?: unknown;
+  guardResults?: Array<{ reason: string | null }>;
 };
 
 export type TurnResult = {

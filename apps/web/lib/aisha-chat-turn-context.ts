@@ -68,7 +68,6 @@ export async function buildTurnContext(args: {
     specialists,
     recentMessages: [...recentMessages].reverse(),
     assistantName,
-    systemPrompt: customPrompt,
   });
 
   const intentContext = buildIntentContext({

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
@@ -39,6 +39,13 @@ function stripLegalRefs(text: string) {
     .replace(/\S*\/legal\/\S*/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+function createClientRequestId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function parseYmd(ymd: string) {
@@ -148,6 +155,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [threadId, setThreadId] = useState<number | null>(null);
   const [threadKey, setThreadKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -218,7 +227,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       window.removeEventListener("storage", onStorage);
     };
   }, [mode]);
-  const canSend = useMemo(() => text.trim().length > 0 && !loading, [text, loading]);
+  const canSend = useMemo(() => text.trim().length > 0 && !loading && !initializing, [text, loading, initializing]);
   const widgetRootStyle = useMemo(() => {
     const vars: Record<string, string | number> = {};
     // When border color is not configured in CRM, keep borders visually disabled.
@@ -379,8 +388,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
 
   useEffect(() => {
     if (!open) return
+    if (initializing) return;
     if (messages.length > 0) return;
-    const greeting = `Здравствуйте! Я ${assistantName}. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.`;
+    const greeting = loadError
+      ? `Здравствуйте! Я ${assistantName}. Историю диалога сейчас не удалось загрузить, но можно начать новый запрос. Напишите услугу, дату или время.`
+      : `Здравствуйте! Я ${assistantName}. Напишите, что хотите: например услугу, дату или время, и я помогу с записью.`;
     const greetingUi: ChatUi = {
       kind: "quick_replies",
       options: [
@@ -395,7 +407,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       setTypingVisible("");
       return next;
     });
-  }, [open, messages.length, assistantName]);
+  }, [open, initializing, loadError, messages.length, assistantName]);
 
   useEffect(() => {
     if (typingMessageIndex == null) return;
@@ -410,30 +422,42 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const savedThread = parseStoredThreadState(window.localStorage.getItem(storageKey));
-      const threadQuery =
-        savedThread && savedThread.threadId > 0
-          ? `&threadId=${savedThread.threadId}${savedThread.threadKey ? `&threadKey=${encodeURIComponent(savedThread.threadKey)}` : ""}`
-          : "";
-      const response = await fetch(
-        `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}${threadQuery}`,
-        { cache: "no-store", credentials: "include" }
-      );
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.data || cancelled) return;
+      setInitializing(true);
+      setLoadError(false);
+      try {
+        const savedThread = parseStoredThreadState(window.localStorage.getItem(storageKey));
+        const threadQuery =
+          savedThread && savedThread.threadId > 0
+            ? `&threadId=${savedThread.threadId}${savedThread.threadKey ? `&threadKey=${encodeURIComponent(savedThread.threadKey)}` : ""}`
+            : "";
+        const response = await fetch(
+          `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}${threadQuery}`,
+          { cache: "no-store", credentials: "include" }
+        );
+        const payload = await response.json().catch(() => null);
+        if (cancelled) return;
+        if (!response.ok || !payload?.data) {
+          setLoadError(true);
+          return;
+        }
 
-      const nextThreadId = Number(payload.data.threadId);
-      const nextThreadKey = typeof payload.data.threadKey === "string" ? payload.data.threadKey : null;
-      if (Number.isInteger(nextThreadId) && nextThreadId > 0) {
-        setThreadId(nextThreadId);
-        setThreadKey(nextThreadKey);
-        saveThreadState(storageKey, nextThreadId, nextThreadKey);
+        const nextThreadId = Number(payload.data.threadId);
+        const nextThreadKey = typeof payload.data.threadKey === "string" ? payload.data.threadKey : null;
+        if (Number.isInteger(nextThreadId) && nextThreadId > 0) {
+          setThreadId(nextThreadId);
+          setThreadKey(nextThreadKey);
+          saveThreadState(storageKey, nextThreadId, nextThreadKey);
+        }
+        const apiMessages = Array.isArray(payload.data.messages) ? (payload.data.messages as Message[]) : [];
+        setMessages(apiMessages.length > 0 ? apiMessages.map((m) => ({ ...m, ui: m.ui ?? null })) : []);
+        setTypingMessageIndex(null);
+        setTypingTarget("");
+        setTypingVisible("");
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setInitializing(false);
       }
-      const apiMessages = Array.isArray(payload.data.messages) ? (payload.data.messages as Message[]) : [];
-      setMessages(apiMessages.length > 0 ? apiMessages.map((m) => ({ ...m, ui: m.ui ?? null })) : []);
-      setTypingMessageIndex(null);
-      setTypingTarget("");
-      setTypingVisible("");
     };
     void load();
     return () => {
@@ -453,9 +477,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         now.getDate(),
       ).padStart(2, "0")}`;
       const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const clientRequestId = createClientRequestId();
       const response = await fetch(`/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": clientRequestId },
         credentials: "include",
         body: JSON.stringify({
           message: userText,
@@ -463,6 +488,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           threadKey,
           clientTodayYmd,
           clientTimeZone,
+          clientRequestId,
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -532,7 +558,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     await submitCurrentText();
   };
 
-  const clearChat = async () => {
+  const startNewDialog = async () => {
+    if (loading || initializing) return;
     if (threadId) {
       try {
         const response = await fetch(
@@ -563,6 +590,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     }
     setMessages([]);
     setConsentCheckedByMessage({});
+    setDateByMessage({});
+    setDateMonthByMessage({});
+    setCalendarHintByMessage({});
     setComplaintTextByMessage({});
   };
 
@@ -585,6 +615,18 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     : isInlineMobileFullscreen
       ? widgetRootStyle
     : widgetRootStyle;
+  useEffect(() => {
+    if (!isFixedMobileFullscreen) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
+    };
+  }, [isFixedMobileFullscreen]);
+
   const panelStyle: CSSProperties =
     isFixedMobileFullscreen
       ? {
@@ -593,6 +635,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           width: "100vw",
           maxWidth: "100vw",
           height: "100dvh",
+          minHeight: "100svh",
           maxHeight: "100dvh",
           borderRadius: 0,
           backgroundImage: panelBackground,
@@ -655,11 +698,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={clearChat}
-                className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5"
+                onClick={startNewDialog}
+                disabled={loading || initializing}
+                className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
                 style={headerActionStyle}
               >
-                Очистить
+                Новый диалог
               </button>
               <button
                 type="button"
@@ -678,6 +722,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               (() => {
                 const messageKey = `${msg.role}-${msg.id ?? index}`;
                 const isLastAssistant = msg.role === "assistant" && index === lastAssistantIndex;
+                const canUseMessageUi = isLastAssistant && !loading;
                 const ui = msg.ui ?? null;
                 const options =
                   msg.role === "assistant"
@@ -702,7 +747,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const complaintMinLength = ui?.kind === "complaint_form" && typeof ui.minLength === "number" ? ui.minLength : 6;
                 const complaintMaxLength = ui?.kind === "complaint_form" && typeof ui.maxLength === "number" ? ui.maxLength : 800;
                 const complaintValue = complaintTextByMessage[messageKey] ?? "";
-                const canSubmitComplaint = complaintValue.trim().length >= complaintMinLength && !loading && isLastAssistant;
+                const canSubmitComplaint = complaintValue.trim().length >= complaintMinLength && canUseMessageUi;
                 const datePickerValue =
                   ui?.kind === "date_picker"
                     ? dateByMessage[messageKey] ?? ui.initialDate ?? ""
@@ -779,17 +824,17 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const onlyTimeOptions =
                   regularOptions.length > 0 &&
                   regularOptions.every((o) => isTimeValue(o.value) || isTimeValue(o.label));
-                const quickReplyEnabledClass = isLastAssistant
+                const quickReplyEnabledClass = canUseMessageUi
                   ? (currentMode === "dark"
                       ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110"
                       : "border-transparent bg-[color:var(--ai-quick-reply-button,var(--ai-button,#111827))] text-[color:var(--ai-quick-reply-text,var(--ai-button-text,#fff))] hover:brightness-95")
                   : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]";
-                const quickReplySupportClass = isLastAssistant
+                const quickReplySupportClass = canUseMessageUi
                   ? (currentMode === "dark"
                       ? "border-[color:var(--ai-border,#334155)] bg-white/5 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/10"
                       : "border-[color:var(--ai-border,#d1d5db)] bg-black/[0.03] text-[color:var(--ai-text,#111827)] hover:bg-black/[0.05]")
                   : "border-[color:var(--ai-border,#d1d5db)] bg-black/0 text-[color:var(--ai-muted,#6b7280)]";
-                const quickReplyCategoryClass = isLastAssistant
+                const quickReplyCategoryClass = canUseMessageUi
                   ? (currentMode === "dark"
                       ? "border-[color:var(--ai-border,#334155)] bg-white/10 text-[color:var(--ai-text,#f3f4f6)] hover:bg-white/15"
                       : "border-[color:var(--ai-border,#d1d5db)] bg-[color:var(--ai-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--ai-text,#111827)] hover:brightness-95")
@@ -819,7 +864,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   <button
                                     key={`${option.label}:${option.value}`}
                                     type="button"
-                                    disabled={loading || !isLastAssistant}
+                                    disabled={!canUseMessageUi}
                                     onClick={() => {
                                       if (option.href) {
                                         if (typeof window !== "undefined") {
@@ -843,7 +888,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   <button
                                     key={`${option.label}:${option.value}`}
                                     type="button"
-                                    disabled={loading || !isLastAssistant}
+                                    disabled={!canUseMessageUi}
                                     onClick={() => {
                                       if (option.href) {
                                         if (typeof window !== "undefined") {
@@ -869,7 +914,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               <button
                                 key={`${option.label}:${option.value}`}
                                 type="button"
-                                disabled={loading || !isLastAssistant}
+                                disabled={!canUseMessageUi}
                                 onClick={() => {
                                   if (option.href) {
                                     if (typeof window !== "undefined") {
@@ -897,7 +942,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   <button
                                     key={`${option.label}:${option.value}`}
                                     type="button"
-                                    disabled={loading || !isLastAssistant}
+                                    disabled={!canUseMessageUi}
                                     onClick={() => {
                                       if (option.href) {
                                         if (typeof window !== "undefined") {
@@ -938,7 +983,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                         <div className="mb-2 flex items-center justify-between">
                           <button
                             type="button"
-                            disabled={loading || !isLastAssistant || !canPrevMonth}
+                            disabled={!canUseMessageUi || !canPrevMonth}
                             onClick={() =>
                               setDateMonthByMessage((prev) => ({
                                 ...prev,
@@ -953,7 +998,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           <div className={`text-xs font-medium ${currentMode === "dark" ? "text-[color:var(--ai-text,#f3f4f6)]" : "text-[color:var(--ai-text,#111827)]"}`}>{getMonthLabelRu(datePickerViewMonth)}</div>
                           <button
                             type="button"
-                            disabled={loading || !isLastAssistant || !canNextMonth}
+                            disabled={!canUseMessageUi || !canNextMonth}
                             onClick={() =>
                               setDateMonthByMessage((prev) => ({
                                 ...prev,
@@ -980,7 +1025,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               <button
                                 key={`${messageKey}-${cell.ymd}`}
                                 type="button"
-                                disabled={loading || !isLastAssistant}
+                                disabled={!canUseMessageUi}
                                 onClick={() => {
                                   if (inactive) {
                                     setCalendarHintByMessage((prev) => ({
@@ -1011,7 +1056,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           <div className="text-[11px] text-[color:var(--ai-muted,#6b7280)]">{datePickerValue ? formatYmdRuDate(datePickerValue) : "Выберите дату"}</div>
                           <button
                             type="button"
-                            disabled={loading || !isLastAssistant || !datePickerValue || !selectedDateIsAvailable}
+                            disabled={!canUseMessageUi || !datePickerValue || !selectedDateIsAvailable}
                             onClick={() => void sendRawMessage(buildDatePickerSubmitValue(datePickerValue, msg.content))}
                             style={buttonRadiusStyle}
                             className={`rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${currentMode === "dark" ? "bg-[color:var(--ai-button,#1f2937)] text-[color:var(--ai-button-text,#f9fafb)] ring-1 ring-[color:var(--ai-border,#334155)]" : "bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]"}`}
@@ -1029,7 +1074,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                               <button
                                 key={`consent-link-${i}-${doc.href}`}
                                 type="button"
-                                disabled={!isLastAssistant}
+                                disabled={!canUseMessageUi}
                                 onClick={() => {
                                   if (typeof window !== "undefined") {
                                     window.open(doc.href, "_blank", "noopener,noreferrer");
@@ -1048,7 +1093,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                             type="checkbox"
                             className="mt-0.5 h-4 w-4"
                             checked={consentChecked}
-                            disabled={!isLastAssistant}
+                            disabled={!canUseMessageUi}
                             onChange={(e) =>
                               setConsentCheckedByMessage((prev) => ({
                                 ...prev,
@@ -1060,7 +1105,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                         </label>
                         <button
                           type="button"
-                          disabled={loading || !isLastAssistant || !consentChecked}
+                          disabled={!canUseMessageUi || !consentChecked}
                           onClick={() => void sendRawMessage(consentSubmitValue)}
                           style={buttonRadiusStyle}
                           className={`mt-2 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${currentMode === "dark" ? "bg-[color:var(--ai-button,#1f2937)] text-[color:var(--ai-button-text,#f9fafb)] ring-1 ring-[color:var(--ai-border,#334155)]" : "bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)]"}`}
@@ -1120,8 +1165,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 );
               })()
             ))}
-            {loading ? (
-              <div className={loadingIndicatorRowClass} aria-label="Ассистент печатает">
+            {loading || (initializing && messages.length === 0) ? (
+              <div className={loadingIndicatorRowClass} aria-label={initializing ? "Диалог загружается" : "Ассистент печатает"}>
                 <span className={loadingDotClass} style={{ animationDelay: "0ms" }} />
                 <span className={loadingDotClass} style={{ animationDelay: "140ms" }} />
                 <span className={loadingDotClass} style={{ animationDelay: "280ms" }} />
@@ -1130,7 +1175,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={sendMessage} className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}>
+          <form
+            onSubmit={sendMessage}
+            className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}
+            style={isFixedMobileFullscreen ? { paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" } : undefined}
+          >
             <div className="relative overflow-hidden rounded-2xl border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]">
               <textarea
                 ref={inputRef}
@@ -1178,7 +1227,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           <span className="whitespace-nowrap">{fabLabel}</span>
         </button>
       )}
-      <style jsx global>{`
+      <style>{`
         @keyframes aiTypingWave {
           0%, 60%, 100% {
             transform: translateY(0);
