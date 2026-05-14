@@ -358,6 +358,13 @@ check(
 );
 
 check(
+  "time slot replies show all times and expose all-time filter",
+  /optionFromLabel\("Все время", "покажи все свободное время"\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /const timeLimit = null;/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /\\u0432\\u0441\\u0435\|\\u0432\\u0441\\u0451/.test(widget),
+);
+
+check(
   "booking location prompts are scoped to selected service locations",
   /const selectedServiceForLocationPrompt = d\.serviceId \? services\.find/.test(postHandler) &&
     /const locationsForBookingPrompt =[\s\S]*selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(postHandler) &&

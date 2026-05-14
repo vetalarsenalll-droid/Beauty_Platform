@@ -350,11 +350,12 @@ function buildTimeOptionsWithControls(times: string[], limit: number | null = nu
   const shown = times;
   const controls: ChatUiOption[] = [];
   controls.push(optionFromLabel("Выбрать другую дату", "другое число хочу выбрать"));
+  controls.push(optionFromLabel("Все время", "покажи все свободное время"));
   controls.push(optionFromLabel("Утро", "утром"));
   controls.push(optionFromLabel("День", "днем"));
   controls.push(optionFromLabel("Вечер", "вечером"));
 
-  // Always show full slot list: no collapse and no "Показать всё время" button.
+  // Always show the full slot list; part-of-day buttons work as filters.
   return [...controls, ...shown.map((tm) => optionFromLabel(tm))];
 }
 
@@ -1460,7 +1461,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     /(?:покажи|дай|выведи)\s+ещ[её](?:\s+\p{L}+){0,3}\s+(?:врем|слот|окошк)|ещ[её]\s+(?:свободн(?:ое|ые)?\s+)?время/iu.test(
       messageNorm,
     );
-  const timeLimit = wantsAllTimes || wantsMoreTimes ? null : 12;
+  const timeLimit = null;
   const wantsMonthRange =
     /(?:весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца)/iu.test(messageNorm);
   const wantsAfterRange = asksAfterDateRange(messageNorm);

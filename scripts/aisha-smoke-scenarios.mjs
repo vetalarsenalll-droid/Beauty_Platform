@@ -111,6 +111,13 @@ check(
 );
 
 check(
+  "booking flow: time replies include all-time filter and full slot list by default",
+  /optionFromLabel\("Все время", "покажи все свободное время"\)/.test(sources.bookingFlow) &&
+    /const timeLimit = null;/.test(sources.bookingFlow) &&
+    /\\u0432\\u0441\\u0435\|\\u0432\\u0441\\u0451/.test(sources.widget),
+);
+
+check(
   "booking flow: location choices are scoped by selected service",
   /locationsForBookingPrompt/.test(sources.postHandler) &&
     /selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(sources.postHandler) &&
