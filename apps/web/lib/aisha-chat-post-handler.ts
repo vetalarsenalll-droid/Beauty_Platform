@@ -16,6 +16,7 @@ import { handleChatOnlyDomain } from "@/lib/aisha-handle-chat-only";
 import { runWithAiUsageContext } from "@/lib/ai-usage";
 import type { Action } from "@/lib/aisha-chat-types";
 import { applyRouteDecisionGuards } from "@/lib/aisha-route-contract";
+import { apiData } from "@/lib/booking-tools";
 
 const {
   locationByText,
@@ -68,6 +69,30 @@ function looksLikeStandaloneServiceLabel(messageNorm: string) {
       messageNorm,
     )
   );
+}
+
+async function groupServiceLocationsWithSessions<TLocation extends { id: number }>(args: {
+  origin: string;
+  accountSlug: string;
+  locations: TLocation[];
+  serviceId: number;
+  fromDate: string;
+}) {
+  const { origin, accountSlug, locations, serviceId, fromDate } = args;
+  const checks = await Promise.all(
+    locations.map(async (location) => {
+      const u = new URL("/api/v1/public/booking/group-sessions/availability", origin);
+      u.searchParams.set("account", accountSlug);
+      u.searchParams.set("locationId", String(location.id));
+      u.searchParams.set("serviceId", String(serviceId));
+      u.searchParams.set("start", fromDate);
+      u.searchParams.set("days", "61");
+      const payload = await apiData<{ days: Array<{ date: string }> }>(u.toString());
+      return { id: location.id, hasSessions: (payload?.days ?? []).length > 0 };
+    }),
+  );
+  const availableIds = new Set(checks.filter((item) => item.hasSessions).map((item) => item.id));
+  return locations.filter((location) => availableIds.has(location.id));
 }
 function buildServiceDetailsReply(args: {
   serviceName: string;
@@ -835,10 +860,19 @@ export async function handlePublicAiChatPost(request: Request) {
       has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*)/iu) &&
       !has(messageForRouting, /(мои записи|мою запись|у меня записи|какие у меня.*запис\p{L}*|статист|профил|кабинет|отмени|перенеси)/iu);
     const selectedServiceForLocationPrompt = d.serviceId ? services.find((s) => s.id === d.serviceId) ?? null : null;
-    const locationsForBookingPrompt =
+    let locationsForBookingPrompt =
       selectedServiceForLocationPrompt && selectedServiceForLocationPrompt.locationIds.length
         ? locations.filter((loc) => selectedServiceForLocationPrompt.locationIds.includes(loc.id))
         : locations;
+    if (selectedServiceForLocationPrompt?.bookingType === "GROUP") {
+      locationsForBookingPrompt = await groupServiceLocationsWithSessions({
+        origin,
+        accountSlug: resolved.account.slug,
+        locations: locationsForBookingPrompt,
+        serviceId: selectedServiceForLocationPrompt.id,
+        fromDate: nowYmd,
+      });
+    }
     let contextualBookingBridge: string | null = null;
 
     const bookingDomainResult = route === "client-actions"
@@ -846,7 +880,7 @@ export async function handlePublicAiChatPost(request: Request) {
       : guardedUnknownServiceInBooking
         ? { handled: true, reply, nextStatus, nextAction, nextUi }
       : await handleBookingDomain({
-          directBookingKickoffFallback,
+          directBookingKickoffFallback: directBookingKickoffFallback && locationsForBookingPrompt.length > 1,
           date: d.date,
           locations: locationsForBookingPrompt,
           explicitDraftServiceQuestion: forceBookingFlowForChainEdit ? false : explicitDraftServiceQuestion,

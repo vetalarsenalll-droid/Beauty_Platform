@@ -19,7 +19,7 @@ function extractExplicitRequestedService(message: string) {
   );
   for (let i = matches.length - 1; i >= 0; i -= 1) {
     const candidate = (matches[i]?.[1] ?? "")
-      .replace(/\b(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|пожалуйста|плиз)\b.*$/iu, "")
+      .replace(/(?:^|\s)(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|пожалуйста|плиз)(?:\s|$).*$/iu, "")
       .replace(/\s+/g, " ")
       .trim();
     if (candidate) return candidate;

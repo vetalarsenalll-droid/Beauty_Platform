@@ -1,6 +1,8 @@
 ﻿import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { publishCalendarEvent } from "@/lib/calendar-events";
+import { normalizeRuPhone } from "@/lib/phone";
 import {
   getLocationWorkWindowForDate,
   isPastDateOrTimeInTz,
@@ -262,6 +264,179 @@ type CreateBookingArgs = {
   holdOwnerMarker?: number | null;
   bookingAttemptKey?: string | null;
 };
+
+type CreateGroupBookingArgs = {
+  d: DraftLike;
+  accountId: number;
+  groupSessionId: number;
+  requiredVersionIds: number[];
+  bookingAttemptKey?: string | null;
+};
+
+export async function createAssistantGroupBooking(args: CreateGroupBookingArgs) {
+  const { d, accountId, groupSessionId, requiredVersionIds, bookingAttemptKey = null } = args;
+  const clientName = String(d.clientName ?? "").trim();
+  const clientPhone = normalizeRuPhone(String(d.clientPhone ?? "").trim());
+  const clientEmail = String(d.clientEmail ?? "").trim().toLowerCase();
+  if (clientName.length < 2 || !clientPhone) return { ok: false as const, code: "client_required" as const };
+
+  const requestedLegalVersionIds = Array.from(
+    new Set(
+      requiredVersionIds
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    ),
+  ).sort((a, b) => a - b);
+
+  try {
+    const assistantBookingIdempotencyKey = bookingAttemptKey ? `assistant-group-booking:${accountId}:${bookingAttemptKey}` : null;
+    if (assistantBookingIdempotencyKey) {
+      const completedAttempt = await prisma.idempotencyKey.findUnique({
+        where: { accountId_key: { accountId, key: assistantBookingIdempotencyKey } },
+        select: { status: true, response: true },
+      });
+      if (completedAttempt?.status === "COMPLETED") {
+        const response = completedAttempt.response as { participantId?: unknown; groupSessionId?: unknown } | null;
+        const participantId = Number(response?.participantId);
+        const completedGroupSessionId = Number(response?.groupSessionId);
+        if (Number.isInteger(participantId) && participantId > 0) {
+          return { ok: true as const, participantId, groupSessionId: completedGroupSessionId || groupSessionId };
+        }
+      }
+      if (completedAttempt?.status === "PROCESSING") {
+        return { ok: false as const, code: "booking_in_progress" as const };
+      }
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      let assistantBookingAttemptId: number | null = null;
+      if (assistantBookingIdempotencyKey) {
+        const attempt = await tx.idempotencyKey.create({
+          data: {
+            accountId,
+            key: assistantBookingIdempotencyKey,
+            requestHash: bookingAttemptKey ?? assistantBookingIdempotencyKey,
+            status: "PROCESSING",
+          },
+          select: { id: true },
+        });
+        assistantBookingAttemptId = attempt.id;
+      }
+
+      const groupSession = await tx.groupSession.findFirst({
+        where: {
+          id: groupSessionId,
+          accountId,
+          status: { not: "CANCELLED" },
+          startAt: { gt: new Date() },
+          location: { status: "ACTIVE" },
+          service: { isActive: true, bookingType: "GROUP" },
+          specialist: { accountId, isPublic: true, user: { status: "ACTIVE" } },
+        },
+        include: {
+          service: { select: { locations: { select: { locationId: true } } } },
+          specialist: { select: { locations: { select: { locationId: true } } } },
+        },
+      });
+      if (!groupSession) return { error: "not_found" as const };
+      if (
+        !groupSession.service.locations.some((item) => item.locationId === groupSession.locationId) ||
+        !groupSession.specialist.locations.some((item) => item.locationId === groupSession.locationId)
+      ) {
+        return { error: "not_found" as const };
+      }
+
+      const clientByPhone = await tx.client.findFirst({ where: { accountId, phone: clientPhone } });
+      const clientByEmail = clientEmail ? await tx.client.findFirst({ where: { accountId, email: clientEmail } }) : null;
+      if (clientByPhone && clientByEmail && clientByPhone.id !== clientByEmail.id) return { error: "client_conflict" as const };
+
+      const client = clientByPhone ?? clientByEmail
+        ? await tx.client.update({
+            where: { id: (clientByPhone ?? clientByEmail)!.id },
+            data: {
+              firstName: (clientByPhone ?? clientByEmail)!.firstName ?? clientName,
+              phone: (clientByPhone ?? clientByEmail)!.phone ?? clientPhone,
+              email: (clientByPhone ?? clientByEmail)!.email ?? (clientEmail || null),
+            },
+          })
+        : await tx.client.create({
+            data: {
+              accountId,
+              firstName: clientName,
+              phone: clientPhone,
+              email: clientEmail || null,
+            },
+          });
+
+      const existing = await tx.groupSessionParticipant.findFirst({
+        where: { groupSessionId: groupSession.id, clientId: client.id },
+      });
+      if (existing) return { error: "already_exists" as const };
+
+      const seatClaim = await tx.groupSession.updateMany({
+        where: { id: groupSession.id, bookedCount: { lt: groupSession.capacity } },
+        data: { bookedCount: { increment: 1 } },
+      });
+      if (seatClaim.count !== 1) return { error: "session_full" as const };
+
+      const participant = await tx.groupSessionParticipant.create({
+        data: {
+          groupSessionId: groupSession.id,
+          clientId: client.id,
+          status: "NEW",
+          price: groupSession.pricePerClient ?? null,
+        },
+      });
+
+      if (requestedLegalVersionIds.length) {
+        await tx.legalAcceptance.createMany({
+          data: requestedLegalVersionIds.map((versionId) => ({
+            accountId,
+            documentVersionId: versionId,
+            clientId: client.id,
+            source: "assistant_group_booking",
+          })),
+        });
+      }
+
+      if (assistantBookingAttemptId) {
+        await tx.idempotencyKey.update({
+          where: { id: assistantBookingAttemptId },
+          data: {
+            status: "COMPLETED",
+            response: { participantId: participant.id, groupSessionId: groupSession.id },
+          },
+        });
+      }
+
+      return {
+        participantId: participant.id,
+        groupSessionId: groupSession.id,
+        locationId: groupSession.locationId,
+        specialistId: groupSession.specialistId,
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    if ("error" in result) return { ok: false as const, code: result.error };
+
+    publishCalendarEvent({
+      accountId,
+      kind: "group-session.participant.created",
+      entityId: result.groupSessionId,
+      locationId: result.locationId,
+      specialistId: result.specialistId,
+    });
+
+    return { ok: true as const, participantId: result.participantId, groupSessionId: result.groupSessionId };
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code ?? "";
+    if (code === "P2002" && bookingAttemptKey) {
+      return { ok: false as const, code: "booking_in_progress" as const };
+    }
+    if (code === "P2034") return { ok: false as const, code: "session_full" as const };
+    throw error;
+  }
+}
 
 type LocationCalendarLite = {
   id: number;

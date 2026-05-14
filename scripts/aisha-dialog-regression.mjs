@@ -425,6 +425,17 @@ check(
 );
 
 check(
+  "service synonym typos are resolved through catalog fuzzy candidates",
+  /function serviceItemTokens/.test(catalogLexicon) &&
+    /function serviceCustomItemTokens/.test(catalogLexicon) &&
+    /service\.searchKeywords[\s\S]*service\.synonyms/.test(catalogLexicon) &&
+    /const threshold = Math\.max\(messageToken\.length, serviceToken\.length\) >= 6 \? 2 : 1/.test(catalogLexicon) &&
+    /const threshold = Math\.max\(itemToken\.length, messageToken\.length\) >= 8 \? 2 : 1/.test(catalogLexicon) &&
+    /catalogFuzzyCandidates\(requestedServicePhrase, servicePool, 6\)/.test(fuzzy) &&
+    /Нашла подходящую услугу\. Подтвердите выбор/.test(fuzzy),
+);
+
+check(
   "explicit unknown service requests are clarified before booking flow",
   /const explicitRequestedService = Boolean\(requestedServicePhrase\)/.test(fuzzy) &&
     /const earlyUnknownService = await handleUnknownServiceResolution/.test(postHandler) &&
@@ -432,6 +443,8 @@ check(
     /explicitRequestedService \|\|[\s\S]*mentionsServiceTopic\(t, services\)/.test(fuzzy) &&
     /\(!d\.serviceId \|\| explicitUnknownRequestedService\)/.test(fuzzy) &&
     /const requestedServicePhrase = extractExplicitRequestedService\(messageNorm\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /\(\?:\^\|\\s\)\(\?:сегодня\|завтра\|послезавтра/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /\(\?:\^\|\\s\)\(\?:сегодня\|завтра\|послезавтра/.test(handleBooking) &&
     /Услугу «\$\{requestedServicePhrase\}» не нашла/.test(read("apps/web/lib/booking-flow.ts")) &&
     /catalogFuzzyCandidates\(requestedServicePhrase, servicePool\)/.test(read("apps/web/lib/booking-flow.ts")) &&
     /if \(args\.directBookingKickoffFallback\) \{[\s\S]*extractExplicitRequestedService\(args\.runFlowArgs\.messageForRouting\)[\s\S]*Услугу «\$\{requestedService\}» не нашла/.test(handleBooking) &&
@@ -444,16 +457,32 @@ check(
   "time slot replies show all times and expose all-time filter",
   /optionFromLabel\("Все время", "покажи все свободное время"\)/.test(read("apps/web/lib/booking-flow.ts")) &&
     /const timeLimit = null;/.test(read("apps/web/lib/booking-flow.ts")) &&
-    /\\u0432\\u0441\\u0435\|\\u0432\\u0441\\u0451/.test(widget),
+    /\\u0432\\u0441\\u0435\|\\u0432\\u0441\\u0451/.test(widget) &&
+    /const isPlainTimeOption = \(option: QuickReply\) => isTimeValue\(option\.value\) && isTimeValue\(option\.label\)/.test(widget) &&
+    /const isTimeOption = isPlainTimeOption\(option\)/.test(widget),
 );
 
 check(
   "booking location prompts are scoped to selected service locations",
   /const selectedServiceForLocationPrompt = d\.serviceId \? services\.find/.test(postHandler) &&
-    /const locationsForBookingPrompt =[\s\S]*selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(postHandler) &&
+    /let locationsForBookingPrompt =[\s\S]*selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(postHandler) &&
+    /selectedServiceForLocationPrompt\?\.bookingType === "GROUP"[\s\S]*groupServiceLocationsWithSessions/.test(postHandler) &&
+    /directBookingKickoffFallback: directBookingKickoffFallback && locationsForBookingPrompt\.length > 1/.test(postHandler) &&
     /locations: locationsForBookingPrompt/.test(postHandler) &&
     /const selectedServiceForLocationSwitch = d\.serviceId \? services\.find/.test(read("apps/web/lib/booking-flow.ts")) &&
     /const locationPromptOptions =[\s\S]*selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(read("apps/web/lib/booking-flow.ts")),
+);
+
+check(
+  "group booking checkout supports assistant mode",
+  /createAssistantGroupBooking/.test(read("apps/web/lib/booking-tools.ts")) &&
+    /assistant-group-booking:\$\{accountId\}:\$\{bookingAttemptKey\}/.test(read("apps/web/lib/booking-tools.ts")) &&
+    /optionFromLabel\("Через ассистента", "оформи через ассистента"\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /const wantsGroupSpecialistChange = wantsEditSpecialistIntent\(messageNorm\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /wantsGroupSpecialistChange[\s\S]*Выберите время и специалиста/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /optionFromLabel\("Изменить специалиста", "изменить специалиста"\)[\s\S]*optionFromLabel\("Самостоятельно", "самостоятельно"\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /selectedGroupSessionForAssistant[\s\S]*createAssistantGroupBooking/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /group-session\.participant\.created/.test(read("apps/web/lib/booking-tools.ts")),
 );
 
 check(

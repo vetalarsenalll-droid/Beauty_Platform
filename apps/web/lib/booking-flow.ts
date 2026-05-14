@@ -1,9 +1,11 @@
 ﻿import {
   bookingSummary,
   createAssistantBooking,
+  createAssistantGroupBooking,
   reserveAssistantSlotHold,
   DraftLike,
       getEffectiveServiceForSpecialist,
+  apiData,
   getOffers,
   getSlots,
   serviceLowerBounds,
@@ -202,7 +204,7 @@ function extractExplicitRequestedService(messageNorm: string) {
   );
   for (let i = matches.length - 1; i >= 0; i -= 1) {
     const candidate = (matches[i]?.[1] ?? "")
-      .replace(/\b(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|пожалуйста|плиз)\b.*$/iu, "")
+      .replace(/(?:^|\s)(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|пожалуйста|плиз)(?:\s|$).*$/iu, "")
       .replace(/\s+/g, " ")
       .trim();
     if (candidate) return candidate;
@@ -985,6 +987,107 @@ function minutesToTime(value: number) {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+type GroupSessionLite = {
+  id: number;
+  serviceId: number;
+  serviceName: string;
+  specialistId: number;
+  startAt: string;
+  endAt: string;
+  capacity: number;
+  bookedCount: number;
+  availableSeats: number;
+  pricePerClient: string | null;
+};
+
+function timeInZoneFromIso(iso: string, timeZone: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const hh = parts.find((part) => part.type === "hour")?.value ?? "";
+  const mm = parts.find((part) => part.type === "minute")?.value ?? "";
+  return hh && mm ? `${hh}:${mm}` : "";
+}
+
+async function getGroupSessions(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  serviceId: number;
+  date: string;
+  specialistId?: number | null;
+}) {
+  const { origin, accountSlug, locationId, serviceId, date, specialistId } = args;
+  const u = new URL("/api/v1/public/booking/group-sessions", origin);
+  u.searchParams.set("account", accountSlug);
+  u.searchParams.set("locationId", String(locationId));
+  u.searchParams.set("serviceId", String(serviceId));
+  u.searchParams.set("date", date);
+  if (specialistId) u.searchParams.set("specialistId", String(specialistId));
+  const payload = await apiData<{ sessions: GroupSessionLite[] }>(u.toString());
+  return (payload?.sessions ?? []).filter((session) => Number(session.availableSeats) > 0);
+}
+
+async function findGroupSessionAvailableDates(args: {
+  origin: string;
+  accountSlug: string;
+  locationId: number;
+  serviceId: number;
+  fromDate: string;
+  daysAhead?: number;
+  specialistId?: number | null;
+}) {
+  const { origin, accountSlug, locationId, serviceId, fromDate, daysAhead = 61, specialistId } = args;
+  const u = new URL("/api/v1/public/booking/group-sessions/availability", origin);
+  u.searchParams.set("account", accountSlug);
+  u.searchParams.set("locationId", String(locationId));
+  u.searchParams.set("serviceId", String(serviceId));
+  u.searchParams.set("start", fromDate);
+  u.searchParams.set("days", String(daysAhead));
+  if (specialistId) u.searchParams.set("specialistId", String(specialistId));
+  const payload = await apiData<{ days: Array<{ date: string }> }>(u.toString());
+  return (payload?.days ?? []).map((item) => item.date).filter(Boolean);
+}
+
+async function filterGroupLocationsWithAvailability(args: {
+  origin: string;
+  accountSlug: string;
+  locations: LocationLite[];
+  serviceId: number;
+  fromDate: string;
+}) {
+  const { origin, accountSlug, locations, serviceId, fromDate } = args;
+  const checks = await Promise.all(
+    locations.map(async (location) => {
+      const dates = await findGroupSessionAvailableDates({
+        origin,
+        accountSlug,
+        locationId: location.id,
+        serviceId,
+        fromDate,
+        daysAhead: 61,
+      });
+      return { location, hasAvailability: dates.length > 0 };
+    }),
+  );
+  return checks.filter((item) => item.hasAvailability).map((item) => item.location);
+}
+
+function groupSessionOptions(sessions: GroupSessionLite[], specialists: SpecialistLite[], accountTimeZone: string) {
+  return sessions.map((session) => {
+    const time = timeInZoneFromIso(session.startAt, accountTimeZone);
+    const specialistName = specialists.find((sp) => sp.id === session.specialistId)?.name ?? "Специалист";
+    const seats = `${session.availableSeats}/${session.capacity}`;
+    const price = session.pricePerClient ? `, ${Math.round(Number(session.pricePerClient))} ₽` : "";
+    return optionFromLabel(`${time} — ${specialistName}, мест ${seats}${price}`, time);
+  });
+}
+
 function isCompleteChainPlan(
   d: DraftLike,
   selectedServiceIds: number[],
@@ -1423,6 +1526,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   } else if (wantsAssistantCheckout) {
     d.mode = "ASSISTANT";
   }
+  let selectedGroupSessionForAssistant: GroupSessionLite | null = null;
+  let selectedGroupSpecialistNameForAssistant: string | null = null;
   if (d.mode === "SELF" && d.locationId && selectedServiceIds.length === 1) {
     return {
       handled: true,
@@ -1438,6 +1543,44 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     scopedServicesForFlow = services.filter((x) => x.locationIds.includes(scopedLocationId));
   }
   const selectedServiceCategoryFilter = parseServiceCategoryFilter(messageNorm, scopedServicesForFlow);
+  const selectedGroupService =
+    selectedServiceIds.length === 1
+      ? services.find((service) => service.id === selectedServiceIds[0] && service.bookingType === "GROUP") ?? null
+      : null;
+  const singleAccountLocation = locations.length === 1 ? locations[0] ?? null : null;
+
+  if (!d.locationId && singleAccountLocation) {
+    d.locationId = singleAccountLocation.id;
+  }
+
+  if (selectedGroupService && !d.locationId) {
+    const linkedLocationsForGroupService = selectedGroupService.locationIds.length
+      ? locations.filter((location) => selectedGroupService.locationIds.includes(location.id))
+      : locations;
+    const locationsForGroupService = await filterGroupLocationsWithAvailability({
+      origin,
+      accountSlug: account.slug,
+      locations: linkedLocationsForGroupService,
+      serviceId: selectedGroupService.id,
+      fromDate: todayYmd,
+    });
+    if (!locationsForGroupService.length) {
+      return {
+        handled: true,
+        reply: "По этой групповой услуге пока нет доступных занятий. Выберите другую услугу или дату позже.",
+        nextStatus: "COLLECTING",
+      };
+    }
+    return {
+      handled: true,
+      reply: "Выберите филиал для группового занятия, и продолжу запись.",
+      nextStatus: "COLLECTING",
+      ui: {
+        kind: "quick_replies",
+        options: locationsForGroupService.map((location) => ({ label: location.name, value: location.name })),
+      },
+    };
+  }
 
   const monthOnlyDate = extractMonthOnlyDate(messageNorm, todayYmd);
   const hasConcreteDate = hasConcreteDateMention(messageNorm);
@@ -1645,11 +1788,6 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   let nextStatus = (d.status || "COLLECTING") as BookingState;
   let nextAction: FlowAction = null;
   let autoSelectedSpecialistName: string | null = null;
-  const singleAccountLocation = locations.length === 1 ? locations[0] ?? null : null;
-
-  if (!d.locationId && singleAccountLocation) {
-    d.locationId = singleAccountLocation.id;
-  }
 
   if (d.status === "COMPLETED" && !bookingIntent) {
     if (isGratitudeOrPostCompletion(messageNorm)) {
@@ -2242,6 +2380,301 @@ if (!d.serviceId) {
         },
       };
     }
+  }
+
+  if (selectedGroupService && d.locationId) {
+    if (!d.date) {
+      const minDate = todayYmd;
+      const maxDate = addDaysYmd(todayYmd, 60);
+      const availableDates = await findGroupSessionAvailableDates({
+        origin,
+        accountSlug: account.slug,
+        locationId: d.locationId,
+        serviceId: selectedGroupService.id,
+        fromDate: minDate,
+        daysAhead: 61,
+        specialistId: d.specialistId,
+      });
+      const anyDateRequested = /(?:любая\s+дата|любой\s+день|не\s+важно\s+когда|неважно\s+когда)/iu.test(messageNorm);
+      if (anyDateRequested && availableDates.length) {
+        d.date = availableDates[0]!;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+      }
+      if (!d.date) {
+        const selectedLocationName = locations.find((location) => location.id === d.locationId)?.name ?? null;
+        const locationSuffix = selectedLocationName ? ` в филиале «${selectedLocationName}»` : "";
+        return {
+          handled: true,
+          reply: availableDates.length
+            ? `Есть свободные групповые занятия${locationSuffix}. Выберите дату в календаре или напишите её сообщением.`
+            : `По этой групповой услуге${locationSuffix} пока нет доступных занятий. Выберите другую услугу или дату позже.`,
+          nextStatus: "COLLECTING",
+          ui: availableDates.length
+            ? { kind: "date_picker", minDate, maxDate, initialDate: availableDates[0] ?? minDate, availableDates }
+            : null,
+        };
+      }
+    }
+
+    const sessionsForDate = await getGroupSessions({
+      origin,
+      accountSlug: account.slug,
+      locationId: d.locationId,
+      serviceId: selectedGroupService.id,
+      date: d.date,
+      specialistId: d.specialistId,
+    });
+    const sessionTimes = Array.from(new Set(sessionsForDate.map((session) => timeInZoneFromIso(session.startAt, account.timeZone)).filter(Boolean))).sort();
+    const wantsGroupSpecialistChange = wantsEditSpecialistIntent(messageNorm);
+
+    if (wantsGroupSpecialistChange && sessionsForDate.length) {
+      d.time = null;
+      d.specialistId = null;
+      d.mode = null;
+      d.consentConfirmedAt = null;
+      return {
+        handled: true,
+        reply: `На ${formatYmdRu(d.date)} доступны групповые занятия. Выберите время и специалиста.`,
+        nextStatus: "COLLECTING",
+        ui: { kind: "quick_replies", options: groupSessionOptions(sessionsForDate, specialists, account.timeZone) },
+      };
+    }
+
+    if (!d.time) {
+      const parsedTime = parseTime(messageNorm);
+      if (parsedTime && sessionTimes.includes(parsedTime)) {
+        d.time = parsedTime;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+      } else if (!sessionTimes.length) {
+        const nextDates = await findGroupSessionAvailableDates({
+          origin,
+          accountSlug: account.slug,
+          locationId: d.locationId,
+          serviceId: selectedGroupService.id,
+          fromDate: d.date,
+          daysAhead: 35,
+          specialistId: d.specialistId,
+        });
+        return {
+          handled: true,
+          reply: nextDates.length
+            ? `На ${formatYmdRu(d.date)} групповых занятий с местами не нашла. Выберите другую дату в календаре.`
+            : `На ${formatYmdRu(d.date)} групповых занятий с местами не нашла. Укажите другую дату.`,
+          nextStatus: "COLLECTING",
+          ui: nextDates.length
+            ? {
+                kind: "date_picker",
+                minDate: nextDates[0]!,
+                maxDate: nextDates[nextDates.length - 1]!,
+                initialDate: nextDates[0]!,
+                availableDates: nextDates,
+              }
+            : null,
+        };
+      } else {
+        const anyTimeRequested = /(?:любое\s+время|не\s+важно\s+время|неважно\s+время)/iu.test(messageNorm);
+        if (anyTimeRequested) {
+          d.time = sessionTimes[0]!;
+          d.mode = null;
+          d.consentConfirmedAt = null;
+        } else {
+          return {
+            handled: true,
+            reply: `На ${formatYmdRu(d.date)} доступны групповые занятия. Выберите время.`,
+            nextStatus: "COLLECTING",
+            ui: { kind: "quick_replies", options: groupSessionOptions(sessionsForDate, specialists, account.timeZone) },
+          };
+        }
+      }
+    }
+
+    if (d.time && !d.specialistId) {
+      const sessionsAtTime = sessionsForDate.filter((session) => timeInZoneFromIso(session.startAt, account.timeZone) === d.time);
+      if (sessionsAtTime.length === 1) {
+        d.specialistId = sessionsAtTime[0]!.specialistId;
+      } else if (sessionsAtTime.length > 1) {
+        return {
+          handled: true,
+          reply: `На ${formatYmdRu(d.date)} в ${d.time} есть несколько групповых занятий. Выберите вариант.`,
+          nextStatus: "COLLECTING",
+          ui: { kind: "quick_replies", options: groupSessionOptions(sessionsAtTime, specialists, account.timeZone) },
+        };
+      }
+    }
+
+    if (d.time && d.specialistId) {
+      const selectedSession = sessionsForDate.find(
+        (session) => session.specialistId === d.specialistId && timeInZoneFromIso(session.startAt, account.timeZone) === d.time,
+      );
+      if (!selectedSession) {
+        d.time = null;
+        d.specialistId = null;
+        return {
+          handled: true,
+          reply: "Выбранное групповое занятие уже недоступно. Выберите другое время.",
+          nextStatus: "COLLECTING",
+          ui: { kind: "quick_replies", options: groupSessionOptions(sessionsForDate, specialists, account.timeZone) },
+        };
+      }
+      const specialistName = specialists.find((sp) => sp.id === selectedSession.specialistId)?.name ?? "—";
+      if (d.mode === "ASSISTANT") {
+        selectedGroupSessionForAssistant = selectedSession;
+        selectedGroupSpecialistNameForAssistant = specialistName;
+      } else {
+        return {
+          handled: true,
+          reply:
+            `Проверьте данные:\n` +
+            `Локация: ${locations.find((loc) => loc.id === d.locationId)?.name ?? "—"}.\n` +
+            `Групповая услуга: ${selectedGroupService.name}.\n` +
+            `Специалист: ${specialistName}.\n` +
+            `Дата: ${formatYmdRu(d.date)}.\n` +
+            `Время: ${d.time}.\n` +
+            `Свободных мест: ${selectedSession.availableSeats}/${selectedSession.capacity}.\n\n` +
+            "Как завершим запись?",
+          nextStatus: "CHECKING",
+          ui: {
+            kind: "quick_replies",
+            options: [
+              optionFromLabel("Изменить время", "изменить время"),
+              optionFromLabel("Изменить специалиста", "изменить специалиста"),
+              optionFromLabel("Самостоятельно", "самостоятельно"),
+              optionFromLabel("Через ассистента", "оформи через ассистента"),
+            ],
+          },
+        };
+      }
+    }
+  }
+
+  if (selectedGroupService && selectedGroupSessionForAssistant && d.mode === "ASSISTANT") {
+    const groupSummary =
+      `Локация: ${locations.find((loc) => loc.id === d.locationId)?.name ?? "—"}.\n` +
+      `Групповая услуга: ${selectedGroupService.name}.\n` +
+      `Специалист: ${selectedGroupSpecialistNameForAssistant ?? "—"}.\n` +
+      `Дата: ${d.date ? formatYmdRu(d.date) : "—"}.\n` +
+      `Время: ${d.time ?? "—"}.\n` +
+      `Свободных мест: ${selectedGroupSessionForAssistant.availableSeats}/${selectedGroupSessionForAssistant.capacity}.`;
+
+    if (!d.clientName || !d.clientPhone) {
+      const digitCount = (messageNorm.match(/\d/g) ?? []).length;
+      const hasAnyDigits = digitCount > 0;
+      const hasPhoneMaskPlaceholder = /[xх]{2,}/i.test(messageNorm);
+      const invalidPhoneHint =
+        hasAnyDigits && !d.clientPhone
+          ? hasPhoneMaskPlaceholder
+            ? "Похоже, указан шаблон номера. Введите реальный номер цифрами."
+            : digitCount < 11
+            ? "Похоже, номер слишком короткий."
+            : "Не смогла распознать номер телефона."
+          : "";
+      if (!d.clientName && !d.clientPhone) {
+        return {
+          handled: true,
+          reply:
+            "Для оформления через ассистента нужны имя и номер телефона клиента. " +
+            `${invalidPhoneHint ? `${invalidPhoneHint} ` : ""}` +
+            "Напишите одним сообщением, например: «Надежда 8XXXXXXXXXX».",
+          nextStatus: "WAITING_CONSENT",
+        };
+      }
+      if (!d.clientPhone) {
+        return {
+          handled: true,
+          reply:
+            `${invalidPhoneHint ? `${invalidPhoneHint} ` : ""}` +
+            "Укажите, пожалуйста, номер телефона клиента в формате 8XXXXXXXXXX или +7XXXXXXXXXX.",
+          nextStatus: "WAITING_CONSENT",
+        };
+      }
+      return {
+        handled: true,
+        reply: "Укажите, пожалуйста, имя клиента (например: «Виталий»).",
+        nextStatus: "WAITING_CONSENT",
+      };
+    }
+
+    if (!d.consentConfirmedAt) {
+      const legalLinks = Array.from(new Set(requiredVersionIds.map((id) => `/${publicSlug}/legal/${id}`)));
+      const legalDocuments = requiredLegalDocuments.map((doc) => ({
+        title: doc.title,
+        href: `/${publicSlug}/legal/${doc.versionId}`,
+      }));
+      return {
+        handled: true,
+        reply: "Для оформления нужно согласие на обработку персональных данных. Подтвердите галочкой и кнопкой ниже.",
+        nextStatus: "WAITING_CONSENT",
+        ui: {
+          kind: "consent",
+          options: [],
+          legalLinks,
+          legalDocuments,
+          consentValue: "Согласен на обработку персональных данных",
+        },
+      };
+    }
+
+    const confirmedByUser = isAffirmative(messageNorm);
+    if (d.completedAppointmentId && d.completedAt) {
+      nextStatus = "COMPLETED";
+      return {
+        handled: true,
+        nextStatus,
+        reply: `Запись уже оформлена.\n${groupSummary}\nНомер записи: ${d.completedAppointmentId}.`,
+      };
+    }
+    if (d.status !== "WAITING_CONFIRMATION" || !confirmedByUser) {
+      if (!d.bookingAttemptKey) d.bookingAttemptKey = randomUUID();
+      nextStatus = "WAITING_CONFIRMATION";
+      return {
+        handled: true,
+        nextStatus,
+        reply: `Проверьте данные:\n${groupSummary}\nКлиент: ${d.clientName} ${d.clientPhone}\nЕсли все верно, нажмите кнопку «Записаться» ниже или напишите «да».`,
+        ui: { kind: "quick_replies", options: [optionFromLabel("Записаться", "да")] },
+      };
+    }
+
+    const created = await createAssistantGroupBooking({
+      d,
+      accountId: account.id,
+      groupSessionId: selectedGroupSessionForAssistant.id,
+      requiredVersionIds,
+      bookingAttemptKey: d.bookingAttemptKey,
+    });
+    if (!created.ok) {
+      if (created.code === "booking_in_progress") {
+        return { handled: true, reply: "Запись уже оформляется. Подождите несколько секунд, пожалуйста.", nextStatus: "WAITING_CONFIRMATION" };
+      }
+      if (created.code === "session_full") {
+        d.time = null;
+        d.specialistId = null;
+        d.mode = null;
+        d.consentConfirmedAt = null;
+        return {
+          handled: true,
+          reply: "Места на это групповое занятие уже заняли. Выберите другое время.",
+          nextStatus: "COLLECTING",
+        };
+      }
+      if (created.code === "already_exists") {
+        return { handled: true, reply: "Клиент уже записан на это групповое занятие.", nextStatus: "COMPLETED" };
+      }
+      if (created.code === "client_conflict") {
+        return { handled: true, reply: "Телефон и email относятся к разным клиентам. Проверьте контактные данные.", nextStatus: "COLLECTING" };
+      }
+      return { handled: true, reply: "Не удалось оформить групповую запись. Проверьте данные или выберите другое время.", nextStatus: "COLLECTING" };
+    }
+
+    nextStatus = "COMPLETED";
+    d.completedAppointmentId = created.participantId;
+    d.completedAt = new Date().toISOString();
+    return {
+      handled: true,
+      nextStatus,
+      reply: `Запись оформлена.\n${groupSummary}\nНомер записи: ${created.participantId}.`,
+    };
   }
 
   if (!d.date) {

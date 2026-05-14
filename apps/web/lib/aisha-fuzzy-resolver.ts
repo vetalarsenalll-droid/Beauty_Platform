@@ -13,6 +13,7 @@ import {
   looksLikeUnknownServiceRequest,
   isNluServiceGroundedByText,
 } from "@/lib/aisha-routing-helpers";
+import { catalogFuzzyCandidates } from "@/lib/aisha-catalog-lexicon";
 import { addDaysYmd, parseDate } from "@/lib/aisha-chat-parsers";
 
 type ResolutionPayload = {
@@ -461,6 +462,8 @@ export async function handleUnknownServiceResolution(args: {
   const requestedServicePhrase = extractRequestedServicePhrase(t);
   const vagueRequestedService = isVagueRequestedServicePhrase(requestedServicePhrase);
   const nluServiceGrounded = isNluServiceGroundedByText(t, nluServiceObj);
+  const servicePool = scopedServices.length ? scopedServices : services;
+  const requestedFuzzyCandidates = requestedServicePhrase ? catalogFuzzyCandidates(requestedServicePhrase, servicePool, 6) : [];
 
   const deicticServiceReference = /(?:эту\s+услуг|эту\s+процедур|на\s+неё|на\s+нее|ту\s+же|this\s+service|that\s+service)/iu.test(t);
 
@@ -495,7 +498,7 @@ export async function handleUnknownServiceResolution(args: {
     !/(филиал|локац|адрес|время|слот|окошк|дата|сегодня|завтра|послезавтра|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
       turnNorm,
     );
-  const hasDomainServiceCue = mentionsServiceTopic(t, services) || nluServiceValid || locationScoped;
+  const hasDomainServiceCue = mentionsServiceTopic(t, services) || requestedFuzzyCandidates.length > 0 || nluServiceValid || locationScoped;
   const hasServiceLikePhrase =
     (Boolean(requestedServicePhrase) && hasDomainServiceCue) ||
     explicitRequestedService ||
@@ -548,13 +551,24 @@ export async function handleUnknownServiceResolution(args: {
     return { handled: true, payload };
   }
 
+  const phraseNorm = norm(requestedServicePhrase ?? t);
+  const fuzzySuggestions = requestedFuzzyCandidates;
+  if (fuzzySuggestions.length) {
+    const reply =
+      fuzzySuggestions.length === 1
+        ? `Нашла подходящую услугу. Подтвердите выбор: ${serviceQuickOption(fuzzySuggestions[0]!).label}`
+        : "Нашла несколько похожих услуг. Выберите, пожалуйста, подходящую.";
+    const ui: ChatUi = { kind: "quick_replies", options: dedupeOptions(fuzzySuggestions.map(serviceQuickOption)) };
+    const payload = await persistClarificationAndBuildPayload({ threadId, nextThreadKey, reply, ui, d });
+    return { handled: true, payload };
+  }
+
   const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла.` : "Такой услуги не нашла.";
   const reply = `${requested} Выберите, пожалуйста, из доступных ниже.`;
-  const phraseNorm = norm(requestedServicePhrase ?? t);
   const suggestions = mentionsServiceTopic(t, services)
-    ? topEntityCandidates(phraseNorm, scopedServices.length ? scopedServices : services, (s) => [s.name, s.categoryName ?? "", s.description ?? ""], 6).map((x) => x.entity)
+    ? topEntityCandidates(phraseNorm, servicePool, (s) => [s.name, s.categoryName ?? "", s.description ?? ""], 6).map((x) => x.entity)
     : [];
-  const pool = suggestions.length ? suggestions : (scopedServices.length ? scopedServices : services);
+  const pool = suggestions.length ? suggestions : servicePool;
   const ui: ChatUi = { kind: "quick_replies", options: dedupeOptions(pool.map(serviceQuickOption)) };
 
   const payload = await persistClarificationAndBuildPayload({ threadId, nextThreadKey, reply, ui, d });

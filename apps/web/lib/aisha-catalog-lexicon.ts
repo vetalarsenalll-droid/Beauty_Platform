@@ -124,18 +124,32 @@ function bestUniqueByScore<T>(items: Array<{ item: T; score: number }>) {
   return sorted[0]!.item;
 }
 
+function serviceItemTokens(service: ServiceLite) {
+  return tokenizeCatalogText([service.name, service.searchKeywords ?? "", service.synonyms ?? ""].join(" "));
+}
+
+function serviceCustomItemTokens(service: ServiceLite) {
+  return tokenizeCatalogText([service.searchKeywords ?? "", service.synonyms ?? ""].join(" "));
+}
+
 export function catalogItemByText(message: string, services: ServiceLite[], lexicon = buildCatalogLexicon(services)) {
   const messageNorm = normalizeCatalogText(message);
   if (!messageNorm || /^\s*категория:\s*.+$/iu.test(messageNorm)) return null;
 
-  const exact = services.filter((service) => normalizeCatalogText(service.name) === messageNorm);
+  const exact = services.filter((service) =>
+    [service.name, service.searchKeywords ?? "", service.synonyms ?? ""]
+      .map((value) => normalizeCatalogText(value))
+      .some((value) => value === messageNorm),
+  );
   if (exact.length === 1) return exact[0]!;
   if (exact.length > 1) return null;
 
-  const byBoundary = services.filter((service) => {
-    const name = normalizeCatalogText(service.name);
-    return Boolean(name && new RegExp(`(?:^|\\s)${escapeRegExp(name)}(?:\\s|$)`, "iu").test(messageNorm));
-  });
+  const byBoundary = services.filter((service) =>
+    [service.name, service.searchKeywords ?? "", service.synonyms ?? ""].some((value) => {
+      const item = normalizeCatalogText(value);
+      return Boolean(item && new RegExp(`(?:^|\\s)${escapeRegExp(item)}(?:\\s|$)`, "iu").test(messageNorm));
+    }),
+  );
   if (byBoundary.length === 1) return byBoundary[0]!;
   if (byBoundary.length > 1) {
     byBoundary.sort((a, b) => normalizeCatalogText(b.name).length - normalizeCatalogText(a.name).length);
@@ -147,21 +161,31 @@ export function catalogItemByText(message: string, services: ServiceLite[], lexi
   const messageTokens = tokenizeCatalogText(messageNorm);
   const messageTokenSet = new Set(messageTokens);
   const scored = services.map((service) => {
+    const itemTokens = serviceItemTokens(service);
+    if (!itemTokens.length) return { item: service, score: 0 };
+    const matched = itemTokens.filter((token) => messageTokenSet.has(token)).length;
     const nameTokens = tokenizeCatalogText(service.name);
-    if (!nameTokens.length) return { item: service, score: 0 };
-    const matched = nameTokens.filter((token) => messageTokenSet.has(token)).length;
-    return { item: service, score: matched === nameTokens.length ? matched * 4 : matched };
+    const fullNameMatched = nameTokens.length > 0 && nameTokens.every((token) => messageTokenSet.has(token));
+    return { item: service, score: fullNameMatched ? nameTokens.length * 4 : matched };
   });
   const tokenMatch = bestUniqueByScore(scored);
   if (tokenMatch) return tokenMatch;
 
   const fuzzyScored = services.map((service) => {
     const nameTokens = tokenizeCatalogText(service.name);
+    const customTokens = serviceCustomItemTokens(service);
     let score = 0;
     for (const itemToken of nameTokens) {
       for (const messageToken of messageTokens) {
         const distance = levenshtein(itemToken, messageToken);
-        const threshold = itemToken.length >= 6 ? 2 : 1;
+        const threshold = Math.max(itemToken.length, messageToken.length) >= 8 ? 2 : 1;
+        if (distance <= threshold) score += Math.max(1, itemToken.length - distance);
+      }
+    }
+    for (const itemToken of customTokens) {
+      for (const messageToken of messageTokens) {
+        const distance = levenshtein(itemToken, messageToken);
+        const threshold = Math.max(itemToken.length, messageToken.length) >= 6 ? 2 : 1;
         if (distance <= threshold) score += Math.max(1, itemToken.length - distance);
       }
     }
@@ -170,7 +194,7 @@ export function catalogItemByText(message: string, services: ServiceLite[], lexi
   const fuzzy = bestUniqueByScore(fuzzyScored);
   if (!fuzzy) return null;
 
-  const fuzzyTokens = tokenizeCatalogText(fuzzy.name);
+  const fuzzyTokens = serviceItemTokens(fuzzy);
   if (!fuzzyTokens.some((token) => lexicon.itemTokens.has(token))) return null;
   return fuzzy;
 }
@@ -184,6 +208,7 @@ export function catalogFuzzyCandidates(message: string, services: ServiceLite[],
       const serviceTokens = tokenizeCatalogText(
         [service.name, service.categoryName ?? "", service.description ?? "", service.searchKeywords ?? "", service.synonyms ?? ""].join(" "),
       );
+      const customTokens = new Set(serviceCustomItemTokens(service));
       if (!serviceTokens.length) return { service, score: 0 };
 
       let score = 0;
@@ -199,9 +224,10 @@ export function catalogFuzzyCandidates(message: string, services: ServiceLite[],
             continue;
           }
           const distance = levenshtein(messageToken, serviceToken);
-          const threshold = Math.max(messageToken.length, serviceToken.length) >= 8 ? 2 : 1;
+          const threshold = Math.max(messageToken.length, serviceToken.length) >= 6 ? 2 : 1;
           if (distance <= threshold) {
-            best = Math.max(best, Math.max(3, Math.min(messageToken.length, serviceToken.length) - distance));
+            const fuzzyScore = Math.max(3, Math.min(messageToken.length, serviceToken.length) - distance);
+            best = Math.max(best, customTokens.has(serviceToken) ? Math.max(5, fuzzyScore) : fuzzyScore);
           }
         }
         score += best;

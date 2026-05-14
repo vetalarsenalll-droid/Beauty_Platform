@@ -822,10 +822,11 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 const partOfDayOptions = timeControlOptions.filter((o) => timeControlKind(o) === "part_of_day");
                 const categoryOptions = effectiveOptions.filter((o) => timeControlKind(o) === null && isCategoryQuickReply(o));
                 const regularOptions = effectiveOptions.filter((o) => timeControlKind(o) === null && !isCategoryQuickReply(o));
-                const hasAnyTimeOptions = regularOptions.some((o) => isTimeValue(o.value) || isTimeValue(o.label));
+                const isPlainTimeOption = (option: QuickReply) => isTimeValue(option.value) && isTimeValue(option.label);
+                const hasAnyTimeOptions = regularOptions.some((o) => isPlainTimeOption(o));
                 const onlyTimeOptions =
                   regularOptions.length > 0 &&
-                  regularOptions.every((o) => isTimeValue(o.value) || isTimeValue(o.label));
+                  regularOptions.every((o) => isPlainTimeOption(o));
                 const quickReplyEnabledClass = canUseMessageUi
                   ? (currentMode === "dark"
                       ? "border-[color:var(--ai-border,#334155)] bg-[color:var(--ai-quick-reply-button,var(--ai-button,#1f2937))] text-[color:var(--ai-quick-reply-text,var(--ai-text,#f9fafb))] hover:brightness-110"
@@ -938,7 +939,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                           <div className={onlyTimeOptions ? "grid grid-cols-4 gap-1.5" : `flex flex-wrap gap-1.5 ${hasAnyTimeOptions ? "items-stretch" : ""}`}>
                             {regularOptions.map((option) => (
                               (() => {
-                                const isTimeOption = isTimeValue(option.value) || isTimeValue(option.label);
+                                const isTimeOption = isPlainTimeOption(option);
                                 const isWideOption = !isTimeOption && isWideQuickReply(option);
                                 return (
                                   <button
