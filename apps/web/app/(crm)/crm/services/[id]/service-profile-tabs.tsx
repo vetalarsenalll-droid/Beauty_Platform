@@ -10,6 +10,8 @@ type ServiceSummary = {
   id: number;
   name: string;
   description: string | null;
+  searchKeywords: string | null;
+  synonyms: string | null;
   baseDurationMin: number;
   basePrice: string;
   isActive: boolean;

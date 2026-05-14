@@ -43,6 +43,8 @@ export type ServiceLite = {
   name: string;
   baseDurationMin: number;
   description?: string | null;
+  searchKeywords?: string | null;
+  synonyms?: string | null;
   categoryName?: string | null;
   basePrice: number;
   allowMultiServiceBooking?: boolean;

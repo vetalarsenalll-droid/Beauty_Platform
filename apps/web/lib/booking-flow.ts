@@ -13,6 +13,13 @@
   SpecialistLite,
 } from "@/lib/booking-tools";
 import { parseTime } from "@/lib/aisha-chat-parsers";
+import {
+  buildCatalogLexicon,
+  catalogItemByText,
+  catalogTopicMatches,
+  mentionsCatalogTopic,
+  tokenizeCatalogText,
+} from "@/lib/aisha-catalog-lexicon";
 import { randomUUID } from "crypto";
 
 export type BookingState =
@@ -186,6 +193,20 @@ function serviceOption(
     return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, `добавить ${service.name}`);
   }
   return optionFromLabel(`${service.name} — ${priceText}, ${durationText}`, `выбрать услугу ${service.name}`);
+}
+
+function extractExplicitRequestedService(messageNorm: string) {
+  const matches = Array.from(
+    messageNorm.matchAll(/(?:^|\s)(?:запиши(?:\s+меня)?(?:\s+на)?|записаться\s+на|хочу\s+на|хочу|нужн[ао]?|заброни(?:ровать)?(?:\s+на)?|на)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),
+  );
+  for (let i = matches.length - 1; i >= 0; i -= 1) {
+    const candidate = (matches[i]?.[1] ?? "")
+      .replace(/\b(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|пожалуйста|плиз)\b.*$/iu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (candidate) return candidate;
+  }
+  return null;
 }
 
 function specialistOption(
@@ -568,45 +589,28 @@ function wantsChange(messageNorm: string) {
   );
 }
 
-function extractServiceTopicRoots(messageNorm: string) {
-  const roots = [
-    "маник",
-    "педик",
-    "стриж",
-    "окраш",
-    "бров",
-    "ресниц",
-    "гель",
-    "уход",
-    "ламин",
-    "коррекц",
-    "наращ",
-    "уклад",
-    "пилинг",
-    "чистк",
-    "массаж",
-  ];
-  return roots.filter((root) => new RegExp(root, "i").test(messageNorm));
+function extractCatalogTopicTokens(messageNorm: string, services: ServiceLite[]) {
+  const lexicon = buildCatalogLexicon(services);
+  return tokenizeCatalogText(messageNorm).filter((token) => lexicon.topicTokens.has(token));
 }
 
-function getServiceClarificationCandidates(messageNorm: string, services: ServiceLite[]) {
+function getCatalogClarificationCandidates(messageNorm: string, services: ServiceLite[]) {
   const explicitMatches = services.filter((s) => {
     const n = norm(s.name);
     return n.length > 0 && messageNorm.includes(n);
   });
   if (explicitMatches.length > 1) return explicitMatches;
 
-  const roots = extractServiceTopicRoots(messageNorm);
-  if (!roots.length) return [];
-
-  return services.filter((s) => {
-    const n = norm(s.name);
-    return roots.some((root) => new RegExp(root, "i").test(n));
-  });
+  const tokens = extractCatalogTopicTokens(messageNorm, services);
+  if (!tokens.length) return [];
+  const lexicon = buildCatalogLexicon(services);
+  const matches = catalogTopicMatches(messageNorm, services, lexicon);
+  if (matches.length > 1) return matches;
+  return [];
 }
 
-function shouldAskServiceClarification(messageNorm: string, services: ServiceLite[]) {
-  const candidates = getServiceClarificationCandidates(messageNorm, services);
+function shouldAskCatalogClarification(messageNorm: string, services: ServiceLite[]) {
+  const candidates = getCatalogClarificationCandidates(messageNorm, services);
   return candidates.length > 1;
 }
 function detectTimePreference(messageNorm: string): "morning" | "day" | "evening" | null {
@@ -1271,9 +1275,10 @@ async function reflowChainTail(args: {
 
   return serviceIds.map((serviceId) => byService.get(serviceId)).filter((item): item is ChainPlanItem => Boolean(item));
 }
-function applyChangeRollback(messageNorm: string, d: DraftLike) {
+function applyChangeRollback(messageNorm: string, d: DraftLike, services: ServiceLite[]) {
   const changeLocation = /(локац|филиал|адрес)/i.test(messageNorm);
-  const changeService = /(услуг|маник|педик|стриж|гель|окраш|facial|peeling|hair)/i.test(messageNorm);
+  const catalogLexicon = buildCatalogLexicon(services);
+  const changeService = /(услуг|услуга|сервис|процедур|каталог|прайс)/i.test(messageNorm) || mentionsCatalogTopic(messageNorm, catalogLexicon);
   const changeDate = /(дата|день|завтра|сегодня|числ|марта|февраля|января|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i.test(messageNorm);
   const changeTime = /(время|час|утр|вечер|днем|днём|:\d{2}|\d{1,2}[.]\d{2})/i.test(messageNorm);
   const changeSpecialist = /(мастер|специалист|к [а-яa-z]+$)/i.test(messageNorm);
@@ -1380,6 +1385,31 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     d.locationId || selectedServiceIds.length > 0 || d.specialistId || d.date || d.time || d.mode
   );
   if (!bookingIntent && !hasContext && d.status !== "COMPLETED") return { handled: false };
+
+  const requestedServicePhrase = extractExplicitRequestedService(messageNorm);
+  const requestedServiceMatch = requestedServicePhrase
+    ? catalogItemByText(requestedServicePhrase, services, buildCatalogLexicon(services))
+    : null;
+  if (requestedServicePhrase && !requestedServiceMatch) {
+    d.serviceId = null;
+    d.serviceIds = [];
+    d.specialistId = null;
+    d.time = null;
+    d.bookingMode = null;
+    d.planJson = [];
+    d.mode = null;
+    d.consentConfirmedAt = null;
+    const servicePool = d.locationId ? services.filter((service) => service.locationIds.includes(d.locationId!)) : services;
+    return {
+      handled: true,
+      reply: `Услугу «${requestedServicePhrase}» не нашла. Выберите, пожалуйста, из доступных ниже.`,
+      nextStatus: "COLLECTING",
+      ui: {
+        kind: "quick_replies",
+        options: servicePool.map((service) => serviceOption(service)),
+      },
+    };
+  }
 
   const wantsSelfCheckout = /(?:^|\s)самостоятельно(?:\s|$)/iu.test(messageNorm);
   const wantsAssistantCheckout = /оформи\s+через\s+ассистента|через\s+ассистента/iu.test(messageNorm);
@@ -1646,7 +1676,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
 
   const explicitEditIntent = wantsEditTimeIntent(messageNorm) || wantsEditSpecialistIntent(messageNorm);
   if (wantsChange(messageNorm) && !explicitEditIntent && hasContext && d.status !== "COMPLETED") {
-    applyChangeRollback(messageNorm, d);
+    applyChangeRollback(messageNorm, d, services);
     nextStatus = "COLLECTING";
   }
   if (wantsStopBooking(messageNorm) && hasContext && d.status !== "COMPLETED") {
@@ -2091,8 +2121,8 @@ if (!d.serviceId) {
           : null,
       };
     }
-    if (shouldAskServiceClarification(messageNorm, servicesForSelectionByCategory)) {
-      const clarificationCandidates = getServiceClarificationCandidates(messageNorm, servicesForSelectionByCategory);
+    if (shouldAskCatalogClarification(messageNorm, servicesForSelectionByCategory)) {
+      const clarificationCandidates = getCatalogClarificationCandidates(messageNorm, servicesForSelectionByCategory);
       const optionsSource = clarificationCandidates.length ? clarificationCandidates : servicesForSelectionByCategory;
       return {
         handled: true,

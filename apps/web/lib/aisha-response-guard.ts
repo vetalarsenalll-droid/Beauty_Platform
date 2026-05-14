@@ -85,7 +85,7 @@ export function applyResponseGuard(args: {
   reply = sanitizeAssistantReplyText(reply);
   const casualDesireOutsideCatalog =
     /(?:^|\s)хоч\p{L}*\s+на\s+[\p{L}\s-]{3,}/iu.test(t) &&
-    !mentionsServiceTopic(t) &&
+    !mentionsServiceTopic(t, services) &&
     !/(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*|бронь|сегодня|завтра|послезавтра|\d{1,2}[:.]\d{2}|\d{1,2}[./]\d{1,2})/iu.test(t);
 
   if (route === "chat-only" && intent === "smalltalk" && /жду\s+(?:вашего|твоего)\s+ответа/i.test(norm(reply))) {

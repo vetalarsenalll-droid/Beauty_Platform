@@ -14,6 +14,8 @@ type ServiceCreateFormProps = {
 export default function ServiceCreateForm({ categories }: ServiceCreateFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [searchKeywords, setSearchKeywords] = useState("");
+  const [synonyms, setSynonyms] = useState("");
   const [baseDurationMin, setBaseDurationMin] = useState("");
   const [basePrice, setBasePrice] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -36,6 +38,8 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
         body: JSON.stringify({
           name,
           description: description.trim() ? description.trim() : null,
+          searchKeywords: searchKeywords.trim() ? searchKeywords.trim() : null,
+          synonyms: synonyms.trim() ? synonyms.trim() : null,
           baseDurationMin,
           basePrice,
           categoryId: categoryId ? Number(categoryId) : null,
@@ -97,6 +101,26 @@ export default function ServiceCreateForm({ categories }: ServiceCreateFormProps
           className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
         />
       </label>
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-2 text-sm">
+          Ключевые слова для поиска
+          <textarea
+            value={searchKeywords}
+            onChange={(event) => setSearchKeywords(event.target.value)}
+            className="min-h-[84px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+            placeholder="Например: укладка, волосы, прическа"
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Синонимы услуги
+          <textarea
+            value={synonyms}
+            onChange={(event) => setSynonyms(event.target.value)}
+            className="min-h-[84px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+            placeholder="Например: вечерняя прическа, сделать волосы"
+          />
+        </label>
+      </div>
       <div className="grid gap-3 md:grid-cols-3">
         <label className="flex flex-col gap-2 text-sm">
           Длительность, мин

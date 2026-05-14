@@ -1,7 +1,31 @@
 ﻿import type { ChatUi } from "@/lib/booking-flow";
 import { buildDirectBookingKickoffReply, runBookingFlowBranch } from "@/lib/aisha-chat-reply-builder";
 import type { Action } from "@/lib/aisha-chat-types";
-import type { LocationLite } from "@/lib/booking-tools";
+import { formatServiceQuickLabel, type LocationLite } from "@/lib/booking-tools";
+import { buildCatalogLexicon, catalogItemByText } from "@/lib/aisha-catalog-lexicon";
+
+const norm = (v: string) =>
+  v
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s:.+\-/]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+function extractExplicitRequestedService(message: string) {
+  const messageNorm = norm(message);
+  const matches = Array.from(
+    messageNorm.matchAll(/(?:^|\s)(?:запиши(?:\s+меня)?(?:\s+на)?|записаться\s+на|хочу\s+на|хочу|нужн[ао]?|заброни(?:ровать)?(?:\s+на)?|на)\s+([\p{L}\-]{4,}(?:\s+[\p{L}\-]{3,}){0,2})/giu),
+  );
+  for (let i = matches.length - 1; i >= 0; i -= 1) {
+    const candidate = (matches[i]?.[1] ?? "")
+      .replace(/\b(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|пожалуйста|плиз)\b.*$/iu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (candidate) return candidate;
+  }
+  return null;
+}
 
 export async function handleBookingDomain(args: {
   directBookingKickoffFallback: boolean;
@@ -20,6 +44,36 @@ export async function handleBookingDomain(args: {
   let { currentReply: reply, currentStatus: nextStatus, currentAction: nextAction, currentUi: nextUi } = args;
 
   if (args.directBookingKickoffFallback) {
+    const requestedService = extractExplicitRequestedService(args.runFlowArgs.messageForRouting);
+    const matchedService = requestedService
+      ? catalogItemByText(requestedService, args.runFlowArgs.services, buildCatalogLexicon(args.runFlowArgs.services))
+      : null;
+    if (requestedService && !matchedService) {
+      args.runFlowArgs.d.serviceId = null;
+      args.runFlowArgs.d.serviceIds = [];
+      args.runFlowArgs.d.specialistId = null;
+      args.runFlowArgs.d.time = null;
+      args.runFlowArgs.d.bookingMode = null;
+      args.runFlowArgs.d.planJson = [];
+      args.runFlowArgs.d.mode = null;
+      args.runFlowArgs.d.consentConfirmedAt = null;
+      const servicePool = args.runFlowArgs.d.locationId
+        ? args.runFlowArgs.services.filter((service) => service.locationIds.includes(args.runFlowArgs.d.locationId!))
+        : args.runFlowArgs.services;
+      return {
+        handled: true,
+        reply: `Услугу «${requestedService}» не нашла. Выберите, пожалуйста, из доступных ниже.`,
+        nextStatus: "COLLECTING",
+        nextAction,
+        nextUi: {
+          kind: "quick_replies",
+          options: servicePool.map((service) => ({
+            label: formatServiceQuickLabel(service),
+            value: `выбрать услугу ${service.name}`,
+          })),
+        },
+      };
+    }
     const kickoff = buildDirectBookingKickoffReply({ date: args.date, locations: args.locations });
     return { handled: true, reply: kickoff.reply, nextStatus, nextAction, nextUi: kickoff.ui };
   }

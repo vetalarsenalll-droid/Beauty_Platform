@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+﻿import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
@@ -85,14 +85,12 @@ check(
 
 check(
   "booking flow: broad price questions show matching topic services instead of first catalog items",
-    /serviceTopicMatches\(t, servicesByCategory\)/.test(sources.postHandler) &&
-    /\{ cue: \/стриж\/iu, match: \/стриж\/iu \}/.test(sources.routingHelpers) &&
-    /фитнес/.test(sources.routingHelpers) &&
+  /serviceTopicMatches\(t, servicesByCategory\)/.test(sources.postHandler) &&
+    /catalogTopicMatches\(t, services, lexicon\)/.test(sources.routingHelpers) &&
     /const explicitServiceBookingRequest =[\s\S]*Boolean\(routing\.serviceByText\(t, services\)\)[\s\S]*хоч/.test(sources.intentContext) &&
     /if \(explicitServiceBookingRequest && !explicitServiceComplaint && !explicitBookingDecline\) intent = "booking_start"/.test(sources.intentContext) &&
     /const priceOptions = topicMatches\.length \? topicMatches : servicesByCategory/.test(sources.postHandler) &&
     /const sample = priceOptions/.test(sources.postHandler) &&
-    /У нас есть несколько вариантов\. По стоимости/.test(sources.postHandler) &&
     /serviceTopicMatches\(t, scopedServices\.length \? scopedServices : services\)/.test(sources.fuzzyResolver) &&
     /if \(topicMatches\.length\) \{[\s\S]*route = "chat-only"[\s\S]*shouldRunBookingFlowResolved = false/.test(sources.postHandler) &&
     /topicMatches\.length \? priceOptions\.map\(serviceQuickOption\) : serviceOptionsWithTabs/.test(sources.postHandler),
@@ -100,11 +98,11 @@ check(
 
 check(
   "booking flow: casual desire phrases do not open unknown-service catalog",
-  /return mentionsServiceTopic\(messageNorm\);/.test(sources.routingHelpers) &&
+  /return mentionsCatalogTopic\(messageNorm, buildCatalogLexicon\(services\)\);/.test(sources.routingHelpers) &&
     /standaloneUnknownServiceDomainCue/.test(sources.postHandler) &&
     /standaloneUnknownServiceDomainCue[\s\S]*looksLikeStandaloneServiceLabel\(t\)/.test(sources.postHandler) &&
     !/BOOKING_VERB:[^\n]*хочу/.test(sources.lexicon) &&
-    /mentionsServiceTopic\(t\) &&/.test(sources.bookingDecisions) &&
+    /mentionsServiceTopic\(t, services\) &&/.test(sources.bookingDecisions) &&
     !/directBookingKickoffFallback[\s\S]{0,260}хочу/.test(sources.postHandler) &&
     /const casualDesireOutsideCatalog =/.test(sources.responseGuard) &&
     /!casualDesireOutsideCatalog/.test(sources.responseGuard),
@@ -116,6 +114,7 @@ check(
     /const timeLimit = null;/.test(sources.bookingFlow) &&
     /\\u0432\\u0441\\u0435\|\\u0432\\u0441\\u0451/.test(sources.widget),
 );
+
 
 check(
   "booking flow: location choices are scoped by selected service",

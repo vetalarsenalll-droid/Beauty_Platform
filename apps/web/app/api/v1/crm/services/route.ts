@@ -8,6 +8,8 @@ type DbService = {
   id: number;
   name: string;
   description: string | null;
+  searchKeywords: string | null;
+  synonyms: string | null;
   baseDurationMin: number;
   basePrice: Prisma.Decimal;
   allowMultiServiceBooking: boolean;
@@ -24,6 +26,8 @@ function mapService(service: DbService) {
     id: service.id,
     name: service.name,
     description: service.description,
+    searchKeywords: service.searchKeywords,
+    synonyms: service.synonyms,
     baseDurationMin: service.baseDurationMin,
     basePrice: service.basePrice.toString(),
     allowMultiServiceBooking: service.allowMultiServiceBooking,
@@ -68,6 +72,8 @@ export async function POST(request: Request) {
 
   const name = String(body.name ?? "").trim();
   const description = body.description ? String(body.description).trim() : null;
+  const searchKeywords = body.searchKeywords ? String(body.searchKeywords).trim() : null;
+  const synonyms = body.synonyms ? String(body.synonyms).trim() : null;
   const baseDurationMin = Number(body.baseDurationMin);
   const categoryId =
     body.categoryId !== undefined &&
@@ -154,6 +160,8 @@ export async function POST(request: Request) {
       categoryId,
       name,
       description,
+      searchKeywords,
+      synonyms,
       baseDurationMin,
       basePrice,
       isActive,
@@ -173,6 +181,8 @@ export async function POST(request: Request) {
     diffJson: {
       name,
       description,
+      searchKeywords,
+      synonyms,
       baseDurationMin,
       basePrice: basePrice.toString(),
       categoryId,

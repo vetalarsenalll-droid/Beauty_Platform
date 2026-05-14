@@ -29,6 +29,7 @@ const staticRuntimeFiles = [
   ...requiredFiles,
   "apps/web/lib/aisha-booking-decisions.ts",
   "apps/web/lib/aisha-chat-http-handlers.ts",
+  "apps/web/lib/aisha-catalog-lexicon.ts",
   "apps/web/lib/aisha-chat-intent-context.ts",
   "apps/web/lib/aisha-chat-parsers.ts",
   "apps/web/lib/aisha-chat-postprocess.ts",
@@ -70,8 +71,10 @@ const fuzzy = read("apps/web/lib/aisha-fuzzy-resolver.ts");
 const widget = read("apps/web/components/public-ai-chat-widget.tsx");
 const turnPersistence = read("apps/web/lib/aisha-turn-persistence.ts");
 const routingHelpers = read("apps/web/lib/aisha-routing-helpers.ts");
+const catalogLexicon = read("apps/web/lib/aisha-catalog-lexicon.ts");
 const lexicon = read("apps/web/lib/aisha-lexicon.ts");
 const bookingDecisions = read("apps/web/lib/aisha-booking-decisions.ts");
+const handleBooking = read("apps/web/lib/aisha-handle-booking.ts");
 const orchestrator = read("apps/web/lib/aisha-orchestrator.ts");
 const postprocess = read("apps/web/lib/aisha-chat-postprocess.ts");
 const replyBuilder = read("apps/web/lib/aisha-chat-reply-builder.ts");
@@ -327,18 +330,13 @@ check(
 );
 
 check(
-  "price questions for broad service topics narrow quick replies before sampling catalog",
-    /export function serviceTopicMatches/.test(routingHelpers) &&
-    /маник\|маникюр/.test(routingHelpers) &&
-    /фитнес/.test(routingHelpers) &&
+  "price questions for broad service topics narrow quick replies from account catalog",
+  /export function serviceTopicMatches/.test(routingHelpers) &&
+    /catalogTopicMatches\(t, services, lexicon\)/.test(routingHelpers) &&
     /const explicitServiceBookingRequest =[\s\S]*Boolean\(routing\.serviceByText\(t, services\)\)[\s\S]*хоч/.test(intentContext) &&
     /if \(explicitServiceBookingRequest && !explicitServiceComplaint && !explicitBookingDecline\) intent = "booking_start"/.test(intentContext) &&
-    /\{ cue: \/стриж\/iu, match: \/стриж\/iu \}/.test(routingHelpers) &&
-    /\{ cue: \/волос\|парикмах\/iu, match: \/стриж\|окраш\|тонир/.test(routingHelpers) &&
     /const topicMatches = selectedByText \? \[\] : serviceTopicMatches\(t, servicesByCategory\)/.test(postHandler) &&
     /const priceOptions = topicMatches\.length \? topicMatches : servicesByCategory/.test(postHandler) &&
-    /У нас есть несколько вариантов\. По стоимости/.test(postHandler) &&
-    /У нас есть несколько вариантов\. Какой именно вам подходит\?/.test(postHandler) &&
     /serviceTopicMatches\(t, scopedServices\.length \? scopedServices : services\)/.test(fuzzy) &&
     /dedupeOptions\(topicMatches\.map\(serviceQuickOption\)\)/.test(fuzzy) &&
     /if \(topicMatches\.length\) \{[\s\S]*route = "chat-only"[\s\S]*shouldRunBookingFlowResolved = false/.test(postHandler) &&
@@ -347,14 +345,89 @@ check(
 
 check(
   "casual desire phrases are not routed as unknown service catalog prompts",
-  /return mentionsServiceTopic\(messageNorm\);/.test(routingHelpers) &&
-    /const standaloneUnknownServiceDomainCue =[\s\S]*mentionsServiceTopic\(t\)[\s\S]*asksServiceExistence\(t\)[\s\S]*serviceTopicMatches\(t, services\)\.length > 0/.test(postHandler) &&
+  /return mentionsCatalogTopic\(messageNorm, buildCatalogLexicon\(services\)\);/.test(routingHelpers) &&
+    /const standaloneUnknownServiceDomainCue =[\s\S]*mentionsServiceTopic\(t, services\)[\s\S]*asksServiceExistence\(t, services\)[\s\S]*serviceTopicMatches\(t, services\)\.length > 0/.test(postHandler) &&
     /standaloneUnknownServiceDomainCue[\s\S]*looksLikeStandaloneServiceLabel\(t\)/.test(postHandler) &&
     !/BOOKING_VERB:[^\n]*хочу/.test(lexicon) &&
-    /mentionsServiceTopic\(t\) &&/.test(bookingDecisions) &&
+    /mentionsServiceTopic\(t, services\) &&/.test(bookingDecisions) &&
     !/directBookingKickoffFallback[\s\S]{0,260}хочу/.test(postHandler) &&
     /const casualDesireOutsideCatalog =/.test(responseGuard) &&
     /!casualDesireOutsideCatalog/.test(responseGuard),
+);
+
+const aishaRuntimeSources = [
+  "apps/web/lib/aisha-booking-decisions.ts",
+  "apps/web/lib/aisha-chat-intent-context.ts",
+  "apps/web/lib/aisha-chat-post-handler.ts",
+  "apps/web/lib/aisha-draft-mutations.ts",
+  "apps/web/lib/aisha-fuzzy-resolver.ts",
+  "apps/web/lib/aisha-lexicon.ts",
+  "apps/web/lib/aisha-response-guard.ts",
+  "apps/web/lib/aisha-routing-helpers.ts",
+  "apps/web/lib/booking-flow.ts",
+].map((path) => [path, read(path)]);
+
+const domainHardcode = /(маник|педик|стриж|ресниц|бров|окраш|пилинг|массаж|facial|haircut)/i;
+const hardcodedRuntimeFiles = aishaRuntimeSources.filter(([, source]) => domainHardcode.test(source)).map(([path]) => path);
+check(
+  "Aisha runtime has no beauty-domain hardcoded routing words",
+  hardcodedRuntimeFiles.length === 0,
+  hardcodedRuntimeFiles.join(", "),
+);
+
+check(
+  "catalog lexicon exposes catalog-aware API",
+  /export function buildCatalogLexicon/.test(catalogLexicon) &&
+    /export function catalogItemByText/.test(catalogLexicon) &&
+    /export function catalogTopicMatches/.test(catalogLexicon) &&
+    /export function mentionsCatalogTopic/.test(catalogLexicon) &&
+    /export function asksCatalogItemExistence/.test(catalogLexicon) &&
+    /export function isCatalogInquiryMessage/.test(catalogLexicon) &&
+    /export function looksLikeUnknownCatalogItemRequest/.test(catalogLexicon),
+);
+
+const stopTokens = new Set(["есть", "хочу", "можно", "услуг", "услуга", "услуги"]);
+const stem = (token) =>
+  token
+    .replace(/(иями|ями|ами|ого|ему|ыми|ими|ой|ей|ою|ею|ий|ый|ая|яя|ое|ее|ых|их|ую|юю|ом|ем|ам|ям|ах|ях|а|я|ы|и|е|у|ю)$/u, "")
+    .replace(/ь$/u, "")
+    .trim();
+const tokens = (text) =>
+  text
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s.+-]/gu, " ")
+    .split(/\s+/)
+    .map(stem)
+    .filter((x) => x.length >= 3 && !stopTokens.has(x));
+const buildFixtureLexicon = (services) => new Set(services.flatMap((service) => tokens([service.name, service.categoryName, service.description].join(" "))));
+const mentionsFixtureTopic = (message, lex) => tokens(message).some((token) => lex.has(token));
+const fixtureInquiry = (message, lex) => /(есть|можно|делаете|сдать)/iu.test(message) && mentionsFixtureTopic(message, lex);
+const beautyLex = buildFixtureLexicon([{ name: "Маникюр" }, { name: "Стрижка" }]);
+const languageLex = buildFixtureLexicon([{ name: "Английский A1" }, { name: "IELTS" }]);
+const labLex = buildFixtureLexicon([{ name: "Общий анализ крови" }, { name: "Витамин D" }]);
+check(
+  "catalog lexicon fixture scenarios are domain-data driven",
+  !mentionsFixtureTopic("хочу на море", languageLex) &&
+    fixtureInquiry("есть английский?", languageLex) &&
+    mentionsFixtureTopic("хочу ielts", languageLex) &&
+    fixtureInquiry("можно сдать кровь?", labLex) &&
+    fixtureInquiry("есть маникюр?", beautyLex) &&
+    !mentionsFixtureTopic("есть маникюр?", languageLex),
+);
+
+check(
+  "explicit unknown service requests are clarified before booking flow",
+  /const explicitRequestedService = Boolean\(requestedServicePhrase\)/.test(fuzzy) &&
+    /const earlyUnknownService = await handleUnknownServiceResolution/.test(postHandler) &&
+    postHandler.indexOf("const earlyUnknownService = await handleUnknownServiceResolution") < postHandler.indexOf("const entityClarification = await handleEntityClarificationResolution") &&
+    /explicitRequestedService \|\|[\s\S]*mentionsServiceTopic\(t, services\)/.test(fuzzy) &&
+    /\(!d\.serviceId \|\| explicitUnknownRequestedService\)/.test(fuzzy) &&
+    /const requestedServicePhrase = extractExplicitRequestedService\(messageNorm\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /Услугу «\$\{requestedServicePhrase\}» не нашла/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /if \(args\.directBookingKickoffFallback\) \{[\s\S]*extractExplicitRequestedService\(args\.runFlowArgs\.messageForRouting\)[\s\S]*Услугу «\$\{requestedService\}» не нашла/.test(handleBooking) &&
+    /\(\(looksLikeUnknownServiceRequest\(t, services\) && hasDomainServiceCue\) \|\|[\s\S]*explicitRequestedService/.test(fuzzy) &&
+    /const suggestions = mentionsServiceTopic\(t, services\)/.test(fuzzy),
 );
 
 check(

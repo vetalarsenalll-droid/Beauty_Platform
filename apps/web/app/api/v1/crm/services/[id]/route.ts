@@ -49,6 +49,12 @@ export async function PATCH(request: Request, { params }: Params) {
   if (body.description !== undefined) {
     data.description = body.description ? String(body.description).trim() : null;
   }
+  if (body.searchKeywords !== undefined) {
+    data.searchKeywords = body.searchKeywords ? String(body.searchKeywords).trim() : null;
+  }
+  if (body.synonyms !== undefined) {
+    data.synonyms = body.synonyms ? String(body.synonyms).trim() : null;
+  }
   if (body.baseDurationMin !== undefined) {
     const parsedDuration = Number(body.baseDurationMin);
     if (!Number.isInteger(parsedDuration)) {
@@ -158,6 +164,8 @@ export async function PATCH(request: Request, { params }: Params) {
     id: updated.id,
     name: updated.name,
     description: updated.description,
+    searchKeywords: updated.searchKeywords,
+    synonyms: updated.synonyms,
     baseDurationMin: updated.baseDurationMin,
     basePrice: updated.basePrice.toString(),
     allowMultiServiceBooking: updated.allowMultiServiceBooking,
@@ -192,6 +200,8 @@ export async function GET(_request: Request, { params }: Params) {
     id: service.id,
     name: service.name,
     description: service.description,
+    searchKeywords: service.searchKeywords,
+    synonyms: service.synonyms,
     baseDurationMin: service.baseDurationMin,
     basePrice: service.basePrice.toString(),
     allowMultiServiceBooking: service.allowMultiServiceBooking,

@@ -210,7 +210,7 @@ function extractRequestedSpecialistPhrase(messageNorm: string) {
   if (!raw) return null;
 
   const cleaned = raw
-    // Keep only specialist phrase and cut trailing intent fragments like "на маникюр", "в 12:00".
+    // Keep only specialist phrase and cut trailing intent fragments like "на <service>", "в 12:00".
     .replace(/\s+(?:на|в|во|по|для)\s+.+$/iu, "")
     .replace(
       /\s+(?:сегодня|завтра|послезавтра|утром|днем|днём|вечером|\d{1,2}[:.]\d{2}|\d{1,2}[.]\d{1,2}(?:[.]\d{2,4})?)$/iu,
@@ -376,7 +376,7 @@ function findRecentDateHint(nowYmd: string, recentMessages: Array<{ role: string
   }
   return null;
 }
-function findRecentServiceHint(messageNorm: string, recentMessages: Array<{ role: string; content: string }>) {
+function findRecentServiceHint(messageNorm: string, recentMessages: Array<{ role: string; content: string }>, services: ServiceLite[]) {
   const candidates = [
     messageNorm,
     ...recentMessages
@@ -387,7 +387,7 @@ function findRecentServiceHint(messageNorm: string, recentMessages: Array<{ role
   for (const text of candidates) {
     const direct = extractRequestedServicePhrase(text);
     if (direct) return direct;
-    if (mentionsServiceTopic(text) && looksLikeUnknownServiceRequest(text)) return text;
+    if (mentionsServiceTopic(text, services) && looksLikeUnknownServiceRequest(text, services)) return text;
   }
   return null;
 }
@@ -486,6 +486,7 @@ export async function handleUnknownServiceResolution(args: {
     /^\s*(?:все\s+категории|категория:|все\s+уровни|уровень:|утро|день|вечер|показать\s+время|показать\s+услуги|показать\s+специалистов)\b/iu.test(turnNorm);
   const hasBookingDraftContext = Boolean(d.locationId || d.date || d.time || d.status === "COLLECTING" || d.status === "CHECKING");
   const bookingContextActive = shouldEnrichDraftForBooking || hasBookingDraftContext;
+  const explicitRequestedService = Boolean(requestedServicePhrase) && /(запиш|записаться|хочу|нужн[ао]?|заброни|на)\b/iu.test(turnNorm);
 
   const locationScoped = Boolean(d.locationId);
   const looksLikeStandaloneServiceLabel =
@@ -494,11 +495,16 @@ export async function handleUnknownServiceResolution(args: {
     !/(филиал|локац|адрес|время|слот|окошк|дата|сегодня|завтра|послезавтра|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
       turnNorm,
     );
-  const hasDomainServiceCue = mentionsServiceTopic(t) || nluServiceValid || locationScoped;
-  const hasServiceLikePhrase = (Boolean(requestedServicePhrase) && hasDomainServiceCue) || mentionsServiceTopic(t) || (locationScoped && looksLikeUnknownServiceRequest(t));
+  const hasDomainServiceCue = mentionsServiceTopic(t, services) || nluServiceValid || locationScoped;
+  const hasServiceLikePhrase =
+    (Boolean(requestedServicePhrase) && hasDomainServiceCue) ||
+    explicitRequestedService ||
+    mentionsServiceTopic(t, services) ||
+    (locationScoped && looksLikeUnknownServiceRequest(t, services));
+  const explicitUnknownRequestedService = explicitRequestedService && !serviceTextMatch && !nluServiceGrounded;
   const unknownServiceRequested =
     bookingContextActive &&
-    !d.serviceId &&
+    (!d.serviceId || explicitUnknownRequestedService) &&
     !serviceTextMatch &&
     !isSpecialistSelectionTurn &&
     !isLocationSelectionTurn &&
@@ -506,11 +512,23 @@ export async function handleUnknownServiceResolution(args: {
     !isUiControlTurn &&
     !vagueRequestedService &&
     (hasServiceLikePhrase || (locationScoped && looksLikeStandaloneServiceLabel)) &&
-    ((looksLikeUnknownServiceRequest(t) && hasDomainServiceCue) ||
+    ((looksLikeUnknownServiceRequest(t, services) && hasDomainServiceCue) ||
+      explicitRequestedService ||
       (Boolean(requestedServicePhrase) && hasDomainServiceCue) ||
       (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
   if (!unknownServiceRequested || deicticServiceReference) return { handled: false };
+
+  if (explicitUnknownRequestedService) {
+    d.serviceId = null;
+    d.serviceIds = [];
+    d.specialistId = null;
+    d.time = null;
+    d.bookingMode = null;
+    d.planJson = [];
+    d.mode = null;
+    d.consentConfirmedAt = null;
+  }
 
   const topicMatches = serviceTopicMatches(t, scopedServices.length ? scopedServices : services);
   if (topicMatches.length) {
@@ -531,7 +549,9 @@ export async function handleUnknownServiceResolution(args: {
   const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла.` : "Такой услуги не нашла.";
   const reply = `${requested} Выберите, пожалуйста, из доступных ниже.`;
   const phraseNorm = norm(requestedServicePhrase ?? t);
-  const suggestions = topEntityCandidates(phraseNorm, scopedServices.length ? scopedServices : services, (s) => [s.name, s.categoryName ?? "", s.description ?? ""], 6).map((x) => x.entity);
+  const suggestions = mentionsServiceTopic(t, services)
+    ? topEntityCandidates(phraseNorm, scopedServices.length ? scopedServices : services, (s) => [s.name, s.categoryName ?? "", s.description ?? ""], 6).map((x) => x.entity)
+    : [];
   const pool = suggestions.length ? suggestions : (scopedServices.length ? scopedServices : services);
   const ui: ChatUi = { kind: "quick_replies", options: dedupeOptions(pool.map(serviceQuickOption)) };
 
@@ -743,7 +763,7 @@ export async function handleEntityClarificationResolution(args: {
   const multiServicesInMessage = findServiceMatchesInText(messageNorm, scopedServices).length >= 2;
   const skipServiceClarification = hasMultiServiceSelection || multiServicesInMessage;
   if (d.specialistId && d.locationId && !d.serviceId) {
-    const serviceHint = findRecentServiceHint(messageNorm, recentMessages);
+    const serviceHint = findRecentServiceHint(messageNorm, recentMessages, scopedServices);
     if (serviceHint) {
       const hintNorm = norm(serviceHint);
       const genericFromHint = inferGenericServiceCandidates(hintNorm, scopedServices);

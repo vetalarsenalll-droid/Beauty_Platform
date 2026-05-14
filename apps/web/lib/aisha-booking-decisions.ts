@@ -1,4 +1,4 @@
-import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
+﻿import { parseDate, parseTime } from "@/lib/aisha-chat-parsers";
 import {
   isBookingCarryMessage,
   isBookingChangeMessage,
@@ -94,10 +94,8 @@ export function computeBookingDecisions(args: {
   const looksLikeBareServicePhrase =
     /^[\p{L}\s\-]{4,}$/iu.test(t) &&
     t.split(/\s+/).filter(Boolean).length <= 4 &&
-    mentionsServiceTopic(t) &&
-    !/^(привет|здравствуйте|спасибо|пока|да|нет|ок|окей|кто|что|почему|зачем|как|где|когда)\b/i.test(
-      t,
-    );
+    mentionsServiceTopic(t, services) &&
+    !/^(привет|здравствуйте|спасибо|пока|да|нет|ок|окей|кто|что|почему|зачем|как|где|когда)\b/i.test(t);
 
   const explicitCategorySelection = parseServiceCategoryFilter(messageForRouting, services);
 
@@ -105,7 +103,7 @@ export function computeBookingDecisions(args: {
     isBookingCarryMessage(t) ||
     isLooseConfirmation(messageForRouting) ||
     isBookingChangeMessage(t) ||
-    looksLikeUnknownServiceRequest(t) ||
+    looksLikeUnknownServiceRequest(t, services) ||
     explicitCategorySelection !== null ||
     Boolean(parseDate(messageForRouting, nowYmd)) ||
     Boolean(parseTime(messageForRouting)) ||
@@ -169,7 +167,7 @@ export function computeBookingDecisions(args: {
       messageForRouting,
       /(хочу|нужн[ао]?|надо|запиш|заброни)/iu,
     ) &&
-    !asksServiceExistence(messageForRouting);
+    !asksServiceExistence(messageForRouting, services);
 
   const shouldEnrichDraftForBooking =
     route === "booking-flow" ||

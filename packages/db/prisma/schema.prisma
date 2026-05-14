@@ -1275,6 +1275,8 @@ model Service {
   categoryId               Int?
   name                     String
   description              String?
+  searchKeywords           String?
+  synonyms                 String?
   baseDurationMin          Int
   basePrice                Decimal            @db.Decimal(12, 2)
   isActive                 Boolean            @default(true)

@@ -230,7 +230,7 @@ export function applyDraftMutations(args: {
   );
 
   if (shouldEnrichDraftForBooking || (shouldRunBookingFlow && Boolean(d.locationId))) {
-    const serviceInquiry = isServiceInquiryMessage(message, t);
+    const serviceInquiry = isServiceInquiryMessage(message, t, scopedServices);
     const explicitServiceChangeRequest = has(
       message,
       /(поменяй|поменять|смени|сменить|измени|изменить|друг(?:ую|ая)|не на|не эту услугу|не та услуга|выбери услугу|по услуге)/i,

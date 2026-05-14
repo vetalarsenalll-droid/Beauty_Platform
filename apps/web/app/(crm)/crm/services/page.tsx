@@ -79,6 +79,8 @@ export default async function CrmServicesPage() {
                   id: service.id,
                   name: service.name,
                   description: service.description,
+                  searchKeywords: service.searchKeywords,
+                  synonyms: service.synonyms,
                   baseDurationMin: service.baseDurationMin,
                   basePrice: service.basePrice.toString(),
                   isActive: service.isActive,

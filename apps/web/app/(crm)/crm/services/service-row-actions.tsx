@@ -6,6 +6,8 @@ type ServiceItem = {
   id: number;
   name: string;
   description: string | null;
+  searchKeywords: string | null;
+  synonyms: string | null;
   baseDurationMin: number;
   basePrice: string;
   isActive: boolean;
@@ -39,6 +41,11 @@ export default function ServiceRowActions({ service }: ServiceRowActionsProps) {
           {service.description ? (
             <div className="text-xs text-[color:var(--bp-muted)]">
               {service.description}
+            </div>
+          ) : null}
+          {service.searchKeywords || service.synonyms ? (
+            <div className="text-xs text-[color:var(--bp-muted)]">
+              Поиск: {[service.searchKeywords, service.synonyms].filter(Boolean).join(" / ")}
             </div>
           ) : null}
         </div>

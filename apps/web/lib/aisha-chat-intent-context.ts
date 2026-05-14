@@ -179,12 +179,13 @@ export function buildIntentContext(args: {
 
   const explicitCapabilitiesPhrase = has(messageForRouting, /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i);
   const explicitSmalltalkCue = has(messageForRouting, /(как оно|чем занята|чем занят|расскажи что[-\s]?нибудь|поболтаем|давай поговорим|поговорим|что нового|как дела|как жизнь|че каво|чё каво)/i);
-  const explicitServicesFollowUp = routing.asksServicesFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
+  const explicitServicesFollowUp = routing.asksServicesFollowUp(norm(messageForRouting), lastAssistantText, previousUserText, services);
   const explicitServiceListRequest = has(messageForRouting, /(?:какие\s+именно\s+есть|что\s+именно\s+есть|какие\s+услуги\s+есть|покажи\s+услуги|список\s+услуг)/i);
   const explicitLocationsFollowUp = routing.asksLocationsFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
   const explicitServiceFollowUp =
     routing.isServiceFollowUpText(norm(messageForRouting)) &&
-    /(услуг|услуга|стоимость|длительность|маник|педик|стриж|гель|фитнес|peeling|facial)/i.test(lastAssistantText);
+    (/(услуг|услуга|стоимость|длительность|каталог|прайс)/i.test(lastAssistantText) ||
+      routing.mentionsServiceTopic(norm(lastAssistantText), services));
 
   const serviceSelectionFromCatalog =
     Boolean(routing.serviceByText(norm(messageForRouting), services)) &&
@@ -193,7 +194,7 @@ export function buildIntentContext(args: {
     Boolean(routing.serviceByText(t, services)) &&
     has(messageForRouting, /(хоч\p{L}*|нужн\p{L}*|надо|давай|сделать|интересует|запиш\p{L}*|записа\p{L}*|запис\p{L}*)/iu);
 
-  const heuristicIntent = routing.intentFromHeuristics(messageForRouting);
+  const heuristicIntent = routing.intentFromHeuristics(messageForRouting, services);
   const mappedNluIntent = routing.mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
   const nluConfidence = typeof nlu?.confidence === "number" ? nlu.confidence : 0;
   let intent: AishaIntent = routing.resolveIntentModelFirst({ mappedNluIntent, nluConfidence, heuristicIntent });

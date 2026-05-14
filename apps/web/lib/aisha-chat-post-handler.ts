@@ -439,6 +439,52 @@ export async function handlePublicAiChatPost(request: Request) {
     }
     const previouslySelectedSpecialistName: string | null = null;
 
+    const earlyUnknownService = await handleUnknownServiceResolution({
+      shouldEnrichDraftForBooking: shouldEnrichDraftForBookingResolved || (explicitUnknownServiceLike && explicitBookingText),
+      d,
+      t,
+      nlu,
+      threadId: thread.id,
+      nextThreadKey,
+      services,
+      specialists,
+      locations,
+    });
+    if (earlyUnknownService.handled && earlyUnknownService.payload) {
+      const responsePayload = earlyUnknownService.payload;
+      await saveTurn({
+        threadId: thread.id,
+        turnActionId: turnAction.id,
+        message,
+        reply: earlyUnknownService.payload.reply,
+        intent,
+        route,
+        nluConfidence,
+        mappedNluIntent,
+        nluSource: nluResult.source,
+        nluIntent: nlu?.intent ?? null,
+        nextStatus: d.status,
+        nextAction: null,
+        nextUi: earlyUnknownService.payload.ui,
+        confirmPendingClientAction: Boolean(confirmPendingClientAction),
+        pendingClientActionType: pendingClientAction?.type ?? null,
+        routeReason,
+        guardReason: "unknown_service_clarification",
+        useNluIntent,
+        messageForRouting,
+        d,
+        idempotencyRecordId,
+        responsePayload,
+        routeTrace: {
+          initialRouteDecision,
+          finalRouteDecision: buildFinalRouteDecision(["unknown_service_clarification"], false),
+          shouldRunBookingFlow: false,
+        },
+        debugTrace: buildDebugTrace("unknown_service_clarification"),
+      });
+      return jsonOk(responsePayload);
+    }
+
     const entityClarification = await handleEntityClarificationResolution({
       shouldEnrichDraftForBooking: shouldEnrichDraftForBookingResolved,
       shouldRunBookingFlow: shouldRunBookingFlowInitial,
@@ -576,7 +622,7 @@ export async function handlePublicAiChatPost(request: Request) {
       d.locationId &&
       !explicitBookingDecline &&
       !explicitServiceComplaint &&
-      (looksLikeUnknownServiceRequest(t) ||
+      (looksLikeUnknownServiceRequest(t, services) ||
         (/^[\p{L}\s\-]{4,}$/iu.test(t) &&
           t.split(/\s+/).filter(Boolean).length <= 4 &&
           !/[?]/.test(t)))
@@ -684,8 +730,8 @@ export async function handlePublicAiChatPost(request: Request) {
     let nextUi: ChatUi | null = null;
     let guardedUnknownServiceInBooking = false;
     const standaloneUnknownServiceDomainCue =
-      mentionsServiceTopic(t) ||
-      asksServiceExistence(t) ||
+      mentionsServiceTopic(t, services) ||
+      asksServiceExistence(t, services) ||
       serviceTopicMatches(t, services).length > 0;
     if (
       !d.serviceId &&
@@ -753,7 +799,7 @@ export async function handlePublicAiChatPost(request: Request) {
     const consecutiveNonBookingTurns = countConsecutiveNonBookingUserTurns(recentMessages);
     const consecutiveToxicTurns = countConsecutiveToxicUserTurns(recentMessages);
     const hasBookingVerbCue = has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|хоч\p{L}*|сделать|оформи\p{L}*|заброни\p{L}*|бронь)/iu);
-    const hasServiceTopicCue = mentionsServiceTopic(t) || Boolean(serviceByText(t, services));
+    const hasServiceTopicCue = mentionsServiceTopic(t, services) || Boolean(serviceByText(t, services));
 
     const shouldSoftReturnToBooking =
       route === "chat-only" &&
@@ -1001,8 +1047,7 @@ export async function handlePublicAiChatPost(request: Request) {
           const selectedByText = serviceByText(t, servicesByCategory);
           const maleContext = asksGenderedServices(t) || /(мужск|для мужчин|для парня)/i.test(t) || /(мужск|для мужчин|для парня)/i.test(previousUserText);
           const femaleContext = /(женск|для женщин|для девушки)/i.test(t) || /(женск|для женщин|для девушки)/i.test(previousUserText);
-          const handsContext = /(для\s+рук|рук|кист|ладон|ногт)/i.test(t);
-          const handsServices = servicesByCategory.filter((x) => /(маник|ногт|рук|spa)/i.test(norm(x.name)));
+          const catalogTopicOptions = serviceTopicMatches(t, servicesByCategory);
 
           if (selectedByText) {
             const n = norm(selectedByText.name);
@@ -1032,13 +1077,12 @@ export async function handlePublicAiChatPost(request: Request) {
                 ],
               };
             }
-          } else if (handsContext) {
-            const handsOptions = handsServices.length ? handsServices : servicesByCategory;
-            reply = `${locationPrefix}${categoryPrefix}Для рук подойдут услуги ниже. Выберите нужную кнопкой.`;
-            nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, handsOptions) };
+          } else if (catalogTopicOptions.length) {
+            reply = `${locationPrefix}${categoryPrefix}Подходящие услуги ниже. Выберите нужную кнопкой.`;
+            nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, catalogTopicOptions) };
           } else if (maleContext || femaleContext) {
             const gendered = servicesByCategory.filter((x) => {
-              const n = norm(x.name);
+              const n = norm(`${x.name} ${x.categoryName ?? ""} ${x.description ?? ""}`);
               if (maleContext && /(муж)/i.test(n)) return true;
               if (femaleContext && /(жен)/i.test(n)) return true;
               return false;
@@ -1047,10 +1091,8 @@ export async function handlePublicAiChatPost(request: Request) {
               reply = "Подходящие услуги ниже. Выберите кнопкой.";
               nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, gendered) };
             } else {
-              const suggested = servicesByCategory.filter((x) => /(стриж|маник|педик)/i.test(norm(x.name)));
               reply = `${categoryPrefix}Из доступных сейчас могу предложить варианты ниже. Выберите кнопкой.`;
-              const optionsSource = suggested.length ? suggested : servicesByCategory;
-              nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, optionsSource) };
+              nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesByCategory) };
             }
           } else if (asksGenderSuitability(t)) {
             const genderExamplesText = servicesByCategory
@@ -1063,7 +1105,7 @@ export async function handlePublicAiChatPost(request: Request) {
               : "Есть услуги для мужчин и для женщин. Напишите, что именно нужно, и я подберу вариант.";
             const genderExamples = servicesByCategory.filter((x) => /(муж|жен)/i.test(norm(x.name)));
             if (genderExamples.length) nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, genderExamples) };
-          } else if (asksServiceExistence(t) || looksLikeUnknownServiceRequest(t)) {
+          } else if (asksServiceExistence(t, servicesByCategory) || looksLikeUnknownServiceRequest(t, servicesByCategory)) {
             const requested = extractRequestedServicePhrase(t);
             reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} ${locationPrefix}${categoryPrefix}Выберите, пожалуйста, из доступных ниже.`;
             nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesByCategory) };
@@ -1112,7 +1154,7 @@ export async function handlePublicAiChatPost(request: Request) {
             options: topicMatches.length ? priceOptions.map(serviceQuickOption) : serviceOptionsWithTabs(servicesScopedByLocation, priceOptions),
           };
         }
-      } else if (mentionsServiceTopic(t)) {
+      } else if (mentionsServiceTopic(t, services)) {
         const locationFromMessage = locationByText(t, locations);
         const selectedLocationIdForServices = locationFromMessage?.id ?? d.locationId ?? null;
         const servicesScopedByLocation = selectedLocationIdForServices
