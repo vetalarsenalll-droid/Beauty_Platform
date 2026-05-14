@@ -269,7 +269,10 @@ export function asksCurrentDate(text: string) {
 
 
 export function asksCurrentTime(text: string) {
-  return has(text, /(который час|сколько времени|какое сейчас время|current time|what time is it)/i);
+  return has(
+    text,
+    /(который\s+час|сколько\s+(?:сейчас\s+)?врем(?:я|ени)|какое\s+(?:сейчас\s+)?время|текущее\s+время|current time|what time is it)/i,
+  );
 }
 
 export function asksCurrentDateTime(text: string) {
