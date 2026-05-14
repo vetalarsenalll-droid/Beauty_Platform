@@ -175,6 +175,48 @@ export function catalogItemByText(message: string, services: ServiceLite[], lexi
   return fuzzy;
 }
 
+export function catalogFuzzyCandidates(message: string, services: ServiceLite[], limit = 6) {
+  const messageTokens = tokenizeCatalogText(message);
+  if (!messageTokens.length) return [];
+
+  const scored = services
+    .map((service) => {
+      const serviceTokens = tokenizeCatalogText(
+        [service.name, service.categoryName ?? "", service.description ?? "", service.searchKeywords ?? "", service.synonyms ?? ""].join(" "),
+      );
+      if (!serviceTokens.length) return { service, score: 0 };
+
+      let score = 0;
+      for (const messageToken of messageTokens) {
+        let best = 0;
+        for (const serviceToken of serviceTokens) {
+          if (messageToken === serviceToken) {
+            best = Math.max(best, 8);
+            continue;
+          }
+          if (messageToken.length >= 5 && serviceToken.length >= 5 && (messageToken.startsWith(serviceToken) || serviceToken.startsWith(messageToken))) {
+            best = Math.max(best, 5);
+            continue;
+          }
+          const distance = levenshtein(messageToken, serviceToken);
+          const threshold = Math.max(messageToken.length, serviceToken.length) >= 8 ? 2 : 1;
+          if (distance <= threshold) {
+            best = Math.max(best, Math.max(3, Math.min(messageToken.length, serviceToken.length) - distance));
+          }
+        }
+        score += best;
+      }
+
+      return { service, score };
+    })
+    .filter((item) => item.score >= 5)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) return [];
+  const bestScore = scored[0]!.score;
+  return scored.filter((item) => item.score >= Math.max(5, bestScore - 2)).slice(0, limit).map((item) => item.service);
+}
+
 export function mentionsCatalogTopic(message: string, lexicon: CatalogLexicon) {
   return tokenizeCatalogText(message).some((token) => lexicon.topicTokens.has(token));
 }

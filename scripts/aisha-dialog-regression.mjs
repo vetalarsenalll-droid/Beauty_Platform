@@ -425,7 +425,9 @@ check(
     /\(!d\.serviceId \|\| explicitUnknownRequestedService\)/.test(fuzzy) &&
     /const requestedServicePhrase = extractExplicitRequestedService\(messageNorm\)/.test(read("apps/web/lib/booking-flow.ts")) &&
     /Услугу «\$\{requestedServicePhrase\}» не нашла/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /catalogFuzzyCandidates\(requestedServicePhrase, servicePool\)/.test(read("apps/web/lib/booking-flow.ts")) &&
     /if \(args\.directBookingKickoffFallback\) \{[\s\S]*extractExplicitRequestedService\(args\.runFlowArgs\.messageForRouting\)[\s\S]*Услугу «\$\{requestedService\}» не нашла/.test(handleBooking) &&
+    /catalogFuzzyCandidates\(requestedService, servicePool\)/.test(handleBooking) &&
     /\(\(looksLikeUnknownServiceRequest\(t, services\) && hasDomainServiceCue\) \|\|[\s\S]*explicitRequestedService/.test(fuzzy) &&
     /const suggestions = mentionsServiceTopic\(t, services\)/.test(fuzzy),
 );

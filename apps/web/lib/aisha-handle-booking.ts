@@ -2,7 +2,7 @@
 import { buildDirectBookingKickoffReply, runBookingFlowBranch } from "@/lib/aisha-chat-reply-builder";
 import type { Action } from "@/lib/aisha-chat-types";
 import { formatServiceQuickLabel, type LocationLite } from "@/lib/booking-tools";
-import { buildCatalogLexicon, catalogItemByText } from "@/lib/aisha-catalog-lexicon";
+import { buildCatalogLexicon, catalogFuzzyCandidates, catalogItemByText } from "@/lib/aisha-catalog-lexicon";
 
 const norm = (v: string) =>
   v
@@ -49,6 +49,10 @@ export async function handleBookingDomain(args: {
       ? catalogItemByText(requestedService, args.runFlowArgs.services, buildCatalogLexicon(args.runFlowArgs.services))
       : null;
     if (requestedService && !matchedService) {
+      const servicePool = args.runFlowArgs.d.locationId
+        ? args.runFlowArgs.services.filter((service) => service.locationIds.includes(args.runFlowArgs.d.locationId!))
+        : args.runFlowArgs.services;
+      const fuzzyCandidates = catalogFuzzyCandidates(requestedService, servicePool);
       args.runFlowArgs.d.serviceId = null;
       args.runFlowArgs.d.serviceIds = [];
       args.runFlowArgs.d.specialistId = null;
@@ -57,17 +61,17 @@ export async function handleBookingDomain(args: {
       args.runFlowArgs.d.planJson = [];
       args.runFlowArgs.d.mode = null;
       args.runFlowArgs.d.consentConfirmedAt = null;
-      const servicePool = args.runFlowArgs.d.locationId
-        ? args.runFlowArgs.services.filter((service) => service.locationIds.includes(args.runFlowArgs.d.locationId!))
-        : args.runFlowArgs.services;
+      const optionsPool = fuzzyCandidates.length ? fuzzyCandidates : servicePool;
       return {
         handled: true,
-        reply: `Услугу «${requestedService}» не нашла. Выберите, пожалуйста, из доступных ниже.`,
+        reply: fuzzyCandidates.length
+          ? `Услугу «${requestedService}» не нашла. Возможно, Вы имели в виду один из вариантов ниже?`
+          : `Услугу «${requestedService}» не нашла. Выберите, пожалуйста, из доступных ниже.`,
         nextStatus: "COLLECTING",
         nextAction,
         nextUi: {
           kind: "quick_replies",
-          options: servicePool.map((service) => ({
+          options: optionsPool.map((service) => ({
             label: formatServiceQuickLabel(service),
             value: `выбрать услугу ${service.name}`,
           })),

@@ -15,6 +15,7 @@
 import { parseTime } from "@/lib/aisha-chat-parsers";
 import {
   buildCatalogLexicon,
+  catalogFuzzyCandidates,
   catalogItemByText,
   catalogTopicMatches,
   mentionsCatalogTopic,
@@ -1391,6 +1392,8 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     ? catalogItemByText(requestedServicePhrase, services, buildCatalogLexicon(services))
     : null;
   if (requestedServicePhrase && !requestedServiceMatch) {
+    const servicePool = d.locationId ? services.filter((service) => service.locationIds.includes(d.locationId!)) : services;
+    const fuzzyCandidates = catalogFuzzyCandidates(requestedServicePhrase, servicePool);
     d.serviceId = null;
     d.serviceIds = [];
     d.specialistId = null;
@@ -1399,14 +1402,16 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
     d.planJson = [];
     d.mode = null;
     d.consentConfirmedAt = null;
-    const servicePool = d.locationId ? services.filter((service) => service.locationIds.includes(d.locationId!)) : services;
+    const optionsPool = fuzzyCandidates.length ? fuzzyCandidates : servicePool;
     return {
       handled: true,
-      reply: `Услугу «${requestedServicePhrase}» не нашла. Выберите, пожалуйста, из доступных ниже.`,
+      reply: fuzzyCandidates.length
+        ? `Услугу «${requestedServicePhrase}» не нашла. Возможно, Вы имели в виду один из вариантов ниже?`
+        : `Услугу «${requestedServicePhrase}» не нашла. Выберите, пожалуйста, из доступных ниже.`,
       nextStatus: "COLLECTING",
       ui: {
         kind: "quick_replies",
-        options: servicePool.map((service) => serviceOption(service)),
+        options: optionsPool.map((service) => serviceOption(service)),
       },
     };
   }
