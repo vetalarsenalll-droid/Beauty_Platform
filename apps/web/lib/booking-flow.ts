@@ -1631,14 +1631,6 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       d.consentConfirmedAt = null;
     }
   }
-  const wantsAllTimes =
-    /(?:покажи|напиши|выведи|дай)\s+в[сc]е\s+(?:врем|слот|окошк)|(?:в[сc]е|полный)\s+список\s+(?:врем|слот|окошк)|все\s+свободн(?:ое|ые)?\s+время|целиком|полностью/iu.test(
-      messageNorm,
-    );
-  const wantsMoreTimes =
-    /(?:покажи|дай|выведи)\s+ещ[её](?:\s+\p{L}+){0,3}\s+(?:врем|слот|окошк)|ещ[её]\s+(?:свободн(?:ое|ые)?\s+)?время/iu.test(
-      messageNorm,
-    );
   const timeLimit = null;
   const wantsMonthRange =
     /(?:весь\s+месяц|до\s+конца\s+месяца|в\s+этом\s+месяце|в\s+течение\s+месяца)/iu.test(messageNorm);
@@ -2647,6 +2639,7 @@ if (!d.serviceId) {
       if (created.code === "booking_in_progress") {
         return { handled: true, reply: "Запись уже оформляется. Подождите несколько секунд, пожалуйста.", nextStatus: "WAITING_CONFIRMATION" };
       }
+      d.bookingAttemptKey = null;
       if (created.code === "session_full") {
         d.time = null;
         d.specialistId = null;

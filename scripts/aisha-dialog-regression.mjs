@@ -475,12 +475,14 @@ check(
 
 check(
   "group booking checkout supports assistant mode",
-  /createAssistantGroupBooking/.test(read("apps/web/lib/booking-tools.ts")) &&
+    /createAssistantGroupBooking/.test(read("apps/web/lib/booking-tools.ts")) &&
     /assistant-group-booking:\$\{accountId\}:\$\{bookingAttemptKey\}/.test(read("apps/web/lib/booking-tools.ts")) &&
+    /data: \{ status: "FAILED", response: \{ error \} \}/.test(read("apps/web/lib/booking-tools.ts")) &&
     /optionFromLabel\("Через ассистента", "оформи через ассистента"\)/.test(read("apps/web/lib/booking-flow.ts")) &&
     /const wantsGroupSpecialistChange = wantsEditSpecialistIntent\(messageNorm\)/.test(read("apps/web/lib/booking-flow.ts")) &&
     /wantsGroupSpecialistChange[\s\S]*Выберите время и специалиста/.test(read("apps/web/lib/booking-flow.ts")) &&
     /optionFromLabel\("Изменить специалиста", "изменить специалиста"\)[\s\S]*optionFromLabel\("Самостоятельно", "самостоятельно"\)/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /if \(!created\.ok\) \{[\s\S]*d\.bookingAttemptKey = null/.test(read("apps/web/lib/booking-flow.ts")) &&
     /selectedGroupSessionForAssistant[\s\S]*createAssistantGroupBooking/.test(read("apps/web/lib/booking-flow.ts")) &&
     /group-session\.participant\.created/.test(read("apps/web/lib/booking-tools.ts")),
 );

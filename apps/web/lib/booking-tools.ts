@@ -322,6 +322,15 @@ export async function createAssistantGroupBooking(args: CreateGroupBookingArgs) 
         });
         assistantBookingAttemptId = attempt.id;
       }
+      const failGroupAttempt = async (error: string) => {
+        if (assistantBookingAttemptId) {
+          await tx.idempotencyKey.update({
+            where: { id: assistantBookingAttemptId },
+            data: { status: "FAILED", response: { error } },
+          });
+        }
+        return { error };
+      };
 
       const groupSession = await tx.groupSession.findFirst({
         where: {
@@ -338,17 +347,17 @@ export async function createAssistantGroupBooking(args: CreateGroupBookingArgs) 
           specialist: { select: { locations: { select: { locationId: true } } } },
         },
       });
-      if (!groupSession) return { error: "not_found" as const };
+      if (!groupSession) return failGroupAttempt("not_found");
       if (
         !groupSession.service.locations.some((item) => item.locationId === groupSession.locationId) ||
         !groupSession.specialist.locations.some((item) => item.locationId === groupSession.locationId)
       ) {
-        return { error: "not_found" as const };
+        return failGroupAttempt("not_found");
       }
 
       const clientByPhone = await tx.client.findFirst({ where: { accountId, phone: clientPhone } });
       const clientByEmail = clientEmail ? await tx.client.findFirst({ where: { accountId, email: clientEmail } }) : null;
-      if (clientByPhone && clientByEmail && clientByPhone.id !== clientByEmail.id) return { error: "client_conflict" as const };
+      if (clientByPhone && clientByEmail && clientByPhone.id !== clientByEmail.id) return failGroupAttempt("client_conflict");
 
       const client = clientByPhone ?? clientByEmail
         ? await tx.client.update({
@@ -371,13 +380,13 @@ export async function createAssistantGroupBooking(args: CreateGroupBookingArgs) 
       const existing = await tx.groupSessionParticipant.findFirst({
         where: { groupSessionId: groupSession.id, clientId: client.id },
       });
-      if (existing) return { error: "already_exists" as const };
+      if (existing) return failGroupAttempt("already_exists");
 
       const seatClaim = await tx.groupSession.updateMany({
         where: { id: groupSession.id, bookedCount: { lt: groupSession.capacity } },
         data: { bookedCount: { increment: 1 } },
       });
-      if (seatClaim.count !== 1) return { error: "session_full" as const };
+      if (seatClaim.count !== 1) return failGroupAttempt("session_full");
 
       const participant = await tx.groupSessionParticipant.create({
         data: {
