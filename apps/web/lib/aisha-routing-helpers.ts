@@ -175,9 +175,10 @@ export function serviceTopicMatches(messageNorm: string, services: ServiceLite[]
   const matches = catalogTopicMatches(t, services, lexicon);
 
   const selectedCategory = uniqueServiceCategories(matches).length === 1 ? norm(uniqueServiceCategories(matches)[0] ?? "") : "";
-  if (selectedCategory) {
+  const messageTokens = new Set(tokenizeCatalogText(t));
+  const categoryMentioned = Array.from(messageTokens).some((token) => lexicon.categoryTokens.has(token));
+  if (selectedCategory && categoryMentioned) {
     const byCategory = services.filter((service) => norm(service.categoryName ?? "") === selectedCategory);
-    const messageTokens = new Set(tokenizeCatalogText(t));
     const narrowByName = matches.filter((service) => tokenizeCatalogText(service.name).some((token) => messageTokens.has(token)));
     return narrowByName.length ? narrowByName : byCategory;
   }

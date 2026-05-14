@@ -419,6 +419,12 @@ check(
 );
 
 check(
+  "keyword matches do not expand to the whole service category",
+  /const categoryMentioned = Array\.from\(messageTokens\)\.some\(\(token\) => lexicon\.categoryTokens\.has\(token\)\)/.test(routingHelpers) &&
+    /if \(selectedCategory && categoryMentioned\)/.test(routingHelpers),
+);
+
+check(
   "explicit unknown service requests are clarified before booking flow",
   /const explicitRequestedService = Boolean\(requestedServicePhrase\)/.test(fuzzy) &&
     /const earlyUnknownService = await handleUnknownServiceResolution/.test(postHandler) &&
