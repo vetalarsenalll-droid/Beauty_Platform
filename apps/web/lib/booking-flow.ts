@@ -1410,6 +1410,11 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
   const asksLocationSwitch = wantsOtherLocation(messageNorm);
 
   if (asksLocationSwitch && hasContext && locations.length > 1) {
+    const selectedServiceForLocationSwitch = d.serviceId ? services.find((svc) => svc.id === d.serviceId) ?? null : null;
+    const locationSwitchOptions =
+      selectedServiceForLocationSwitch && selectedServiceForLocationSwitch.locationIds.length
+        ? locations.filter((loc) => selectedServiceForLocationSwitch.locationIds.includes(loc.id))
+        : locations;
     d.locationId = null;
     d.specialistId = null;
     d.time = null;
@@ -1419,7 +1424,7 @@ export async function runBookingFlow(ctx: FlowCtx): Promise<FlowResult> {
       handled: true,
       reply: "Выберите филиал, и продолжу запись.",
       nextStatus: "COLLECTING",
-      ui: { kind: "quick_replies", options: locations.map((x) => optionFromLabel(x.name)) },
+      ui: { kind: "quick_replies", options: locationSwitchOptions.map((x) => optionFromLabel(x.name)) },
     };
   }
 
@@ -1903,8 +1908,13 @@ if (!d.serviceId) {
         ui: { kind: "date_picker", minDate, maxDate, initialDate: minDate, availableDates },
       };
     }
-    const dateContextOptions = d.date ? buildDateContextQuickOptions(d.date, locations.length) : [];
-    const locationOptions = locations.map((x) => optionFromLabel(x.name));
+    const selectedServiceForLocationPrompt = d.serviceId ? services.find((svc) => svc.id === d.serviceId) ?? null : null;
+    const locationPromptOptions =
+      selectedServiceForLocationPrompt && selectedServiceForLocationPrompt.locationIds.length
+        ? locations.filter((loc) => selectedServiceForLocationPrompt.locationIds.includes(loc.id))
+        : locations;
+    const dateContextOptions = d.date ? buildDateContextQuickOptions(d.date, locationPromptOptions.length) : [];
+    const locationOptions = locationPromptOptions.map((x) => optionFromLabel(x.name));
     return {
       handled: true,
       reply: d.date

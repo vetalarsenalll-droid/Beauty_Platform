@@ -683,16 +683,42 @@ export async function handlePublicAiChatPost(request: Request) {
     let nextAction: Action = null;
     let nextUi: ChatUi | null = null;
     let guardedUnknownServiceInBooking = false;
-    if (!d.serviceId && (hasDraftContext || d.locationId) && looksLikeStandaloneServiceLabel(t) && !locationByText(t, locations) && !hasLocationCue(t)) {
+    const standaloneUnknownServiceDomainCue =
+      mentionsServiceTopic(t) ||
+      asksServiceExistence(t) ||
+      serviceTopicMatches(t, services).length > 0;
+    if (
+      !d.serviceId &&
+      (hasDraftContext || d.locationId) &&
+      standaloneUnknownServiceDomainCue &&
+      looksLikeStandaloneServiceLabel(t) &&
+      !locationByText(t, locations) &&
+      !hasLocationCue(t)
+    ) {
       const servicesScopedByLocation = d.locationId
         ? services.filter((x) => x.locationIds.includes(d.locationId as number))
         : services;
       const selectedByText = serviceByText(t, servicesScopedByLocation);
       if (!selectedByText) {
-        route = "booking-flow";
-        shouldRunBookingFlowResolved = true;
-        reply = "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже.";
-        nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesScopedByLocation) };
+        const topicMatches = serviceTopicMatches(t, servicesScopedByLocation);
+        if (topicMatches.length) {
+          const asksPrice = has(t, /(сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник)/i);
+          const sample = topicMatches
+            .slice(0, 3)
+            .map((x) => serviceQuickOption(x).label)
+            .join("; ");
+          route = "chat-only";
+          shouldRunBookingFlowResolved = false;
+          reply = asksPrice && sample
+            ? "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
+            : "У нас есть несколько вариантов. Какой именно вам подходит?";
+          nextUi = { kind: "quick_replies", options: topicMatches.map(serviceQuickOption) };
+        } else {
+          route = "booking-flow";
+          shouldRunBookingFlowResolved = true;
+          reply = "Такой услуги не нашла. Выберите, пожалуйста, из доступных ниже.";
+          nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesScopedByLocation) };
+        }
         guardedUnknownServiceInBooking = true;
       }
     }
@@ -758,8 +784,13 @@ export async function handlePublicAiChatPost(request: Request) {
       !hasDraftContextEarly &&
       !explicitDateTimeQuery &&
       locations.length > 1 &&
-      has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*|хочу)/iu) &&
+      has(messageForRouting, /(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*)/iu) &&
       !has(messageForRouting, /(мои записи|мою запись|у меня записи|какие у меня.*запис\p{L}*|статист|профил|кабинет|отмени|перенеси)/iu);
+    const selectedServiceForLocationPrompt = d.serviceId ? services.find((s) => s.id === d.serviceId) ?? null : null;
+    const locationsForBookingPrompt =
+      selectedServiceForLocationPrompt && selectedServiceForLocationPrompt.locationIds.length
+        ? locations.filter((loc) => selectedServiceForLocationPrompt.locationIds.includes(loc.id))
+        : locations;
     let contextualBookingBridge: string | null = null;
 
     const bookingDomainResult = route === "client-actions"
@@ -769,7 +800,7 @@ export async function handlePublicAiChatPost(request: Request) {
       : await handleBookingDomain({
           directBookingKickoffFallback,
           date: d.date,
-          locations,
+          locations: locationsForBookingPrompt,
           explicitDraftServiceQuestion: forceBookingFlowForChainEdit ? false : explicitDraftServiceQuestion,
           draftServiceName: d.serviceId ? services.find((s) => s.id === d.serviceId)?.name ?? null : null,
           draftLocationName: d.locationId ? locations.find((x) => x.id === d.locationId)?.name ?? null : null,
@@ -788,7 +819,7 @@ export async function handlePublicAiChatPost(request: Request) {
             d,
             origin,
             account: { id: resolved.account.id, slug: resolved.account.slug, timeZone: resolved.account.timeZone },
-            locations,
+            locations: locationsForBookingPrompt,
             services,
             specialists,
             previouslySelectedSpecialistName,
@@ -1071,9 +1102,11 @@ export async function handlePublicAiChatPost(request: Request) {
             .slice(0, 3)
             .map((x) => serviceQuickOption(x).label)
             .join("; ");
-          reply = sample
-            ? "Точное совпадение не нашла. По стоимости могу сориентировать так: " + sample + ". Выберите услугу кнопкой ниже."
-            : "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
+          reply = topicMatches.length
+            ? "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
+            : sample
+              ? "Точное совпадение не нашла. По стоимости могу сориентировать так: " + sample + ". Выберите услугу кнопкой ниже."
+              : "Ориентиры по стоимости в кнопках ниже. Выберите услугу.";
           nextUi = {
             kind: "quick_replies",
             options: topicMatches.length ? priceOptions.map(serviceQuickOption) : serviceOptionsWithTabs(servicesScopedByLocation, priceOptions),
@@ -1103,9 +1136,15 @@ export async function handlePublicAiChatPost(request: Request) {
             ],
           };
         } else {
-          const requested = extractRequestedServicePhrase(t);
-          reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
-          nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesByCategory) };
+          const topicMatches = serviceTopicMatches(t, servicesByCategory);
+          if (topicMatches.length) {
+            reply = "У нас есть несколько вариантов. Какой именно вам подходит?";
+            nextUi = { kind: "quick_replies", options: topicMatches.map(serviceQuickOption) };
+          } else {
+            const requested = extractRequestedServicePhrase(t);
+            reply = `${requested ? `Услугу «${requested}» не нашла.` : "Такой услуги не нашла."} Выберите, пожалуйста, из доступных ниже.`;
+            nextUi = { kind: "quick_replies", options: serviceOptionsWithTabs(servicesScopedByLocation, servicesByCategory) };
+          }
         }
       } else {
         if (isOutOfDomainPrompt(t) || isGeneralQuestionOutsideBooking(t)) {

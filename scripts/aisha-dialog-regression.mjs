@@ -70,6 +70,8 @@ const fuzzy = read("apps/web/lib/aisha-fuzzy-resolver.ts");
 const widget = read("apps/web/components/public-ai-chat-widget.tsx");
 const turnPersistence = read("apps/web/lib/aisha-turn-persistence.ts");
 const routingHelpers = read("apps/web/lib/aisha-routing-helpers.ts");
+const lexicon = read("apps/web/lib/aisha-lexicon.ts");
+const bookingDecisions = read("apps/web/lib/aisha-booking-decisions.ts");
 const orchestrator = read("apps/web/lib/aisha-orchestrator.ts");
 const postprocess = read("apps/web/lib/aisha-chat-postprocess.ts");
 const replyBuilder = read("apps/web/lib/aisha-chat-reply-builder.ts");
@@ -326,11 +328,42 @@ check(
 
 check(
   "price questions for broad service topics narrow quick replies before sampling catalog",
-  /export function serviceTopicMatches/.test(routingHelpers) &&
+    /export function serviceTopicMatches/.test(routingHelpers) &&
     /маник\|маникюр/.test(routingHelpers) &&
+    /фитнес/.test(routingHelpers) &&
+    /const explicitServiceBookingRequest =[\s\S]*Boolean\(routing\.serviceByText\(t, services\)\)[\s\S]*хоч/.test(intentContext) &&
+    /if \(explicitServiceBookingRequest && !explicitServiceComplaint && !explicitBookingDecline\) intent = "booking_start"/.test(intentContext) &&
+    /\{ cue: \/стриж\/iu, match: \/стриж\/iu \}/.test(routingHelpers) &&
+    /\{ cue: \/волос\|парикмах\/iu, match: \/стриж\|окраш\|тонир/.test(routingHelpers) &&
     /const topicMatches = selectedByText \? \[\] : serviceTopicMatches\(t, servicesByCategory\)/.test(postHandler) &&
     /const priceOptions = topicMatches\.length \? topicMatches : servicesByCategory/.test(postHandler) &&
+    /У нас есть несколько вариантов\. По стоимости/.test(postHandler) &&
+    /У нас есть несколько вариантов\. Какой именно вам подходит\?/.test(postHandler) &&
+    /serviceTopicMatches\(t, scopedServices\.length \? scopedServices : services\)/.test(fuzzy) &&
+    /dedupeOptions\(topicMatches\.map\(serviceQuickOption\)\)/.test(fuzzy) &&
+    /if \(topicMatches\.length\) \{[\s\S]*route = "chat-only"[\s\S]*shouldRunBookingFlowResolved = false/.test(postHandler) &&
     /const sample = priceOptions[\s\S]*?topicMatches\.length \? priceOptions\.map\(serviceQuickOption\) : serviceOptionsWithTabs\(servicesScopedByLocation, priceOptions\)/.test(postHandler),
+);
+
+check(
+  "casual desire phrases are not routed as unknown service catalog prompts",
+  /return mentionsServiceTopic\(messageNorm\);/.test(routingHelpers) &&
+    /const standaloneUnknownServiceDomainCue =[\s\S]*mentionsServiceTopic\(t\)[\s\S]*asksServiceExistence\(t\)[\s\S]*serviceTopicMatches\(t, services\)\.length > 0/.test(postHandler) &&
+    /standaloneUnknownServiceDomainCue[\s\S]*looksLikeStandaloneServiceLabel\(t\)/.test(postHandler) &&
+    !/BOOKING_VERB:[^\n]*хочу/.test(lexicon) &&
+    /mentionsServiceTopic\(t\) &&/.test(bookingDecisions) &&
+    !/directBookingKickoffFallback[\s\S]{0,260}хочу/.test(postHandler) &&
+    /const casualDesireOutsideCatalog =/.test(responseGuard) &&
+    /!casualDesireOutsideCatalog/.test(responseGuard),
+);
+
+check(
+  "booking location prompts are scoped to selected service locations",
+  /const selectedServiceForLocationPrompt = d\.serviceId \? services\.find/.test(postHandler) &&
+    /const locationsForBookingPrompt =[\s\S]*selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(postHandler) &&
+    /locations: locationsForBookingPrompt/.test(postHandler) &&
+    /const selectedServiceForLocationSwitch = d\.serviceId \? services\.find/.test(read("apps/web/lib/booking-flow.ts")) &&
+    /const locationPromptOptions =[\s\S]*selectedServiceForLocationPrompt\.locationIds\.includes\(loc\.id\)/.test(read("apps/web/lib/booking-flow.ts")),
 );
 
 check(

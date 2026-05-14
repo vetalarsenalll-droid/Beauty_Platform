@@ -10,6 +10,7 @@ import {
   isGreetingText,
   asksServiceExistence,
   parseServiceCategoryFilter,
+  mentionsServiceTopic,
 } from "@/lib/aisha-routing-helpers";
 import type { AishaIntent } from "@/lib/dialog-policy";
 import type { DraftDecision } from "@/lib/aisha-chat-types";
@@ -93,6 +94,7 @@ export function computeBookingDecisions(args: {
   const looksLikeBareServicePhrase =
     /^[\p{L}\s\-]{4,}$/iu.test(t) &&
     t.split(/\s+/).filter(Boolean).length <= 4 &&
+    mentionsServiceTopic(t) &&
     !/^(привет|здравствуйте|спасибо|пока|да|нет|ок|окей|кто|что|почему|зачем|как|где|когда)\b/i.test(
       t,
     );

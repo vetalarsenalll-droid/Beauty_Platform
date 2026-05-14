@@ -9,6 +9,7 @@ import {
   extractRequestedServicePhrase,
   findServiceMatchesInText,
   mentionsServiceTopic,
+  serviceTopicMatches,
   looksLikeUnknownServiceRequest,
   isNluServiceGroundedByText,
 } from "@/lib/aisha-routing-helpers";
@@ -493,7 +494,8 @@ export async function handleUnknownServiceResolution(args: {
     !/(филиал|локац|адрес|время|слот|окошк|дата|сегодня|завтра|послезавтра|кто|мастер|специалист|до\s+скольки|график|работает|телефон|номер|спасибо|привет|пока|\b(?:да|нет|ок)\b)/iu.test(
       turnNorm,
     );
-  const hasServiceLikePhrase = Boolean(requestedServicePhrase) || mentionsServiceTopic(t) || (locationScoped && looksLikeUnknownServiceRequest(t));
+  const hasDomainServiceCue = mentionsServiceTopic(t) || nluServiceValid || locationScoped;
+  const hasServiceLikePhrase = (Boolean(requestedServicePhrase) && hasDomainServiceCue) || mentionsServiceTopic(t) || (locationScoped && looksLikeUnknownServiceRequest(t));
   const unknownServiceRequested =
     bookingContextActive &&
     !d.serviceId &&
@@ -504,11 +506,27 @@ export async function handleUnknownServiceResolution(args: {
     !isUiControlTurn &&
     !vagueRequestedService &&
     (hasServiceLikePhrase || (locationScoped && looksLikeStandaloneServiceLabel)) &&
-    (looksLikeUnknownServiceRequest(t) ||
-      Boolean(requestedServicePhrase) ||
+    ((looksLikeUnknownServiceRequest(t) && hasDomainServiceCue) ||
+      (Boolean(requestedServicePhrase) && hasDomainServiceCue) ||
       (!!requestedServicePhrase && nluServiceValid && !nluServiceGrounded));
 
   if (!unknownServiceRequested || deicticServiceReference) return { handled: false };
+
+  const topicMatches = serviceTopicMatches(t, scopedServices.length ? scopedServices : services);
+  if (topicMatches.length) {
+    const asksPrice = /(?:сколько стоит|цена|стоим|стоимость|по стоимости|по прайсу|ценник)/iu.test(t);
+    const sample = topicMatches
+      .slice(0, 3)
+      .map((service) => serviceQuickOption(service).label)
+      .join("; ");
+    const reply =
+      asksPrice && sample
+        ? "У нас есть несколько вариантов. По стоимости: " + sample + ". Какой именно вариант вам подходит?"
+        : "У нас есть несколько вариантов. Какой именно вам подходит?";
+    const ui: ChatUi = { kind: "quick_replies", options: dedupeOptions(topicMatches.map(serviceQuickOption)) };
+    const payload = await persistClarificationAndBuildPayload({ threadId, nextThreadKey, reply, ui, d });
+    return { handled: true, payload };
+  }
 
   const requested = requestedServicePhrase ? `Услугу «${requestedServicePhrase}» не нашла.` : "Такой услуги не нашла.";
   const reply = `${requested} Выберите, пожалуйста, из доступных ниже.`;

@@ -13,6 +13,7 @@ import {
   looksLikeLocationClaimInReply,
   looksLikeSensitiveLeakReply,
   looksLikeServiceClaimInReply,
+  mentionsServiceTopic,
   sanitizeAssistantReplyText,
 } from "@/lib/aisha-routing-helpers";
 
@@ -82,6 +83,10 @@ export function applyResponseGuard(args: {
   const guardReason = guardResult.reason;
 
   reply = sanitizeAssistantReplyText(reply);
+  const casualDesireOutsideCatalog =
+    /(?:^|\s)хоч\p{L}*\s+на\s+[\p{L}\s-]{3,}/iu.test(t) &&
+    !mentionsServiceTopic(t) &&
+    !/(запиш\p{L}*|записа\p{L}*|запиг\p{L}*|оформи\p{L}*|заброни\p{L}*|бронь|сегодня|завтра|послезавтра|\d{1,2}[:.]\d{2}|\d{1,2}[./]\d{1,2})/iu.test(t);
 
   if (route === "chat-only" && intent === "smalltalk" && /жду\s+(?:вашего|твоего)\s+ответа/i.test(norm(reply))) {
     reply = "Я здесь, чтобы помочь: могу рассказать про услуги, специалистов и свободное время, или просто поддержать разговор.";
@@ -118,6 +123,7 @@ export function applyResponseGuard(args: {
   if (
     route === "chat-only" &&
     !explicitServiceComplaint &&
+    !casualDesireOutsideCatalog &&
     hasDraftContext &&
     !shouldRunBookingFlow &&
     (intent === "out_of_scope" || intent === "smalltalk")

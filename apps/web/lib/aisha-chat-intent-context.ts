@@ -184,11 +184,14 @@ export function buildIntentContext(args: {
   const explicitLocationsFollowUp = routing.asksLocationsFollowUp(norm(messageForRouting), lastAssistantText, previousUserText);
   const explicitServiceFollowUp =
     routing.isServiceFollowUpText(norm(messageForRouting)) &&
-    /(услуг|услуга|стоимость|длительность|маник|педик|стриж|гель|peeling|facial)/i.test(lastAssistantText);
+    /(услуг|услуга|стоимость|длительность|маник|педик|стриж|гель|фитнес|peeling|facial)/i.test(lastAssistantText);
 
   const serviceSelectionFromCatalog =
     Boolean(routing.serviceByText(norm(messageForRouting), services)) &&
     /(доступные услуги ниже|выберите нужную кнопкой|покажи услуги|выберите услугу|какую именно услугу .*записать|на какую именно услугу .*записать)/i.test(lastAssistantText);
+  const explicitServiceBookingRequest =
+    Boolean(routing.serviceByText(t, services)) &&
+    has(messageForRouting, /(хоч\p{L}*|нужн\p{L}*|надо|давай|сделать|интересует|запиш\p{L}*|записа\p{L}*|запис\p{L}*)/iu);
 
   const heuristicIntent = routing.intentFromHeuristics(messageForRouting);
   const mappedNluIntent = routing.mapNluIntent((nlu?.intent ?? "unknown") as AishaNluIntent);
@@ -286,6 +289,7 @@ export function buildIntentContext(args: {
   if (explicitCalendarAvailability) intent = "ask_availability";
   if (explicitCategoryFilterRequest && !explicitServiceSpecialistQuestion) intent = "ask_services";
   if (serviceSelectionFromCatalog && !explicitServiceComplaint) intent = "booking_start";
+  if (explicitServiceBookingRequest && !explicitServiceComplaint && !explicitBookingDecline) intent = "booking_start";
   if (hasDraftContextEarly && Boolean(routing.serviceByText(norm(messageForRouting), services)) && !explicitServiceComplaint) intent = "booking_set_service";
 
   const complaintContextActive =
@@ -333,6 +337,7 @@ export function buildIntentContext(args: {
       message,
       /(запиш\p{L}*|записа\p{L}*|запис\p{L}*|запиг\p{L}*|окошк|свобод|слот|на сегодня|на завтра|сегодня вечером|сегодня утром|сегодня днем|сегодня днём|вечером|утром|днем|днём|оформи\p{L}*|бронь|заброни\p{L}*|сам|через ассистента|локац|филиал|в центр|в ривер|riverside|beauty salon center|beauty salon riverside)/iu,
     ) ||
+    explicitServiceBookingRequest ||
     serviceSelectionFromCatalog ||
     Boolean(selectedSpecialistByText) ||
     explicitAnySpecialistChoice ||

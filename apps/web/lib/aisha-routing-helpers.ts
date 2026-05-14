@@ -192,6 +192,7 @@ export function serviceByText(messageNorm: string, services: ServiceLite[]) {
     "маник",
     "педик",
     "стриж",
+    "фитнес",
     "окраш",
     "бров",
     "ресниц",
@@ -234,7 +235,9 @@ export function serviceTopicMatches(messageNorm: string, services: ServiceLite[]
     { cue: /маник|маникюр/iu, match: /маник/iu },
     { cue: /педик|педикюр/iu, match: /педик/iu },
     { cue: /ногт|ногтев|ногти/iu, match: /маник|педик|ногт|гель|лак|наращ|коррекц|дизайн|spa|рук/iu },
-    { cue: /стриж|волос|парикмах/iu, match: /стриж|окраш|тонир|уклад|полиров|кератин|волос|кожи головы/iu },
+    { cue: /стриж/iu, match: /стриж/iu },
+    { cue: /волос|парикмах/iu, match: /стриж|окраш|тонир|уклад|полиров|кератин|волос|кожи головы/iu },
+    { cue: /фитнес/iu, match: /фитнес/iu },
     { cue: /ресниц/iu, match: /ресниц/iu },
     { cue: /бров/iu, match: /бров/iu },
   ];
@@ -762,7 +765,7 @@ export function looksLikeSensitiveLeakReply(text: string) {
 }
 
 export function isServiceInquiryMessage(rawMessage: string, messageNorm: string) {
-  const hasServiceWord = /(маник|педик|стриж|гель|окраш|facial|peeling|haircut)/i.test(messageNorm);
+  const hasServiceWord = /(маник|педик|стриж|фитнес|гель|окраш|facial|peeling|haircut)/i.test(messageNorm);
   if (!hasServiceWord) return false;
   const asks = /(есть|нет|имеется|доступн|а .* нет)/i.test(messageNorm);
   const questionMark = rawMessage.includes("?");
@@ -774,7 +777,9 @@ export function looksLikeUnknownServiceRequest(messageNorm: string) {
   if (/(какие услуги|что по услугам|прайс|каталог|список услуг)/i.test(messageNorm)) return false;
   if (/[?]/.test(messageNorm)) return false;
   if (/^(это|а это|что это|как это|почему|зачем|кто|где|когда|я спросил|я спросила|расскажи|объясни|обьясни|можешь)\b/i.test(messageNorm)) return false;
-  if (/(?:^|\s)(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) return true;
+  if (/(?:^|\s)(хочу|нужн[ао]?|запиши|записаться|на)\s+[\p{L}\s\-]{4,}/iu.test(messageNorm)) {
+    return mentionsServiceTopic(messageNorm);
+  }
   // Plain phrase like "удаление зуба" during booking step should still be treated as a service request.
   if (/^[\p{L}\s\-]{4,}$/iu.test(messageNorm) && messageNorm.split(/\s+/).length <= 4) {
     if (!mentionsServiceTopic(messageNorm)) return false;
@@ -786,7 +791,7 @@ export function looksLikeUnknownServiceRequest(messageNorm: string) {
 
 export function asksServiceExistence(messageNorm: string) {
   const hasBeautyToken =
-    /(маник|педик|ногт|гель|стриж|окраш|волос|ресниц|бров|эпил|депил|депел|лазер|массаж|чистк|пилинг|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|peeling|facial|haircut|coloring|tattoo|бикин|консультац|мужск|женск|мужчин|женщин|бород|ус[ао]м)/i.test(
+    /(маник|педик|ногт|гель|стриж|фитнес|окраш|волос|ресниц|бров|эпил|депил|депел|лазер|массаж|чистк|пилинг|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|peeling|facial|haircut|coloring|tattoo|бикин|консультац|мужск|женск|мужчин|женщин|бород|ус[ао]м)/i.test(
       messageNorm,
     );
   const asks = /(есть|имеется|делаете|делаешь|можно|доступн)/i.test(messageNorm);
@@ -824,7 +829,7 @@ export function asksServicesFollowUp(messageNorm: string, lastAssistantText: str
   );
   if (!asks) return false;
   const context = `${lastAssistantText} ${previousUserText}`.toLowerCase();
-  const serviceContext = /(услуг|услуга|каталог|прайс|маник|педик|стриж|гель|окраш|пилинг|тату)/i.test(context);
+  const serviceContext = /(услуг|услуга|каталог|прайс|маник|педик|стриж|фитнес|гель|окраш|пилинг|тату)/i.test(context);
   const capabilitiesContext = /(что умеешь|чем занимаешься|что ты можешь|а что ты можешь)/i.test(previousUserText);
   return serviceContext || capabilitiesContext;
 }
@@ -850,7 +855,7 @@ export function asksLocationsFollowUp(messageNorm: string, lastAssistantText: st
 }
 
 export function mentionsServiceTopic(messageNorm: string) {
-  return /(услуг|услуга|маник|педик|ногт|гель|стриж|окраш|волос|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|ресниц|бров|эпил|депил|депел|лазер|массаж|пилинг|консультац|бород|ус[ао]м)/i.test(
+  return /(услуг|услуга|маник|педик|ногт|гель|стриж|фитнес|окраш|волос|макияж|визаж|лиц|уход\s+за\s+лиц|тату|татуир|ресниц|бров|эпил|депил|депел|лазер|массаж|пилинг|консультац|бород|ус[ао]м)/i.test(
     messageNorm,
   );
 }
@@ -931,7 +936,7 @@ export function isGenericBookingTemplateReply(text: string) {
 
 export function isBookingOrAccountCue(messageNorm: string) {
   if (hasBookingVerbTypo(messageNorm)) return true;
-  return /(запис|запиг|хоч|бронь|слот|окошк|время|дата|услуг|маник|педик|ногт|волос|ресниц|бров|мастер|спец|специал|специалист|филиал|локац|адрес|телефон|номер|мой|мои|статист|отмени|перенеси|профил|кабинет|консультац|цена|прайс|стоим)/i.test(
+  return /(запис|запиг|хоч|бронь|слот|окошк|время|дата|услуг|маник|педик|ногт|фитнес|волос|ресниц|бров|мастер|спец|специал|специалист|филиал|локац|адрес|телефон|номер|мой|мои|статист|отмени|перенеси|профил|кабинет|консультац|цена|прайс|стоим)/i.test(
     messageNorm,
   );
 }
@@ -1356,7 +1361,7 @@ export function intentFromHeuristics(message: string): AishaIntent {
   if (asksWhoPerformsServices(message)) return "ask_specialists";
   if (asksSpecialistsByShortText(message)) return "ask_specialists";
   if (asksGenderedServices(message)) return "ask_services";
-  const hasServiceMention = has(message, /(маник|педик|ногт|стриж|гель|окраш|волос|бров|ресниц|тату|татуир)/i);
+  const hasServiceMention = has(message, /(маник|педик|ногт|стриж|фитнес|гель|окраш|волос|бров|ресниц|тату|татуир)/i);
   const hasBookingCue = has(message, /(хоч|запиши|записаться|давай|нужн\p{L}*|сделать|хотел\p{L}*)/iu) || hasBookingVerbTypo(message);
   if (hasServiceMention && hasBookingCue) return "booking_start";
   if (has(message, /подтвержда[\p{L}]*\s+перен[\p{L}]*\s*#?\s*\d*/iu)) return "reschedule_my_booking";
