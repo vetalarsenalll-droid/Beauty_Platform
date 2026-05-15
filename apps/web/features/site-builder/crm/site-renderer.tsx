@@ -7055,10 +7055,18 @@ export function renderReviews(
               {review.photoUrls?.length ? (
                 <ReviewPhotoGallery urls={review.photoUrls} cardRadius={cardRadius} borderColor="var(--review-card-border)" />
               ) : null}
-              {review.replyText ? (
+              {review.replyText || review.replyPhotoUrls?.length ? (
                 <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm" style={{ color: mutedColor }}>
                   <div className="font-semibold" style={{ color: textColor }}>Ответ</div>
-                  <div className="mt-1">{review.replyText}</div>
+                  {review.replyText ? <div className="mt-1">{review.replyText}</div> : null}
+                  {review.replyPhotoUrls?.length ? (
+                    <ReviewPhotoGallery
+                      urls={review.replyPhotoUrls}
+                      cardRadius={cardRadius}
+                      borderColor="var(--review-card-border)"
+                      gridClassName="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4"
+                    />
+                  ) : null}
                 </div>
               ) : null}
             </article>

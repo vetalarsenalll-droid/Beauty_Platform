@@ -624,20 +624,23 @@ model AccountInvite {
 }
 
 model AccountSetting {
-  id                      Int      @id @default(autoincrement())
-  accountId               Int      @unique
-  slotStepMinutes         Int      @default(15)
-  requireDeposit          Boolean  @default(false)
-  requirePaymentToConfirm Boolean  @default(false)
-  cancellationWindowHours Int?
-  rescheduleWindowHours   Int?
-  holdTtlMinutes          Int?
-  defaultReminderHours    Int?
-  notificationQuietHours  Json?
-  reviewAutoPublish       Boolean  @default(true)
-  reviewAllowReplies      Boolean  @default(true)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                        Int      @id @default(autoincrement())
+  accountId                 Int      @unique
+  slotStepMinutes           Int      @default(15)
+  requireDeposit            Boolean  @default(false)
+  requirePaymentToConfirm   Boolean  @default(false)
+  cancellationWindowHours   Int?
+  rescheduleWindowHours     Int?
+  holdTtlMinutes            Int?
+  defaultReminderHours      Int?
+  notificationQuietHours    Json?
+  reviewAutoPublish         Boolean  @default(true)
+  reviewAllowReplies        Boolean  @default(true)
+  reviewModerationWords     Json?
+  reviewModerationMode      String   @default("auto")
+  reviewModerationMinRating Int?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
 }
@@ -893,28 +896,34 @@ model MediaLink {
 }
 
 model Review {
-  id           Int          @id @default(autoincrement())
-  accountId    Int
-  clientId     Int
-  appointmentId Int?
-  entityType   String       @default("account")
-  entityId     String?
-  rating       Int
-  comment      String?
-  status       ReviewStatus @default(PUBLISHED)
-  replyText    String?
-  repliedAt    DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                     Int          @id @default(autoincrement())
+  accountId              Int
+  clientId               Int
+  appointmentId          Int?
+  entityType             String       @default("account")
+  entityId               String?
+  rating                 Int
+  comment                String?
+  status                 ReviewStatus @default(PUBLISHED)
+  replyText              String?
+  repliedAt              DateTime?
+  repliedByUserId        Int?
+  moderationReason       String?
+  moderationMatchedWords Json?
+  moderatedAt            DateTime?
+  moderatedByUserId      Int?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
-  account     Account      @relation(fields: [accountId], references: [id])
-  client      Client       @relation(fields: [clientId], references: [id])
-  appointment Appointment? @relation(fields: [appointmentId], references: [id])
-  votes       ReviewVote[]
+  account       Account      @relation(fields: [accountId], references: [id])
+  client        Client       @relation(fields: [clientId], references: [id])
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  repliedByUser User?        @relation("ReviewReplyUser", fields: [repliedByUserId], references: [id])
+  votes         ReviewVote[]
 
+  @@unique([appointmentId])
   @@index([accountId, status, createdAt])
   @@index([accountId, entityType, entityId, status])
-  @@unique([appointmentId])
 }
 
 model ReviewVote {
@@ -1055,6 +1064,7 @@ model User {
   channelPreferences      UserNotificationChannelPreference[]
   deviceTokens            DeviceToken[]
   reviewVotes             ReviewVote[]
+  reviewReplies           Review[]                            @relation("ReviewReplyUser")
   notificationPreferences NotificationPreference[]
   outboxItems             OutboxItem[]
   aiThreads               AiThread[]
@@ -2236,28 +2246,28 @@ model AiSetting {
 }
 
 model AiBookingDraft {
-  id                 Int       @id @default(autoincrement())
-  threadId           Int       @unique
-  version            Int       @default(0)
-  locationId         Int?
-  serviceId          Int?
-  serviceIds         Int[]     @default([])
-  specialistId       Int?
-  bookingMode        String?
-  planJson           Json?
-  bookingAttemptKey  String?
+  id                     Int       @id @default(autoincrement())
+  threadId               Int       @unique
+  version                Int       @default(0)
+  locationId             Int?
+  serviceId              Int?
+  serviceIds             Int[]     @default([])
+  specialistId           Int?
+  bookingMode            String?
+  planJson               Json?
+  bookingAttemptKey      String?
   completedAppointmentId Int?
-  completedAt        DateTime?
-  date               String?
-  time               String?
-  clientName         String?
-  clientPhone        String?
-  clientEmail        String?
-  mode               String?
-  status             String    @default("COLLECTING")
-  consentConfirmedAt DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  completedAt            DateTime?
+  date                   String?
+  time                   String?
+  clientName             String?
+  clientPhone            String?
+  clientEmail            String?
+  mode                   String?
+  status                 String    @default("COLLECTING")
+  consentConfirmedAt     DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 

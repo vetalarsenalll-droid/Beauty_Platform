@@ -82,9 +82,93 @@ async function refreshAppointmentTargetAggregates(accountId: number, appointment
 async function readReviewAutoPublish(accountId: number) {
   const settings = await prisma.accountSetting.findUnique({
     where: { accountId },
-    select: { reviewAutoPublish: true },
+    select: {
+      reviewAutoPublish: true,
+      reviewModerationWords: true,
+      reviewModerationMode: true,
+      reviewModerationMinRating: true,
+    },
   });
-  return settings?.reviewAutoPublish ?? true;
+  return {
+    reviewAutoPublish: settings?.reviewAutoPublish ?? true,
+    reviewModerationWords: settings?.reviewModerationWords,
+    reviewModerationMode: settings?.reviewModerationMode ?? "auto",
+    reviewModerationMinRating: settings?.reviewModerationMinRating ?? null,
+  };
+}
+
+function normalizeModerationText(value: string) {
+  return value.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+}
+
+function readModerationWords(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === "string" ? normalizeModerationText(item) : ""))
+        .filter((item) => item.length > 0)
+    )
+  ).slice(0, 100);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function findModerationWords(comment: string, words: string[]) {
+  const normalized = normalizeModerationText(comment);
+  return words.filter((word) => {
+    if (word.includes(" ")) return normalized.includes(word);
+    const pattern = new RegExp(`(^|[^\\p{L}\\p{N}_])${escapeRegExp(word)}(?=$|[^\\p{L}\\p{N}_])`, "u");
+    return pattern.test(normalized);
+  });
+}
+
+function resolveReviewModerationStatus({
+  comment,
+  rating,
+  settings,
+}: {
+  comment: string;
+  rating: number;
+  settings: Awaited<ReturnType<typeof readReviewAutoPublish>>;
+}) {
+  const mode = settings.reviewModerationMode;
+  const words = readModerationWords(settings.reviewModerationWords);
+  const matchedWords = findModerationWords(comment, words);
+  const minRating = settings.reviewModerationMinRating;
+  const lowRatingMatched = typeof minRating === "number" && rating <= minRating;
+
+  if (mode === "publish") {
+    return { status: "PUBLISHED" as const, moderationReason: null, moderationMatchedWords: [] };
+  }
+
+  if (mode === "all") {
+    return { status: "PENDING" as const, moderationReason: "Все новые отзывы отправляются на модерацию", moderationMatchedWords: [] };
+  }
+
+  if (matchedWords.length > 0) {
+    return {
+      status: "PENDING" as const,
+      moderationReason: `Найдено слово: "${matchedWords[0]}"`,
+      moderationMatchedWords: matchedWords,
+    };
+  }
+
+  if (lowRatingMatched) {
+    return {
+      status: "PENDING" as const,
+      moderationReason: `Оценка ${rating} ниже порога модерации`,
+      moderationMatchedWords: [],
+    };
+  }
+
+  if (mode !== "words" && !settings.reviewAutoPublish) {
+    return { status: "PENDING" as const, moderationReason: "Автопубликация отзывов выключена", moderationMatchedWords: [] };
+  }
+
+  return { status: "PUBLISHED" as const, moderationReason: null, moderationMatchedWords: [] };
 }
 
 async function loadReviewPhotoMap(reviewIds: number[]) {
@@ -234,7 +318,11 @@ export async function POST(request: Request) {
     return jsonError("REVIEW_EXISTS", "Отзыв по этой записи уже оставлен.", null, 409);
   }
 
-  const status = (await readReviewAutoPublish(resolved.accountId)) ? "PUBLISHED" : "PENDING";
+  const moderation = resolveReviewModerationStatus({
+    comment,
+    rating,
+    settings: await readReviewAutoPublish(resolved.accountId),
+  });
   const requestedEntityType = String(body.entityType ?? "account");
   const requestedEntityId = String(body.entityId ?? "").trim();
   const serviceIds = new Set(appointment.services.map((item) => String(item.serviceId)));
@@ -284,7 +372,10 @@ export async function POST(request: Request) {
         entityId: target.entityId,
         rating,
         comment: comment || null,
-        status,
+        status: moderation.status,
+        moderationReason: moderation.moderationReason,
+        moderationMatchedWords: moderation.moderationMatchedWords.length > 0 ? moderation.moderationMatchedWords : undefined,
+        moderatedAt: moderation.status === "PENDING" && moderation.moderationReason ? new Date() : undefined,
       },
       select: { id: true, appointmentId: true, rating: true, comment: true, createdAt: true },
     });

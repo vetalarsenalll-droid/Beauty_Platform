@@ -145,6 +145,7 @@ export type SiteReviewItem = {
   entityType: string;
   entityId: string | null;
   replyText: string | null;
+  replyPhotoUrls?: string[];
   createdAt: string;
   clientName: string;
   locationId?: number | null;

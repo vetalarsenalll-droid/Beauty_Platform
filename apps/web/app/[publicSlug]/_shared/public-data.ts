@@ -279,19 +279,36 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     };
   };
 
-  const reviewPhotoLinks = await prisma.mediaLink.findMany({
-    where: {
-      entityType: "review.photo",
-      entityId: { in: reviews.map((review) => String(review.id)) },
-    },
-    include: { asset: true },
-    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-  });
+  const reviewIds = reviews.map((review) => String(review.id));
+  const [reviewPhotoLinks, replyPhotoLinks] = await Promise.all([
+    prisma.mediaLink.findMany({
+      where: {
+        entityType: "review.photo",
+        entityId: { in: reviewIds },
+      },
+      include: { asset: true },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    }),
+    prisma.mediaLink.findMany({
+      where: {
+        entityType: "review.reply.photo",
+        entityId: { in: reviewIds },
+      },
+      include: { asset: true },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    }),
+  ]);
   const reviewPhotoMap = new Map<string, string[]>();
   reviewPhotoLinks.forEach((link) => {
     const current = reviewPhotoMap.get(link.entityId) ?? [];
     current.push(link.asset.url);
     reviewPhotoMap.set(link.entityId, current);
+  });
+  const replyPhotoMap = new Map<string, string[]>();
+  replyPhotoLinks.forEach((link) => {
+    const current = replyPhotoMap.get(link.entityId) ?? [];
+    current.push(link.asset.url);
+    replyPhotoMap.set(link.entityId, current);
   });
 
   const locationCoverMap = new Map<string, string>();
@@ -472,6 +489,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       entityType: review.entityType,
       entityId: review.entityId,
       replyText: review.replyText,
+      replyPhotoUrls: replyPhotoMap.get(String(review.id)) ?? [],
       createdAt: review.createdAt.toISOString(),
       locationId: review.appointment?.location?.id ?? (review.entityType === "location" ? fallbackEntityId : null),
       locationName: review.appointment?.location?.name ?? null,
