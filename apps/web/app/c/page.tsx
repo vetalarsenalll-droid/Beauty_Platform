@@ -53,6 +53,25 @@ const formatTimeLabel = (value: Date, timeZone: string) =>
     timeZone,
   }).format(value);
 
+async function loadReviewPhotoMap(reviewIds: number[]) {
+  const ids = reviewIds.map((id) => String(id));
+  if (ids.length === 0) return new Map<string, string[]>();
+
+  const links = await prisma.mediaLink.findMany({
+    where: { entityType: "review.photo", entityId: { in: ids } },
+    include: { asset: { select: { url: true } } },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+
+  const map = new Map<string, string[]>();
+  links.forEach((link) => {
+    const current = map.get(link.entityId) ?? [];
+    current.push(link.asset.url);
+    map.set(link.entityId, current);
+  });
+  return map;
+}
+
 export default async function ClientHome({ searchParams }: ClientHomeProps) {
   const session = await requireClientSession();
   const resolvedParams = searchParams ? await searchParams : {};
@@ -200,6 +219,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
     locationName: string | null;
     specialistName: string | null;
     servicesLabel: string | null;
+    photoUrls: string[];
   }> = [];
   let reviewedAppointmentIds = new Set<number>();
 
@@ -356,6 +376,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
         profile = client;
       }
 
+      const reviewPhotoMap = await loadReviewPhotoMap(reviewRows.map((item) => item.id));
+
       appointments = appointmentRows.map((item) => {
         const specialistName = `${item.specialist?.user?.profile?.firstName ?? ""} ${
           item.specialist?.user?.profile?.lastName ?? ""
@@ -470,6 +492,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
             .filter(Boolean)
             .join(" ") || null,
         servicesLabel: item.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
+        photoUrls: reviewPhotoMap.get(String(item.id)) ?? [],
       }));
       reviewedAppointmentIds = new Set(
         reviewRows.map((item) => item.appointmentId).filter((id): id is number => typeof id === "number")
@@ -600,6 +623,8 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           },
         }),
       ]);
+
+    const reviewPhotoMap = await loadReviewPhotoMap(reviewRows.map((item) => item.id));
 
     appointments = appointmentRows.map((item) => {
       const account = accountByIdLocal.get(item.accountId);
@@ -737,6 +762,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
             .filter(Boolean)
             .join(" ") || null,
         servicesLabel: item.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
+        photoUrls: reviewPhotoMap.get(String(item.id)) ?? [],
       };
     });
     reviewedAppointmentIds = new Set(
@@ -969,6 +995,7 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
             locationName: review.locationName,
             specialistName: review.specialistName,
             servicesLabel: review.servicesLabel,
+            photoUrls: review.photoUrls,
           }))}
           reviewableAppointments={reviewableAppointments}
           organizations={organizations}

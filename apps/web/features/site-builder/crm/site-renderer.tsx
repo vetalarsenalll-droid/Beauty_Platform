@@ -2461,7 +2461,7 @@ export function renderBlock(
     case "works":
       return renderWorks(block, workPhotos, theme, style, currentEntity);
     case "reviews":
-      return renderReviews(block, account.slug, reviews, theme, style, previewViewportWidth);
+      return renderReviews(block, account.slug, account.name, reviews, theme, style, previewViewportWidth);
     case "contacts":
       return renderContacts(block, account, accountProfile, locations, theme, style, previewViewportWidth);
     case "aisha":
@@ -6909,6 +6909,7 @@ export function renderWorks(
 export function renderReviews(
   block: SiteBlock,
   accountSlug: string,
+  accountName: string,
   reviews: ReviewItem[],
   theme: SiteTheme,
   style: BlockStyle,
@@ -7017,6 +7018,7 @@ export function renderReviews(
           </div>
           <PublicReviewAuthModal
             accountSlug={accountSlug}
+            accountName={accountName}
             buttonLabel="Авторизоваться"
             buttonClassName="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
             buttonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
@@ -7045,6 +7047,15 @@ export function renderReviews(
               {review.specialistName ? <div className="mt-1 text-sm text-blue-600">{review.specialistName}</div> : null}
               {review.locationName ? <div className="mt-1 text-xs" style={{ color: mutedColor }}>{review.locationName}</div> : null}
               <p className="mt-5 leading-6">{review.comment}</p>
+              {review.photoUrls?.length ? (
+                <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {review.photoUrls.slice(0, 8).map((url, index) => (
+                    <div key={`${url}-${index}`} className="aspect-square overflow-hidden border" style={{ borderColor: "var(--review-card-border)", borderRadius: Math.min(cardRadius, 12) }}>
+                      <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {review.replyText ? (
                 <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm" style={{ color: mutedColor }}>
                   <div className="font-semibold" style={{ color: textColor }}>Ответ салона</div>

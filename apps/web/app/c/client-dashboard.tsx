@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import ClientAppointments from "./client-appointments";
 import ClientProfileForm from "./client-profile-form";
 import ClientReviewForm from "./client-review-form";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 
 type AppointmentCard = {
   id: number;
@@ -76,6 +77,7 @@ type ReviewItem = {
   locationName?: string | null;
   specialistName?: string | null;
   servicesLabel?: string | null;
+  photoUrls?: string[];
 };
 
 type ReviewableAppointment = {
@@ -511,6 +513,7 @@ export default function ClientDashboard(props: ClientDashboardProps) {
                       locationName: appointment?.locationName ?? null,
                       specialistName: appointment?.specialistName ?? null,
                       servicesLabel: appointment?.servicesLabel ?? null,
+                      photoUrls: payload.photoUrls,
                     },
                     ...prev,
                   ]);
@@ -544,6 +547,15 @@ export default function ClientDashboard(props: ClientDashboardProps) {
                     ) : null}
                     {review.comment ? (
                       <div className="mt-2 text-xs text-[color:var(--bp-muted)]">{review.comment}</div>
+                    ) : null}
+                    {review.photoUrls?.length ? (
+                      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        {review.photoUrls.slice(0, 8).map((url, index) => (
+                          <div key={`${url}-${index}`} className="aspect-square overflow-hidden rounded-xl border border-[color:var(--bp-stroke)]">
+                            <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
                     ) : null}
                   </div>
                 ))

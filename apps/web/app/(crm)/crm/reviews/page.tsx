@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ReviewStatus } from "@prisma/client";
 import { requireCrmPermission } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 
 const statusLabels: Record<ReviewStatus, string> = {
   PUBLISHED: "Опубликован",
@@ -190,6 +191,21 @@ export default async function CrmReviewsPage() {
   ]);
   const reviewSettings = settings ?? { reviewAutoPublish: true, reviewAllowReplies: true };
 
+  const reviewPhotoLinks = await prisma.mediaLink.findMany({
+    where: {
+      entityType: "review.photo",
+      entityId: { in: reviews.map((review) => String(review.id)) },
+    },
+    include: { asset: { select: { url: true } } },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+  const reviewPhotoMap = new Map<string, string[]>();
+  reviewPhotoLinks.forEach((link) => {
+    const current = reviewPhotoMap.get(link.entityId) ?? [];
+    current.push(link.asset.url);
+    reviewPhotoMap.set(link.entityId, current);
+  });
+
   const locationIds = reviews.filter((item) => item.entityType === "location" && item.entityId).map((item) => Number(item.entityId));
   const serviceIds = reviews.filter((item) => item.entityType === "service" && item.entityId).map((item) => Number(item.entityId));
   const specialistIds = reviews.filter((item) => item.entityType === "specialist" && item.entityId).map((item) => Number(item.entityId));
@@ -315,6 +331,15 @@ export default async function CrmReviewsPage() {
                         </span>
                       </div>
                       {review.comment ? <p className="mt-3 text-sm leading-6">{review.comment}</p> : null}
+                      {reviewPhotoMap.get(String(review.id))?.length ? (
+                        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                          {(reviewPhotoMap.get(String(review.id)) ?? []).slice(0, 8).map((url, index) => (
+                            <div key={`${url}-${index}`} className="aspect-square overflow-hidden rounded-xl border border-[color:var(--bp-stroke)]">
+                              <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                       <form action={updateReviewReply} className="mt-4 space-y-2">
                         <input name="reviewId" type="hidden" value={review.id} />
                         <textarea

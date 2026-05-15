@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
 
 type ReviewAppointmentService = {
   id: number;
@@ -27,6 +28,7 @@ type ReviewTarget = {
 
 type PublicReviewAuthModalProps = {
   accountSlug: string;
+  accountName?: string;
   buttonLabel?: string;
   buttonClassName?: string;
   buttonStyle?: CSSProperties;
@@ -52,6 +54,14 @@ type CustomSelectProps = {
   mutedColor: string;
   disabled?: boolean;
 };
+
+type UploadedReviewPhoto = {
+  id: number;
+  url: string;
+  name: string;
+};
+
+const MAX_REVIEW_PHOTOS = 5;
 
 function CustomSelect({ label, value, options, onChange, fieldStyle, mutedColor, disabled = false }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
@@ -148,11 +158,11 @@ function parseReviewTargetValue(value: string): Pick<ReviewTarget, "type" | "id"
   return { type: type as ReviewTarget["type"], id };
 }
 
-function reviewTargets(appointment: ReviewAppointment | null): ReviewTarget[] {
+function reviewTargets(appointment: ReviewAppointment | null, accountName: string): ReviewTarget[] {
   if (!appointment) return [];
 
   const targets: ReviewTarget[] = [
-    { type: "account", id: "account", label: "Организация" },
+    { type: "account", id: "account", label: accountName || "Организация" },
     { type: "location", id: String(appointment.locationId), label: `Локация: ${appointment.locationName}` },
   ];
 
@@ -173,6 +183,7 @@ function reviewTargets(appointment: ReviewAppointment | null): ReviewTarget[] {
 
 export default function PublicReviewAuthModal({
   accountSlug,
+  accountName = "",
   buttonLabel = "Авторизоваться",
   buttonClassName,
   buttonStyle,
@@ -193,17 +204,19 @@ export default function PublicReviewAuthModal({
   const [targetValue, setTargetValue] = useState("");
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
+  const [photos, setPhotos] = useState<UploadedReviewPhoto[]>([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [closeHovered, setCloseHovered] = useState(false);
 
   const selectedAppointment =
     appointments.find((appointment) => appointment.id === appointmentId) ??
     appointments[0] ??
     null;
-  const targets = useMemo(() => reviewTargets(selectedAppointment), [selectedAppointment]);
+  const targets = useMemo(() => reviewTargets(selectedAppointment, accountName), [accountName, selectedAppointment]);
   const appointmentOptions = useMemo(
     () => appointments.map((appointment) => ({ value: String(appointment.id), label: appointmentLabel(appointment) })),
     [appointments]
@@ -225,6 +238,7 @@ export default function PublicReviewAuthModal({
     color: "#ffffff",
     ...modalButtonStyle,
   } as CSSProperties;
+  const resolvedButtonLabel = authenticated ? "Оставить отзыв" : buttonLabel;
 
   useEffect(() => {
     if (targets.length === 0) {
@@ -273,6 +287,25 @@ export default function PublicReviewAuthModal({
     }
   };
 
+  useEffect(() => {
+    let active = true;
+    const checkInitialSession = async () => {
+      try {
+        const response = await fetch(`/api/v1/auth/client/me?account=${encodeURIComponent(accountSlug)}`, {
+          cache: "no-store",
+        });
+        if (active) setAuthenticated(response.ok);
+      } catch {
+        if (active) setAuthenticated(false);
+      }
+    };
+
+    void checkInitialSession();
+    return () => {
+      active = false;
+    };
+  }, [accountSlug]);
+
   const openModal = () => {
     setOpen(true);
     void checkSession();
@@ -299,6 +332,47 @@ export default function PublicReviewAuthModal({
       setError(err instanceof Error ? err.message : "Не удалось выполнить вход.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.currentTarget.files ?? []).slice(0, MAX_REVIEW_PHOTOS - photos.length);
+    event.currentTarget.value = "";
+    if (files.length === 0) return;
+
+    setError(null);
+    setUploadingPhotos(true);
+    let nextPhotos = photos;
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch(`/api/v1/client/reviews/media?account=${encodeURIComponent(accountSlug)}`, {
+          method: "POST",
+          body: formData,
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          setError(errorMessage(payload, "Не удалось загрузить фотографию."));
+          return;
+        }
+
+        const photo = {
+          id: Number(payload?.data?.id),
+          url: String(payload?.data?.url ?? ""),
+          name: file.name,
+        };
+        if (!Number.isInteger(photo.id) || !photo.url) {
+          setError("Не удалось загрузить фотографию.");
+          return;
+        }
+
+        nextPhotos = [...nextPhotos, photo].slice(0, MAX_REVIEW_PHOTOS);
+        setPhotos(nextPhotos);
+      }
+    } finally {
+      setUploadingPhotos(false);
     }
   };
 
@@ -329,6 +403,7 @@ export default function PublicReviewAuthModal({
           entityId: selectedTarget.id,
           rating,
           comment,
+          photoAssetIds: photos.map((photo) => photo.id),
         }),
       });
       const payload = await response.json().catch(() => null);
@@ -342,6 +417,7 @@ export default function PublicReviewAuthModal({
       setAppointmentId(nextAppointments[0]?.id ?? 0);
       setRating(0);
       setComment("");
+      setPhotos([]);
       setSaved(true);
       router.refresh();
     } catch (err) {
@@ -354,7 +430,7 @@ export default function PublicReviewAuthModal({
   return (
     <>
       <button type="button" className={buttonClassName} style={buttonStyle} onClick={openModal}>
-        {buttonLabel}
+        {resolvedButtonLabel}
       </button>
 
       {open ? (
@@ -376,11 +452,11 @@ export default function PublicReviewAuthModal({
             </button>
 
             <div className="pr-8">
-              <div className="text-lg font-semibold">Личный кабинет</div>
+              <div className="text-lg font-semibold">Оставить отзыв</div>
               <div className="mt-2 text-sm leading-6" style={{ color: modalMutedColor }}>
                 {authenticated
-                  ? "Вы вошли в личный кабинет. Теперь можно выбрать завершенный визит и оставить отзыв."
-                  : "Войдите в личный кабинет, чтобы оставить отзыв после завершенного визита."}
+                  ? "Вы можете выбрать завершенный визит и оставить отзыв."
+                  : "Войдите, чтобы выбрать завершенный визит и оставить отзыв."}
               </div>
             </div>
 
@@ -468,6 +544,50 @@ export default function PublicReviewAuthModal({
                       className="min-h-[120px] border bg-transparent px-4 py-3 text-sm outline-none"
                       style={fieldStyle}
                     />
+
+                    <div className="border border-dashed px-4 py-4" style={{ ...fieldStyle, backgroundColor: "transparent" }}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold">Фотографии</div>
+                          <div className="mt-1 text-xs" style={{ color: modalMutedColor }}>
+                            До {MAX_REVIEW_PHOTOS} изображений JPG, PNG, WebP или HEIC.
+                          </div>
+                        </div>
+                        <label
+                          className={`inline-flex cursor-pointer items-center justify-center border px-4 py-2 text-xs font-semibold transition hover:bg-black/[0.03] ${
+                            photos.length >= MAX_REVIEW_PHOTOS ? "pointer-events-none opacity-50" : ""
+                          }`}
+                          style={fieldStyle}
+                        >
+                          {uploadingPhotos ? "Загрузка..." : "Добавить фото"}
+                          <input
+                            type="file"
+                            accept="image/*,.heic,.heif"
+                            multiple
+                            className="sr-only"
+                            disabled={uploadingPhotos || photos.length >= MAX_REVIEW_PHOTOS}
+                            onChange={handlePhotoChange}
+                          />
+                        </label>
+                      </div>
+                      {photos.length > 0 ? (
+                        <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                          {photos.map((photo) => (
+                            <div key={photo.id} className="group relative aspect-square overflow-hidden border" style={fieldStyle}>
+                              <UnoptimizedImage src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                                className="absolute right-1 top-1 bg-black/65 px-2 py-1 text-[10px] font-semibold text-white opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
+                                style={{ borderRadius: 999 }}
+                              >
+                                Убрать
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </>
                 ) : (
                   <div className="border px-4 py-4 text-sm" style={{ ...fieldStyle, color: modalMutedColor, backgroundColor: "rgba(148, 163, 184, 0.08)" }}>
@@ -480,7 +600,7 @@ export default function PublicReviewAuthModal({
 
                 <button
                   type="submit"
-                  disabled={submitting || rating < 1 || !selectedAppointment}
+                  disabled={submitting || uploadingPhotos || rating < 1 || !selectedAppointment}
                   className="inline-flex items-center justify-center px-5 py-3 text-sm font-semibold disabled:opacity-50"
                   style={actionButtonStyle}
                 >

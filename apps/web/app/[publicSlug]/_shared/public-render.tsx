@@ -1180,7 +1180,7 @@ export function renderBlock(
     case "works":
       return renderWorks(block, workPhotos, current, theme);
     case "reviews":
-      return renderReviews(block, reviews, accountSlug, publicSlug, theme);
+      return renderReviews(block, reviews, accountName, accountSlug, publicSlug, theme);
     case "contacts":
       return renderContacts(block, accountName, profile, locations);
     default:
@@ -5045,7 +5045,7 @@ function renderPublicReviewStars(rating: number, starColor = "#ff9f0a") {
   );
 }
 
-function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: string, publicSlug: string, theme: SiteTheme) {
+function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: string, accountSlug: string, publicSlug: string, theme: SiteTheme) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
   const limit = Math.max(1, Math.min(24, Number(data.limit) || 6));
@@ -5178,6 +5178,15 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: str
         )
       ) : null}
       {review.comment ? <p className="mt-5 leading-6" style={{ fontSize: "var(--block-text-size)" }}>{review.comment}</p> : null}
+      {review.photoUrls?.length ? (
+        <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {review.photoUrls.slice(0, 8).map((url, index) => (
+            <div key={`${url}-${index}`} className="aspect-square overflow-hidden border" style={{ borderColor: "var(--review-card-border)", borderRadius: Math.min(cardRadius, 12) }}>
+              <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
+            </div>
+          ))}
+        </div>
+      ) : null}
       {review.replyText ? (
         <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm" style={{ color: mutedColor }}>
           <div className="font-semibold" style={{ color: textColor }}>Ответ салона</div>
@@ -5215,6 +5224,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: str
           </div>
           <PublicReviewAuthModal
             accountSlug={accountSlug}
+            accountName={accountName}
             buttonLabel="Авторизоваться"
             buttonClassName="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
             buttonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}

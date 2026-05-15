@@ -153,6 +153,7 @@ export type SiteReviewItem = {
   specialistName?: string | null;
   services?: Array<{ id: number; name: string }>;
   servicesLabel?: string | null;
+  photoUrls?: string[];
 };
 
 export type SitePromoItem = {

@@ -87,6 +87,25 @@ async function readReviewAutoPublish(accountId: number) {
   return settings?.reviewAutoPublish ?? true;
 }
 
+async function loadReviewPhotoMap(reviewIds: number[]) {
+  const ids = reviewIds.map((id) => String(id));
+  if (ids.length === 0) return new Map<string, string[]>();
+
+  const links = await prisma.mediaLink.findMany({
+    where: { entityType: "review.photo", entityId: { in: ids } },
+    include: { asset: { select: { url: true } } },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+  });
+
+  const map = new Map<string, string[]>();
+  links.forEach((link) => {
+    const current = map.get(link.entityId) ?? [];
+    current.push(link.asset.url);
+    map.set(link.entityId, current);
+  });
+  return map;
+}
+
 export async function GET(request: Request) {
   const session = await getClientSession();
   if (!session) {
@@ -101,6 +120,7 @@ export async function GET(request: Request) {
     orderBy: { createdAt: "desc" },
     select: { id: true, appointmentId: true, rating: true, comment: true, createdAt: true },
   });
+  const reviewPhotoMap = await loadReviewPhotoMap(reviews.map((review) => review.id));
 
   const reviewAppointmentIds = reviews
     .map((review) => review.appointmentId)
@@ -127,7 +147,10 @@ export async function GET(request: Request) {
   });
 
   return jsonOk({
-    reviews,
+    reviews: reviews.map((review) => ({
+      ...review,
+      photoUrls: reviewPhotoMap.get(String(review.id)) ?? [],
+    })),
     appointments: appointments.map((appointment) => ({
       id: appointment.id,
       startAt: appointment.startAt.toISOString(),
@@ -157,6 +180,7 @@ export async function POST(request: Request) {
     appointmentId?: number;
     entityType?: string;
     entityId?: string;
+    photoAssetIds?: number[];
     rating?: number;
     comment?: string;
   } | null;
@@ -229,22 +253,66 @@ export async function POST(request: Request) {
     return jsonError("INVALID_REVIEW_TARGET", "Выберите, к чему относится отзыв.", null, 400);
   }
 
-  const review = await prisma.review.create({
-    data: {
-      accountId: resolved.accountId,
-      clientId: resolved.clientId,
-      appointmentId: appointment.id,
-      entityType: target.entityType,
-      entityId: target.entityId,
-      rating,
-      comment: comment || null,
-      status,
-    },
-    select: { id: true, appointmentId: true, rating: true, comment: true, createdAt: true },
+  const photoAssetIds = Array.isArray(body.photoAssetIds)
+    ? Array.from(new Set(body.photoAssetIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))).slice(0, 5)
+    : [];
+
+  const photoAssets =
+    photoAssetIds.length > 0
+      ? await prisma.mediaAsset.findMany({
+          where: {
+            id: { in: photoAssetIds },
+            accountId: resolved.accountId,
+            type: "image",
+            url: { startsWith: `/uploads/accounts/${resolved.accountId}/review/` },
+          },
+          select: { id: true, url: true },
+        })
+      : [];
+
+  if (photoAssets.length !== photoAssetIds.length) {
+    return jsonError("INVALID_REVIEW_PHOTOS", "Не удалось прикрепить выбранные фотографии.", null, 400);
+  }
+
+  const review = await prisma.$transaction(async (tx) => {
+    const createdReview = await tx.review.create({
+      data: {
+        accountId: resolved.accountId,
+        clientId: resolved.clientId,
+        appointmentId: appointment.id,
+        entityType: target.entityType,
+        entityId: target.entityId,
+        rating,
+        comment: comment || null,
+        status,
+      },
+      select: { id: true, appointmentId: true, rating: true, comment: true, createdAt: true },
+    });
+
+    if (photoAssetIds.length > 0) {
+      await tx.mediaLink.createMany({
+        data: photoAssetIds.map((assetId, index) => ({
+          assetId,
+          entityType: "review.photo",
+          entityId: String(createdReview.id),
+          sortOrder: index,
+          isCover: index === 0,
+        })),
+      });
+    }
+
+    return createdReview;
   });
 
   await refreshRatingAggregate(resolved.accountId, "account", String(resolved.accountId));
   await refreshAppointmentTargetAggregates(resolved.accountId, appointment.id);
 
-  return jsonOk({ review });
+  const photoUrlById = new Map(photoAssets.map((asset) => [asset.id, asset.url]));
+
+  return jsonOk({
+    review: {
+      ...review,
+      photoUrls: photoAssetIds.map((id) => photoUrlById.get(id)).filter((url): url is string => Boolean(url)),
+    },
+  });
 }
