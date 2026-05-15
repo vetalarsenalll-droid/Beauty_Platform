@@ -83,6 +83,20 @@ export default function ClientReviewForm({ accountSlug, appointments, onSaved }:
     }
   };
 
+  const handlePhotoDelete = async (photo: UploadedReviewPhoto) => {
+    setError(null);
+    const response = await fetch(`/api/v1/client/reviews/media?account=${encodeURIComponent(accountSlug)}&id=${photo.id}`, {
+      method: "DELETE",
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(payload?.error?.message ?? "Не удалось удалить фотографию.");
+      return;
+    }
+    setPhotos((prev) => prev.filter((item) => item.id !== photo.id));
+  };
+
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedAppointment) {
@@ -210,10 +224,10 @@ export default function ClientReviewForm({ accountSlug, appointments, onSaved }:
                     <UnoptimizedImage src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
                     <button
                       type="button"
-                      onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                      onClick={() => void handlePhotoDelete(photo)}
                       className="absolute right-1 top-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
                     >
-                      Убрать
+                      Удалить
                     </button>
                   </div>
                 ))}

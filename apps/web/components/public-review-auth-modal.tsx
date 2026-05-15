@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 
 type ReviewAppointmentService = {
@@ -65,10 +65,23 @@ const MAX_REVIEW_PHOTOS = 5;
 
 function CustomSelect({ label, value, options, onChange, fieldStyle, mutedColor, disabled = false }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
+  const [hoveredValue, setHoveredValue] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((option) => option.value === value) ?? options[0] ?? null;
 
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
   return (
-    <div className="relative text-sm font-semibold">
+    <div ref={rootRef} className="relative text-sm font-semibold">
       <div>{label}</div>
       <button
         type="button"
@@ -92,6 +105,7 @@ function CustomSelect({ label, value, options, onChange, fieldStyle, mutedColor,
         >
           {options.map((option) => {
             const active = option.value === value;
+            const hovered = option.value === hoveredValue;
             return (
               <button
                 key={option.value}
@@ -99,8 +113,10 @@ function CustomSelect({ label, value, options, onChange, fieldStyle, mutedColor,
                 className="block w-full px-4 py-2.5 text-left text-sm transition hover:bg-black/[0.06]"
                 style={{
                   color: fieldStyle.color,
-                  backgroundColor: active ? "rgba(148, 163, 184, 0.18)" : "transparent",
+                  backgroundColor: active || hovered ? "rgba(148, 163, 184, 0.18)" : "transparent",
                 }}
+                onMouseEnter={() => setHoveredValue(option.value)}
+                onMouseLeave={() => setHoveredValue(null)}
                 onClick={() => {
                   onChange(option.value);
                   setOpen(false);
@@ -376,6 +392,20 @@ export default function PublicReviewAuthModal({
     }
   };
 
+  const handlePhotoDelete = async (photo: UploadedReviewPhoto) => {
+    setError(null);
+    const response = await fetch(`/api/v1/client/reviews/media?account=${encodeURIComponent(accountSlug)}&id=${photo.id}`, {
+      method: "DELETE",
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(errorMessage(payload, "Не удалось удалить фотографию."));
+      return;
+    }
+    setPhotos((prev) => prev.filter((item) => item.id !== photo.id));
+  };
+
+
   const handleReview = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedAppointment) {
@@ -577,11 +607,11 @@ export default function PublicReviewAuthModal({
                               <UnoptimizedImage src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
                               <button
                                 type="button"
-                                onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                                onClick={() => void handlePhotoDelete(photo)}
                                 className="absolute right-1 top-1 bg-black/65 px-2 py-1 text-[10px] font-semibold text-white opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
                                 style={{ borderRadius: 999 }}
                               >
-                                Убрать
+                                Удалить
                               </button>
                             </div>
                           ))}

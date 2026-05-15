@@ -2,7 +2,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { getClientSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import heicConvert from "heic-convert";
 import sharp from "sharp";
@@ -12,6 +12,11 @@ export const runtime = "nodejs";
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_DIMENSION = 2560;
 const MAX_PIXELS = 20_000_000;
+
+function parseId(value: string | null) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
 
 function resolveAccountClient(
   request: Request,
@@ -35,7 +40,7 @@ function resolveAccountClient(
 export async function POST(request: Request) {
   const session = await getClientSession();
   if (!session) {
-    return jsonError("UNAUTHORIZED", "Требуется вход в кабинете.", null, 401);
+    return jsonError("UNAUTHORIZED", "Требуется вход в кабинет.", null, 401);
   }
 
   const resolved = resolveAccountClient(request, session);
@@ -122,4 +127,50 @@ export async function POST(request: Request) {
   });
 
   return jsonOk({ id: asset.id, url: asset.url });
+}
+
+export async function DELETE(request: Request) {
+  const session = await getClientSession();
+  if (!session) {
+    return jsonError("UNAUTHORIZED", "Требуется вход в кабинете.", null, 401);
+  }
+
+  const resolved = resolveAccountClient(request, session);
+  if ("error" in resolved) return resolved.error;
+
+  const url = new URL(request.url);
+  const assetId = parseId(url.searchParams.get("id"));
+  if (!assetId) {
+    return jsonError("VALIDATION_FAILED", "Некорректный идентификатор фотографии.", null, 400);
+  }
+
+  const asset = await prisma.mediaAsset.findFirst({
+    where: {
+      id: assetId,
+      accountId: resolved.accountId,
+      type: "image",
+      url: { startsWith: `/uploads/accounts/${resolved.accountId}/review/` },
+    },
+    select: { id: true, url: true, links: { select: { id: true } } },
+  });
+
+  if (!asset) {
+    return jsonError("NOT_FOUND", "Фотография не найдена.", null, 404);
+  }
+
+  if (asset.links.length > 0) {
+    return jsonError("PHOTO_ALREADY_ATTACHED", "Фотография уже прикреплена к отзыву.", null, 409);
+  }
+
+  await prisma.mediaAsset.delete({ where: { id: asset.id } });
+
+  const rel = asset.url.replace(/^\//, "");
+  const candidate = path.join(process.cwd(), "public", rel);
+  const uploadsRoot = path.join(process.cwd(), "public", "uploads") + path.sep;
+  const resolvedPath = path.resolve(candidate);
+  if (resolvedPath.startsWith(path.resolve(uploadsRoot))) {
+    await unlink(resolvedPath).catch(() => undefined);
+  }
+
+  return jsonOk({ id: asset.id });
 }

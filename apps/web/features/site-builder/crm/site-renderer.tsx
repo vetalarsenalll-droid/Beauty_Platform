@@ -14,6 +14,7 @@ import BookingClient from "@/app/booking/booking-client";
 import SiteLoader from "@/components/site-loader";
 import GallerySlider from "@/components/gallery-slider";
 import PublicReviewAuthModal from "@/components/public-review-auth-modal";
+import ReviewPhotoGallery from "@/components/review-photo-gallery";
 import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import {
   resolveCoverBackgroundVisual,
@@ -6956,6 +6957,10 @@ export function renderReviews(
   const buttonTextDark = style.buttonTextColorDarkResolved || "#111827";
   const buttonBg = "var(--review-button-bg)";
   const buttonText = "var(--review-button-text)";
+  const entityLinkStyle: CSSProperties = {
+    color: mutedColor,
+    cursor: "pointer",
+  };
   const reviewThemeStyle = {
     "--review-card-bg-light": cardBgLight,
     "--review-card-bg-dark": cardBgDark,
@@ -6996,7 +7001,7 @@ export function renderReviews(
           {subtitle}
         </p>
       ) : null}
-      <div className={`mt-5 grid max-h-[900px] items-start gap-5 overflow-y-auto pr-2 ${isMobilePreview ? "" : "lg:grid-cols-[360px_minmax(0,1fr)]"}`}>
+      <div className={`bp-review-scroll mt-5 grid max-h-[900px] items-start gap-5 overflow-y-auto pr-2 ${isMobilePreview ? "" : "lg:grid-cols-[360px_minmax(0,1fr)]"}`}>
         <aside className="h-[300px] self-start overflow-hidden border p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={cardStyle}>
           <div className="flex items-baseline gap-1 leading-none">
             <span className="text-3xl font-semibold leading-none">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
@@ -7043,22 +7048,16 @@ export function renderReviews(
                 </div>
                 {renderStars(review.rating)}
               </div>
-              {review.servicesLabel ? <div className="mt-5 text-xs uppercase tracking-wide" style={{ color: mutedColor }}>{review.servicesLabel}</div> : null}
-              {review.specialistName ? <div className="mt-1 text-sm text-blue-600">{review.specialistName}</div> : null}
-              {review.locationName ? <div className="mt-1 text-xs" style={{ color: mutedColor }}>{review.locationName}</div> : null}
+              {review.servicesLabel ? <div className="mt-5 text-xs uppercase tracking-wide transition hover:opacity-75" style={entityLinkStyle}>{review.servicesLabel}</div> : null}
+              {review.specialistName ? <div className="mt-1 text-sm transition hover:opacity-75" style={entityLinkStyle}>{review.specialistName}</div> : null}
+              {review.locationName ? <div className="mt-1 text-xs transition hover:opacity-75" style={entityLinkStyle}>{review.locationName}</div> : null}
               <p className="mt-5 leading-6">{review.comment}</p>
               {review.photoUrls?.length ? (
-                <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {review.photoUrls.slice(0, 8).map((url, index) => (
-                    <div key={`${url}-${index}`} className="aspect-square overflow-hidden border" style={{ borderColor: "var(--review-card-border)", borderRadius: Math.min(cardRadius, 12) }}>
-                      <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  ))}
-                </div>
+                <ReviewPhotoGallery urls={review.photoUrls} cardRadius={cardRadius} borderColor="var(--review-card-border)" />
               ) : null}
               {review.replyText ? (
                 <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm" style={{ color: mutedColor }}>
-                  <div className="font-semibold" style={{ color: textColor }}>Ответ салона</div>
+                  <div className="font-semibold" style={{ color: textColor }}>Ответ</div>
                   <div className="mt-1">{review.replyText}</div>
                 </div>
               ) : null}

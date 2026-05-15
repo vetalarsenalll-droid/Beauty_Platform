@@ -7,6 +7,7 @@ import SiteThemeToggle from "@/components/site-theme-toggle";
 import DetailsCloseButton from "@/components/details-close-button";
 import GallerySlider from "@/components/gallery-slider";
 import PublicReviewAuthModal from "@/components/public-review-auth-modal";
+import ReviewPhotoGallery from "@/components/review-photo-gallery";
 import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
@@ -5115,7 +5116,10 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
     borderRadius: cardRadius,
     color: textColor,
   } as CSSProperties;
-  const entityLinkStyle = { color: "#2563eb" };
+  const entityLinkStyle: CSSProperties = {
+    color: mutedColor,
+    cursor: "pointer",
+  };
   const renderReviewServices = (review: ReviewItem) => {
     const numericEntityId = review.entityId ? Number(review.entityId) : null;
     const fallbackServiceId =
@@ -5132,7 +5136,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
           {services.map((service, index) => (
             <span key={`${service.id}-${index}`}>
               {index > 0 ? <span style={{ color: mutedColor }}>, </span> : null}
-              <Link href={`/${publicSlug}/services/${service.id}`} style={{ ...entityLinkStyle, color: mutedColor }}>
+              <Link href={`/${publicSlug}/services/${service.id}`} className="transition hover:opacity-75" style={entityLinkStyle}>
                 {service.name}
               </Link>
             </span>
@@ -5161,16 +5165,16 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
       {renderReviewServices(review)}
       {review.specialistName ? (
         review.specialistId ? (
-          <Link href={`/${publicSlug}/specialists/${review.specialistId}`} className="mt-1 block text-sm" style={entityLinkStyle}>
+          <Link href={`/${publicSlug}/specialists/${review.specialistId}`} className="mt-1 block text-sm transition hover:opacity-75" style={entityLinkStyle}>
             {review.specialistName}
           </Link>
         ) : (
-          <div className="mt-1 text-sm" style={entityLinkStyle}>{review.specialistName}</div>
+          <div className="mt-1 text-sm" style={{ color: mutedColor }}>{review.specialistName}</div>
         )
       ) : null}
       {review.locationName ? (
         review.locationId ? (
-          <Link href={`/${publicSlug}/locations/${review.locationId}`} className="mt-1 block text-xs" style={{ color: mutedColor }}>
+          <Link href={`/${publicSlug}/locations/${review.locationId}`} className="mt-1 block text-xs transition hover:opacity-75" style={entityLinkStyle}>
             {review.locationName}
           </Link>
         ) : (
@@ -5179,17 +5183,11 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
       ) : null}
       {review.comment ? <p className="mt-5 leading-6" style={{ fontSize: "var(--block-text-size)" }}>{review.comment}</p> : null}
       {review.photoUrls?.length ? (
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {review.photoUrls.slice(0, 8).map((url, index) => (
-            <div key={`${url}-${index}`} className="aspect-square overflow-hidden border" style={{ borderColor: "var(--review-card-border)", borderRadius: Math.min(cardRadius, 12) }}>
-              <UnoptimizedImage src={url} alt="" className="h-full w-full object-cover" />
-            </div>
-          ))}
-        </div>
+        <ReviewPhotoGallery urls={review.photoUrls} cardRadius={cardRadius} borderColor="var(--review-card-border)" />
       ) : null}
       {review.replyText ? (
         <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm" style={{ color: mutedColor }}>
-          <div className="font-semibold" style={{ color: textColor }}>Ответ салона</div>
+          <div className="font-semibold" style={{ color: textColor }}>Ответ</div>
           <div className="mt-1">{review.replyText}</div>
         </div>
       ) : null}
@@ -5202,7 +5200,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
         {(data.title as string) || "Отзывы"}
       </h2>
       {subtitle ? <p className="mt-2" style={subheadingStyle(style)}>{subtitle}</p> : null}
-      <div className="mt-5 grid max-h-[900px] items-start gap-5 overflow-y-auto pr-2 lg:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="bp-review-scroll mt-5 grid max-h-[900px] items-start gap-5 overflow-y-auto pr-2 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="h-[300px] self-start overflow-hidden border p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={cardStyle}>
           <div className="flex items-baseline gap-1 leading-none">
             <span className="text-3xl font-semibold leading-none">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
