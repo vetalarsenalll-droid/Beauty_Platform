@@ -24,7 +24,16 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
   const resolvedSearchParams = await Promise.resolve(searchParams);
   const dateParam =
     typeof resolvedSearchParams?.date === "string" ? resolvedSearchParams.date : undefined;
-  const initialDate = parseDateParam(dateParam) ?? new Date();
+  const appointmentParam =
+    typeof resolvedSearchParams?.appointmentId === "string" ? resolvedSearchParams.appointmentId : undefined;
+  const initialAppointmentId = parseIntParam(appointmentParam);
+  const initialAppointment = initialAppointmentId
+    ? await prisma.appointment.findFirst({
+        where: { id: initialAppointmentId, accountId: session.accountId },
+        select: { id: true, startAt: true, locationId: true },
+      })
+    : null;
+  const initialDate = parseDateParam(dateParam) ?? initialAppointment?.startAt ?? new Date();
 
   const monthStart = new Date(initialDate.getFullYear(), initialDate.getMonth(), 1, 0, 0, 0, 0);
   const monthEnd = new Date(initialDate.getFullYear(), initialDate.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -129,8 +138,9 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
       ? resolvedSearchParams.locationId
       : undefined;
   const desiredLocId = parseIntParam(locParam);
+  const targetLocId = desiredLocId ?? initialAppointment?.locationId ?? null;
   const initialLocationId =
-    (desiredLocId && locations.some((l) => l.id === desiredLocId) ? desiredLocId : null) ??
+    (targetLocId && locations.some((l) => l.id === targetLocId) ? targetLocId : null) ??
     locations[0]?.id ??
     null;
 
@@ -184,6 +194,7 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
       <JournalView
         initialDate={initialDate.toISOString().slice(0, 10)}
         initialLocationId={initialLocationId}
+        initialAppointmentId={initialAppointment?.id ?? null}
         staff={staff}
         clients={clients.map((client) => {
           const firstName = client.firstName ?? "";

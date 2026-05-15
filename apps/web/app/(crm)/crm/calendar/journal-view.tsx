@@ -125,6 +125,7 @@ type ServiceOption = {
 type JournalViewProps = {
   initialDate: string;
   initialLocationId: number | null;
+  initialAppointmentId?: number | null;
   staff: StaffItem[];
   clients: JournalClient[];
   locations: JournalLocation[];
@@ -450,6 +451,7 @@ type EditorForm = {
 export default function JournalView({
   initialDate,
   initialLocationId,
+  initialAppointmentId = null,
   staff,
   clients,
   locations,
@@ -491,7 +493,12 @@ export default function JournalView({
     top: number;
     left: number;
   } | null>(null);
-  const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const initialAppointment = initialAppointmentId
+    ? appointments.find((appointment) => appointment.id === initialAppointmentId) ?? null
+    : null;
+  const [editorState, setEditorState] = useState<EditorState | null>(
+    initialAppointment ? { mode: "edit", appointment: initialAppointment } : null
+  );
   const [editorForm, setEditorForm] = useState<EditorForm | null>(null);
   const [participantUpdatingId, setParticipantUpdatingId] = useState<number | null>(null);
   const [participantUpdateError, setParticipantUpdateError] = useState<string | null>(null);
@@ -523,6 +530,7 @@ export default function JournalView({
   const dragPointerDownAtRef = useRef<number | null>(null);
   const dragArmedRef = useRef(false);
   const dragArmTimeoutRef = useRef<number | null>(null);
+  const locationCloseReadyRef = useRef(false);
   const handleAppointmentDropRef = useRef<
     ((appointmentId: number, rowIndex: number, colIndex: number, offsetMinutes: number) => void) | null
   >(null);
@@ -700,6 +708,10 @@ export default function JournalView({
 
   // ✅ при смене локации закрываем редактор
   useEffect(() => {
+    if (!locationCloseReadyRef.current) {
+      locationCloseReadyRef.current = true;
+      return;
+    }
     setEditorState(null);
   }, [selectedLocationId]);
 

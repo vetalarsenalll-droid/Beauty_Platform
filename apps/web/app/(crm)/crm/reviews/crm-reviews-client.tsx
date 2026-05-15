@@ -85,6 +85,50 @@ const tabs = [
   { key: "photos", label: "С фото" },
 ] as const;
 
+const fieldClass =
+  "h-10 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm outline-none transition focus:border-[color:var(--bp-ink)] focus:ring-2 focus:ring-black/5 disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]";
+const textareaClass =
+  "w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm outline-none transition focus:border-[color:var(--bp-ink)] focus:ring-2 focus:ring-black/5 disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]";
+
+const moderationModeOptions = [
+  { value: "publish", label: "Публиковать сразу" },
+  { value: "all", label: "Все новые на проверку" },
+  { value: "auto", label: "Проверять по оценке и словам" },
+  { value: "words", label: "Проверять только слова" },
+];
+
+const moderationMinRatingOptions = [
+  { value: "", label: "Не использовать" },
+  { value: "1", label: "1 звезда и ниже" },
+  { value: "2", label: "2 звезды и ниже" },
+  { value: "3", label: "3 звезды и ниже" },
+];
+
+const ratingOptions = [
+  { value: "all", label: "Все оценки" },
+  { value: "5", label: "5 звезд" },
+  { value: "4", label: "4 звезды" },
+  { value: "3", label: "3 звезды" },
+  { value: "2", label: "2 звезды" },
+  { value: "1", label: "1 звезда" },
+];
+
+const entityTypeOptions = [
+  { value: "all", label: "Все объекты" },
+  { value: "account", label: "Аккаунт" },
+  { value: "service", label: "Услуга" },
+  { value: "specialist", label: "Специалист" },
+  { value: "location", label: "Локация" },
+];
+
+const sortOptions = [
+  { value: "newest", label: "Новые" },
+  { value: "oldest", label: "Старые" },
+  { value: "low-rating", label: "Низкая оценка" },
+  { value: "high-rating", label: "Высокая оценка" },
+  { value: "unanswered", label: "Без ответа" },
+];
+
 const templates = [
   "Спасибо за отзыв! Нам очень приятно, что вы остались довольны.",
   "Спасибо, что поделились впечатлениями. Нам жаль, что опыт оказался неидеальным, мы разберем ситуацию внутри команды.",
@@ -138,6 +182,109 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
       <div className="text-xs font-medium text-[color:var(--bp-muted)]">{label}</div>
       <div className="mt-2 text-2xl font-semibold text-[color:var(--bp-ink)]">{value}</div>
       {sub ? <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{sub}</div> : null}
+    </div>
+  );
+}
+
+function CustomCheckbox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-[color:var(--bp-muted)]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only"
+      />
+      <span
+        className={`grid h-5 w-5 place-items-center rounded-md border transition ${
+          checked
+            ? "border-[color:var(--bp-ink)] bg-[color:var(--bp-ink)] text-white"
+            : "border-[color:var(--bp-stroke)] bg-white text-transparent"
+        }`}
+        aria-hidden="true"
+      >
+        <span className="text-[13px] leading-none">✓</span>
+      </span>
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function CustomSelect({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selected = options.find((option) => option.value === value) ?? options[0] ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      {label ? <div className="mb-1 text-xs font-medium text-[color:var(--bp-muted)]">{label}</div> : null}
+      <button
+        type="button"
+        className="flex h-10 w-full items-center justify-between gap-3 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 text-left text-sm outline-none transition hover:border-[color:var(--bp-ink)] focus-visible:border-[color:var(--bp-ink)] focus-visible:ring-2 focus-visible:ring-black/5"
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="min-w-0 truncate">{selected?.label ?? ""}</span>
+        <span className={`text-[11px] text-[color:var(--bp-muted)] transition ${open ? "rotate-180" : ""}`} aria-hidden="true">
+          ▼
+        </span>
+      </button>
+      {open ? (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-[color:var(--bp-stroke)] bg-white py-1 shadow-[0_18px_45px_rgba(15,23,42,0.16)]" role="listbox">
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={`block w-full px-3 py-2.5 text-left text-sm transition ${
+                  active
+                    ? "bg-[color:var(--bp-ink)] text-white"
+                    : "text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-chip)]"
+                }`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                role="option"
+                aria-selected={active}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -222,6 +369,17 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
   }, [activeTab, dateFrom, dateTo, entityType, items, query, rating, sort]);
 
   const selectedReview = items.find((review) => review.id === selectedReviewId) ?? null;
+  const moderationMode = reviewSettings.reviewModerationMode;
+  const showRatingRule = moderationMode === "auto";
+  const showWordsRule = moderationMode === "auto" || moderationMode === "words";
+  const moderationDescription =
+    moderationMode === "publish"
+      ? "Новые отзывы сразу появляются на сайте. Проверка по оценке и словам не применяется."
+      : moderationMode === "all"
+      ? "Каждый новый отзыв попадает в статус \"На модерации\". Опубликуйте или скройте его вручную."
+      : moderationMode === "words"
+      ? "Отзывы публикуются сразу, кроме тех, где найдено одно из указанных слов или фраз."
+      : "Отзывы публикуются сразу, кроме низких оценок и отзывов с указанными словами.";
 
   const loadMore = async () => {
     setLoadingMore(true);
@@ -288,17 +446,16 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
 
   const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
     setBusy(true);
     const response = await fetch("/api/v1/crm/reviews/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        reviewAutoPublish: form.get("reviewAutoPublish") === "on",
-        reviewAllowReplies: form.get("reviewAllowReplies") === "on",
-        reviewModerationMode: form.get("reviewModerationMode"),
-        reviewModerationMinRating: form.get("reviewModerationMinRating") || null,
-        reviewModerationWords: String(form.get("reviewModerationWords") ?? ""),
+        reviewAutoPublish: reviewSettings.reviewAutoPublish,
+        reviewAllowReplies: reviewSettings.reviewAllowReplies,
+        reviewModerationMode: reviewSettings.reviewModerationMode,
+        reviewModerationMinRating: showRatingRule ? reviewSettings.reviewModerationMinRating : null,
+        reviewModerationWords: reviewSettings.reviewModerationWords.join("\n"),
       }),
     });
     const payload = await response.json().catch(() => null);
@@ -359,44 +516,66 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
       </section>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="grid gap-5">
           <div>
             <h1 className="text-xl font-semibold">Отзывы</h1>
             <p className="mt-1 text-sm text-[color:var(--bp-muted)]">Модерация, поиск, ответы и фото по отзывам аккаунта, услуг, специалистов и локаций.</p>
+            <div className="mt-4 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-bg)] px-4 py-3 text-sm text-[color:var(--bp-muted)]">
+              Публикация новых отзывов и разрешение ответов задаются в общих настройках CRM. Здесь оставлены только правила модерации.
+            </div>
           </div>
 
-          <form onSubmit={saveSettings} className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-bg)] p-4 text-sm lg:min-w-[460px]">
-            <label className="flex items-center gap-3">
-              <input name="reviewAutoPublish" type="checkbox" defaultChecked={reviewSettings.reviewAutoPublish} />
-              Публиковать новые отзывы сразу
-            </label>
-            <label className="flex items-center gap-3">
-              <input name="reviewAllowReplies" type="checkbox" defaultChecked={reviewSettings.reviewAllowReplies} />
-              Разрешить ответы компании
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-[color:var(--bp-muted)]">Режим модерации</span>
-              <select name="reviewModerationMode" defaultValue={reviewSettings.reviewModerationMode} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm">
-                <option value="auto">Автопубликация + правила</option>
-                <option value="publish">Публиковать сразу</option>
-                <option value="all">Все новые на модерацию</option>
-                <option value="words">На модерацию только по словам</option>
-              </select>
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-[color:var(--bp-muted)]">Порог оценки для модерации</span>
-              <select name="reviewModerationMinRating" defaultValue={reviewSettings.reviewModerationMinRating ?? ""} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm">
-                <option value="">Не использовать</option>
-                <option value="1">1 звезда и ниже</option>
-                <option value="2">2 звезды и ниже</option>
-                <option value="3">3 звезды и ниже</option>
-              </select>
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium text-[color:var(--bp-muted)]">Слова и фразы для модерации</span>
-              <textarea name="reviewModerationWords" defaultValue={reviewSettings.reviewModerationWords.join("\n")} rows={3} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm" placeholder={"ужас\nобман\nне советую"} />
-            </label>
-            <button className="rounded-xl bg-[color:var(--bp-ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={busy} type="submit">
+          <form onSubmit={saveSettings} className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4 text-sm shadow-sm">
+            <div>
+              <div className="font-semibold text-[color:var(--bp-ink)]">Правила модерации</div>
+              <div className="mt-1 text-xs leading-5 text-[color:var(--bp-muted)]">{moderationDescription}</div>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-[minmax(260px,340px)_minmax(220px,280px)_minmax(0,1fr)]">
+              <CustomSelect
+                label="Что делать с новыми отзывами"
+                value={moderationMode}
+                options={moderationModeOptions}
+                onChange={(value) =>
+                  setReviewSettings((current) => ({
+                    ...current,
+                    reviewModerationMode: value,
+                    reviewModerationMinRating: value === "auto" ? current.reviewModerationMinRating : null,
+                  }))
+                }
+              />
+              {showRatingRule ? (
+                <CustomSelect
+                  label="Отправлять на проверку оценки"
+                  value={reviewSettings.reviewModerationMinRating ? String(reviewSettings.reviewModerationMinRating) : ""}
+                  options={moderationMinRatingOptions}
+                  onChange={(value) =>
+                    setReviewSettings((current) => ({
+                      ...current,
+                      reviewModerationMinRating: value ? Number(value) : null,
+                    }))
+                  }
+                />
+              ) : null}
+              {showWordsRule ? (
+                <label className={`grid gap-1 ${showRatingRule ? "" : "lg:col-span-2"}`}>
+                  <span className="text-xs font-medium text-[color:var(--bp-muted)]">Отправлять на проверку по словам</span>
+                  <textarea
+                    name="reviewModerationWords"
+                    value={reviewSettings.reviewModerationWords.join("\n")}
+                    onChange={(event) =>
+                      setReviewSettings((current) => ({
+                        ...current,
+                        reviewModerationWords: event.target.value.split("\n"),
+                      }))
+                    }
+                    rows={3}
+                    className={textareaClass}
+                    placeholder={"ужас\nобман\nне советую"}
+                  />
+                </label>
+              ) : null}
+            </div>
+            <button className="w-fit rounded-xl bg-[color:var(--bp-ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={busy} type="submit">
               Сохранить настройки
             </button>
           </form>
@@ -411,43 +590,20 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-[1.4fr_0.7fr_0.9fr_0.8fr_0.8fr_0.9fr]">
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по клиенту, отзыву, услуге, специалисту, локации" className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--bp-accent)]" />
-          <select value={rating} onChange={(event) => setRating(event.target.value)} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm">
-            <option value="all">Все оценки</option>
-            {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} звезд</option>)}
-          </select>
-          <select value={entityType} onChange={(event) => setEntityType(event.target.value)} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm">
-            <option value="all">Все объекты</option>
-            <option value="account">Аккаунт</option>
-            <option value="service">Услуга</option>
-            <option value="specialist">Специалист</option>
-            <option value="location">Локация</option>
-          </select>
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm" />
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm" />
-          <select value={sort} onChange={(event) => setSort(event.target.value)} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm">
-            <option value="newest">Новые</option>
-            <option value="oldest">Старые</option>
-            <option value="low-rating">Низкая оценка</option>
-            <option value="high-rating">Высокая оценка</option>
-            <option value="unanswered">Без ответа</option>
-          </select>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по клиенту, отзыву, услуге, специалисту, локации" className={fieldClass} />
+          <CustomSelect value={rating} options={ratingOptions} onChange={setRating} />
+          <CustomSelect value={entityType} options={entityTypeOptions} onChange={setEntityType} />
+          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className={fieldClass} />
+          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className={fieldClass} />
+          <CustomSelect value={sort} options={sortOptions} onChange={setSort} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[color:var(--bp-muted)]">
           <span>Найдено: {filteredReviews.length} из {items.length} загруженных</span>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={(event) => setSelectedIds(event.target.checked ? visibleIds : [])}
-              />
-              Выбрать видимые
-            </label>
+            <CustomCheckbox checked={allVisibleSelected} onChange={(checked) => setSelectedIds(checked ? visibleIds : [])} label="Выбрать видимые" />
             <span>Выбрано: {selectedIds.length}</span>
             <button type="button" onClick={() => applyBulkStatus("PUBLISHED")} disabled={busy || selectedIds.length === 0} className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-xs font-semibold disabled:opacity-50">Опубликовать</button>
-            <button type="button" onClick={() => applyBulkStatus("PENDING")} disabled={busy || selectedIds.length === 0} className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-xs font-semibold disabled:opacity-50">На модерацию</button>
             <button type="button" onClick={() => applyBulkStatus("HIDDEN")} disabled={busy || selectedIds.length === 0} className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-xs font-semibold disabled:opacity-50">Скрыть</button>
           </div>
         </div>
@@ -527,10 +683,9 @@ function ReviewCard({
   return (
     <article className={`grid gap-4 p-5 xl:grid-cols-[260px_1fr_220px] ${isNegative ? "bg-rose-50/45" : "bg-white"}`}>
       <div>
-        <label className="mb-3 flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
-          <input type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} />
-          Выбрать
-        </label>
+        <div className="mb-3">
+          <CustomCheckbox checked={selected} onChange={onSelect} label="Выбрать" />
+        </div>
         <button type="button" onClick={onOpen} className="text-left font-semibold text-[color:var(--bp-ink)] hover:underline">{clientName(review)}</button>
         <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{formatDate(review.createdAt, true)}</div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -561,14 +716,14 @@ function ReviewCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        {(["PUBLISHED", "PENDING", "HIDDEN"] as CrmReviewStatus[]).map((status) => (
+        {(["PUBLISHED", "HIDDEN"] as CrmReviewStatus[]).map((status) => (
           <button key={status} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-left text-sm font-semibold disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]" disabled={disabled || review.status === status} type="button" onClick={() => onStatus(review.id, status)}>
             {statusLabels[status]}
           </button>
         ))}
         <button type="button" onClick={onOpen} className="w-full rounded-xl bg-[color:var(--bp-ink)] px-3 py-2 text-left text-sm font-semibold text-white">Детали</button>
         <Link href={`/crm/clients/${review.clientId}`} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold">Открыть клиента</Link>
-        {review.appointmentId ? <Link href={`/crm/calendar?appointmentId=${review.appointmentId}`} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold">Открыть запись</Link> : null}
+        {review.appointmentId ? <Link href={`/crm/calendar?appointmentId=${review.appointmentId}${review.appointment?.startAt ? `&date=${review.appointment.startAt.slice(0, 10)}` : ""}`} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold">Открыть запись</Link> : null}
       </div>
     </article>
   );
@@ -738,7 +893,7 @@ function ReviewDrawer({
         {review.photoUrls.length ? <div className="mt-6"><h3 className="text-sm font-semibold">Фото клиента</h3><PhotoStrip urls={review.photoUrls} /></div> : null}
         <ReplyEditor review={review} value={replyText} onChange={setReplyText} onSave={(nextReplyText) => onReply(review.id, nextReplyText)} onReplyPhotos={onReplyPhotos} allowReplies={settings.reviewAllowReplies} disabled={disabled} />
         <div className="mt-6 grid gap-2 sm:grid-cols-3">
-          {(["PUBLISHED", "PENDING", "HIDDEN"] as CrmReviewStatus[]).map((status) => (
+          {(["PUBLISHED", "HIDDEN"] as CrmReviewStatus[]).map((status) => (
             <button key={status} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]" disabled={disabled || review.status === status} type="button" onClick={() => onStatus(review.id, status)}>
               {statusLabels[status]}
             </button>

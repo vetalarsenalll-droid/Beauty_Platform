@@ -227,6 +227,7 @@ export default function PublicReviewAuthModal({
   const [saved, setSaved] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [closeHovered, setCloseHovered] = useState(false);
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   const selectedAppointment =
     appointments.find((appointment) => appointment.id === appointmentId) ??
@@ -326,6 +327,22 @@ export default function PublicReviewAuthModal({
     setOpen(true);
     void checkSession();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const stopModalKeyboardPropagation = (event: KeyboardEvent) => {
+      if (modalRef.current?.contains(event.target as Node)) {
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener("keydown", stopModalKeyboardPropagation, true);
+    window.addEventListener("keyup", stopModalKeyboardPropagation, true);
+    return () => {
+      window.removeEventListener("keydown", stopModalKeyboardPropagation, true);
+      window.removeEventListener("keyup", stopModalKeyboardPropagation, true);
+    };
+  }, [open]);
 
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -442,6 +459,7 @@ export default function PublicReviewAuthModal({
         return;
       }
 
+      setSubmitting(false);
       const nextAppointments = appointments.filter((appointment) => appointment.id !== selectedAppointment.id);
       setAppointments(nextAppointments);
       setAppointmentId(nextAppointments[0]?.id ?? 0);
@@ -449,11 +467,15 @@ export default function PublicReviewAuthModal({
       setComment("");
       setPhotos([]);
       setSaved(true);
-      router.refresh();
+      window.setTimeout(() => {
+        setOpen(false);
+        setSaved(false);
+        router.refresh();
+      }, 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось сохранить отзыв.");
     } finally {
-      setSubmitting(false);
+      if (!saved) setSubmitting(false);
     }
   };
 
@@ -466,8 +488,14 @@ export default function PublicReviewAuthModal({
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-8">
           <div
+            ref={modalRef}
             className="relative max-h-[90vh] w-full max-w-[520px] overflow-y-auto p-6 shadow-[0_24px_70px_rgba(15,23,42,0.25)]"
             style={{ backgroundColor: "#ffffff", borderRadius: 8, color: modalTextColor, ...modalStyle }}
+            onKeyDownCapture={(event) => event.stopPropagation()}
+            onKeyUpCapture={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            onKeyUp={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
           >
             <button
               type="button"
@@ -630,7 +658,7 @@ export default function PublicReviewAuthModal({
 
                 <button
                   type="submit"
-                  disabled={submitting || uploadingPhotos || rating < 1 || !selectedAppointment}
+                  disabled={saved || submitting || uploadingPhotos || rating < 1 || !selectedAppointment}
                   className="inline-flex items-center justify-center px-5 py-3 text-sm font-semibold disabled:opacity-50"
                   style={actionButtonStyle}
                 >
