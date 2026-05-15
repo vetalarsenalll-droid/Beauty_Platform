@@ -71,9 +71,9 @@ const statusLabels: Record<CrmReviewStatus, string> = {
 };
 
 const statusTone: Record<CrmReviewStatus, string> = {
-  PUBLISHED: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  PENDING: "bg-amber-50 text-amber-700 border-amber-100",
-  HIDDEN: "bg-zinc-100 text-zinc-600 border-zinc-200",
+  PUBLISHED: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200",
+  PENDING: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200",
+  HIDDEN: "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-white/15 dark:bg-white/10 dark:text-zinc-200",
 };
 
 const tabs = [
@@ -86,9 +86,9 @@ const tabs = [
 ] as const;
 
 const fieldClass =
-  "h-10 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 text-sm outline-none transition focus:border-[color:var(--bp-ink)] focus:ring-2 focus:ring-black/5 disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]";
+  "h-10 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] px-3 text-sm text-[color:var(--bp-ink)] outline-none transition placeholder:text-[color:var(--bp-muted)] focus:border-[color:var(--bp-ink)] focus:ring-2 focus:ring-black/5 disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]";
 const textareaClass =
-  "w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm outline-none transition focus:border-[color:var(--bp-ink)] focus:ring-2 focus:ring-black/5 disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]";
+  "w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] px-3 py-2 text-sm text-[color:var(--bp-ink)] outline-none transition placeholder:text-[color:var(--bp-muted)] focus:border-[color:var(--bp-ink)] focus:ring-2 focus:ring-black/5 disabled:bg-[color:var(--bp-chip)] disabled:text-[color:var(--bp-muted)]";
 
 const moderationModeOptions = [
   { value: "publish", label: "Публиковать сразу" },
@@ -206,8 +206,8 @@ function CustomCheckbox({
       <span
         className={`grid h-5 w-5 place-items-center rounded-md border transition ${
           checked
-            ? "border-[color:var(--bp-ink)] bg-[color:var(--bp-ink)] text-white"
-            : "border-[color:var(--bp-stroke)] bg-white text-transparent"
+            ? "border-[color:var(--bp-ink)] bg-[color:var(--bp-ink)] text-[color:var(--bp-paper)]"
+            : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] text-transparent"
         }`}
         aria-hidden="true"
       >
@@ -245,46 +245,48 @@ function CustomSelect({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="grid gap-1">
       {label ? <div className="mb-1 text-xs font-medium text-[color:var(--bp-muted)]">{label}</div> : null}
-      <button
-        type="button"
-        className="flex h-10 w-full items-center justify-between gap-3 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 text-left text-sm outline-none transition hover:border-[color:var(--bp-ink)] focus-visible:border-[color:var(--bp-ink)] focus-visible:ring-2 focus-visible:ring-black/5"
-        onClick={() => setOpen((current) => !current)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="min-w-0 truncate">{selected?.label ?? ""}</span>
-        <span className={`text-[11px] text-[color:var(--bp-muted)] transition ${open ? "rotate-180" : ""}`} aria-hidden="true">
-          ▼
-        </span>
-      </button>
-      {open ? (
-        <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-[color:var(--bp-stroke)] bg-white py-1 shadow-[0_18px_45px_rgba(15,23,42,0.16)]" role="listbox">
-          {options.map((option) => {
-            const active = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                className={`block w-full px-3 py-2.5 text-left text-sm transition ${
-                  active
-                    ? "bg-[color:var(--bp-ink)] text-white"
-                    : "text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-chip)]"
-                }`}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                role="option"
-                aria-selected={active}
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
+      <div className="relative h-10">
+        <button
+          type="button"
+          className="flex h-10 w-full items-center justify-between gap-3 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] px-3 text-left text-sm text-[color:var(--bp-ink)] outline-none transition hover:border-[color:var(--bp-ink)] focus-visible:border-[color:var(--bp-ink)] focus-visible:ring-2 focus-visible:ring-black/5"
+          onClick={() => setOpen((current) => !current)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <span className="min-w-0 truncate">{selected?.label ?? ""}</span>
+          <span className={`text-[11px] text-[color:var(--bp-muted)] transition ${open ? "rotate-180" : ""}`} aria-hidden="true">
+            ▼
+          </span>
+        </button>
+        {open ? (
+          <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] py-1 shadow-[0_18px_45px_rgba(15,23,42,0.28)]" role="listbox">
+            {options.map((option) => {
+              const active = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`block w-full px-3 py-2.5 text-left text-sm transition ${
+                    active
+                      ? "bg-[color:var(--bp-ink)] text-[color:var(--bp-paper)]"
+                      : "text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-chip)]"
+                  }`}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                  role="option"
+                  aria-selected={active}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -525,7 +527,7 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
             </div>
           </div>
 
-          <form onSubmit={saveSettings} className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4 text-sm shadow-sm">
+          <form onSubmit={saveSettings} className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 text-sm shadow-sm">
             <div>
               <div className="font-semibold text-[color:var(--bp-ink)]">Правила модерации</div>
               <div className="mt-1 text-xs leading-5 text-[color:var(--bp-muted)]">{moderationDescription}</div>
@@ -575,7 +577,7 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
                 </label>
               ) : null}
             </div>
-            <button className="w-fit rounded-xl bg-[color:var(--bp-ink)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={busy} type="submit">
+            <button className="w-fit rounded-xl bg-[color:var(--bp-ink)] px-4 py-2 text-sm font-semibold text-[color:var(--bp-paper)] disabled:opacity-60" disabled={busy} type="submit">
               Сохранить настройки
             </button>
           </form>
@@ -583,7 +585,7 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
 
         <div className="mt-5 flex flex-wrap gap-2">
           {tabs.map((tab) => (
-            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={`rounded-full px-4 py-2 text-xs font-semibold ${activeTab === tab.key ? "bg-[color:var(--bp-ink)] text-white" : "border border-[color:var(--bp-stroke)] bg-white text-[color:var(--bp-muted)]"}`}>
+            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={`rounded-full px-4 py-2 text-xs font-semibold ${activeTab === tab.key ? "bg-[color:var(--bp-ink)] text-[color:var(--bp-paper)]" : "border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] text-[color:var(--bp-muted)]"}`}>
               {tab.label}
             </button>
           ))}
@@ -633,7 +635,7 @@ export default function CrmReviewsClient({ reviews, settings, total, pageSize }:
 
         {items.length < totalCount ? (
           <div className="mt-5 flex justify-center">
-            <button type="button" onClick={loadMore} disabled={loadingMore} className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-4 py-2 text-sm font-semibold disabled:opacity-60">
+            <button type="button" onClick={loadMore} disabled={loadingMore} className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] px-4 py-2 text-sm font-semibold disabled:opacity-60">
               {loadingMore ? "Загрузка..." : `Загрузить еще ${Math.min(pageSize, totalCount - items.length)}`}
             </button>
           </div>
@@ -681,7 +683,7 @@ function ReviewCard({
   const [replyText, setReplyText] = useState(review.replyText ?? "");
 
   return (
-    <article className={`grid gap-4 p-5 xl:grid-cols-[260px_1fr_220px] ${isNegative ? "bg-rose-50/45" : "bg-white"}`}>
+    <article className={`grid gap-4 p-5 xl:grid-cols-[260px_1fr_220px] ${isNegative ? "bg-rose-500/10" : "bg-[color:var(--bp-panel)]"}`}>
       <div>
         <div className="mb-3">
           <CustomCheckbox checked={selected} onChange={onSelect} label="Выбрать" />
@@ -690,7 +692,7 @@ function ReviewCard({
         <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{formatDate(review.createdAt, true)}</div>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusTone[review.status]}`}>{statusLabels[review.status]}</span>
-          {!review.replyText ? <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">Без ответа</span> : null}
+          {!review.replyText ? <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200">Без ответа</span> : null}
         </div>
       </div>
 
@@ -701,7 +703,7 @@ function ReviewCard({
           {review.appointment?.serviceNames.length ? <span className="text-xs text-[color:var(--bp-muted)]">{review.appointment.serviceNames.join(", ")}</span> : null}
         </div>
         {review.comment ? <p className="mt-3 text-sm leading-6 text-[color:var(--bp-ink)]">{review.comment}</p> : null}
-        {review.moderationReason ? <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">{review.moderationReason}</div> : null}
+        {review.moderationReason ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-100">{review.moderationReason}</div> : null}
         {review.photoUrls.length ? <PhotoStrip urls={review.photoUrls} /> : null}
         {review.repliedByUserName ? <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Ответил: {review.repliedByUserName}</div> : null}
         <ReplyEditor
@@ -721,7 +723,7 @@ function ReviewCard({
             {statusLabels[status]}
           </button>
         ))}
-        <button type="button" onClick={onOpen} className="w-full rounded-xl bg-[color:var(--bp-ink)] px-3 py-2 text-left text-sm font-semibold text-white">Детали</button>
+        <button type="button" onClick={onOpen} className="w-full rounded-xl bg-[color:var(--bp-ink)] px-3 py-2 text-left text-sm font-semibold text-[color:var(--bp-paper)]">Детали</button>
         <Link href={`/crm/clients/${review.clientId}`} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold">Открыть клиента</Link>
         {review.appointmentId ? <Link href={`/crm/calendar?appointmentId=${review.appointmentId}${review.appointment?.startAt ? `&date=${review.appointment.startAt.slice(0, 10)}` : ""}`} className="w-full rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold">Открыть запись</Link> : null}
       </div>
@@ -780,7 +782,7 @@ function ReplyEditor({
           </button>
         ))}
       </div>
-      <textarea value={value} onChange={(event) => onChange(event.target.value.slice(0, 1000))} disabled={!allowReplies} maxLength={1000} className="min-h-20 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--bp-accent)] disabled:opacity-60" placeholder="Ответ" />
+      <textarea value={value} onChange={(event) => onChange(event.target.value.slice(0, 1000))} disabled={!allowReplies} maxLength={1000} className={`${textareaClass} min-h-20`} placeholder="Ответ" />
       <div className="flex flex-wrap items-center gap-2">
         <button className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold disabled:opacity-60" disabled={!allowReplies || disabled} type="button" onClick={() => onSave(value)}>Сохранить ответ</button>
         {review.replyText ? <button className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm font-semibold disabled:opacity-60" disabled={!allowReplies || disabled} type="button" onClick={() => { onChange(""); onSave(""); }}>Удалить ответ</button> : null}
@@ -794,7 +796,7 @@ function ReplyEditor({
           {review.replyPhotos.map((photo) => (
             <div key={photo.assetId} className="relative h-20 w-20 overflow-hidden rounded-xl border border-[color:var(--bp-stroke)]">
               <UnoptimizedImage src={photo.url} alt="" className="h-full w-full object-cover" />
-              <button type="button" onClick={() => deleteReplyPhoto(photo.assetId)} disabled={mediaBusy} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold shadow disabled:opacity-60">Удалить</button>
+              <button type="button" onClick={() => deleteReplyPhoto(photo.assetId)} disabled={mediaBusy} className="absolute right-1 top-1 rounded-full bg-[color:var(--bp-panel)]/90 px-2 py-1 text-[10px] font-semibold shadow disabled:opacity-60">Удалить</button>
             </div>
           ))}
         </div>
@@ -888,7 +890,7 @@ function ReviewDrawer({
         </dl>
         <div className="mt-6">
           <h3 className="text-sm font-semibold">Текст отзыва</h3>
-          <p className="mt-2 whitespace-pre-wrap rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4 text-sm leading-6">{review.comment || "Текст не указан."}</p>
+          <p className="mt-2 whitespace-pre-wrap rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)] p-4 text-sm leading-6">{review.comment || "Текст не указан."}</p>
         </div>
         {review.photoUrls.length ? <div className="mt-6"><h3 className="text-sm font-semibold">Фото клиента</h3><PhotoStrip urls={review.photoUrls} /></div> : null}
         <ReplyEditor review={review} value={replyText} onChange={setReplyText} onSave={(nextReplyText) => onReply(review.id, nextReplyText)} onReplyPhotos={onReplyPhotos} allowReplies={settings.reviewAllowReplies} disabled={disabled} />
@@ -901,7 +903,7 @@ function ReviewDrawer({
         </div>
         <div className="mt-8">
           <h3 className="text-sm font-semibold">История действий</h3>
-          <div className="mt-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-white">
+          <div className="mt-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel-strong)]">
             {auditBusy ? (
               <div className="p-4 text-sm text-[color:var(--bp-muted)]">Загрузка истории...</div>
             ) : logs.length === 0 ? (
