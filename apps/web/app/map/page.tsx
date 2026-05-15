@@ -26,7 +26,6 @@ export default async function Page() {
           name: true,
           slug: true,
           branding: { select: { logoUrl: true } },
-          _count: { select: { services: true } },
         },
       },
     },
@@ -45,13 +44,12 @@ export default async function Page() {
       address: location.address,
       logoUrl: location.account.branding?.logoUrl ?? null,
       href: `/${publicSlug}`,
-      bookingHref: `/${publicSlug}/booking`,
-      servicesCount: location.account._count.services,
+      detailHref: `/${publicSlug}/locations/${location.id}`,
+      bookingHref: `/${publicSlug}/booking?scenario=dateFirst&locationId=${location.id}`,
       lat: geo.lat,
       lng: geo.lng,
     }];
   });
-  const accountCount = new Set(locations.map((location) => location.account.id)).size;
 
   const pageStyle: CSSProperties = {
     fontFamily: 'var(--font-montserrat), var(--font-sans)',
@@ -81,57 +79,10 @@ export default async function Page() {
                   Организации и специалисты на карте города.
                 </p>
               </div>
-              <div className="rounded-2xl bg-[color:var(--bp-accent)]/10 px-4 py-2 text-xs font-semibold text-[color:var(--bp-accent)]">
-                {accountCount} аккаунтов
-              </div>
             </div>
 
-            <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="mt-6">
               <MapClient points={points} />
-
-              <aside className="rounded-[24px] border border-[color:var(--bp-stroke)] bg-[#f9fafb] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold">Аккаунты на карте</div>
-                  <div className="text-xs text-[color:var(--bp-muted)]">
-                    {points.length} с координатами
-                  </div>
-                </div>
-
-                <div className="mt-4 flex max-h-[492px] flex-col gap-3 overflow-auto pr-1">
-                  {points.map((point, index) => (
-                    <div
-                      key={point.id}
-                      className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--bp-accent)] text-xs font-semibold text-white">
-                          {index + 1}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold">{point.accountName}</div>
-                          <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                            {point.locationName}
-                          </div>
-                          <div className="mt-1 line-clamp-2 text-xs text-[color:var(--bp-muted)]">
-                            {point.address}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2 text-xs">
-                        <span className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-[color:var(--bp-muted)]">
-                          Услуг: {point.servicesCount}
-                        </span>
-                        <a
-                          href={point.bookingHref}
-                          className="ml-auto rounded-full bg-[color:var(--bp-accent)] px-3 py-1 font-semibold text-white"
-                        >
-                          Записаться
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </aside>
             </div>
           </section>
         </div>
