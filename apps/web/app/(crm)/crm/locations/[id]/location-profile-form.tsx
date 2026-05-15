@@ -1,8 +1,12 @@
 "use client";
 
 import { UnoptimizedImage } from "@/components/unoptimized-image";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import LocationAddressField, {
+  findAddressGeo,
+  type LocationGeo,
+} from "../location-address-field";
 
 type LocationProfileFormProps = {
   location: {
@@ -20,7 +24,7 @@ type LocationProfileFormProps = {
     vkUrl: string | null;
     viberUrl: string | null;
     pinterestUrl: string | null;
-    geo: { lat: number; lng: number } | null;
+    geo: LocationGeo | null;
   };
 };
 
@@ -30,6 +34,7 @@ export default function LocationProfileForm({
   const router = useRouter();
   const [name, setName] = useState(location.name);
   const [address, setAddress] = useState(location.address);
+  const [geo, setGeo] = useState<LocationGeo | null>(location.geo);
   const [description, setDescription] = useState(location.description ?? "");
   const [phone, setPhone] = useState(location.phone ?? "");
   const [status, setStatus] = useState(location.status);
@@ -40,23 +45,25 @@ export default function LocationProfileForm({
   const [maxUrl, setMaxUrl] = useState(location.maxUrl ?? "");
   const [vkUrl, setVkUrl] = useState(location.vkUrl ?? "");
   const [viberUrl, setViberUrl] = useState(location.viberUrl ?? "");
-  const [pinterestUrl, setPinterestUrl] = useState(
-    location.pinterestUrl ?? ""
-  );
-  const [lat, setLat] = useState(
-    location.geo ? String(location.geo.lat) : ""
-  );
-  const [lng, setLng] = useState(
-    location.geo ? String(location.geo.lng) : ""
-  );
-  const [clearGeo, setClearGeo] = useState(false);
+  const [pinterestUrl, setPinterestUrl] = useState(location.pinterestUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGeoChange = useCallback((nextGeo: LocationGeo | null) => {
+    setGeo(nextGeo);
+  }, []);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setSaving(true);
+
+    const resolvedGeo = geo ?? (await findAddressGeo(address));
+    if (!resolvedGeo) {
+      setError("Выберите адрес из подсказок, чтобы мы определили координаты.");
+      setSaving(false);
+      return;
+    }
 
     const payload: Record<string, unknown> = {
       name: name.trim(),
@@ -72,20 +79,8 @@ export default function LocationProfileForm({
       vkUrl: vkUrl.trim() ? vkUrl.trim() : null,
       viberUrl: viberUrl.trim() ? viberUrl.trim() : null,
       pinterestUrl: pinterestUrl.trim() ? pinterestUrl.trim() : null,
+      geo: { lat: resolvedGeo.lat, lng: resolvedGeo.lng },
     };
-
-    if (clearGeo) {
-      payload.geo = null;
-    } else if (lat.trim() && lng.trim()) {
-      const parsedLat = Number(lat);
-      const parsedLng = Number(lng);
-      if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-        setError("Широта и долгота должны быть числом.");
-        setSaving(false);
-        return;
-      }
-      payload.geo = { lat: parsedLat, lng: parsedLng };
-    }
 
     try {
       const response = await fetch(`/api/v1/crm/locations/${location.id}`, {
@@ -118,16 +113,13 @@ export default function LocationProfileForm({
             required
           />
         </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Адрес
-          <input
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            required
-          />
-        </label>
+        <LocationAddressField
+          value={address}
+          onChange={setAddress}
+          onGeoChange={handleGeoChange}
+        />
       </div>
+
       <label className="flex flex-col gap-2 text-sm">
         Описание
         <textarea
@@ -137,36 +129,7 @@ export default function LocationProfileForm({
           className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
         />
       </label>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm">
-          Широта
-          <input
-            value={lat}
-            onChange={(event) => setLat(event.target.value)}
-            placeholder="55.7558"
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Долгота
-          <input
-            value={lng}
-            onChange={(event) => setLng(event.target.value)}
-            placeholder="37.6176"
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          />
-        </label>
-      </div>
-      {location.geo ? (
-        <label className="flex items-center gap-2 text-sm text-[color:var(--bp-muted)]">
-          <input
-            type="checkbox"
-            checked={clearGeo}
-            onChange={(event) => setClearGeo(event.target.checked)}
-          />
-          Удалить координаты
-        </label>
-      ) : null}
+
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           Телефон
@@ -191,15 +154,12 @@ export default function LocationProfileForm({
           </span>
         </label>
       </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           Сайт
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/website.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/website.png" alt="" className="h-6 w-6" />
             <input
               value={websiteUrl}
               onChange={(event) => setWebsiteUrl(event.target.value)}
@@ -211,11 +171,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Instagram
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/instagram.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/instagram.png" alt="" className="h-6 w-6" />
             <input
               value={instagramUrl}
               onChange={(event) => setInstagramUrl(event.target.value)}
@@ -225,15 +181,12 @@ export default function LocationProfileForm({
           </div>
         </label>
       </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           WhatsApp
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/whatsapp.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/whatsapp.png" alt="" className="h-6 w-6" />
             <input
               value={whatsappUrl}
               onChange={(event) => setWhatsappUrl(event.target.value)}
@@ -245,11 +198,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Telegram
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/telegram.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/telegram.png" alt="" className="h-6 w-6" />
             <input
               value={telegramUrl}
               onChange={(event) => setTelegramUrl(event.target.value)}
@@ -259,15 +208,12 @@ export default function LocationProfileForm({
           </div>
         </label>
       </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           MAX
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/max.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/max.png" alt="" className="h-6 w-6" />
             <input
               value={maxUrl}
               onChange={(event) => setMaxUrl(event.target.value)}
@@ -279,11 +225,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           VK
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/vk.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/vk.png" alt="" className="h-6 w-6" />
             <input
               value={vkUrl}
               onChange={(event) => setVkUrl(event.target.value)}
@@ -295,11 +237,7 @@ export default function LocationProfileForm({
         <label className="flex flex-col gap-2 text-sm">
           Viber
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/viber.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/viber.png" alt="" className="h-6 w-6" />
             <input
               value={viberUrl}
               onChange={(event) => setViberUrl(event.target.value)}
@@ -309,15 +247,12 @@ export default function LocationProfileForm({
           </div>
         </label>
       </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           Pinterest
           <div className="flex items-center gap-2">
-            <UnoptimizedImage
-              src="/assets/socials/pinterest.png"
-              alt=""
-              className="h-6 w-6"
-            />
+            <UnoptimizedImage src="/assets/socials/pinterest.png" alt="" className="h-6 w-6" />
             <input
               value={pinterestUrl}
               onChange={(event) => setPinterestUrl(event.target.value)}
@@ -327,6 +262,7 @@ export default function LocationProfileForm({
           </div>
         </label>
       </div>
+
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"

@@ -1,41 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import LocationAddressField, {
+  findAddressGeo,
+  type LocationGeo,
+} from "./location-address-field";
 
 export default function LocationCreateForm() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  const [geo, setGeo] = useState<LocationGeo | null>(null);
   const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState("ACTIVE");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleGeoChange = useCallback((nextGeo: LocationGeo | null) => {
+    setGeo(nextGeo);
+  }, []);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setSaving(true);
 
+    const resolvedGeo = geo ?? (await findAddressGeo(address));
+    if (!resolvedGeo) {
+      setError("Выберите адрес из подсказок, чтобы мы определили координаты.");
+      setSaving(false);
+      return;
+    }
+
     const payload: Record<string, unknown> = {
-      name,
-      address,
+      name: name.trim(),
+      address: address.trim(),
       description: description.trim() ? description.trim() : null,
       phone: phone.trim() ? phone.trim() : null,
       status,
     };
 
-    if (lat.trim() && lng.trim()) {
-      const parsedLat = Number(lat);
-      const parsedLng = Number(lng);
-      if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-        setError("Широта и долгота должны быть числом.");
-        setSaving(false);
-        return;
-      }
-      payload.geo = { lat: parsedLat, lng: parsedLng };
-    }
+    payload.geo = { lat: resolvedGeo.lat, lng: resolvedGeo.lng };
 
     try {
       const response = await fetch("/api/v1/crm/locations", {
@@ -68,15 +73,11 @@ export default function LocationCreateForm() {
             required
           />
         </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Адрес
-          <input
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            required
-          />
-        </label>
+        <LocationAddressField
+          value={address}
+          onChange={setAddress}
+          onGeoChange={handleGeoChange}
+        />
       </div>
       <label className="flex flex-col gap-2 text-sm">
         Описание
@@ -87,26 +88,6 @@ export default function LocationCreateForm() {
           className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
         />
       </label>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm">
-          Широта
-          <input
-            value={lat}
-            onChange={(event) => setLat(event.target.value)}
-            placeholder="55.7558"
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Долгота
-          <input
-            value={lng}
-            onChange={(event) => setLng(event.target.value)}
-            placeholder="37.6176"
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-          />
-        </label>
-      </div>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2 text-sm">
           Телефон
