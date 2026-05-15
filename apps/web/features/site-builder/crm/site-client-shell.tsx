@@ -168,6 +168,7 @@ export default function SiteClient({
   specialistLevels,
   specialists: initialSpecialists,
   promos,
+  reviews,
   workPhotos,
 }: SiteClientProps) {
   const [, setPublicPage] = useState(initialPublicPage);
@@ -1264,6 +1265,7 @@ export default function SiteClient({
                   services={services}
                   specialists={specialists}
                   promos={promos}
+                  reviews={reviews}
                   workPhotos={workPhotos}
                   theme={activeTheme}
                   loaderConfig={loaderConfig}

@@ -6,6 +6,7 @@ import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import DetailsCloseButton from "@/components/details-close-button";
 import GallerySlider from "@/components/gallery-slider";
+import PublicReviewAuthModal from "@/components/public-review-auth-modal";
 import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
@@ -1179,7 +1180,7 @@ export function renderBlock(
     case "works":
       return renderWorks(block, workPhotos, current, theme);
     case "reviews":
-      return renderReviews(block, reviews, accountSlug);
+      return renderReviews(block, reviews, accountSlug, publicSlug, theme);
     case "contacts":
       return renderContacts(block, accountName, profile, locations);
     default:
@@ -5034,20 +5035,22 @@ function renderWorks(
   );
 }
 
-function renderPublicReviewStars(rating: number) {
+function renderPublicReviewStars(rating: number, starColor = "#ff9f0a") {
   const safeRating = Math.max(0, Math.min(5, Math.round(rating)));
   return (
-    <div className="whitespace-nowrap text-[#ff9f0a]" aria-label={`Оценка ${safeRating} из 5`}>
+    <div className="whitespace-nowrap leading-none" style={{ color: starColor }} aria-label={`Оценка ${safeRating} из 5`}>
       {"★".repeat(safeRating)}
-      <span className="text-slate-200">{"★".repeat(Math.max(0, 5 - safeRating))}</span>
+      <span style={{ color: "#d9dee8" }}>{"★".repeat(Math.max(0, 5 - safeRating))}</span>
     </div>
   );
 }
 
-function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: string) {
+function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: string, publicSlug: string, theme: SiteTheme) {
   const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block, theme);
   const limit = Math.max(1, Math.min(24, Number(data.limit) || 6));
   const visibleReviews = reviews.slice(0, limit);
+  const extraReviews = reviews.slice(limit);
   const ratingCount = reviews.length;
   const ratingAvg = ratingCount > 0 ? reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount : 0;
   const distribution = [5, 4, 3, 2, 1].map((rating) => ({
@@ -5060,75 +5063,191 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: str
       : data.subtitle
         ? String(data.subtitle)
         : "";
-  return (
-    <div className="bg-[#f4f5f8] px-4 py-8 md:px-8">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="text-2xl font-semibold text-[#111827]" style={{ fontFamily: "var(--site-font-heading)" }}>
-          {(data.title as string) || "Отзывы"}
-        </h2>
-        {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
-        <div className="mt-5 grid gap-5 lg:grid-cols-[235px_minmax(0,1fr)]">
-          <aside className="rounded-[8px] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-            <div className="flex items-end gap-1">
-              <span className="text-3xl font-semibold text-[#111827]">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
-              <span className="pb-1 text-xl font-semibold text-slate-300">/5</span>
-            </div>
-            <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{ratingCount} отзывов</div>
-            <div className="mt-4 space-y-2">
-              {distribution.map((item) => (
-                <div key={item.rating} className="flex items-center gap-2 text-xs">
-                  <span className="w-8 text-[#ff9f0a]">{"★".repeat(item.rating)}</span>
-                  <div className="h-1.5 flex-1 rounded-full bg-slate-200">
-                    <div className="h-full rounded-full bg-[#ff9f0a]" style={{ width: `${ratingCount ? (item.count / ratingCount) * 100 : 0}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 text-xs leading-5 text-[color:var(--bp-muted)]">
-              Чтобы оставить отзыв, войдите в личный кабинет. Отзыв доступен после завершенного визита.
-            </div>
-            <a href={`/c?account=${encodeURIComponent(accountSlug)}`} className="mt-3 inline-flex w-full items-center justify-center rounded-[8px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white">
-              Авторизоваться
-            </a>
-          </aside>
+  const cardRadius = style.cardRadius ?? style.radius ?? 8;
+  const buttonRadius = style.buttonRadius ?? 8;
+  const cardBgLight = style.cardBgLight || style.subBlockBgLightResolved || "#ffffff";
+  const cardBgDark = style.cardBgDark || style.subBlockBgDarkResolved || "#16181d";
+  const cardBorderLight = style.cardBorderColorLight || "transparent";
+  const cardBorderDark = style.cardBorderColorDark || "transparent";
+  const textColorLight = style.textColorLightResolved || "#111827";
+  const textColorDark = style.textColorDarkResolved || "#f8fafc";
+  const mutedColorLight = style.mutedColorLightResolved || "#6b7280";
+  const mutedColorDark = style.mutedColorDarkResolved || "#a1a5ad";
+  const textColor = "var(--review-text)";
+  const mutedColor = "var(--review-muted)";
+  const visibleColor = (value: string | undefined, fallback: string) => {
+    const trimmed = value?.trim();
+    return trimmed && trimmed.toLowerCase() !== "transparent" ? trimmed : fallback;
+  };
+  const starColorLight = visibleColor(style.secondaryButtonBgLight, "#ff9f0a");
+  const starColorDark = visibleColor(style.secondaryButtonBgDark, starColorLight);
+  const ratingTrackColorLight = visibleColor(style.fieldBorderColorLight, "#e2e8f0");
+  const ratingTrackColorDark = visibleColor(style.fieldBorderColorDark, "#303642");
+  const starColor = "var(--review-star)";
+  const ratingTrackColor = "var(--review-track)";
+  const buttonBgLight = style.buttonColorLightResolved || "#111827";
+  const buttonBgDark = style.buttonColorDarkResolved || "#f8fafc";
+  const buttonTextLight = style.buttonTextColorLightResolved || "#ffffff";
+  const buttonTextDark = style.buttonTextColorDarkResolved || "#111827";
+  const buttonBg = "var(--review-button-bg)";
+  const buttonText = "var(--review-button-text)";
+  const reviewThemeStyle = {
+    "--review-card-bg-light": cardBgLight,
+    "--review-card-bg-dark": cardBgDark,
+    "--review-card-border-light": cardBorderLight,
+    "--review-card-border-dark": cardBorderDark,
+    "--review-text-light": textColorLight,
+    "--review-text-dark": textColorDark,
+    "--review-muted-light": mutedColorLight,
+    "--review-muted-dark": mutedColorDark,
+    "--review-star-light": starColorLight,
+    "--review-star-dark": starColorDark,
+    "--review-track-light": ratingTrackColorLight,
+    "--review-track-dark": ratingTrackColorDark,
+    "--review-button-bg-light": buttonBgLight,
+    "--review-button-bg-dark": buttonBgDark,
+    "--review-button-text-light": buttonTextLight,
+    "--review-button-text-dark": buttonTextDark,
+  } as CSSProperties;
+  const cardStyle = {
+    backgroundColor: "var(--review-card-bg)",
+    borderColor: "var(--review-card-border)",
+    borderRadius: cardRadius,
+    color: textColor,
+  } as CSSProperties;
+  const entityLinkStyle = { color: "#2563eb" };
+  const renderReviewServices = (review: ReviewItem) => {
+    const numericEntityId = review.entityId ? Number(review.entityId) : null;
+    const fallbackServiceId =
+      review.entityType === "service" && Number.isFinite(numericEntityId) ? numericEntityId : null;
+    const services = review.services?.length
+      ? review.services
+      : fallbackServiceId && review.servicesLabel
+        ? [{ id: fallbackServiceId, name: review.servicesLabel }]
+        : [];
 
-          <div className="space-y-3">
-            {visibleReviews.length > 0 ? (
-              visibleReviews.map((review) => (
-                <article key={review.id} className="rounded-[8px] bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-[#111827]">{review.clientName}</div>
-                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                        {new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(review.createdAt))}
-                      </div>
-                    </div>
-                    {renderPublicReviewStars(review.rating)}
-                  </div>
-                  {review.servicesLabel ? <div className="mt-5 text-xs uppercase tracking-wide text-[color:var(--bp-muted)]">{review.servicesLabel}</div> : null}
-                  {review.specialistName ? <div className="mt-1 text-sm text-blue-600">{review.specialistName}</div> : null}
-                  {review.locationName ? <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{review.locationName}</div> : null}
-                  {review.comment ? <p className="mt-5 leading-6 text-[#1f2937]">{review.comment}</p> : null}
-                  {review.replyText ? (
-                    <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm text-[color:var(--bp-muted)]">
-                      <div className="font-semibold text-[#111827]">Ответ салона</div>
-                      <div className="mt-1">{review.replyText}</div>
-                    </div>
-                  ) : null}
-                </article>
-              ))
-            ) : (
-              <div className="rounded-[8px] bg-white p-5 text-sm text-[color:var(--bp-muted)] shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
-                Отзывы будут отображаться здесь после их появления.
-              </div>
-            )}
+    if (services.length > 0) {
+      return (
+        <div className="mt-5 flex flex-wrap gap-x-2 gap-y-1 text-xs uppercase tracking-wide">
+          {services.map((service, index) => (
+            <span key={`${service.id}-${index}`}>
+              {index > 0 ? <span style={{ color: mutedColor }}>, </span> : null}
+              <Link href={`/${publicSlug}/services/${service.id}`} style={{ ...entityLinkStyle, color: mutedColor }}>
+                {service.name}
+              </Link>
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    return review.servicesLabel ? (
+      <div className="mt-5 text-xs uppercase tracking-wide" style={{ color: mutedColor }}>
+        {review.servicesLabel}
+      </div>
+    ) : null;
+  };
+  const renderReviewCard = (review: ReviewItem) => (
+    <article key={review.id} className="border p-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={cardStyle}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-semibold">{review.clientName}</div>
+          <div className="mt-1 text-xs" style={{ color: mutedColor }}>
+            {new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(review.createdAt))}
           </div>
+        </div>
+        {renderPublicReviewStars(review.rating, starColor)}
+      </div>
+      {renderReviewServices(review)}
+      {review.specialistName ? (
+        review.specialistId ? (
+          <Link href={`/${publicSlug}/specialists/${review.specialistId}`} className="mt-1 block text-sm" style={entityLinkStyle}>
+            {review.specialistName}
+          </Link>
+        ) : (
+          <div className="mt-1 text-sm" style={entityLinkStyle}>{review.specialistName}</div>
+        )
+      ) : null}
+      {review.locationName ? (
+        review.locationId ? (
+          <Link href={`/${publicSlug}/locations/${review.locationId}`} className="mt-1 block text-xs" style={{ color: mutedColor }}>
+            {review.locationName}
+          </Link>
+        ) : (
+          <div className="mt-1 text-xs" style={{ color: mutedColor }}>{review.locationName}</div>
+        )
+      ) : null}
+      {review.comment ? <p className="mt-5 leading-6" style={{ fontSize: "var(--block-text-size)" }}>{review.comment}</p> : null}
+      {review.replyText ? (
+        <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm" style={{ color: mutedColor }}>
+          <div className="font-semibold" style={{ color: textColor }}>Ответ салона</div>
+          <div className="mt-1">{review.replyText}</div>
+        </div>
+      ) : null}
+    </article>
+  );
+
+  return (
+    <div className="site-review-theme" style={reviewThemeStyle}>
+      <h2 className="font-semibold" style={headingStyle(style)}>
+        {(data.title as string) || "Отзывы"}
+      </h2>
+      {subtitle ? <p className="mt-2" style={subheadingStyle(style)}>{subtitle}</p> : null}
+      <div className="mt-5 grid max-h-[900px] items-start gap-5 overflow-y-auto pr-2 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className="h-[300px] self-start overflow-hidden border p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={cardStyle}>
+          <div className="flex items-baseline gap-1 leading-none">
+            <span className="text-3xl font-semibold leading-none">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
+            <span className="text-xl font-semibold leading-none" style={{ color: "#cbd5e1" }}>/5</span>
+          </div>
+          <div className="mt-1 text-xs" style={{ color: mutedColor }}>{ratingCount} отзывов</div>
+          <div className="mt-4 space-y-2">
+            {distribution.map((item) => (
+              <div key={item.rating} className="flex items-center gap-2 text-xs">
+                <span className="w-20 whitespace-nowrap leading-none" style={{ color: starColor }}>{"★".repeat(item.rating)}</span>
+                <div className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: ratingTrackColor }}>
+                  <div className="h-full rounded-full" style={{ width: `${ratingCount ? (item.count / ratingCount) * 100 : 0}%`, backgroundColor: starColor }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-xs leading-5" style={{ color: mutedColor }}>
+            Чтобы оставлять отзывы, вам необходимо авторизоваться
+          </div>
+          <PublicReviewAuthModal
+            accountSlug={accountSlug}
+            buttonLabel="Авторизоваться"
+            buttonClassName="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
+            buttonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
+            modalStyle={{ backgroundColor: "var(--review-card-bg)", borderRadius: cardRadius }}
+            modalTextColor={textColor}
+            modalMutedColor={mutedColor}
+            modalButtonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
+            modalFieldStyle={{ borderRadius: cardRadius }}
+            starColor={starColor}
+          />
+        </aside>
+
+        <div className="space-y-3">
+          {visibleReviews.length > 0 ? (
+            visibleReviews.map(renderReviewCard)
+          ) : (
+            <div className="border p-5 text-sm shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={{ ...cardStyle, color: mutedColor }}>
+              Отзывы будут отображаться здесь после их появления.
+            </div>
+          )}
+          {extraReviews.length > 0 ? (
+            <details className="group">
+              <summary className="mt-4 inline-flex cursor-pointer list-none items-center justify-center px-5 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden" style={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}>
+                Показать еще
+              </summary>
+              <div className="mt-3 space-y-3">{extraReviews.map(renderReviewCard)}</div>
+            </details>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
-
 function renderContacts(
   block: SiteBlock,
   accountName: string,

@@ -118,9 +118,11 @@ export async function GET(request: Request) {
     select: {
       id: true,
       startAt: true,
+      locationId: true,
+      specialistId: true,
       location: { select: { name: true } },
       specialist: { select: { user: { select: { profile: { select: { firstName: true, lastName: true } } } } } },
-      services: { select: { service: { select: { name: true } } }, orderBy: { orderIndex: "asc" } },
+      services: { select: { serviceId: true, service: { select: { name: true } } }, orderBy: { orderIndex: "asc" } },
     },
   });
 
@@ -129,11 +131,14 @@ export async function GET(request: Request) {
     appointments: appointments.map((appointment) => ({
       id: appointment.id,
       startAt: appointment.startAt.toISOString(),
+      locationId: appointment.locationId,
       locationName: appointment.location.name,
+      specialistId: appointment.specialistId,
       specialistName:
         [appointment.specialist.user.profile?.firstName, appointment.specialist.user.profile?.lastName]
           .filter(Boolean)
           .join(" ") || "Специалист",
+      services: appointment.services.map((item) => ({ id: item.serviceId, name: item.service.name })),
       servicesLabel: appointment.services.map((item) => item.service.name).join(", ") || "Услуга",
     })),
   });
@@ -150,6 +155,8 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as {
     appointmentId?: number;
+    entityType?: string;
+    entityId?: string;
     rating?: number;
     comment?: string;
   } | null;
@@ -182,6 +189,8 @@ export async function POST(request: Request) {
     select: {
       id: true,
       status: true,
+      locationId: true,
+      specialistId: true,
       services: { select: { serviceId: true }, orderBy: { orderIndex: "asc" } },
     },
   });
@@ -202,15 +211,31 @@ export async function POST(request: Request) {
   }
 
   const status = (await readReviewAutoPublish(resolved.accountId)) ? "PUBLISHED" : "PENDING";
-  const primaryServiceId = appointment.services[0]?.serviceId ?? null;
+  const requestedEntityType = String(body.entityType ?? "account");
+  const requestedEntityId = String(body.entityId ?? "").trim();
+  const serviceIds = new Set(appointment.services.map((item) => String(item.serviceId)));
+  const target =
+    requestedEntityType === "location" && requestedEntityId === String(appointment.locationId)
+      ? { entityType: "location", entityId: String(appointment.locationId) }
+      : requestedEntityType === "specialist" && requestedEntityId === String(appointment.specialistId)
+        ? { entityType: "specialist", entityId: String(appointment.specialistId) }
+        : requestedEntityType === "service" && serviceIds.has(requestedEntityId)
+          ? { entityType: "service", entityId: requestedEntityId }
+          : requestedEntityType === "account"
+            ? { entityType: "account", entityId: String(resolved.accountId) }
+            : null;
+
+  if (!target) {
+    return jsonError("INVALID_REVIEW_TARGET", "Выберите, к чему относится отзыв.", null, 400);
+  }
 
   const review = await prisma.review.create({
     data: {
       accountId: resolved.accountId,
       clientId: resolved.clientId,
       appointmentId: appointment.id,
-      entityType: primaryServiceId ? "service" : "account",
-      entityId: primaryServiceId ? String(primaryServiceId) : String(resolved.accountId),
+      entityType: target.entityType,
+      entityId: target.entityId,
       rating,
       comment: comment || null,
       status,

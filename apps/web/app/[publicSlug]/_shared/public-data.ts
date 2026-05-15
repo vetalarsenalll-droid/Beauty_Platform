@@ -135,13 +135,14 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
         client: true,
         appointment: {
           include: {
-            location: { select: { name: true } },
+            location: { select: { id: true, name: true } },
             specialist: {
               select: {
+                id: true,
                 user: { select: { profile: { select: { firstName: true, lastName: true } } } },
               },
             },
-            services: { select: { service: { select: { name: true } } }, orderBy: { orderIndex: "asc" } },
+            services: { select: { service: { select: { id: true, name: true } } }, orderBy: { orderIndex: "asc" } },
           },
         },
       },
@@ -445,26 +446,34 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     };
   });
 
-  const reviewItems: ReviewItem[] = reviews.map((review) => ({
-    id: review.id,
-    rating: review.rating,
-    comment: review.comment,
-    entityType: review.entityType,
-    entityId: review.entityId,
-    replyText: review.replyText,
-    createdAt: review.createdAt.toISOString(),
-    locationName: review.appointment?.location?.name ?? null,
-    specialistName:
-      [review.appointment?.specialist?.user?.profile?.firstName, review.appointment?.specialist?.user?.profile?.lastName]
-        .filter(Boolean)
-        .join(" ") || null,
-    servicesLabel: review.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
-    clientName:
-      [review.client.firstName, review.client.lastName].filter(Boolean).join(" ") ||
-      review.client.email ||
-      review.client.phone ||
-      "Клиент",
-  }));
+  const reviewItems: ReviewItem[] = reviews.map((review) => {
+    const numericEntityId = review.entityId ? Number(review.entityId) : null;
+    const fallbackEntityId = Number.isFinite(numericEntityId) ? numericEntityId : null;
+
+    return {
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      entityType: review.entityType,
+      entityId: review.entityId,
+      replyText: review.replyText,
+      createdAt: review.createdAt.toISOString(),
+      locationId: review.appointment?.location?.id ?? (review.entityType === "location" ? fallbackEntityId : null),
+      locationName: review.appointment?.location?.name ?? null,
+      specialistId: review.appointment?.specialist?.id ?? (review.entityType === "specialist" ? fallbackEntityId : null),
+      specialistName:
+        [review.appointment?.specialist?.user?.profile?.firstName, review.appointment?.specialist?.user?.profile?.lastName]
+          .filter(Boolean)
+          .join(" ") || null,
+      services: review.appointment?.services.map((entry) => ({ id: entry.service.id, name: entry.service.name })) ?? [],
+      servicesLabel: review.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
+      clientName:
+        [review.client.firstName, review.client.lastName].filter(Boolean).join(" ") ||
+        review.client.email ||
+        review.client.phone ||
+        "Клиент",
+    };
+  });
 
   const promoItems: PromoItem[] = promotions.map((promo) => ({
     id: promo.id,

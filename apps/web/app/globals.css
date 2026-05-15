@@ -1592,6 +1592,28 @@ body:has(#public-site-root .menu-v2-overlay[open]) {
   color-scheme: dark;
 }
 
+[data-site-theme] .site-review-theme {
+  --review-card-bg: var(--review-card-bg-light);
+  --review-card-border: var(--review-card-border-light);
+  --review-text: var(--review-text-light);
+  --review-muted: var(--review-muted-light);
+  --review-star: var(--review-star-light);
+  --review-track: var(--review-track-light);
+  --review-button-bg: var(--review-button-bg-light);
+  --review-button-text: var(--review-button-text-light);
+}
+
+[data-site-theme="dark"] .site-review-theme {
+  --review-card-bg: var(--review-card-bg-dark);
+  --review-card-border: var(--review-card-border-dark);
+  --review-text: var(--review-text-dark);
+  --review-muted: var(--review-muted-dark);
+  --review-star: var(--review-star-dark);
+  --review-track: var(--review-track-dark);
+  --review-button-bg: var(--review-button-bg-dark);
+  --review-button-text: var(--review-button-text-dark);
+}
+
 @theme inline {
   --color-background: var(--bp-surface);
   --color-foreground: var(--bp-ink);

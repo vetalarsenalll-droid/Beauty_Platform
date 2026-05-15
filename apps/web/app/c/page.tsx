@@ -16,7 +16,7 @@ const statusLabelMap: Record<string, { label: string; tone: string }> = {
 };
 
 type ClientHomeProps = {
-  searchParams?: Promise<{ account?: string }> | { account?: string };
+  searchParams?: Promise<{ account?: string }>;
 };
 
 const formatPrice = (value: number | null) => {
@@ -55,7 +55,7 @@ const formatTimeLabel = (value: Date, timeZone: string) =>
 
 export default async function ClientHome({ searchParams }: ClientHomeProps) {
   const session = await requireClientSession();
-  const resolvedParams = await Promise.resolve(searchParams ?? {});
+  const resolvedParams = searchParams ? await searchParams : {};
   const accountSlugParam = resolvedParams?.account?.trim() || null;
 
   const primaryClient = session.clients[0] ?? null;

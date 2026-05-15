@@ -3,11 +3,11 @@ import ClientLoginPage from "./login-client";
 import HomeLeftSidebar from "../../home-left-sidebar";
 
 type PageProps = {
-  searchParams?: Promise<{ account?: string }> | { account?: string };
+  searchParams?: Promise<{ account?: string }>;
 };
 
 export default async function ClientLoginPageWrapper({ searchParams }: PageProps) {
-  const resolved = await Promise.resolve(searchParams ?? {});
+  const resolved = searchParams ? await searchParams : {};
   const accountSlug = resolved?.account?.trim() || "";
 
   const pageStyle: CSSProperties = {

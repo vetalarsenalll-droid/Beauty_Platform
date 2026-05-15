@@ -147,8 +147,11 @@ export type SiteReviewItem = {
   replyText: string | null;
   createdAt: string;
   clientName: string;
+  locationId?: number | null;
   locationName?: string | null;
+  specialistId?: number | null;
   specialistName?: string | null;
+  services?: Array<{ id: number; name: string }>;
   servicesLabel?: string | null;
 };
 

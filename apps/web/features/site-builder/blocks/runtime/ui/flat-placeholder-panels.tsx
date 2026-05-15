@@ -563,6 +563,9 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
   const panel = ctx.panelTheme.panel;
   const panelText = ctx.panelTheme.text;
   const panelMuted = ctx.panelTheme.muted;
+  const buttonSectionId = ctx.currentPanelSections.some((section) => section.id === "buttons")
+    ? "buttons"
+    : "button";
   const columns = clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, ctx.block.type);
   const fallback = centeredGridRange(columns);
   const gridStart = clampGridColumn(style.gridStartColumn ?? fallback.start);
@@ -623,9 +626,13 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
 
       <div className="space-y-3">
         <SectionButton id="typography" label="Типографика" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
-        <SectionButton id="colors" label="Цвета" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
-        <SectionButton id="buttons" label="Кнопка" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
-        {(ctx.block.type === "locationProfile" || ctx.block.type === "serviceProfile" || ctx.block.type === "specialistProfile") && (
+        {ctx.currentPanelSections.some((section) => section.id === "colors") && (
+          <SectionButton id="colors" label="Цвета" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        )}
+        {ctx.currentPanelSections.some((section) => section.id === "button" || section.id === "buttons") && (
+          <SectionButton id={buttonSectionId} label="Кнопка" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        )}
+        {ctx.currentPanelSections.some((section) => section.id === "reviews") && (
           <SectionButton id="reviews" label="Отзывы" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         )}
       </div>
@@ -764,7 +771,7 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
     );
   }
 
-  if (section === "buttons") {
+  if (section === "button" || section === "buttons") {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         {flatNumber("Радиус кнопки", style.buttonRadius ?? ctx.activeTheme.buttonRadius ?? 0, (value) => updateStyle(ctx, { buttonRadius: value }), 0, 80)}
@@ -784,6 +791,45 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
   }
 
   if (section === "reviews") {
+    if (ctx.block.type === "reviews") {
+      return (
+        <div className="space-y-6 px-1 pb-8 pt-1">
+          <div className="space-y-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Текст</div>
+            <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />
+            <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorLight", ctx.activeTheme.mutedColor)} placeholder={ctx.activeTheme.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorLight: value, mutedColor: value })} onClear={() => updateStyle(ctx, { mutedColorLight: "transparent", mutedColor: "transparent" })} />
+            {flatNumber("Заголовок", style.headingSize ?? ctx.activeTheme.headingSize ?? 28, (value) => updateStyle(ctx, { headingSize: value }), 10, 96)}
+            {flatNumber("Подзаголовок", style.subheadingSize ?? ctx.activeTheme.subheadingSize ?? 16, (value) => updateStyle(ctx, { subheadingSize: value }), 10, 64)}
+            {flatNumber("Текст отзывов", style.textSize ?? ctx.activeTheme.textSize ?? 16, (value) => updateStyle(ctx, { textSize: value }), 10, 48)}
+          </div>
+
+          <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Карточки</div>
+            <TildaInlineColorField compact label="Цвет карточек" value={color(ctx, "cardBgLight", style.subBlockBgLight || "#ffffff")} placeholder="#ffffff" onChange={(value) => updateStyle(ctx, { cardBgLight: value, subBlockBgLight: value, subBlockBg: value })} onClear={() => updateStyle(ctx, { cardBgLight: "transparent", subBlockBgLight: "transparent" })} />
+            <TildaInlineColorField compact label="Обводка карточек" value={color(ctx, "cardBorderColorLight", "transparent")} placeholder="transparent" onChange={(value) => updateStyle(ctx, { cardBorderColorLight: value })} onClear={() => updateStyle(ctx, { cardBorderColorLight: "transparent" })} />
+            {flatNumber("Скругление карточек", style.cardRadius ?? style.radius ?? 8, (value) => updateStyle(ctx, { cardRadius: value }), 0, 80)}
+          </div>
+
+          <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Рейтинг</div>
+            <TildaInlineColorField compact label="Цвет звезд" value={color(ctx, "secondaryButtonBgLight", "#ff9f0a")} placeholder="#ff9f0a" onChange={(value) => updateStyle(ctx, { secondaryButtonBgLight: value })} onClear={() => updateStyle(ctx, { secondaryButtonBgLight: "transparent" })} />
+            <TildaInlineColorField compact label="Линии рейтинга" value={color(ctx, "fieldBorderColorLight", "#e2e8f0")} placeholder="#e2e8f0" onChange={(value) => updateStyle(ctx, { fieldBorderColorLight: value })} onClear={() => updateStyle(ctx, { fieldBorderColorLight: "transparent" })} />
+          </div>
+
+          <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+          {showDarkTheme && (
+            <div className="space-y-4">
+              <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { textColorDark: value })} onClear={() => updateStyle(ctx, { textColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorDark", ctx.activeTheme.darkPalette.mutedColor)} placeholder={ctx.activeTheme.darkPalette.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorDark: value })} onClear={() => updateStyle(ctx, { mutedColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет карточек" value={color(ctx, "cardBgDark", style.subBlockBgDark || "#16181d")} placeholder="#16181d" onChange={(value) => updateStyle(ctx, { cardBgDark: value, subBlockBgDark: value })} onClear={() => updateStyle(ctx, { cardBgDark: "transparent", subBlockBgDark: "transparent" })} />
+              <TildaInlineColorField compact label="Обводка карточек" value={color(ctx, "cardBorderColorDark", "transparent")} placeholder="transparent" onChange={(value) => updateStyle(ctx, { cardBorderColorDark: value })} onClear={() => updateStyle(ctx, { cardBorderColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет звезд" value={color(ctx, "secondaryButtonBgDark", color(ctx, "secondaryButtonBgLight", "#ff9f0a"))} placeholder={color(ctx, "secondaryButtonBgLight", "#ff9f0a")} onChange={(value) => updateStyle(ctx, { secondaryButtonBgDark: value })} onClear={() => updateStyle(ctx, { secondaryButtonBgDark: "transparent" })} />
+              <TildaInlineColorField compact label="Линии рейтинга" value={color(ctx, "fieldBorderColorDark", "#303642")} placeholder="#303642" onChange={(value) => updateStyle(ctx, { fieldBorderColorDark: value })} onClear={() => updateStyle(ctx, { fieldBorderColorDark: "transparent" })} />
+            </div>
+          )}
+        </div>
+      );
+    }
     return <RatingSettingsPanel block={ctx.block} activeTheme={ctx.activeTheme} updateBlock={ctx.updateBlock} />;
   }
 

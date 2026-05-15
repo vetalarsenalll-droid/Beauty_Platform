@@ -84,7 +84,7 @@ export default async function CrmSitePage({
     accountName
   );
 
-  const [locations, services, specialists, promotions, profile, branding, serviceCategories, specialistLevels] = await Promise.all([
+  const [locations, services, specialists, promotions, reviews, profile, branding, serviceCategories, specialistLevels] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
@@ -111,6 +111,26 @@ export default async function CrmSitePage({
       where: { accountId: session.accountId },
       include: { promoCodes: true },
       orderBy: { createdAt: "desc" },
+    }),
+    prisma.review.findMany({
+      where: { accountId: session.accountId, status: "PUBLISHED" },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+      include: {
+        client: true,
+        appointment: {
+          include: {
+            location: { select: { id: true, name: true } },
+            specialist: {
+              select: {
+                id: true,
+                user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+              },
+            },
+            services: { select: { service: { select: { id: true, name: true } } }, orderBy: { orderIndex: "asc" } },
+          },
+        },
+      },
     }),
     prisma.accountProfile.findUnique({
       where: { accountId: session.accountId },
@@ -416,6 +436,34 @@ export default async function CrmSitePage({
           isActive: promo.isActive,
           codes: promo.promoCodes.map((code) => code.code),
         }))}
+        reviews={reviews.map((review) => {
+          const numericEntityId = review.entityId ? Number(review.entityId) : null;
+          const fallbackEntityId = Number.isFinite(numericEntityId) ? numericEntityId : null;
+
+          return {
+            id: review.id,
+            rating: review.rating,
+            comment: review.comment,
+            entityType: review.entityType,
+            entityId: review.entityId,
+            replyText: review.replyText,
+            createdAt: review.createdAt.toISOString(),
+            locationId: review.appointment?.location?.id ?? (review.entityType === "location" ? fallbackEntityId : null),
+            locationName: review.appointment?.location?.name ?? null,
+            specialistId: review.appointment?.specialist?.id ?? (review.entityType === "specialist" ? fallbackEntityId : null),
+            specialistName:
+              [review.appointment?.specialist?.user?.profile?.firstName, review.appointment?.specialist?.user?.profile?.lastName]
+                .filter(Boolean)
+                .join(" ") || null,
+            services: review.appointment?.services.map((entry) => ({ id: entry.service.id, name: entry.service.name })) ?? [],
+            servicesLabel: review.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
+            clientName:
+              [review.client.firstName, review.client.lastName].filter(Boolean).join(" ") ||
+              review.client.email ||
+              review.client.phone ||
+              "Клиент",
+          };
+        })}
         workPhotos={workPhotos}
       />
     </div>

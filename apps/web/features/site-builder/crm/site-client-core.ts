@@ -12,6 +12,7 @@ import type {
   SiteEditorAccountProfile as AccountProfile,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
+  SiteReviewItem as ReviewItem,
   SiteServiceCategoryItem as ServiceCategoryItem,
   SiteServiceItem as ServiceItem,
   SiteSpecialistLevelItem as SpecialistLevelItem,
@@ -44,6 +45,7 @@ export type SiteClientProps = {
   specialistLevels: SpecialistLevelItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
+  reviews: ReviewItem[];
   workPhotos: WorkPhotos;
 };
 
@@ -141,6 +143,7 @@ export const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[
   loader: [{ id: "main", label: "Контент блока" }],
   booking: [{ id: "documents", label: "Документы и согласия" }],
   aisha: [{ id: "main", label: "Контент блока" }],
+  reviews: [{ id: "main", label: "Контент блока" }],
 };
 
 export type CssVars = CSSProperties & Record<`--${string}`, string | number>;
@@ -219,6 +222,12 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "typography", label: "Типографика" },
     { id: "panels", label: "Панели и карточки" },
     { id: "button", label: "Кнопки" },
+  ],
+  reviews: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "typography", label: "Типографика" },
+    { id: "button", label: "Кнопка" },
+    { id: "reviews", label: "Отзывы" },
   ],
   aisha: [
     { id: "layout", label: "Основные настройки" },
@@ -1141,7 +1150,51 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     title: "Отзывы",
     subtitle: "Что говорят клиенты",
     limit: 6,
-    style: defaultBlockStyle,
+    style: {
+      ...defaultBlockStyle,
+      blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+      blockWidthColumns: 8,
+      mobileBlockWidthColumns: MAX_BLOCK_COLUMNS,
+      gridStartColumn: centeredGridRange(8).start,
+      gridEndColumn: centeredGridRange(8).end,
+      useCustomWidth: true,
+      sectionBgLight: "transparent",
+      sectionBgDark: "transparent",
+      sectionBg: "transparent",
+      blockBgLight: "transparent",
+      blockBgDark: "transparent",
+      blockBg: "transparent",
+      subBlockBgLight: "#ffffff",
+      subBlockBgDark: "#16181d",
+      subBlockBg: "#ffffff",
+      cardBgLight: "#ffffff",
+      cardBgDark: "#16181d",
+      borderColorLight: "transparent",
+      borderColorDark: "transparent",
+      borderColor: "transparent",
+      textColorLight: "#111827",
+      textColorDark: "#f8fafc",
+      textColor: "#111827",
+      mutedColorLight: "#6b7280",
+      mutedColorDark: "#a1a5ad",
+      mutedColor: "#6b7280",
+      buttonColorLight: "#111827",
+      buttonColorDark: "#f8fafc",
+      buttonColor: "#111827",
+      buttonTextColorLight: "#ffffff",
+      buttonTextColorDark: "#111827",
+      buttonTextColor: "#ffffff",
+      secondaryButtonBgLight: "#ff9f0a",
+      secondaryButtonBgDark: "#ff9f0a",
+      fieldBorderColorLight: "#e2e8f0",
+      fieldBorderColorDark: "#303642",
+      headingSize: 28,
+      subheadingSize: 16,
+      textSize: 16,
+      cardRadius: 8,
+      buttonRadius: 8,
+      shadowSize: 0,
+    },
   },
   contacts: {
     title: "Контакты",
