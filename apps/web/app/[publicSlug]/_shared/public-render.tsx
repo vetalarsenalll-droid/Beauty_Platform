@@ -23,6 +23,7 @@ import type {
   SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
+  SiteReviewItem as ReviewItem,
   SiteServiceItem as ServiceItem,
   SiteSpecialistItem as SpecialistItem,
   SiteWorkPhotos as WorkPhotos,
@@ -1109,6 +1110,7 @@ export function renderBlock(
   services: ServiceItem[],
   specialists: SpecialistItem[],
   promos: PromoItem[],
+  reviews: ReviewItem[],
   workPhotos: WorkPhotos,
   current: CurrentEntity,
   theme: SiteTheme,
@@ -1177,7 +1179,7 @@ export function renderBlock(
     case "works":
       return renderWorks(block, workPhotos, current, theme);
     case "reviews":
-      return renderReviews(block);
+      return renderReviews(block, reviews, accountSlug);
     case "contacts":
       return renderContacts(block, accountName, profile, locations);
     default:
@@ -3900,6 +3902,8 @@ function renderLocations(
     locationIds: [location.id],
     coverUrl: location.coverUrl,
     photoUrls: location.photoUrls ?? [],
+    ratingAvg: location.ratingAvg,
+    ratingCount: location.ratingCount,
   }));
 
   return (
@@ -3989,6 +3993,29 @@ function renderLocations(
         cardDescriptionTextStyle={cardTextStyle("catalogCardText", "#6B7280", "#CBD5E1", 14, undefined, "specialistCardDescription")}
         buttonStyle={{ ...buttonStyle(style), borderRadius: style.buttonRadius ?? 0 }}
         textAlign={style.textAlign}
+        ratingAlignment={
+          data.ratingAlignment === "left" || data.ratingAlignment === "center" || data.ratingAlignment === "right"
+            ? data.ratingAlignment
+            : "right"
+        }
+        ratingVerticalAlignment={
+          data.ratingVerticalAlignment === "top" || data.ratingVerticalAlignment === "bottom"
+            ? data.ratingVerticalAlignment
+            : undefined
+        }
+        ratingTextColor={readDataColor("ratingTextColorLight") || "#111827"}
+        ratingTextColorDark={readDataColor("ratingTextColorDark") || readDataColor("ratingTextColorLight") || "#F8FAFC"}
+        ratingStarColor={readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingStarColorDark={readDataColor("ratingStarColorDark") || readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingBackgroundColor={readDataColor("ratingBackgroundColorLight") || "transparent"}
+        ratingBackgroundColorDark={
+          readDataColor("ratingBackgroundColorDark") || readDataColor("ratingBackgroundColorLight") || "transparent"
+        }
+        ratingBackgroundOpacity={readDataNumberValue("ratingBackgroundOpacity", 50)}
+        ratingBackgroundRadius={readDataNumberValue("ratingBackgroundRadius", 0)}
+        ratingTextSize={readDataNumberValue("ratingTextSize", 16)}
+        ratingTextFont={typeof data.ratingTextFont === "string" && data.ratingTextFont.trim() ? data.ratingTextFont : "Manrope"}
+        ratingTextWeight={data.ratingTextWeight === "" || data.ratingTextWeight == null ? undefined : String(data.ratingTextWeight)}
         emptyText="Нет филиалов для отображения."
       />
     </div>
@@ -4394,6 +4421,29 @@ function renderServices(
         subheadingStyle={servicesSubheadingStyle}
         buttonStyle={servicesButtonStyle}
         textAlign={style.textAlign}
+        ratingAlignment={
+          data.ratingAlignment === "left" || data.ratingAlignment === "center" || data.ratingAlignment === "right"
+            ? data.ratingAlignment
+            : "right"
+        }
+        ratingVerticalAlignment={
+          data.ratingVerticalAlignment === "top" || data.ratingVerticalAlignment === "bottom"
+            ? data.ratingVerticalAlignment
+            : undefined
+        }
+        ratingTextColor={readDataColor("ratingTextColorLight") || "#111827"}
+        ratingTextColorDark={readDataColor("ratingTextColorDark") || readDataColor("ratingTextColorLight") || "#F8FAFC"}
+        ratingStarColor={readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingStarColorDark={readDataColor("ratingStarColorDark") || readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingBackgroundColor={readDataColor("ratingBackgroundColorLight") || "transparent"}
+        ratingBackgroundColorDark={
+          readDataColor("ratingBackgroundColorDark") || readDataColor("ratingBackgroundColorLight") || "transparent"
+        }
+        ratingBackgroundOpacity={readDataNumber("ratingBackgroundOpacity", 50)}
+        ratingBackgroundRadius={readDataNumber("ratingBackgroundRadius", 0)}
+        ratingTextSize={readDataNumber("ratingTextSize", 16)}
+        ratingTextFont={typeof data.ratingTextFont === "string" && data.ratingTextFont.trim() ? data.ratingTextFont : "Manrope"}
+        ratingTextWeight={data.ratingTextWeight === "" || data.ratingTextWeight == null ? undefined : String(data.ratingTextWeight)}
       />
     </div>
   );
@@ -4668,6 +4718,29 @@ function renderSpecialists(
         subheadingStyle={specialistsSubheadingStyle}
         buttonStyle={specialistsButtonStyle}
         textAlign={style.textAlign}
+        ratingAlignment={
+          data.ratingAlignment === "left" || data.ratingAlignment === "center" || data.ratingAlignment === "right"
+            ? data.ratingAlignment
+            : "right"
+        }
+        ratingVerticalAlignment={
+          data.ratingVerticalAlignment === "top" || data.ratingVerticalAlignment === "bottom"
+            ? data.ratingVerticalAlignment
+            : undefined
+        }
+        ratingTextColor={readDataColor("ratingTextColorLight") || "#111827"}
+        ratingTextColorDark={readDataColor("ratingTextColorDark") || readDataColor("ratingTextColorLight") || "#F8FAFC"}
+        ratingStarColor={readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingStarColorDark={readDataColor("ratingStarColorDark") || readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingBackgroundColor={readDataColor("ratingBackgroundColorLight") || "transparent"}
+        ratingBackgroundColorDark={
+          readDataColor("ratingBackgroundColorDark") || readDataColor("ratingBackgroundColorLight") || "transparent"
+        }
+        ratingBackgroundOpacity={readDataNumberValue("ratingBackgroundOpacity", 50)}
+        ratingBackgroundRadius={readDataNumberValue("ratingBackgroundRadius", 0)}
+        ratingTextSize={readDataNumberValue("ratingTextSize", 16)}
+        ratingTextFont={typeof data.ratingTextFont === "string" && data.ratingTextFont.trim() ? data.ratingTextFont : "Manrope"}
+        ratingTextWeight={data.ratingTextWeight === "" || data.ratingTextWeight == null ? undefined : String(data.ratingTextWeight)}
       />
     </div>
   );
@@ -4961,8 +5034,26 @@ function renderWorks(
   );
 }
 
-function renderReviews(block: SiteBlock) {
+function renderPublicReviewStars(rating: number) {
+  const safeRating = Math.max(0, Math.min(5, Math.round(rating)));
+  return (
+    <div className="whitespace-nowrap text-[#ff9f0a]" aria-label={`Оценка ${safeRating} из 5`}>
+      {"★".repeat(safeRating)}
+      <span className="text-slate-200">{"★".repeat(Math.max(0, 5 - safeRating))}</span>
+    </div>
+  );
+}
+
+function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountSlug: string) {
   const data = block.data as Record<string, unknown>;
+  const limit = Math.max(1, Math.min(24, Number(data.limit) || 6));
+  const visibleReviews = reviews.slice(0, limit);
+  const ratingCount = reviews.length;
+  const ratingAvg = ratingCount > 0 ? reviews.reduce((sum, review) => sum + review.rating, 0) / ratingCount : 0;
+  const distribution = [5, 4, 3, 2, 1].map((rating) => ({
+    rating,
+    count: reviews.filter((review) => review.rating === rating).length,
+  }));
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
@@ -4970,23 +5061,69 @@ function renderReviews(block: SiteBlock) {
         ? String(data.subtitle)
         : "";
   return (
-    <div>
-      <h2
-        className="text-2xl font-semibold"
-        style={{ fontFamily: "var(--site-font-heading)" }}
-      >
-        {(data.title as string) || "Отзывы"}
-      </h2>
-      {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        {[1, 2, 3].map((idx) => (
-          <div
-            key={idx}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-sm text-[color:var(--bp-muted)]"
-          >
-            Отзывы будут отображаться здесь после их появления.
+    <div className="bg-[#f4f5f8] px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-5xl">
+        <h2 className="text-2xl font-semibold text-[#111827]" style={{ fontFamily: "var(--site-font-heading)" }}>
+          {(data.title as string) || "Отзывы"}
+        </h2>
+        {subtitle && <p className="mt-2 text-sm text-[color:var(--bp-muted)]">{subtitle}</p>}
+        <div className="mt-5 grid gap-5 lg:grid-cols-[235px_minmax(0,1fr)]">
+          <aside className="rounded-[8px] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+            <div className="flex items-end gap-1">
+              <span className="text-3xl font-semibold text-[#111827]">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
+              <span className="pb-1 text-xl font-semibold text-slate-300">/5</span>
+            </div>
+            <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{ratingCount} отзывов</div>
+            <div className="mt-4 space-y-2">
+              {distribution.map((item) => (
+                <div key={item.rating} className="flex items-center gap-2 text-xs">
+                  <span className="w-8 text-[#ff9f0a]">{"★".repeat(item.rating)}</span>
+                  <div className="h-1.5 flex-1 rounded-full bg-slate-200">
+                    <div className="h-full rounded-full bg-[#ff9f0a]" style={{ width: `${ratingCount ? (item.count / ratingCount) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 text-xs leading-5 text-[color:var(--bp-muted)]">
+              Чтобы оставить отзыв, войдите в личный кабинет. Отзыв доступен после завершенного визита.
+            </div>
+            <a href={`/c?account=${encodeURIComponent(accountSlug)}`} className="mt-3 inline-flex w-full items-center justify-center rounded-[8px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white">
+              Авторизоваться
+            </a>
+          </aside>
+
+          <div className="space-y-3">
+            {visibleReviews.length > 0 ? (
+              visibleReviews.map((review) => (
+                <article key={review.id} className="rounded-[8px] bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-[#111827]">{review.clientName}</div>
+                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                        {new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(review.createdAt))}
+                      </div>
+                    </div>
+                    {renderPublicReviewStars(review.rating)}
+                  </div>
+                  {review.servicesLabel ? <div className="mt-5 text-xs uppercase tracking-wide text-[color:var(--bp-muted)]">{review.servicesLabel}</div> : null}
+                  {review.specialistName ? <div className="mt-1 text-sm text-blue-600">{review.specialistName}</div> : null}
+                  {review.locationName ? <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{review.locationName}</div> : null}
+                  {review.comment ? <p className="mt-5 leading-6 text-[#1f2937]">{review.comment}</p> : null}
+                  {review.replyText ? (
+                    <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm text-[color:var(--bp-muted)]">
+                      <div className="font-semibold text-[#111827]">Ответ салона</div>
+                      <div className="mt-1">{review.replyText}</div>
+                    </div>
+                  ) : null}
+                </article>
+              ))
+            ) : (
+              <div className="rounded-[8px] bg-white p-5 text-sm text-[color:var(--bp-muted)] shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+                Отзывы будут отображаться здесь после их появления.
+              </div>
+            )}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

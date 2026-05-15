@@ -191,12 +191,17 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
   }> = [];
   let reviews: Array<{
     id: number;
+    appointmentId: number | null;
     rating: number;
     comment: string | null;
     createdAt: Date;
     accountName: string | null;
     accountTimeZone: string;
+    locationName: string | null;
+    specialistName: string | null;
+    servicesLabel: string | null;
   }> = [];
+  let reviewedAppointmentIds = new Set<number>();
 
   if (selectedAccountSlug) {
     let account = accountBySlug.get(selectedAccountSlug) ?? null;
@@ -326,7 +331,24 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
             where: { accountId: account.id, clientId: selectedClient.clientId },
             orderBy: { createdAt: "desc" },
             take: 10,
-            select: { id: true, rating: true, comment: true, createdAt: true },
+            select: {
+              id: true,
+              appointmentId: true,
+              rating: true,
+              comment: true,
+              createdAt: true,
+              appointment: {
+                select: {
+                  location: { select: { name: true } },
+                  specialist: {
+                    select: {
+                      user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+                    },
+                  },
+                  services: { select: { service: { select: { name: true } } }, orderBy: { orderIndex: "asc" } },
+                },
+              },
+            },
           }),
         ]);
 
@@ -436,12 +458,22 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
 
       reviews = reviewRows.map((item) => ({
         id: item.id,
+        appointmentId: item.appointmentId ?? null,
         rating: item.rating,
         comment: item.comment ?? null,
         createdAt: item.createdAt,
         accountName: account.name,
         accountTimeZone: account.timeZone,
+        locationName: item.appointment?.location?.name ?? null,
+        specialistName:
+          [item.appointment?.specialist?.user?.profile?.firstName, item.appointment?.specialist?.user?.profile?.lastName]
+            .filter(Boolean)
+            .join(" ") || null,
+        servicesLabel: item.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
       }));
+      reviewedAppointmentIds = new Set(
+        reviewRows.map((item) => item.appointmentId).filter((id): id is number => typeof id === "number")
+      );
     }
   } else if (accountRecords.length > 0) {
     const accountByIdLocal = new Map(accountRecords.map((acc) => [acc.id, acc]));
@@ -547,7 +579,25 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           where: { clientId: { in: session.clients.map((client) => client.clientId) } },
           orderBy: { createdAt: "desc" },
           take: 10,
-          select: { id: true, rating: true, comment: true, createdAt: true, accountId: true },
+          select: {
+            id: true,
+            appointmentId: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            accountId: true,
+            appointment: {
+              select: {
+                location: { select: { name: true } },
+                specialist: {
+                  select: {
+                    user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+                  },
+                },
+                services: { select: { service: { select: { name: true } } }, orderBy: { orderIndex: "asc" } },
+              },
+            },
+          },
         }),
       ]);
 
@@ -675,13 +725,23 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       const account = accountByIdLocal.get(item.accountId);
       return {
         id: item.id,
+        appointmentId: item.appointmentId ?? null,
         rating: item.rating,
         comment: item.comment ?? null,
         createdAt: item.createdAt,
         accountName: account?.name ?? null,
         accountTimeZone: account?.timeZone ?? "Europe/Moscow",
+        locationName: item.appointment?.location?.name ?? null,
+        specialistName:
+          [item.appointment?.specialist?.user?.profile?.firstName, item.appointment?.specialist?.user?.profile?.lastName]
+            .filter(Boolean)
+            .join(" ") || null,
+        servicesLabel: item.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
       };
     });
+    reviewedAppointmentIds = new Set(
+      reviewRows.map((item) => item.appointmentId).filter((id): id is number => typeof id === "number")
+    );
   }
 
   const records = [...appointments, ...groupSessions];
@@ -787,6 +847,27 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
       };
     });
 
+  const reviewableAppointments = records
+    .filter(
+      (item) =>
+        item.entityType === "APPOINTMENT" &&
+        item.status === "DONE" &&
+        item.accountSlug === selectedAccountSlug &&
+        !reviewedAppointmentIds.has(item.id)
+    )
+    .sort((a, b) => b.startAt.getTime() - a.startAt.getTime())
+    .map((item) => ({
+      id: item.id,
+      dateLabel: formatDateLabel(item.startAt, item.accountTimeZone),
+      timeLabel: `${formatTimeLabel(item.startAt, item.accountTimeZone)} — ${formatTimeLabel(
+        item.endAt,
+        item.accountTimeZone
+      )}`,
+      locationName: item.locationName,
+      specialistName: item.specialistName,
+      servicesLabel: item.servicesLabel,
+    }));
+
   const bookLink = accountData ? `/${buildPublicSlugId(accountData.slug, accountData.id)}/booking` : "/";
   const accountTimeZone = accountData?.timeZone ?? records[0]?.accountTimeZone ?? "Europe/Moscow";
 
@@ -879,12 +960,17 @@ export default async function ClientHome({ searchParams }: ClientHomeProps) {
           }))}
           reviews={reviews.map((review) => ({
             id: review.id,
+            appointmentId: review.appointmentId,
             rating: review.rating,
             comment: review.comment,
             createdAt: review.createdAt.toISOString(),
             accountName: review.accountName,
             accountTimeZone: review.accountTimeZone,
+            locationName: review.locationName,
+            specialistName: review.specialistName,
+            servicesLabel: review.servicesLabel,
           }))}
+          reviewableAppointments={reviewableAppointments}
           organizations={organizations}
         />
       </div>

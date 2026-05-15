@@ -3,6 +3,7 @@
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
+import { RatingBadge } from "@/features/site-builder/blocks/rating-badge";
 import type { SiteServiceItem as ServiceItem } from "@/features/site-builder/shared/site-data";
 
 type ServiceCatalogProps = {
@@ -116,6 +117,19 @@ type ServiceCatalogProps = {
   buttonStyle: CSSProperties;
   detailsButtonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
+  ratingAlignment?: "left" | "center" | "right";
+  ratingVerticalAlignment?: "top" | "bottom";
+  ratingTextColor?: string;
+  ratingTextColorDark?: string;
+  ratingStarColor?: string;
+  ratingStarColorDark?: string;
+  ratingBackgroundColor?: string;
+  ratingBackgroundColorDark?: string;
+  ratingBackgroundOpacity?: number;
+  ratingBackgroundRadius?: number;
+  ratingTextSize?: number;
+  ratingTextFont?: string;
+  ratingTextWeight?: string | number | null;
   previewViewportWidth?: number;
 };
 
@@ -977,6 +991,19 @@ export function ServicesCatalog({
   buttonStyle,
   detailsButtonStyle,
   textAlign = "left",
+  ratingAlignment = "right",
+  ratingVerticalAlignment,
+  ratingTextColor = "#111827",
+  ratingTextColorDark,
+  ratingStarColor = "#ffb020",
+  ratingStarColorDark,
+  ratingBackgroundColor = "transparent",
+  ratingBackgroundColorDark,
+  ratingBackgroundOpacity = 50,
+  ratingBackgroundRadius = 0,
+  ratingTextSize = 16,
+  ratingTextFont = "Manrope",
+  ratingTextWeight,
   previewViewportWidth,
 }: ServiceCatalogProps) {
   const catalogRef = useRef<HTMLDivElement | null>(null);
@@ -1158,6 +1185,21 @@ export function ServicesCatalog({
   const resolvedModalPriceTextStyle = resolveModalTextStyle(modalPriceTextStyle);
   const resolvedModalDurationTextStyle = resolveModalTextStyle(modalDurationTextStyle);
   const isDarkTheme = activeThemeMode === "dark";
+  const resolvedRatingTextColor = isDarkTheme ? ratingTextColorDark || ratingTextColor : ratingTextColor;
+  const resolvedRatingStarColor = isDarkTheme ? ratingStarColorDark || ratingStarColor : ratingStarColor;
+  const resolvedRatingBackgroundColor = isDarkTheme
+    ? ratingBackgroundColorDark || ratingBackgroundColor
+    : ratingBackgroundColor;
+  const ratingOverlayClassName =
+    ratingAlignment === "left"
+      ? "left-3 justify-start"
+      : ratingAlignment === "center"
+        ? "left-1/2 -translate-x-1/2 justify-center"
+        : "right-3 justify-end";
+  const resolvedRatingVerticalAlignment =
+    imageAspectRatio === "original" ? "top" : (ratingVerticalAlignment ?? "bottom");
+  const ratingOverlayVerticalClassName = resolvedRatingVerticalAlignment === "top" ? "top-3" : "bottom-3";
+  const ratingWeight = ratingTextWeight === "" || ratingTextWeight == null ? undefined : ratingTextWeight;
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
   const dropdownBackgroundColor = isDarkTheme ? "rgba(18,22,28,0.98)" : "rgba(255,255,255,0.98)";
@@ -1923,6 +1965,21 @@ export function ServicesCatalog({
                           }}
                         />
                       ) : null}
+                      <div className={`pointer-events-none absolute z-[3] flex max-w-[calc(100%-24px)] ${ratingOverlayVerticalClassName} ${ratingOverlayClassName}`}>
+                        <RatingBadge
+                          ratingAvg={service.ratingAvg}
+                          ratingCount={service.ratingCount}
+                          compact={shouldCompactTileSpacing}
+                          textColor={resolvedRatingTextColor}
+                          starColor={resolvedRatingStarColor}
+                          backgroundColor={resolvedRatingBackgroundColor}
+                          backgroundOpacity={ratingBackgroundOpacity}
+                          backgroundRadius={ratingBackgroundRadius}
+                          fontSize={ratingTextSize}
+                          fontFamily={ratingTextFont}
+                          fontWeight={ratingWeight}
+                        />
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1998,6 +2055,21 @@ export function ServicesCatalog({
                           }}
                         />
                       ) : null}
+                      <div className={`pointer-events-none absolute z-[3] flex max-w-[calc(100%-24px)] ${ratingOverlayVerticalClassName} ${ratingOverlayClassName}`}>
+                        <RatingBadge
+                          ratingAvg={service.ratingAvg}
+                          ratingCount={service.ratingCount}
+                          compact={shouldCompactTileSpacing}
+                          textColor={resolvedRatingTextColor}
+                          starColor={resolvedRatingStarColor}
+                          backgroundColor={resolvedRatingBackgroundColor}
+                          backgroundOpacity={ratingBackgroundOpacity}
+                          backgroundRadius={ratingBackgroundRadius}
+                          fontSize={ratingTextSize}
+                          fontFamily={ratingTextFont}
+                          fontWeight={ratingWeight}
+                        />
+                      </div>
                     </div>
                   </a>
                 )}
@@ -2093,7 +2165,6 @@ export function ServicesCatalog({
                     {service.name}
                   </a>
                 )}
-
                 {hasServiceMeta && (
                   <div
                     className={`relative z-[1] flex flex-wrap gap-x-1.5 gap-y-0.5 text-[color:var(--block-muted,var(--bp-muted))] max-sm:!mt-3 max-sm:!text-[13px] max-sm:!leading-[1.2] ${serviceMetaClassName}`}

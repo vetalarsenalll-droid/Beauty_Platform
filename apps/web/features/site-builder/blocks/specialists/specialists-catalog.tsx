@@ -3,6 +3,7 @@
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildBookingLink } from "@/lib/booking-links";
+import { RatingBadge } from "@/features/site-builder/blocks/rating-badge";
 
 export type SpecialistCatalogItem = {
   id: number;
@@ -12,6 +13,8 @@ export type SpecialistCatalogItem = {
   locationIds: number[];
   coverUrl: string | null;
   photoUrls?: string[];
+  ratingAvg?: number | null;
+  ratingCount?: number;
 };
 
 type ActiveSpecialistModalState = {
@@ -98,6 +101,19 @@ type SpecialistsCatalogProps = {
   buttonStyle?: CSSProperties;
   detailsButtonStyle?: CSSProperties;
   textAlign?: "left" | "center" | "right";
+  ratingAlignment?: "left" | "center" | "right";
+  ratingVerticalAlignment?: "top" | "bottom";
+  ratingTextColor?: string;
+  ratingTextColorDark?: string;
+  ratingStarColor?: string;
+  ratingStarColorDark?: string;
+  ratingBackgroundColor?: string;
+  ratingBackgroundColorDark?: string;
+  ratingBackgroundOpacity?: number;
+  ratingBackgroundRadius?: number;
+  ratingTextSize?: number;
+  ratingTextFont?: string;
+  ratingTextWeight?: string | number | null;
   previewViewportWidth?: number;
   entityBasePath?: "specialists" | "locations";
   bookingEntity?: "specialist" | "location";
@@ -686,6 +702,19 @@ export function SpecialistsCatalog({
   buttonStyle,
   detailsButtonStyle,
   textAlign = "left",
+  ratingAlignment = "right",
+  ratingVerticalAlignment,
+  ratingTextColor = "#111827",
+  ratingTextColorDark,
+  ratingStarColor = "#ffb020",
+  ratingStarColorDark,
+  ratingBackgroundColor = "transparent",
+  ratingBackgroundColorDark,
+  ratingBackgroundOpacity = 50,
+  ratingBackgroundRadius = 0,
+  ratingTextSize = 16,
+  ratingTextFont = "Manrope",
+  ratingTextWeight,
   previewViewportWidth,
   entityBasePath = "specialists",
   bookingEntity = "specialist",
@@ -919,6 +948,21 @@ export function SpecialistsCatalog({
   const resolvedCardTitleTextStyle = resolveModeTextStyle(cardTitleTextStyle);
   const resolvedCardDescriptionTextStyle = resolveModeTextStyle(cardDescriptionTextStyle);
   const isDarkTheme = activeThemeMode === "dark";
+  const resolvedRatingTextColor = isDarkTheme ? ratingTextColorDark || ratingTextColor : ratingTextColor;
+  const resolvedRatingStarColor = isDarkTheme ? ratingStarColorDark || ratingStarColor : ratingStarColor;
+  const resolvedRatingBackgroundColor = isDarkTheme
+    ? ratingBackgroundColorDark || ratingBackgroundColor
+    : ratingBackgroundColor;
+  const ratingOverlayClassName =
+    ratingAlignment === "left"
+      ? "left-3 justify-start"
+      : ratingAlignment === "center"
+        ? "left-1/2 -translate-x-1/2 justify-center"
+        : "right-3 justify-end";
+  const resolvedRatingVerticalAlignment =
+    imageAspectRatio === "original" ? "top" : (ratingVerticalAlignment ?? "bottom");
+  const ratingOverlayVerticalClassName = resolvedRatingVerticalAlignment === "top" ? "top-3" : "bottom-3";
+  const ratingWeight = ratingTextWeight === "" || ratingTextWeight == null ? undefined : ratingTextWeight;
   const controlBorderColor = isDarkTheme ? "rgba(242,243,245,0.18)" : "rgba(15,16,18,0.12)";
   const controlBackgroundColor = isDarkTheme ? "rgba(31,36,44,0.92)" : "rgba(255,255,255,0.78)";
   const dropdownBackgroundColor = isDarkTheme ? "rgba(18,22,28,0.98)" : "rgba(255,255,255,0.98)";
@@ -1479,6 +1523,21 @@ export function SpecialistsCatalog({
                       }}
                     />
                   ) : null}
+                  <div className={`pointer-events-none absolute z-[3] flex max-w-[calc(100%-24px)] ${ratingOverlayVerticalClassName} ${ratingOverlayClassName}`}>
+                    <RatingBadge
+                      ratingAvg={specialist.ratingAvg}
+                      ratingCount={specialist.ratingCount}
+                      compact={shouldCompactTileSpacing}
+                      textColor={resolvedRatingTextColor}
+                      starColor={resolvedRatingStarColor}
+                      backgroundColor={resolvedRatingBackgroundColor}
+                      backgroundOpacity={ratingBackgroundOpacity}
+                      backgroundRadius={ratingBackgroundRadius}
+                      fontSize={ratingTextSize}
+                      fontFamily={ratingTextFont}
+                      fontWeight={ratingWeight}
+                    />
+                  </div>
                   </div>
                 </button>
               )}

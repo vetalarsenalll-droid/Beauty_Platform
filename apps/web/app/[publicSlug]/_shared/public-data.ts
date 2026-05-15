@@ -9,6 +9,7 @@ import type {
   SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
+  SiteReviewItem as ReviewItem,
   SiteServiceItem as ServiceItem,
   SiteSpecialistItem as SpecialistItem,
   SiteWorkPhotos as WorkPhotos,
@@ -20,6 +21,7 @@ export type {
   Branding,
   LocationItem,
   PromoItem,
+  ReviewItem,
   ServiceItem,
   SpecialistItem,
   WorkPhotos,
@@ -53,6 +55,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     services,
     specialists,
     promotions,
+    reviews,
     profile,
     branding,
     legalDocs,
@@ -124,6 +127,25 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       include: { promoCodes: true },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.review.findMany({
+      where: { accountId: account.id, status: "PUBLISHED" },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+      include: {
+        client: true,
+        appointment: {
+          include: {
+            location: { select: { name: true } },
+            specialist: {
+              select: {
+                user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+              },
+            },
+            services: { select: { service: { select: { name: true } } }, orderBy: { orderIndex: "asc" } },
+          },
+        },
+      },
+    }),
     prisma.accountProfile.findUnique({
       where: { accountId: account.id },
     }),
@@ -174,6 +196,8 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     locationWorkPhotos,
     serviceWorkPhotos,
     specialistWorkPhotos,
+    ratingAggregates,
+    reviewRatingGroups,
   ] = await Promise.all([
     prisma.mediaLink.findMany({
       where: { entityType: "location.photo", entityId: { in: locationIds } },
@@ -205,7 +229,54 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       include: { asset: true },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
     }),
+    prisma.ratingAggregate.findMany({
+      where: {
+        accountId: account.id,
+        OR: [
+          { entityType: "account", entityId: String(account.id) },
+          { entityType: "location", entityId: { in: locationIds } },
+          { entityType: "service", entityId: { in: serviceIds } },
+          { entityType: "specialist", entityId: { in: specialistIds } },
+        ],
+      },
+    }),
+    prisma.review.groupBy({
+      by: ["entityType", "entityId"],
+      where: {
+        accountId: account.id,
+        status: "PUBLISHED",
+        OR: [
+          { entityType: "account", entityId: String(account.id) },
+          { entityType: "location", entityId: { in: locationIds } },
+          { entityType: "service", entityId: { in: serviceIds } },
+          { entityType: "specialist", entityId: { in: specialistIds } },
+        ],
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
+    }),
   ]);
+
+  const ratingMap = new Map(
+    ratingAggregates.map((item) => [`${item.entityType}:${item.entityId}`, item])
+  );
+  const liveRatingMap = new Map(
+    reviewRatingGroups.map((item) => [
+      `${item.entityType}:${item.entityId}`,
+      {
+        ratingAvg: item._avg.rating ?? null,
+        ratingCount: item._count.rating,
+      },
+    ])
+  );
+  const readRating = (entityType: string, entityId: string) => {
+    const aggregate = ratingMap.get(`${entityType}:${entityId}`);
+    const live = liveRatingMap.get(`${entityType}:${entityId}`);
+    return {
+      ratingAvg: live?.ratingAvg ?? aggregate?.ratingAvg ?? null,
+      ratingCount: live?.ratingCount ?? aggregate?.ratingCount ?? 0,
+    };
+  };
 
   const locationCoverMap = new Map<string, string>();
   locationPhotos.forEach((item) => {
@@ -304,6 +375,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
         url: item.asset.url,
         isCover: item.isCover,
       })),
+    ...readRating("location", String(location.id)),
   }));
 
   const serviceItems: ServiceItem[] = services.map((service) => ({
@@ -345,6 +417,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     coverUrl: serviceCoverMap.get(String(service.id)) ?? null,
     photoUrls: servicePhotoMap.get(String(service.id)) ?? [],
     locationIds: service.locations.map((item) => item.locationId),
+    ...readRating("service", String(service.id)),
   }));
 
   const specialistItems: SpecialistItem[] = specialists.map((specialist) => {
@@ -368,8 +441,30 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       locationIds: specialist.locations.map((item) => item.locationId),
       coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
       photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],
+      ...readRating("specialist", String(specialist.id)),
     };
   });
+
+  const reviewItems: ReviewItem[] = reviews.map((review) => ({
+    id: review.id,
+    rating: review.rating,
+    comment: review.comment,
+    entityType: review.entityType,
+    entityId: review.entityId,
+    replyText: review.replyText,
+    createdAt: review.createdAt.toISOString(),
+    locationName: review.appointment?.location?.name ?? null,
+    specialistName:
+      [review.appointment?.specialist?.user?.profile?.firstName, review.appointment?.specialist?.user?.profile?.lastName]
+        .filter(Boolean)
+        .join(" ") || null,
+    servicesLabel: review.appointment?.services.map((entry) => entry.service.name).join(", ") || null,
+    clientName:
+      [review.client.firstName, review.client.lastName].filter(Boolean).join(" ") ||
+      review.client.email ||
+      review.client.phone ||
+      "Клиент",
+  }));
 
   const promoItems: PromoItem[] = promotions.map((promo) => ({
     id: promo.id,
@@ -420,6 +515,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     services: serviceItems,
     specialists: specialistItems,
     promos: promoItems,
+    reviews: reviewItems,
     workPhotos,
     legalDocuments,
     platformLegalDocuments,

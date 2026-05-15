@@ -58,6 +58,12 @@ const NAV_ITEMS: NavItem[] = [
     permission: "crm.clients.read",
   },
   {
+    label: "Отзывы",
+    href: "/crm/reviews",
+    icon: <IconStar />,
+    permission: "crm.clients.read",
+  },
+  {
     label: "Оплаты/Финансы",
     href: "/crm/payments",
     icon: <IconWallet />,
@@ -891,6 +897,14 @@ function IconHeart() {
   return (
     <IconBase>
       <path d="M12 20s-7-4.3-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.7-7 9-7 9Z" />
+    </IconBase>
+  );
+}
+
+function IconStar() {
+  return (
+    <IconBase>
+      <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L12 17l-5.2 2.8 1-5.9-4.3-4.2 5.9-.9Z" />
     </IconBase>
   );
 }

@@ -1,4 +1,4 @@
-import { UnoptimizedImage } from "@/components/unoptimized-image";
+﻿import { UnoptimizedImage } from "@/components/unoptimized-image";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type {
@@ -5697,6 +5697,8 @@ export function renderLocations(
     locationIds: [location.id],
     coverUrl: location.coverUrl,
     photoUrls: location.photoUrls ?? [],
+    ratingAvg: location.ratingAvg,
+    ratingCount: location.ratingCount,
   }));
   const hasMultipleLocations = catalogItems.length > 1;
   const locationsHeadingStyle = {
@@ -5813,6 +5815,33 @@ export function renderLocations(
         }}
         detailsButtonStyle={buttonTextStyle("locationDetailsButton", 14)}
         textAlign={style.textAlign}
+        ratingAlignment={
+          data.ratingAlignment === "left" || data.ratingAlignment === "center" || data.ratingAlignment === "right"
+            ? data.ratingAlignment
+            : "right"
+        }
+        ratingVerticalAlignment={
+          data.ratingVerticalAlignment === "top" || data.ratingVerticalAlignment === "bottom"
+            ? data.ratingVerticalAlignment
+            : undefined
+        }
+        ratingTextColor={readDataColor("ratingTextColorLight") || "#111827"}
+        ratingTextColorDark={readDataColor("ratingTextColorDark") || readDataColor("ratingTextColorLight") || "#F8FAFC"}
+        ratingStarColor={readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingStarColorDark={readDataColor("ratingStarColorDark") || readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingBackgroundColor={readDataColor("ratingBackgroundColorLight") || "transparent"}
+        ratingBackgroundColorDark={
+          readDataColor("ratingBackgroundColorDark") || readDataColor("ratingBackgroundColorLight") || "transparent"
+        }
+        ratingBackgroundOpacity={readDataNumber("ratingBackgroundOpacity", 50)}
+        ratingBackgroundRadius={readDataNumber("ratingBackgroundRadius", 0)}
+        ratingTextSize={readDataNumber("ratingTextSize", 16)}
+        ratingTextFont={typeof data.ratingTextFont === "string" && data.ratingTextFont.trim() ? data.ratingTextFont : "Manrope"}
+        ratingTextWeight={
+          data.ratingTextWeight === "" || data.ratingTextWeight == null
+            ? undefined
+            : String(data.ratingTextWeight)
+        }
         previewViewportWidth={previewViewportWidth}
         emptyText="Нет филиалов для отображения."
       />
@@ -6239,6 +6268,33 @@ export function renderServices(
         buttonStyle={servicesButtonStyle}
         detailsButtonStyle={serviceButtonTextStyle("serviceDetailsButton", 14)}
         textAlign={style.textAlign}
+        ratingAlignment={
+          data.ratingAlignment === "left" || data.ratingAlignment === "center" || data.ratingAlignment === "right"
+            ? data.ratingAlignment
+            : "right"
+        }
+        ratingVerticalAlignment={
+          data.ratingVerticalAlignment === "top" || data.ratingVerticalAlignment === "bottom"
+            ? data.ratingVerticalAlignment
+            : undefined
+        }
+        ratingTextColor={readDataColor("ratingTextColorLight") || "#111827"}
+        ratingTextColorDark={readDataColor("ratingTextColorDark") || readDataColor("ratingTextColorLight") || "#F8FAFC"}
+        ratingStarColor={readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingStarColorDark={readDataColor("ratingStarColorDark") || readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingBackgroundColor={readDataColor("ratingBackgroundColorLight") || "transparent"}
+        ratingBackgroundColorDark={
+          readDataColor("ratingBackgroundColorDark") || readDataColor("ratingBackgroundColorLight") || "transparent"
+        }
+        ratingBackgroundOpacity={readDataNumber("ratingBackgroundOpacity", 50)}
+        ratingBackgroundRadius={readDataNumber("ratingBackgroundRadius", 0)}
+        ratingTextSize={readDataNumber("ratingTextSize", 16)}
+        ratingTextFont={typeof data.ratingTextFont === "string" && data.ratingTextFont.trim() ? data.ratingTextFont : "Manrope"}
+        ratingTextWeight={
+          data.ratingTextWeight === "" || data.ratingTextWeight == null
+            ? undefined
+            : String(data.ratingTextWeight)
+        }
         previewViewportWidth={previewViewportWidth}
       />
     </div>
@@ -6534,6 +6590,33 @@ export function renderSpecialists(
         buttonStyle={specialistsButtonStyle}
         detailsButtonStyle={specialistButtonTextStyle("specialistDetailsButton", 14)}
         textAlign={style.textAlign}
+        ratingAlignment={
+          data.ratingAlignment === "left" || data.ratingAlignment === "center" || data.ratingAlignment === "right"
+            ? data.ratingAlignment
+            : "right"
+        }
+        ratingVerticalAlignment={
+          data.ratingVerticalAlignment === "top" || data.ratingVerticalAlignment === "bottom"
+            ? data.ratingVerticalAlignment
+            : undefined
+        }
+        ratingTextColor={readDataColor("ratingTextColorLight") || "#111827"}
+        ratingTextColorDark={readDataColor("ratingTextColorDark") || readDataColor("ratingTextColorLight") || "#F8FAFC"}
+        ratingStarColor={readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingStarColorDark={readDataColor("ratingStarColorDark") || readDataColor("ratingStarColorLight") || "#ffb020"}
+        ratingBackgroundColor={readDataColor("ratingBackgroundColorLight") || "transparent"}
+        ratingBackgroundColorDark={
+          readDataColor("ratingBackgroundColorDark") || readDataColor("ratingBackgroundColorLight") || "transparent"
+        }
+        ratingBackgroundOpacity={readDataNumber("ratingBackgroundOpacity", 50)}
+        ratingBackgroundRadius={readDataNumber("ratingBackgroundRadius", 0)}
+        ratingTextSize={readDataNumber("ratingTextSize", 16)}
+        ratingTextFont={typeof data.ratingTextFont === "string" && data.ratingTextFont.trim() ? data.ratingTextFont : "Manrope"}
+        ratingTextWeight={
+          data.ratingTextWeight === "" || data.ratingTextWeight == null
+            ? undefined
+            : String(data.ratingTextWeight)
+        }
         previewViewportWidth={previewViewportWidth}
       />
     </div>
@@ -6824,39 +6907,111 @@ export function renderReviews(
   previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
+  const isMobilePreview = typeof previewViewportWidth === "number" && previewViewportWidth < 768;
   const subtitle =
     typeof data.subtitle === "string"
       ? data.subtitle
       : data.subtitle
         ? String(data.subtitle)
         : "";
+  const demoReviews = [
+    {
+      id: 1,
+      clientName: "Мария",
+      date: "15 мая 2026",
+      rating: 5,
+      service: "Маникюр с покрытием",
+      specialist: "Татьяна",
+      location: "Северная Орхидея - Центр",
+      comment: "Аккуратно, быстро и очень красиво. Спасибо за внимательность к деталям.",
+    },
+    {
+      id: 2,
+      clientName: "Анна",
+      date: "14 мая 2026",
+      rating: 5,
+      service: "Архитектура бровей",
+      specialist: "Дарья",
+      location: "Северная Орхидея - Центр",
+      comment: "Мастер подобрала форму и цвет, результат выглядит естественно.",
+      reply: "Спасибо за теплый отзыв. Будем рады видеть вас снова.",
+    },
+  ];
+  const distribution = [5, 4, 3, 2, 1].map((rating, index) => ({
+    rating,
+    width: index === 0 ? 78 : index === 1 ? 18 : index === 2 ? 6 : 0,
+  }));
+  const renderStars = (rating: number) => (
+    <span className="whitespace-nowrap text-[#ff9f0a]" aria-label={`Оценка ${rating} из 5`}>
+      {"★".repeat(rating)}
+      <span className="text-slate-200">{"★".repeat(Math.max(0, 5 - rating))}</span>
+    </span>
+  );
+
   return (
-    <div>
-      <h3
-        className="font-semibold"
-        style={headingStyle(style, theme)}
-      >
+    <div className="rounded-[8px] bg-[#f4f5f8] p-4 md:p-6">
+      <h3 className="font-semibold text-[#111827]" style={headingStyle(style, theme)}>
         {(data.title as string) || "Отзывы"}
       </h3>
-      {subtitle && (
+      {subtitle ? (
         <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
           {subtitle}
         </p>
-      )}
-      <div className={`mt-4 grid gap-3 ${resolvePreviewGridClassName(previewViewportWidth, "md:grid-cols-3", 3)}`}>
-        {[1, 2, 3].map((idx) => (
-          <div
-            key={idx}
-            className="rounded-2xl border bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]"
-            style={{ borderColor: theme.borderColor }}
-          >
-            Отзывы будут отображаться здесь после их появления.
+      ) : null}
+      <div className={`mt-5 grid gap-5 ${isMobilePreview ? "" : "lg:grid-cols-[235px_minmax(0,1fr)]"}`}>
+        <aside className="rounded-[8px] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+          <div className="flex items-end gap-1">
+            <span className="text-3xl font-semibold text-[#111827]">4.9</span>
+            <span className="pb-1 text-xl font-semibold text-slate-300">/5</span>
           </div>
-        ))}
+          <div className="mt-1 text-xs text-[color:var(--bp-muted)]">24 отзыва</div>
+          <div className="mt-4 space-y-2">
+            {distribution.map((item) => (
+              <div key={item.rating} className="flex items-center gap-2 text-xs">
+                <span className="w-8 text-[#ff9f0a]">{"★".repeat(item.rating)}</span>
+                <div className="h-1.5 flex-1 rounded-full bg-slate-200">
+                  <div className="h-full rounded-full bg-[#ff9f0a]" style={{ width: `${item.width}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-xs leading-5 text-[color:var(--bp-muted)]">
+            Чтобы оставить отзыв, клиент входит в личный кабинет. Форма появится только после завершенного визита.
+          </div>
+          <div className="mt-3 inline-flex w-full items-center justify-center rounded-[8px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white">
+            Авторизоваться
+          </div>
+        </aside>
+
+        <div className="space-y-3">
+          {demoReviews.map((review) => (
+            <article key={review.id} className="rounded-[8px] bg-white p-5 shadow-[0_10px_28px_rgba(15,23,42,0.06)]">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-[#111827]">{review.clientName}</div>
+                  <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{review.date}</div>
+                </div>
+                {renderStars(review.rating)}
+              </div>
+              <div className="mt-5 text-xs uppercase tracking-wide text-[color:var(--bp-muted)]">{review.service}</div>
+              <div className="mt-1 text-sm text-blue-600">{review.specialist}</div>
+              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{review.location}</div>
+              <p className="mt-5 leading-6 text-[#1f2937]">{review.comment}</p>
+              {review.reply ? (
+                <div className="mt-5 border-l-2 border-slate-200 pl-4 text-sm text-[color:var(--bp-muted)]">
+                  <div className="font-semibold text-[#111827]">Ответ салона</div>
+                  <div className="mt-1">{review.reply}</div>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+
 
 const asString = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;

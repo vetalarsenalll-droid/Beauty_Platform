@@ -28,6 +28,7 @@ const sections = [
 
 const secondary = [
   { title: "Клиенты", href: "/crm/clients" },
+  { title: "Отзывы", href: "/crm/reviews" },
   { title: "Оплаты/Финансы", href: "/crm/payments" },
   { title: "Промо/Скидки", href: "/crm/promos" },
   { title: "Лояльность", href: "/crm/loyalty" },

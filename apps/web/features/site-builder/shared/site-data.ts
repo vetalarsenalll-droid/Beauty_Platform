@@ -80,6 +80,8 @@ export type SiteLocationItem = {
   photoUrls?: string[];
   photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
   geo: { lat: number; lng: number } | null;
+  ratingAvg?: number | null;
+  ratingCount?: number;
 };
 
 export type SiteServiceItem = {
@@ -103,6 +105,8 @@ export type SiteServiceItem = {
   photoUrls: string[];
   photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
   locationIds: number[];
+  ratingAvg?: number | null;
+  ratingCount?: number;
 };
 
 export type SiteServiceCategoryItem = {
@@ -130,6 +134,22 @@ export type SiteSpecialistItem = {
   coverUrl: string | null;
   photoUrls?: string[];
   photoItems?: Array<{ id: number; url: string; isCover: boolean }>;
+  ratingAvg?: number | null;
+  ratingCount?: number;
+};
+
+export type SiteReviewItem = {
+  id: number;
+  rating: number;
+  comment: string | null;
+  entityType: string;
+  entityId: string | null;
+  replyText: string | null;
+  createdAt: string;
+  clientName: string;
+  locationName?: string | null;
+  specialistName?: string | null;
+  servicesLabel?: string | null;
 };
 
 export type SitePromoItem = {
@@ -170,6 +190,7 @@ export type PublicSiteData = {
   services: SiteServiceItem[];
   specialists: SiteSpecialistItem[];
   promos: SitePromoItem[];
+  reviews: SiteReviewItem[];
   workPhotos: SiteWorkPhotos;
   legalDocuments: SiteLegalDocumentItem[];
   platformLegalDocuments: SiteLegalDocumentItem[];

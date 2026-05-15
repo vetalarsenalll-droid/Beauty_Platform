@@ -278,6 +278,12 @@ enum PaymentStatus {
   FAILED
 }
 
+enum ReviewStatus {
+  PUBLISHED
+  PENDING
+  HIDDEN
+}
+
 enum OutboxScope {
   PLATFORM
   ACCOUNT
@@ -628,6 +634,8 @@ model AccountSetting {
   holdTtlMinutes          Int?
   defaultReminderHours    Int?
   notificationQuietHours  Json?
+  reviewAutoPublish       Boolean  @default(true)
+  reviewAllowReplies      Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
@@ -885,16 +893,28 @@ model MediaLink {
 }
 
 model Review {
-  id        Int      @id @default(autoincrement())
-  accountId Int
-  clientId  Int
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
+  id           Int          @id @default(autoincrement())
+  accountId    Int
+  clientId     Int
+  appointmentId Int?
+  entityType   String       @default("account")
+  entityId     String?
+  rating       Int
+  comment      String?
+  status       ReviewStatus @default(PUBLISHED)
+  replyText    String?
+  repliedAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  account Account      @relation(fields: [accountId], references: [id])
-  client  Client       @relation(fields: [clientId], references: [id])
-  votes   ReviewVote[]
+  account     Account      @relation(fields: [accountId], references: [id])
+  client      Client       @relation(fields: [clientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  votes       ReviewVote[]
+
+  @@index([accountId, status, createdAt])
+  @@index([accountId, entityType, entityId, status])
+  @@unique([appointmentId])
 }
 
 model ReviewVote {
@@ -1489,6 +1509,7 @@ model Appointment {
   paymentIntents        PaymentIntent[]
   legalAcceptances      LegalAcceptance[]
   onlineBookingSessions OnlineBookingSession[]
+  reviews               Review[]
 
   @@index([accountId, startAt])
   @@index([accountId, locationId, specialistId, startAt])

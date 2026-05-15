@@ -671,7 +671,7 @@ export function SiteServicesSettingsDrawer({
         {renderFlatSelect(
           "Соотношение сторон изображения",
           String(data.imageAspectRatio ?? "1 / 1"),
-          (value) => updateData({ imageAspectRatio: value }),
+          (value) => updateData({ imageAspectRatio: value, ratingVerticalAlignment: value === "original" ? "top" : data.ratingVerticalAlignment }),
           [
             { value: "1 / 1", label: "1:1 Квадрат" },
             { value: "4 / 3", label: "4:3 Горизонтально" },

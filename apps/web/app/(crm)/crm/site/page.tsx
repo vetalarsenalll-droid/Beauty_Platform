@@ -141,6 +141,8 @@ export default async function CrmSitePage({
     locationWorkPhotos,
     serviceWorkPhotos,
     specialistWorkPhotos,
+    ratingAggregates,
+    reviewRatingGroups,
   ] = await Promise.all([
     prisma.mediaLink.findMany({
       where: {
@@ -190,7 +192,52 @@ export default async function CrmSitePage({
       include: { asset: true },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
     }),
+    prisma.ratingAggregate.findMany({
+      where: {
+        accountId: session.accountId,
+        OR: [
+          { entityType: "location", entityId: { in: locationIds } },
+          { entityType: "service", entityId: { in: serviceIds } },
+          { entityType: "specialist", entityId: { in: specialistIds } },
+        ],
+      },
+    }),
+    prisma.review.groupBy({
+      by: ["entityType", "entityId"],
+      where: {
+        accountId: session.accountId,
+        status: "PUBLISHED",
+        OR: [
+          { entityType: "location", entityId: { in: locationIds } },
+          { entityType: "service", entityId: { in: serviceIds } },
+          { entityType: "specialist", entityId: { in: specialistIds } },
+        ],
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
+    }),
   ]);
+
+  const ratingMap = new Map(
+    ratingAggregates.map((item) => [`${item.entityType}:${item.entityId}`, item])
+  );
+  const liveRatingMap = new Map(
+    reviewRatingGroups.map((item) => [
+      `${item.entityType}:${item.entityId}`,
+      {
+        ratingAvg: item._avg.rating ?? null,
+        ratingCount: item._count.rating,
+      },
+    ])
+  );
+  const readRating = (entityType: string, entityId: string) => {
+    const aggregate = ratingMap.get(`${entityType}:${entityId}`);
+    const live = liveRatingMap.get(`${entityType}:${entityId}`);
+    return {
+      ratingAvg: live?.ratingAvg ?? aggregate?.ratingAvg ?? null,
+      ratingCount: live?.ratingCount ?? aggregate?.ratingCount ?? 0,
+    };
+  };
 
   const locationCoverMap = new Map<string, string>();
   locationPhotos.forEach((item) => {
@@ -309,6 +356,7 @@ export default async function CrmSitePage({
               url: item.asset.url,
               isCover: item.isCover,
             })),
+          ...readRating("location", String(location.id)),
         }))}
         services={services.map((service: { id: number; name: string; description: string | null; category: { id: number; name: string } | null; baseDurationMin: number; basePrice: unknown; locations: Array<{ locationId: number }> }) => ({
           id: service.id,
@@ -328,6 +376,7 @@ export default async function CrmSitePage({
               isCover: item.isCover,
             })),
           locationIds: service.locations.map((item) => item.locationId),
+          ...readRating("service", String(service.id)),
         }))}
         serviceCategories={serviceCategories.map((category) => ({
           id: category.id,
@@ -354,6 +403,7 @@ export default async function CrmSitePage({
             coverUrl: specialistCoverMap.get(String(specialist.id)) ?? null,
             photoUrls: specialistPhotoMap.get(String(specialist.id)) ?? [],
             photoItems: specialistPhotoItemMap.get(String(specialist.id)) ?? [],
+            ...readRating("specialist", String(specialist.id)),
           };
         })}
         promos={promotions.map((promo) => ({

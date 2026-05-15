@@ -166,6 +166,7 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "servicesList", label: "Список услуг" },
     { id: "filters", label: "Фильтры, поиск и сортировка" },
     { id: "servicePage", label: "Страница услуги" },
+    { id: "reviews", label: "Отзывы" },
   ],
   specialists: [
     { id: "layout", label: "Основные настройки" },
@@ -175,6 +176,7 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "servicesList", label: "Список специалистов" },
     { id: "filters", label: "Фильтры, поиск и сортировка" },
     { id: "servicePage", label: "Карточка специалиста" },
+    { id: "reviews", label: "Отзывы" },
   ],
   locations: [
     { id: "layout", label: "Основные настройки" },
@@ -184,6 +186,28 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "servicesList", label: "Список филиалов" },
     { id: "filters", label: "Поиск и сортировка" },
     { id: "servicePage", label: "Карточка филиала" },
+    { id: "reviews", label: "Отзывы" },
+  ],
+  locationProfile: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "buttons", label: "Кнопка" },
+    { id: "reviews", label: "Отзывы" },
+  ],
+  serviceProfile: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "buttons", label: "Кнопка" },
+    { id: "reviews", label: "Отзывы" },
+  ],
+  specialistProfile: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
+    { id: "buttons", label: "Кнопка" },
+    { id: "reviews", label: "Отзывы" },
   ],
   loader: [
     { id: "layout", label: "Основные настройки" },

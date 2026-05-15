@@ -67,11 +67,24 @@ type DocumentAcceptance = {
 
 type ReviewItem = {
   id: number;
+  appointmentId: number | null;
   rating: number;
   comment: string | null;
   createdAt: string;
   accountName?: string | null;
   accountTimeZone?: string;
+  locationName?: string | null;
+  specialistName?: string | null;
+  servicesLabel?: string | null;
+};
+
+type ReviewableAppointment = {
+  id: number;
+  dateLabel: string;
+  timeLabel: string;
+  locationName: string;
+  specialistName: string | null;
+  servicesLabel: string | null;
 };
 
 type ClientDashboardProps = {
@@ -101,6 +114,7 @@ type ClientDashboardProps = {
   };
   documents: DocumentAcceptance[];
   reviews: ReviewItem[];
+  reviewableAppointments: ReviewableAppointment[];
   organizations: Array<{ slug: string; name: string; bookingLink: string }>;
 };
 
@@ -162,6 +176,7 @@ export default function ClientDashboard(props: ClientDashboardProps) {
     payments,
     documents,
     reviews,
+    reviewableAppointments,
     organizations,
   } = props;
 
@@ -170,7 +185,6 @@ export default function ClientDashboard(props: ClientDashboardProps) {
 
   const nextAppointment = upcoming[0] ?? null;
   const lastVisit = history[0] ?? null;
-  const latestReview = reviewItems[0] ?? null;
   const nextAppointmentStartAtIso = nextAppointment?.startAtIso ?? null;
   const lastVisitStartAtIso = lastVisit?.startAtIso ?? null;
 
@@ -482,19 +496,23 @@ export default function ClientDashboard(props: ClientDashboardProps) {
             {accountSlug ? (
               <ClientReviewForm
                 accountSlug={accountSlug}
-                initialRating={latestReview?.rating ?? null}
-                initialComment={latestReview?.comment ?? null}
+                appointments={reviewableAppointments}
                 onSaved={(payload) => {
+                  const appointment = reviewableAppointments.find((item) => item.id === payload.appointmentId);
                   setReviewItems((prev) => [
                     {
                       id: prev[0]?.id ?? Date.now(),
+                      appointmentId: payload.appointmentId,
                       rating: payload.rating,
                       comment: payload.comment,
                       createdAt: payload.createdAt,
                       accountName: accountName ?? null,
                       accountTimeZone,
+                      locationName: appointment?.locationName ?? null,
+                      specialistName: appointment?.specialistName ?? null,
+                      servicesLabel: appointment?.servicesLabel ?? null,
                     },
-                    ...prev.slice(1),
+                    ...prev,
                   ]);
                 }}
               />
@@ -518,6 +536,11 @@ export default function ClientDashboard(props: ClientDashboardProps) {
                     </div>
                     {review.accountName ? (
                       <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{review.accountName}</div>
+                    ) : null}
+                    {review.servicesLabel || review.specialistName || review.locationName ? (
+                      <div className="mt-2 text-xs text-[color:var(--bp-muted)]">
+                        {[review.servicesLabel, review.specialistName, review.locationName].filter(Boolean).join(" · ")}
+                      </div>
                     ) : null}
                     {review.comment ? (
                       <div className="mt-2 text-xs text-[color:var(--bp-muted)]">{review.comment}</div>

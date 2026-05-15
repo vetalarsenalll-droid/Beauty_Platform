@@ -188,6 +188,7 @@ export async function renderPublicMenuFrame(
           data.services,
           data.specialists,
           data.promos,
+          data.reviews,
           data.workPhotos,
           null,
           themeForRender,

@@ -407,6 +407,13 @@ export function SiteServicesSettingsPrimary({
           panelTheme,
           setActivePanelSectionId
         )}
+        {renderSectionButton(
+          "Отзывы",
+          "reviews",
+          activePanelSectionId,
+          panelTheme,
+          setActivePanelSectionId
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

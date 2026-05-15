@@ -227,6 +227,7 @@ export function renderPublicPageShell({
           data.services,
           data.specialists,
           data.promos,
+          data.reviews,
           data.workPhotos,
           currentEntity,
           themeForRender,

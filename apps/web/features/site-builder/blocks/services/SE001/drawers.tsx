@@ -1,6 +1,7 @@
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { BlockStyleEditor } from "@/features/site-builder/crm/site-editor-panels";
 import { SiteServicesSettingsDrawer } from "@/features/site-builder/crm/site-services-settings-drawer";
+import { RatingSettingsPanel } from "@/features/site-builder/blocks/rating-settings-panel";
 
 export function SE001Drawers(ctx: CrmPanelCtx) {
   if (ctx.rightPanel !== "settings") return null;
@@ -21,8 +22,12 @@ export function SE001Drawers(ctx: CrmPanelCtx) {
     ctx.activePanelSectionId === "button" ||
     ctx.activePanelSectionId === "filters" ||
     ctx.activePanelSectionId === "servicePage" ||
-    ctx.activePanelSectionId === "servicesList"
+    ctx.activePanelSectionId === "servicesList" ||
+    ctx.activePanelSectionId === "reviews"
   ) {
+    if (ctx.activePanelSectionId === "reviews") {
+      return <RatingSettingsPanel block={ctx.block} activeTheme={ctx.activeTheme} updateBlock={ctx.updateBlock} />;
+    }
     return (
       <SiteServicesSettingsDrawer
         block={ctx.block}

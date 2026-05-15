@@ -22,6 +22,7 @@ import {
   type BlockStyle,
 } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatNumberInput, renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
+import { RatingSettingsPanel } from "@/features/site-builder/blocks/rating-settings-panel";
 import type { CrmPanelCtx } from "../contracts";
 
 const flatTextareaClass =
@@ -127,7 +128,7 @@ function FlatSelect({
           ))}
         </select>
         <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-          в–ѕ
+          ▾
         </span>
       </div>
     </label>
@@ -197,7 +198,7 @@ function DarkThemeToggle({
         </svg>
         <span>Темная тема</span>
       </span>
-      <span className="text-xs">{open ? "^" : "v"}</span>
+      <span className="text-xs">{open ? "▴" : "▾"}</span>
     </button>
   );
 }
@@ -624,6 +625,9 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
         <SectionButton id="typography" label="Типографика" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         <SectionButton id="colors" label="Цвета" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         <SectionButton id="buttons" label="Кнопка" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        {(ctx.block.type === "locationProfile" || ctx.block.type === "serviceProfile" || ctx.block.type === "specialistProfile") && (
+          <SectionButton id="reviews" label="Отзывы" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -777,6 +781,10 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
         )}
       </div>
     );
+  }
+
+  if (section === "reviews") {
+    return <RatingSettingsPanel block={ctx.block} activeTheme={ctx.activeTheme} updateBlock={ctx.updateBlock} />;
   }
 
   return (
