@@ -67,11 +67,11 @@ export default async function Page() {
   return (
     <main className="min-h-screen" style={pageStyle}>
       <HomeLeftSidebar active="map" />
-      <div className="mx-auto w-full max-w-[1560px] px-6 pb-20 pt-6 md:pl-[280px]">
-        <div className="flex flex-col gap-6">
+      <div className="mx-auto flex h-screen w-full max-w-[1560px] px-6 py-6 md:pl-[280px]">
+        <div className="flex min-h-0 flex-1 flex-col gap-6">
           <HomeHeroSection />
 
-          <section className="rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]">
+          <section className="flex min-h-0 flex-1 flex-col rounded-[28px] border border-[color:var(--bp-stroke)] bg-white p-6 shadow-[var(--bp-shadow)]">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-semibold">На карте</div>
@@ -81,7 +81,7 @@ export default async function Page() {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 min-h-0 flex-1">
               <MapClient points={points} />
             </div>
           </section>

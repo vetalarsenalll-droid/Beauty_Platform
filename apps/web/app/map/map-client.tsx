@@ -127,6 +127,18 @@ export default function MapClient({ points }: MapClientProps) {
   const centerRef = useRef(initialView.center);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<PublicMapPoint | null>(null);
+  const [query, setQuery] = useState("");
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredPoints = useMemo(() => {
+    if (!normalizedQuery) return points;
+    return points.filter((point) =>
+      [point.accountName, point.locationName, point.address]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery)
+    );
+  }, [normalizedQuery, points]);
 
   const applyView = (nextCenter: { lat: number; lng: number }, nextZoom: number) => {
     centerRef.current = nextCenter;
@@ -153,6 +165,13 @@ export default function MapClient({ points }: MapClientProps) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedPoint) return;
+    if (!filteredPoints.some((point) => point.id === selectedPoint.id)) {
+      setSelectedPoint(null);
+    }
+  }, [filteredPoints, selectedPoint]);
 
   const centerWorld = useMemo(() => pointToWorld(center, zoom), [center, zoom]);
   const topLeft = {
@@ -189,7 +208,7 @@ export default function MapClient({ points }: MapClientProps) {
   const fallbackTiles = tileZoom > MIN_ZOOM ? buildTiles(tileZoom - 1) : [];
   const tiles = buildTiles(tileZoom);
 
-  const markers = points.map((point) => {
+  const markers = filteredPoints.map((point) => {
     const world = pointToWorld(point, zoom);
     return {
       ...point,
@@ -328,11 +347,22 @@ export default function MapClient({ points }: MapClientProps) {
     setIsDragging(false);
   };
 
+  const focusPoint = (point: PublicMapPoint) => {
+    setSelectedPoint(point);
+    applyView({ lat: point.lat, lng: point.lng }, Math.max(zoomRef.current, 12));
+  };
+
+  const showAll = () => {
+    const nextView = fitView(filteredPoints, size);
+    setSelectedPoint(null);
+    applyView(nextView.center, nextView.zoom);
+  };
+
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid h-full min-h-[420px] gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div
         ref={rootRef}
-        className={`relative min-h-[560px] touch-none overflow-hidden rounded-[28px] border border-[color:var(--bp-stroke)] bg-[#dbe7ee] ${
+        className={`relative h-full min-h-[420px] touch-none overflow-hidden rounded-[28px] border border-[color:var(--bp-stroke)] bg-[#dbe7ee] ${
           isDragging ? "cursor-grabbing" : "cursor-grab"
         }`}
         onWheel={handleWheel}
@@ -395,52 +425,61 @@ export default function MapClient({ points }: MapClientProps) {
           </button>
         </div>
 
-        {markers.map((point) => (
-          <button
-            key={point.id}
-            type="button"
-            className="group absolute z-10 flex h-11 w-9 items-start justify-center"
-            aria-label={`${point.accountName}: ${point.address}`}
-            onClick={() => setSelectedPoint(point)}
-            style={{
-              left: point.left,
-              top: point.top,
-              transform: "translate(-50%, -100%)",
-            }}
-          >
-            <span
-              className={`relative flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--bp-accent)] shadow-[0_10px_22px_rgba(255,90,95,0.28)] transition group-hover:-translate-y-0.5 ${
-                selectedPoint?.id === point.id ? "ring-4 ring-[color:var(--bp-accent)]/25" : ""
-              }`}
-            >
-              <span className="absolute bottom-[-5px] h-4 w-4 rotate-45 rounded-[3px] bg-[color:var(--bp-accent)]" />
-              <span className="relative z-10 flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white text-[9px] font-bold text-[color:var(--bp-accent)] ring-1 ring-white/80">
-                {point.logoUrl ? (
-                  <img
-                    src={point.logoUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    draggable={false}
-                  />
-                ) : (
-                  initials(point.accountName)
-                )}
-              </span>
-            </span>
-            <span className="pointer-events-none absolute left-1/2 top-[-10px] hidden w-64 -translate-x-1/2 -translate-y-full rounded-2xl border border-white/90 bg-white/95 px-3 py-2 text-left shadow-[0_12px_28px_rgba(15,23,42,0.16)] group-hover:block">
-              <span className="block text-xs font-semibold text-[color:var(--bp-ink)]">
-                {point.locationName}
-              </span>
-              <span className="mt-1 block text-[11px] leading-4 text-[color:var(--bp-muted)]">
-                {point.address}
-              </span>
-            </span>
-          </button>
-        ))}
+        {markers.map((point) => {
+          const isSelected = selectedPoint?.id === point.id;
+          const isDimmed = Boolean(selectedPoint) && !isSelected;
 
-        {!points.length ? (
+          return (
+            <button
+              key={point.id}
+              type="button"
+              className="group absolute z-10 flex h-11 w-9 items-start justify-center"
+              aria-label={`${point.accountName}: ${point.address}`}
+              onClick={() => focusPoint(point)}
+              style={{
+                left: point.left,
+                top: point.top,
+                transform: "translate(-50%, -100%)",
+              }}
+            >
+              <span
+                className={`relative flex h-9 w-9 items-center justify-center rounded-full shadow-[0_10px_22px_rgba(15,23,42,0.18)] transition group-hover:-translate-y-0.5 ${
+                  isDimmed ? "bg-slate-400 opacity-75" : "bg-[color:var(--bp-accent)]"
+                } ${isSelected ? "ring-4 ring-[color:var(--bp-accent)]/25" : ""}`}
+              >
+                <span
+                  className={`absolute bottom-[-5px] h-4 w-4 rotate-45 rounded-[3px] ${
+                    isDimmed ? "bg-slate-400" : "bg-[color:var(--bp-accent)]"
+                  }`}
+                />
+                <span className="relative z-10 flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white text-[9px] font-bold text-[color:var(--bp-accent)] ring-1 ring-white/80">
+                  {point.logoUrl ? (
+                    <img
+                      src={point.logoUrl}
+                      alt=""
+                      className={`h-full w-full object-cover ${isDimmed ? "grayscale" : ""}`}
+                      draggable={false}
+                    />
+                  ) : (
+                    initials(point.accountName)
+                  )}
+                </span>
+              </span>
+              <span className="pointer-events-none absolute left-1/2 top-[-10px] hidden w-64 -translate-x-1/2 -translate-y-full rounded-2xl border border-white/90 bg-white/95 px-3 py-2 text-left shadow-[0_12px_28px_rgba(15,23,42,0.16)] group-hover:block">
+                <span className="block text-xs font-semibold text-[color:var(--bp-ink)]">
+                  {point.locationName}
+                </span>
+                <span className="mt-1 block text-[11px] leading-4 text-[color:var(--bp-muted)]">
+                  {point.address}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+
+        {!filteredPoints.length ? (
           <div className="relative z-10 flex min-h-[560px] items-center justify-center px-6 text-center text-sm text-[color:var(--bp-muted)]">
-            Пока нет активных аккаунтов с локациями.
+            Локаций по запросу не найдено.
           </div>
         ) : null}
 
@@ -454,11 +493,58 @@ export default function MapClient({ points }: MapClientProps) {
         </a>
       </div>
 
-      {selectedPoint ? (
-        <aside className="flex rounded-[24px] border border-[color:var(--bp-stroke)] bg-white p-5">
-          <div className="flex h-full w-full flex-col">
+      <aside className="flex h-full min-h-[420px] rounded-[24px] border border-[color:var(--bp-stroke)] bg-white p-5">
+        <div className="flex h-full w-full flex-col">
+          <div>
+            <div className="text-sm font-semibold">Локации</div>
+            <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+              Всего: {points.length}
+            </div>
+            <div className="mt-4 flex h-10 items-center gap-2 rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3">
+              <span className="text-sm text-[color:var(--bp-muted)]">⌕</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Поиск по названию или адресу"
+                className="min-w-0 flex-1 appearance-none rounded-none border-0 bg-transparent p-0 text-sm outline-none placeholder:text-[color:var(--bp-muted)] focus:border-0 focus:outline-none focus:ring-0"
+                style={{
+                  background: "transparent",
+                  backgroundColor: "transparent",
+                  border: 0,
+                  borderRadius: 0,
+                  boxShadow: "none",
+                  outline: "none",
+                  WebkitAppearance: "none",
+                }}
+              />
+              {query ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+                  onClick={() => setQuery("")}
+                >
+                  Сброс
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {selectedPoint ? (
+            <div className="relative mt-5 flex flex-col rounded-2xl border border-[color:var(--bp-stroke)] bg-[#f9fafb] p-4">
+            <button
+              type="button"
+              className="absolute right-2 top-2 text-sm font-semibold leading-none text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+              onClick={() => setSelectedPoint(null)}
+              aria-label="Закрыть карточку"
+            >
+              ×
+            </button>
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--bp-accent)]/10 text-sm font-bold text-[color:var(--bp-accent)]">
+              <div
+                className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold text-[color:var(--bp-accent)] ${
+                  selectedPoint.logoUrl ? "bg-white" : "bg-[color:var(--bp-accent)]/10"
+                }`}
+              >
                 {selectedPoint.logoUrl ? (
                   <img
                     src={selectedPoint.logoUrl}
@@ -471,19 +557,21 @@ export default function MapClient({ points }: MapClientProps) {
                 )}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold">{selectedPoint.accountName}</div>
-                <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                <div className="line-clamp-2 min-h-10 text-sm font-semibold leading-5">
+                  {selectedPoint.accountName}
+                </div>
+                <div className="mt-1 line-clamp-2 min-h-8 text-xs leading-4 text-[color:var(--bp-muted)]">
                   {selectedPoint.locationName}
                 </div>
               </div>
             </div>
 
             <div className="mt-5 text-sm font-semibold">Адрес</div>
-            <div className="mt-2 text-sm leading-5 text-[color:var(--bp-muted)]">
+            <div className="mt-2 line-clamp-2 min-h-10 text-sm leading-5 text-[color:var(--bp-muted)]">
               {selectedPoint.address}
             </div>
 
-            <div className="mt-auto flex flex-col gap-2 pt-6">
+            <div className="mt-6 flex flex-col gap-2">
               <a
                 href={selectedPoint.href}
                 className="inline-flex items-center justify-center rounded-full bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-semibold text-white"
@@ -505,9 +593,70 @@ export default function MapClient({ points }: MapClientProps) {
                 </a>
               </div>
             </div>
+            </div>
+          ) : null}
+
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--bp-muted)]">
+              Результаты
+            </div>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--bp-accent)] hover:text-[color:var(--bp-accent-strong)]"
+              onClick={showAll}
+              aria-label="Показать все точки"
+            >
+              Все локации
+            </button>
           </div>
-        </aside>
-      ) : null}
+
+          <div className="mt-3 flex min-h-0 flex-1 flex-col gap-2 overflow-auto pr-1">
+            {filteredPoints.map((point) => (
+              <button
+                key={point.id}
+                type="button"
+                className={`flex h-[76px] w-full shrink-0 items-center gap-3 rounded-2xl border p-3 text-left transition hover:border-[color:var(--bp-accent)] ${
+                  selectedPoint?.id === point.id
+                    ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-accent)]/5"
+                    : "border-[color:var(--bp-stroke)] bg-white"
+                }`}
+                onClick={() => focusPoint(point)}
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-[color:var(--bp-accent)] ${
+                    point.logoUrl ? "bg-white" : "bg-[color:var(--bp-accent)]/10"
+                  }`}
+                >
+                  {point.logoUrl ? (
+                    <img
+                      src={point.logoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                    />
+                  ) : (
+                    initials(point.accountName)
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-[color:var(--bp-ink)]">
+                    {point.locationName}
+                  </span>
+                  <span className="mt-1 block line-clamp-2 text-xs leading-4 text-[color:var(--bp-muted)]">
+                    {point.address}
+                  </span>
+                </span>
+              </button>
+            ))}
+
+            {!filteredPoints.length ? (
+              <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] px-4 py-6 text-center text-sm text-[color:var(--bp-muted)]">
+                Ничего не найдено
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
