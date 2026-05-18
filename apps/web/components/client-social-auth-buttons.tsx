@@ -52,9 +52,8 @@ export default function ClientSocialAuthButtons({
   const maxBot = process.env.NEXT_PUBLIC_MAX_BOT_USERNAME;
   const resolvedReturnTo = useMemo(() => {
     if (returnTo) return returnTo;
-    if (typeof window === "undefined") return "/c";
-    return `${window.location.pathname}${window.location.search}`;
-  }, [returnTo]);
+    return accountSlug ? `/c?account=${encodeURIComponent(accountSlug)}` : "/c";
+  }, [accountSlug, returnTo]);
   const baseButton =
     buttonClassName ||
     "flex w-full items-center justify-center rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm font-semibold text-[#111827] transition hover:bg-black/[0.03]";

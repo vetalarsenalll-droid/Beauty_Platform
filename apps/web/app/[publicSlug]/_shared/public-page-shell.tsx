@@ -8,6 +8,7 @@ import type {
 import type { PublicSiteData } from "@/features/site-builder/shared/site-data";
 import {
   buildBlockWrapperStyle,
+  DEFAULT_PUBLIC_CLIENT_BLOCK,
   normalizeStyle,
   renderBlock,
   type CurrentEntity,
@@ -57,10 +58,14 @@ const resolveBlocksForPage = (
   const entityBlocks = entityId && entityPageKey
     ? data.draft.entityPages?.[entityPageKey]?.[entityId] ?? null
     : null;
-  const pageBlocks: SiteBlock[] =
+  const pageBlocksRaw: SiteBlock[] =
     pageKey === "home"
       ? homeBlocks
       : entityBlocks ?? data.draft.pages?.[pageKey] ?? data.draft.blocks;
+  const pageBlocks =
+    pageKey === "client" && pageBlocksRaw.length === 0
+      ? [DEFAULT_PUBLIC_CLIENT_BLOCK]
+      : pageBlocksRaw;
 
   return sharedMenuBlock
     ? [

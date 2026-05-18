@@ -10,6 +10,7 @@ import PublicReviewAuthModal from "@/components/public-review-auth-modal";
 import ReviewPhotoGallery from "@/components/review-photo-gallery";
 import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
+import PublicClientAccount from "./public-client-account";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
 import { LocationsCatalog } from "@/features/site-builder/blocks/locations/locations-catalog";
@@ -53,6 +54,20 @@ const PAGE_LABELS = {
 } as const;
 
 type PageKey = keyof typeof PAGE_LABELS;
+
+export const DEFAULT_PUBLIC_CLIENT_BLOCK: SiteBlock = {
+  id: "public-client-default",
+  type: "client",
+  variant: "v1",
+  data: {
+    title: "Личный кабинет",
+    subtitle: "Ваши данные и история записей",
+    salonsTitle: "Ваши салоны",
+    emptyText: "Войдите, чтобы увидеть записи, бонусы и документы по этой организации.",
+    style: {},
+  },
+};
+
 const COVER_BACKGROUND_POSITION_VALUES = new Set<string>([
   "left top",
   "center top",
@@ -1184,6 +1199,8 @@ export function renderBlock(
       return renderReviews(block, reviews, accountName, accountSlug, publicSlug, theme);
     case "contacts":
       return renderContacts(block, accountName, profile, locations);
+    case "client":
+      return renderClient(block, accountSlug, publicSlug, theme);
     default:
       return null;
   }
@@ -1986,7 +2003,7 @@ function renderCover(
     const basePath = publicSlug ? `/${publicSlug}` : "#";
     if (pageKey === "home") return basePath;
     if (pageKey === "booking") return `${basePath}/booking`;
-    if (pageKey === "client") return accountSlug ? `/c?account=${accountSlug}` : "/c/login";
+    if (pageKey === "client") return `${basePath}/client`;
     return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
   };
   const resolveCoverSlideTargetHref = (target: string): string => {
@@ -2789,13 +2806,16 @@ export function buildBlockWrapperStyle(
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
     const isCoverBlock = options.blockType === "cover";
+    const isClientBlock = options.blockType === "client";
     const isServicesBlock =
       options.blockType === "services" ||
       options.blockType === "specialists" ||
       options.blockType === "locations";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
-      : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
+      : isClientBlock
+        ? MAX_BLOCK_COLUMNS
+        : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
     const isMenu = options.blockType === "menu";
     const isGallery = options.blockType === "works";
     const hasGridRange =
@@ -2803,7 +2823,8 @@ export function buildBlockWrapperStyle(
       typeof style.gridEndColumn === "number" &&
       !isMenu &&
       !isBookingBlock &&
-      !isCoverBlock;
+      !isCoverBlock &&
+      !isClientBlock;
     const gridStart = hasGridRange
       ? clampGridColumn(style.gridStartColumn as number)
       : centeredGridRange(blockOuterColumns).start;
@@ -2823,7 +2844,7 @@ export function buildBlockWrapperStyle(
       mobileServicesGrid.end
     );
     const mobileServicesLeftCss = gridSpanLeftCss(mobileServicesGrid.start);
-    const servicesSectionBackgroundSource = isServicesBlock || isBookingBlock
+    const servicesSectionBackgroundSource = isServicesBlock || isBookingBlock || isClientBlock
       ? {
           servicesSectionBackgroundModeLight: style.servicesSectionBackgroundModeLight,
           servicesSectionBackgroundFromLight: style.servicesSectionBackgroundFromLight,
@@ -2852,22 +2873,22 @@ export function buildBlockWrapperStyle(
       return {
         className: isMenu
           ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
-          : isGallery || isBookingBlock || isCoverBlock || isServicesBlock
+          : isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
           ? "site-block p-0"
         : "site-block border border-[color:var(--bp-stroke)] p-6",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isMenu || isBookingBlock || isCoverBlock || isServicesBlock ? 0 : radius,
+        borderRadius: isMenu || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? 0 : radius,
         backgroundColor:
           isCoverBlock
             ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
-              : isServicesBlock || isBookingBlock
+              : isServicesBlock || isBookingBlock || isClientBlock
               ? "var(--services-section-bg, var(--block-section-bg, var(--block-bg)))"
-              : isGallery || isBookingBlock || isServicesBlock
+              : isGallery || isBookingBlock || isServicesBlock || isClientBlock
               ? "var(--block-section-bg, var(--block-bg))"
               : "var(--block-bg)",
         backgroundImage:
@@ -2875,45 +2896,45 @@ export function buildBlockWrapperStyle(
             ? (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
-              : isServicesBlock || isBookingBlock
+              : isServicesBlock || isBookingBlock || isClientBlock
               ? "var(--services-section-image, none)"
-              : isGallery || isBookingBlock || isServicesBlock
+              : isGallery || isBookingBlock || isServicesBlock || isClientBlock
               ? "none"
               : "var(--block-gradient)",
-        borderColor: isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "transparent" : "var(--block-border)",
-        borderWidth: isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? 0 : hasVisibleBorder ? 1 : 0,
+        borderColor: isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "transparent" : "var(--block-border)",
+        borderWidth: isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:
-          isGallery || isBookingBlock || isCoverBlock || isServicesBlock
+          isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
             ? "none"
             : blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor}`
             : "0 var(--site-shadow-size) calc(var(--site-shadow-size) * 2) var(--site-shadow-color)",
         marginTop:
-          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
             ? 0
             : typeof style.marginTop === "number"
               ? style.marginTop
               : 0,
         marginBottom:
-          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock
+          options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
             ? 0
             : typeof style.marginBottom === "number"
               ? style.marginBottom
               : 0,
         paddingTop:
-          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock) &&
+          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock) &&
           typeof style.marginTop === "number"
             ? style.marginTop
             : undefined,
         paddingBottom:
-          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock) &&
+          (options.blockType === "menu" || options.blockType === "works" || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock) &&
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "100%" : gridWidthCss,
+        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
-        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : gridLeftCss,
-        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : 0,
+        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : gridLeftCss,
+        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : 0,
         boxSizing: "border-box",
         color: "var(--block-text)",
         ["--works-content-width" as string]: gridWidthCss,
@@ -3108,9 +3129,7 @@ function renderMenu(
         : key === "booking"
           ? `${basePath}/booking`
           : key === "client"
-            ? accountSlug
-              ? `/c?account=${accountSlug}`
-              : "/c"
+            ? `${basePath}/client`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
       <Link
@@ -3133,9 +3152,7 @@ function renderMenu(
         : key === "booking"
           ? `${basePath}/booking`
           : key === "client"
-            ? accountSlug
-              ? `/c?account=${accountSlug}`
-              : "/c"
+            ? `${basePath}/client`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
       <Link
@@ -3336,9 +3353,7 @@ function renderMenu(
             : key === "booking"
               ? `${basePath}/booking`
               : key === "client"
-                ? accountSlug
-                  ? `/c?account=${accountSlug}`
-                  : "/c"
+                ? `${basePath}/client`
                 : `${basePath}/${key === "promos" ? "promos" : key}`;
         return (
           <Link
@@ -3373,9 +3388,7 @@ function renderMenu(
             : key === "booking"
               ? `${basePath}/booking`
               : key === "client"
-                ? accountSlug
-                  ? `/c?account=${accountSlug}`
-                  : "/c"
+                ? `${basePath}/client`
                 : `${basePath}/${key === "promos" ? "promos" : key}`;
         return (
           <Link
@@ -5317,6 +5330,23 @@ function renderContacts(
       <div className="rounded-2xl border border-dashed border-[color:var(--bp-stroke)] p-4 text-xs text-[color:var(--bp-muted)]">
         Здесь можно будет подключить карту.
       </div>
+    </div>
+  );
+}
+
+function renderClient(
+  block: SiteBlock,
+  accountSlug: string,
+  publicSlug: string,
+  theme: SiteTheme,
+) {
+  const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block, theme);
+  const cardRadius = style.cardRadius ?? style.radius ?? 24;
+
+  return (
+    <div style={{ borderRadius: cardRadius }}>
+      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} />
     </div>
   );
 }

@@ -6,9 +6,15 @@ import ClientSocialAuthButtons from "@/components/client-social-auth-buttons";
 
 type ClientLoginPageProps = {
   initialAccountSlug?: string;
+  returnTo?: string;
+  embedded?: boolean;
 };
 
-export default function ClientLoginPage({ initialAccountSlug = "" }: ClientLoginPageProps) {
+export default function ClientLoginPage({
+  initialAccountSlug = "",
+  returnTo,
+  embedded = false,
+}: ClientLoginPageProps) {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,19 +47,23 @@ export default function ClientLoginPage({ initialAccountSlug = "" }: ClientLogin
       return;
     }
 
-    const target = accountSlug ? `/c?account=${accountSlug}` : "/c";
+    const target = returnTo || (accountSlug ? `/c?account=${accountSlug}` : "/c");
     window.location.href = target;
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-12">
+    <div className={`flex items-center justify-center px-6 py-12 ${embedded ? "min-h-[520px]" : "min-h-screen"}`}>
       <div className="grid w-full max-w-[980px] overflow-hidden rounded-[28px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]">
         <div className="flex flex-col justify-between gap-6 bg-[linear-gradient(135deg,var(--bp-accent),var(--bp-accent-strong))] p-10 text-white">
           <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-white/70">Marketplace</div>
+            <div className="text-xs uppercase tracking-[0.3em] text-white/70">
+              {embedded ? "Клиентский доступ" : "Marketplace"}
+            </div>
             <h1 className="mt-3 text-3xl font-semibold">Личный кабинет клиента</h1>
             <p className="mt-3 text-sm text-white/80">
-              Управляйте записями, бонусами и любимыми салонами в одном месте.
+              {embedded
+                ? "Войдите, чтобы увидеть свои записи, бонусы и данные по этой организации."
+                : "Управляйте записями, бонусами и любимыми салонами в одном месте."}
             </p>
           </div>
           <div className="space-y-3 text-sm text-white/80">
@@ -70,7 +80,11 @@ export default function ClientLoginPage({ initialAccountSlug = "" }: ClientLogin
             Личный кабинет
           </div>
           <h2 className="mt-2 text-2xl font-semibold">Вход</h2>
-          <ClientSocialAuthButtons accountSlug={accountSlug} className="mt-8" />
+          <ClientSocialAuthButtons
+            accountSlug={accountSlug}
+            returnTo={returnTo || (accountSlug ? `/c?account=${accountSlug}` : "/c")}
+            className="mt-8"
+          />
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <label className="text-sm font-medium">
               Эл. почта
