@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
+import ClientSocialAuthButtons from "@/components/client-social-auth-buttons";
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 
 type ReviewAppointmentService = {
@@ -540,6 +541,11 @@ export default function PublicReviewAuthModal({
 
             {!checking && !authenticated ? (
               <form className="mt-6 grid gap-4" onSubmit={handleAuth}>
+                <ClientSocialAuthButtons
+                  accountSlug={accountSlug}
+                  divider
+                  buttonClassName="flex w-full items-center justify-center border bg-transparent px-4 py-3 text-sm font-semibold transition hover:bg-black/[0.03]"
+                />
                 <input
                   type="email"
                   value={email}

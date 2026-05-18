@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import ClientSocialAuthButtons from "@/components/client-social-auth-buttons";
 
 type ClientRegisterPageProps = {
   initialAccountSlug?: string;
@@ -104,7 +105,8 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
             Личный кабинет
           </div>
           <h2 className="mt-2 text-2xl font-semibold">Регистрация</h2>
-          <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit}>
+          <ClientSocialAuthButtons accountSlug={accountSlug} className="mt-8" />
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <label className="text-sm font-medium">
               Имя
               <input
