@@ -90,6 +90,8 @@ export type SitePageKey =
   | "home"
   | "booking"
   | "client"
+  | "clientLogin"
+  | "clientCabinet"
   | "locations"
   | "services"
   | "specialists"
@@ -100,6 +102,8 @@ export const SITE_PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "clientLogin",
+  "clientCabinet",
   "legal",
   "locations",
   "services",
@@ -115,6 +119,7 @@ export type SiteEntityPages = {
   services?: Record<string, SiteBlock[]>;
   specialists?: Record<string, SiteBlock[]>;
   promos?: Record<string, SiteBlock[]>;
+  legalDocuments?: Record<string, SiteBlock[]>;
 };
 
 export const BLOCK_LABELS: Record<BlockType, string> = {
@@ -963,6 +968,14 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
   ];
   const bookingBlocks: SiteBlock[] = [createBookingBlock()];
   const clientBlocks: SiteBlock[] = [createClientBlock()];
+  const clientLoginBlock = createClientBlock();
+  const clientLoginBlocks: SiteBlock[] = [
+    { ...clientLoginBlock, data: { ...clientLoginBlock.data, clientView: "login" } },
+  ];
+  const clientCabinetBlock = createClientBlock();
+  const clientCabinetBlocks: SiteBlock[] = [
+    { ...clientCabinetBlock, data: { ...clientCabinetBlock.data, clientView: "cabinet" } },
+  ];
   const legalBlocks: SiteBlock[] = [createLegalBlock()];
 
   const baseTheme: SiteThemePalette = {
@@ -1028,6 +1041,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
       home: homeBlocks,
       booking: bookingBlocks,
       client: clientBlocks,
+      clientLogin: clientLoginBlocks,
+      clientCabinet: clientCabinetBlocks,
       legal: legalBlocks,
       locations: [],
       services: [],
@@ -1457,6 +1472,16 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
     client: normalizeBlocks(
       pagesInput.client && pagesInput.client.length > 0 ? pagesInput.client : fallbackPages.client
     ),
+    clientLogin: normalizeBlocks(
+      pagesInput.clientLogin && pagesInput.clientLogin.length > 0
+        ? pagesInput.clientLogin
+        : fallbackPages.clientLogin
+    ),
+    clientCabinet: normalizeBlocks(
+      pagesInput.clientCabinet && pagesInput.clientCabinet.length > 0
+        ? pagesInput.clientCabinet
+        : fallbackPages.clientCabinet
+    ),
     legal: normalizeBlocks(
       pagesInput.legal && pagesInput.legal.length > 0 ? pagesInput.legal : fallbackPages.legal
     ),
@@ -1487,6 +1512,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
     services: normalizeEntityMap(rawEntityPages.services),
     specialists: normalizeEntityMap(rawEntityPages.specialists),
     promos: normalizeEntityMap(rawEntityPages.promos),
+    legalDocuments: normalizeEntityMap(rawEntityPages.legalDocuments),
   };
 
   if (!hasStructuredPages && !pages.home.some((block) => block.type === "menu")) {

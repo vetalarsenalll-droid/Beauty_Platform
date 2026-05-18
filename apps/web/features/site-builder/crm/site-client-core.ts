@@ -22,8 +22,9 @@ import type {
 } from "@/features/site-builder/shared/site-data";
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
+  | { type: "legalDocument"; id: number }
   | null;
-export type EntityPageKey = Exclude<SitePageKey, "home" | "booking" | "client" | "legal">;
+export type EntityPageKey = "locations" | "services" | "specialists" | "promos" | "legalDocuments";
 
 export type PublicPageData = {
   id: number;
@@ -88,6 +89,8 @@ export const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
   client: "Личный кабинет",
+  clientLogin: "Вход",
+  clientCabinet: "Кабинет",
   legal: "Документы",
   locations: "Локации",
   services: "Услуги",
@@ -99,6 +102,8 @@ export const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "clientLogin",
+  "clientCabinet",
   "legal",
   "locations",
   "services",

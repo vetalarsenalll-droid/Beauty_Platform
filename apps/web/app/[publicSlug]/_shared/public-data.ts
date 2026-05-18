@@ -165,7 +165,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
           where: { isActive: true },
           orderBy: { version: "desc" },
           take: 1,
-          select: { id: true, version: true, publishedAt: true },
+          select: { id: true, version: true, content: true, publishedAt: true },
         },
       },
     }),
@@ -180,7 +180,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
           where: { isActive: true },
           orderBy: { version: "desc" },
           take: 1,
-          select: { id: true, version: true, publishedAt: true },
+          select: { id: true, version: true, content: true, publishedAt: true },
         },
       },
     }),
@@ -530,6 +530,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       isRequired: doc.isRequired,
       versionId: version.id,
       version: version.version,
+      content: version.content,
       publishedAt: version.publishedAt.toISOString(),
     };
   });
@@ -544,6 +545,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
       isRequired: doc.isRequired,
       versionId: version.id,
       version: version.version,
+      content: version.content,
       publishedAt: version.publishedAt.toISOString(),
     };
   });

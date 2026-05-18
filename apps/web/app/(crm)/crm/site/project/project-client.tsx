@@ -86,6 +86,8 @@ function updateBlockTagInDraft(
     updateBlocks(next.entityPages?.specialists?.[pageKey.split(":")[1]]);
   } else if (pageKey.startsWith("promo:")) {
     updateBlocks(next.entityPages?.promos?.[pageKey.split(":")[1]]);
+  } else if (pageKey.startsWith("legal:")) {
+    updateBlocks(next.entityPages?.legalDocuments?.[pageKey.split(":")[1]]);
   } else if (pageKey === "home") {
     const updated = updateBlocks(next.pages?.home);
     if (!updated) updateBlocks(next.blocks);

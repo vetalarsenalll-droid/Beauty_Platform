@@ -100,6 +100,9 @@ const SITE_PAGE_KEYS = new Set<SitePageKey>([
   "home",
   "booking",
   "client",
+  "clientLogin",
+  "clientCabinet",
+  "legal",
   "locations",
   "services",
   "specialists",
@@ -111,6 +114,7 @@ const ENTITY_PAGE_KEYS = new Set<keyof SiteEntityPages>([
   "services",
   "specialists",
   "promos",
+  "legalDocuments",
 ]);
 
 function mergePublishedPageDraft(
@@ -140,6 +144,8 @@ function mergePublishedPageDraft(
       home: next.blocks,
       booking: [],
       client: [],
+      clientLogin: [],
+      clientCabinet: [],
       legal: [],
       locations: [],
       services: [],
@@ -218,7 +224,8 @@ export async function PATCH(request: Request) {
     publishEntityRaw?.type === "locations" ||
     publishEntityRaw?.type === "services" ||
     publishEntityRaw?.type === "specialists" ||
-    publishEntityRaw?.type === "promos"
+    publishEntityRaw?.type === "promos" ||
+    publishEntityRaw?.type === "legalDocuments"
       ? publishEntityRaw.type
       : null;
   const publishEntityId =

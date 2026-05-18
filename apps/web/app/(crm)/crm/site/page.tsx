@@ -21,6 +21,8 @@ const ALLOWED_PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "clientLogin",
+  "clientCabinet",
   "legal",
   "locations",
   "services",
@@ -39,10 +41,17 @@ const normalizeInitialEntity = (
   value: string | undefined,
   pageKey: SitePageKey
 ): CurrentEntity => {
+  const legalMatch = value?.match(/^legalDocument:(\d+)$/);
+  if (legalMatch) {
+    if (pageKey !== "legal") return null;
+    const id = Number(legalMatch[1]);
+    return Number.isInteger(id) && id > 0 ? { type: "legalDocument", id } : null;
+  }
+
   const match = value?.match(/^(location|service|specialist|promo):(\d+)$/);
   if (!match) return null;
 
-  const type = match[1] as NonNullable<CurrentEntity>["type"];
+  const type = match[1] as "location" | "service" | "specialist" | "promo";
   const id = Number(match[2]);
   if (!Number.isInteger(id) || id <= 0) return null;
   if (type === "location" && pageKey !== "locations") return null;
@@ -196,7 +205,7 @@ export default async function CrmSitePage({
           where: { isActive: true },
           orderBy: { version: "desc" },
           take: 1,
-          select: { id: true, version: true, publishedAt: true },
+          select: { id: true, version: true, content: true, publishedAt: true },
         },
       },
     }),
@@ -211,7 +220,7 @@ export default async function CrmSitePage({
           where: { isActive: true },
           orderBy: { version: "desc" },
           take: 1,
-          select: { id: true, version: true, publishedAt: true },
+          select: { id: true, version: true, content: true, publishedAt: true },
         },
       },
     }),
@@ -577,6 +586,7 @@ export default async function CrmSitePage({
             isRequired: doc.isRequired,
             versionId: version.id,
             version: version.version,
+            content: version.content,
             publishedAt: version.publishedAt.toISOString(),
           };
         })}
@@ -590,6 +600,7 @@ export default async function CrmSitePage({
             isRequired: doc.isRequired,
             versionId: version.id,
             version: version.version,
+            content: version.content,
             publishedAt: version.publishedAt.toISOString(),
           };
         })}

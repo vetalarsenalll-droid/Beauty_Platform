@@ -42,6 +42,7 @@ import {
 
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
+  | { type: "legalDocument"; id: number }
   | null;
 
 const PAGE_LABELS = {
@@ -1208,7 +1209,7 @@ export function renderBlock(
     case "client":
       return renderClient(block, accountSlug, publicSlug, theme, clientAuthMode);
     case "legal":
-      return renderLegal(block, publicBasePath, legalDocuments, platformLegalDocuments, theme);
+      return renderLegal(block, publicBasePath, legalDocuments, platformLegalDocuments, theme, current);
     default:
       return null;
   }
@@ -5376,7 +5377,7 @@ function renderClient(
   accountSlug: string,
   publicSlug: string,
   theme: SiteTheme,
-  authMode: ClientAuthMode,
+  authMode: ClientAuthMode
 ) {
   const style = normalizeStyle(block, theme);
   const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
@@ -5399,6 +5400,11 @@ function renderClient(
   const cabinetButtonRadius = readNumber("cabinetButtonRadius", 16);
   const buttonBg = style.buttonColor || theme.lightPalette.buttonColor;
   const buttonText = style.buttonTextColor || theme.lightPalette.buttonTextColor;
+  const data = block.data as Record<string, unknown>;
+  const resolvedAuthMode: ClientAuthMode =
+    data.clientView === "cabinet" || data.clientView === "login"
+      ? (data.clientView as ClientAuthMode)
+      : authMode;
 
   return (
     <div
@@ -5417,14 +5423,14 @@ function renderClient(
           "--site-client-button-text": buttonText,
           "--bp-accent": buttonBg,
           "--bp-accent-strong": buttonBg,
-          "--bp-paper": authMode === "login" ? authBlockBg : cabinetBlockBg,
-          "--bp-surface": authMode === "login" ? authPageBg : cabinetPageBg,
-          "--site-button-radius": `${authMode === "login" ? authButtonRadius : cabinetButtonRadius}px`,
-          "--site-radius": `${authMode === "login" ? authRadius : cabinetRadius}px`,
+          "--bp-paper": resolvedAuthMode === "login" ? authBlockBg : cabinetBlockBg,
+          "--bp-surface": resolvedAuthMode === "login" ? authPageBg : cabinetPageBg,
+          "--site-button-radius": `${resolvedAuthMode === "login" ? authButtonRadius : cabinetButtonRadius}px`,
+          "--site-radius": `${resolvedAuthMode === "login" ? authRadius : cabinetRadius}px`,
         } as CSSProperties
       }
     >
-      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} authMode={authMode} />
+      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} authMode={resolvedAuthMode} />
     </div>
   );
 }
@@ -5434,14 +5440,52 @@ function renderLegal(
   publicBasePath: string,
   legalDocuments: LegalDocumentItem[],
   platformLegalDocuments: LegalDocumentItem[],
-  theme: SiteTheme
+  theme: SiteTheme,
+  current: CurrentEntity = null
 ) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
   const title = (data.title as string) || "Документы";
   const subtitle = (data.subtitle as string) || "Правовые документы и согласия";
-  const docs = [...legalDocuments, ...platformLegalDocuments];
+  const rawOverrides =
+    data.documentOverrides && typeof data.documentOverrides === "object"
+      ? (data.documentOverrides as Record<string, Record<string, unknown>>)
+      : {};
+  const docs = [...legalDocuments, ...platformLegalDocuments].map((doc) => {
+    const override = rawOverrides[String(doc.versionId)] ?? {};
+    return {
+      ...doc,
+      title: typeof override.title === "string" && override.title.trim() ? override.title : doc.title,
+      description: typeof override.description === "string" ? override.description : doc.description,
+      content: typeof override.content === "string" ? override.content : doc.content,
+    };
+  });
   const cardRadius = style.cardRadius ?? style.radius ?? 16;
+  const activeDoc =
+    current?.type === "legalDocument"
+      ? docs.find((doc) => doc.versionId === current.id) ?? null
+      : null;
+
+  if (activeDoc) {
+    return (
+      <div>
+        <h1 className="font-semibold" style={headingStyle(style)}>
+          {activeDoc.title}
+        </h1>
+        {activeDoc.description ? (
+          <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style)}>
+            {activeDoc.description}
+          </p>
+        ) : null}
+        <div
+          className="mt-6 whitespace-pre-wrap border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 text-sm leading-6"
+          style={{ borderRadius: cardRadius }}
+        >
+          {activeDoc.content || "Текст документа пока пуст."}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

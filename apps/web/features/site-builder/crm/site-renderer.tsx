@@ -2457,7 +2457,7 @@ export function renderBlock(
     case "client":
       return renderClient(block, account, theme, style);
     case "legal":
-      return renderLegal(block, theme, style, legalDocuments ?? [], platformLegalDocuments ?? []);
+      return renderLegal(block, theme, style, legalDocuments ?? [], platformLegalDocuments ?? [], currentEntity);
     case "booking":
       return renderBooking(block, account, theme, style, loaderConfig, previewViewportWidth);
     case "loader":
@@ -5491,9 +5491,17 @@ export function renderAbout(
   );
 }
 
-export function renderClient(block: SiteBlock, account: AccountInfo, theme: SiteTheme, style: BlockStyle) {
+export function renderClient(
+  block: SiteBlock,
+  account: AccountInfo,
+  theme: SiteTheme,
+  style: BlockStyle
+) {
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || "Личный кабинет";
+  const view = data.clientView === "cabinet" ? "cabinet" : "login";
+  const text = (key: string, fallback: string) =>
+    typeof data[key] === "string" ? (data[key] as string) : fallback;
   const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
   const readColor = (key: string, fallback: string) => {
     const value = rawStyle[key];
@@ -5522,91 +5530,98 @@ export function renderClient(block: SiteBlock, account: AccountInfo, theme: Site
     backgroundColor: cabinetBlockBg,
   };
 
-  return (
-    <div>
-      <h3 className="font-semibold" style={headingStyle(style, theme)}>
-        {title}
-      </h3>
-      <div className="mt-5 grid gap-6 xl:grid-cols-2">
-        <div className="p-8" style={{ backgroundColor: authPageBg, borderRadius: authRadius }}>
-          <div
-            className="grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
-            style={{ borderRadius: authRadius, backgroundColor: authBlockBg }}
-          >
-            <div className="flex min-h-[360px] flex-col justify-between gap-6 p-8 text-white" style={{ backgroundColor: authSideBg }}>
-              <div>
-                <div className="text-xs uppercase tracking-[0.3em] text-white/70">Клиентский доступ</div>
-                <div className="mt-3 text-3xl font-semibold">Личный кабинет клиента</div>
-                <p className="mt-3 text-sm text-white/80">
-                  Войдите, чтобы увидеть свои записи, бонусы и данные по этой организации.
-                </p>
-              </div>
-              <div className="space-y-3 text-sm text-white/80">
-                <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
-                  Умные подсказки по следующему визиту
-                </div>
-                <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
-                  История записей и оплат по организациям
-                </div>
-              </div>
+  const loginPreview = (
+    <div className="p-8" style={{ backgroundColor: authPageBg, borderRadius: authRadius }}>
+      <div
+        className="grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+        style={{ borderRadius: authRadius, backgroundColor: authBlockBg }}
+      >
+        <div className="flex min-h-[360px] flex-col justify-between gap-6 p-8 text-white" style={{ backgroundColor: authSideBg }}>
+          <div>
+            <div className="text-xs uppercase tracking-[0.3em] text-white/70">Клиентский доступ</div>
+            <div className="mt-3 text-3xl font-semibold">{text("authTitle", "Личный кабинет клиента")}</div>
+            <p className="mt-3 text-sm text-white/80">
+              {text("authText", "Войдите, чтобы увидеть свои записи, бонусы и данные по этой организации.")}
+            </p>
+          </div>
+          <div className="space-y-3 text-sm text-white/80">
+            <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
+              {text("authHint1", "Умные подсказки по следующему визиту")}
             </div>
-            <div className="p-8">
-              <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Личный кабинет</div>
-              <div className="mt-2 text-2xl font-semibold">Вход</div>
-              <div className="mt-8 space-y-2">
-                {["Telegram", "VK ID", "Яндекс ID", "MAX ID"].map((label) => (
-                  <div key={label} className="border border-[color:var(--bp-stroke)] px-4 py-3 text-center text-sm font-semibold" style={{ borderRadius: inputRadius }}>
-                    {label}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 space-y-4">
-                <div>
-                  <div className="text-sm font-medium">Эл. почта</div>
-                  <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
-                </div>
-                <div>
-                  <div className="text-sm font-medium">Пароль</div>
-                  <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
-                </div>
-                <div className="h-12" style={{ borderRadius: inputRadius, backgroundColor: buttonBg }} />
-              </div>
+            <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
+              {text("authHint2", "История записей и оплат по организациям")}
             </div>
           </div>
         </div>
-        <div className="p-8" style={{ backgroundColor: cabinetPageBg, borderRadius: cabinetRadius }}>
-          <div className="flex flex-col gap-6">
-            <div className="border p-8 shadow-[var(--bp-shadow)]" style={cabinetCardStyle}>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-3">
-                  <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">{account.name}</div>
-                  <div className="text-3xl font-semibold text-[color:var(--bp-ink)]">Личный кабинет</div>
-                  <p className="text-sm text-[color:var(--bp-muted)]">client@example.com</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <a href={bookingHref} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold" style={{ borderRadius: cabinetButtonRadius, backgroundColor: buttonBg, color: buttonText }}>
-                    Записаться
-                  </a>
-                  <button type="button" className="border border-[color:var(--bp-stroke)] px-4 py-2 text-sm" style={{ borderRadius: cabinetButtonRadius }}>
-                    Выйти
-                  </button>
-                </div>
+        <div className="p-8">
+          <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Личный кабинет</div>
+          <div className="mt-2 text-2xl font-semibold">{text("loginTitle", "Вход")}</div>
+          <div className="mt-8 space-y-2">
+            {["Telegram", "VK ID", "Яндекс ID", "MAX ID"].map((label) => (
+              <div key={label} className="border border-[color:var(--bp-stroke)] px-4 py-3 text-center text-sm font-semibold" style={{ borderRadius: inputRadius }}>
+                {label}
               </div>
+            ))}
+          </div>
+          <div className="mt-6 space-y-4">
+            <div>
+              <div className="text-sm font-medium">Эл. почта</div>
+              <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
             </div>
-            <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-              <div className="border p-5" style={cabinetCardStyle}>
-                <div className="font-semibold">Следующая запись</div>
-                <div className="mt-3 text-sm text-[color:var(--bp-muted)]">Пока нет ближайших записей.</div>
-              </div>
-              <div className="border p-5" style={cabinetCardStyle}>
-                <div className="font-semibold">Лояльность</div>
-                <div className="mt-3 text-3xl font-semibold">0 ₽</div>
-              </div>
+            <div>
+              <div className="text-sm font-medium">Пароль</div>
+              <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
+            </div>
+            <div className="flex h-12 items-center justify-center text-sm font-semibold" style={{ borderRadius: inputRadius, backgroundColor: buttonBg, color: buttonText }}>
+              {text("loginButtonText", "Войти")}
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+
+  const cabinetPreview = (
+    <div className="p-8" style={{ backgroundColor: cabinetPageBg, borderRadius: cabinetRadius }}>
+      <div className="flex flex-col gap-6">
+        <div className="border p-8 shadow-[var(--bp-shadow)]" style={cabinetCardStyle}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-3">
+              <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">{account.name}</div>
+              <div className="text-3xl font-semibold text-[color:var(--bp-ink)]">{text("cabinetTitle", "Личный кабинет")}</div>
+              <p className="text-sm text-[color:var(--bp-muted)]">{text("cabinetEmail", "client@example.com")}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <a href={bookingHref} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold" style={{ borderRadius: cabinetButtonRadius, backgroundColor: buttonBg, color: buttonText }}>
+                Записаться
+              </a>
+              <button type="button" className="border border-[color:var(--bp-stroke)] px-4 py-2 text-sm" style={{ borderRadius: cabinetButtonRadius }}>
+                Выйти
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <div className="border p-5" style={cabinetCardStyle}>
+            <div className="font-semibold">{text("appointmentTitle", "Следующая запись")}</div>
+            <div className="mt-3 text-sm text-[color:var(--bp-muted)]">{text("appointmentEmptyText", "Пока нет ближайших записей.")}</div>
+          </div>
+          <div className="border p-5" style={cabinetCardStyle}>
+            <div className="font-semibold">{text("loyaltyTitle", "Лояльность")}</div>
+            <div className="mt-3 text-3xl font-semibold">{text("loyaltyValue", "0 ₽")}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 className="font-semibold" style={headingStyle(style, theme)}>
+        {title}
+      </h3>
+      <div className="mt-5">{view === "cabinet" ? cabinetPreview : loginPreview}</div>
+      </div>
   );
 }
 
@@ -5615,13 +5630,65 @@ export function renderLegal(
   theme: SiteTheme,
   style: BlockStyle,
   legalDocuments: LegalDocumentItem[] = [],
-  platformLegalDocuments: LegalDocumentItem[] = []
+  platformLegalDocuments: LegalDocumentItem[] = [],
+  currentEntity: CurrentEntity = null
 ) {
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || "Документы";
   const subtitle = (data.subtitle as string) || "Правовые документы и согласия";
   const radius = style.cardRadius ?? style.radius ?? 16;
-  const docs = [...legalDocuments, ...platformLegalDocuments];
+  const rawOverrides =
+    data.documentOverrides && typeof data.documentOverrides === "object"
+      ? (data.documentOverrides as Record<string, Record<string, unknown>>)
+      : {};
+  const applyOverride = (doc: LegalDocumentItem) => {
+    const override = rawOverrides[String(doc.versionId)] ?? {};
+    return {
+      ...doc,
+      title: typeof override.title === "string" && override.title.trim() ? override.title : doc.title,
+      description:
+        typeof override.description === "string" ? override.description : doc.description,
+      content: typeof override.content === "string" ? override.content : doc.content,
+      pageBg: typeof override.pageBg === "string" && override.pageBg.trim() ? override.pageBg : "",
+      panelBg: typeof override.panelBg === "string" && override.panelBg.trim() ? override.panelBg : "",
+      textColor: typeof override.textColor === "string" && override.textColor.trim() ? override.textColor : "",
+    };
+  };
+  const docs = [...legalDocuments, ...platformLegalDocuments].map(applyOverride);
+  const activeDoc =
+    currentEntity?.type === "legalDocument"
+      ? docs.find((doc) => doc.versionId === currentEntity.id) ?? null
+      : null;
+
+  if (activeDoc) {
+    return (
+      <div
+        className="p-6"
+        style={{
+          borderRadius: radius,
+          backgroundColor: activeDoc.pageBg || "var(--bp-surface)",
+          color: activeDoc.textColor || "var(--bp-ink)",
+        }}
+      >
+        <div
+          className="border border-[color:var(--bp-stroke)] p-5"
+          style={{ borderRadius: radius, backgroundColor: activeDoc.panelBg || "var(--bp-paper)" }}
+        >
+          <h3 className="font-semibold" style={headingStyle(style, theme)}>
+            {activeDoc.title}
+          </h3>
+          {activeDoc.description ? (
+            <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+              {activeDoc.description}
+            </p>
+          ) : null}
+          <div className="mt-5 whitespace-pre-wrap text-sm leading-6">
+            {activeDoc.content || "Текст документа пока пуст."}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -9,11 +9,12 @@ import type {
 import {
   BLOCK_OFFSET_MAX_PX,
   BLOCK_OFFSET_STEP_PX,
+  type CurrentEntity,
   isSystemBlockType,
   createBlock,
   defaultBlockStyle,
 } from "./site-client-core";
-import { ensurePages } from "./editor-draft-helpers";
+import { ensureEntityPages, ensurePages, resolveEntityPageKey } from "./editor-draft-helpers";
 import { normalizeBlockStyle, updateBlockStyle } from "./site-renderer";
 
 type SetDraftTracked = (
@@ -24,7 +25,7 @@ type SetDraftTracked = (
 type PublishScope = {
   pageKey?: SitePageKey;
   entity?: {
-    type: "locations" | "services" | "specialists" | "promos";
+    type: "locations" | "services" | "specialists" | "promos" | "legalDocuments";
     id: string | number;
   } | null;
 };
@@ -32,6 +33,7 @@ type PublishScope = {
 type BuildEditorActionsArgs = {
   accountName: string;
   activePage: SitePageKey;
+  activeEntity: CurrentEntity;
   homeBlocks: SiteBlock[];
   pageBlocks: SiteBlock[];
   displayBlocks: SiteBlock[];
@@ -65,9 +67,15 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
   ) => {
     args.setDraftTracked((prev) => {
       const pages = { ...ensurePages(prev) };
+      const entityPageKey = resolveEntityPageKey(args.activeEntity);
       const prevHome = pages.home ?? prev.blocks;
       const pageKey: SitePageKey = args.activePage;
-      const prevPage = pages[pageKey] ?? prev.blocks;
+      const entityId = args.activeEntity && "id" in args.activeEntity ? String(args.activeEntity.id) : null;
+      const prevEntityPages = ensureEntityPages(prev);
+      const prevPage =
+        entityPageKey && entityId
+          ? prevEntityPages[entityPageKey]?.[entityId] ?? pages[pageKey] ?? []
+          : pages[pageKey] ?? prev.blocks;
 
       const updateList = (blocks: SiteBlock[]) =>
         blocks.map((block) => (block.id === id ? updater(block) : block));
@@ -80,6 +88,16 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
         : prevPage;
 
       pages.home = nextHome;
+      if (entityPageKey && entityId) {
+        const entityPages = {
+          ...prevEntityPages,
+          [entityPageKey]: {
+            ...(prevEntityPages[entityPageKey] ?? {}),
+            [entityId]: nextPage,
+          },
+        };
+        return { ...prev, pages, entityPages, blocks: pages.home ?? prev.blocks };
+      }
       pages[pageKey] = pageKey === "home" ? nextHome : nextPage;
 
       return { ...prev, pages, blocks: pages.home ?? prev.blocks };
@@ -126,7 +144,24 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     const groupKey = `blocks:${args.activePage}`;
     args.setDraftTracked((prev) => {
       const pages = { ...ensurePages(prev) };
+      const entityPageKey = resolveEntityPageKey(args.activeEntity);
+      const entityId = args.activeEntity && "id" in args.activeEntity ? String(args.activeEntity.id) : null;
       const pageKey: SitePageKey = args.activePage;
+      if (entityPageKey && entityId) {
+        const entityPages = ensureEntityPages(prev);
+        return {
+          ...prev,
+          pages,
+          entityPages: {
+            ...entityPages,
+            [entityPageKey]: {
+              ...(entityPages[entityPageKey] ?? {}),
+              [entityId]: nextBlocks,
+            },
+          },
+          blocks: pages.home ?? prev.blocks,
+        };
+      }
       pages[pageKey] = nextBlocks;
 
       if (pageKey === "home") pages.home = nextBlocks;

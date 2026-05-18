@@ -129,9 +129,15 @@ function getLibraryPreviewSrc(code: BlockCode) {
 }
 
 type PageMenuItem = Extract<PagesMenuItem, { kind: "page" }>;
+type ClientSubpageMenuItem = Extract<PagesMenuItem, { kind: "client-subpage" }>;
+type LegalDocumentMenuItem = Extract<PagesMenuItem, { kind: "legal-document" }>;
 type EntityProfileMenuItem = Extract<PagesMenuItem, { kind: "entity-profile" }>;
 
 const isPageMenuItem = (item: PagesMenuItem): item is PageMenuItem => item.kind === "page";
+const isClientSubpageMenuItem = (item: PagesMenuItem): item is ClientSubpageMenuItem =>
+  item.kind === "client-subpage";
+const isLegalDocumentMenuItem = (item: PagesMenuItem): item is LegalDocumentMenuItem =>
+  item.kind === "legal-document";
 
 const isEntityProfileMenuItem = (item: PagesMenuItem): item is EntityProfileMenuItem =>
   item.kind === "entity-profile";
@@ -148,6 +154,9 @@ function buildCurrentPublicUrl(
   if (currentEntity?.type === "service") return `${basePath}/services/${currentEntity.id}`;
   if (currentEntity?.type === "specialist") return `${basePath}/specialists/${currentEntity.id}`;
   if (currentEntity?.type === "promo") return `${basePath}/promos/${currentEntity.id}`;
+  if (activePage === "clientLogin") return `${basePath}/client/login`;
+  if (activePage === "clientCabinet") return `${basePath}/client/cabinet`;
+  if (currentEntity?.type === "legalDocument") return `${basePath}/legal/${currentEntity.id}`;
   if (activePage === "home") return basePath;
   if (activePage === "booking") return `${basePath}/booking`;
   if (activePage === "client") return `/c?account=${accountSlug}`;
@@ -225,7 +234,9 @@ export default function SiteClient({
     } else {
       url.searchParams.set("page", pageKey);
     }
-    if (entity) {
+    if (entity?.type === "legalDocument") {
+      url.searchParams.set("entity", `legalDocument:${entity.id}`);
+    } else if (entity) {
       url.searchParams.set("entity", `${entity.type}:${entity.id}`);
     } else {
       url.searchParams.delete("entity");
@@ -276,11 +287,16 @@ export default function SiteClient({
   const activePageKey: SitePageKey = activePage;
   const isSystemPage = activePageKey === "booking";
   const pageBlocks: SiteBlock[] = useMemo(
-    () =>
-      (draft.pages?.[activePageKey] ?? draft.blocks).filter((block) =>
-        activeBlockTypes.has(block.type)
-      ),
-    [activeBlockTypes, activePageKey, draft.blocks, draft.pages]
+    () => {
+      const source =
+        currentEntity?.type === "legalDocument"
+          ? draft.entityPages?.legalDocuments?.[String(currentEntity.id)] ??
+            draft.pages?.legal ??
+            []
+          : draft.pages?.[activePageKey] ?? draft.blocks;
+      return source.filter((block) => activeBlockTypes.has(block.type));
+    },
+    [activeBlockTypes, activePageKey, currentEntity, draft.blocks, draft.entityPages, draft.pages]
   );
   const homeMenuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const shouldShareMenu =
@@ -451,13 +467,21 @@ export default function SiteClient({
       return;
     }
     if (
+      currentEntity.type === "legalDocument" &&
+      !legalDocuments.some((item) => item.versionId === currentEntity.id)
+    ) {
+      setCurrentEntity(null);
+      return;
+    }
+    if (
       (currentEntity.type === "location" && activePage !== "locations") ||
       (currentEntity.type === "service" && activePage !== "services") ||
-      (currentEntity.type === "specialist" && activePage !== "specialists")
+      (currentEntity.type === "specialist" && activePage !== "specialists") ||
+      (currentEntity.type === "legalDocument" && activePage !== "legal")
     ) {
       setCurrentEntity(null);
     }
-  }, [activePage, currentEntity, editableLocations, services, specialists]);
+  }, [activePage, currentEntity, editableLocations, legalDocuments, platformLegalDocuments, services, specialists]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
   const pendingDeleteBlock = pendingDeleteBlockId
@@ -600,6 +624,7 @@ export default function SiteClient({
   } = buildEditorActions({
     accountName: account.name,
     activePage,
+    activeEntity: currentEntity,
     homeBlocks,
     pageBlocks,
     displayBlocks,
@@ -698,11 +723,14 @@ export default function SiteClient({
     locationsCount: editableLocations.length,
     servicesCount: services.length,
     specialistsCount: specialists.length,
+    legalDocuments,
     locationProfiles: editableLocations.map((item) => ({ id: item.id, name: item.name })),
     serviceProfiles: services.map((item) => ({ id: item.id, name: item.name })),
     specialistProfiles: specialists.map((item) => ({ id: item.id, name: item.name })),
   });
   const filteredPageItems = filteredMenuItems.filter(isPageMenuItem);
+  const filteredClientSubpageItems = filteredMenuItems.filter(isClientSubpageMenuItem);
+  const filteredLegalDocumentItems = filteredMenuItems.filter(isLegalDocumentMenuItem);
   const filteredLocationProfileItems = filteredMenuItems.filter(
     (item): item is EntityProfileMenuItem =>
       isEntityProfileMenuItem(item) && item.entityType === "location"
@@ -747,7 +775,9 @@ export default function SiteClient({
           ? { type: "specialists" as const, id: currentEntity.id }
           : currentEntity?.type === "promo"
             ? { type: "promos" as const, id: currentEntity.id }
-            : null;
+            : currentEntity?.type === "legalDocument"
+              ? { type: "legalDocuments" as const, id: currentEntity.id }
+              : null;
   const handlePublishCurrentPage = async () => {
     if (!publicUrl) return;
     const ok = await savePublic(true, {
@@ -886,6 +916,66 @@ export default function SiteClient({
                         </button>
                       );
                     })}
+                    {filteredClientSubpageItems.length > 0 && (
+                      <>
+                        <div className="px-3 pt-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
+                          Личный кабинет
+                        </div>
+                        {filteredClientSubpageItems.map((item) => {
+                          const isActive =
+                            activePage === item.key && currentEntity === null;
+                          return (
+                            <button
+                              key={`client:${item.key}`}
+                              type="button"
+                              onClick={() => {
+                                selectEditorPage(item.key);
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                isActive
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                    {filteredLegalDocumentItems.length > 0 && (
+                      <>
+                        <div className="px-3 pt-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
+                          Документы
+                        </div>
+                        {filteredLegalDocumentItems.map((item) => {
+                          const isActive =
+                            activePage === "legal" &&
+                            currentEntity?.type === "legalDocument" &&
+                            currentEntity.id === item.versionId;
+                          return (
+                            <button
+                              key={`legal:${item.versionId}`}
+                              type="button"
+                              onClick={() => {
+                                selectEditorPage("legal", { type: "legalDocument", id: item.versionId });
+                                setPagesMenuOpen(false);
+                                setPagesSearch("");
+                              }}
+                              className={`flex w-full items-center rounded-md px-3 py-2 text-left text-sm ${
+                                isActive
+                                  ? "bg-[color:var(--bp-surface)] font-semibold"
+                                  : "hover:bg-[color:var(--bp-surface)]/70"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
                     {filteredLocationProfileItems.length > 0 && (
                       <>
                         <div className="px-3 pt-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">
@@ -1548,6 +1638,9 @@ export default function SiteClient({
                       updateLocationItem,
                       updateServiceItem,
                       updateSpecialistItem,
+                      legalDocuments,
+                      platformLegalDocuments,
+                      currentEntity,
                     })
                   ) : (
                     selectedBlockVersion.settingsPanel({
@@ -1577,6 +1670,9 @@ export default function SiteClient({
                       updateLocationItem,
                       updateServiceItem,
                       updateSpecialistItem,
+                      legalDocuments,
+                      platformLegalDocuments,
+                      currentEntity,
                     })
                   )
                 ) : null}
@@ -1671,6 +1767,9 @@ export default function SiteClient({
                     updateLocationItem,
                     updateServiceItem,
                     updateSpecialistItem,
+                    legalDocuments,
+                    platformLegalDocuments,
+                    currentEntity,
                   })
                 : null}
             </div>

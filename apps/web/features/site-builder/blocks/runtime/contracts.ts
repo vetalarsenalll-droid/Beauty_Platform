@@ -3,6 +3,7 @@ import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type {
   SiteBranding as Branding,
   SiteEditorAccountProfile as AccountProfile,
+  SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
   SiteServiceCategoryItem as ServiceCategoryItem,
@@ -11,7 +12,7 @@ import type {
   SiteSpecialistItem as SpecialistItem,
 } from "@/features/site-builder/shared/site-data";
 import type { PanelTheme } from "@/features/site-builder/crm/site-shell-theme";
-import type { EditorSection } from "@/features/site-builder/crm/site-client-core";
+import type { CurrentEntity, EditorSection } from "@/features/site-builder/crm/site-client-core";
 
 export type BlockCode =
   | "ME001"
@@ -81,9 +82,12 @@ export type CrmPanelCtx = {
   specialistLevels: SpecialistLevelItem[];
   specialists: SpecialistItem[];
   promos: PromoItem[];
+  legalDocuments: LegalDocumentItem[];
+  platformLegalDocuments: LegalDocumentItem[];
 
   activeTheme: SiteTheme;
   panelTheme: PanelTheme;
+  currentEntity: CurrentEntity;
 
   currentPanelSections: EditorSection[];
   activePanelSectionId: string | null;

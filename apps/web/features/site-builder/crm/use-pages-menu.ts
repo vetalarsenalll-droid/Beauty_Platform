@@ -7,6 +7,8 @@ const PAGE_MENU_ORDER: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "clientLogin",
+  "clientCabinet",
   "legal",
   "locations",
   "services",
@@ -21,6 +23,7 @@ type UsePagesMenuArgs = {
   locationsCount: number;
   servicesCount: number;
   specialistsCount: number;
+  legalDocuments: Array<{ versionId: number; title: string }>;
   locationProfiles: Array<{ id: number; name: string }>;
   serviceProfiles: Array<{ id: number; name: string }>;
   specialistProfiles: Array<{ id: number; name: string }>;
@@ -28,6 +31,8 @@ type UsePagesMenuArgs = {
 
 export type PagesMenuItem =
   | { kind: "page"; key: SitePageKey; label: string }
+  | { kind: "client-subpage"; key: "clientLogin" | "clientCabinet"; label: string }
+  | { kind: "legal-document"; key: "legal"; versionId: number; label: string }
   | {
       kind: "entity-profile";
       key: SitePageKey;
@@ -43,6 +48,7 @@ export function usePagesMenu({
   locationsCount,
   servicesCount,
   specialistsCount,
+  legalDocuments,
   locationProfiles,
   serviceProfiles,
   specialistProfiles,
@@ -59,6 +65,8 @@ export function usePagesMenu({
     if (key === "booking") return true;
     if (key === "promos") return true;
     if (key === "client") return true;
+    if (key === "clientLogin") return true;
+    if (key === "clientCabinet") return true;
     if (key === "legal") return true;
     if (key === "locations") return locationsCount > 0 || hasPageBlocks(key);
     if (key === "services") return servicesCount > 0 || hasPageBlocks(key);
@@ -74,6 +82,16 @@ export function usePagesMenu({
     kind: "page",
     key,
     label: PAGE_LABELS[key],
+  }));
+  const clientSubpageItems: PagesMenuItem[] = [
+    { kind: "client-subpage", key: "clientLogin", label: "\u0412\u0445\u043e\u0434" },
+    { kind: "client-subpage", key: "clientCabinet", label: "\u041a\u0430\u0431\u0438\u043d\u0435\u0442" },
+  ];
+  const legalDocumentItems: PagesMenuItem[] = legalDocuments.map((item) => ({
+    kind: "legal-document",
+    key: "legal",
+    versionId: item.versionId,
+    label: item.title || `\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442 ${item.versionId}`,
   }));
   const locationProfileItems: PagesMenuItem[] = locationProfiles.map((item) => ({
     kind: "entity-profile",
@@ -96,12 +114,20 @@ export function usePagesMenu({
     entityId: item.id,
     label: item.name,
   }));
-  const allMenuItems: PagesMenuItem[] = [
-    ...pageItems,
-    ...locationProfileItems,
-    ...specialistProfileItems,
-    ...serviceProfileItems,
-  ];
+  const allMenuItems: PagesMenuItem[] = [];
+  pageItems.forEach((item) => {
+    if (item.key === "clientLogin" || item.key === "clientCabinet") return;
+    if (item.key === "client") {
+      allMenuItems.push(...clientSubpageItems);
+      return;
+    }
+    if (item.key === "legal") {
+      allMenuItems.push(...legalDocumentItems);
+      return;
+    }
+    allMenuItems.push(item);
+  });
+  allMenuItems.push(...locationProfileItems, ...specialistProfileItems, ...serviceProfileItems);
   const filteredMenuItems = allMenuItems.filter((item) => matchSearch(item.label));
 
   const hasFilteredPagesMenuItems = filteredMenuItems.length > 0;
@@ -128,18 +154,20 @@ export function usePagesMenu({
   }, [pagesMenuOpen]);
 
   const currentPageTitle =
-    activeEntity &&
-    ((activeEntity.type === "location" && activePageKey === "locations") ||
-      (activeEntity.type === "service" && activePageKey === "services") ||
-      (activeEntity.type === "specialist" && activePageKey === "specialists"))
-      ? allMenuItems.find(
-          (item) =>
-            item.kind === "entity-profile" &&
-            item.entityType === activeEntity.type &&
-            item.entityId === activeEntity.id
-        )?.label ??
-        PAGE_LABELS[activePageKey]
-      : PAGE_LABELS[activePageKey];
+    activeEntity?.type === "legalDocument" && activePageKey === "legal"
+        ? allMenuItems.find((item) => item.kind === "legal-document" && item.versionId === activeEntity.id)?.label ??
+          PAGE_LABELS[activePageKey]
+        : activeEntity &&
+            ((activeEntity.type === "location" && activePageKey === "locations") ||
+              (activeEntity.type === "service" && activePageKey === "services") ||
+              (activeEntity.type === "specialist" && activePageKey === "specialists"))
+          ? allMenuItems.find(
+              (item) =>
+                item.kind === "entity-profile" &&
+                item.entityType === activeEntity.type &&
+                item.entityId === activeEntity.id
+            )?.label ?? PAGE_LABELS[activePageKey]
+          : PAGE_LABELS[activePageKey];
 
   return {
     pagesMenuOpen,

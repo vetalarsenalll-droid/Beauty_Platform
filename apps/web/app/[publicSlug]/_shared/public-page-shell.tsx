@@ -50,14 +50,17 @@ const resolveBlocksForPage = (
           ? "specialists"
           : currentEntity?.type === "promo"
             ? "promos"
-            : null;
+            : currentEntity?.type === "legalDocument"
+              ? "legalDocuments"
+              : null;
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
   const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
   const shouldShowSharedMenu =
     menuBlock &&
     (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
   const sharedMenuBlock = pageKey === "home" || !shouldShowSharedMenu ? null : menuBlock;
-  const entityId = currentEntity ? String(currentEntity.id) : null;
+  const entityId =
+    currentEntity && "id" in currentEntity ? String(currentEntity.id) : null;
   const entityBlocks = entityId && entityPageKey
     ? data.draft.entityPages?.[entityPageKey]?.[entityId] ?? null
     : null;

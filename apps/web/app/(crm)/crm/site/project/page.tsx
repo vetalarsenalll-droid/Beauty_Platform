@@ -17,7 +17,7 @@ import ProjectClient, {
   type ProjectSeoSettings,
 } from "./project-client";
 
-const PAGE_LABELS: Record<SitePageKey, string> = {
+const PAGE_LABELS: Partial<Record<SitePageKey, string>> = {
   home: "Главная",
   booking: "Онлайн-запись",
   client: "Личный кабинет",
@@ -32,12 +32,24 @@ const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "clientLogin",
+  "clientCabinet",
   "legal",
   "locations",
   "services",
   "specialists",
   "promos",
 ];
+
+const pageLabel = (key: SitePageKey) =>
+  PAGE_LABELS[key] ?? (key === "clientLogin" ? "Вход" : key === "clientCabinet" ? "Кабинет" : key);
+
+const pagePath = (key: SitePageKey) => {
+  if (key === "home") return "/";
+  if (key === "clientLogin") return "/client/login";
+  if (key === "clientCabinet") return "/client/cabinet";
+  return `/${key}`;
+};
 
 const getPageBlocksSnapshot = (draft: SiteDraft, key: SitePageKey) =>
   key === "home" ? draft.pages?.home ?? draft.blocks : draft.pages?.[key] ?? [];
@@ -115,6 +127,8 @@ export default async function CrmSiteProjectPage() {
     services,
     specialists,
     promos,
+    legalDocs,
+    platformLegalDocs,
     seoPageSettings,
   ] = await Promise.all([
     prisma.location.findMany({
@@ -145,6 +159,33 @@ export default async function CrmSiteProjectPage() {
       select: { id: true, name: true },
       orderBy: { id: "asc" },
     }),
+    prisma.legalDocument.findMany({
+      where: { accountId: session.accountId },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    }),
+    prisma.platformLegalDocument.findMany({
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    }),
     prisma.seoPageSetting.findMany({
       where: { accountId: session.accountId },
       orderBy: { pageKey: "asc" },
@@ -155,8 +196,10 @@ export default async function CrmSiteProjectPage() {
   const availablePageKeys = PAGE_KEYS.filter((key) => {
     if (key === "home") return true;
     if (key === "booking") return true;
-    if (key === "client") return true;
-    if (key === "legal") return true;
+    if (key === "client") return false;
+    if (key === "clientLogin") return true;
+    if (key === "clientCabinet") return true;
+    if (key === "legal") return false;
     if (key === "locations") return locations.length > 0 || hasPageBlocks(key);
     if (key === "services") return services.length > 0 || hasPageBlocks(key);
     if (key === "specialists") return specialists.length > 0 || hasPageBlocks(key);
@@ -183,12 +226,40 @@ export default async function CrmSiteProjectPage() {
     entityPages: SiteEntityPages[keyof SiteEntityPages] | undefined,
     id: number
   ) => entityPages?.[String(id)] ?? [];
+  void platformLegalDocs;
+  const legalDocumentRows: ProjectPageRow[] = legalDocs.flatMap((doc) => {
+    const version = doc.versions[0];
+    if (!version) return [];
+    const entityPageBlocks = entityBlocks(safeDraft.entityPages?.legalDocuments, version.id);
+    const blocks = entityPageBlocks.length > 0 ? entityPageBlocks : getPageBlocksSnapshot(safeDraft, "legal");
+    const publishedEntityPageBlocks = publishedDraft
+      ? entityBlocks(publishedDraft.entityPages?.legalDocuments, version.id)
+      : [];
+    const publishedBlocks =
+      publishedDraft && publishedEntityPageBlocks.length > 0
+        ? publishedEntityPageBlocks
+        : publishedDraft
+          ? getPageBlocksSnapshot(publishedDraft, "legal")
+          : [];
+    return {
+      pageKey: `legal:${version.id}`,
+      label: doc.title || `\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442 ${version.id}`,
+      path: `/legal/${version.id}`,
+      editorHref: `/crm/site?page=legal&entity=legalDocument:${version.id}`,
+      publishPage: "legal" as SitePageKey,
+      publishEntity: { type: "legalDocuments" as const, id: String(version.id) },
+      blocksCount: blocks.length,
+      hasUnpublishedChanges: !publishedDraft || JSON.stringify(blocks) !== JSON.stringify(publishedBlocks),
+      seo: readSeo(`legal:${version.id}`),
+      blockTags: blockTags(blocks),
+    };
+  });
 
   const pageRows: ProjectPageRow[] = [
     ...availablePageKeys.map((key) => ({
       pageKey: key,
-      label: PAGE_LABELS[key],
-      path: key === "home" ? "/" : `/${key}`,
+      label: pageLabel(key),
+      path: pagePath(key),
       editorHref: `/crm/site?page=${key}`,
       publishPage: key,
       publishEntity: null,
@@ -197,6 +268,7 @@ export default async function CrmSiteProjectPage() {
       seo: readSeo(key),
       blockTags: blockTags(getPageBlocksSnapshot(safeDraft, key)),
     })),
+    ...legalDocumentRows,
     ...locations.map((item) => ({
       pageKey: `location:${item.id}`,
       label: `Локация: ${item.name}`,

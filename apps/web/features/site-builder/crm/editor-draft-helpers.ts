@@ -7,6 +7,8 @@ export function ensurePages(value: SiteDraft): SitePages {
       home: value.blocks,
       booking: [],
       client: [],
+      clientLogin: [],
+      clientCabinet: [],
       legal: [],
       locations: [],
       services: [],
@@ -24,6 +26,7 @@ export function ensureEntityPages(
     services: value.entityPages?.services ?? {},
     specialists: value.entityPages?.specialists ?? {},
     promos: value.entityPages?.promos ?? {},
+    legalDocuments: value.entityPages?.legalDocuments ?? {},
   } as Record<EntityPageKey, Record<string, SiteBlock[]>>;
 }
 
@@ -33,5 +36,6 @@ export function resolveEntityPageKey(entity: CurrentEntity): EntityPageKey | nul
   if (entity.type === "service") return "services";
   if (entity.type === "specialist") return "specialists";
   if (entity.type === "promo") return "promos";
+  if (entity.type === "legalDocument") return "legalDocuments";
   return null;
 }
