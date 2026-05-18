@@ -5208,58 +5208,71 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
         {(data.title as string) || "Отзывы"}
       </h2>
       {subtitle ? <p className="mt-2" style={subheadingStyle(style)}>{subtitle}</p> : null}
-      <div className="bp-review-scroll mt-5 grid max-h-[900px] items-start gap-5 overflow-y-auto pr-2 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="h-[300px] self-start overflow-hidden border p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={cardStyle}>
-          <div className="flex items-baseline gap-1 leading-none">
-            <span className="text-3xl font-semibold leading-none">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
-            <span className="text-xl font-semibold leading-none" style={{ color: "#cbd5e1" }}>/5</span>
-          </div>
-          <div className="mt-1 text-xs" style={{ color: mutedColor }}>{ratingCount} отзывов</div>
-          <div className="mt-4 space-y-2">
-            {distribution.map((item) => (
-              <div key={item.rating} className="flex items-center gap-2 text-xs">
-                <span className="w-20 whitespace-nowrap leading-none" style={{ color: starColor }}>{"★".repeat(item.rating)}</span>
-                <div className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: ratingTrackColor }}>
-                  <div className="h-full rounded-full" style={{ width: `${ratingCount ? (item.count / ratingCount) * 100 : 0}%`, backgroundColor: starColor }} />
-                </div>
+      <div className="mt-5">
+        <div className="grid items-start gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className="self-start overflow-hidden border p-4 shadow-[0_10px_28px_rgba(15,23,42,0.06)] lg:sticky lg:top-24" style={cardStyle}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-baseline gap-1 leading-none">
+                <span className="text-3xl font-semibold leading-none">{ratingAvg ? ratingAvg.toFixed(1) : "0.0"}</span>
+                <span className="text-3xl font-semibold leading-none" style={{ color: "#cbd5e1" }}>/5</span>
               </div>
-            ))}
-          </div>
-          <div className="mt-5 text-xs leading-5" style={{ color: mutedColor }}>
-            Чтобы оставлять отзывы, вам необходимо авторизоваться
-          </div>
-          <PublicReviewAuthModal
-            accountSlug={accountSlug}
-            accountName={accountName}
-            buttonLabel="Авторизоваться"
-            buttonClassName="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
-            buttonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
-            modalStyle={{ backgroundColor: "var(--review-card-bg)", borderRadius: cardRadius }}
-            modalTextColor={textColor}
-            modalMutedColor={mutedColor}
-            modalButtonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
-            modalFieldStyle={{ borderRadius: cardRadius }}
-            starColor={starColor}
-          />
-        </aside>
-
-        <div className="space-y-3">
-          {visibleReviews.length > 0 ? (
-            visibleReviews.map(renderReviewCard)
-          ) : (
-            <div className="border p-5 text-sm shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={{ ...cardStyle, color: mutedColor }}>
-              Отзывы будут отображаться здесь после их появления.
+              <div className="text-right text-xs leading-5" style={{ color: mutedColor }}>
+                <div>{ratingCount} оценок</div>
+                <div>{ratingCount} отзывов</div>
+              </div>
             </div>
-          )}
-          {extraReviews.length > 0 ? (
-            <details className="group">
-              <summary className="mt-4 inline-flex cursor-pointer list-none items-center justify-center px-5 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden" style={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}>
-                Показать еще
-              </summary>
-              <div className="mt-3 space-y-3">{extraReviews.map(renderReviewCard)}</div>
-            </details>
-          ) : null}
+            <div className="mt-2 text-xs leading-5" style={{ color: mutedColor }}>
+              Рейтинг сформирован на основе средней оценки
+            </div>
+            <div className="mt-4 space-y-2">
+              {distribution.map((item) => (
+                <div key={item.rating} className="flex items-center gap-2 text-xs">
+                  <span className="w-20 whitespace-nowrap leading-none" style={{ color: starColor }}>{"★".repeat(item.rating)}</span>
+                  <div className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: ratingTrackColor }}>
+                    <div className="h-full rounded-full" style={{ width: `${ratingCount ? (item.count / ratingCount) * 100 : 0}%`, backgroundColor: starColor }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <PublicReviewAuthModal
+              accountSlug={accountSlug}
+              accountName={accountName}
+              buttonLabel="Авторизоваться"
+              unauthenticatedHint="Чтобы оставлять отзывы, вам необходимо авторизоваться"
+              authenticatedHint="Вы авторизованы и можете оставить отзыв по завершенной записи"
+              hintClassName="mt-5 text-xs leading-5"
+              hintStyle={{ color: mutedColor }}
+              buttonClassName="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
+              buttonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
+              modalStyle={{ backgroundColor: "var(--review-card-bg)", borderRadius: cardRadius }}
+              modalTextColor={textColor}
+              modalMutedColor={mutedColor}
+              modalButtonStyle={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}
+              modalFieldStyle={{ borderRadius: cardRadius }}
+              starColor={starColor}
+            />
+          </aside>
+
+          <div className="bp-review-scroll max-h-[900px] overflow-y-auto pr-2">
+            <div className="space-y-3">
+              {visibleReviews.length > 0 ? (
+                visibleReviews.map(renderReviewCard)
+              ) : (
+                <div className="border p-5 text-sm shadow-[0_10px_28px_rgba(15,23,42,0.06)]" style={{ ...cardStyle, color: mutedColor }}>
+                  Отзывы будут отображаться здесь после их появления.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+        {extraReviews.length > 0 ? (
+          <details className="group mt-5 grid lg:grid-cols-[360px_minmax(0,1fr)]">
+            <summary className="mx-auto flex w-fit cursor-pointer list-none items-center justify-center px-5 py-3 text-sm font-semibold lg:col-start-2 [&::-webkit-details-marker]:hidden" style={{ borderRadius: buttonRadius, backgroundColor: buttonBg, color: buttonText }}>
+              Показать еще
+            </summary>
+            <div className="bp-review-scroll mt-3 max-h-[900px] space-y-3 overflow-y-auto pr-2 lg:col-start-2">{extraReviews.map(renderReviewCard)}</div>
+          </details>
+        ) : null}
       </div>
     </div>
   );

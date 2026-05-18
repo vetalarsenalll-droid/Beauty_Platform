@@ -32,6 +32,10 @@ type PublicReviewAuthModalProps = {
   buttonLabel?: string;
   buttonClassName?: string;
   buttonStyle?: CSSProperties;
+  authenticatedHint?: string;
+  unauthenticatedHint?: string;
+  hintClassName?: string;
+  hintStyle?: CSSProperties;
   modalStyle?: CSSProperties;
   modalTextColor?: string;
   modalMutedColor?: string;
@@ -203,6 +207,10 @@ export default function PublicReviewAuthModal({
   buttonLabel = "Авторизоваться",
   buttonClassName,
   buttonStyle,
+  authenticatedHint,
+  unauthenticatedHint,
+  hintClassName,
+  hintStyle,
   modalStyle,
   modalTextColor = "#111827",
   modalMutedColor = "#6b7280",
@@ -213,6 +221,7 @@ export default function PublicReviewAuthModal({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [initialSessionChecked, setInitialSessionChecked] = useState(false);
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [appointments, setAppointments] = useState<ReviewAppointment[]>([]);
@@ -256,6 +265,7 @@ export default function PublicReviewAuthModal({
     ...modalButtonStyle,
   } as CSSProperties;
   const resolvedButtonLabel = authenticated ? "Оставить отзыв" : buttonLabel;
+  const resolvedHint = initialSessionChecked ? (authenticated ? authenticatedHint : unauthenticatedHint) : "";
 
   useEffect(() => {
     if (targets.length === 0) {
@@ -306,6 +316,7 @@ export default function PublicReviewAuthModal({
 
   useEffect(() => {
     let active = true;
+    setInitialSessionChecked(false);
     const checkInitialSession = async () => {
       try {
         const response = await fetch(`/api/v1/auth/client/me?account=${encodeURIComponent(accountSlug)}`, {
@@ -314,6 +325,8 @@ export default function PublicReviewAuthModal({
         if (active) setAuthenticated(response.ok);
       } catch {
         if (active) setAuthenticated(false);
+      } finally {
+        if (active) setInitialSessionChecked(true);
       }
     };
 
@@ -481,6 +494,11 @@ export default function PublicReviewAuthModal({
 
   return (
     <>
+      {resolvedHint ? (
+        <div className={hintClassName} style={hintStyle}>
+          {resolvedHint}
+        </div>
+      ) : null}
       <button type="button" className={buttonClassName} style={buttonStyle} onClick={openModal}>
         {resolvedButtonLabel}
       </button>
