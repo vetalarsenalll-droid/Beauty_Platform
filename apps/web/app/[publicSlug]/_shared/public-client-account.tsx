@@ -28,6 +28,7 @@ export default async function PublicClientAccount({
     <ClientHomeContent
       searchParams={Promise.resolve({ account: accountSlug })}
       embedded
+      embeddedReturnTo={returnTo}
     />
   );
 }

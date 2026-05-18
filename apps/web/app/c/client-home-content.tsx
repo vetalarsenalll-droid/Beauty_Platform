@@ -18,6 +18,7 @@ const statusLabelMap: Record<string, { label: string; tone: string }> = {
 type ClientHomeProps = {
   searchParams?: Promise<{ account?: string }>;
   embedded?: boolean;
+  embeddedReturnTo?: string | null;
 };
 
 const formatPrice = (value: number | null) => {
@@ -73,7 +74,11 @@ async function loadReviewPhotoMap(reviewIds: number[]) {
   return map;
 }
 
-export async function ClientHomeContent({ searchParams, embedded = false }: ClientHomeProps) {
+export async function ClientHomeContent({
+  searchParams,
+  embedded = false,
+  embeddedReturnTo = null,
+}: ClientHomeProps) {
   const session = await requireClientSession();
   const resolvedParams = searchParams ? await searchParams : {};
   const accountSlugParam = resolvedParams?.account?.trim() || null;
@@ -918,7 +923,10 @@ export async function ClientHomeContent({ searchParams, embedded = false }: Clie
               >
                 Записаться
               </a>
-              <LogoutButton accountSlug={selectedAccountSlug ?? undefined} />
+              <LogoutButton
+                accountSlug={selectedAccountSlug ?? undefined}
+                redirectTo={embedded ? embeddedReturnTo : null}
+              />
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs text-[color:var(--bp-muted)]">
