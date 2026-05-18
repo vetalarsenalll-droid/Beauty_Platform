@@ -68,6 +68,7 @@ export type BlockType =
   | "serviceProfile"
   | "specialistProfile"
   | "client"
+  | "legal"
   | "booking"
   | "locations"
   | "services"
@@ -92,12 +93,14 @@ export type SitePageKey =
   | "locations"
   | "services"
   | "specialists"
+  | "legal"
   | "promos";
 
 export const SITE_PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "legal",
   "locations",
   "services",
   "specialists",
@@ -135,6 +138,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   loader: "Лоадер",
   about: "О нас",
   client: "Личный кабинет",
+  legal: "Документы",
   booking: "Онлайн-запись",
   locations: "Локации",
   services: "Услуги",
@@ -170,6 +174,7 @@ export const BLOCK_VARIANTS: Record<
   serviceProfile: ["v1"],
   specialistProfile: ["v1"],
   client: ["v1"],
+  legal: ["v1"],
   booking: ["v1", "v2"],
   locations: ["v1"],
   services: ["v1"],
@@ -694,7 +699,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
   variant: "v1",
   data: {
     title: "Меню",
-    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,
@@ -799,6 +804,40 @@ const createBookingBlock = (): SiteBlock => ({
       headingSize: 18,
       subheadingSize: 16,
       textSize: 14,
+    },
+  },
+});
+
+const createClientBlock = (): SiteBlock => ({
+  id: makeBlockId(),
+  type: "client",
+  variant: "v1",
+  data: {
+    style: {
+      blockWidth: 1400,
+      blockWidthColumns: 12,
+      mobileBlockWidthColumns: 12,
+      radius: 16,
+      buttonRadius: 8,
+      shadowSize: 0,
+    },
+  },
+});
+
+const createLegalBlock = (): SiteBlock => ({
+  id: makeBlockId(),
+  type: "legal",
+  variant: "v1",
+  data: {
+    title: "Документы",
+    subtitle: "Правовые документы и согласия",
+    style: {
+      blockWidth: 960,
+      blockWidthColumns: 8,
+      mobileBlockWidthColumns: 12,
+      radius: 16,
+      buttonRadius: 8,
+      shadowSize: 0,
     },
   },
 });
@@ -923,6 +962,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     },
   ];
   const bookingBlocks: SiteBlock[] = [createBookingBlock()];
+  const clientBlocks: SiteBlock[] = [createClientBlock()];
+  const legalBlocks: SiteBlock[] = [createLegalBlock()];
 
   const baseTheme: SiteThemePalette = {
     fontHeading: "var(--font-manrope), sans-serif",
@@ -986,7 +1027,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     pages: {
       home: homeBlocks,
       booking: bookingBlocks,
-      client: [],
+      client: clientBlocks,
+      legal: legalBlocks,
       locations: [],
       services: [],
       specialists: [],
@@ -1126,7 +1168,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           };
           const menuItems = Array.isArray(safeData.menuItems)
             ? (safeData.menuItems as SitePageKey[]).filter((item) =>
-                ["home", "booking", "client", "locations", "services", "specialists", "promos"].includes(item)
+                ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"].includes(item)
               )
             : [];
           const presetVersionRaw = Number(safeData.presetVersion);
@@ -1177,7 +1219,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           }
           safeData.menuItems = menuItems.length
             ? menuItems
-            : ["home", "booking", "client", "locations", "services", "specialists", "promos"];
+            : ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"];
           const socialIconSizeRaw = Number(safeData.socialIconSize);
           safeData.socialIconSize =
             Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
@@ -1412,7 +1454,12 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
   const pages: SitePages = {
     home: normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home),
     booking: normalizeBlocks(pagesInput.booking ?? fallbackPages.booking),
-    client: normalizeBlocks(pagesInput.client ?? fallbackPages.client),
+    client: normalizeBlocks(
+      pagesInput.client && pagesInput.client.length > 0 ? pagesInput.client : fallbackPages.client
+    ),
+    legal: normalizeBlocks(
+      pagesInput.legal && pagesInput.legal.length > 0 ? pagesInput.legal : fallbackPages.legal
+    ),
     locations: normalizeBlocks(pagesInput.locations ?? fallbackPages.locations),
     services: normalizeBlocks(pagesInput.services ?? fallbackPages.services),
     specialists: normalizeBlocks(pagesInput.specialists ?? fallbackPages.specialists),

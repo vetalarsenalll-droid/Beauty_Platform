@@ -6,11 +6,12 @@ import type { CurrentEntity } from "./site-client-core";
 const PAGE_MENU_ORDER: SitePageKey[] = [
   "home",
   "booking",
+  "client",
+  "legal",
   "locations",
   "services",
   "specialists",
   "promos",
-  "client",
 ];
 
 type UsePagesMenuArgs = {
@@ -57,7 +58,8 @@ export function usePagesMenu({
     if (key === "home") return true;
     if (key === "booking") return true;
     if (key === "promos") return true;
-    if (key === "client") return false;
+    if (key === "client") return true;
+    if (key === "legal") return true;
     if (key === "locations") return locationsCount > 0 || hasPageBlocks(key);
     if (key === "services") return servicesCount > 0 || hasPageBlocks(key);
     if (key === "specialists") return specialistsCount > 0 || hasPageBlocks(key);

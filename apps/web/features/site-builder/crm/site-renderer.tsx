@@ -34,6 +34,7 @@ import type {
   SiteBranding as Branding,
   SiteEditorAccountProfile as AccountProfile,
   SiteLocationItem as LocationItem,
+  SiteLegalDocumentItem as LegalDocumentItem,
   SitePromoItem as PromoItem,
   SiteReviewItem as ReviewItem,
   SiteServiceItem as ServiceItem,
@@ -78,6 +79,15 @@ export type BlockStyle = {
   radius: number | null;
   buttonRadius: number | null;
   cardRadius?: number | null;
+  authPageBg?: string;
+  authBlockBg?: string;
+  authSideBg?: string;
+  authRadius?: number | null;
+  authButtonRadius?: number | null;
+  cabinetPageBg?: string;
+  cabinetBlockBg?: string;
+  cabinetRadius?: number | null;
+  cabinetButtonRadius?: number | null;
   bookingImageRadius?: number | null;
   sectionBgLight: string;
   sectionBgDark: string;
@@ -1862,6 +1872,8 @@ export function BlockPreview({
   promos,
   reviews,
   workPhotos,
+  legalDocuments,
+  platformLegalDocuments,
   theme,
   loaderConfig,
   currentEntity,
@@ -1881,6 +1893,8 @@ export function BlockPreview({
   promos: PromoItem[];
   reviews: ReviewItem[];
   workPhotos: WorkPhotos;
+  legalDocuments?: LegalDocumentItem[];
+  platformLegalDocuments?: LegalDocumentItem[];
   theme: SiteTheme;
   loaderConfig: SiteLoaderConfig | null;
   currentEntity: CurrentEntity;
@@ -2041,6 +2055,8 @@ export function BlockPreview({
     promos,
     reviews,
     workPhotos,
+    legalDocuments,
+    platformLegalDocuments,
     theme,
     loaderConfig,
     currentEntity,
@@ -2364,6 +2380,8 @@ export function renderBlock(
   promos: PromoItem[],
   reviews: ReviewItem[],
   workPhotos: WorkPhotos,
+  legalDocuments: LegalDocumentItem[] | undefined,
+  platformLegalDocuments: LegalDocumentItem[] | undefined,
   theme: SiteTheme,
   loaderConfig: SiteLoaderConfig | null,
   currentEntity: CurrentEntity,
@@ -2438,6 +2456,8 @@ export function renderBlock(
       return renderSpecialistProfileBlock(block, account, locations, services, specialists, theme, style, currentEntity, previewViewportWidth);
     case "client":
       return renderClient(block, account, theme, style);
+    case "legal":
+      return renderLegal(block, theme, style, legalDocuments ?? [], platformLegalDocuments ?? []);
     case "booking":
       return renderBooking(block, account, theme, style, loaderConfig, previewViewportWidth);
     case "loader":
@@ -5474,37 +5494,165 @@ export function renderAbout(
 export function renderClient(block: SiteBlock, account: AccountInfo, theme: SiteTheme, style: BlockStyle) {
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || "Личный кабинет";
-  const subtitle = (data.subtitle as string) || "Ваши данные и история записей";
-  const salonsTitle = (data.salonsTitle as string) || "Ваши салоны";
-  const emptyText = (data.emptyText as string) || "Пока нет салонов, где вы записывались.";
+  const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
+  const readColor = (key: string, fallback: string) => {
+    const value = rawStyle[key];
+    return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  };
+  const readNumber = (key: string, fallback: number) => {
+    const value = Number(rawStyle[key]);
+    return Number.isFinite(value) ? Math.max(0, Math.min(64, Math.round(value))) : fallback;
+  };
+  const authPageBg = readColor("authPageBg", "#f3f4f6");
+  const authBlockBg = readColor("authBlockBg", "#ffffff");
+  const authSideBg = readColor("authSideBg", "#1f2937");
+  const authRadius = readNumber("authRadius", 28);
+  const authButtonRadius = readNumber("authButtonRadius", 0);
+  const cabinetPageBg = readColor("cabinetPageBg", "#eef2f7");
+  const cabinetBlockBg = readColor("cabinetBlockBg", "#ffffff");
+  const cabinetRadius = readNumber("cabinetRadius", 28);
+  const cabinetButtonRadius = readNumber("cabinetButtonRadius", 16);
+  const buttonBg = style.buttonColor || theme.buttonColor;
+  const buttonText = style.buttonTextColor || theme.buttonTextColor;
+  const bookingHref = account.publicSlug ? `/${account.publicSlug}/booking` : "#";
+  const inputRadius = Math.max(0, authButtonRadius);
+  const cabinetCardStyle = {
+    borderRadius: cabinetRadius,
+    borderColor: "var(--bp-stroke)",
+    backgroundColor: cabinetBlockBg,
+  };
 
   return (
     <div>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold" style={headingStyle(style, theme)}>
-            {title}
-          </h3>
-          <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
-            {subtitle}
-          </p>
+      <h3 className="font-semibold" style={headingStyle(style, theme)}>
+        {title}
+      </h3>
+      <div className="mt-5 grid gap-6 xl:grid-cols-2">
+        <div className="p-8" style={{ backgroundColor: authPageBg, borderRadius: authRadius }}>
+          <div
+            className="grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+            style={{ borderRadius: authRadius, backgroundColor: authBlockBg }}
+          >
+            <div className="flex min-h-[360px] flex-col justify-between gap-6 p-8 text-white" style={{ backgroundColor: authSideBg }}>
+              <div>
+                <div className="text-xs uppercase tracking-[0.3em] text-white/70">Клиентский доступ</div>
+                <div className="mt-3 text-3xl font-semibold">Личный кабинет клиента</div>
+                <p className="mt-3 text-sm text-white/80">
+                  Войдите, чтобы увидеть свои записи, бонусы и данные по этой организации.
+                </p>
+              </div>
+              <div className="space-y-3 text-sm text-white/80">
+                <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
+                  Умные подсказки по следующему визиту
+                </div>
+                <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
+                  История записей и оплат по организациям
+                </div>
+              </div>
+            </div>
+            <div className="p-8">
+              <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Личный кабинет</div>
+              <div className="mt-2 text-2xl font-semibold">Вход</div>
+              <div className="mt-8 space-y-2">
+                {["Telegram", "VK ID", "Яндекс ID", "MAX ID"].map((label) => (
+                  <div key={label} className="border border-[color:var(--bp-stroke)] px-4 py-3 text-center text-sm font-semibold" style={{ borderRadius: inputRadius }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 space-y-4">
+                <div>
+                  <div className="text-sm font-medium">Эл. почта</div>
+                  <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Пароль</div>
+                  <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
+                </div>
+                <div className="h-12" style={{ borderRadius: inputRadius, backgroundColor: buttonBg }} />
+              </div>
+            </div>
+          </div>
         </div>
-        <button className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm">
-          Выйти
-        </button>
+        <div className="p-8" style={{ backgroundColor: cabinetPageBg, borderRadius: cabinetRadius }}>
+          <div className="flex flex-col gap-6">
+            <div className="border p-8 shadow-[var(--bp-shadow)]" style={cabinetCardStyle}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">{account.name}</div>
+                  <div className="text-3xl font-semibold text-[color:var(--bp-ink)]">Личный кабинет</div>
+                  <p className="text-sm text-[color:var(--bp-muted)]">client@example.com</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a href={bookingHref} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold" style={{ borderRadius: cabinetButtonRadius, backgroundColor: buttonBg, color: buttonText }}>
+                    Записаться
+                  </a>
+                  <button type="button" className="border border-[color:var(--bp-stroke)] px-4 py-2 text-sm" style={{ borderRadius: cabinetButtonRadius }}>
+                    Выйти
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+              <div className="border p-5" style={cabinetCardStyle}>
+                <div className="font-semibold">Следующая запись</div>
+                <div className="mt-3 text-sm text-[color:var(--bp-muted)]">Пока нет ближайших записей.</div>
+              </div>
+              <div className="border p-5" style={cabinetCardStyle}>
+                <div className="font-semibold">Лояльность</div>
+                <div className="mt-3 text-3xl font-semibold">0 ₽</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="mt-5 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4">
-        <div className="text-sm font-semibold">{salonsTitle}</div>
-        <div className="mt-2 text-sm text-[color:var(--bp-muted)]" style={textStyle(style, theme)}>
-          {emptyText}
-        </div>
-        <a
-          href={account.publicSlug ? `/${account.publicSlug}/booking` : "#"}
-          className="mt-4 inline-flex rounded-xl px-4 py-2 text-sm font-semibold"
-          style={buttonStyle(style, theme)}
-        >
-          Записаться
-        </a>
+    </div>
+  );
+}
+
+export function renderLegal(
+  block: SiteBlock,
+  theme: SiteTheme,
+  style: BlockStyle,
+  legalDocuments: LegalDocumentItem[] = [],
+  platformLegalDocuments: LegalDocumentItem[] = []
+) {
+  const data = block.data as Record<string, unknown>;
+  const title = (data.title as string) || "Документы";
+  const subtitle = (data.subtitle as string) || "Правовые документы и согласия";
+  const radius = style.cardRadius ?? style.radius ?? 16;
+  const docs = [...legalDocuments, ...platformLegalDocuments];
+
+  return (
+    <div>
+      <h3 className="font-semibold" style={headingStyle(style, theme)}>
+        {title}
+      </h3>
+      <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>
+        {subtitle}
+      </p>
+      <div className="mt-5 grid gap-3">
+        {docs.map((doc) => (
+          <div
+            key={`${doc.id}:${doc.versionId}`}
+            className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4"
+            style={{ borderRadius: radius }}
+          >
+            <div className="text-sm font-semibold">{doc.title}</div>
+            {doc.description ? (
+              <div className="mt-1 text-sm text-[color:var(--bp-muted)]">{doc.description}</div>
+            ) : null}
+            <div className="mt-2 text-xs text-[color:var(--bp-muted)]">Версия {doc.version}</div>
+          </div>
+        ))}
+        {docs.length === 0 ? (
+          <div
+            className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]"
+            style={{ borderRadius: radius }}
+          >
+            Документы пока не опубликованы.
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -7092,6 +7240,19 @@ const asString = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
 const asArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+type SeoHeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "div";
+
+function resolveSeoHeadingTag(value: unknown, fallback: SeoHeadingTag): SeoHeadingTag {
+  return value === "h1" ||
+    value === "h2" ||
+    value === "h3" ||
+    value === "h4" ||
+    value === "h5" ||
+    value === "h6" ||
+    value === "div"
+    ? value
+    : fallback;
+}
 
 function simpleGridClass(previewViewportWidth: number | undefined, desktopCols: 2 | 3) {
   return resolvePreviewGridClassName(previewViewportWidth, `md:grid-cols-${desktopCols}`, desktopCols);
@@ -7102,11 +7263,13 @@ export function renderHeadingBlock(block: SiteBlock, theme: SiteTheme, style: Bl
   const eyebrow = asString(data.eyebrow).trim();
   const title = asString(data.title, "Заголовок").trim();
   const subtitle = asString(data.subtitle).trim();
+  const TitleTag = resolveSeoHeadingTag(data.seoTitleTag, "h2");
+  const SubtitleTag = resolveSeoHeadingTag(data.seoSubtitleTag, "div");
   return (
     <div className="mx-auto max-w-4xl text-center">
       {eyebrow && <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">{eyebrow}</div>}
-      <h2 className="font-semibold" style={headingStyle(style, theme)}>{title}</h2>
-      {subtitle && <p className="mt-3 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</p>}
+      <TitleTag className="font-semibold" style={headingStyle(style, theme)}>{title}</TitleTag>
+      {subtitle && <SubtitleTag className="mt-3 text-[color:var(--bp-muted)]" style={subheadingStyle(style, theme)}>{subtitle}</SubtitleTag>}
     </div>
   );
 }

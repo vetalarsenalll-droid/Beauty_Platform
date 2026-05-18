@@ -14,6 +14,7 @@ import {
   type CurrentEntity,
 } from "./public-render";
 import { resolveCoverBackgroundVisual } from "@/features/site-builder/shared/background-visuals";
+import { getPublicBasePath } from "./public-domain-context";
 
 type PublicPageShellLayout = {
   rootTag?: "main" | "div";
@@ -26,6 +27,8 @@ type RenderPublicPageShellParams = {
   data: PublicSiteData;
   pageKey: SitePageKey;
   publicSlug: string;
+  publicBasePath?: string | null;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
   accountLinkOverride?: string | null;
   currentEntity?: CurrentEntity;
   loaderConfig?: SiteLoaderConfig | null;
@@ -121,16 +124,18 @@ const buildThemeStyle = (
   } satisfies Record<string, string>;
 };
 
-export function renderPublicPageShell({
+export async function renderPublicPageShell({
   data,
   pageKey,
   publicSlug,
+  publicBasePath,
+  searchParams,
   accountLinkOverride,
   currentEntity = null,
   loaderConfig = null,
   includeCoverBackground = false,
   layout,
-}: RenderPublicPageShellParams): ReactNode {
+}: RenderPublicPageShellParams): Promise<ReactNode> {
   const globalTheme = data.draft.theme;
   const pageTheme = pageKey === "home" ? null : data.draft.pageThemes?.[pageKey];
   const baseTheme = pageTheme
@@ -153,6 +158,23 @@ export function renderPublicPageShell({
   const blocks = resolveBlocksForPage(data, pageKey, currentEntity);
   const themeStyle = buildThemeStyle(palette);
   let bookingPageBackgroundStyle: CSSProperties | null = null;
+  const resolvedSearchParams = searchParams ? await searchParams : null;
+  const authParam = resolvedSearchParams?.auth;
+  const clientAuthMode =
+    authParam === "register" ||
+    (Array.isArray(authParam) && authParam.includes("register"))
+      ? "register"
+      : "login";
+  const isCustomDomainRewrite =
+    resolvedSearchParams?.__bp_custom_domain === "1" ||
+    (Array.isArray(resolvedSearchParams?.__bp_custom_domain) &&
+      resolvedSearchParams.__bp_custom_domain.includes("1"));
+  const resolvedPublicBasePath =
+    typeof publicBasePath === "string"
+      ? publicBasePath
+      : isCustomDomainRewrite
+        ? ""
+        : await getPublicBasePath(publicSlug);
   const content = blocks.map((block) => {
     let style = normalizeStyle(block, themeForRender);
     if (block.type === "menu") {
@@ -236,8 +258,10 @@ export function renderPublicPageShell({
           data.workPhotos,
           currentEntity,
           themeForRender,
+          resolvedPublicBasePath,
           accountLinkOverride ?? undefined,
-          loaderConfig
+          loaderConfig,
+          clientAuthMode
         )}
       </section>
     );

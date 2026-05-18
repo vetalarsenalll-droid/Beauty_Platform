@@ -27,6 +27,7 @@ type SpecialistsCatalogProps = {
   subtitle?: string;
   items: SpecialistCatalogItem[];
   publicSlug?: string | null;
+  publicBasePath?: string | null;
   locations?: Array<{ id: number; name: string }>;
   currentLocationId?: number | null;
   locationId?: number | null;
@@ -630,6 +631,7 @@ export function SpecialistsCatalog({
   subtitle = "",
   items,
   publicSlug,
+  publicBasePath,
   locations = [],
   currentLocationId = null,
   locationId = null,
@@ -825,10 +827,17 @@ export function SpecialistsCatalog({
       items.find((item) => item.id === activeModal.specialistId) ??
       null
     : null;
+  const basePath =
+    typeof publicBasePath === "string"
+      ? publicBasePath.replace(/\/$/, "")
+      : publicSlug
+        ? `/${publicSlug}`
+        : "#";
   const activeModalBookingHref =
     activeModalSpecialist && publicSlug
       ? buildBookingLink({
           publicSlug,
+          publicBasePath: basePath,
           locationId:
             bookingEntity === "location"
               ? activeModalSpecialist.id
@@ -1290,6 +1299,7 @@ export function SpecialistsCatalog({
           const bookingHref = publicSlug
             ? buildBookingLink({
                 publicSlug,
+                publicBasePath: basePath,
                 locationId:
                   bookingEntity === "location"
                     ? specialist.id
@@ -1299,7 +1309,7 @@ export function SpecialistsCatalog({
                 scenario: bookingEntity === "location" ? "dateFirst" : "specialistFirst",
               })
             : "#";
-          const profileHref = publicSlug ? `/${publicSlug}/${entityBasePath}/${specialist.id}` : "#";
+          const profileHref = publicSlug ? `${basePath}/${entityBasePath}/${specialist.id}` : "#";
           const canOpenCardByClick = Boolean(publicSlug);
           const isListCard = listView === "list";
           const isImageInsetCard = imageAspectRatio === "original";

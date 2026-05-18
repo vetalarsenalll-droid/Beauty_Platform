@@ -120,6 +120,7 @@ const SITE_ITEMS: NavItem[] = [
   { label: "Проект", href: "/crm/site/project" },
   { label: "Конструктор", href: "/crm/site" },
   { label: "SEO", href: "/crm/site/seo" },
+  { label: "Настройки", href: "/crm/site/settings" },
 ];
 
 export default function CrmShell({
@@ -496,13 +497,16 @@ const [collapsed, setCollapsed] = useState(false);
                       {SITE_ITEMS.map((siteItem) => {
                         const isProjectTab = pathname.startsWith("/crm/site/project");
                         const isSeoTab = pathname.startsWith("/crm/site/seo");
+                        const isSettingsTab = pathname.startsWith("/crm/site/settings");
                         const siteActive =
                           siteItem.href === "/crm/site/project"
                             ? isProjectTab
                             : siteItem.href === "/crm/site"
-                              ? pathname.startsWith("/crm/site") && !isProjectTab && !isSeoTab
+                              ? pathname.startsWith("/crm/site") && !isProjectTab && !isSeoTab && !isSettingsTab
                             : siteItem.href === "/crm/site/seo"
                               ? pathname.startsWith("/crm/site") && isSeoTab
+                              : siteItem.href === "/crm/site/settings"
+                                ? pathname.startsWith("/crm/site") && isSettingsTab
                               : pathname === siteItem.href;
 
                         return (

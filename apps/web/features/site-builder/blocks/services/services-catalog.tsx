@@ -13,6 +13,7 @@ type ServiceCatalogProps = {
   subtitle: string;
   items: ServiceItem[];
   publicSlug: string | null;
+  publicBasePath?: string | null;
   currentLocationId: number | null;
   locationId: number | null;
   locations: Array<{ id: number; name: string }>;
@@ -888,6 +889,7 @@ export function ServicesCatalog({
   subtitle,
   items,
   publicSlug,
+  publicBasePath,
   currentLocationId,
   locationId,
   locations,
@@ -1354,10 +1356,17 @@ export function ServicesCatalog({
       scopedItems.find((item) => item.id === activeModal.serviceId) ??
       null
     : null;
+  const basePath =
+    typeof publicBasePath === "string"
+      ? publicBasePath.replace(/\/$/, "")
+      : publicSlug
+        ? `/${publicSlug}`
+        : "#";
   const activeModalBookingHref =
     activeModalService && publicSlug
       ? buildBookingLink({
           publicSlug,
+          publicBasePath: basePath,
           locationId:
             effectiveLocationId ??
             (activeModalService.locationIds.length === 1 ? activeModalService.locationIds[0] : null),
@@ -1672,11 +1681,12 @@ export function ServicesCatalog({
         }}
       >
         {displayItems.map((service) => {
-          const serviceHref = publicSlug ? `/${publicSlug}/services/${service.id}` : "#";
+          const serviceHref = publicSlug ? `${basePath}/services/${service.id}` : "#";
           const bookingHref =
             showButton && publicSlug
               ? buildBookingLink({
                   publicSlug,
+                  publicBasePath: basePath,
                   locationId:
                     effectiveLocationId ??
                     (service.locationIds.length === 1 ? service.locationIds[0] : null),

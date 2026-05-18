@@ -8,6 +8,7 @@ import {
 } from "@/lib/site-builder";
 import { loadPublicData } from "./public-data";
 import { buildBlockWrapperStyle, normalizeStyle, renderBlock } from "./public-render";
+import { getPublicBasePath } from "./public-domain-context";
 
 export type PublicMenuFrame = {
   initialMode: "light" | "dark";
@@ -162,6 +163,7 @@ export async function renderPublicMenuFrame(
     isMenuSticky,
     blockType: menuBlock.type,
   });
+  const publicBasePath = await getPublicBasePath(data.publicSlug);
 
   return {
     initialMode,
@@ -192,6 +194,7 @@ export async function renderPublicMenuFrame(
           data.workPhotos,
           null,
           themeForRender,
+          publicBasePath,
           accountLinkOverride ?? undefined
         )}
       </section>

@@ -3,12 +3,22 @@ import { getClientSession } from "@/lib/auth";
 
 import { loadPublicData } from "../../_shared/public-data";
 import { renderPublicPageShell } from "../../_shared/public-page-shell";
+import { generatePublicPageMetadata } from "../../_shared/seo-metadata";
 
 type PageProps = {
   params: Promise<{ publicSlug?: string; promoId?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function PublicPromoPage({ params }: PageProps) {
+export async function generateMetadata({ params }: Pick<PageProps, "params">) {
+  const resolvedParams = await params;
+  return generatePublicPageMetadata(
+    resolvedParams.publicSlug ?? "",
+    `promo:${resolvedParams.promoId ?? ""}`
+  );
+}
+
+export default async function PublicPromoPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
   const promoId = Number(resolvedParams.promoId);
@@ -27,6 +37,7 @@ export default async function PublicPromoPage({ params }: PageProps) {
     data,
     pageKey: "promos",
     publicSlug,
+    searchParams,
     accountLinkOverride,
     currentEntity: { type: "promo", id: promoId },
     layout: {

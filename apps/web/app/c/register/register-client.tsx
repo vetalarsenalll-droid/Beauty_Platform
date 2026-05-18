@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -6,9 +6,17 @@ import ClientSocialAuthButtons from "@/components/client-social-auth-buttons";
 
 type ClientRegisterPageProps = {
   initialAccountSlug?: string;
+  returnTo?: string;
+  loginHref?: string;
+  embedded?: boolean;
 };
 
-export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRegisterPageProps) {
+export default function ClientRegisterPage({
+  initialAccountSlug = "",
+  returnTo,
+  loginHref,
+  embedded = false,
+}: ClientRegisterPageProps) {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,26 +84,45 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
       return;
     }
 
-    const target = accountSlug ? `/c?account=${accountSlug}` : "/c";
+    const target = returnTo || (accountSlug ? `/c?account=${accountSlug}` : "/c");
     window.location.href = target;
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="grid w-full max-w-[980px] overflow-hidden rounded-[28px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]">
-        <div className="flex flex-col justify-between gap-6 bg-[linear-gradient(135deg,var(--bp-accent),var(--bp-accent-strong))] p-10 text-white">
+    <div
+      className={`flex items-center justify-center px-6 py-12 ${embedded ? "min-h-[520px]" : "min-h-screen"}`}
+      style={{ backgroundColor: "var(--site-client-auth-page-bg, var(--bp-surface))" }}
+    >
+      <div
+        className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+        style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}
+      >
+        <div
+          className="flex flex-col justify-between gap-6 p-10 text-white"
+          style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))" }}
+        >
           <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-white/70">Marketplace</div>
+            <div className="text-xs uppercase tracking-[0.3em] text-white/70">
+              {embedded ? "Клиентский доступ" : "Marketplace"}
+            </div>
             <h1 className="mt-3 text-3xl font-semibold">Новый клиент</h1>
             <p className="mt-3 text-sm text-white/80">
-              Зарегистрируйтесь и управляйте всеми записями в одном кабинете.
+              {embedded
+                ? "Создайте профиль, чтобы видеть записи, бонусы и данные по этой организации."
+                : "Зарегистрируйтесь и управляйте всеми записями в одном кабинете."}
             </p>
           </div>
           <div className="space-y-3 text-sm text-white/80">
-            <div className="rounded-2xl border border-white/20 px-4 py-3">
+            <div
+              className="border border-white/20 px-4 py-3"
+              style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}
+            >
               Единый профиль для всех организаций
             </div>
-            <div className="rounded-2xl border border-white/20 px-4 py-3">
+            <div
+              className="border border-white/20 px-4 py-3"
+              style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}
+            >
               Бонусы и история посещений по салонам
             </div>
           </div>
@@ -105,14 +132,18 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
             Личный кабинет
           </div>
           <h2 className="mt-2 text-2xl font-semibold">Регистрация</h2>
-          <ClientSocialAuthButtons accountSlug={accountSlug} className="mt-8" />
+          <ClientSocialAuthButtons
+            accountSlug={accountSlug}
+            returnTo={returnTo || (accountSlug ? `/c?account=${accountSlug}` : "/c")}
+            className="mt-8"
+          />
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <label className="text-sm font-medium">
               Имя
               <input
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
-                className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
               />
             </label>
             <label className="text-sm font-medium">
@@ -120,7 +151,7 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
               <input
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
-                className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
               />
             </label>
             <label className="text-sm font-medium">
@@ -128,7 +159,7 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
               />
             </label>
             <label className="text-sm font-medium">
@@ -138,7 +169,7 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="example@mail.ru"
-                className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
                 required
               />
             </label>
@@ -149,7 +180,7 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"
-                className="mt-2 w-full rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
                 required
               />
             </label>
@@ -161,12 +192,12 @@ export default function ClientRegisterPage({ initialAccountSlug = "" }: ClientRe
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 inline-flex items-center justify-center rounded-[var(--site-button-radius)] bg-[color:var(--site-client-button)] px-5 py-3 text-sm font-semibold text-white shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
+              className="mt-2 inline-flex items-center justify-center rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] bg-[color:var(--site-client-button)] px-5 py-3 text-sm font-semibold text-[color:var(--site-client-button-text,#ffffff)] shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
             >
               {loading ? "Создание..." : "Создать аккаунт"}
             </button>
             <a
-              href={accountSlug ? `/c/login?account=${accountSlug}` : "/c/login"}
+              href={loginHref ?? (accountSlug ? `/c/login?account=${accountSlug}` : "/c/login")}
               className="text-center text-sm text-[color:var(--bp-muted)] underline"
             >
               Уже есть аккаунт?

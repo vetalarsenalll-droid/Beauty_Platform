@@ -156,6 +156,7 @@ function buildCurrentPublicUrl(
 
 export default function SiteClient({
   initialActivePage = "home",
+  initialCurrentEntity = null,
   initialPreviewMode = "desktop",
   initialMobileViewport = "mobile360",
   initialPublicPage,
@@ -170,6 +171,8 @@ export default function SiteClient({
   promos,
   reviews,
   workPhotos,
+  legalDocuments,
+  platformLegalDocuments,
 }: SiteClientProps) {
   const [, setPublicPage] = useState(initialPublicPage);
   const [editableLocations, setEditableLocations] = useState<LocationItem[]>(locations);
@@ -186,7 +189,7 @@ export default function SiteClient({
     canRedo,
   } = useDraftHistory(normalizeDraft(initialPublicPage.draftJson, account.name));
   const [activePage, setActivePage] = useState<SitePageKey>(initialActivePage);
-  const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(null);
+  const [currentEntity, setCurrentEntity] = useState<CurrentEntity>(initialCurrentEntity);
 
   useEffect(() => {
     setEditableLocations(locations);
@@ -222,6 +225,11 @@ export default function SiteClient({
     } else {
       url.searchParams.set("page", pageKey);
     }
+    if (entity) {
+      url.searchParams.set("entity", `${entity.type}:${entity.id}`);
+    } else {
+      url.searchParams.delete("entity");
+    }
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
   };
 
@@ -250,6 +258,7 @@ export default function SiteClient({
         "serviceProfile",
         "specialistProfile",
         "client",
+        "legal",
         "locations",
         "services",
         "specialists",
@@ -1267,6 +1276,8 @@ export default function SiteClient({
                   promos={promos}
                   reviews={reviews}
                   workPhotos={workPhotos}
+                  legalDocuments={legalDocuments}
+                  platformLegalDocuments={platformLegalDocuments}
                   theme={activeTheme}
                   loaderConfig={loaderConfig}
                   currentEntity={currentEntity}

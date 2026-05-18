@@ -558,6 +558,7 @@ model Account {
   domains                 AccountDomain[]
   publicPages             PublicPage[]
   seoSettings             SeoSetting?
+  seoPageSettings         SeoPageSetting[]
   mediaCollections        MediaCollection[]
   locations               Location[]
   locationManagers        LocationManager[]
@@ -683,12 +684,17 @@ model AccountProfile {
 }
 
 model AccountDomain {
-  id         Int       @id @default(autoincrement())
-  accountId  Int
-  domain     String    @unique
-  isPrimary  Boolean   @default(false)
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id            Int       @id @default(autoincrement())
+  accountId     Int
+  domain        String    @unique
+  isPrimary     Boolean   @default(false)
+  status        String    @default("PENDING")
+  sslStatus     String    @default("PENDING")
+  verifiedAt    DateTime?
+  lastCheckedAt DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
 }
@@ -777,9 +783,32 @@ model SeoSetting {
   schemaJson     Json?
   robots         String?
   sitemapEnabled Boolean  @default(true)
+  verificationMetaTags String?
+  verificationHtmlFilename String?
+  verificationHtmlContent String?
+  verificationHtmlFiles Json?
   updatedAt      DateTime @updatedAt
 
   account Account @relation(fields: [accountId], references: [id])
+}
+
+model SeoPageSetting {
+  id          Int      @id @default(autoincrement())
+  accountId   Int
+  pageKey     String
+  title       String?
+  description String?
+  ogImageUrl  String?
+  keywords    String?
+  canonicalUrl String?
+  noIndex     Boolean  @default(false)
+  noFollow    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, pageKey])
+  @@index([accountId])
 }
 
 model LegalDocument {

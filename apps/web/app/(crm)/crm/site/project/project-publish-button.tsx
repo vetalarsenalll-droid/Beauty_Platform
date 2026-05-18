@@ -2,14 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { SiteDraft, SitePageKey } from "@/lib/site-builder";
+import type { SiteDraft, SiteEntityPages, SitePageKey } from "@/lib/site-builder";
 
 type ProjectPublishButtonProps = {
   draftJson: SiteDraft;
   pageKey: SitePageKey;
+  publishEntity?: { type: keyof SiteEntityPages; id: string } | null;
 };
 
-export function ProjectPublishButton({ draftJson, pageKey }: ProjectPublishButtonProps) {
+export function ProjectPublishButton({
+  draftJson,
+  pageKey,
+  publishEntity = null,
+}: ProjectPublishButtonProps) {
   const router = useRouter();
   const [publishing, setPublishing] = useState(false);
 
@@ -23,12 +28,10 @@ export function ProjectPublishButton({ draftJson, pageKey }: ProjectPublishButto
           draftJson,
           publish: true,
           publishPage: pageKey,
-          publishEntity: null,
+          publishEntity,
         }),
       });
-      if (response.ok) {
-        router.refresh();
-      }
+      if (response.ok) router.refresh();
     } finally {
       setPublishing(false);
     }

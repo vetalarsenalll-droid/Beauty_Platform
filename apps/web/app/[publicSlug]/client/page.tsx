@@ -4,12 +4,19 @@ import { resolveSiteLoaderConfig } from "@/lib/site-builder";
 
 import { loadPublicData } from "../_shared/public-data";
 import { renderPublicPageShell } from "../_shared/public-page-shell";
+import { generatePublicPageMetadata } from "../_shared/seo-metadata";
 
 type PageProps = {
   params: Promise<{ publicSlug?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function PublicClientPage({ params }: PageProps) {
+export async function generateMetadata({ params }: Pick<PageProps, "params">) {
+  const resolvedParams = await params;
+  return generatePublicPageMetadata(resolvedParams.publicSlug ?? "", "client");
+}
+
+export default async function PublicClientPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
 
@@ -27,6 +34,7 @@ export default async function PublicClientPage({ params }: PageProps) {
     data,
     pageKey: "client",
     publicSlug,
+    searchParams,
     accountLinkOverride,
     loaderConfig,
     layout: {

@@ -1809,6 +1809,72 @@ export function BlockStyleEditor({
 
   return (
     <div className="space-y-4">
+      {block.type === "client" && activeSectionId === "login" && (
+        <>
+          <ColorField
+            label="Цвет фона входа"
+            value={toDisplay(readRaw("authPageBg") || "#f3f4f6")}
+            placeholder="#f3f4f6"
+            onChange={(value) => update({ authPageBg: toStore(value) } as Partial<BlockStyle>)}
+          />
+          <ColorField
+            label="Цвет блока входа"
+            value={toDisplay(readRaw("authBlockBg") || "#ffffff")}
+            placeholder="#ffffff"
+            onChange={(value) => update({ authBlockBg: toStore(value) } as Partial<BlockStyle>)}
+          />
+          <ColorField
+            label="Цвет левой части"
+            value={toDisplay(readRaw("authSideBg") || "#1f2937")}
+            placeholder="#1f2937"
+            onChange={(value) => update({ authSideBg: toStore(value) } as Partial<BlockStyle>)}
+          />
+          <TildaInlineNumberField
+            label="Радиус блока"
+            value={Number(rawStyle.authRadius ?? 28)}
+            min={0}
+            max={64}
+            onChange={(value) => update({ authRadius: value } as Partial<BlockStyle>)}
+          />
+          <TildaInlineNumberField
+            label="Радиус кнопок и полей"
+            value={Number(rawStyle.authButtonRadius ?? 0)}
+            min={0}
+            max={40}
+            onChange={(value) => update({ authButtonRadius: value } as Partial<BlockStyle>)}
+          />
+        </>
+      )}
+      {block.type === "client" && activeSectionId === "cabinet" && (
+        <>
+          <ColorField
+            label="Цвет фона кабинета"
+            value={toDisplay(readRaw("cabinetPageBg") || "#eef2f7")}
+            placeholder="#eef2f7"
+            onChange={(value) => update({ cabinetPageBg: toStore(value) } as Partial<BlockStyle>)}
+          />
+          <ColorField
+            label="Цвет блока кабинета"
+            value={toDisplay(readRaw("cabinetBlockBg") || "#ffffff")}
+            placeholder="#ffffff"
+            onChange={(value) => update({ cabinetBlockBg: toStore(value) } as Partial<BlockStyle>)}
+          />
+          <TildaInlineNumberField
+            label="Радиус блоков"
+            value={Number(rawStyle.cabinetRadius ?? 28)}
+            min={0}
+            max={64}
+            onChange={(value) => update({ cabinetRadius: value } as Partial<BlockStyle>)}
+          />
+          <TildaInlineNumberField
+            label="Радиус кнопок"
+            value={Number(rawStyle.cabinetButtonRadius ?? 16)}
+            min={0}
+            max={40}
+            onChange={(value) => update({ cabinetButtonRadius: value } as Partial<BlockStyle>)}
+          />
+        </>
+      )}
       {inSection("layout") && block.type === "menu" && (
         <>
           {(() => {

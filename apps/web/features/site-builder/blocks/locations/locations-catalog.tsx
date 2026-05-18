@@ -27,6 +27,7 @@ type LocationsCatalogProps = {
   subtitle?: string;
   items: LocationCatalogItem[];
   publicSlug?: string | null;
+  publicBasePath?: string | null;
   locations?: Array<{ id: number; name: string }>;
   currentLocationId?: number | null;
   locationId?: number | null;
@@ -628,6 +629,7 @@ export function LocationsCatalog({
   subtitle = "",
   items,
   publicSlug,
+  publicBasePath,
   locations = [],
   currentLocationId = null,
   locationId = null,
@@ -821,10 +823,17 @@ export function LocationsCatalog({
       items.find((item) => item.id === activeModal.locationId) ??
       null
     : null;
+  const basePath =
+    typeof publicBasePath === "string"
+      ? publicBasePath.replace(/\/$/, "")
+      : publicSlug
+        ? `/${publicSlug}`
+        : "#";
   const activeModalBookingHref =
     activeModalLocation && publicSlug
       ? buildBookingLink({
           publicSlug,
+          publicBasePath: basePath,
           locationId: activeModalLocation.id,
           scenario: "dateFirst",
         })
@@ -1281,11 +1290,12 @@ export function LocationsCatalog({
           const bookingHref = publicSlug
             ? buildBookingLink({
                 publicSlug,
+                publicBasePath: basePath,
                 locationId: location.id,
                 scenario: "dateFirst",
               })
             : "#";
-          const profileHref = publicSlug ? `/${publicSlug}/locations/${location.id}` : "#";
+          const profileHref = publicSlug ? `${basePath}/locations/${location.id}` : "#";
           const canOpenCardByClick = Boolean(publicSlug);
           const isListCard = listView === "list";
           const isImageInsetCard = imageAspectRatio === "original";

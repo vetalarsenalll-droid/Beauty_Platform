@@ -140,6 +140,7 @@ function mergePublishedPageDraft(
       home: next.blocks,
       booking: [],
       client: [],
+      legal: [],
       locations: [],
       services: [],
       specialists: [],

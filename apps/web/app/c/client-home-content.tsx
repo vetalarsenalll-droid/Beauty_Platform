@@ -793,22 +793,24 @@ export async function ClientHomeContent({
 
   const pageStyle: CSSProperties = {
     fontFamily: "var(--font-sans)",
-    backgroundImage:
-      "radial-gradient(960px 520px at 10% -10%, rgba(255, 237, 213, 0.6) 0%, rgba(255,255,255,0) 65%), radial-gradient(820px 480px at 88% -15%, rgba(30, 41, 59, 0.08) 0%, rgba(255,255,255,0) 55%), linear-gradient(180deg, #f8fafc 0%, #f3f4f6 60%, #eef2f7 100%)",
+    backgroundColor: "var(--site-client-cabinet-page-bg,#eef2f7)",
+    backgroundImage: "none",
     color: "#0f172a",
     "--bp-ink": "#0f172a",
     "--bp-muted": "#64748b",
-    "--bp-paper": "rgba(255, 255, 255, 0.92)",
-    "--bp-surface": "#f3f4f6",
+    "--bp-paper": "var(--site-client-cabinet-block-bg,rgba(255, 255, 255, 0.92))",
+    "--bp-surface": "var(--site-client-cabinet-page-bg,#eef2f7)",
     "--bp-stroke": "rgba(15, 23, 42, 0.08)",
     "--bp-accent": "#ef5a3c",
     "--bp-accent-strong": "#d94b2f",
     "--bp-shadow": "0 24px 55px rgba(15, 23, 42, 0.12)",
-    "--site-client-button": "#ef5a3c",
-    "--site-client-button-text": "#ffffff",
-    "--site-button-radius": "16px",
-    "--site-radius": "24px",
+    "--site-button-radius": "var(--site-client-cabinet-button-radius,16px)",
+    "--site-radius": "var(--site-client-cabinet-radius,24px)",
   } as CSSProperties;
+  if (!embedded) {
+    (pageStyle as CSSProperties & Record<string, string>)["--site-client-button"] = "#ef5a3c";
+    (pageStyle as CSSProperties & Record<string, string>)["--site-client-button-text"] = "#ffffff";
+  }
 
   const now = new Date();
   const upcoming = records
@@ -905,7 +907,7 @@ export async function ClientHomeContent({
 
   const dashboardContent = (
     <>
-        <header className="flex flex-col gap-6 rounded-[28px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
+        <header className="flex flex-col gap-6 rounded-[var(--site-client-cabinet-radius,var(--site-radius))] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
               <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">

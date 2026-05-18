@@ -3,12 +3,22 @@ import { getClientSession } from "@/lib/auth";
 
 import { loadPublicData } from "../../_shared/public-data";
 import { renderPublicPageShell } from "../../_shared/public-page-shell";
+import { generatePublicPageMetadata } from "../../_shared/seo-metadata";
 
 type PageProps = {
   params: Promise<{ publicSlug?: string; serviceId?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function PublicServicePage({ params }: PageProps) {
+export async function generateMetadata({ params }: Pick<PageProps, "params">) {
+  const resolvedParams = await params;
+  return generatePublicPageMetadata(
+    resolvedParams.publicSlug ?? "",
+    `service:${resolvedParams.serviceId ?? ""}`
+  );
+}
+
+export default async function PublicServicePage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
   const serviceId = Number(resolvedParams.serviceId);
@@ -27,6 +37,7 @@ export default async function PublicServicePage({ params }: PageProps) {
     data,
     pageKey: "services",
     publicSlug,
+    searchParams,
     accountLinkOverride,
     currentEntity: { type: "service", id: serviceId },
     layout: {

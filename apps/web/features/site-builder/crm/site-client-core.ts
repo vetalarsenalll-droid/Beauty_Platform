@@ -11,6 +11,7 @@ import type {
   SiteBranding as Branding,
   SiteEditorAccountProfile as AccountProfile,
   SiteLocationItem as LocationItem,
+  SiteLegalDocumentItem as LegalDocumentItem,
   SitePromoItem as PromoItem,
   SiteReviewItem as ReviewItem,
   SiteServiceCategoryItem as ServiceCategoryItem,
@@ -22,7 +23,7 @@ import type {
 export type CurrentEntity =
   | { type: "location" | "service" | "specialist" | "promo"; id: number }
   | null;
-export type EntityPageKey = Exclude<SitePageKey, "home" | "booking" | "client">;
+export type EntityPageKey = Exclude<SitePageKey, "home" | "booking" | "client" | "legal">;
 
 export type PublicPageData = {
   id: number;
@@ -33,6 +34,7 @@ export type PublicPageData = {
 
 export type SiteClientProps = {
   initialActivePage?: SitePageKey;
+  initialCurrentEntity?: CurrentEntity;
   initialPreviewMode?: "desktop" | "mobile";
   initialMobileViewport?: MobileViewportKey;
   initialPublicPage: PublicPageData;
@@ -47,6 +49,8 @@ export type SiteClientProps = {
   promos: PromoItem[];
   reviews: ReviewItem[];
   workPhotos: WorkPhotos;
+  legalDocuments: LegalDocumentItem[];
+  platformLegalDocuments: LegalDocumentItem[];
 };
 
 export const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
@@ -84,6 +88,7 @@ export const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
   client: "Личный кабинет",
+  legal: "Документы",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -94,6 +99,7 @@ export const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "legal",
   "locations",
   "services",
   "specialists",
@@ -142,6 +148,11 @@ export const CONTENT_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection[
   ],
   loader: [{ id: "main", label: "Контент блока" }],
   booking: [{ id: "documents", label: "Документы и согласия" }],
+  client: [
+    { id: "login", label: "Вход в кабинет" },
+    { id: "cabinet", label: "Личный кабинет" },
+  ],
+  legal: [{ id: "main", label: "Контент страницы" }],
   aisha: [{ id: "main", label: "Контент блока" }],
   reviews: [{ id: "main", label: "Контент блока" }],
 };
@@ -190,6 +201,15 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "filters", label: "Поиск и сортировка" },
     { id: "servicePage", label: "Карточка филиала" },
     { id: "reviews", label: "Отзывы" },
+  ],
+  client: [
+    { id: "login", label: "Вход в кабинет" },
+    { id: "cabinet", label: "Личный кабинет" },
+  ],
+  legal: [
+    { id: "layout", label: "Основные настройки" },
+    { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
   ],
   locationProfile: [
     { id: "layout", label: "Основные настройки" },
@@ -596,7 +616,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
   },
   menu: {
     title: "Меню",
-    menuItems: ["home", "booking", "client", "locations", "services", "specialists", "promos"],
+    menuItems: ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,
@@ -834,7 +854,31 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     subtitle: "Ваши данные и история записей",
     salonsTitle: "Ваши салоны",
     emptyText: "Пока нет салонов, где вы записывались.",
-    style: defaultBlockStyle,
+    style: {
+      ...defaultBlockStyle,
+      authPageBg: "#f3f4f6",
+      authBlockBg: "#ffffff",
+      authSideBg: "#1f2937",
+      authRadius: 28,
+      authButtonRadius: 0,
+      cabinetPageBg: "#eef2f7",
+      cabinetBlockBg: "#ffffff",
+      cabinetRadius: 28,
+      cabinetButtonRadius: 16,
+    },
+  },
+  legal: {
+    title: "Документы",
+    subtitle: "Правовые документы и согласия",
+    style: {
+      ...defaultBlockStyle,
+      blockWidth: Math.round((8 / MAX_BLOCK_COLUMNS) * LEGACY_WIDTH_REFERENCE),
+      blockWidthColumns: 8,
+      mobileBlockWidthColumns: MAX_BLOCK_COLUMNS,
+      gridStartColumn: centeredGridRange(8).start,
+      gridEndColumn: centeredGridRange(8).end,
+      useCustomWidth: true,
+    },
   },
   locations: {
     title: "Локации",

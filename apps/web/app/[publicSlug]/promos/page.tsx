@@ -3,12 +3,19 @@ import { getClientSession } from "@/lib/auth";
 
 import { loadPublicData } from "../_shared/public-data";
 import { renderPublicPageShell } from "../_shared/public-page-shell";
+import { generatePublicPageMetadata } from "../_shared/seo-metadata";
 
 type PageProps = {
   params: Promise<{ publicSlug?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function PublicPromosPage({ params }: PageProps) {
+export async function generateMetadata({ params }: Pick<PageProps, "params">) {
+  const resolvedParams = await params;
+  return generatePublicPageMetadata(resolvedParams.publicSlug ?? "", "promos");
+}
+
+export default async function PublicPromosPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
 
@@ -24,6 +31,7 @@ export default async function PublicPromosPage({ params }: PageProps) {
     data,
     pageKey: "promos",
     publicSlug,
+    searchParams,
     accountLinkOverride,
     layout: {
       rootTag: "main",

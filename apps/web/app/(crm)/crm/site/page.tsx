@@ -12,6 +12,7 @@ import {
 } from "@/lib/site-builder";
 import {
   MOBILE_VIEWPORTS,
+  type CurrentEntity,
   type MobileViewportKey,
 } from "@/features/site-builder/crm/site-client-core";
 import { Prisma } from "@prisma/client";
@@ -20,6 +21,7 @@ const ALLOWED_PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "legal",
   "locations",
   "services",
   "specialists",
@@ -31,6 +33,24 @@ const normalizeInitialPage = (value: string | undefined): SitePageKey => {
   return ALLOWED_PAGE_KEYS.includes(value as SitePageKey)
     ? (value as SitePageKey)
     : "home";
+};
+
+const normalizeInitialEntity = (
+  value: string | undefined,
+  pageKey: SitePageKey
+): CurrentEntity => {
+  const match = value?.match(/^(location|service|specialist|promo):(\d+)$/);
+  if (!match) return null;
+
+  const type = match[1] as NonNullable<CurrentEntity>["type"];
+  const id = Number(match[2]);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  if (type === "location" && pageKey !== "locations") return null;
+  if (type === "service" && pageKey !== "services") return null;
+  if (type === "specialist" && pageKey !== "specialists") return null;
+  if (type === "promo" && pageKey !== "promos") return null;
+
+  return { type, id };
 };
 
 const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
@@ -45,12 +65,16 @@ const normalizeInitialMobileViewport = (value: string | undefined): MobileViewpo
 export default async function CrmSitePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ page?: string }>;
+  searchParams?: Promise<{ page?: string; entity?: string }>;
 }) {
   const session = await requireCrmPermission("crm.settings.read");
   const resolvedSearchParams = await searchParams;
   const cookieStore = await cookies();
   const initialActivePage = normalizeInitialPage(resolvedSearchParams?.page);
+  const initialCurrentEntity = normalizeInitialEntity(
+    resolvedSearchParams?.entity,
+    initialActivePage
+  );
   const initialPreviewMode = normalizeInitialPreviewMode(
     cookieStore.get(SITE_PREVIEW_MODE_COOKIE_KEY)?.value
   );
@@ -84,7 +108,19 @@ export default async function CrmSitePage({
     accountName
   );
 
-  const [locations, services, specialists, promotions, reviews, profile, branding, serviceCategories, specialistLevels] = await Promise.all([
+  const [
+    locations,
+    services,
+    specialists,
+    promotions,
+    reviews,
+    profile,
+    branding,
+    serviceCategories,
+    specialistLevels,
+    legalDocs,
+    platformLegalDocs,
+  ] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: session.accountId },
       orderBy: { name: "asc" },
@@ -147,6 +183,37 @@ export default async function CrmSitePage({
         OR: [{ accountId: session.accountId }, { accountId: null }],
       },
       orderBy: [{ rank: "asc" }, { createdAt: "desc" }],
+    }),
+    prisma.legalDocument.findMany({
+      where: { accountId: session.accountId },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        isRequired: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true, version: true, publishedAt: true },
+        },
+      },
+    }),
+    prisma.platformLegalDocument.findMany({
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        isRequired: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true, version: true, publishedAt: true },
+        },
+      },
     }),
   ]);
 
@@ -355,6 +422,7 @@ export default async function CrmSitePage({
     <div className="flex flex-col gap-6">
       <SiteClient
         initialActivePage={initialActivePage}
+        initialCurrentEntity={initialCurrentEntity}
         initialPreviewMode={initialPreviewMode}
         initialMobileViewport={initialMobileViewport}
         initialPublicPage={{
@@ -499,6 +567,32 @@ export default async function CrmSitePage({
           };
         })}
         workPhotos={workPhotos}
+        legalDocuments={legalDocs.flatMap((doc) => {
+          const version = doc.versions[0];
+          if (!version) return [];
+          return {
+            id: doc.id,
+            title: doc.title,
+            description: doc.description ?? null,
+            isRequired: doc.isRequired,
+            versionId: version.id,
+            version: version.version,
+            publishedAt: version.publishedAt.toISOString(),
+          };
+        })}
+        platformLegalDocuments={platformLegalDocs.flatMap((doc) => {
+          const version = doc.versions[0];
+          if (!version) return [];
+          return {
+            id: doc.id,
+            title: doc.title,
+            description: doc.description ?? null,
+            isRequired: doc.isRequired,
+            versionId: version.id,
+            version: version.version,
+            publishedAt: version.publishedAt.toISOString(),
+          };
+        })}
       />
     </div>
   );

@@ -11,6 +11,7 @@ type SearchItem = {
 
 type MenuSearchProps = {
   publicSlug: string | null;
+  publicBasePath?: string | null;
   locations: Array<{ id: number; name: string }>;
   services: Array<{ id: number; name: string }>;
   specialists: Array<{ id: number; name: string }>;
@@ -20,6 +21,7 @@ type MenuSearchProps = {
 
 export default function MenuSearch({
   publicSlug,
+  publicBasePath,
   locations,
   services,
   specialists,
@@ -29,7 +31,12 @@ export default function MenuSearch({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const base = publicSlug ? `/${publicSlug}` : "#";
+  const base =
+    typeof publicBasePath === "string"
+      ? publicBasePath.replace(/\/$/, "")
+      : publicSlug
+        ? `/${publicSlug}`
+        : "#";
 
   const items = useMemo<SearchItem[]>(() => {
     const list: SearchItem[] = [];

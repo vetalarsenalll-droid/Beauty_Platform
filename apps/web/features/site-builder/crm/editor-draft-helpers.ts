@@ -7,6 +7,7 @@ export function ensurePages(value: SiteDraft): SitePages {
       home: value.blocks,
       booking: [],
       client: [],
+      legal: [],
       locations: [],
       services: [],
       specialists: [],

@@ -6,15 +6,22 @@ import {
   createDefaultDraft,
   DEFAULT_ACCOUNT_NAME,
   normalizeDraft,
+  type SiteBlock,
   type SiteDraft,
+  type SiteEntityPages,
   type SitePageKey,
 } from "@/lib/site-builder";
-import { ProjectPublishButton } from "./project-publish-button";
+import ProjectClient, {
+  type ProjectBlockTag,
+  type ProjectPageRow,
+  type ProjectSeoSettings,
+} from "./project-client";
 
 const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
   client: "Личный кабинет",
+  legal: "Документы",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -25,6 +32,7 @@ const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "legal",
   "locations",
   "services",
   "specialists",
@@ -46,6 +54,19 @@ const hasUnpublishedPageChanges = (
   );
 };
 
+function blockTags(blocks: SiteBlock[]): ProjectBlockTag[] {
+  return blocks.map((block, index) => ({
+    blockId: block.id,
+    index,
+    type: block.type,
+    title: typeof block.data.title === "string" ? block.data.title : "",
+    subtitle: typeof block.data.subtitle === "string" ? block.data.subtitle : "",
+    seoTitleTag: typeof block.data.seoTitleTag === "string" ? block.data.seoTitleTag : "",
+    seoSubtitleTag:
+      typeof block.data.seoSubtitleTag === "string" ? block.data.seoSubtitleTag : "",
+  }));
+}
+
 export default async function CrmSiteProjectPage() {
   const session = await requireCrmPermission("crm.settings.read");
 
@@ -61,11 +82,7 @@ export default async function CrmSiteProjectPage() {
       draftJson: true,
       status: true,
       updatedAt: true,
-      publishedVersion: {
-        select: {
-          contentJson: true,
-        },
-      },
+      publishedVersion: { select: { contentJson: true } },
     },
   });
 
@@ -84,11 +101,7 @@ export default async function CrmSiteProjectPage() {
           draftJson: true,
           status: true,
           updatedAt: true,
-          publishedVersion: {
-            select: {
-              contentJson: true,
-            },
-          },
+          publishedVersion: { select: { contentJson: true } },
         },
       });
 
@@ -97,22 +110,148 @@ export default async function CrmSiteProjectPage() {
     ? normalizeDraft(page.publishedVersion.contentJson as SiteDraft, accountName)
     : null;
 
-  const [locationsCount, servicesCount, specialistsCount, promosCount] = await Promise.all([
-    prisma.location.count({ where: { accountId: session.accountId } }),
-    prisma.service.count({ where: { accountId: session.accountId } }),
-    prisma.specialistProfile.count({ where: { accountId: session.accountId } }),
-    prisma.promotion.count({ where: { accountId: session.accountId } }),
+  const [
+    locations,
+    services,
+    specialists,
+    promos,
+    seoPageSettings,
+  ] = await Promise.all([
+    prisma.location.findMany({
+      where: { accountId: session.accountId },
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+    }),
+    prisma.service.findMany({
+      where: { accountId: session.accountId },
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+    }),
+    prisma.specialistProfile.findMany({
+      where: { accountId: session.accountId },
+      select: {
+        id: true,
+        user: {
+          select: {
+            email: true,
+            profile: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { id: "asc" },
+    }),
+    prisma.promotion.findMany({
+      where: { accountId: session.accountId },
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+    }),
+    prisma.seoPageSetting.findMany({
+      where: { accountId: session.accountId },
+      orderBy: { pageKey: "asc" },
+    }),
   ]);
 
   const hasPageBlocks = (key: SitePageKey) => (safeDraft.pages?.[key]?.length ?? 0) > 0;
   const availablePageKeys = PAGE_KEYS.filter((key) => {
     if (key === "home") return true;
-    if (key === "locations") return locationsCount > 0 || hasPageBlocks(key);
-    if (key === "services") return servicesCount > 0 || hasPageBlocks(key);
-    if (key === "specialists") return specialistsCount > 0 || hasPageBlocks(key);
-    if (key === "promos") return promosCount > 0 || hasPageBlocks(key);
+    if (key === "booking") return true;
+    if (key === "client") return true;
+    if (key === "legal") return true;
+    if (key === "locations") return locations.length > 0 || hasPageBlocks(key);
+    if (key === "services") return services.length > 0 || hasPageBlocks(key);
+    if (key === "specialists") return specialists.length > 0 || hasPageBlocks(key);
+    if (key === "promos") return promos.length > 0 || hasPageBlocks(key);
     return hasPageBlocks(key);
   });
+
+  const seoByKey = new Map(seoPageSettings.map((item) => [item.pageKey, item]));
+  const readSeo = (pageKey: string): ProjectSeoSettings => {
+    const item = seoByKey.get(pageKey);
+    return {
+      pageKey,
+      title: item?.title ?? "",
+      description: item?.description ?? "",
+      ogImageUrl: item?.ogImageUrl ?? "",
+      keywords: item?.keywords ?? "",
+      canonicalUrl: item?.canonicalUrl ?? "",
+      noIndex: item?.noIndex ?? false,
+      noFollow: item?.noFollow ?? false,
+    };
+  };
+
+  const entityBlocks = (
+    entityPages: SiteEntityPages[keyof SiteEntityPages] | undefined,
+    id: number
+  ) => entityPages?.[String(id)] ?? [];
+
+  const pageRows: ProjectPageRow[] = [
+    ...availablePageKeys.map((key) => ({
+      pageKey: key,
+      label: PAGE_LABELS[key],
+      path: key === "home" ? "/" : `/${key}`,
+      editorHref: `/crm/site?page=${key}`,
+      publishPage: key,
+      publishEntity: null,
+      blocksCount: getPageBlocksSnapshot(safeDraft, key).length,
+      hasUnpublishedChanges: hasUnpublishedPageChanges(safeDraft, publishedDraft, key),
+      seo: readSeo(key),
+      blockTags: blockTags(getPageBlocksSnapshot(safeDraft, key)),
+    })),
+    ...locations.map((item) => ({
+      pageKey: `location:${item.id}`,
+      label: `Локация: ${item.name}`,
+      path: `/locations/${item.id}`,
+      editorHref: `/crm/site?page=locations&entity=location:${item.id}`,
+      publishPage: "locations" as SitePageKey,
+      publishEntity: { type: "locations" as const, id: String(item.id) },
+      blocksCount: entityBlocks(safeDraft.entityPages?.locations, item.id).length,
+      hasUnpublishedChanges: false,
+      seo: readSeo(`location:${item.id}`),
+      blockTags: blockTags(entityBlocks(safeDraft.entityPages?.locations, item.id)),
+    })),
+    ...services.map((item) => ({
+      pageKey: `service:${item.id}`,
+      label: `Услуга: ${item.name}`,
+      path: `/services/${item.id}`,
+      editorHref: `/crm/site?page=services&entity=service:${item.id}`,
+      publishPage: "services" as SitePageKey,
+      publishEntity: { type: "services" as const, id: String(item.id) },
+      blocksCount: entityBlocks(safeDraft.entityPages?.services, item.id).length,
+      hasUnpublishedChanges: false,
+      seo: readSeo(`service:${item.id}`),
+      blockTags: blockTags(entityBlocks(safeDraft.entityPages?.services, item.id)),
+    })),
+    ...specialists.map((item) => {
+      const specialistName =
+        [item.user.profile?.firstName, item.user.profile?.lastName].filter(Boolean).join(" ") ||
+        item.user.email ||
+        `#${item.id}`;
+      return {
+        pageKey: `specialist:${item.id}`,
+        label: `Специалист: ${specialistName}`,
+        path: `/specialists/${item.id}`,
+        editorHref: `/crm/site?page=specialists&entity=specialist:${item.id}`,
+        publishPage: "specialists" as SitePageKey,
+        publishEntity: { type: "specialists" as const, id: String(item.id) },
+        blocksCount: entityBlocks(safeDraft.entityPages?.specialists, item.id).length,
+        hasUnpublishedChanges: false,
+        seo: readSeo(`specialist:${item.id}`),
+        blockTags: blockTags(entityBlocks(safeDraft.entityPages?.specialists, item.id)),
+      };
+    }),
+    ...promos.map((item) => ({
+      pageKey: `promo:${item.id}`,
+      label: `Промо: ${item.name}`,
+      path: `/promos/${item.id}`,
+      editorHref: `/crm/site?page=promos&entity=promo:${item.id}`,
+      publishPage: "promos" as SitePageKey,
+      publishEntity: { type: "promos" as const, id: String(item.id) },
+      blocksCount: entityBlocks(safeDraft.entityPages?.promos, item.id).length,
+      hasUnpublishedChanges: false,
+      seo: readSeo(`promo:${item.id}`),
+      blockTags: blockTags(entityBlocks(safeDraft.entityPages?.promos, item.id)),
+    })),
+  ];
 
   const projectTitle = account?.name?.trim() || "Мой сайт";
 
@@ -124,9 +263,11 @@ export default async function CrmSiteProjectPage() {
             <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--bp-muted)]">
               Проект сайта
             </div>
-            <h1 className="mt-2 text-3xl font-light text-[color:var(--bp-ink)]">{projectTitle}</h1>
+            <h1 className="mt-2 text-3xl font-light text-[color:var(--bp-ink)]">
+              {projectTitle}
+            </h1>
             <div className="mt-2 text-sm text-[color:var(--bp-muted)]">
-              Статус: {page.status} • Страниц: {availablePageKeys.length}
+              Статус: {page.status} • Страниц: {pageRows.length}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -146,38 +287,7 @@ export default async function CrmSiteProjectPage() {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 sm:p-6">
-        <div className="mb-4 text-sm font-medium text-[color:var(--bp-muted)]">Страницы проекта</div>
-        <div className="divide-y divide-[color:var(--bp-stroke)]">
-          {availablePageKeys.map((key) => {
-            const hasUnpublishedChanges = hasUnpublishedPageChanges(safeDraft, publishedDraft, key);
-            return (
-              <div key={key} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{PAGE_LABELS[key]}</div>
-                  <div className="text-xs text-[color:var(--bp-muted)]">
-                    Блоков в странице: {safeDraft.pages?.[key]?.length ?? 0}
-                  </div>
-                  {hasUnpublishedChanges && (
-                    <div className="mt-1 text-xs font-medium text-[#b45309]">
-                      Последние изменения не опубликованы
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/crm/site?page=${key}`}
-                    className="rounded-full border border-[color:var(--bp-stroke)] px-4 py-2 text-sm hover:bg-[color:var(--bp-paper)]"
-                  >
-                    Редактировать
-                  </Link>
-                  <ProjectPublishButton draftJson={safeDraft} pageKey={key} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <ProjectClient initialDraft={safeDraft} pages={pageRows} />
     </div>
   );
 }

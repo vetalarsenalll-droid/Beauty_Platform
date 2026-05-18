@@ -11,6 +11,7 @@ import ReviewPhotoGallery from "@/components/review-photo-gallery";
 import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import PublicClientAccount from "./public-client-account";
+import type { ClientAuthMode } from "./public-client-account";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
 import { LocationsCatalog } from "@/features/site-builder/blocks/locations/locations-catalog";
@@ -47,6 +48,7 @@ const PAGE_LABELS = {
   home: "Главная",
   booking: "Онлайн-запись",
   client: "Личный кабинет",
+  legal: "Документы",
   locations: "Локации",
   services: "Услуги",
   specialists: "Специалисты",
@@ -1131,8 +1133,10 @@ export function renderBlock(
   workPhotos: WorkPhotos,
   current: CurrentEntity,
   theme: SiteTheme,
+  publicBasePath: string,
   accountLinkOverride?: string,
-  loaderConfig?: SiteLoaderConfig | null
+  loaderConfig?: SiteLoaderConfig | null,
+  clientAuthMode: ClientAuthMode = "login"
 ) {
   switch (block.type) {
     case "cover":
@@ -1141,6 +1145,7 @@ export function renderBlock(
         accountName,
         accountSlug,
         publicSlug,
+        publicBasePath,
         profile,
         branding,
         locations,
@@ -1154,6 +1159,7 @@ export function renderBlock(
         accountName,
         accountSlug,
         publicSlug,
+        publicBasePath,
         branding,
         profile,
         locations,
@@ -1186,21 +1192,23 @@ export function renderBlock(
         loaderConfig
       );
     case "locations":
-      return renderLocations(block, publicSlug, locations, current, theme);
+      return renderLocations(block, publicSlug, publicBasePath, locations, current, theme);
     case "services":
-      return renderServices(block, publicSlug, locations, services, current, theme);
+      return renderServices(block, publicSlug, publicBasePath, locations, services, current, theme);
     case "specialists":
-      return renderSpecialists(block, publicSlug, locations, specialists, current, theme);
+      return renderSpecialists(block, publicSlug, publicBasePath, locations, specialists, current, theme);
     case "promos":
-      return renderPromos(block, publicSlug, promos, current);
+      return renderPromos(block, publicSlug, publicBasePath, promos, current);
     case "works":
       return renderWorks(block, workPhotos, current, theme);
     case "reviews":
-      return renderReviews(block, reviews, accountName, accountSlug, publicSlug, theme);
+      return renderReviews(block, reviews, accountName, accountSlug, publicSlug, publicBasePath, theme);
     case "contacts":
       return renderContacts(block, accountName, profile, locations);
     case "client":
-      return renderClient(block, accountSlug, publicSlug, theme);
+      return renderClient(block, accountSlug, publicSlug, theme, clientAuthMode);
+    case "legal":
+      return renderLegal(block, publicBasePath, legalDocuments, platformLegalDocuments, theme);
     default:
       return null;
   }
@@ -1571,11 +1579,26 @@ function resolveEntities<T extends { id: number }>(
   return items;
 }
 
+type SeoHeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "div";
+
+function resolveSeoHeadingTag(value: unknown, fallback: SeoHeadingTag): SeoHeadingTag {
+  return value === "h1" ||
+    value === "h2" ||
+    value === "h3" ||
+    value === "h4" ||
+    value === "h5" ||
+    value === "h6" ||
+    value === "div"
+    ? value
+    : fallback;
+}
+
 function renderCover(
   block: SiteBlock,
   accountName: string,
   accountSlug: string,
   publicSlug: string,
+  publicBasePath: string,
   profile: AccountProfile,
   branding: Branding,
   locations: LocationItem[],
@@ -1594,6 +1617,8 @@ function renderCover(
   const title = (data.title as string) || accountName;
   const subtitle = (data.subtitle as string) || "";
   const description = (data.description as string) || "";
+  const TitleTag = resolveSeoHeadingTag(data.seoTitleTag, "h2");
+  const SubtitleTag = resolveSeoHeadingTag(data.seoSubtitleTag, "div");
   const alignRaw = (data.align as string) ?? "left";
   const align = alignRaw === "center" || alignRaw === "right" ? alignRaw : "left";
   const contentAlign = style.textAlign ?? align;
@@ -2000,8 +2025,8 @@ function renderCover(
       ? sliderDotBorderColorDarkRaw
       : sliderDotBorderColorLight;
   const resolvePageHref = (pageKey: PageKey): string => {
-    const basePath = publicSlug ? `/${publicSlug}` : "#";
-    if (pageKey === "home") return basePath;
+    const basePath = publicSlug ? publicBasePath : "#";
+    if (pageKey === "home") return basePath === "" ? "/" : basePath;
     if (pageKey === "booking") return `${basePath}/booking`;
     if (pageKey === "client") return `${basePath}/client`;
     return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
@@ -2013,7 +2038,7 @@ function renderCover(
       return resolvePageHref(normalizedTarget as PageKey);
     }
     if (!publicSlug) return "";
-    const basePath = `/${publicSlug}`;
+    const basePath = publicBasePath;
 
     const locationMatch = normalizedTarget.match(/^location:(\d+)$/);
     if (locationMatch) {
@@ -2064,7 +2089,7 @@ function renderCover(
           : slideButtonHref
             ? normalizeExternalHref(slideButtonHref)
             : publicSlug
-              ? buildBookingLink({ publicSlug })
+              ? buildBookingLink({ publicSlug, publicBasePath })
               : "#");
       return {
         id:
@@ -2088,7 +2113,7 @@ function renderCover(
             title: title || accountName,
             description: description || subtitle,
             buttonText: buttonText || "Подробнее",
-            buttonHref: publicSlug ? buildBookingLink({ publicSlug }) : "#",
+            buttonHref: publicSlug ? buildBookingLink({ publicSlug, publicBasePath }) : "#",
             imageUrl: null,
           },
         ];
@@ -2294,7 +2319,7 @@ function renderCover(
             }}
           >
             <div style={{ width: "min(100%, 640px)" }}>
-              <h2
+              <TitleTag
                 className={`leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
                 style={{
                   ...headingStyle(style),
@@ -2304,9 +2329,9 @@ function renderCover(
                 }}
               >
                 {title}
-              </h2>
+              </TitleTag>
               {subtitle && (
-                <p
+                <SubtitleTag
                   className={`mt-6 leading-[1.25] ${resolveAnimClass(animDescription)}`}
                   style={{
                     ...subheadingStyle(style),
@@ -2317,7 +2342,7 @@ function renderCover(
                   }}
                 >
                   {subtitle}
-                </p>
+                </SubtitleTag>
               )}
               {description && (
                 <p
@@ -2349,7 +2374,7 @@ function renderCover(
               >
                 {showButton && publicSlug && (
                   <Link
-                    href={buildBookingLink({ publicSlug })}
+                    href={buildBookingLink({ publicSlug, publicBasePath })}
                     className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold transition ${resolveAnimClass(animButton)}`}
                     style={{
                       ...buttonStyle(style),
@@ -2493,7 +2518,7 @@ function renderCover(
             marginRight: 0,
           }}
         >
-          <h2
+          <TitleTag
             className={`text-white leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
             style={{
               ...headingStyle(style),
@@ -2503,9 +2528,9 @@ function renderCover(
             }}
           >
             {title}
-          </h2>
+          </TitleTag>
           {subtitle && (
-            <p
+            <SubtitleTag
               className={`mt-6 text-white/90 leading-[1.25] ${resolveAnimClass(animDescription)}`}
               style={{
                 ...subheadingStyle(style),
@@ -2516,7 +2541,7 @@ function renderCover(
               }}
             >
               {subtitle}
-            </p>
+            </SubtitleTag>
           )}
           {description && (
             <p
@@ -2548,7 +2573,7 @@ function renderCover(
           >
             {showButton && publicSlug && (
               <Link
-                href={buildBookingLink({ publicSlug })}
+                href={buildBookingLink({ publicSlug, publicBasePath })}
                 className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold transition ${resolveAnimClass(animButton)}`}
                 style={{
                   ...buttonStyle(style),
@@ -3008,6 +3033,7 @@ function renderMenu(
   accountName: string,
   accountSlug: string,
   publicSlug: string,
+  publicBasePath: string,
   branding: Branding,
   profile: AccountProfile,
   locations: LocationItem[],
@@ -3070,7 +3096,7 @@ function renderMenu(
   const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
     : 0;
-  const basePath = publicSlug ? `/${publicSlug}` : "#";
+  const basePath = publicSlug ? publicBasePath : "#";
   const position = data.position === "sticky" ? "sticky" : "static";
   const accountTitleRaw =
     typeof data.accountTitle === "string" ? data.accountTitle.trim() : "";
@@ -3257,7 +3283,7 @@ function renderMenu(
       </a>
     ) : (
       <Link
-        href={buildBookingLink({ publicSlug })}
+        href={buildBookingLink({ publicSlug, publicBasePath })}
         className="inline-flex px-4 py-2 text-sm font-semibold"
         style={{
           ...buttonStyle(style),
@@ -3277,6 +3303,7 @@ function renderMenu(
     showSearch && publicSlug ? (
       <MenuSearch
         publicSlug={publicSlug}
+        publicBasePath={publicBasePath}
         locations={locations.map((item) => ({ id: item.id, name: item.name }))}
         services={services.map((item) => ({ id: item.id, name: item.name }))}
         specialists={specialists.map((item) => ({ id: item.id, name: item.name }))}
@@ -3799,6 +3826,7 @@ function renderAbout(
 function renderLocations(
   block: SiteBlock,
   publicSlug: string,
+  publicBasePath: string,
   locations: LocationItem[],
   current: CurrentEntity,
   theme: SiteTheme
@@ -3938,6 +3966,7 @@ function renderLocations(
         subtitle={subtitle}
         items={catalogItems}
         publicSlug={publicSlug}
+        publicBasePath={publicBasePath}
         locations={locations.map((location) => ({ id: location.id, name: location.name }))}
         cardsPerRow={cardsPerRow}
         mobileCardsPerRow={Number(data.mobileCardsPerRow) === 1 ? 1 : 2}
@@ -4040,6 +4069,7 @@ function renderLocations(
 function renderServices(
   block: SiteBlock,
   publicSlug: string,
+  publicBasePath: string,
   locations: LocationItem[],
   services: ServiceItem[],
   current: CurrentEntity,
@@ -4328,6 +4358,7 @@ function renderServices(
         subtitle={subtitle}
         items={items}
         publicSlug={publicSlug}
+        publicBasePath={publicBasePath}
         currentLocationId={currentLocationId}
         locationId={locationId}
         locations={locations.map((location) => ({ id: location.id, name: location.name }))}
@@ -4467,6 +4498,7 @@ function renderServices(
 function renderSpecialists(
   block: SiteBlock,
   publicSlug: string,
+  publicBasePath: string,
   locations: LocationItem[],
   specialists: SpecialistItem[],
   current: CurrentEntity,
@@ -4642,6 +4674,7 @@ function renderSpecialists(
         subtitle={subtitle}
         items={items}
         publicSlug={publicSlug}
+        publicBasePath={publicBasePath}
         locations={locations.map((location) => ({ id: location.id, name: location.name }))}
         currentLocationId={currentLocationId}
         locationId={locationId}
@@ -4764,6 +4797,7 @@ function renderSpecialists(
 function renderPromos(
   block: SiteBlock,
   publicSlug: string,
+  publicBasePath: string,
   promos: PromoItem[],
   current: CurrentEntity
 ) {
@@ -4796,14 +4830,14 @@ function renderPromos(
         {items.map((promo) => (
           <div key={promo.id} className="rounded-2xl border border-[color:var(--bp-stroke)] p-4">
             <Link
-              href={`/${publicSlug}/promos/${promo.id}`}
+              href={`${publicBasePath}/promos/${promo.id}`}
               className="text-base font-semibold"
             >
               {promo.name}
             </Link>
             <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ?`}
-              {promo.startsAt || promo.endsAt ? " В· " : ""}
+              {promo.type === "PERCENT" ? `${promo.value}%` : `${promo.value} ₽`}
+              {promo.startsAt || promo.endsAt ? " · " : ""}
               {promo.startsAt ? `с ${promo.startsAt}` : ""}
               {promo.endsAt ? ` по ${promo.endsAt}` : ""}
             </div>
@@ -5059,7 +5093,8 @@ function renderPublicReviewStars(rating: number, starColor = "#ff9f0a") {
   );
 }
 
-function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: string, accountSlug: string, publicSlug: string, theme: SiteTheme) {
+
+function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: string, accountSlug: string, publicSlug: string, publicBasePath: string, theme: SiteTheme) {
   const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
   const limit = Math.max(1, Math.min(24, Number(data.limit) || 6));
@@ -5133,6 +5168,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
     color: mutedColor,
     cursor: "pointer",
   };
+  const basePath = publicBasePath;
   const renderReviewServices = (review: ReviewItem) => {
     const numericEntityId = review.entityId ? Number(review.entityId) : null;
     const fallbackServiceId =
@@ -5149,7 +5185,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
           {services.map((service, index) => (
             <span key={`${service.id}-${index}`}>
               {index > 0 ? <span style={{ color: mutedColor }}>, </span> : null}
-              <Link href={`/${publicSlug}/services/${service.id}`} className="transition hover:opacity-75" style={entityLinkStyle}>
+              <Link href={`${basePath}/services/${service.id}`} className="transition hover:opacity-75" style={entityLinkStyle}>
                 {service.name}
               </Link>
             </span>
@@ -5178,7 +5214,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
       {renderReviewServices(review)}
       {review.specialistName ? (
         review.specialistId ? (
-          <Link href={`/${publicSlug}/specialists/${review.specialistId}`} className="mt-1 block text-sm transition hover:opacity-75" style={entityLinkStyle}>
+          <Link href={`${basePath}/specialists/${review.specialistId}`} className="mt-1 block text-sm transition hover:opacity-75" style={entityLinkStyle}>
             {review.specialistName}
           </Link>
         ) : (
@@ -5187,7 +5223,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
       ) : null}
       {review.locationName ? (
         review.locationId ? (
-          <Link href={`/${publicSlug}/locations/${review.locationId}`} className="mt-1 block text-xs transition hover:opacity-75" style={entityLinkStyle}>
+          <Link href={`${basePath}/locations/${review.locationId}`} className="mt-1 block text-xs transition hover:opacity-75" style={entityLinkStyle}>
             {review.locationName}
           </Link>
         ) : (
@@ -5290,6 +5326,7 @@ function renderReviews(block: SiteBlock, reviews: ReviewItem[], accountName: str
     </div>
   );
 }
+
 function renderContacts(
   block: SiteBlock,
   accountName: string,
@@ -5339,16 +5376,104 @@ function renderClient(
   accountSlug: string,
   publicSlug: string,
   theme: SiteTheme,
+  authMode: ClientAuthMode,
 ) {
-  const data = block.data as Record<string, unknown>;
   const style = normalizeStyle(block, theme);
-  const cardRadius = style.cardRadius ?? style.radius ?? 24;
+  const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
+  const readColor = (key: string, fallback: string) => {
+    const value = rawStyle[key];
+    return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  };
+  const readNumber = (key: string, fallback: number) => {
+    const value = Number(rawStyle[key]);
+    return Number.isFinite(value) ? Math.max(0, Math.min(64, Math.round(value))) : fallback;
+  };
+  const authPageBg = readColor("authPageBg", "#f3f4f6");
+  const authBlockBg = readColor("authBlockBg", "#ffffff");
+  const authSideBg = readColor("authSideBg", "#1f2937");
+  const authRadius = readNumber("authRadius", 28);
+  const authButtonRadius = readNumber("authButtonRadius", 0);
+  const cabinetPageBg = readColor("cabinetPageBg", "#eef2f7");
+  const cabinetBlockBg = readColor("cabinetBlockBg", "#ffffff");
+  const cabinetRadius = readNumber("cabinetRadius", 28);
+  const cabinetButtonRadius = readNumber("cabinetButtonRadius", 16);
+  const buttonBg = style.buttonColor || theme.lightPalette.buttonColor;
+  const buttonText = style.buttonTextColor || theme.lightPalette.buttonTextColor;
 
   return (
-    <div style={{ borderRadius: cardRadius }}>
-      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} />
+    <div
+      style={
+        {
+          "--site-client-auth-page-bg": authPageBg,
+          "--site-client-auth-block-bg": authBlockBg,
+          "--site-client-auth-side-bg": authSideBg,
+          "--site-client-auth-radius": `${authRadius}px`,
+          "--site-client-auth-button-radius": `${authButtonRadius}px`,
+          "--site-client-cabinet-page-bg": cabinetPageBg,
+          "--site-client-cabinet-block-bg": cabinetBlockBg,
+          "--site-client-cabinet-radius": `${cabinetRadius}px`,
+          "--site-client-cabinet-button-radius": `${cabinetButtonRadius}px`,
+          "--site-client-button": buttonBg,
+          "--site-client-button-text": buttonText,
+          "--bp-accent": buttonBg,
+          "--bp-accent-strong": buttonBg,
+          "--bp-paper": authMode === "login" ? authBlockBg : cabinetBlockBg,
+          "--bp-surface": authMode === "login" ? authPageBg : cabinetPageBg,
+          "--site-button-radius": `${authMode === "login" ? authButtonRadius : cabinetButtonRadius}px`,
+          "--site-radius": `${authMode === "login" ? authRadius : cabinetRadius}px`,
+        } as CSSProperties
+      }
+    >
+      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} authMode={authMode} />
     </div>
   );
 }
 
+function renderLegal(
+  block: SiteBlock,
+  publicBasePath: string,
+  legalDocuments: LegalDocumentItem[],
+  platformLegalDocuments: LegalDocumentItem[],
+  theme: SiteTheme
+) {
+  const data = block.data as Record<string, unknown>;
+  const style = normalizeStyle(block, theme);
+  const title = (data.title as string) || "Документы";
+  const subtitle = (data.subtitle as string) || "Правовые документы и согласия";
+  const docs = [...legalDocuments, ...platformLegalDocuments];
+  const cardRadius = style.cardRadius ?? style.radius ?? 16;
 
+  return (
+    <div>
+      <h1 className="font-semibold" style={headingStyle(style)}>
+        {title}
+      </h1>
+      <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style)}>
+        {subtitle}
+      </p>
+      <div className="mt-6 grid gap-3">
+        {docs.map((doc) => (
+          <Link
+            key={`${doc.id}:${doc.versionId}`}
+            href={`${publicBasePath}/legal/${doc.versionId}`}
+            className="block border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 transition hover:-translate-y-0.5 hover:shadow-sm"
+            style={{ borderRadius: cardRadius }}
+          >
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">{doc.title}</div>
+            {doc.description ? (
+              <div className="mt-1 text-sm text-[color:var(--bp-muted)]">{doc.description}</div>
+            ) : null}
+          </Link>
+        ))}
+        {docs.length === 0 ? (
+          <div
+            className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 text-sm text-[color:var(--bp-muted)]"
+            style={{ borderRadius: cardRadius }}
+          >
+            Документы пока не опубликованы.
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}

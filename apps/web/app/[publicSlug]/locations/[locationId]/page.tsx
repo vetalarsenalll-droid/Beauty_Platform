@@ -3,12 +3,22 @@ import { getClientSession } from "@/lib/auth";
 
 import { loadPublicData } from "../../_shared/public-data";
 import { renderPublicPageShell } from "../../_shared/public-page-shell";
+import { generatePublicPageMetadata } from "../../_shared/seo-metadata";
 
 type PageProps = {
   params: Promise<{ publicSlug?: string; locationId?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function PublicLocationPage({ params }: PageProps) {
+export async function generateMetadata({ params }: Pick<PageProps, "params">) {
+  const resolvedParams = await params;
+  return generatePublicPageMetadata(
+    resolvedParams.publicSlug ?? "",
+    `location:${resolvedParams.locationId ?? ""}`
+  );
+}
+
+export default async function PublicLocationPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
   const locationId = Number(resolvedParams.locationId);
@@ -27,6 +37,7 @@ export default async function PublicLocationPage({ params }: PageProps) {
     data,
     pageKey: "locations",
     publicSlug,
+    searchParams,
     accountLinkOverride,
     currentEntity: { type: "location", id: locationId },
     layout: {

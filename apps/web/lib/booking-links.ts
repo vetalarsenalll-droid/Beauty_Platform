@@ -1,5 +1,6 @@
 type BookingLinkParams = {
   publicSlug: string;
+  publicBasePath?: string | null;
   locationId?: number | null;
   serviceId?: number | null;
   specialistId?: number | null;
@@ -11,6 +12,7 @@ type BookingLinkParams = {
 
 export function buildBookingLink({
   publicSlug,
+  publicBasePath,
   locationId,
   serviceId,
   specialistId,
@@ -28,5 +30,11 @@ export function buildBookingLink({
   if (scenario) search.set("scenario", scenario);
   if (start) search.set("start", start);
   const query = search.toString();
-  return `/${publicSlug}/booking${query ? `?${query}` : ""}`;
+  const basePath =
+    typeof publicBasePath === "string"
+      ? publicBasePath.replace(/\/$/, "")
+      : publicSlug
+        ? `/${publicSlug}`
+        : "";
+  return `${basePath}/booking${query ? `?${query}` : ""}`;
 }
