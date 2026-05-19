@@ -1619,6 +1619,8 @@ export function BlockStyleEditor({
   const inSection = (...ids: string[]) =>
     ids.length === 0 || ids.includes(activeSectionId);
   const coverData = (block.data as Record<string, unknown>) ?? {};
+  const clientView = coverData.clientView === "cabinet" ? "cabinet" : "login";
+  const isClientLogin = block.type === "client" && clientView === "login";
   const resolveCoverTextColorInput = (raw: unknown, fallback: string) => {
     const value = typeof raw === "string" ? raw.trim() : "";
     if (!value) return fallback;
@@ -1809,72 +1811,6 @@ export function BlockStyleEditor({
 
   return (
     <div className="space-y-4">
-      {block.type === "client" && activeSectionId === "login" && (
-        <>
-          <ColorField
-            label="Цвет фона входа"
-            value={toDisplay(readRaw("authPageBg") || "#f3f4f6")}
-            placeholder="#f3f4f6"
-            onChange={(value) => update({ authPageBg: toStore(value) } as Partial<BlockStyle>)}
-          />
-          <ColorField
-            label="Цвет блока входа"
-            value={toDisplay(readRaw("authBlockBg") || "#ffffff")}
-            placeholder="#ffffff"
-            onChange={(value) => update({ authBlockBg: toStore(value) } as Partial<BlockStyle>)}
-          />
-          <ColorField
-            label="Цвет левой части"
-            value={toDisplay(readRaw("authSideBg") || "#1f2937")}
-            placeholder="#1f2937"
-            onChange={(value) => update({ authSideBg: toStore(value) } as Partial<BlockStyle>)}
-          />
-          <TildaInlineNumberField
-            label="Радиус блока"
-            value={Number(rawStyle.authRadius ?? 28)}
-            min={0}
-            max={64}
-            onChange={(value) => update({ authRadius: value } as Partial<BlockStyle>)}
-          />
-          <TildaInlineNumberField
-            label="Радиус кнопок и полей"
-            value={Number(rawStyle.authButtonRadius ?? 0)}
-            min={0}
-            max={40}
-            onChange={(value) => update({ authButtonRadius: value } as Partial<BlockStyle>)}
-          />
-        </>
-      )}
-      {block.type === "client" && activeSectionId === "cabinet" && (
-        <>
-          <ColorField
-            label="Цвет фона кабинета"
-            value={toDisplay(readRaw("cabinetPageBg") || "#eef2f7")}
-            placeholder="#eef2f7"
-            onChange={(value) => update({ cabinetPageBg: toStore(value) } as Partial<BlockStyle>)}
-          />
-          <ColorField
-            label="Цвет блока кабинета"
-            value={toDisplay(readRaw("cabinetBlockBg") || "#ffffff")}
-            placeholder="#ffffff"
-            onChange={(value) => update({ cabinetBlockBg: toStore(value) } as Partial<BlockStyle>)}
-          />
-          <TildaInlineNumberField
-            label="Радиус блоков"
-            value={Number(rawStyle.cabinetRadius ?? 28)}
-            min={0}
-            max={64}
-            onChange={(value) => update({ cabinetRadius: value } as Partial<BlockStyle>)}
-          />
-          <TildaInlineNumberField
-            label="Радиус кнопок"
-            value={Number(rawStyle.cabinetButtonRadius ?? 16)}
-            min={0}
-            max={40}
-            onChange={(value) => update({ cabinetButtonRadius: value } as Partial<BlockStyle>)}
-          />
-        </>
-      )}
       {inSection("layout") && block.type === "menu" && (
         <>
           {(() => {
@@ -2195,7 +2131,37 @@ export function BlockStyleEditor({
           />
         </label>
       )}
-      {inSection("layout") && block.type !== "works" && block.type !== "cover" && block.type !== "aisha" && block.type !== "menu" && (
+      {block.type === "client" && inSection("layout") && (
+        <>
+          <TildaInlineNumberField
+            label={isClientLogin ? "Радиус формы" : "Радиус карточек"}
+            value={Number(rawStyle[isClientLogin ? "authRadius" : "cabinetRadius"] ?? 28)}
+            min={0}
+            max={64}
+            onChange={(value) =>
+              update(
+                isClientLogin
+                  ? ({ authRadius: value } as Partial<BlockStyle>)
+                  : ({ cabinetRadius: value } as Partial<BlockStyle>)
+              )
+            }
+          />
+          <TildaInlineNumberField
+            label={isClientLogin ? "Радиус полей" : "Радиус кнопок"}
+            value={Number(rawStyle[isClientLogin ? "authButtonRadius" : "cabinetButtonRadius"] ?? (isClientLogin ? 0 : 16))}
+            min={0}
+            max={40}
+            onChange={(value) =>
+              update(
+                isClientLogin
+                  ? ({ authButtonRadius: value } as Partial<BlockStyle>)
+                  : ({ cabinetButtonRadius: value } as Partial<BlockStyle>)
+              )
+            }
+          />
+        </>
+      )}
+      {inSection("layout") && block.type !== "works" && block.type !== "cover" && block.type !== "aisha" && block.type !== "menu" && block.type !== "client" && (
       <label className="text-sm">
         Радиус блока: {style.radius ?? theme.radius}px
         <input
@@ -2209,7 +2175,7 @@ export function BlockStyleEditor({
         />
       </label>
       )}
-      {inSection("layout") && block.type !== "aisha" && block.type !== "menu" && (
+      {inSection("layout") && block.type !== "aisha" && block.type !== "menu" && block.type !== "client" && (
       <label className="text-sm">
         Радиус кнопки: {style.buttonRadius ?? theme.buttonRadius}px
         <input
@@ -2500,6 +2466,81 @@ export function BlockStyleEditor({
                 onClear={() => update({ shadowColor: "transparent" })}
               />
               <TildaInlineNumberField
+                label="Размер тени"
+                value={style.shadowSize ?? theme.shadowSize}
+                min={0}
+                max={40}
+                onChange={(value) => update({ shadowSize: value })}
+              />
+            </div>
+          ) : block.type === "client" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <ColorField
+                label={isClientLogin ? "Фон страницы" : "Фон кабинета"}
+                value={toDisplay(readRaw(isClientLogin ? "authPageBg" : "cabinetPageBg") || (isClientLogin ? "#f3f4f6" : "#eef2f7"))}
+                placeholder={isClientLogin ? "#f3f4f6" : "#eef2f7"}
+                onChange={(value) =>
+                  update(
+                    isClientLogin
+                      ? ({ authPageBg: toStore(value) } as Partial<BlockStyle>)
+                      : ({ cabinetPageBg: toStore(value) } as Partial<BlockStyle>)
+                  )
+                }
+              />
+              <ColorField
+                label={isClientLogin ? "Фон формы" : "Фон карточек"}
+                value={toDisplay(readRaw(isClientLogin ? "authBlockBg" : "cabinetBlockBg") || "#ffffff")}
+                placeholder="#ffffff"
+                onChange={(value) =>
+                  update(
+                    isClientLogin
+                      ? ({ authBlockBg: toStore(value) } as Partial<BlockStyle>)
+                      : ({ cabinetBlockBg: toStore(value) } as Partial<BlockStyle>)
+                  )
+                }
+              />
+              {isClientLogin && (
+                <ColorField
+                  label="Фон левой части"
+                  value={toDisplay(readRaw("authSideBg") || "#1f2937")}
+                  placeholder="#1f2937"
+                  onChange={(value) => update({ authSideBg: toStore(value) } as Partial<BlockStyle>)}
+                />
+              )}
+              <ColorField
+                label="Цвет обводки"
+                value={toDisplay(lightBorderColor)}
+                placeholder={theme.borderColor}
+                onChange={(value) =>
+                  update({
+                    borderColorLight: toStore(value),
+                    borderColor: toStore(value),
+                  })
+                }
+              />
+              <ColorField
+                label="Текст"
+                value={toDisplay(lightTextColor)}
+                placeholder={theme.textColor}
+                onChange={(value) => update({ textColorLight: toStore(value), textColor: toStore(value) })}
+              />
+              <ColorField
+                label="Вторичный текст"
+                value={toDisplay(lightMutedColor)}
+                placeholder={theme.mutedColor}
+                onChange={(value) =>
+                  update({
+                    mutedColorLight: toStore(value),
+                    mutedColor: toStore(value),
+                  })
+                }
+              />
+              <ColorField
+                label="Тень"
+                value={style.shadowColor || theme.shadowColor}
+                onChange={(value) => update({ shadowColor: value })}
+              />
+              <NumberField
                 label="Размер тени"
                 value={style.shadowSize ?? theme.shadowSize}
                 min={0}
@@ -3010,6 +3051,58 @@ export function BlockStyleEditor({
         )}
       </div>
       )}
+      {inSection("button") && block.type === "client" && (
+        <>
+          <ColorField
+            label="Цвет кнопки"
+            value={toDisplay(lightButtonColor)}
+            placeholder={theme.buttonColor}
+            onChange={(value) =>
+              update({
+                buttonColorLight: toStore(value),
+                buttonColor: toStore(value),
+              })
+            }
+          />
+          <ColorField
+            label="Текст кнопки"
+            value={toDisplay(lightButtonTextColor)}
+            placeholder={theme.buttonTextColor}
+            onChange={(value) =>
+              update({
+                buttonTextColorLight: toStore(value),
+                buttonTextColor: toStore(value),
+              })
+            }
+          />
+          <TildaInlineNumberField
+            label="Радиус кнопки"
+            value={Number(rawStyle[isClientLogin ? "authButtonRadius" : "cabinetButtonRadius"] ?? (isClientLogin ? 0 : 16))}
+            min={0}
+            max={40}
+            onChange={(value) =>
+              update(
+                isClientLogin
+                  ? ({ authButtonRadius: value } as Partial<BlockStyle>)
+                  : ({ cabinetButtonRadius: value } as Partial<BlockStyle>)
+              )
+            }
+          />
+          {renderFlatNumber(
+            "Размер текста",
+            style.subheadingSize ?? theme.subheadingSize,
+            0,
+            48,
+            (value) => update({ subheadingSize: value }),
+            {
+              key: "mobileSubheadingSize",
+              value: style.mobileSubheadingSize,
+              fallback: defaultMobileTypographySize("mobileSubheadingSize", style.subheadingSize ?? theme.subheadingSize),
+              onChange: (value) => update({ mobileSubheadingSize: value }),
+            }
+          )}
+        </>
+      )}
       {inSection("effects") && (
         <>
           <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3">
@@ -3311,6 +3404,68 @@ export function BlockStyleEditor({
                 compact
               />
             </>
+          )}
+          <div className="h-6" />
+        </>
+      )}
+      {inSection("typography") && block.type === "client" && (
+        <>
+          <div className="pt-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Заголовок
+          </div>
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.headingSize ?? theme.headingSize,
+            0,
+            120,
+            (value) => update({ headingSize: value }),
+            {
+              key: "mobileHeadingSize",
+              value: style.mobileHeadingSize,
+              fallback: defaultMobileTypographySize("mobileHeadingSize", style.headingSize ?? theme.headingSize),
+              onChange: (value) => update({ mobileHeadingSize: value }),
+            }
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontHeading || "",
+            (value) => update({ fontHeading: value }),
+            [{ value: "", label: "По умолчанию" }, ...THEME_FONTS.map((font) => ({ value: font.heading, label: font.label }))]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightHeading?.toString() || "",
+            (value) => update({ fontWeightHeading: value ? Number(value) : null }),
+            [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
+          )}
+
+          <div className="pt-4 text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-ink)]">
+            Текст
+          </div>
+          {renderFlatNumber(
+            "Размер шрифта",
+            style.textSize ?? theme.textSize,
+            0,
+            48,
+            (value) => update({ textSize: value }),
+            {
+              key: "mobileTextSize",
+              value: style.mobileTextSize,
+              fallback: defaultMobileTypographySize("mobileTextSize", style.textSize ?? theme.textSize),
+              onChange: (value) => update({ mobileTextSize: value }),
+            }
+          )}
+          {renderFlatSelect(
+            "Шрифт",
+            style.fontBody || "",
+            (value) => update({ fontBody: value }),
+            [{ value: "", label: "По умолчанию" }, ...THEME_FONTS.map((font) => ({ value: font.body, label: font.label }))]
+          )}
+          {renderFlatSelect(
+            "Насыщенность",
+            style.fontWeightBody?.toString() || "",
+            (value) => update({ fontWeightBody: value ? Number(value) : null }),
+            [{ value: "", label: "По умолчанию" }, ...FONT_WEIGHTS.map((weight) => ({ value: String(weight.value), label: weight.label }))]
           )}
           <div className="h-6" />
         </>

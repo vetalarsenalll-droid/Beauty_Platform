@@ -33,6 +33,8 @@ export const BLOCK_REGISTRY: BlockRegistryItem[] = [
   { type: "serviceProfile", quickAdd: false, availableInLibrary: true },
   { type: "specialistProfile", quickAdd: false, availableInLibrary: true },
   { type: "booking", quickAdd: false, availableInLibrary: true },
+  { type: "clientLogin", quickAdd: false, availableInLibrary: true },
+  { type: "clientCabinet", quickAdd: false, availableInLibrary: true },
 ];
 
 const BLOCK_REGISTRY_BY_TYPE = new Map<BlockType, BlockRegistryItem>(

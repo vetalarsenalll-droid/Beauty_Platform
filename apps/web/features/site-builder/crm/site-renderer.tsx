@@ -1929,6 +1929,8 @@ export function BlockPreview({
   const isCover = block.type === "cover";
   const isAisha = block.type === "aisha";
   const isLoader = block.type === "loader";
+  const isClient =
+    block.type === "client" || block.type === "clientLogin" || block.type === "clientCabinet";
   const isServices = block.type === "services" || block.type === "specialists" || block.type === "locations";
   const isFlatSection =
     block.type === "about" ||
@@ -2039,7 +2041,7 @@ export function BlockPreview({
     : "none";
   const blockFont = style.fontBody || theme.fontBody;
   const loaderUsesCustomWidth = isLoader && Boolean(style.useCustomWidth) && Boolean(style.blockWidthColumns);
-  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection
+  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
     ? "p-0"
     : `border ${
         isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
@@ -2131,10 +2133,10 @@ export function BlockPreview({
         marginRight: isGallery || isBooking || isMenu || isCover || isAisha || isServices || isFlatSection || (isLoader && !loaderUsesCustomWidth)
           ? "auto"
           : 0,
-        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? 0 : style.marginTop,
-        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? style.marginTop : undefined,
-        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? style.marginBottom : undefined,
+        marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : style.marginTop,
+        marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : style.marginBottom,
+        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? style.marginTop : undefined,
+        paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? style.marginBottom : undefined,
         backgroundColor: isLoader
           ? "transparent"
           : isMenu
@@ -2143,6 +2145,8 @@ export function BlockPreview({
             ? "transparent"
           : isCover
             ? coverBackground.backgroundColor
+          : isClient
+            ? "transparent"
           : isServices || isBooking || isFlatSection
               ? servicesSectionBackground.backgroundColor
             : sectionBg,
@@ -2152,6 +2156,8 @@ export function BlockPreview({
             ? coverBackground.backgroundImage
           : isMenu
             ? menuSectionBackground.backgroundImage
+            : isClient
+              ? "none"
             : isServices || isBooking || isFlatSection
               ? servicesSectionBackground.backgroundImage
             : "none",
@@ -2172,23 +2178,23 @@ export function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection ? 0 : blockRadius,
-            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection
+            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : blockRadius,
+            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader || isServices || isFlatSection
+            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection || borderColor === "transparent" ? 0 : 1,
+            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? "transparent" : borderColor,
+            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isGallery || isCover || isAisha || isLoader || isServices || isFlatSection || shadowSize <= 0
+              isBooking || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-ink" as string]: textColor,
@@ -2455,6 +2461,8 @@ export function renderBlock(
     case "specialistProfile":
       return renderSpecialistProfileBlock(block, account, locations, services, specialists, theme, style, currentEntity, previewViewportWidth);
     case "client":
+    case "clientLogin":
+    case "clientCabinet":
       return renderClient(block, account, theme, style);
     case "legal":
       return renderLegal(block, theme, style, legalDocuments ?? [], platformLegalDocuments ?? [], currentEntity);
@@ -5498,8 +5506,14 @@ export function renderClient(
   style: BlockStyle
 ) {
   const data = block.data as Record<string, unknown>;
-  const title = (data.title as string) || "Личный кабинет";
-  const view = data.clientView === "cabinet" ? "cabinet" : "login";
+  const view =
+    block.type === "clientCabinet"
+      ? "cabinet"
+      : block.type === "clientLogin"
+        ? "login"
+        : data.clientView === "cabinet"
+          ? "cabinet"
+          : "login";
   const text = (key: string, fallback: string) =>
     typeof data[key] === "string" ? (data[key] as string) : fallback;
   const rawStyle = (block.data.style as Record<string, unknown>) ?? {};
@@ -5511,40 +5525,92 @@ export function renderClient(
     const value = Number(rawStyle[key]);
     return Number.isFinite(value) ? Math.max(0, Math.min(64, Math.round(value))) : fallback;
   };
-  const authPageBg = readColor("authPageBg", "#f3f4f6");
-  const authBlockBg = readColor("authBlockBg", "#ffffff");
-  const authSideBg = readColor("authSideBg", "#1f2937");
-  const authRadius = readNumber("authRadius", 28);
+  const readUnboundedNumber = (key: string, fallback: number) => {
+    const value = Number(rawStyle[key]);
+    return Number.isFinite(value) ? Math.round(value) : fallback;
+  };
+  const resolveBg = (prefix: string, lightFallback: string, darkFallback = lightFallback) => {
+    const suffix = theme.mode === "dark" ? "Dark" : "Light";
+    const legacyKey = theme.mode === "dark" ? `${prefix}Dark` : prefix;
+    const fallback = theme.mode === "dark" ? darkFallback : lightFallback;
+    const modeRaw = rawStyle[`${prefix}Mode${suffix}`];
+    const mode = modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+    const from = readColor(`${prefix}From${suffix}`, readColor(legacyKey, fallback));
+    const to = readColor(`${prefix}To${suffix}`, from);
+    const angle = readUnboundedNumber(`${prefix}Angle${suffix}`, 135);
+    const stopA = Math.max(0, Math.min(100, readUnboundedNumber(`${prefix}StopA${suffix}`, 0)));
+    const stopB = Math.max(0, Math.min(100, readUnboundedNumber(`${prefix}StopB${suffix}`, 100)));
+    if (mode === "linear") {
+      return { backgroundColor: from, backgroundImage: `linear-gradient(${angle}deg, ${from} ${stopA}%, ${to} ${stopB}%)` };
+    }
+    if (mode === "radial") {
+      return { backgroundColor: from, backgroundImage: `radial-gradient(circle, ${from} ${stopA}%, ${to} ${stopB}%)` };
+    }
+    return { backgroundColor: from, backgroundImage: "none" };
+  };
+  const readThemedColor = (key: string, lightFallback: string, darkFallback = lightFallback) =>
+    theme.mode === "dark"
+      ? readColor(`${key}Dark`, darkFallback)
+      : readColor(key, lightFallback);
+  const authPageVisual = resolveBg("authPageBg", "#f3f4f6", "#0f1012");
+  const authBlockVisual = resolveBg("authBlockBg", "#ffffff", "#181b22");
+  const authSideVisual = resolveBg("authSideBg", "#1f2937", "#111827");
+  const authRightVisual = resolveBg("authRightBg", "#ffffff", "#181b22");
+  const authRadius = readNumber("authRadius", 0);
   const authButtonRadius = readNumber("authButtonRadius", 0);
-  const cabinetPageBg = readColor("cabinetPageBg", "#eef2f7");
-  const cabinetBlockBg = readColor("cabinetBlockBg", "#ffffff");
-  const cabinetRadius = readNumber("cabinetRadius", 28);
+  const authSocialButtonRadius = readNumber("authSocialButtonRadius", authButtonRadius);
+  const authTitleSize = readNumber("authTitleSize", 32);
+  const authTextSize = readNumber("authTextSize", 14);
+  const authFormTitleSize = readNumber("authFormTitleSize", 24);
+  const authFormTextSize = readNumber("authFormTextSize", 14);
+  const authButtonTextSize = readNumber("authButtonTextSize", 14);
+  const authSocialButtonTextSize = readNumber("authSocialButtonTextSize", 14);
+  const authSideTextColor = readThemedColor("authSideTextColor", "#ffffff", "#f8fafc");
+  const authSideMutedColor = readThemedColor("authSideMutedColor", "rgba(255,255,255,0.8)", "#aeb4bf");
+  const authRightTextColor = readThemedColor("authRightTextColor", "#111827", "#f8fafc");
+  const authRightMutedColor = readThemedColor("authRightMutedColor", "#6b7280", "#aeb4bf");
+  const authButtonBg = readThemedColor("authButtonColor", style.buttonColor || theme.buttonColor, "#f8fafc");
+  const authButtonText = readThemedColor("authButtonTextColor", style.buttonTextColor || theme.buttonTextColor, "#111827");
+  const authSocialButtonBg = readThemedColor("authSocialButtonColor", "#ffffff", "#20242d");
+  const authSocialButtonText = readThemedColor("authSocialButtonTextColor", "#111827", "#f8fafc");
+  const authSocialButtonBorder = readThemedColor("authSocialButtonBorderColor", "#e5e7eb", "#343a46");
+  const cabinetPageVisual = resolveBg("cabinetPageBg", "#eef2f7", "#0f1012");
+  const cabinetBlockVisual = resolveBg("cabinetBlockBg", "#ffffff", "#181b22");
+  const cabinetRadius = readNumber("cabinetRadius", 0);
   const cabinetButtonRadius = readNumber("cabinetButtonRadius", 16);
-  const buttonBg = style.buttonColor || theme.buttonColor;
-  const buttonText = style.buttonTextColor || theme.buttonTextColor;
+  const cabinetTitleSize = readNumber("cabinetTitleSize", 32);
+  const cabinetTextSize = readNumber("cabinetTextSize", 14);
+  const cabinetButtonTextSize = readNumber("cabinetButtonTextSize", 14);
+  const cabinetTextColor = readThemedColor("cabinetTextColor", "#111827", "#f8fafc");
+  const cabinetMutedColor = readThemedColor("cabinetMutedColor", "#6b7280", "#aeb4bf");
+  const cabinetButtonBg = readThemedColor("cabinetButtonColor", style.buttonColor || theme.buttonColor, "#f8fafc");
+  const cabinetButtonText = readThemedColor("cabinetButtonTextColor", style.buttonTextColor || theme.buttonTextColor, "#111827");
+  const cabinetSecondaryButtonBg = readThemedColor("cabinetSecondaryButtonColor", "#ffffff", "#20242d");
+  const cabinetSecondaryButtonText = readThemedColor("cabinetSecondaryButtonTextColor", "#111827", "#f8fafc");
   const bookingHref = account.publicSlug ? `/${account.publicSlug}/booking` : "#";
   const inputRadius = Math.max(0, authButtonRadius);
   const cabinetCardStyle = {
     borderRadius: cabinetRadius,
     borderColor: "var(--bp-stroke)",
-    backgroundColor: cabinetBlockBg,
+    backgroundColor: cabinetBlockVisual.backgroundColor,
+    backgroundImage: cabinetBlockVisual.backgroundImage,
   };
 
   const loginPreview = (
-    <div className="p-8" style={{ backgroundColor: authPageBg, borderRadius: authRadius }}>
+    <div className="p-8" style={{ ...authPageVisual, borderRadius: 0 }}>
       <div
         className="grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
-        style={{ borderRadius: authRadius, backgroundColor: authBlockBg }}
+        style={{ borderRadius: authRadius, ...authBlockVisual }}
       >
-        <div className="flex min-h-[360px] flex-col justify-between gap-6 p-8 text-white" style={{ backgroundColor: authSideBg }}>
+        <div className="flex min-h-[360px] flex-col justify-between gap-6 p-8" style={{ ...authSideVisual, color: authSideTextColor }}>
           <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-white/70">Клиентский доступ</div>
-            <div className="mt-3 text-3xl font-semibold">{text("authTitle", "Личный кабинет клиента")}</div>
-            <p className="mt-3 text-sm text-white/80">
+            <div className="text-xs uppercase tracking-[0.3em]" style={{ color: authSideMutedColor }}>Клиентский доступ</div>
+            <div className="mt-3 font-semibold" style={{ fontSize: authTitleSize }}>{text("authTitle", "Личный кабинет клиента")}</div>
+            <p className="mt-3" style={{ color: authSideMutedColor, fontSize: authTextSize }}>
               {text("authText", "Войдите, чтобы увидеть свои записи, бонусы и данные по этой организации.")}
             </p>
           </div>
-          <div className="space-y-3 text-sm text-white/80">
+          <div className="space-y-3" style={{ color: authSideMutedColor, fontSize: authTextSize }}>
             <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
               {text("authHint1", "Умные подсказки по следующему визиту")}
             </div>
@@ -5553,26 +5619,36 @@ export function renderClient(
             </div>
           </div>
         </div>
-        <div className="p-8">
-          <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Личный кабинет</div>
-          <div className="mt-2 text-2xl font-semibold">{text("loginTitle", "Вход")}</div>
+        <div className="p-8" style={{ ...authRightVisual, color: authRightTextColor, fontSize: authFormTextSize }}>
+          <div className="text-xs uppercase tracking-[0.2em]" style={{ color: authRightMutedColor }}>Личный кабинет</div>
+          <div className="mt-2 font-semibold" style={{ fontSize: authFormTitleSize }}>{text("loginTitle", "Вход")}</div>
           <div className="mt-8 space-y-2">
             {["Telegram", "VK ID", "Яндекс ID", "MAX ID"].map((label) => (
-              <div key={label} className="border border-[color:var(--bp-stroke)] px-4 py-3 text-center text-sm font-semibold" style={{ borderRadius: inputRadius }}>
+              <div
+                key={label}
+                className="border px-4 py-3 text-center font-semibold"
+                style={{
+                  borderRadius: authSocialButtonRadius,
+                  borderColor: authSocialButtonBorder,
+                  backgroundColor: authSocialButtonBg,
+                  color: authSocialButtonText,
+                  fontSize: authSocialButtonTextSize,
+                }}
+              >
                 {label}
               </div>
             ))}
           </div>
           <div className="mt-6 space-y-4">
             <div>
-              <div className="text-sm font-medium">Эл. почта</div>
+              <div className="font-medium" style={{ fontSize: authFormTextSize }}>Эл. почта</div>
               <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
             </div>
             <div>
-              <div className="text-sm font-medium">Пароль</div>
+              <div className="font-medium" style={{ fontSize: authFormTextSize }}>Пароль</div>
               <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
             </div>
-            <div className="flex h-12 items-center justify-center text-sm font-semibold" style={{ borderRadius: inputRadius, backgroundColor: buttonBg, color: buttonText }}>
+            <div className="flex h-12 items-center justify-center font-semibold" style={{ borderRadius: inputRadius, backgroundColor: authButtonBg, color: authButtonText, fontSize: authButtonTextSize }}>
               {text("loginButtonText", "Войти")}
             </div>
           </div>
@@ -5582,20 +5658,20 @@ export function renderClient(
   );
 
   const cabinetPreview = (
-    <div className="p-8" style={{ backgroundColor: cabinetPageBg, borderRadius: cabinetRadius }}>
+    <div className="p-8" style={{ ...cabinetPageVisual, borderRadius: 0 }}>
       <div className="flex flex-col gap-6">
         <div className="border p-8 shadow-[var(--bp-shadow)]" style={cabinetCardStyle}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
               <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">{account.name}</div>
-              <div className="text-3xl font-semibold text-[color:var(--bp-ink)]">{text("cabinetTitle", "Личный кабинет")}</div>
-              <p className="text-sm text-[color:var(--bp-muted)]">{text("cabinetEmail", "client@example.com")}</p>
+              <div className="font-semibold" style={{ color: cabinetTextColor, fontSize: cabinetTitleSize }}>{text("cabinetTitle", "Личный кабинет")}</div>
+              <p style={{ color: cabinetMutedColor, fontSize: cabinetTextSize }}>{text("cabinetEmail", "client@example.com")}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <a href={bookingHref} className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold" style={{ borderRadius: cabinetButtonRadius, backgroundColor: buttonBg, color: buttonText }}>
+              <a href={bookingHref} className="inline-flex items-center justify-center px-4 py-2 font-semibold" style={{ borderRadius: cabinetButtonRadius, backgroundColor: cabinetButtonBg, color: cabinetButtonText, fontSize: cabinetButtonTextSize }}>
                 Записаться
               </a>
-              <button type="button" className="border border-[color:var(--bp-stroke)] px-4 py-2 text-sm" style={{ borderRadius: cabinetButtonRadius }}>
+              <button type="button" className="border border-[color:var(--bp-stroke)] px-4 py-2" style={{ borderRadius: cabinetButtonRadius, backgroundColor: cabinetSecondaryButtonBg, color: cabinetSecondaryButtonText, fontSize: cabinetButtonTextSize }}>
                 Выйти
               </button>
             </div>
@@ -5603,26 +5679,19 @@ export function renderClient(
         </div>
         <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
           <div className="border p-5" style={cabinetCardStyle}>
-            <div className="font-semibold">{text("appointmentTitle", "Следующая запись")}</div>
-            <div className="mt-3 text-sm text-[color:var(--bp-muted)]">{text("appointmentEmptyText", "Пока нет ближайших записей.")}</div>
+            <div className="font-semibold" style={{ color: cabinetTextColor }}>{text("appointmentTitle", "Следующая запись")}</div>
+            <div className="mt-3" style={{ color: cabinetMutedColor, fontSize: cabinetTextSize }}>{text("appointmentEmptyText", "Пока нет ближайших записей.")}</div>
           </div>
           <div className="border p-5" style={cabinetCardStyle}>
-            <div className="font-semibold">{text("loyaltyTitle", "Лояльность")}</div>
-            <div className="mt-3 text-3xl font-semibold">{text("loyaltyValue", "0 ₽")}</div>
+            <div className="font-semibold" style={{ color: cabinetTextColor }}>{text("loyaltyTitle", "Лояльность")}</div>
+            <div className="mt-3 text-3xl font-semibold" style={{ color: cabinetTextColor }}>{text("loyaltyValue", "0 ₽")}</div>
           </div>
         </div>
       </div>
     </div>
   );
 
-  return (
-    <div>
-      <h3 className="font-semibold" style={headingStyle(style, theme)}>
-        {title}
-      </h3>
-      <div className="mt-5">{view === "cabinet" ? cabinetPreview : loginPreview}</div>
-      </div>
-  );
+  return <>{view === "cabinet" ? cabinetPreview : loginPreview}</>;
 }
 
 export function renderLegal(

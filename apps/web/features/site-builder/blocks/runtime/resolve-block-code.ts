@@ -43,6 +43,11 @@ export function resolveBlockCode(block: SiteBlock): BlockCode {
   if (block.type === "reviews") return "RV001";
   if (block.type === "contacts") return "CT001";
   if (block.type === "promos") return "PM001";
+  if (block.type === "clientLogin") return "CLL001";
+  if (block.type === "clientCabinet") return "CLC001";
+  if (block.type === "client") {
+    return block.data?.clientView === "cabinet" ? "CLC001" : "CLL001";
+  }
   if (block.type === "locationProfile") return "LP001";
   if (block.type === "serviceProfile") return "SVP001";
   if (block.type === "specialistProfile") return "SPP001";

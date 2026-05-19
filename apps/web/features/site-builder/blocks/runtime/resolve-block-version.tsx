@@ -33,6 +33,8 @@ import { WO002 } from "../works/WO002/version";
 import { RV001 } from "../reviews/RV001/version";
 import { CT001 } from "../contacts/CT001/version";
 import { PM001 } from "../promos/PM001/version";
+import { CLL001 } from "../client-login/CLL001/version";
+import { CLC001 } from "../client-cabinet/CLC001/version";
 import { LP001 } from "../location-profile/LP001/version";
 import { SVP001 } from "../service-profile/SVP001/version";
 import { SPP001 } from "../specialist-profile/SPP001/version";
@@ -102,6 +104,10 @@ export function resolveBlockVersion(ctx: Pick<CrmPanelCtx, "block">): BlockVersi
       return CT001;
     case "PM001":
       return PM001;
+    case "CLL001":
+      return CLL001;
+    case "CLC001":
+      return CLC001;
     case "LP001":
       return LP001;
     case "SVP001":

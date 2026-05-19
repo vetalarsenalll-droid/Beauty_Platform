@@ -68,6 +68,8 @@ export type BlockType =
   | "serviceProfile"
   | "specialistProfile"
   | "client"
+  | "clientLogin"
+  | "clientCabinet"
   | "legal"
   | "booking"
   | "locations"
@@ -143,6 +145,8 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   loader: "Лоадер",
   about: "О нас",
   client: "Личный кабинет",
+  clientLogin: "Вход",
+  clientCabinet: "Кабинет",
   legal: "Документы",
   booking: "Онлайн-запись",
   locations: "Локации",
@@ -179,6 +183,8 @@ export const BLOCK_VARIANTS: Record<
   serviceProfile: ["v1"],
   specialistProfile: ["v1"],
   client: ["v1"],
+  clientLogin: ["v1"],
+  clientCabinet: ["v1"],
   legal: ["v1"],
   booking: ["v1", "v2"],
   locations: ["v1"],
@@ -825,9 +831,106 @@ const createClientBlock = (): SiteBlock => ({
       radius: 16,
       buttonRadius: 8,
       shadowSize: 0,
+      authPageBg: "#f3f4f6",
+      authBlockBg: "#ffffff",
+      authSideBg: "#1f2937",
+      authRightBg: "#ffffff",
+      authRadius: 0,
+      authButtonRadius: 0,
+      authTitleSize: 32,
+      authTextSize: 14,
+      authFormTitleSize: 24,
+      authFormTextSize: 14,
+      authButtonTextSize: 14,
+      authSocialButtonTextSize: 14,
+      authSideTextColor: "#ffffff",
+      authSideMutedColor: "rgba(255,255,255,0.8)",
+      authRightTextColor: "#111827",
+      authRightMutedColor: "#6b7280",
+      authButtonColor: "#111827",
+      authButtonTextColor: "#ffffff",
+      authSocialButtonColor: "#ffffff",
+      authSocialButtonTextColor: "#111827",
+      authSocialButtonBorderColor: "#e5e7eb",
+      cabinetPageBg: "#eef2f7",
+      cabinetBlockBg: "#ffffff",
+      cabinetRadius: 0,
+      cabinetButtonRadius: 16,
+      cabinetTitleSize: 32,
+      cabinetTextSize: 14,
+      cabinetButtonTextSize: 14,
+      cabinetTextColor: "#111827",
+      cabinetMutedColor: "#6b7280",
+      cabinetButtonColor: "#111827",
+      cabinetButtonTextColor: "#ffffff",
+      cabinetSecondaryButtonColor: "#ffffff",
+      cabinetSecondaryButtonTextColor: "#111827",
     },
   },
 });
+
+const createClientLoginBlock = (): SiteBlock => {
+  const block = createClientBlock();
+  const data = block.data as Record<string, unknown>;
+  const style = data.style && typeof data.style === "object" ? (data.style as Record<string, unknown>) : {};
+  return {
+    ...block,
+    type: "clientLogin",
+    data: {
+      ...data,
+      clientView: "login",
+      style: {
+        ...style,
+        blockWidthColumns: 6,
+        blockWidth: 700,
+        gridStartColumn: 4,
+        gridEndColumn: 9,
+        authPageBgDark: "#0f1012",
+        authBlockBgDark: "#181b22",
+        authSideBgDark: "#111827",
+        authRightBgDark: "#181b22",
+        authSideTextColorDark: "#f8fafc",
+        authSideMutedColorDark: "#aeb4bf",
+        authRightTextColorDark: "#f8fafc",
+        authRightMutedColorDark: "#aeb4bf",
+        authButtonColorDark: "#f8fafc",
+        authButtonTextColorDark: "#111827",
+        authSocialButtonColorDark: "#20242d",
+        authSocialButtonTextColorDark: "#f8fafc",
+        authSocialButtonBorderColorDark: "#343a46",
+      },
+    },
+  };
+};
+
+const createClientCabinetBlock = (): SiteBlock => {
+  const block = createClientBlock();
+  const data = block.data as Record<string, unknown>;
+  const style = data.style && typeof data.style === "object" ? (data.style as Record<string, unknown>) : {};
+  return {
+    ...block,
+    type: "clientCabinet",
+    data: {
+      ...data,
+      clientView: "cabinet",
+      style: {
+        ...style,
+        blockWidthColumns: 8,
+        blockWidth: 933,
+        gridStartColumn: 3,
+        gridEndColumn: 10,
+        cabinetPageBgDark: "#0f1012",
+        cabinetBlockBgDark: "#181b22",
+        cabinetTextColorDark: "#f8fafc",
+        cabinetMutedColorDark: "#aeb4bf",
+        cabinetButtonColorDark: "#f8fafc",
+        cabinetButtonTextColorDark: "#111827",
+        cabinetSecondaryButtonColorDark: "#20242d",
+        cabinetSecondaryButtonTextColorDark: "#f8fafc",
+      },
+    },
+  };
+};
 
 const createLegalBlock = (): SiteBlock => ({
   id: makeBlockId(),
@@ -968,14 +1071,8 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
   ];
   const bookingBlocks: SiteBlock[] = [createBookingBlock()];
   const clientBlocks: SiteBlock[] = [createClientBlock()];
-  const clientLoginBlock = createClientBlock();
-  const clientLoginBlocks: SiteBlock[] = [
-    { ...clientLoginBlock, data: { ...clientLoginBlock.data, clientView: "login" } },
-  ];
-  const clientCabinetBlock = createClientBlock();
-  const clientCabinetBlocks: SiteBlock[] = [
-    { ...clientCabinetBlock, data: { ...clientCabinetBlock.data, clientView: "cabinet" } },
-  ];
+  const clientLoginBlocks: SiteBlock[] = [createClientLoginBlock()];
+  const clientCabinetBlocks: SiteBlock[] = [createClientCabinetBlock()];
   const legalBlocks: SiteBlock[] = [createLegalBlock()];
 
   const baseTheme: SiteThemePalette = {

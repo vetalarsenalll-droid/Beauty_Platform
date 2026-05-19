@@ -179,6 +179,14 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
       args.setInsertIndex(null);
       return;
     }
+    if (type === "clientLogin" && args.activePage !== "clientLogin") {
+      args.setInsertIndex(null);
+      return;
+    }
+    if (type === "clientCabinet" && args.activePage !== "clientCabinet") {
+      args.setInsertIndex(null);
+      return;
+    }
 
     const block = createBlock(type);
     const targetVariant = variant ?? block.variant;
@@ -257,6 +265,14 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
       };
     }
     if (variant) block.variant = variant;
+
+    if (type === "client" || type === "clientLogin" || type === "clientCabinet") {
+      block.data = {
+        ...block.data,
+        clientView:
+          type === "clientCabinet" || args.activePage === "clientCabinet" ? "cabinet" : "login",
+      };
+    }
 
     if (type === "menu" && args.activePage !== "home") {
       const existingMenu = args.homeBlocks.find((item) => item.type === "menu");

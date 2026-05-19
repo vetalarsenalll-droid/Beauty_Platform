@@ -794,22 +794,23 @@ export async function ClientHomeContent({
   const pageStyle: CSSProperties = {
     fontFamily: "var(--font-sans)",
     backgroundColor: "var(--site-client-cabinet-page-bg,#eef2f7)",
-    backgroundImage: "none",
-    color: "#0f172a",
-    "--bp-ink": "#0f172a",
-    "--bp-muted": "#64748b",
+    backgroundImage: "var(--site-client-cabinet-page-bg-image, none)",
+    color: "var(--site-client-cabinet-text,#0f172a)",
+    "--bp-ink": "var(--site-client-cabinet-text,#0f172a)",
+    "--bp-muted": "var(--site-client-cabinet-muted,#64748b)",
     "--bp-paper": "var(--site-client-cabinet-block-bg,rgba(255, 255, 255, 0.92))",
+    "--site-client-cabinet-block-background-image": "var(--site-client-cabinet-block-bg-image, none)",
     "--bp-surface": "var(--site-client-cabinet-page-bg,#eef2f7)",
     "--bp-stroke": "rgba(15, 23, 42, 0.08)",
-    "--bp-accent": "#ef5a3c",
-    "--bp-accent-strong": "#d94b2f",
+    "--bp-accent": "var(--site-client-cabinet-button,#ef5a3c)",
+    "--bp-accent-strong": "var(--site-client-cabinet-button,#d94b2f)",
     "--bp-shadow": "0 24px 55px rgba(15, 23, 42, 0.12)",
     "--site-button-radius": "var(--site-client-cabinet-button-radius,16px)",
     "--site-radius": "var(--site-client-cabinet-radius,24px)",
   } as CSSProperties;
   if (!embedded) {
-    (pageStyle as CSSProperties & Record<string, string>)["--site-client-button"] = "#ef5a3c";
-    (pageStyle as CSSProperties & Record<string, string>)["--site-client-button-text"] = "#ffffff";
+    (pageStyle as CSSProperties & Record<string, string>)["--site-client-button"] = "var(--site-client-cabinet-button,#ef5a3c)";
+    (pageStyle as CSSProperties & Record<string, string>)["--site-client-button-text"] = "var(--site-client-cabinet-button-text,#ffffff)";
   }
 
   const now = new Date();
@@ -907,21 +908,22 @@ export async function ClientHomeContent({
 
   const dashboardContent = (
     <>
-        <header className="flex flex-col gap-6 rounded-[var(--site-client-cabinet-radius,var(--site-radius))] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
+        <header className="flex flex-col gap-6 rounded-[var(--site-client-cabinet-radius,var(--site-radius))] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]" style={{ backgroundImage: "var(--site-client-cabinet-block-background-image, none)" }}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
               <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">
                 {embedded ? accountData?.name ?? "Клиентский кабинет" : "Marketplace ID"}
               </div>
-              <h1 className="text-3xl font-semibold text-[color:var(--bp-ink)] md:text-4xl">
+              <h1 className="font-semibold text-[color:var(--bp-ink)]" style={{ fontSize: "var(--site-client-cabinet-title-size,32px)" }}>
                 {clientTitle}
               </h1>
-              <p className="text-sm text-[color:var(--bp-muted)]">{displayName}</p>
+              <p className="text-[color:var(--bp-muted)]" style={{ fontSize: "var(--site-client-cabinet-text-size,14px)" }}>{displayName}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <a
                 href={bookLink}
-                className="inline-flex items-center justify-center rounded-[var(--site-button-radius)] bg-[color:var(--site-client-button)] px-4 py-2 text-sm font-semibold text-[color:var(--site-client-button-text)] shadow-[var(--bp-shadow)] transition hover:opacity-90"
+                className="inline-flex items-center justify-center rounded-[var(--site-button-radius)] bg-[color:var(--site-client-button)] px-4 py-2 font-semibold text-[color:var(--site-client-button-text)] shadow-[var(--bp-shadow)] transition hover:opacity-90"
+                style={{ fontSize: "var(--site-client-cabinet-button-text-size,14px)" }}
               >
                 Записаться
               </a>

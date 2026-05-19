@@ -1207,6 +1207,8 @@ export function renderBlock(
     case "contacts":
       return renderContacts(block, accountName, profile, locations);
     case "client":
+    case "clientLogin":
+    case "clientCabinet":
       return renderClient(block, accountSlug, publicSlug, theme, clientAuthMode);
     case "legal":
       return renderLegal(block, publicBasePath, legalDocuments, platformLegalDocuments, theme, current);
@@ -2832,16 +2834,17 @@ export function buildBlockWrapperStyle(
           : DEFAULT_BLOCK_COLUMNS;
     const isBookingBlock = options.blockType === "booking";
     const isCoverBlock = options.blockType === "cover";
-    const isClientBlock = options.blockType === "client";
+    const isClientBlock =
+      options.blockType === "client" ||
+      options.blockType === "clientLogin" ||
+      options.blockType === "clientCabinet";
     const isServicesBlock =
       options.blockType === "services" ||
       options.blockType === "specialists" ||
       options.blockType === "locations";
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
-      : isClientBlock
-        ? MAX_BLOCK_COLUMNS
-        : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
+      : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
     const isMenu = options.blockType === "menu";
     const isGallery = options.blockType === "works";
     const hasGridRange =
@@ -2849,8 +2852,7 @@ export function buildBlockWrapperStyle(
       typeof style.gridEndColumn === "number" &&
       !isMenu &&
       !isBookingBlock &&
-      !isCoverBlock &&
-      !isClientBlock;
+      !isCoverBlock;
     const gridStart = hasGridRange
       ? clampGridColumn(style.gridStartColumn as number)
       : centeredGridRange(blockOuterColumns).start;
@@ -2912,7 +2914,9 @@ export function buildBlockWrapperStyle(
             ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
-              : isServicesBlock || isBookingBlock || isClientBlock
+              : isClientBlock
+              ? "transparent"
+              : isServicesBlock || isBookingBlock
               ? "var(--services-section-bg, var(--block-section-bg, var(--block-bg)))"
               : isGallery || isBookingBlock || isServicesBlock || isClientBlock
               ? "var(--block-section-bg, var(--block-bg))"
@@ -2922,7 +2926,9 @@ export function buildBlockWrapperStyle(
             ? (options.coverBackground?.backgroundImage ?? "none")
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
-              : isServicesBlock || isBookingBlock || isClientBlock
+              : isClientBlock
+              ? "none"
+              : isServicesBlock || isBookingBlock
               ? "var(--services-section-image, none)"
               : isGallery || isBookingBlock || isServicesBlock || isClientBlock
               ? "none"
@@ -2957,10 +2963,10 @@ export function buildBlockWrapperStyle(
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "100%" : gridWidthCss,
+        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
-        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : gridLeftCss,
-        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : 0,
+        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : gridLeftCss,
+        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : 0,
         boxSizing: "border-box",
         color: "var(--block-text)",
         ["--works-content-width" as string]: gridWidthCss,
@@ -5389,48 +5395,131 @@ function renderClient(
     const value = Number(rawStyle[key]);
     return Number.isFinite(value) ? Math.max(0, Math.min(64, Math.round(value))) : fallback;
   };
-  const authPageBg = readColor("authPageBg", "#f3f4f6");
-  const authBlockBg = readColor("authBlockBg", "#ffffff");
-  const authSideBg = readColor("authSideBg", "#1f2937");
-  const authRadius = readNumber("authRadius", 28);
+  const readUnboundedNumber = (key: string, fallback: number) => {
+    const value = Number(rawStyle[key]);
+    return Number.isFinite(value) ? Math.round(value) : fallback;
+  };
+  const resolveBg = (prefix: string, lightFallback: string, darkFallback = lightFallback) => {
+    const suffix = theme.mode === "dark" ? "Dark" : "Light";
+    const legacyKey = theme.mode === "dark" ? `${prefix}Dark` : prefix;
+    const fallback = theme.mode === "dark" ? darkFallback : lightFallback;
+    const modeRaw = rawStyle[`${prefix}Mode${suffix}`];
+    const mode = modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+    const from = readColor(`${prefix}From${suffix}`, readColor(legacyKey, fallback));
+    const to = readColor(`${prefix}To${suffix}`, from);
+    const angle = readUnboundedNumber(`${prefix}Angle${suffix}`, 135);
+    const stopA = Math.max(0, Math.min(100, readUnboundedNumber(`${prefix}StopA${suffix}`, 0)));
+    const stopB = Math.max(0, Math.min(100, readUnboundedNumber(`${prefix}StopB${suffix}`, 100)));
+    if (mode === "linear") return { color: from, image: `linear-gradient(${angle}deg, ${from} ${stopA}%, ${to} ${stopB}%)` };
+    if (mode === "radial") return { color: from, image: `radial-gradient(circle, ${from} ${stopA}%, ${to} ${stopB}%)` };
+    return { color: from, image: "none" };
+  };
+  const readThemedColor = (key: string, lightFallback: string, darkFallback = lightFallback) =>
+    theme.mode === "dark"
+      ? readColor(`${key}Dark`, darkFallback)
+      : readColor(key, lightFallback);
+  const authPageVisual = resolveBg("authPageBg", "#f3f4f6", "#0f1012");
+  const authBlockVisual = resolveBg("authBlockBg", "#ffffff", "#181b22");
+  const authSideVisual = resolveBg("authSideBg", "#1f2937", "#111827");
+  const authRightVisual = resolveBg("authRightBg", "#ffffff", "#181b22");
+  const authRadius = readNumber("authRadius", 0);
   const authButtonRadius = readNumber("authButtonRadius", 0);
-  const cabinetPageBg = readColor("cabinetPageBg", "#eef2f7");
-  const cabinetBlockBg = readColor("cabinetBlockBg", "#ffffff");
-  const cabinetRadius = readNumber("cabinetRadius", 28);
+  const authSocialButtonRadius = readNumber("authSocialButtonRadius", authButtonRadius);
+  const authTitleSize = readNumber("authTitleSize", 32);
+  const authTextSize = readNumber("authTextSize", 14);
+  const authFormTitleSize = readNumber("authFormTitleSize", 24);
+  const authFormTextSize = readNumber("authFormTextSize", 14);
+  const authButtonTextSize = readNumber("authButtonTextSize", 14);
+  const authSocialButtonTextSize = readNumber("authSocialButtonTextSize", 14);
+  const authSideTextColor = readThemedColor("authSideTextColor", "#ffffff", "#f8fafc");
+  const authSideMutedColor = readThemedColor("authSideMutedColor", "rgba(255,255,255,0.8)", "#aeb4bf");
+  const authRightTextColor = readThemedColor("authRightTextColor", "#111827", "#f8fafc");
+  const authRightMutedColor = readThemedColor("authRightMutedColor", "#6b7280", "#aeb4bf");
+  const authButtonBg = readThemedColor("authButtonColor", style.buttonColor || theme.lightPalette.buttonColor, "#f8fafc");
+  const authButtonText = readThemedColor("authButtonTextColor", style.buttonTextColor || theme.lightPalette.buttonTextColor, "#111827");
+  const authSocialButtonBg = readThemedColor("authSocialButtonColor", "#ffffff", "#20242d");
+  const authSocialButtonText = readThemedColor("authSocialButtonTextColor", "#111827", "#f8fafc");
+  const authSocialButtonBorder = readThemedColor("authSocialButtonBorderColor", "#e5e7eb", "#343a46");
+  const cabinetPageVisual = resolveBg("cabinetPageBg", "#eef2f7", "#0f1012");
+  const cabinetBlockVisual = resolveBg("cabinetBlockBg", "#ffffff", "#181b22");
+  const cabinetRadius = readNumber("cabinetRadius", 0);
   const cabinetButtonRadius = readNumber("cabinetButtonRadius", 16);
-  const buttonBg = style.buttonColor || theme.lightPalette.buttonColor;
-  const buttonText = style.buttonTextColor || theme.lightPalette.buttonTextColor;
+  const cabinetTitleSize = readNumber("cabinetTitleSize", 32);
+  const cabinetTextSize = readNumber("cabinetTextSize", 14);
+  const cabinetButtonTextSize = readNumber("cabinetButtonTextSize", 14);
+  const cabinetTextColor = readThemedColor("cabinetTextColor", "#111827", "#f8fafc");
+  const cabinetMutedColor = readThemedColor("cabinetMutedColor", "#6b7280", "#aeb4bf");
+  const cabinetButtonBg = readThemedColor("cabinetButtonColor", style.buttonColor || theme.lightPalette.buttonColor, "#f8fafc");
+  const cabinetButtonText = readThemedColor("cabinetButtonTextColor", style.buttonTextColor || theme.lightPalette.buttonTextColor, "#111827");
+  const cabinetSecondaryButtonBg = readThemedColor("cabinetSecondaryButtonColor", "#ffffff", "#20242d");
+  const cabinetSecondaryButtonText = readThemedColor("cabinetSecondaryButtonTextColor", "#111827", "#f8fafc");
   const data = block.data as Record<string, unknown>;
-  const resolvedAuthMode: ClientAuthMode =
-    data.clientView === "cabinet" || data.clientView === "login"
-      ? (data.clientView as ClientAuthMode)
-      : authMode;
+  let resolvedAuthMode: "login" | "cabinet" = "login";
+  if (block.type === "clientCabinet") {
+    resolvedAuthMode = "cabinet";
+  } else if (block.type === "clientLogin") {
+    resolvedAuthMode = "login";
+  } else if (data.clientView === "cabinet") {
+    resolvedAuthMode = "cabinet";
+  }
 
   return (
     <div
       style={
         {
-          "--site-client-auth-page-bg": authPageBg,
-          "--site-client-auth-block-bg": authBlockBg,
-          "--site-client-auth-side-bg": authSideBg,
+          "--site-client-auth-page-bg": authPageVisual.color,
+          "--site-client-auth-page-bg-image": authPageVisual.image,
+          "--site-client-auth-block-bg": authBlockVisual.color,
+          "--site-client-auth-block-bg-image": authBlockVisual.image,
+          "--site-client-auth-side-bg": authSideVisual.color,
+          "--site-client-auth-side-bg-image": authSideVisual.image,
+          "--site-client-auth-right-bg": authRightVisual.color,
+          "--site-client-auth-right-bg-image": authRightVisual.image,
           "--site-client-auth-radius": `${authRadius}px`,
           "--site-client-auth-button-radius": `${authButtonRadius}px`,
-          "--site-client-cabinet-page-bg": cabinetPageBg,
-          "--site-client-cabinet-block-bg": cabinetBlockBg,
+          "--site-client-auth-social-button-radius": `${authSocialButtonRadius}px`,
+          "--site-client-auth-title-size": `${authTitleSize}px`,
+          "--site-client-auth-text-size": `${authTextSize}px`,
+          "--site-client-auth-form-title-size": `${authFormTitleSize}px`,
+          "--site-client-auth-form-text-size": `${authFormTextSize}px`,
+          "--site-client-auth-button-text-size": `${authButtonTextSize}px`,
+          "--site-client-auth-social-button-text-size": `${authSocialButtonTextSize}px`,
+          "--site-client-auth-side-text": authSideTextColor,
+          "--site-client-auth-side-muted": authSideMutedColor,
+          "--site-client-auth-right-text": authRightTextColor,
+          "--site-client-auth-right-muted": authRightMutedColor,
+          "--site-client-auth-button": authButtonBg,
+          "--site-client-auth-button-text": authButtonText,
+          "--site-client-auth-social-button": authSocialButtonBg,
+          "--site-client-auth-social-button-text": authSocialButtonText,
+          "--site-client-auth-social-button-border": authSocialButtonBorder,
+          "--site-client-cabinet-page-bg": cabinetPageVisual.color,
+          "--site-client-cabinet-page-bg-image": cabinetPageVisual.image,
+          "--site-client-cabinet-block-bg": cabinetBlockVisual.color,
+          "--site-client-cabinet-block-bg-image": cabinetBlockVisual.image,
           "--site-client-cabinet-radius": `${cabinetRadius}px`,
           "--site-client-cabinet-button-radius": `${cabinetButtonRadius}px`,
-          "--site-client-button": buttonBg,
-          "--site-client-button-text": buttonText,
-          "--bp-accent": buttonBg,
-          "--bp-accent-strong": buttonBg,
-          "--bp-paper": resolvedAuthMode === "login" ? authBlockBg : cabinetBlockBg,
-          "--bp-surface": resolvedAuthMode === "login" ? authPageBg : cabinetPageBg,
+          "--site-client-cabinet-title-size": `${cabinetTitleSize}px`,
+          "--site-client-cabinet-text-size": `${cabinetTextSize}px`,
+          "--site-client-cabinet-button-text-size": `${cabinetButtonTextSize}px`,
+          "--site-client-cabinet-text": cabinetTextColor,
+          "--site-client-cabinet-muted": cabinetMutedColor,
+          "--site-client-cabinet-button": cabinetButtonBg,
+          "--site-client-cabinet-button-text": cabinetButtonText,
+          "--site-client-cabinet-secondary-button": cabinetSecondaryButtonBg,
+          "--site-client-cabinet-secondary-button-text": cabinetSecondaryButtonText,
+          "--site-client-button": resolvedAuthMode === "login" ? authButtonBg : cabinetButtonBg,
+          "--site-client-button-text": resolvedAuthMode === "login" ? authButtonText : cabinetButtonText,
+          "--bp-accent": resolvedAuthMode === "login" ? authButtonBg : cabinetButtonBg,
+          "--bp-accent-strong": resolvedAuthMode === "login" ? authButtonBg : cabinetButtonBg,
+          "--bp-paper": resolvedAuthMode === "login" ? authBlockVisual.color : cabinetBlockVisual.color,
+          "--bp-surface": resolvedAuthMode === "login" ? authPageVisual.color : cabinetPageVisual.color,
           "--site-button-radius": `${resolvedAuthMode === "login" ? authButtonRadius : cabinetButtonRadius}px`,
           "--site-radius": `${resolvedAuthMode === "login" ? authRadius : cabinetRadius}px`,
         } as CSSProperties
       }
     >
-      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} authMode={resolvedAuthMode} />
+      <PublicClientAccount accountSlug={accountSlug} publicSlug={publicSlug} authMode={authMode} />
     </div>
   );
 }

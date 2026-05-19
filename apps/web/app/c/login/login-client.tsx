@@ -54,21 +54,27 @@ export default function ClientLoginPage({
   };
 
   return (
-    <div className={`flex items-center justify-center px-6 py-12 ${embedded ? "min-h-[520px]" : "min-h-screen"}`} style={{ backgroundColor: "var(--site-client-auth-page-bg, var(--bp-surface))" }}>
-      <div className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]" style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}>
-        <div className="flex flex-col justify-between gap-6 p-10 text-white" style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))" }}>
+    <div
+      className={`flex items-center justify-center px-6 py-12 ${embedded ? "min-h-[520px]" : "min-h-screen"}`}
+      style={{ backgroundColor: "var(--site-client-auth-page-bg, var(--bp-surface))", backgroundImage: "var(--site-client-auth-page-bg-image, none)" }}
+    >
+      <div
+        className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+        style={{ borderRadius: "var(--site-client-auth-radius, 28px)", backgroundImage: "var(--site-client-auth-block-bg-image, none)" }}
+      >
+        <div className="flex flex-col justify-between gap-6 p-10" style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))", backgroundImage: "var(--site-client-auth-side-bg-image, none)", color: "var(--site-client-auth-side-text,#ffffff)" }}>
           <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-white/70">
+            <div className="text-xs uppercase tracking-[0.3em]" style={{ color: "var(--site-client-auth-side-muted,rgba(255,255,255,0.7))" }}>
               {embedded ? "Клиентский доступ" : "Marketplace"}
             </div>
-            <h1 className="mt-3 text-3xl font-semibold">Личный кабинет клиента</h1>
-            <p className="mt-3 text-sm text-white/80">
+            <h1 className="mt-3 font-semibold" style={{ fontSize: "var(--site-client-auth-title-size,32px)" }}>Личный кабинет клиента</h1>
+            <p className="mt-3" style={{ color: "var(--site-client-auth-side-muted,rgba(255,255,255,0.8))", fontSize: "var(--site-client-auth-text-size,14px)" }}>
               {embedded
                 ? "Войдите, чтобы увидеть свои записи, бонусы и данные по этой организации."
                 : "Управляйте записями, бонусами и любимыми салонами в одном месте."}
             </p>
           </div>
-          <div className="space-y-3 text-sm text-white/80">
+          <div className="space-y-3" style={{ color: "var(--site-client-auth-side-muted,rgba(255,255,255,0.8))", fontSize: "var(--site-client-auth-text-size,14px)" }}>
             <div className="border border-white/20 px-4 py-3" style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}>
               Умные подсказки по следующему визиту
             </div>
@@ -77,35 +83,36 @@ export default function ClientLoginPage({
             </div>
           </div>
         </div>
-        <div className="p-10">
-          <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+        <div className="p-10" style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
+          <div className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--site-client-auth-right-muted,var(--bp-muted))" }}>
             Личный кабинет
           </div>
-          <h2 className="mt-2 text-2xl font-semibold">Вход</h2>
+          <h2 className="mt-2 font-semibold" style={{ fontSize: "var(--site-client-auth-form-title-size,24px)" }}>Вход</h2>
           <ClientSocialAuthButtons
             accountSlug={accountSlug}
             returnTo={returnTo || (accountSlug ? `/c?account=${accountSlug}` : "/c")}
             className="mt-8"
+            buttonClassName="flex w-full items-center justify-center rounded-[var(--site-client-auth-social-button-radius,var(--site-button-radius))] border border-[color:var(--site-client-auth-social-button-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-social-button,#ffffff)] px-4 py-3 text-[length:var(--site-client-auth-social-button-text-size,14px)] font-semibold text-[color:var(--site-client-auth-social-button-text,#111827)] transition hover:opacity-90"
           />
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <label className="text-sm font-medium">
+            <label className="font-medium" style={{ fontSize: "var(--site-client-auth-form-text-size,14px)" }}>
               Эл. почта
               <input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="example@mail.ru"
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
               />
             </label>
-            <label className="text-sm font-medium">
+            <label className="font-medium" style={{ fontSize: "var(--site-client-auth-form-text-size,14px)" }}>
               Пароль
               <input
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
               />
             </label>
             {error ? (
@@ -116,7 +123,8 @@ export default function ClientLoginPage({
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 inline-flex items-center justify-center rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] bg-[color:var(--site-client-button)] px-5 py-3 text-sm font-semibold text-[color:var(--site-client-button-text,#ffffff)] shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
+              className="mt-2 inline-flex items-center justify-center rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] bg-[color:var(--site-client-button)] px-5 py-3 font-semibold text-[color:var(--site-client-button-text,#ffffff)] shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
+              style={{ fontSize: "var(--site-client-auth-button-text-size,14px)" }}
             >
               {loading ? "Вход..." : "Войти"}
             </button>

@@ -31,7 +31,7 @@ export default function LogoutButton({ accountSlug, redirectTo }: LogoutButtonPr
       type="button"
       onClick={onLogout}
       disabled={loading}
-      className="rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm transition hover:-translate-y-[1px] hover:shadow-sm"
+      className="rounded-[var(--site-button-radius)] border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-cabinet-secondary-button,var(--bp-paper))] px-4 py-2 text-[length:var(--site-client-cabinet-button-text-size,14px)] text-[color:var(--site-client-cabinet-secondary-button-text,var(--bp-ink))] transition hover:-translate-y-[1px] hover:shadow-sm"
     >
       Выйти
     </button>

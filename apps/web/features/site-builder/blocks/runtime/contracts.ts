@@ -46,6 +46,8 @@ export type BlockCode =
   | "RV001"
   | "CT001"
   | "PM001"
+  | "CLL001"
+  | "CLC001"
   | "LP001"
   | "SVP001"
   | "SPP001"

@@ -36,6 +36,8 @@ const BLOCK_PREVIEW_PATHS: Partial<Record<BlockCode, string>> = {
   RV001: "reviews/RV001",
   CT001: "contacts/CT001",
   PM001: "promos/PM001",
+  CLL001: "client-login/CLL001",
+  CLC001: "client-cabinet/CLC001",
   LP001: "location-profile/LP001",
   SVP001: "service-profile/SVP001",
   SPP001: "specialist-profile/SPP001",

@@ -118,6 +118,9 @@ function getLibraryBlockCode(type: BlockType, variant: SiteBlock["variant"]): Bl
   if (type === "reviews") return "RV001";
   if (type === "contacts") return "CT001";
   if (type === "promos") return "PM001";
+  if (type === "clientLogin") return "CLL001";
+  if (type === "clientCabinet") return "CLC001";
+  if (type === "client") return "CLL001";
   if (type === "locationProfile") return "LP001";
   if (type === "serviceProfile") return "SVP001";
   if (type === "specialistProfile") return "SPP001";
@@ -126,6 +129,14 @@ function getLibraryBlockCode(type: BlockType, variant: SiteBlock["variant"]): Bl
 
 function getLibraryPreviewSrc(code: BlockCode) {
   return `/api/v1/site-builder/block-preview/${code}`;
+}
+
+function getLibraryLabel(type: BlockType, activePage: SitePageKey) {
+  if (type === "client") {
+    if (activePage === "clientCabinet") return "Кабинет";
+    if (activePage === "clientLogin") return "Вход";
+  }
+  return BLOCK_LABELS[type];
 }
 
 type PageMenuItem = Extract<PagesMenuItem, { kind: "page" }>;
@@ -269,6 +280,8 @@ export default function SiteClient({
         "serviceProfile",
         "specialistProfile",
         "client",
+        "clientLogin",
+        "clientCabinet",
         "legal",
         "locations",
         "services",
@@ -745,12 +758,27 @@ export default function SiteClient({
   );
   const availableLibraryBlockTypes = useMemo(
     () =>
-      LIBRARY_BLOCK_TYPES.filter((type) => activePageKey === "booking" || type !== "booking"),
+      LIBRARY_BLOCK_TYPES.filter((type) => {
+        if (type === "booking") return activePageKey === "booking";
+        if (type === "client") return activePageKey === "clientLogin" || activePageKey === "clientCabinet";
+        if (type === "clientLogin") return activePageKey === "clientLogin";
+        if (type === "clientCabinet") return activePageKey === "clientCabinet";
+        return true;
+      }),
     [activePageKey]
   );
 
   useEffect(() => {
     if (libraryBlock === "booking" && activePageKey !== "booking") {
+      setLibraryBlock(null);
+    }
+    if (libraryBlock === "client" && activePageKey !== "clientLogin" && activePageKey !== "clientCabinet") {
+      setLibraryBlock(null);
+    }
+    if (libraryBlock === "clientLogin" && activePageKey !== "clientLogin") {
+      setLibraryBlock(null);
+    }
+    if (libraryBlock === "clientCabinet" && activePageKey !== "clientCabinet") {
       setLibraryBlock(null);
     }
   }, [activePageKey, libraryBlock]);
@@ -1510,7 +1538,7 @@ export default function SiteClient({
                           : "bg-transparent text-[color:var(--bp-ink)] hover:bg-[color:var(--bp-paper)]"
                       } ${PRIMARY_LIBRARY_BLOCK_TYPES.has(type) ? "font-bold" : "font-normal"}`}
                     >
-                      <span className="min-w-0 truncate">{BLOCK_LABELS[type]}</span>
+                      <span className="min-w-0 truncate">{getLibraryLabel(type, activePageKey)}</span>
                       <span className="ml-3 text-xs text-[color:var(--bp-muted)]">{getBlockVariants(type).length}</span>
                     </button>
                   ))}
@@ -1533,7 +1561,7 @@ export default function SiteClient({
                 <div className="flex h-14 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4">
                   <div>
                     <div className="text-sm font-semibold">
-                      {libraryVariantsBlock ? BLOCK_LABELS[libraryVariantsBlock] : ""}
+                      {libraryVariantsBlock ? getLibraryLabel(libraryVariantsBlock, activePageKey) : ""}
                     </div>
                     <div className="mt-0.5 text-xs text-[color:var(--bp-muted)]">Нажмите на превью, чтобы добавить блок</div>
                   </div>
@@ -1557,7 +1585,7 @@ export default function SiteClient({
                             <div className="relative aspect-[19/9] bg-[color:var(--bp-surface)]">
                               <UnoptimizedImage
                                 src={getLibraryPreviewSrc(blockCode)}
-                                alt={`${blockCode} ${BLOCK_LABELS[libraryVariantsBlock]}`}
+                                alt={`${blockCode} ${getLibraryLabel(libraryVariantsBlock, activePageKey)}`}
                                 className="h-full w-full object-cover"
                                 height={427}
                                 width={900}
@@ -1569,7 +1597,7 @@ export default function SiteClient({
                               {blockCode}
                             </span>
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold">{BLOCK_LABELS[libraryVariantsBlock]}</div>
+                              <div className="text-sm font-semibold">{getLibraryLabel(libraryVariantsBlock, activePageKey)}</div>
                             </div>
                           </div>
                         </button>
