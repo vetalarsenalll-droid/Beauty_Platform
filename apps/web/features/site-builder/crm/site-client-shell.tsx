@@ -2001,51 +2001,55 @@ export default function SiteClient({
                       (isSystemPage && isSystemBlockType(block.type))
                     ) && (
                       <div className="pointer-events-auto flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setPendingDeleteBlockId(block.id)}
-                          className={iconBtnClass}
-                          aria-label="Удалить блок"
-                          title="Удалить"
-                        >
-                          <TrashIcon />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            closeVariantDrawer();
-                            updateBlock(block.id, (current) => ({
-                              ...current,
-                              data: {
-                                ...(current.data as Record<string, unknown>),
-                                hidden: !isBlockHidden(current),
-                              },
-                            }));
-                          }}
-                          className={iconBtnClass}
-                          aria-label={blockHidden ? "Показать блок" : "Скрыть блок"}
-                          title={blockHidden ? "Показать" : "Скрыть"}
-                        >
-                          <HiddenBlockIcon />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(block.id, "up")}
-                          className={`${iconBtnClass} ml-2`}
-                          aria-label="Переместить вверх"
-                          title="Вверх"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(block.id, "down")}
-                          className={iconBtnClass}
-                          aria-label="Переместить вниз"
-                          title="Вниз"
-                        >
-                          ↓
-                        </button>
+                        <div className="flex items-center gap-0">
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteBlockId(block.id)}
+                            className={`${iconBtnClass} rounded-r-none`}
+                            aria-label="Удалить блок"
+                            title="Удалить"
+                          >
+                            <TrashIcon />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              closeVariantDrawer();
+                              updateBlock(block.id, (current) => ({
+                                ...current,
+                                data: {
+                                  ...(current.data as Record<string, unknown>),
+                                  hidden: !isBlockHidden(current),
+                                },
+                              }));
+                            }}
+                            className={`${iconBtnClass} -ml-px rounded-l-none`}
+                            aria-label={blockHidden ? "Показать блок" : "Скрыть блок"}
+                            title={blockHidden ? "Показать" : "Скрыть"}
+                          >
+                            <HiddenBlockIcon />
+                          </button>
+                        </div>
+                        <div className="ml-2 flex items-center gap-0">
+                          <button
+                            type="button"
+                            onClick={() => moveBlock(block.id, "up")}
+                            className={`${iconBtnClass} rounded-r-none`}
+                            aria-label="Переместить вверх"
+                            title="Вверх"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveBlock(block.id, "down")}
+                            className={`${iconBtnClass} -ml-px rounded-l-none`}
+                            aria-label="Переместить вниз"
+                            title="Вниз"
+                          >
+                            ↓
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
