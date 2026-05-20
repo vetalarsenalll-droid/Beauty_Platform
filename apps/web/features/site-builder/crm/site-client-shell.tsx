@@ -2003,24 +2003,6 @@ export default function SiteClient({
                       <div className="pointer-events-auto flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => moveBlock(block.id, "up")}
-                          className={iconBtnClass}
-                          aria-label="Переместить вверх"
-                          title="Вверх"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveBlock(block.id, "down")}
-                          className={iconBtnClass}
-                          aria-label="Переместить вниз"
-                          title="Вниз"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => setPendingDeleteBlockId(block.id)}
                           className={iconBtnClass}
                           aria-label="Удалить блок"
@@ -2045,6 +2027,24 @@ export default function SiteClient({
                           title={blockHidden ? "Показать" : "Скрыть"}
                         >
                           <HiddenBlockIcon />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveBlock(block.id, "up")}
+                          className={`${iconBtnClass} ml-2`}
+                          aria-label="Переместить вверх"
+                          title="Вверх"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveBlock(block.id, "down")}
+                          className={iconBtnClass}
+                          aria-label="Переместить вниз"
+                          title="Вниз"
+                        >
+                          ↓
                         </button>
                       </div>
                     )}
