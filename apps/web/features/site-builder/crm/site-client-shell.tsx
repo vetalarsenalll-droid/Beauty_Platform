@@ -1924,7 +1924,7 @@ export default function SiteClient({
               const isSharedMenu = Boolean(
                 sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
               );
-              const isBlockActive = block.id === (hoveredBlockId ?? selectedId);
+              const isBlockActive = block.id === hoveredBlockId;
               const blockHidden = isBlockHidden(block);
               const controlsDark = activeTheme.mode === "dark";
               const leftBtnClass = controlsDark
