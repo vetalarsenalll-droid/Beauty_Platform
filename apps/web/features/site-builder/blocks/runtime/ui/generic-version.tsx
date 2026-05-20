@@ -12,6 +12,13 @@ function updateData(ctx: CrmPanelCtx, patch: Record<string, unknown>) {
 
 const panelInputClass =
   "mt-2 w-full rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 text-sm outline-none focus:border-[color:var(--bp-ink)] focus:ring-0";
+const panelInputStyle = {
+  borderTop: 0,
+  borderLeft: 0,
+  borderRight: 0,
+  borderRadius: 0,
+  backgroundColor: "transparent",
+} as const;
 
 function PanelText({
   label,
@@ -25,7 +32,7 @@ function PanelText({
   return (
     <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
       {label}
-      <input value={value} onChange={(event) => onChange(event.target.value)} className={panelInputClass} />
+      <input value={value} onChange={(event) => onChange(event.target.value)} className={panelInputClass} style={panelInputStyle} />
     </label>
   );
 }
@@ -49,6 +56,7 @@ function PanelTextarea({
         rows={rows}
         onChange={(event) => onChange(event.target.value)}
         className={`${panelInputClass} min-h-28 resize-y`}
+        style={panelInputStyle}
       />
     </label>
   );
@@ -122,7 +130,6 @@ function LegalDocumentContentPanel(ctx: CrmPanelCtx) {
       <PanelTextarea label="Описание" rows={3} value={readString(override, "description", doc.description ?? "")} onChange={(value) => patchOverride({ description: value })} />
       <PanelTextarea label="Текст документа" rows={12} value={readString(override, "content", doc.content ?? "")} onChange={(value) => patchOverride({ content: value })} />
       <PanelText label="Фон страницы" value={readString(override, "pageBg", "")} onChange={(value) => patchOverride({ pageBg: value })} />
-      <PanelText label="Фон блока с текстом" value={readString(override, "panelBg", "")} onChange={(value) => patchOverride({ panelBg: value })} />
       <PanelText label="Цвет текста" value={readString(override, "textColor", "")} onChange={(value) => patchOverride({ textColor: value })} />
     </div>
   );

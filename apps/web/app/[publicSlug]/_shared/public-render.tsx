@@ -5631,6 +5631,8 @@ function renderLegal(
       title: typeof override.title === "string" && override.title.trim() ? override.title : doc.title,
       description: typeof override.description === "string" ? override.description : doc.description,
       content: typeof override.content === "string" ? override.content : doc.content,
+      pageBg: typeof override.pageBg === "string" && override.pageBg.trim() ? override.pageBg : "",
+      textColor: typeof override.textColor === "string" && override.textColor.trim() ? override.textColor : "",
     };
   });
   const cardRadius = style.cardRadius ?? style.radius ?? 16;
@@ -5641,20 +5643,25 @@ function renderLegal(
 
   if (activeDoc) {
     return (
-      <div>
-        <h1 className="font-semibold" style={headingStyle(style)}>
-          {activeDoc.title}
-        </h1>
-        {activeDoc.description ? (
-          <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style)}>
-            {activeDoc.description}
-          </p>
-        ) : null}
-        <div
-          className="mt-6 whitespace-pre-wrap border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-4 text-sm leading-6"
-          style={{ borderRadius: cardRadius }}
-        >
-          {activeDoc.content || "Текст документа пока пуст."}
+      <div
+        className="px-6 py-8"
+        style={{
+          backgroundColor: activeDoc.pageBg || "var(--bp-surface)",
+          color: activeDoc.textColor || "var(--bp-ink)",
+        }}
+      >
+        <div className="mx-auto w-full max-w-[1120px]">
+          <h1 className="font-semibold" style={headingStyle(style)}>
+            {activeDoc.title}
+          </h1>
+          {activeDoc.description ? (
+            <p className="mt-2 text-[color:var(--bp-muted)]" style={subheadingStyle(style)}>
+              {activeDoc.description}
+            </p>
+          ) : null}
+          <div className="mt-7 whitespace-pre-wrap text-sm leading-7">
+            {activeDoc.content || "Текст документа пока пуст."}
+          </div>
         </div>
       </div>
     );

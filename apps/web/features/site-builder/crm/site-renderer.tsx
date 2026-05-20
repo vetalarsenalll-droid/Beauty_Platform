@@ -5953,7 +5953,6 @@ export function renderLegal(
   const data = block.data as Record<string, unknown>;
   const title = (data.title as string) || "Документы";
   const subtitle = (data.subtitle as string) || "Правовые документы и согласия";
-  const radius = style.cardRadius ?? style.radius ?? 16;
   const rawOverrides =
     data.documentOverrides && typeof data.documentOverrides === "object"
       ? (data.documentOverrides as Record<string, Record<string, unknown>>)
@@ -5967,7 +5966,6 @@ export function renderLegal(
         typeof override.description === "string" ? override.description : doc.description,
       content: typeof override.content === "string" ? override.content : doc.content,
       pageBg: typeof override.pageBg === "string" && override.pageBg.trim() ? override.pageBg : "",
-      panelBg: typeof override.panelBg === "string" && override.panelBg.trim() ? override.panelBg : "",
       textColor: typeof override.textColor === "string" && override.textColor.trim() ? override.textColor : "",
     };
   };
@@ -5980,17 +5978,13 @@ export function renderLegal(
   if (activeDoc) {
     return (
       <div
-        className="p-6"
+        className="px-6 py-8"
         style={{
-          borderRadius: radius,
           backgroundColor: activeDoc.pageBg || "var(--bp-surface)",
           color: activeDoc.textColor || "var(--bp-ink)",
         }}
       >
-        <div
-          className="border border-[color:var(--bp-stroke)] p-5"
-          style={{ borderRadius: radius, backgroundColor: activeDoc.panelBg || "var(--bp-paper)" }}
-        >
+        <div className="mx-auto w-full max-w-[1120px]">
           <h3 className="font-semibold" style={headingStyle(style, theme)}>
             {activeDoc.title}
           </h3>
@@ -5999,7 +5993,7 @@ export function renderLegal(
               {activeDoc.description}
             </p>
           ) : null}
-          <div className="mt-5 whitespace-pre-wrap text-sm leading-6">
+          <div className="mt-7 whitespace-pre-wrap text-sm leading-7">
             {activeDoc.content || "Текст документа пока пуст."}
           </div>
         </div>
@@ -6020,7 +6014,7 @@ export function renderLegal(
           <div
             key={`${doc.id}:${doc.versionId}`}
             className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4"
-            style={{ borderRadius: radius }}
+            style={{ borderRadius: style.cardRadius ?? style.radius ?? 16 }}
           >
             <div className="text-sm font-semibold">{doc.title}</div>
             {doc.description ? (
@@ -6032,7 +6026,7 @@ export function renderLegal(
         {docs.length === 0 ? (
           <div
             className="border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 text-sm text-[color:var(--bp-muted)]"
-            style={{ borderRadius: radius }}
+            style={{ borderRadius: style.cardRadius ?? style.radius ?? 16 }}
           >
             Документы пока не опубликованы.
           </div>

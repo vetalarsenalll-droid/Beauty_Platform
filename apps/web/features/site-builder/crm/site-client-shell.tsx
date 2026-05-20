@@ -306,6 +306,7 @@ export default function SiteClient({
   );
   const activePageKey: SitePageKey = activePage;
   const isSystemPage = activePageKey === "booking";
+  const isLegalDocumentPage = activePageKey === "legal" && currentEntity?.type === "legalDocument";
   const pageBlocks: SiteBlock[] = useMemo(
     () => {
       const source =
@@ -792,6 +793,16 @@ export default function SiteClient({
     }
   }, [availableLibraryBlockTypes, libraryBlock]);
 
+  useEffect(() => {
+    if (!isLegalDocumentPage) return;
+    setLeftPanel(null);
+    setLibraryBlock(null);
+    setLibraryVariantsBlock(null);
+    setLibraryPanelMounted(false);
+    setIsLibraryPanelVisible(false);
+    setLibraryPanelClosing(false);
+  }, [isLegalDocumentPage]);
+
   const themeStyle = buildThemeStyle(activeTheme);
   const previewCanvasWidth =
     previewMode === "mobile" ? MOBILE_VIEWPORTS[mobileViewport].width : undefined;
@@ -1274,7 +1285,7 @@ export default function SiteClient({
               slotRef={(el) => registerSlotRef(0, el)}
               spacing={getSlotSpacing(0)}
               activeOffset={getSlotActiveOffset(0, activeSpacingTarget)}
-              hideAddButton={Boolean(rightPanel)}
+              hideAddButton={Boolean(rightPanel) || isLegalDocumentPage}
               persistent={hasCustomSlotSpacing(0)}
               active={activeSpacingSlot === 0}
               showValue={activeSpacingSlot === 0}
@@ -1357,6 +1368,7 @@ export default function SiteClient({
                       </button>
                     </div>
                     {!(
+                      isLegalDocumentPage ||
                       isSharedMenu ||
                       (isSystemPage && isSystemBlockType(block.type))
                     ) && (
@@ -1423,7 +1435,7 @@ export default function SiteClient({
                   slotRef={(el) => registerSlotRef(index + 1, el)}
                   spacing={getSlotSpacing(index + 1)}
                   activeOffset={getSlotActiveOffset(index + 1, activeSpacingTarget)}
-                  hideAddButton={Boolean(rightPanel)}
+                  hideAddButton={Boolean(rightPanel) || isLegalDocumentPage}
                   persistent={hasCustomSlotSpacing(index + 1)}
                   active={activeSpacingSlot === index + 1}
                   showValue={activeSpacingSlot === index + 1}
@@ -1457,45 +1469,47 @@ export default function SiteClient({
                 Добавьте блок, чтобы начать собирать страницу.
               </div>
             )}
-            <div
-              className={`mt-0 border-t px-4 py-6 ${
-                activeTheme.mode === "dark"
-                  ? "border-[#1f2937] bg-[#111111]"
-                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
-              }`}
-            >
-              <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInsertIndex(displayBlocks.length);
-                    setLeftPanel("library");
-                    setLibraryBlock(null);
-                  }}
-                  className={`rounded-md px-4 py-2 text-sm font-semibold ${
-                    activeTheme.mode === "dark"
-                      ? "bg-white text-[#111111]"
-                      : "bg-black text-white"
-                  }`}
-                >
-                  Библиотека блоков
-                </button>
-                {availableQuickAddBlockTypes.map((type) => (
+            {!isLegalDocumentPage ? (
+              <div
+                className={`mt-0 border-t px-4 py-6 ${
+                  activeTheme.mode === "dark"
+                    ? "border-[#1f2937] bg-[#111111]"
+                    : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]"
+                }`}
+              >
+                <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-center gap-2">
                   <button
-                    key={type}
                     type="button"
-                    onClick={() => insertBlock(type, displayBlocks.length)}
-                    className={`rounded-md border px-3 py-2 text-sm ${
+                    onClick={() => {
+                      setInsertIndex(displayBlocks.length);
+                      setLeftPanel("library");
+                      setLibraryBlock(null);
+                    }}
+                    className={`rounded-md px-4 py-2 text-sm font-semibold ${
                       activeTheme.mode === "dark"
-                        ? "border-[#3f3f46] bg-transparent text-[#e4e4e7]"
-                        : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                        ? "bg-white text-[#111111]"
+                        : "bg-black text-white"
                     }`}
                   >
-                    {BLOCK_LABELS[type]}
+                    Библиотека блоков
                   </button>
-                ))}
+                  {availableQuickAddBlockTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => insertBlock(type, displayBlocks.length)}
+                      className={`rounded-md border px-3 py-2 text-sm ${
+                        activeTheme.mode === "dark"
+                          ? "border-[#3f3f46] bg-transparent text-[#e4e4e7]"
+                          : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] text-[color:var(--bp-ink)]"
+                      }`}
+                    >
+                      {BLOCK_LABELS[type]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </main>
 
