@@ -139,6 +139,13 @@ function getLibraryLabel(type: BlockType, activePage: SitePageKey) {
   return BLOCK_LABELS[type];
 }
 
+function getSystemPageLibraryBlockTypes(activePage: SitePageKey): BlockType[] | null {
+  if (activePage === "booking") return ["booking"];
+  if (activePage === "clientLogin") return ["clientLogin"];
+  if (activePage === "clientCabinet") return ["clientCabinet"];
+  return null;
+}
+
 type PageMenuItem = Extract<PagesMenuItem, { kind: "page" }>;
 type ClientSubpageMenuItem = Extract<PagesMenuItem, { kind: "client-subpage" }>;
 type LegalDocumentMenuItem = Extract<PagesMenuItem, { kind: "legal-document" }>;
@@ -757,31 +764,33 @@ export default function SiteClient({
       isEntityProfileMenuItem(item) && item.entityType === "service"
   );
   const availableLibraryBlockTypes = useMemo(
-    () =>
-      LIBRARY_BLOCK_TYPES.filter((type) => {
-        if (type === "booking") return activePageKey === "booking";
-        if (type === "client") return activePageKey === "clientLogin" || activePageKey === "clientCabinet";
-        if (type === "clientLogin") return activePageKey === "clientLogin";
-        if (type === "clientCabinet") return activePageKey === "clientCabinet";
+    () => {
+      const systemPageTypes = getSystemPageLibraryBlockTypes(activePageKey);
+      if (systemPageTypes) return systemPageTypes;
+      return LIBRARY_BLOCK_TYPES.filter((type) => {
+        if (type === "booking") return false;
+        if (type === "client") return false;
+        if (type === "clientLogin") return false;
+        if (type === "clientCabinet") return false;
         return true;
-      }),
+      });
+    },
     [activePageKey]
+  );
+  const availableQuickAddBlockTypes = useMemo(
+    () => {
+      const systemPageTypes = getSystemPageLibraryBlockTypes(activePageKey);
+      if (systemPageTypes) return systemPageTypes;
+      return QUICK_ADD_BLOCK_TYPES.filter((type) => availableLibraryBlockTypes.includes(type));
+    },
+    [activePageKey, availableLibraryBlockTypes]
   );
 
   useEffect(() => {
-    if (libraryBlock === "booking" && activePageKey !== "booking") {
+    if (libraryBlock && !availableLibraryBlockTypes.includes(libraryBlock)) {
       setLibraryBlock(null);
     }
-    if (libraryBlock === "client" && activePageKey !== "clientLogin" && activePageKey !== "clientCabinet") {
-      setLibraryBlock(null);
-    }
-    if (libraryBlock === "clientLogin" && activePageKey !== "clientLogin") {
-      setLibraryBlock(null);
-    }
-    if (libraryBlock === "clientCabinet" && activePageKey !== "clientCabinet") {
-      setLibraryBlock(null);
-    }
-  }, [activePageKey, libraryBlock]);
+  }, [availableLibraryBlockTypes, libraryBlock]);
 
   const themeStyle = buildThemeStyle(activeTheme);
   const previewCanvasWidth =
@@ -1471,7 +1480,7 @@ export default function SiteClient({
                 >
                   Библиотека блоков
                 </button>
-                {QUICK_ADD_BLOCK_TYPES.map((type) => (
+                {availableQuickAddBlockTypes.map((type) => (
                   <button
                     key={type}
                     type="button"
