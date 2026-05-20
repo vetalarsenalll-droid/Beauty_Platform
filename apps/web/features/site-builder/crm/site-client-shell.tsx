@@ -1900,11 +1900,8 @@ export default function SiteClient({
                 ? "h-8 rounded-sm border border-[#374151] bg-[#111827] px-3 text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
                 : "h-8 rounded-sm border border-[#d1d5db] bg-white px-3 text-xs font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
               const iconBtnClass = controlsDark
-                ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#374151] bg-[#111827] text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
-                : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-xs font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
-              const removeBtnClass = controlsDark
-                ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#7f1d1d] bg-[#111827] text-xs font-semibold text-[#fca5a5] shadow-sm hover:bg-[#1f2937]"
-                : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#fda4af] bg-white text-xs font-semibold text-[#dc2626] shadow-sm hover:bg-[#f3f4f6]";
+                ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#374151] bg-[#111827] text-sm font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
+                : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-sm font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
               const variantOptions = getBlockVariants(block.type);
               const currentBlockCode = getLibraryBlockCode(block.type, block.variant);
               const controlsWrapClass =
@@ -1935,34 +1932,37 @@ export default function SiteClient({
                         <button
                           type="button"
                           onClick={() => openVariantDrawer(block.id)}
-                          className={`${leftBtnClass} min-w-20`}
+                          className={`${leftBtnClass} inline-flex min-w-20 items-center justify-center gap-2`}
                           aria-expanded={variantDrawerBlockId === block.id && isVariantDrawerVisible}
                         >
-                          {currentBlockCode}
+                          <span>{currentBlockCode}</span>
+                          <span className="text-sm leading-none">›</span>
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          closeVariantDrawer();
-                          setSelectedId(block.id);
-                          setRightPanel("content");
-                        }}
-                        className={`${leftBtnClass} w-28`}
-                      >
-                        Контент
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          closeVariantDrawer();
-                          setSelectedId(block.id);
-                          setRightPanel("settings");
-                        }}
-                        className={`${leftBtnClass} w-28`}
-                      >
-                        Настройки
-                      </button>
+                      <div className="flex items-center gap-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            closeVariantDrawer();
+                            setSelectedId(block.id);
+                            setRightPanel("content");
+                          }}
+                          className={`${leftBtnClass} w-28 rounded-r-none`}
+                        >
+                          Контент
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            closeVariantDrawer();
+                            setSelectedId(block.id);
+                            setRightPanel("settings");
+                          }}
+                          className={`${leftBtnClass} -ml-px w-28 rounded-l-none`}
+                        >
+                          Настройки
+                        </button>
+                      </div>
                     </div>
                     {!(
                       isLegalDocumentPage ||
@@ -1991,11 +1991,25 @@ export default function SiteClient({
                         <button
                           type="button"
                           onClick={() => setPendingDeleteBlockId(block.id)}
-                          className={removeBtnClass}
+                          className={iconBtnClass}
                           aria-label="Удалить блок"
                           title="Удалить"
                         >
-                          🗑
+                          <svg
+                            aria-hidden="true"
+                            className="h-4 w-4"
+                            viewBox="0 0 32 32"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path d="M11.5 12h3v12h-3zm6 0h3v12h-3z" fill="currentColor" />
+                            <path
+                              d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20zm4-26h8v2h-8z"
+                              fill="currentColor"
+                              stroke="currentColor"
+                              strokeWidth="0.8"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                         </button>
                       </div>
                     )}
