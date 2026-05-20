@@ -37,6 +37,12 @@ type RenderPublicPageShellParams = {
   layout?: PublicPageShellLayout;
 };
 
+const moveMenuBlockFirst = (blocks: SiteBlock[]) => {
+  const menuBlock = blocks.find((block) => block.type === "menu") ?? null;
+  if (!menuBlock) return blocks;
+  return [menuBlock, ...blocks.filter((block) => block.id !== menuBlock.id)];
+};
+
 const resolveBlocksForPage = (
   data: PublicSiteData,
   pageKey: SitePageKey,
@@ -84,8 +90,10 @@ const resolveBlocksForPage = (
             block.type !== "aisha"
         ),
       ]
-    : pageBlocks.filter(
-        (block) => block.type !== "loader" && block.type !== "aisha"
+    : moveMenuBlockFirst(
+        pageBlocks.filter(
+          (block) => block.type !== "loader" && block.type !== "aisha"
+        )
       );
 };
 
@@ -233,6 +241,20 @@ export async function renderPublicPageShell({
           boxShadow: "none",
         }
       : wrapper.style;
+    const finalWrapperStyle =
+      block.type === "menu"
+        ? {
+            ...wrapperStyle,
+            position: isMenuSticky ? "fixed" : "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 40,
+            width: "100%",
+            marginTop: 0,
+            marginBottom: 0,
+          } satisfies CSSProperties
+        : wrapperStyle;
     if (pageKey === "booking" && isBooking && bookingPageBackgroundStyle === null) {
       bookingPageBackgroundStyle = Object.fromEntries(
         Object.entries(wrapper.style).filter(
@@ -245,7 +267,7 @@ export async function renderPublicPageShell({
     }
 
     return (
-      <section key={block.id} className={wrapperClassName} style={wrapperStyle}>
+      <section key={block.id} className={wrapperClassName} style={finalWrapperStyle}>
         {renderBlock(
           block,
           data.account.id,
@@ -323,7 +345,7 @@ export async function renderPublicPageShell({
       id="public-site-root"
       data-site-theme={initialMode}
       data-public-page={pageKey}
-      className={rootClassName}
+      className={`${rootClassName} relative`}
       style={rootStyle}
     >
       {useInnerColumn ? (
