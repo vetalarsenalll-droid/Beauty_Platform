@@ -2895,6 +2895,7 @@ export function buildBlockWrapperStyle(
       options.blockType === "services" ||
       options.blockType === "specialists" ||
       options.blockType === "locations";
+    const useFramelessContainer = true;
     const blockOuterColumns = isBookingBlock
       ? MAX_BLOCK_COLUMNS
       : Math.min(MAX_BLOCK_COLUMNS, Math.max(MIN_BLOCK_COLUMNS, Math.round(blockColumns)));
@@ -2954,14 +2955,12 @@ export function buildBlockWrapperStyle(
       return {
         className: isMenu
           ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
-          : isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
-          ? "site-block p-0"
-        : "site-block border border-[color:var(--bp-stroke)] p-6",
+          : "site-block p-0",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
         zIndex: options.isMenuSticky ? 40 : undefined,
-        borderRadius: isMenu || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? 0 : radius,
+        borderRadius: useFramelessContainer || isMenu || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? 0 : radius,
         backgroundColor:
           isCoverBlock
             ? (options.coverBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
@@ -2986,10 +2985,10 @@ export function buildBlockWrapperStyle(
               : isGallery || isBookingBlock || isServicesBlock || isClientBlock
               ? "none"
               : "var(--block-gradient)",
-        borderColor: isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "transparent" : "var(--block-border)",
-        borderWidth: isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? 0 : hasVisibleBorder ? 1 : 0,
+        borderColor: useFramelessContainer || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "transparent" : "var(--block-border)",
+        borderWidth: useFramelessContainer || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? 0 : hasVisibleBorder ? 1 : 0,
         boxShadow:
-          isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
+          useFramelessContainer || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock
             ? "none"
             : blockShadowSize !== null
             ? `0 ${blockShadowSize}px ${blockShadowSize * 2}px ${blockShadowColor}`

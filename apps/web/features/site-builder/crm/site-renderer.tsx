@@ -1979,6 +1979,7 @@ export function BlockPreview({
   const isClient =
     block.type === "client" || block.type === "clientLogin" || block.type === "clientCabinet";
   const isServices = block.type === "services" || block.type === "specialists" || block.type === "locations";
+  const useFramelessContainer = true;
   const isFlatSection =
     block.type === "about" ||
     block.type === "heading" ||
@@ -2088,11 +2089,7 @@ export function BlockPreview({
     : "none";
   const blockFont = style.fontBody || theme.fontBody;
   const loaderUsesCustomWidth = isLoader && Boolean(style.useCustomWidth) && Boolean(style.blockWidthColumns);
-  const containerClass = isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
-    ? "p-0"
-    : `border ${
-        isSelected ? "border-[color:var(--bp-accent)]" : "border-[color:var(--bp-stroke)]"
-      } p-6 shadow-[var(--bp-shadow-soft)]`;
+  const containerClass = "p-0";
   const blockContent = renderBlock(
     block,
     account,
@@ -2226,23 +2223,23 @@ export function BlockPreview({
         <div
           className={`${containerClass} relative`}
           style={{
-            borderRadius: isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : blockRadius,
-            backgroundColor: isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
+            borderRadius: useFramelessContainer || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : blockRadius,
+            backgroundColor: useFramelessContainer || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
               ? "transparent"
               : gradientEnabled
                 ? gradientFrom
                 : blockBg,
-            backgroundImage: isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
+            backgroundImage: useFramelessContainer || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
               ? "none"
               : gradientEnabled
                 ? `linear-gradient(${gradientDirection === "horizontal" ? "to right" : "to bottom"}, ${gradientFrom}, ${gradientTo})`
                 : "none",
             color: textColor,
             fontFamily: blockFont,
-            borderColor: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? "transparent" : borderColor,
-            borderWidth: isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection || borderColor === "transparent" ? 0 : 1,
+            borderColor: useFramelessContainer || isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? "transparent" : borderColor,
+            borderWidth: useFramelessContainer || isBooking || isMenu || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection || borderColor === "transparent" ? 0 : 1,
             boxShadow:
-              isBooking || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection || shadowSize <= 0
+              useFramelessContainer || isBooking || isGallery || isCover || isAisha || isLoader || isClient || isServices || isFlatSection || shadowSize <= 0
                 ? "none"
                 : `0 ${shadowSize}px ${shadowSize * 2}px ${shadowColor}`,
             ["--bp-ink" as string]: textColor,
