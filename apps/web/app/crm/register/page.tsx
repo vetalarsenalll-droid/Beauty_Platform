@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BusinessType, LegalType } from "@prisma/client";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import { BUSINESS_CATALOG, LEGAL_TYPE_OPTIONS } from "@/lib/business-catalog";
 
 type RegisterStep = 1 | 2 | 3 | 4;
@@ -230,7 +231,7 @@ function CrmRegisterPageContent() {
     <div className="mx-auto flex min-h-[70vh] w-full max-w-2xl items-center">
       <div className="w-full rounded-[var(--bp-radius-lg)] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-8 shadow-[var(--bp-shadow)]">
         <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          ONLAIS CRM
+          {APP_BRAND_NAME} CRM
         </div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Регистрация бизнеса</h1>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
@@ -319,7 +320,7 @@ function CrmRegisterPageContent() {
                 type="text"
                 value={businessName}
                 onChange={(event) => setBusinessName(event.target.value)}
-                placeholder="Например, ONLAIS Studio"
+                placeholder={`Например, ${APP_BRAND_NAME} Studio`}
                 className="mt-2 w-full rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bp-accent)]"
                 required
               />

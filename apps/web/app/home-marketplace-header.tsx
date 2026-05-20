@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { APP_BRAND_INITIALS, APP_BRAND_NAME } from "@/lib/brand";
 import HomeCityPicker from "./home-city-picker";
 import HomeSearchBar from "./home-search-bar";
 
@@ -10,10 +11,10 @@ export default function HomeMarketplaceHeader() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-sm font-semibold text-white">
-            BP
+            {APP_BRAND_INITIALS}
           </div>
           <div>
-            <div className="text-lg font-semibold">Beauty Platform</div>
+            <div className="text-lg font-semibold">{APP_BRAND_NAME}</div>
             <div className="text-xs uppercase tracking-[0.3em] text-[color:var(--bp-muted)]">
               marketplace
             </div>

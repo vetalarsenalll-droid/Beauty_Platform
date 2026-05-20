@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Montserrat } from "next/font/google";
+import { APP_BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -17,7 +18,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Beauty Platform",
+  title: APP_BRAND_NAME,
   description: "Маркетплейс и личный кабинет клиента",
 };
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { APP_BRAND_INITIALS, APP_BRAND_NAME } from "@/lib/brand";
 
 type CrmShellProps = {
   children: React.ReactNode;
@@ -271,11 +272,11 @@ const [collapsed, setCollapsed] = useState(false);
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-xs font-semibold text-white">
-              BS
+              {APP_BRAND_INITIALS}
             </div>
             {!effectiveCollapsed && (
               <div>
-                <div className="text-sm font-semibold leading-tight">Beauty Spot</div>
+                <div className="text-sm font-semibold leading-tight">{APP_BRAND_NAME}</div>
                 <div className="text-xs text-[color:var(--bp-muted)]">CRM Business</div>
               </div>
             )}

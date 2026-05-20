@@ -1,4 +1,4 @@
-﻿Beauty Platform Monorepo
+Онлайс Monorepo
 
 Structure:
 - apps/web (Next.js UI + API)

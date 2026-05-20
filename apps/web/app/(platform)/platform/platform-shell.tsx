@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { APP_BRAND_INITIALS, APP_BRAND_NAME } from "@/lib/brand";
 
 type PlatformShellProps = {
   children: React.ReactNode;
@@ -80,7 +81,7 @@ export default function PlatformShell({
   const [darkMode, setDarkMode] = useState(false);
 
   const initials = useMemo(() => {
-    const base = userEmail?.split("@")[0] ?? "BS";
+    const base = userEmail?.split("@")[0] ?? APP_BRAND_INITIALS;
     return base.slice(0, 2).toUpperCase();
   }, [userEmail]);
 
@@ -137,12 +138,12 @@ export default function PlatformShell({
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-xs font-semibold text-white">
-              BS
+              {APP_BRAND_INITIALS}
             </div>
             {!collapsed && (
               <div>
                 <div className="text-sm font-semibold leading-tight">
-                  Beauty Spot
+                  {APP_BRAND_NAME}
                 </div>
                 <div className="text-xs text-[color:var(--bp-muted)]">
                   Точка красоты

@@ -18,7 +18,7 @@ export type CalendarEvent = {
 
 type CalendarEventListener = (event: CalendarEvent) => void;
 
-const CALENDAR_EVENTS_CHANNEL = "beauty-platform:calendar-events";
+const CALENDAR_EVENTS_CHANNEL = "onlais:calendar-events";
 const RECENT_EVENT_LIMIT = 1_000;
 
 declare global {

@@ -1,5 +1,5 @@
 {
-  "name": "beauty-platform",
+  "name": "onlais",
   "private": true,
   "workspaces": [
     "apps/*",

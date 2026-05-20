@@ -10,6 +10,7 @@ import { normalizeRuPhone } from "@/lib/phone";
 import { isBusinessType, isLegalType } from "@/lib/business-catalog";
 import { applyBusinessTypeSiteCopy } from "@/lib/business-site-copy";
 import { logAccountAudit } from "@/lib/crm-audit";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 const PURPOSE = "CRM_REGISTER";
 const CONSENT_DOCS = [
@@ -20,7 +21,7 @@ const CONSENT_DOCS = [
     isRequired: true,
     sortOrder: 1,
     content:
-      "Пользовательское соглашение ONLAIS. Полная редакция будет размещена в разделе правовых документов.",
+      `Пользовательское соглашение ${APP_BRAND_NAME}. Полная редакция будет размещена в разделе правовых документов.`,
   },
   {
     consentKey: "privacy",
@@ -29,7 +30,7 @@ const CONSENT_DOCS = [
     isRequired: true,
     sortOrder: 2,
     content:
-      "Политика конфиденциальности ONLAIS. Полная редакция будет размещена в разделе правовых документов.",
+      `Политика конфиденциальности ${APP_BRAND_NAME}. Полная редакция будет размещена в разделе правовых документов.`,
   },
   {
     consentKey: "pdConsent",

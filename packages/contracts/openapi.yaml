@@ -1,8 +1,8 @@
 ﻿openapi: 3.0.3
 info:
-  title: Beauty Platform API
+  title: Онлайс API
   version: v1
-  description: API contract for Beauty Platform.
+  description: API contract for Онлайс.
 servers:
   - url: /api/v1
 security:

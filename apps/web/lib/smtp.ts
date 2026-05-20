@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { APP_BRAND_NAME } from "@/lib/brand";
 
 type SmtpConfig = {
   host: string;
@@ -28,7 +29,7 @@ export function getSmtpConfig(): SmtpConfig | null {
   const user = String(process.env.SMTP_USER ?? "").trim();
   const pass = String(process.env.SMTP_PASS ?? "").trim();
   const fromEmail = String(process.env.SMTP_FROM ?? "").trim();
-  const fromName = String(process.env.SMTP_FROM_NAME ?? "ONLAIS").trim();
+  const fromName = String(process.env.SMTP_FROM_NAME ?? APP_BRAND_NAME).trim();
   const portRaw = String(process.env.SMTP_PORT ?? "").trim();
   const port = Number(portRaw || "587");
   const secure = parseBoolean(process.env.SMTP_SECURE, port === 465);
@@ -86,9 +87,9 @@ export async function sendRegisterOtpEmail(input: {
 
   const ttlMinutes = Math.max(1, Math.round((input.expiresAt.getTime() - Date.now()) / 60000));
 
-  const subject = "Код подтверждения регистрации ONLAIS";
+  const subject = `Код подтверждения регистрации ${APP_BRAND_NAME}`;
   const text = [
-    "Код подтверждения регистрации в ONLAIS:",
+    `Код подтверждения регистрации в ${APP_BRAND_NAME}:`,
     "",
     input.code,
     "",
@@ -98,7 +99,7 @@ export async function sendRegisterOtpEmail(input: {
 
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#111827;">
-      <p>Код подтверждения регистрации в ONLAIS:</p>
+      <p>Код подтверждения регистрации в ${APP_BRAND_NAME}:</p>
       <p style="font-size:28px;font-weight:700;letter-spacing:2px;margin:16px 0;">${input.code}</p>
       <p>Код действует ${ttlMinutes} мин.</p>
       <p style="color:#6B7280;">Если вы не запрашивали регистрацию, просто игнорируйте это письмо.</p>

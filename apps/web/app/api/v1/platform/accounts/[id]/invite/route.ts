@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyAccessCookie, requirePlatformApiPermission } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
+import { APP_BRAND_ORIGIN } from "@/lib/brand";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -85,7 +86,8 @@ export async function POST(
     },
   });
 
-  const inviteUrl = `https://onlais.ru/crm/register?invite=${rawToken}&email=${encodeURIComponent(email)}&account=${account.slug}`;
+  const publicOrigin = (process.env.PLATFORM_PUBLIC_ORIGIN || process.env.NEXT_PUBLIC_APP_URL || APP_BRAND_ORIGIN).replace(/\/+$/, "");
+  const inviteUrl = `${publicOrigin}/crm/register?invite=${rawToken}&email=${encodeURIComponent(email)}&account=${account.slug}`;
   const response = jsonOk(
     {
       accountId,
@@ -99,4 +101,3 @@ export async function POST(
   );
   return applyAccessCookie(response, auth);
 }
-

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { APP_BRAND_INITIALS, APP_BRAND_NAME } from "@/lib/brand";
 import HomeSearchBar from "./home-search-bar";
 
 type SidebarKey =
@@ -190,10 +191,10 @@ export default function HomeLeftSidebar({ active }: HomeLeftSidebarProps) {
       <div className="flex max-h-[calc(100vh-48px)] flex-col gap-6 overflow-auto rounded-[28px] bg-transparent px-2 py-2">
         <div className={`flex items-center ${isCollapsed ? "w-full justify-center" : "gap-3"}`}>
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] text-[11px] font-semibold text-white">
-            BP
+            {APP_BRAND_INITIALS}
           </div>
           <div className={`${isCollapsed ? "hidden" : "text-sm font-semibold"}`}>
-            Beauty Platform
+            {APP_BRAND_NAME}
           </div>
         </div>
 

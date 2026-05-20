@@ -1,4 +1,4 @@
-// Prisma schema for Beauty Platform (single source of truth)
+// Prisma schema for Онлайс (single source of truth)
 
 generator client {
   provider = "prisma-client-js"
