@@ -16,6 +16,14 @@
 - Notes:
 - Tests:
 
+## 2026-05-20
+- Date: 2026-05-20
+- Task: Зафиксировать бренд-палитру Онлайс
+- Summary: Добавлен актуальный брендбук технологической платформы Онлайс: navy-база, продуктовый синий, мягкий голубой, лавандовый AI-акцент и правила использования.
+- Files: docs/UI/DESIGN_TOKENS.md
+- Notes: Бренд-направление: service-platform/SaaS/AI, не beauty-specific.
+- Tests: Not run (docs only).
+
 ## 2026-01-16
 - Date: 2026-01-16
 - Task: Bootstrap project master docs and specs

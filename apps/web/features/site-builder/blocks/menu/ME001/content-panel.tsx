@@ -257,14 +257,14 @@ export function MenuContentPanel(ctx: CrmPanelCtx) {
                     className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
                     style={{
                       width: `${Math.max(0, Math.min(100, pct))}%`,
-                      backgroundColor: "#ff5a5f",
+                      backgroundColor: "#2f8eef",
                     }}
                   />
                   <div
                     className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
                     style={{
                       left: `${Math.max(0, Math.min(100, pct))}%`,
-                      backgroundColor: "#ff5a5f",
+                      backgroundColor: "#2f8eef",
                     }}
                   />
                   <input

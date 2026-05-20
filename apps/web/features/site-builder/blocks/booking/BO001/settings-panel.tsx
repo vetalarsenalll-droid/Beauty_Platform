@@ -36,7 +36,7 @@ function sectionButton(
       }}
       className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
       style={{
-        borderColor: active ? "#ff5a5f" : panelTheme.border,
+        borderColor: active ? "#2F8EEF" : panelTheme.border,
         backgroundColor: "transparent",
         color: active ? panelTheme.text : panelTheme.muted,
       }}
@@ -191,7 +191,7 @@ export function BO001SettingsPanel(ctx: CrmPanelCtx) {
                 setWidthPopoverOpen(null);
               }}
               className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
-                showMobileWidthControl ? "bg-[#ff5a5f] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
+                showMobileWidthControl ? "bg-[#2F8EEF] text-white" : "bg-[#d1d5db] text-white hover:bg-[#aeb4bd]"
               }`}
               title="Показать мобильную ширину блока"
               aria-label="Показать мобильную ширину блока"
@@ -304,7 +304,7 @@ export function BO001SettingsPanel(ctx: CrmPanelCtx) {
         onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
         className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
         style={{
-          borderColor: showDarkThemeAdvanced ? "#ff5a5f" : panelTheme.border,
+          borderColor: showDarkThemeAdvanced ? "#2F8EEF" : panelTheme.border,
           backgroundColor: "transparent",
           color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
         }}

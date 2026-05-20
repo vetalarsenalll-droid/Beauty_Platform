@@ -31,9 +31,9 @@ export function resolvePanelTheme(mode: SiteTheme["mode"]): PanelTheme {
     border: "#d9dde5",
     text: "#111827",
     muted: "#6b7280",
-    accent: "#2563eb",
+    accent: "#2f8eef",
     save: "#000000",
-    saveClose: "#ff5a5f",
+    saveClose: "#2f8eef",
   };
 }
 

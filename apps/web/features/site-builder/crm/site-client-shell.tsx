@@ -78,6 +78,17 @@ function MobilePreviewIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+function HelpPanelIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M4 4v12a2 2 0 0 0 2 2h9.5a.5.5 0 0 0 0-1H6a1 1 0 0 1-1-1h10a1 1 0 0 0 1-1V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2Zm10-1a1 1 0 0 1 1 1v11H5V4a1 1 0 0 1 1-1h8ZM8.76 6.409C8.95 6.21 9.31 6 10 6s1.05.211 1.24.409c.2.21.26.456.26.591c0 .454-.27.698-.723.924a6.995 6.995 0 0 1-.343.156l-.022.01a5.258 5.258 0 0 0-.324.147a1.455 1.455 0 0 0-.345.228A.731.731 0 0 0 9.5 9v1a.5.5 0 1 0 1 0v-.85l.037-.02c.075-.038.166-.077.283-.127l.011-.005c.117-.051.253-.11.392-.18C11.77 8.548 12.5 8.047 12.5 7c0-.365-.14-.869-.54-1.284C11.55 5.29 10.91 5 10 5c-.91 0-1.55.289-1.96.716c-.4.415-.54.919-.54 1.284a.5.5 0 0 0 1 0c0-.135.06-.381.26-.591ZM10 13a.75.75 0 1 0 0-1.5a.75.75 0 0 0 0 1.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function HiddenBlockIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -563,6 +574,7 @@ export default function SiteClient({
   const [saving, setSaving] = useState<string | null>(null);
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
   const [pageSettingsTab, setPageSettingsTab] = useState<PageSettingsTab>("main");
+  const [helpPanelOpen, setHelpPanelOpen] = useState(false);
   const [seoPageSettings, setSeoPageSettings] = useState<SiteSeoPageSetting[]>(initialSeoPageSettings);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
   const [coverDrawerKey, setCoverDrawerKey] = useState<
@@ -1773,6 +1785,22 @@ export default function SiteClient({
                 <MobilePreviewIcon className="h-5 w-5" />
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setHelpPanelOpen((open) => !open);
+                setMobileViewportPickerOpen(false);
+              }}
+              className={`absolute left-full top-1/2 ml-6 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-none border-0 bg-transparent transition ${
+                helpPanelOpen
+                  ? "text-[color:var(--bp-accent)]"
+                  : "text-[color:var(--bp-muted)] hover:text-[color:var(--bp-accent)]"
+              }`}
+              aria-label="Справка по конструктору"
+              title="Справка по конструктору"
+            >
+              <HelpPanelIcon className="h-6 w-6" />
+            </button>
             {mobileViewportPickerOpen && (
               <div
                 className="absolute left-1/2 top-[calc(100%+8px)] z-[320] w-[240px] -translate-x-1/2 rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-2 shadow-[var(--bp-shadow)]"
@@ -1979,6 +2007,11 @@ export default function SiteClient({
                             setRightPanel("content");
                           }}
                           className={`${leftBtnClass} w-28 rounded-r-none`}
+                          style={{
+                            backgroundColor: panelTheme.save,
+                            borderColor: panelTheme.save,
+                            color: "#ffffff",
+                          }}
                         >
                           Контент
                         </button>
@@ -2644,14 +2677,60 @@ export default function SiteClient({
           panelTheme={panelTheme}
         />
 
-        <button
-          type="button"
-          aria-label="Помощь"
-          title="Помощь"
-          className="fixed right-6 bottom-6 z-[141] inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[#ff8f73] text-3xl leading-none text-white shadow-[var(--bp-shadow)] transition hover:brightness-95"
+        {helpPanelOpen ? (
+          <button
+            type="button"
+            aria-label="Закрыть справку"
+            className="fixed inset-0 z-[235] cursor-default bg-black/0"
+            style={{ top: floatingPanelsTop }}
+            onClick={() => setHelpPanelOpen(false)}
+          />
+        ) : null}
+        <aside
+          className={`fixed right-0 z-[240] w-[min(420px,92vw)] overflow-y-auto border-l shadow-2xl transition-transform duration-[220ms] ease-out ${
+            helpPanelOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+          style={{
+            top: floatingPanelsTop,
+            bottom: 0,
+            borderColor: panelTheme.border,
+            backgroundColor: panelTheme.panel,
+            color: panelTheme.text,
+          }}
+          aria-hidden={!helpPanelOpen}
         >
-          ?
-        </button>
+          <div className="sticky top-0 z-10 flex h-14 items-center justify-between border-b px-5" style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.panel }}>
+            <div className="text-sm font-semibold">Справка по конструктору</div>
+            <button
+              type="button"
+              onClick={() => setHelpPanelOpen(false)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-none text-2xl leading-none text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)]"
+              aria-label="Закрыть справку"
+              title="Закрыть"
+            >
+              ×
+            </button>
+          </div>
+          <div className="space-y-5 p-5">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: panelTheme.muted }}>
+                Быстрый старт
+              </div>
+              <div className="mt-2 text-sm leading-6" style={{ color: panelTheme.text }}>
+                Здесь будет инструкция по работе с конструктором сайта: структура страниц, блоки, настройки, публикация и предпросмотр.
+              </div>
+            </div>
+            <div className="border-t pt-5" style={{ borderColor: panelTheme.border }}>
+              <div className="text-sm font-semibold">Что добавить в инструкцию</div>
+              <div className="mt-3 space-y-3 text-sm" style={{ color: panelTheme.muted }}>
+                <div>Как выбрать страницу и блок.</div>
+                <div>Чем отличаются вкладки Контент и Настройки.</div>
+                <div>Как проверить мобильную версию.</div>
+                <div>Как сохранить и опубликовать изменения.</div>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
