@@ -8101,7 +8101,6 @@ export function renderAisha(
   const data = block.data as Record<string, unknown>;
   const enabled = data.enabled !== false;
   const widgetConfig = buildAishaWidgetConfig(block, style, theme);
-  const accountSlug = account.publicSlug || account.slug;
 
   if (!enabled) {
     return (
@@ -8124,7 +8123,7 @@ export function renderAisha(
   return (
     <div className="relative w-full overflow-hidden" style={{ minHeight: inlinePreviewMinHeight }}>
       <PublicAiChatWidget
-        accountSlug={accountSlug}
+        accountSlug={account.slug}
         widgetConfig={widgetConfig}
         mode="inline"
         defaultOpen
