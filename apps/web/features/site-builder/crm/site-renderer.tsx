@@ -83,8 +83,11 @@ export type BlockStyle = {
   authBlockBg?: string;
   authSideBg?: string;
   authRightBg?: string;
+  authBlockHeight?: number | null;
   authRadius?: number | null;
   authButtonRadius?: number | null;
+  authFieldRadius?: number | null;
+  authHintRadius?: number | null;
   cabinetPageBg?: string;
   cabinetBlockBg?: string;
   cabinetRadius?: number | null;
@@ -5729,8 +5732,11 @@ export function renderClient(
   const authBlockVisual = resolveBg("authBlockBg", "#ffffff", "#181b22");
   const authSideVisual = resolveBg("authSideBg", "#1f2937", "#111827");
   const authRightVisual = authBlockVisual;
+  const authBlockHeight = readNumber("authBlockHeight", 700);
   const authRadius = readNumber("authRadius", 0);
   const authButtonRadius = readNumber("authButtonRadius", 0);
+  const authFieldRadius = readNumber("authFieldRadius", 0);
+  const authHintRadius = readNumber("authHintRadius", 0);
   const authSocialButtonRadius = readNumber("authSocialButtonRadius", authButtonRadius);
   const authTitleSize = readNumber("authTitleSize", 32);
   const authTextSize = readNumber("authTextSize", 14);
@@ -5740,13 +5746,19 @@ export function renderClient(
   const authSocialButtonTextSize = readNumber("authSocialButtonTextSize", 14);
   const authSideTextColor = readThemedColor("authSideTextColor", "#ffffff", "#f8fafc");
   const authSideMutedColor = readThemedColor("authSideMutedColor", "rgba(255,255,255,0.8)", "#aeb4bf");
+  const authHintBorderColor = readThemedColor("authHintBorderColor", "rgba(255,255,255,0.2)", "#343a46");
   const authRightTextColor = readThemedColor("authRightTextColor", "#111827", "#f8fafc");
   const authRightMutedColor = readThemedColor("authRightMutedColor", "#6b7280", "#aeb4bf");
   const authButtonBg = readThemedColor("authButtonColor", style.buttonColor || theme.buttonColor, "#f8fafc");
   const authButtonText = readThemedColor("authButtonTextColor", style.buttonTextColor || theme.buttonTextColor, "#111827");
+  const authButtonBorder = readThemedColor("authButtonBorderColor", "transparent", "transparent");
+  const authButtonHoverBg = readThemedColor("authButtonHoverBgColor", authButtonBg, authButtonBg);
+  const authFieldBg = readThemedColor("authFieldBgColor", "#f3f4f6", "#20242d");
+  const authFieldBorder = readThemedColor("authFieldBorderColor", "#d9dee7", "#343a46");
   const authSocialButtonBg = readThemedColor("authSocialButtonColor", "#ffffff", "#20242d");
   const authSocialButtonText = readThemedColor("authSocialButtonTextColor", "#111827", "#f8fafc");
   const authSocialButtonBorder = readThemedColor("authSocialButtonBorderColor", "#e5e7eb", "#343a46");
+  const authSocialButtonHoverBg = readThemedColor("authSocialButtonHoverBgColor", authSocialButtonBg, authSocialButtonBg);
   const cabinetPageVisual = resolveBg("cabinetPageBg", "#eef2f7", "#0f1012");
   const cabinetBlockVisual = resolveBg("cabinetBlockBg", "#ffffff", "#181b22");
   const cabinetRadius = readNumber("cabinetRadius", 0);
@@ -5764,7 +5776,7 @@ export function renderClient(
   const previewOrganizationName = "Название организации";
   const previewOrganizationCount = "1 организация";
   const previewLocation = "Город";
-  const inputRadius = Math.max(0, authButtonRadius);
+  const inputRadius = Math.max(0, authFieldRadius);
   const contentColumns = clampBlockColumns(
     style.blockWidthColumns ?? (view === "cabinet" ? 8 : 6),
     block.type
@@ -5796,12 +5808,13 @@ export function renderClient(
         className="grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
         style={{
           ...clientContentStyle,
+          minHeight: authBlockHeight,
           borderRadius: authRadius,
           backgroundColor: "transparent",
           backgroundImage: "none",
         }}
       >
-        <div className="flex min-h-[360px] flex-col justify-between gap-6 p-8" style={{ ...authSideVisual, color: authSideTextColor }}>
+        <div className="flex flex-col justify-between gap-6 p-8" style={{ ...authSideVisual, color: authSideTextColor }}>
           <div>
             <div className="text-xs uppercase tracking-[0.3em]" style={{ color: authSideMutedColor }}>Клиентский доступ</div>
             <div className="mt-3 font-semibold" style={{ fontSize: authTitleSize }}>{text("authTitle", "Личный кабинет клиента")}</div>
@@ -5810,10 +5823,10 @@ export function renderClient(
             </p>
           </div>
           <div className="space-y-3" style={{ color: authSideMutedColor, fontSize: authTextSize }}>
-            <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
+            <div className="border px-4 py-3" style={{ borderRadius: authHintRadius, borderColor: authHintBorderColor }}>
               {text("authHint1", "Умные подсказки по следующему визиту")}
             </div>
-            <div className="border border-white/20 px-4 py-3" style={{ borderRadius: authRadius / 2 }}>
+            <div className="border px-4 py-3" style={{ borderRadius: authHintRadius, borderColor: authHintBorderColor }}>
               {text("authHint2", "История записей и оплат по организациям")}
             </div>
           </div>
@@ -5823,32 +5836,53 @@ export function renderClient(
           <div className="mt-2 font-semibold" style={{ fontSize: authFormTitleSize }}>{text("loginTitle", "Вход")}</div>
           <div className="mt-8 space-y-2">
             {["Telegram", "VK ID", "Яндекс ID", "MAX ID"].map((label) => (
-              <div
+              <button
                 key={label}
-                className="border px-4 py-3 text-center font-semibold"
+                type="button"
+                className="w-full border px-4 py-3 text-center font-semibold transition hover:bg-[color:var(--site-client-auth-social-button-hover)]"
                 style={{
                   borderRadius: authSocialButtonRadius,
                   borderColor: authSocialButtonBorder,
                   backgroundColor: authSocialButtonBg,
                   color: authSocialButtonText,
                   fontSize: authSocialButtonTextSize,
+                  ["--site-client-auth-social-button-hover" as string]: authSocialButtonHoverBg,
                 }}
               >
                 {label}
-              </div>
+              </button>
             ))}
+          </div>
+          <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-[0.2em]" style={{ color: authRightMutedColor }}>
+            <div className="h-px flex-1" style={{ backgroundColor: authFieldBorder }} />
+            или
+            <div className="h-px flex-1" style={{ backgroundColor: authFieldBorder }} />
           </div>
           <div className="mt-6 space-y-4">
             <div>
               <div className="font-medium" style={{ fontSize: authFormTextSize }}>Эл. почта</div>
-              <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
+              <div className="mt-2 h-12 border" style={{ borderRadius: inputRadius, backgroundColor: authFieldBg, borderColor: authFieldBorder }} />
             </div>
             <div>
               <div className="font-medium" style={{ fontSize: authFormTextSize }}>Пароль</div>
-              <div className="mt-2 h-12 border border-[color:var(--bp-stroke)] bg-white/70" style={{ borderRadius: inputRadius }} />
+              <div className="mt-2 h-12 border" style={{ borderRadius: inputRadius, backgroundColor: authFieldBg, borderColor: authFieldBorder }} />
             </div>
-            <div className="flex h-12 items-center justify-center font-semibold" style={{ borderRadius: inputRadius, backgroundColor: authButtonBg, color: authButtonText, fontSize: authButtonTextSize }}>
+            <button
+              type="button"
+              className="flex h-12 w-full items-center justify-center border font-semibold transition hover:bg-[color:var(--site-client-auth-button-hover)]"
+              style={{
+                borderRadius: authButtonRadius,
+                borderColor: authButtonBorder,
+                backgroundColor: authButtonBg,
+                color: authButtonText,
+                fontSize: authButtonTextSize,
+                ["--site-client-auth-button-hover" as string]: authButtonHoverBg,
+              }}
+            >
               {text("loginButtonText", "Войти")}
+            </button>
+            <div className="text-center underline" style={{ color: authRightMutedColor, fontSize: authFormTextSize }}>
+              Создать аккаунт
             </div>
           </div>
         </div>

@@ -133,6 +133,9 @@ type BlockStyle = {
   authBlockBg?: string;
   authSideBg?: string;
   authRightBg?: string;
+  authBlockHeight?: number | null;
+  authFieldRadius?: number | null;
+  authHintRadius?: number | null;
   cabinetPageBg?: string;
   cabinetBlockBg?: string;
   bookingImageRadius?: number | null;
@@ -5472,8 +5475,11 @@ function renderClient(
   const authBlockVisual = resolveBg("authBlockBg", "#ffffff", "#181b22");
   const authSideVisual = resolveBg("authSideBg", "#1f2937", "#111827");
   const authRightVisual = authBlockVisual;
+  const authBlockHeight = readNumber("authBlockHeight", 700);
   const authRadius = readNumber("authRadius", 0);
   const authButtonRadius = readNumber("authButtonRadius", 0);
+  const authFieldRadius = readNumber("authFieldRadius", 0);
+  const authHintRadius = readNumber("authHintRadius", 0);
   const authSocialButtonRadius = readNumber("authSocialButtonRadius", authButtonRadius);
   const authTitleSize = readNumber("authTitleSize", 32);
   const authTextSize = readNumber("authTextSize", 14);
@@ -5483,13 +5489,19 @@ function renderClient(
   const authSocialButtonTextSize = readNumber("authSocialButtonTextSize", 14);
   const authSideTextColor = readThemedColor("authSideTextColor", "#ffffff", "#f8fafc");
   const authSideMutedColor = readThemedColor("authSideMutedColor", "rgba(255,255,255,0.8)", "#aeb4bf");
+  const authHintBorderColor = readThemedColor("authHintBorderColor", "rgba(255,255,255,0.2)", "#343a46");
   const authRightTextColor = readThemedColor("authRightTextColor", "#111827", "#f8fafc");
   const authRightMutedColor = readThemedColor("authRightMutedColor", "#6b7280", "#aeb4bf");
   const authButtonBg = readThemedColor("authButtonColor", style.buttonColor || theme.lightPalette.buttonColor, "#f8fafc");
   const authButtonText = readThemedColor("authButtonTextColor", style.buttonTextColor || theme.lightPalette.buttonTextColor, "#111827");
+  const authButtonBorder = readThemedColor("authButtonBorderColor", "transparent", "transparent");
+  const authButtonHoverBg = readThemedColor("authButtonHoverBgColor", authButtonBg, authButtonBg);
+  const authFieldBg = readThemedColor("authFieldBgColor", "#f3f4f6", "#20242d");
+  const authFieldBorder = readThemedColor("authFieldBorderColor", "#d9dee7", "#343a46");
   const authSocialButtonBg = readThemedColor("authSocialButtonColor", "#ffffff", "#20242d");
   const authSocialButtonText = readThemedColor("authSocialButtonTextColor", "#111827", "#f8fafc");
   const authSocialButtonBorder = readThemedColor("authSocialButtonBorderColor", "#e5e7eb", "#343a46");
+  const authSocialButtonHoverBg = readThemedColor("authSocialButtonHoverBgColor", authSocialButtonBg, authSocialButtonBg);
   const cabinetPageVisual = resolveBg("cabinetPageBg", "#eef2f7", "#0f1012");
   const cabinetBlockVisual = resolveBg("cabinetBlockBg", "#ffffff", "#181b22");
   const cabinetRadius = readNumber("cabinetRadius", 0);
@@ -5539,6 +5551,8 @@ function renderClient(
           "--site-client-auth-right-bg-image": authRightVisual.image,
           "--site-client-auth-radius": `${authRadius}px`,
           "--site-client-auth-button-radius": `${authButtonRadius}px`,
+          "--site-client-auth-field-radius": `${authFieldRadius}px`,
+          "--site-client-auth-hint-radius": `${authHintRadius}px`,
           "--site-client-auth-social-button-radius": `${authSocialButtonRadius}px`,
           "--site-client-auth-title-size": `${authTitleSize}px`,
           "--site-client-auth-text-size": `${authTextSize}px`,
@@ -5548,13 +5562,19 @@ function renderClient(
           "--site-client-auth-social-button-text-size": `${authSocialButtonTextSize}px`,
           "--site-client-auth-side-text": authSideTextColor,
           "--site-client-auth-side-muted": authSideMutedColor,
+          "--site-client-auth-hint-border": authHintBorderColor,
           "--site-client-auth-right-text": authRightTextColor,
           "--site-client-auth-right-muted": authRightMutedColor,
           "--site-client-auth-button": authButtonBg,
           "--site-client-auth-button-text": authButtonText,
+          "--site-client-auth-button-border": authButtonBorder,
+          "--site-client-auth-button-hover": authButtonHoverBg,
+          "--site-client-auth-field-bg": authFieldBg,
+          "--site-client-auth-field-border": authFieldBorder,
           "--site-client-auth-social-button": authSocialButtonBg,
           "--site-client-auth-social-button-text": authSocialButtonText,
           "--site-client-auth-social-button-border": authSocialButtonBorder,
+          "--site-client-auth-social-button-hover": authSocialButtonHoverBg,
           "--site-client-cabinet-page-bg": cabinetPageVisual.color,
           "--site-client-cabinet-page-bg-image": cabinetPageVisual.image,
           "--site-client-cabinet-block-bg": cabinetBlockVisual.color,
@@ -5578,6 +5598,7 @@ function renderClient(
           "--bp-surface": resolvedAuthMode === "login" ? authPageVisual.color : cabinetPageVisual.color,
           "--site-button-radius": `${resolvedAuthMode === "login" ? authButtonRadius : cabinetButtonRadius}px`,
           "--site-radius": `${resolvedAuthMode === "login" ? authRadius : cabinetRadius}px`,
+          "--site-client-auth-block-height": `${authBlockHeight}px`,
           "--site-client-content-width": contentWidth,
           "--site-client-content-left": contentLeft,
         } as CSSProperties

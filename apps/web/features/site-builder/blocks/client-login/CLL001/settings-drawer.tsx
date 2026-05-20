@@ -55,6 +55,8 @@ export function ClientLoginSettingsDrawer(ctx: CrmPanelCtx) {
             {renderCoverFlatNumberInput("Размер описания", readNumber(style, "authTextSize", 14), 0, 48, (value) => updateLoginStyle(ctx, { authTextSize: value }))}
             <TildaInlineColorField compact label="Цвет текста" value={readString(style, "authSideTextColor", "#ffffff")} onChange={(value) => updateLoginStyle(ctx, { authSideTextColor: value })} />
             <TildaInlineColorField compact label="Цвет вторичного текста" value={readString(style, "authSideMutedColor", "rgba(255,255,255,0.8)")} onChange={(value) => updateLoginStyle(ctx, { authSideMutedColor: value })} />
+            <TildaInlineColorField compact label="Контур подсказок" value={readString(style, "authHintBorderColor", "rgba(255,255,255,0.2)")} onChange={(value) => updateLoginStyle(ctx, { authHintBorderColor: value })} />
+            {renderCoverFlatNumberInput("Скругление подсказок", readNumber(style, "authHintRadius", 0), 0, 64, (value) => updateLoginStyle(ctx, { authHintRadius: value }))}
           </>
         ))}
         {group("Правая панель", (
@@ -70,6 +72,7 @@ export function ClientLoginSettingsDrawer(ctx: CrmPanelCtx) {
           <>
             <TildaInlineColorField compact label="Левая панель: цвет текста" value={readString(style, "authSideTextColorDark", readString(style, "authSideTextColor", "#ffffff"))} onChange={(value) => updateLoginStyle(ctx, { authSideTextColorDark: value })} />
             <TildaInlineColorField compact label="Левая панель: вторичный текст" value={readString(style, "authSideMutedColorDark", readString(style, "authSideMutedColor", "rgba(255,255,255,0.8)"))} onChange={(value) => updateLoginStyle(ctx, { authSideMutedColorDark: value })} />
+            <TildaInlineColorField compact label="Левая панель: контур подсказок" value={readString(style, "authHintBorderColorDark", "#343a46")} onChange={(value) => updateLoginStyle(ctx, { authHintBorderColorDark: value })} />
             <TildaInlineColorField compact label="Правая панель: цвет текста" value={readString(style, "authRightTextColorDark", "#f8fafc")} onChange={(value) => updateLoginStyle(ctx, { authRightTextColorDark: value })} />
             <TildaInlineColorField compact label="Правая панель: вторичный текст" value={readString(style, "authRightMutedColorDark", "#aeb4bf")} onChange={(value) => updateLoginStyle(ctx, { authRightMutedColorDark: value })} />
           </>
@@ -88,9 +91,12 @@ export function ClientLoginSettingsDrawer(ctx: CrmPanelCtx) {
           <TildaInlineColorField compact label="Цвет кнопки" value={readString(style, "authButtonColor", "#111827")} onChange={(value) => updateLoginStyle(ctx, { authButtonColor: value })} />
           <TildaInlineColorField compact label="Текст кнопки" value={readString(style, "authButtonTextColor", "#ffffff")} onChange={(value) => updateLoginStyle(ctx, { authButtonTextColor: value })} />
           <TildaInlineColorField compact label="Контур кнопки" value={readString(style, "authButtonBorderColor", "transparent")} onChange={(value) => updateLoginStyle(ctx, { authButtonBorderColor: value })} onClear={() => updateLoginStyle(ctx, { authButtonBorderColor: "transparent" })} />
-          {renderCoverFlatNumberInput("Скругление кнопки и полей", readNumber(style, "authButtonRadius", 0), 0, 64, (value) => updateLoginStyle(ctx, { authButtonRadius: value }))}
+          {renderCoverFlatNumberInput("Скругление кнопки", readNumber(style, "authButtonRadius", 0), 0, 64, (value) => updateLoginStyle(ctx, { authButtonRadius: value }))}
           {renderCoverFlatNumberInput("Размер текста кнопки", readNumber(style, "authButtonTextSize", 14), 0, 32, (value) => updateLoginStyle(ctx, { authButtonTextSize: value }))}
           <TildaInlineColorField compact label="Цвет фона при наведении" value={readString(style, "authButtonHoverBgColor", "")} onChange={(value) => updateLoginStyle(ctx, { authButtonHoverBgColor: value })} onClear={() => updateLoginStyle(ctx, { authButtonHoverBgColor: "" })} />
+          <TildaInlineColorField compact label="Цвет полей" value={readString(style, "authFieldBgColor", "#f3f4f6")} onChange={(value) => updateLoginStyle(ctx, { authFieldBgColor: value })} />
+          <TildaInlineColorField compact label="Контур полей" value={readString(style, "authFieldBorderColor", "#d9dee7")} onChange={(value) => updateLoginStyle(ctx, { authFieldBorderColor: value })} />
+          {renderCoverFlatNumberInput("Скругление полей", readNumber(style, "authFieldRadius", 0), 0, 64, (value) => updateLoginStyle(ctx, { authFieldRadius: value }))}
         </>
       ))}
       {group("Telegram / VK ID / Яндекс ID / MAX ID", (
@@ -108,6 +114,8 @@ export function ClientLoginSettingsDrawer(ctx: CrmPanelCtx) {
         <>
           <TildaInlineColorField compact label="Цвет кнопки" value={readString(style, "authButtonColorDark", "#f8fafc")} onChange={(value) => updateLoginStyle(ctx, { authButtonColorDark: value })} />
           <TildaInlineColorField compact label="Текст кнопки" value={readString(style, "authButtonTextColorDark", "#111827")} onChange={(value) => updateLoginStyle(ctx, { authButtonTextColorDark: value })} />
+          <TildaInlineColorField compact label="Цвет полей" value={readString(style, "authFieldBgColorDark", "#20242d")} onChange={(value) => updateLoginStyle(ctx, { authFieldBgColorDark: value })} />
+          <TildaInlineColorField compact label="Контур полей" value={readString(style, "authFieldBorderColorDark", "#343a46")} onChange={(value) => updateLoginStyle(ctx, { authFieldBorderColorDark: value })} />
           <TildaInlineColorField compact label="Цвет соц-кнопок" value={readString(style, "authSocialButtonColorDark", "#20242d")} onChange={(value) => updateLoginStyle(ctx, { authSocialButtonColorDark: value })} />
           <TildaInlineColorField compact label="Текст соц-кнопок" value={readString(style, "authSocialButtonTextColorDark", "#f8fafc")} onChange={(value) => updateLoginStyle(ctx, { authSocialButtonTextColorDark: value })} />
           <TildaInlineColorField compact label="Обводка соц-кнопок" value={readString(style, "authSocialButtonBorderColorDark", "#343a46")} onChange={(value) => updateLoginStyle(ctx, { authSocialButtonBorderColorDark: value })} />

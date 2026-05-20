@@ -90,22 +90,23 @@ export default function ClientRegisterPage({
 
   return (
     <div
-      className={`flex items-center justify-center px-6 py-12 ${embedded ? "min-h-[520px]" : "min-h-screen"}`}
+      className={`flex items-center ${embedded ? "px-8 py-8" : "min-h-screen justify-center px-6 py-12"}`}
       style={{ backgroundColor: "var(--site-client-auth-page-bg, var(--bp-surface))" }}
     >
       <div
         className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
         style={{
-          width: "var(--site-client-content-width, 100%)",
-          marginLeft: "var(--site-client-content-left, auto)",
-          marginRight: 0,
+          width: embedded ? "var(--site-client-content-width, 100%)" : "100%",
+          marginLeft: embedded ? "var(--site-client-content-left, auto)" : "auto",
+          marginRight: embedded ? 0 : "auto",
+          minHeight: "var(--site-client-auth-block-height, 700px)",
           borderRadius: "var(--site-client-auth-radius, 28px)",
           backgroundColor: "transparent",
           backgroundImage: "none",
         }}
       >
         <div
-          className="flex flex-col justify-between gap-6 p-10 text-white"
+          className={`flex flex-col justify-between gap-6 text-white ${embedded ? "p-8" : "p-10"}`}
           style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))" }}
         >
           <div>
@@ -121,20 +122,20 @@ export default function ClientRegisterPage({
           </div>
           <div className="space-y-3 text-sm text-white/80">
             <div
-              className="border border-white/20 px-4 py-3"
-              style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}
+              className="border px-4 py-3"
+              style={{ borderRadius: "var(--site-client-auth-hint-radius,0px)", borderColor: "var(--site-client-auth-hint-border,rgba(255,255,255,0.2))" }}
             >
               Единый профиль для всех организаций
             </div>
             <div
-              className="border border-white/20 px-4 py-3"
-              style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}
+              className="border px-4 py-3"
+              style={{ borderRadius: "var(--site-client-auth-hint-radius,0px)", borderColor: "var(--site-client-auth-hint-border,rgba(255,255,255,0.2))" }}
             >
               Бонусы и история посещений по салонам
             </div>
           </div>
         </div>
-        <div className="p-10" style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
+        <div className={embedded ? "p-8" : "p-10"} style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
           <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
             Личный кабинет
           </div>
@@ -143,6 +144,7 @@ export default function ClientRegisterPage({
             accountSlug={accountSlug}
             returnTo={returnTo || (accountSlug ? `/c?account=${accountSlug}` : "/c")}
             className="mt-8"
+            buttonClassName="flex w-full items-center justify-center rounded-[var(--site-client-auth-social-button-radius,var(--site-button-radius))] border border-[color:var(--site-client-auth-social-button-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-social-button,#ffffff)] px-4 py-3 text-[length:var(--site-client-auth-social-button-text-size,14px)] font-semibold text-[color:var(--site-client-auth-social-button-text,#111827)] transition hover:bg-[color:var(--site-client-auth-social-button-hover,var(--site-client-auth-social-button,#ffffff))]"
           />
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <label className="text-sm font-medium">
@@ -150,7 +152,8 @@ export default function ClientRegisterPage({
               <input
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-none border border-[color:var(--site-client-auth-field-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-field-bg,#f3f4f6)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                style={{ borderRadius: "var(--site-client-auth-field-radius,var(--site-client-auth-button-radius,var(--site-button-radius)))" }}
               />
             </label>
             <label className="text-sm font-medium">
@@ -158,7 +161,8 @@ export default function ClientRegisterPage({
               <input
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-none border border-[color:var(--site-client-auth-field-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-field-bg,#f3f4f6)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                style={{ borderRadius: "var(--site-client-auth-field-radius,var(--site-client-auth-button-radius,var(--site-button-radius)))" }}
               />
             </label>
             <label className="text-sm font-medium">
@@ -166,7 +170,8 @@ export default function ClientRegisterPage({
               <input
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-none border border-[color:var(--site-client-auth-field-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-field-bg,#f3f4f6)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                style={{ borderRadius: "var(--site-client-auth-field-radius,var(--site-client-auth-button-radius,var(--site-button-radius)))" }}
               />
             </label>
             <label className="text-sm font-medium">
@@ -176,7 +181,8 @@ export default function ClientRegisterPage({
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="example@mail.ru"
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-none border border-[color:var(--site-client-auth-field-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-field-bg,#f3f4f6)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                style={{ borderRadius: "var(--site-client-auth-field-radius,var(--site-client-auth-button-radius,var(--site-button-radius)))" }}
                 required
               />
             </label>
@@ -187,7 +193,8 @@ export default function ClientRegisterPage({
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="••••••••"
-                className="mt-2 w-full rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--bp-stroke)] bg-white/70 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                className="mt-2 w-full rounded-none border border-[color:var(--site-client-auth-field-border,var(--bp-stroke))] bg-[color:var(--site-client-auth-field-bg,#f3f4f6)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--site-client-button)]/30"
+                style={{ borderRadius: "var(--site-client-auth-field-radius,var(--site-client-auth-button-radius,var(--site-button-radius)))" }}
                 required
               />
             </label>
@@ -199,7 +206,7 @@ export default function ClientRegisterPage({
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 inline-flex items-center justify-center rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] bg-[color:var(--site-client-button)] px-5 py-3 text-sm font-semibold text-[color:var(--site-client-button-text,#ffffff)] shadow-[var(--bp-shadow)] transition hover:opacity-90 disabled:opacity-60"
+              className="mt-2 inline-flex items-center justify-center rounded-[var(--site-client-auth-button-radius,var(--site-button-radius))] border border-[color:var(--site-client-auth-button-border,transparent)] bg-[color:var(--site-client-button)] px-5 py-3 text-sm font-semibold text-[color:var(--site-client-button-text,#ffffff)] shadow-[var(--bp-shadow)] transition hover:bg-[color:var(--site-client-auth-button-hover,var(--site-client-button))] disabled:opacity-60"
             >
               {loading ? "Создание..." : "Создать аккаунт"}
             </button>

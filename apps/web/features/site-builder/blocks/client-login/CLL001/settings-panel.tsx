@@ -200,6 +200,7 @@ export function ClientLoginSettingsPanel(ctx: CrmPanelCtx) {
       <BackgroundField label="Фон формы" prefix="authBlockBg" fallback="#ffffff" style={style} ctx={ctx} />
       <BackgroundField label="Фон левой панели" prefix="authSideBg" fallback="#1f2937" style={style} ctx={ctx} />
       {renderCoverFlatNumberInput("Скругление формы", readNumber(style, "authRadius", 0), 0, 64, (value) => updateLoginStyle(ctx, { authRadius: value }))}
+      {renderCoverFlatNumberInput("Высота блока", readNumber(style, "authBlockHeight", 700), 360, 1200, (value) => updateLoginStyle(ctx, { authBlockHeight: value }))}
 
       <div className="grid grid-cols-2 gap-4">
         {lineSelect("Отступ сверху", marginTopLines, (value) => updateLoginStyle(ctx, { marginTop: Math.round(value * COVER_LINE_STEP_PX) }))}
