@@ -129,6 +129,7 @@ export default async function CrmSitePage({
     specialistLevels,
     legalDocs,
     platformLegalDocs,
+    seoPageSettings,
   ] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: session.accountId },
@@ -223,6 +224,10 @@ export default async function CrmSitePage({
           select: { id: true, version: true, content: true, publishedAt: true },
         },
       },
+    }),
+    prisma.seoPageSetting.findMany({
+      where: { accountId: session.accountId },
+      orderBy: { pageKey: "asc" },
     }),
   ]);
 
@@ -440,6 +445,16 @@ export default async function CrmSitePage({
           draftJson: safeDraftJson,
           publishedVersionId: page.publishedVersionId,
         }}
+        initialSeoPageSettings={seoPageSettings.map((item) => ({
+          pageKey: item.pageKey,
+          title: item.title ?? "",
+          description: item.description ?? "",
+          ogImageUrl: item.ogImageUrl ?? "",
+          keywords: item.keywords ?? "",
+          canonicalUrl: item.canonicalUrl ?? "",
+          noIndex: item.noIndex ?? false,
+          noFollow: item.noFollow ?? false,
+        }))}
         account={{
           id: account?.id ?? session.accountId,
           name: accountName,

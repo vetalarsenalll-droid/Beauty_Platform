@@ -33,12 +33,24 @@ export type PublicPageData = {
   publishedVersionId: number | null;
 };
 
+export type SiteSeoPageSetting = {
+  pageKey: string;
+  title: string;
+  description: string;
+  ogImageUrl: string;
+  keywords: string;
+  canonicalUrl: string;
+  noIndex: boolean;
+  noFollow: boolean;
+};
+
 export type SiteClientProps = {
   initialActivePage?: SitePageKey;
   initialCurrentEntity?: CurrentEntity;
   initialPreviewMode?: "desktop" | "mobile";
   initialMobileViewport?: MobileViewportKey;
   initialPublicPage: PublicPageData;
+  initialSeoPageSettings: SiteSeoPageSetting[];
   account: AccountInfo;
   accountProfile: AccountProfile;
   branding: Branding;

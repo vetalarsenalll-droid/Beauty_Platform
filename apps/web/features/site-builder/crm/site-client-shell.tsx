@@ -7,6 +7,7 @@ import {
   BLOCK_LABELS,
   type BlockType,
   type SiteBlock,
+  type SiteDraft,
   type SiteTheme,
   normalizeDraft,
   resolveSiteLoaderConfig,
@@ -30,6 +31,7 @@ import type {
   EditorSection,
   MobileViewportKey,
   SiteClientProps,
+  SiteSeoPageSetting,
 } from "@/features/site-builder/crm/site-client-core";
 import {
   BlockPreview,
@@ -79,6 +81,15 @@ const SITE_PREVIEW_MODE_STORAGE_KEY = "site-builder:preview-mode";
 const SITE_MOBILE_VIEWPORT_STORAGE_KEY = "site-builder:mobile-viewport";
 const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
 const SITE_MOBILE_VIEWPORT_COOKIE_KEY = "site_builder_mobile_viewport";
+const PAGE_SETTINGS_TABS = ["main", "badge", "social", "seo"] as const;
+const PAGE_SETTINGS_TAB_LABELS: Record<(typeof PAGE_SETTINGS_TABS)[number], string> = {
+  main: "Главное",
+  badge: "Бейджик",
+  social: "Соцсети",
+  seo: "SEO",
+};
+
+type PageSettingsTab = (typeof PAGE_SETTINGS_TABS)[number];
 const SITE_PREFERENCES_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const LIBRARY_PANEL_ANIMATION_MS = 220;
 
@@ -181,12 +192,90 @@ function buildCurrentPublicUrl(
   return `${basePath}/${activePage}`;
 }
 
+function buildEditorPageSettingsKey(activePage: SitePageKey, currentEntity: CurrentEntity) {
+  if (currentEntity?.type === "location") return `location:${currentEntity.id}`;
+  if (currentEntity?.type === "service") return `service:${currentEntity.id}`;
+  if (currentEntity?.type === "specialist") return `specialist:${currentEntity.id}`;
+  if (currentEntity?.type === "promo") return `promo:${currentEntity.id}`;
+  if (currentEntity?.type === "legalDocument") return `legal:${currentEntity.id}`;
+  return activePage;
+}
+
+function buildEditorPageSettingsPath(activePage: SitePageKey, currentEntity: CurrentEntity) {
+  if (currentEntity?.type === "location") return `/locations/${currentEntity.id}`;
+  if (currentEntity?.type === "service") return `/services/${currentEntity.id}`;
+  if (currentEntity?.type === "specialist") return `/specialists/${currentEntity.id}`;
+  if (currentEntity?.type === "promo") return `/promos/${currentEntity.id}`;
+  if (currentEntity?.type === "legalDocument") return `/legal/${currentEntity.id}`;
+  if (activePage === "home") return "/";
+  if (activePage === "clientLogin") return "/client/login";
+  if (activePage === "clientCabinet") return "/client/cabinet";
+  return `/${activePage}`;
+}
+
+function makeEmptySeoPageSetting(pageKey: string): SiteSeoPageSetting {
+  return {
+    pageKey,
+    title: "",
+    description: "",
+    ogImageUrl: "",
+    keywords: "",
+    canonicalUrl: "",
+    noIndex: false,
+    noFollow: false,
+  };
+}
+
+function findPageSettingsDefaults(blocks: SiteBlock[], fallbackTitle: string) {
+  const cover = blocks.find((block) => block.type === "cover") ?? blocks[0];
+  const data = cover?.data as Record<string, unknown> | undefined;
+  const title = typeof data?.title === "string" && data.title.trim() ? data.title : fallbackTitle;
+  const description =
+    typeof data?.subtitle === "string" && data.subtitle.trim()
+      ? data.subtitle
+      : typeof data?.description === "string" && data.description.trim()
+        ? data.description
+        : "";
+  return { title, description };
+}
+
+function updateBlockTagInDraft(
+  draft: SiteDraft,
+  activePage: SitePageKey,
+  currentEntity: CurrentEntity,
+  blockId: string,
+  patch: { seoTitleTag?: string; seoSubtitleTag?: string }
+) {
+  const next: SiteDraft = JSON.parse(JSON.stringify(draft));
+  const updateBlocks = (blocks: SiteBlock[] | undefined) => {
+    if (!blocks) return;
+    const block = blocks.find((item) => item.id === blockId);
+    if (block) block.data = { ...block.data, ...patch };
+  };
+
+  if (currentEntity?.type === "location") updateBlocks(next.entityPages?.locations?.[String(currentEntity.id)]);
+  else if (currentEntity?.type === "service") updateBlocks(next.entityPages?.services?.[String(currentEntity.id)]);
+  else if (currentEntity?.type === "specialist") updateBlocks(next.entityPages?.specialists?.[String(currentEntity.id)]);
+  else if (currentEntity?.type === "promo") updateBlocks(next.entityPages?.promos?.[String(currentEntity.id)]);
+  else if (currentEntity?.type === "legalDocument") updateBlocks(next.entityPages?.legalDocuments?.[String(currentEntity.id)]);
+  else if (activePage === "home") {
+    updateBlocks(next.pages?.home);
+    updateBlocks(next.blocks);
+    next.blocks = next.pages?.home ?? next.blocks;
+  } else {
+    updateBlocks(next.pages?.[activePage]);
+  }
+
+  return next;
+}
+
 export default function SiteClient({
   initialActivePage = "home",
   initialCurrentEntity = null,
   initialPreviewMode = "desktop",
   initialMobileViewport = "mobile360",
   initialPublicPage,
+  initialSeoPageSettings,
   account,
   accountProfile,
   branding,
@@ -350,6 +439,9 @@ export default function SiteClient({
   const [mobileViewportPickerOpen, setMobileViewportPickerOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
+  const [pageSettingsTab, setPageSettingsTab] = useState<PageSettingsTab>("main");
+  const [seoPageSettings, setSeoPageSettings] = useState<SiteSeoPageSetting[]>(initialSeoPageSettings);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
   const [coverDrawerKey, setCoverDrawerKey] = useState<
     "slider" | "typography" | "button" | "animation" | null
@@ -764,6 +856,58 @@ export default function SiteClient({
     (item): item is EntityProfileMenuItem =>
       isEntityProfileMenuItem(item) && item.entityType === "service"
   );
+  const activePageSettingsKey = buildEditorPageSettingsKey(activePageKey, currentEntity);
+  const activePageSettingsPath = buildEditorPageSettingsPath(activePageKey, currentEntity);
+  const activeSeoSetting =
+    seoPageSettings.find((item) => item.pageKey === activePageSettingsKey) ??
+    makeEmptySeoPageSetting(activePageSettingsKey);
+  const pageSettingsDefaults = findPageSettingsDefaults(displayBlocks, currentPageTitle);
+  const pageSettingsBlockTags = displayBlocks.map((block, index) => ({
+    blockId: block.id,
+    index,
+    type: block.type,
+    title: typeof block.data.title === "string" ? block.data.title : "",
+    subtitle: typeof block.data.subtitle === "string" ? block.data.subtitle : "",
+    seoTitleTag: typeof block.data.seoTitleTag === "string" ? block.data.seoTitleTag : "",
+    seoSubtitleTag: typeof block.data.seoSubtitleTag === "string" ? block.data.seoSubtitleTag : "",
+  }));
+  const updateSeoSetting = (patch: Partial<SiteSeoPageSetting>) => {
+    setSeoPageSettings((prev) => {
+      const current = prev.find((item) => item.pageKey === activePageSettingsKey);
+      const next = { ...(current ?? makeEmptySeoPageSetting(activePageSettingsKey)), ...patch };
+      return current
+        ? prev.map((item) => (item.pageKey === activePageSettingsKey ? next : item))
+        : [...prev, next];
+    });
+  };
+  const updatePageBlockTag = (
+    blockId: string,
+    patch: { seoTitleTag?: string; seoSubtitleTag?: string }
+  ) => {
+    setDraftTracked(
+      (prev) => updateBlockTagInDraft(prev, activePageKey, currentEntity, blockId, patch),
+      { groupKey: `page-settings:${activePageSettingsKey}:${blockId}` }
+    );
+  };
+  const savePageSettings = async () => {
+    setSaving("page-settings");
+    try {
+      await fetch("/api/v1/crm/settings/seo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageSettings: [activeSeoSetting] }),
+      });
+      await fetch("/api/v1/crm/settings/public-page", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftJson: draftRef.current, publish: false }),
+      });
+      setPageSettingsOpen(false);
+      setMessage("Настройки страницы сохранены");
+    } finally {
+      setSaving(null);
+    }
+  };
   const availableLibraryBlockTypes = useMemo(
     () => {
       const systemPageTypes = getSystemPageLibraryBlockTypes(activePageKey);
@@ -889,6 +1033,275 @@ export default function SiteClient({
           {message}
         </div>
       )}
+      {pageSettingsOpen ? (
+        <div className="fixed inset-0 z-[400] flex items-start justify-center overflow-y-auto bg-black/35 px-4 py-10">
+          <div className="w-full max-w-3xl bg-[color:var(--bp-panel)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[color:var(--bp-stroke)] px-6 py-5">
+              <div>
+                <div className="text-lg font-semibold">Настройки страницы</div>
+                <div className="mt-1 font-mono text-xs text-[color:var(--bp-muted)]">
+                  {activePageSettingsPath}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPageSettingsOpen(false)}
+                className="text-2xl leading-none text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)]"
+                aria-label="Закрыть"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex gap-6 overflow-x-auto border-b border-[color:var(--bp-stroke)] px-6">
+              {PAGE_SETTINGS_TABS.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setPageSettingsTab(tab)}
+                  className={`border-b-2 py-4 text-sm ${
+                    pageSettingsTab === tab
+                      ? "border-[color:var(--bp-ink)] text-[color:var(--bp-ink)]"
+                      : "border-transparent text-[color:var(--bp-muted)]"
+                  }`}
+                >
+                  {PAGE_SETTINGS_TAB_LABELS[tab]}
+                </button>
+              ))}
+            </div>
+            <div className="px-6 py-7">
+              {pageSettingsTab === "main" ? (
+                <div className="grid gap-5">
+                  <label className="text-sm">
+                    Заголовок
+                    <input
+                      value={activeSeoSetting.title}
+                      onChange={(event) => updateSeoSetting({ title: event.target.value })}
+                      placeholder={pageSettingsDefaults.title}
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Описание
+                    <textarea
+                      value={activeSeoSetting.description}
+                      onChange={(event) => updateSeoSetting({ description: event.target.value })}
+                      placeholder={pageSettingsDefaults.description}
+                      rows={3}
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Адрес страницы
+                    <input
+                      value={activePageSettingsPath}
+                      readOnly
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 font-mono text-[color:var(--bp-muted)] outline-none"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {pageSettingsTab === "badge" ? (
+                <div className="grid gap-5">
+                  <div className="text-center">
+                    <div className="text-lg font-medium">Бейджик страницы</div>
+                    <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
+                      По умолчанию используется изображение из обложки или карточки сущности.
+                    </p>
+                  </div>
+                  <label className="text-sm">
+                    Картинка бейджика / OG
+                    <input
+                      value={activeSeoSetting.ogImageUrl}
+                      onChange={(event) => updateSeoSetting({ ogImageUrl: event.target.value })}
+                      placeholder="https://..."
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  {activeSeoSetting.ogImageUrl ? (
+                    <UnoptimizedImage
+                      src={activeSeoSetting.ogImageUrl}
+                      alt=""
+                      width={960}
+                      height={503}
+                      className="mx-auto aspect-[1.91/1] w-full max-w-lg object-cover"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+
+              {pageSettingsTab === "social" ? (
+                <div className="grid gap-5">
+                  <div className="mx-auto w-full max-w-lg border border-[color:var(--bp-stroke)] bg-white p-4 shadow-sm">
+                    {activeSeoSetting.ogImageUrl ? (
+                      <UnoptimizedImage
+                        src={activeSeoSetting.ogImageUrl}
+                        alt=""
+                        width={960}
+                        height={503}
+                        className="aspect-[1.91/1] w-full object-cover"
+                      />
+                    ) : null}
+                    <div className="mt-3 text-base font-semibold text-blue-700">
+                      {activeSeoSetting.title || pageSettingsDefaults.title}
+                    </div>
+                    <div className="mt-1 text-xs text-green-700">https://ваш-домен{activePageSettingsPath}</div>
+                    <div className="mt-2 text-sm text-slate-700">
+                      {activeSeoSetting.description || pageSettingsDefaults.description}
+                    </div>
+                  </div>
+                  <label className="text-sm">
+                    Заголовок для соцсетей
+                    <input
+                      value={activeSeoSetting.title}
+                      onChange={(event) => updateSeoSetting({ title: event.target.value })}
+                      placeholder={pageSettingsDefaults.title}
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              {pageSettingsTab === "seo" ? (
+                <div className="grid gap-5">
+                  <div className="mx-auto w-full max-w-lg border border-[color:var(--bp-stroke)] bg-white p-4 shadow-sm">
+                    <div className="text-base font-medium text-blue-700">
+                      {activeSeoSetting.title || pageSettingsDefaults.title}
+                    </div>
+                    <div className="mt-1 text-xs text-green-700">https://ваш-домен{activePageSettingsPath}</div>
+                    <div className="mt-2 text-sm text-slate-700">
+                      {activeSeoSetting.description || pageSettingsDefaults.description}
+                    </div>
+                  </div>
+                  <label className="text-sm">
+                    Заголовок
+                    <input
+                      value={activeSeoSetting.title}
+                      onChange={(event) => updateSeoSetting({ title: event.target.value })}
+                      placeholder={pageSettingsDefaults.title}
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Описание
+                    <textarea
+                      value={activeSeoSetting.description}
+                      onChange={(event) => updateSeoSetting({ description: event.target.value })}
+                      placeholder={pageSettingsDefaults.description}
+                      rows={2}
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Ключевые слова
+                    <input
+                      value={activeSeoSetting.keywords}
+                      onChange={(event) => updateSeoSetting({ keywords: event.target.value })}
+                      placeholder="уход, стрижка, окрашивание"
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  <label className="text-sm">
+                    Каноническая ссылка
+                    <input
+                      value={activeSeoSetting.canonicalUrl}
+                      onChange={(event) => updateSeoSetting({ canonicalUrl: event.target.value })}
+                      placeholder={`https://ваш-домен${activePageSettingsPath}`}
+                      className="mt-2 w-full border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 outline-none"
+                    />
+                  </label>
+                  <label className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={activeSeoSetting.noIndex}
+                      onChange={(event) => updateSeoSetting({ noIndex: event.target.checked })}
+                    />
+                    Запретить поисковикам индексировать эту страницу
+                  </label>
+                  <label className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={activeSeoSetting.noFollow}
+                      onChange={(event) => updateSeoSetting({ noFollow: event.target.checked })}
+                    />
+                    Запретить поисковой системе переходить по ссылкам на странице
+                  </label>
+
+                  {pageSettingsBlockTags.length ? (
+                    <div className="mt-2 border-t border-[color:var(--bp-stroke)] pt-5">
+                      <div className="text-sm font-semibold">SEO-теги блоков</div>
+                      <div className="mt-3 grid gap-3">
+                        {pageSettingsBlockTags.map((block) => (
+                          <div
+                            key={block.blockId}
+                            className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] p-3 md:grid-cols-[minmax(0,1fr)_120px_120px]"
+                          >
+                            <div>
+                              <div className="text-sm font-medium">
+                                {block.title || block.subtitle || `${block.type} #${block.index + 1}`}
+                              </div>
+                              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{block.type}</div>
+                            </div>
+                            <label className="text-xs">
+                              Заголовок
+                              <select
+                                value={block.seoTitleTag}
+                                onChange={(event) =>
+                                  updatePageBlockTag(block.blockId, { seoTitleTag: event.target.value })
+                                }
+                                className="mt-1 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-transparent px-2 py-2"
+                              >
+                                {["", "h1", "h2", "h3", "h4", "h5", "h6", "div"].map((tag) => (
+                                  <option key={tag} value={tag}>
+                                    {tag || "Не задан"}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-xs">
+                              Подзаголовок
+                              <select
+                                value={block.seoSubtitleTag}
+                                onChange={(event) =>
+                                  updatePageBlockTag(block.blockId, { seoSubtitleTag: event.target.value })
+                                }
+                                className="mt-1 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-transparent px-2 py-2"
+                              >
+                                {["", "h1", "h2", "h3", "h4", "h5", "h6", "div"].map((tag) => (
+                                  <option key={tag} value={tag}>
+                                    {tag || "Не задан"}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[color:var(--bp-stroke)] px-6 py-5">
+              <button
+                type="button"
+                onClick={() => setPageSettingsOpen(false)}
+                className="rounded-full border border-[color:var(--bp-stroke)] px-5 py-2 text-sm"
+              >
+                Закрыть
+              </button>
+              <button
+                type="button"
+                onClick={savePageSettings}
+                disabled={saving === "page-settings"}
+                className="rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {saving === "page-settings" ? "Сохранение..." : "Сохранить изменения"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative">
         <div className="h-8.5" />
@@ -899,25 +1312,25 @@ export default function SiteClient({
           }`}
         >
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
-          <div className="flex min-w-0 flex-wrap items-center gap-4 justify-self-start">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-[color:var(--bp-muted)]">
+          <div className="flex min-w-0 items-center gap-4 justify-self-start">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-[color:var(--bp-muted)]">
             <Link
               href="/crm/site/project"
-              className="text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
-              title="Открыть проект"
+              className="block min-w-0 max-w-[260px] truncate text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
+              title={projectTitle}
             >
               {projectTitle}
             </Link>
-            <span>/</span>
-            <div ref={pagesMenuRef} className="relative">
+            <span className="shrink-0">/</span>
+            <div ref={pagesMenuRef} className="relative min-w-0 flex-1">
               <button
                 type="button"
                 onClick={() => setPagesMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
-                title="Открыть список страниц"
+                className="inline-flex min-w-0 max-w-full items-center gap-2 text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] hover:text-[color:var(--bp-accent)]"
+                title={currentPageTitle}
               >
-                {currentPageTitle}
-                <span className="text-sm leading-none">{pagesMenuOpen ? "▴" : "▾"}</span>
+                <span className="min-w-0 truncate">{currentPageTitle}</span>
+                <span className="shrink-0 text-sm leading-none">{pagesMenuOpen ? "▴" : "▾"}</span>
               </button>
               {pagesMenuOpen && (
                 <div className="absolute left-0 top-full z-[300] w-[360px] rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-[color:var(--bp-ink)] shadow-[var(--bp-shadow)]">
@@ -1127,19 +1540,22 @@ export default function SiteClient({
               )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          </div>
+          <div className="relative flex items-center justify-self-center">
             <button
               type="button"
               onClick={() => {
                 window.location.href = "/crm/site/project";
               }}
-              className="rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-2 text-sm"
+              className="absolute right-full top-1/2 mr-6 flex h-10 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-none border-0 bg-transparent px-2 text-xs font-medium text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)]"
+              aria-label="Вернуться в CRM"
+              title="Вернуться в CRM"
             >
-              Вернуться в CRM
+              <svg viewBox="0 0 1024 1024" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+                <path d="M384 192a32 32 0 0 1 0 45.248L237.248 384H640a224 224 0 0 1 0 448H384a32 32 0 1 1 0-64h256a160 160 0 0 0 0-320H237.248L384 594.752A32 32 0 1 1 338.752 640l-201.376-201.376a32 32 0 0 1 0-45.248L338.752 192A32 32 0 0 1 384 192z" />
+              </svg>
+              <span>В CRM</span>
             </button>
-          </div>
-          </div>
-          <div className="relative flex items-center justify-self-center">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -1211,7 +1627,7 @@ export default function SiteClient({
               type="button"
               onClick={handleUndo}
               disabled={!canUndo}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-none border-0 bg-transparent text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)] disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Отменить действие"
               title="Отменить"
             >
@@ -1224,7 +1640,7 @@ export default function SiteClient({
               type="button"
               onClick={handleRedo}
               disabled={!canRedo}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-none border-0 bg-transparent text-[color:var(--bp-muted)] transition hover:text-[color:var(--bp-ink)] disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Повторить действие"
               title="Повторить"
             >
@@ -1233,14 +1649,26 @@ export default function SiteClient({
               </svg>
             </button>
             {publicUrl && (
-              <button
-                type="button"
-                onClick={handlePublishCurrentPage}
-                className="rounded-full bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={saving === "public"}
-              >
-                Опубликовать
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handlePublishCurrentPage}
+                  className="rounded-none border-0 bg-transparent px-2 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--bp-ink)] transition hover:text-[color:var(--bp-accent)] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={saving === "public"}
+                >
+                  Опубликовать
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPageSettingsTab("main");
+                    setPageSettingsOpen(true);
+                  }}
+                  className="rounded-none border-0 bg-transparent px-2 py-2 text-xs uppercase tracking-[0.16em] text-[color:var(--bp-ink)] transition hover:text-[color:var(--bp-accent)]"
+                >
+                  Настройки
+                </button>
+              </>
             )}
           </div>
         </div>
