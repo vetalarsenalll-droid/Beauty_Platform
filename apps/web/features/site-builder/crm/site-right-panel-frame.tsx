@@ -74,7 +74,7 @@ export function SiteRightPanelFrame({
             type="button"
             onClick={onSave}
             disabled={saving === "public"}
-            className="h-12 px-3 text-xs font-medium whitespace-nowrap text-white disabled:opacity-60"
+            className="h-14 px-3 text-xs font-medium whitespace-nowrap text-white disabled:opacity-60"
             style={{ backgroundColor: panelTheme.save }}
           >
             Сохранить
@@ -83,7 +83,7 @@ export function SiteRightPanelFrame({
             type="button"
             onClick={onSaveAndClose}
             disabled={saving === "public"}
-            className="h-12 px-3 text-xs font-medium whitespace-nowrap text-white disabled:opacity-60"
+            className="h-14 px-3 text-xs font-medium whitespace-nowrap text-white disabled:opacity-60"
             style={{ backgroundColor: panelTheme.saveClose }}
           >
             Сохранить и закрыть
