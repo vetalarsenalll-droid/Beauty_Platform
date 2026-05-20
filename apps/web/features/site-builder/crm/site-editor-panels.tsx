@@ -1,6 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  BLOCK_VARIANTS,
   type SiteBlock,
   type SiteTheme,
 } from "@/lib/site-builder";
@@ -36,7 +35,6 @@ import {
   hexToRgbaString,
   isSystemBlockType,
   parseBackdropColor,
-  variantsLabel,
 } from "./site-client-core";
 import type {
   CoverBackgroundMode,
@@ -736,7 +734,6 @@ export function BlockEditor({
   services,
   specialists,
   promos,
-  activeSectionId,
   onChange,
 }: {
   block: SiteBlock;
@@ -753,35 +750,8 @@ export function BlockEditor({
   const updateData = (patch: Record<string, unknown>) => {
     onChange({ ...block, data: { ...block.data, ...patch } });
   };
-  const inSection = (...ids: string[]) =>
-    ids.length === 0 || ids.includes(activeSectionId) || activeSectionId === "main";
-
-  const variantOptions = BLOCK_VARIANTS[block.type];
-
   return (
     <div className="space-y-6 [&_input:not([type='checkbox']):not([type='range'])]:!rounded-none [&_input:not([type='checkbox']):not([type='range'])]:!border-0 [&_input:not([type='checkbox']):not([type='range'])]:!border-b [&_input:not([type='checkbox']):not([type='range'])]:!border-[color:var(--bp-stroke)] [&_input:not([type='checkbox']):not([type='range'])]:!bg-transparent [&_input:not([type='checkbox']):not([type='range'])]:!px-0 [&_input:not([type='checkbox']):not([type='range'])]:!py-1 [&_input:not([type='checkbox']):not([type='range'])]:!shadow-none [&_input:not([type='checkbox']):not([type='range'])]:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus:!ring-0 [&_input:not([type='checkbox']):not([type='range'])]:focus:!outline-none [&_input:not([type='checkbox']):not([type='range'])]:focus-visible:!outline-none [&_textarea]:!rounded-none [&_textarea]:!border-0 [&_textarea]:!border-b [&_textarea]:!border-[color:var(--bp-stroke)] [&_textarea]:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1 [&_textarea]:!shadow-none [&_textarea]:!outline-none [&_textarea]:focus:!ring-0 [&_textarea]:focus:!outline-none [&_textarea]:focus-visible:!outline-none [&_select]:!rounded-none [&_select]:!border-0 [&_select]:!border-b [&_select]:!border-[color:var(--bp-stroke)] [&_select]:!bg-transparent [&_select]:!px-0 [&_select]:!py-1 [&_select]:!shadow-none [&_select]:!outline-none [&_select]:focus:!ring-0 [&_select]:focus:!outline-none [&_select]:focus-visible:!outline-none">
-      {(variantOptions.length > 1 && block.type !== "loader" && inSection("main", "structure")) && (
-        <label className="block">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-            Вариант
-          </div>
-          <select
-            value={block.variant}
-            onChange={(event) => {
-              const nextVariant = event.target.value as "v1" | "v2" | "v3" | "v4" | "v5";
-              onChange({ ...block, variant: nextVariant });
-            }}
-            className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 py-2"
-          >
-            {variantOptions.map((variant) => (
-              <option key={variant} value={variant}>
-                {variantsLabel[variant]}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-
       {/* menu content moved to blocks/menu/ME* */}
 
       {/* cover content moved to blocks/cover/HE* */}

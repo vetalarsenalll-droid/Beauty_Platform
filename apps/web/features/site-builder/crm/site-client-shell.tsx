@@ -24,6 +24,7 @@ import {
   PANEL_ANIMATION_MS,
   SETTINGS_SECTIONS_BY_BLOCK,
   isSystemBlockType,
+  variantsLabel,
 } from "@/features/site-builder/crm/site-client-core";
 import type {
   CurrentEntity,
@@ -269,6 +270,92 @@ function updateBlockTagInDraft(
   return next;
 }
 
+const VARIANT_CONTENT_KEYS = [
+  "title",
+  "subtitle",
+  "description",
+  "text",
+  "buttonText",
+  "buttonPage",
+  "buttonHref",
+  "secondaryButtonText",
+  "secondaryButtonHref",
+  "imageUrl",
+  "imageSource",
+  "coverSlides",
+  "items",
+] as const;
+
+function cloneVariantValue<T>(value: T): T {
+  if (!value || typeof value !== "object") return value;
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch {
+    return value;
+  }
+}
+
+function getFirstCoverSlide(data: Record<string, unknown>) {
+  const slides = Array.isArray(data.coverSlides) ? (data.coverSlides as Array<Record<string, unknown>>) : [];
+  return slides.find((slide) => {
+    const title = typeof slide.title === "string" ? slide.title.trim() : "";
+    const description = typeof slide.description === "string" ? slide.description.trim() : "";
+    const buttonText = typeof slide.buttonText === "string" ? slide.buttonText.trim() : "";
+    const imageUrl = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
+    return Boolean(title || description || buttonText || imageUrl);
+  });
+}
+
+function pickVariantContent(
+  type: BlockType,
+  data: Record<string, unknown>,
+  targetVariant: SiteBlock["variant"]
+) {
+  const content: Record<string, unknown> = {};
+  VARIANT_CONTENT_KEYS.forEach((key) => {
+    if (key in data) content[key] = cloneVariantValue(data[key]);
+  });
+
+  if (type !== "cover") return content;
+
+  const firstSlide = getFirstCoverSlide(data);
+  if (firstSlide && targetVariant !== "v2") {
+    const slideTitle = typeof firstSlide.title === "string" ? firstSlide.title : "";
+    const slideDescription = typeof firstSlide.description === "string" ? firstSlide.description : "";
+    const slideButtonText = typeof firstSlide.buttonText === "string" ? firstSlide.buttonText : "";
+    const slideImageUrl = typeof firstSlide.imageUrl === "string" ? firstSlide.imageUrl.trim() : "";
+    if (slideTitle.trim()) content.title = slideTitle;
+    if (slideDescription.trim()) content.description = slideDescription;
+    if (slideButtonText.trim()) content.buttonText = slideButtonText;
+    if (slideImageUrl) content.imageSource = { type: "custom", url: slideImageUrl };
+  }
+
+  if (targetVariant === "v2" && !Array.isArray(content.coverSlides)) {
+    const imageSource =
+      typeof data.imageSource === "object" && data.imageSource ? (data.imageSource as Record<string, unknown>) : null;
+    const customImageUrl =
+      imageSource?.type === "custom" && typeof imageSource.url === "string" ? imageSource.url : "";
+    content.coverSlides = [
+      {
+        id: "slide-1",
+        title: typeof data.title === "string" ? data.title : "",
+        description:
+          typeof data.description === "string"
+            ? data.description
+            : typeof data.subtitle === "string"
+              ? data.subtitle
+              : "",
+        buttonText: typeof data.buttonText === "string" ? data.buttonText : "",
+        buttonPage: typeof data.buttonPage === "string" ? data.buttonPage : "booking",
+        buttonHref: typeof data.buttonHref === "string" ? data.buttonHref : "",
+        imageUrl: customImageUrl,
+      },
+    ];
+  }
+
+  return content;
+}
+
 export default function SiteClient({
   initialActivePage = "home",
   initialCurrentEntity = null,
@@ -431,6 +518,11 @@ export default function SiteClient({
   const [libraryVariantsBlock, setLibraryVariantsBlock] = useState<BlockType | null>(null);
   const [isLibraryVariantsVisible, setIsLibraryVariantsVisible] = useState(false);
   const [shouldAnimateLibraryVariants, setShouldAnimateLibraryVariants] = useState(false);
+  const [variantDrawerBlockId, setVariantDrawerBlockId] = useState<string | null>(null);
+  const [isVariantDrawerVisible, setIsVariantDrawerVisible] = useState(false);
+  const variantDrawerCloseTimerRef = useRef<number | null>(null);
+  const [variantDrawerDraftVariant, setVariantDrawerDraftVariant] = useState<SiteBlock["variant"] | null>(null);
+  const [variantKeepContent, setVariantKeepContent] = useState(false);
   const [rightPanel, setRightPanel] = useState<"content" | "settings" | null>(
     null
   );
@@ -515,10 +607,66 @@ export default function SiteClient({
     setLeftPanel(null);
   };
 
+  const closeVariantDrawer = () => {
+    if (variantDrawerCloseTimerRef.current) {
+      window.clearTimeout(variantDrawerCloseTimerRef.current);
+    }
+    setIsVariantDrawerVisible(false);
+    variantDrawerCloseTimerRef.current = window.setTimeout(() => {
+      setVariantDrawerBlockId(null);
+      variantDrawerCloseTimerRef.current = null;
+    }, LIBRARY_PANEL_ANIMATION_MS);
+  };
+
+  const openVariantDrawer = (blockId: string) => {
+    if (variantDrawerCloseTimerRef.current) {
+      window.clearTimeout(variantDrawerCloseTimerRef.current);
+      variantDrawerCloseTimerRef.current = null;
+    }
+    const block = displayBlocks.find((item) => item.id === blockId) ?? null;
+    setSelectedId(blockId);
+    setRightPanel(null);
+    setLeftPanel(null);
+    setVariantDrawerBlockId(blockId);
+    setVariantDrawerDraftVariant(block?.variant ?? null);
+    setIsVariantDrawerVisible(false);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setIsVariantDrawerVisible(true));
+    });
+  };
+
   const toggleLibraryBlock = (type: BlockType) => {
     const isClosingCurrentBlock = libraryBlock === type;
     setShouldAnimateLibraryVariants(libraryBlock === null || isClosingCurrentBlock);
     setLibraryBlock(isClosingCurrentBlock ? null : type);
+  };
+
+  const buildVariantBlock = (
+    current: SiteBlock,
+    variant: SiteBlock["variant"],
+    keepContent: boolean
+  ): SiteBlock => {
+    const template = resolveBlockVersion({ block: { ...current, variant } }).createDefault({ accountName: account.name });
+    const currentData = current.data as Record<string, unknown>;
+    const templateData = template.data as Record<string, unknown>;
+    const contentPatch = keepContent ? pickVariantContent(current.type, currentData, variant) : {};
+
+    return {
+      ...current,
+      variant,
+      data: {
+        ...templateData,
+        ...contentPatch,
+      },
+    };
+  };
+
+  const applyVariantDrawerSelection = () => {
+    if (!variantDrawerBlock || !variantDrawerDraftVariant) return;
+    updateBlock(variantDrawerBlock.id, (current) =>
+      buildVariantBlock(current, variantDrawerDraftVariant, variantKeepContent)
+    );
+    closeVariantDrawer();
   };
 
   useEffect(() => {
@@ -597,6 +745,7 @@ export default function SiteClient({
   }, [activePage, currentEntity, editableLocations, legalDocuments, platformLegalDocuments, services, specialists]);
 
   const selectedBlock = displayBlocks.find((block) => block.id === selectedId) ?? null;
+  const variantDrawerBlock = displayBlocks.find((block) => block.id === variantDrawerBlockId) ?? null;
   const pendingDeleteBlock = pendingDeleteBlockId
     ? displayBlocks.find((block) => block.id === pendingDeleteBlockId) ?? null
     : null;
@@ -955,7 +1104,12 @@ export default function SiteClient({
   const panelTheme = resolvePanelTheme(activeTheme.mode);
   const selectedBlockVersion = selectedBlock ? resolveBlockVersion({ block: selectedBlock }) : null;
   const isFloatingPanelVisible =
-    Boolean(rightPanel) || libraryPanelMounted || isRightPanelVisible || isLibraryPanelVisible || libraryPanelClosing;
+    Boolean(rightPanel) ||
+    Boolean(variantDrawerBlockId) ||
+    libraryPanelMounted ||
+    isRightPanelVisible ||
+    isLibraryPanelVisible ||
+    libraryPanelClosing;
   const floatingPanelsTop = isFloatingPanelVisible ? 0 : 56;
   const builderCanvasBg = activeTheme.mode === "dark" ? "#111318" : "#f6f7f9";
   const publishEntity =
@@ -1730,6 +1884,7 @@ export default function SiteClient({
               }}
               onAdjustSpacing={(delta, target) => adjustSpacingAt(0, delta, target)}
               onInsert={() => {
+                closeVariantDrawer();
                 setInsertIndex(0);
                 setLeftPanel("library");
                 setLibraryBlock(null);
@@ -1750,6 +1905,8 @@ export default function SiteClient({
               const removeBtnClass = controlsDark
                 ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#7f1d1d] bg-[#111827] text-xs font-semibold text-[#fca5a5] shadow-sm hover:bg-[#1f2937]"
                 : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#fda4af] bg-white text-xs font-semibold text-[#dc2626] shadow-sm hover:bg-[#f3f4f6]";
+              const variantOptions = getBlockVariants(block.type);
+              const currentBlockCode = getLibraryBlockCode(block.type, block.variant);
               const controlsWrapClass =
                 previewMode === "mobile"
                   ? "pointer-events-none absolute left-1/2 top-3 z-20 flex w-screen -translate-x-1/2 items-start justify-between px-3"
@@ -1774,9 +1931,20 @@ export default function SiteClient({
                 {isBlockActive && !rightPanel && (
                   <div className={controlsWrapClass}>
                     <div className="pointer-events-auto flex items-center gap-1">
+                      {variantOptions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => openVariantDrawer(block.id)}
+                          className={`${leftBtnClass} min-w-20`}
+                          aria-expanded={variantDrawerBlockId === block.id && isVariantDrawerVisible}
+                        >
+                          {currentBlockCode}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
+                          closeVariantDrawer();
                           setSelectedId(block.id);
                           setRightPanel("content");
                         }}
@@ -1787,6 +1955,7 @@ export default function SiteClient({
                       <button
                         type="button"
                         onClick={() => {
+                          closeVariantDrawer();
                           setSelectedId(block.id);
                           setRightPanel("settings");
                         }}
@@ -1884,6 +2053,7 @@ export default function SiteClient({
                     adjustSpacingAt(index + 1, delta, target)
                   }
                   onInsert={() => {
+                    closeVariantDrawer();
                     setInsertIndex(index + 1);
                     setLeftPanel("library");
                     setLibraryBlock(null);
@@ -1909,6 +2079,7 @@ export default function SiteClient({
                   <button
                     type="button"
                     onClick={() => {
+                      closeVariantDrawer();
                       setInsertIndex(displayBlocks.length);
                       setLeftPanel("library");
                       setLibraryBlock(null);
@@ -1940,6 +2111,134 @@ export default function SiteClient({
             ) : null}
           </div>
         </main>
+
+        {variantDrawerBlock && (
+          <>
+            <button
+              type="button"
+              className="fixed inset-x-0 bottom-0 z-[210] cursor-default bg-transparent"
+              style={{ top: floatingPanelsTop }}
+              aria-label="Закрыть варианты блока"
+              onClick={closeVariantDrawer}
+            />
+            <aside
+              className={`fixed z-[220] flex w-[400px] max-w-[92vw] flex-col overflow-hidden border-r shadow-[var(--bp-shadow)] transition-transform duration-[220ms] ease-out ${
+                isVariantDrawerVisible ? "translate-x-0" : "-translate-x-full"
+              } ${
+                activeTheme.mode === "dark"
+                  ? "border-[#2b2b2b] bg-[#111111] text-[#f3f4f6]"
+                  : "border-[color:var(--bp-stroke)] bg-[color:var(--bp-surface)] text-[color:var(--bp-ink)]"
+              }`}
+              style={{ left: 0, top: floatingPanelsTop, bottom: 0 }}
+            >
+              <div className="flex h-14 items-center justify-between border-b border-[color:var(--bp-stroke)] px-4">
+                <div>
+                  <div className="text-sm font-semibold">{getLibraryLabel(variantDrawerBlock.type, activePageKey)}</div>
+                  <div className="mt-0.5 text-xs text-[color:var(--bp-muted)]">Выберите вариант блока</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeVariantDrawer}
+                  className="grid h-8 w-8 place-items-center text-2xl leading-none text-[color:var(--bp-muted)] transition-colors hover:text-[color:var(--bp-ink)]"
+                  aria-label="Закрыть варианты блока"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="flex border-b border-[color:var(--bp-stroke)] px-4 py-3">
+                <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-xs text-[color:var(--bp-ink)]">
+                  <span
+                    className={`relative inline-flex h-4 w-7 shrink-0 rounded-full transition-colors ${
+                      variantKeepContent
+                        ? "bg-[color:var(--bp-accent)] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]"
+                        : "bg-[#eef1f5] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.12)]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={variantKeepContent}
+                      onChange={(event) => setVariantKeepContent(event.target.checked)}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.35)] transition-transform ${
+                        variantKeepContent ? "translate-x-3.5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </span>
+                  <span>Сохранять контент</span>
+                </label>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="divide-y divide-[color:var(--bp-stroke)]">
+                  {getBlockVariants(variantDrawerBlock.type).map((variant) => {
+                    const blockCode = getLibraryBlockCode(variantDrawerBlock.type, variant);
+                    const isCurrent = variantDrawerBlock.variant === variant;
+                    const isSelectedVariant = (variantDrawerDraftVariant ?? variantDrawerBlock.variant) === variant;
+                    return (
+                      <button
+                        key={variant}
+                        type="button"
+                        onClick={() => {
+                          setVariantDrawerDraftVariant(variant);
+                        }}
+                        className={`block w-full bg-transparent p-4 text-left transition-colors ${
+                          isSelectedVariant ? "bg-[color:var(--bp-paper)]" : "hover:bg-[color:var(--bp-paper)]"
+                        }`}
+                      >
+                        <div className="relative overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)]">
+                          <div className="relative aspect-[19/9] bg-[color:var(--bp-surface)]">
+                            <UnoptimizedImage
+                              src={getLibraryPreviewSrc(blockCode)}
+                              alt={`${blockCode} ${getLibraryLabel(variantDrawerBlock.type, activePageKey)}`}
+                              className="h-full w-full object-cover"
+                              height={427}
+                              width={900}
+                            />
+                          </div>
+                          {isSelectedVariant && !isCurrent && (
+                            <div className="absolute inset-0 grid place-items-center bg-black/20">
+                              <span
+                                role="button"
+                                tabIndex={-1}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  applyVariantDrawerSelection();
+                                }}
+                                className="rounded-full bg-[color:var(--bp-save-close,#ff6b57)] px-5 py-2 text-xs font-semibold text-white shadow-lg transition hover:brightness-95"
+                              >
+                                Применить
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="rounded-full bg-[color:var(--bp-muted)] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              {blockCode}
+                            </span>
+                            <span className="truncate text-sm font-semibold">{variantsLabel[variant]}</span>
+                          </div>
+                          {isCurrent ? (
+                            <span className="shrink-0 rounded-full bg-[color:var(--bp-accent)] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Текущий
+                            </span>
+                          ) : isSelectedVariant ? (
+                            <span className="shrink-0 rounded-full bg-[color:var(--bp-save-close,#ff6b57)] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Выбран
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </aside>
+          </>
+        )}
 
         {libraryPanelMounted && (
           <>
