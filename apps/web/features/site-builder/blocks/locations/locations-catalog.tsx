@@ -998,6 +998,14 @@ export function LocationsCatalog({
     : `mt-6 flex max-w-full flex-nowrap justify-start overflow-x-auto overflow-y-hidden pb-1 gap-2 sm:flex-wrap sm:overflow-visible sm:pb-0 ${alignClassName(filtersAlignment)} [scrollbar-width:thin] [scrollbar-color:var(--block-border,var(--bp-stroke))_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[color:var(--block-border,var(--bp-stroke))]`;
   const levelTabsStyle: CSSProperties | undefined =
     hasPreviewViewport && !isNarrowPreviewViewport ? { justifyContent: filtersJustifyContent } : undefined;
+  const hasFilterControls =
+    showSearch || showSort || (showLocationFilter && availableLocations.length > 1 && !currentLocationId);
+  const filtersRowClassName = hasPreviewViewport
+    ? `mt-7 flex w-full gap-4 ${isNarrowPreviewViewport ? "flex-col" : "items-start justify-between"}`
+    : "mt-7 flex w-full flex-col gap-4 sm:flex-row sm:items-start sm:justify-between";
+  const filtersControlsWrapClassName = hasPreviewViewport
+    ? `${isNarrowPreviewViewport ? "w-full" : "min-w-0 flex-1"}`
+    : "w-full sm:min-w-0 sm:flex-1";
 
   return (
     <section
@@ -1014,7 +1022,7 @@ export function LocationsCatalog({
             {title}
           </h2>
         )}
-        {subtitle && (
+        {subtitle && !hasFilterControls && (
           <p
             className="mt-3 max-w-[760px] leading-relaxed text-[color:var(--block-muted,var(--bp-muted))]"
             style={subheadingStyle}
@@ -1024,8 +1032,19 @@ export function LocationsCatalog({
         )}
       </div>
 
-      {(showSearch || showSort || (showLocationFilter && availableLocations.length > 1 && !currentLocationId)) && (
-        <div className="mt-7 w-full">
+      {hasFilterControls && (
+        <div className={filtersRowClassName}>
+          {subtitle ? (
+            <p
+              className="min-w-0 max-w-[760px] leading-relaxed text-[color:var(--block-muted,var(--bp-muted))]"
+              style={subheadingStyle}
+            >
+              {subtitle}
+            </p>
+          ) : (
+            <div aria-hidden="true" />
+          )}
+          <div className={filtersControlsWrapClassName}>
           <button
             type="button"
             onClick={() => setAreMobileFiltersOpen((open) => !open)}
@@ -1239,6 +1258,7 @@ export function LocationsCatalog({
               ) : null}
               </div>
             )}
+          </div>
           </div>
         </div>
       )}
