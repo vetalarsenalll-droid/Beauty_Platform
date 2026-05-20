@@ -913,6 +913,17 @@ const createClientCabinetBlock = (): SiteBlock => {
     data: {
       ...data,
       clientView: "cabinet",
+      cabinetTitle: "Личный кабинет",
+      cabinetEmail: "client@example.com",
+      cabinetSectionLabel: "Клиентский кабинет",
+      appointmentTitle: "Следующая запись",
+      appointmentEmptyText: "Пока нет ближайших записей.",
+      smartHintTitle: "Умные подсказки",
+      smartHintText: "Вы недавно были у нас. Хотите повторить услугу позже?",
+      loyaltyTitle: "Лояльность",
+      loyaltyStatusText: "Статус: Базовый",
+      contactsTitle: "Контакты",
+      organizationsTitle: "Каталог организаций",
       style: {
         ...style,
         blockWidthColumns: 8,

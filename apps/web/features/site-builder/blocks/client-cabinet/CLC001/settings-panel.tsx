@@ -182,13 +182,13 @@ export function ClientCabinetSettingsPanel(ctx: CrmPanelCtx) {
         {drawerButton("typography", "Типографика", ctx)}
         {drawerButton("button", "Кнопки кабинета", ctx)}
       </div>
-      <BackgroundField label="Фон страницы" prefix="cabinetPageBg" fallback="#eef2f7" style={style} ctx={ctx} />
       <BackgroundField label="Фон карточек" prefix="cabinetBlockBg" fallback="#ffffff" style={style} ctx={ctx} />
       {renderCoverFlatNumberInput("Скругление карточек", readNumber(style, "cabinetRadius", 0), 0, 64, (value) => updateCabinetStyle(ctx, { cabinetRadius: value }))}
       <div className="grid grid-cols-2 gap-4">
         {lineSelect("Отступ сверху", marginTopLines, (value) => updateCabinetStyle(ctx, { marginTop: Math.round(value * COVER_LINE_STEP_PX) }))}
         {lineSelect("Отступ снизу", marginBottomLines, (value) => updateCabinetStyle(ctx, { marginBottom: Math.round(value * COVER_LINE_STEP_PX) }))}
       </div>
+      <BackgroundField label="Цвет фона для всего блока" prefix="cabinetPageBg" fallback="#eef2f7" style={style} ctx={ctx} />
       <button type="button" onClick={() => setDarkOpen((prev) => !prev)} className="mt-3 flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition" style={{ borderColor: darkOpen ? "#ff5a5f" : ctx.panelTheme.border, color: darkOpen ? ctx.panelTheme.text : ctx.panelTheme.muted }}>
         <span className="inline-flex items-center gap-2">
           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" /></svg>
@@ -198,8 +198,8 @@ export function ClientCabinetSettingsPanel(ctx: CrmPanelCtx) {
       </button>
       {darkOpen ? (
         <>
-          <BackgroundField label="Фон страницы" prefix="cabinetPageBg" fallback="#0f1012" dark style={style} ctx={ctx} />
           <BackgroundField label="Фон карточек" prefix="cabinetBlockBg" fallback="#181b22" dark style={style} ctx={ctx} />
+          <BackgroundField label="Цвет фона для всего блока" prefix="cabinetPageBg" fallback="#0f1012" dark style={style} ctx={ctx} />
         </>
       ) : null}
     </div>

@@ -95,7 +95,14 @@ export default function ClientRegisterPage({
     >
       <div
         className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
-        style={{ borderRadius: "var(--site-client-auth-radius, 28px)" }}
+        style={{
+          width: "var(--site-client-content-width, 100%)",
+          marginLeft: "var(--site-client-content-left, auto)",
+          marginRight: 0,
+          borderRadius: "var(--site-client-auth-radius, 28px)",
+          backgroundColor: "transparent",
+          backgroundImage: "none",
+        }}
       >
         <div
           className="flex flex-col justify-between gap-6 p-10 text-white"
@@ -127,7 +134,7 @@ export default function ClientRegisterPage({
             </div>
           </div>
         </div>
-        <div className="p-10">
+        <div className="p-10" style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
           <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
             Личный кабинет
           </div>

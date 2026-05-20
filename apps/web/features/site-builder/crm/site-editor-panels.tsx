@@ -2476,7 +2476,7 @@ export function BlockStyleEditor({
           ) : block.type === "client" ? (
             <div className="grid grid-cols-2 gap-3">
               <ColorField
-                label={isClientLogin ? "Фон страницы" : "Фон кабинета"}
+                label="Цвет фона для всего блока"
                 value={toDisplay(readRaw(isClientLogin ? "authPageBg" : "cabinetPageBg") || (isClientLogin ? "#f3f4f6" : "#eef2f7"))}
                 placeholder={isClientLogin ? "#f3f4f6" : "#eef2f7"}
                 onChange={(value) =>

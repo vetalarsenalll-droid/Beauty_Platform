@@ -129,6 +129,12 @@ type BlockStyle = {
   radius?: number | null;
   buttonRadius?: number | null;
   cardRadius?: number | null;
+  authPageBg?: string;
+  authBlockBg?: string;
+  authSideBg?: string;
+  authRightBg?: string;
+  cabinetPageBg?: string;
+  cabinetBlockBg?: string;
   bookingImageRadius?: number | null;
   subBlockBg?: string;
   subBlockBgLight?: string;
@@ -395,6 +401,49 @@ function isLightShadowColor(value: string): boolean {
     normalized.includes("255 255 255") ||
     /255\s*,\s*255\s*,\s*255/.test(normalized)
   );
+}
+
+export function resolveClientPageBackground(block: SiteBlock, theme: SiteTheme) {
+  const data = block.data as Record<string, unknown>;
+  const rawStyle =
+    data.style && typeof data.style === "object" ? (data.style as Record<string, unknown>) : {};
+  const view =
+    block.type === "clientCabinet" || data.clientView === "cabinet" ? "cabinet" : "login";
+  const prefix = view === "cabinet" ? "cabinetPageBg" : "authPageBg";
+  const fallback = theme.mode === "dark"
+    ? view === "cabinet" ? "#0f1012" : "#0f1012"
+    : view === "cabinet" ? "#eef2f7" : "#f3f4f6";
+  const suffix = theme.mode === "dark" ? "Dark" : "Light";
+  const legacyKey = theme.mode === "dark" ? `${prefix}Dark` : prefix;
+  const readColor = (key: string, colorFallback: string) => {
+    const value = rawStyle[key];
+    return typeof value === "string" && value.trim() ? value.trim() : colorFallback;
+  };
+  const readNumber = (key: string, numberFallback: number) => {
+    const value = Number(rawStyle[key]);
+    return Number.isFinite(value) ? Math.round(value) : numberFallback;
+  };
+  const modeRaw = rawStyle[`${prefix}Mode${suffix}`];
+  const mode = modeRaw === "linear" || modeRaw === "radial" ? modeRaw : "solid";
+  const from = readColor(`${prefix}From${suffix}`, readColor(legacyKey, fallback));
+  const to = readColor(`${prefix}To${suffix}`, from);
+  const angle = readNumber(`${prefix}Angle${suffix}`, 135);
+  const stopA = Math.max(0, Math.min(100, readNumber(`${prefix}StopA${suffix}`, 0)));
+  const stopB = Math.max(0, Math.min(100, readNumber(`${prefix}StopB${suffix}`, 100)));
+
+  if (mode === "linear") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `linear-gradient(${angle}deg, ${from} ${stopA}%, ${to} ${stopB}%)`,
+    };
+  }
+  if (mode === "radial") {
+    return {
+      backgroundColor: from,
+      backgroundImage: `radial-gradient(circle, ${from} ${stopA}%, ${to} ${stopB}%)`,
+    };
+  }
+  return { backgroundColor: from, backgroundImage: "none" };
 }
 
 export function normalizeStyle(block: SiteBlock, theme: SiteTheme): BlockStyle {
@@ -2801,6 +2850,7 @@ export function buildBlockWrapperStyle(
     coverVariant?: SiteBlock["variant"];
     coverBackground?: { backgroundColor: string; backgroundImage: string };
     menuSectionBackground?: { backgroundColor: string; backgroundImage: string };
+    clientPageBackground?: { backgroundColor: string; backgroundImage: string };
   }
 ) {
     const blockShadowSize = typeof style.shadowSize === "number" ? style.shadowSize : null;
@@ -2915,7 +2965,7 @@ export function buildBlockWrapperStyle(
             : isMenu
               ? (options.menuSectionBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
               : isClientBlock
-              ? "transparent"
+              ? (options.clientPageBackground?.backgroundColor ?? "var(--block-section-bg, var(--block-bg))")
               : isServicesBlock || isBookingBlock
               ? "var(--services-section-bg, var(--block-section-bg, var(--block-bg)))"
               : isGallery || isBookingBlock || isServicesBlock || isClientBlock
@@ -2927,7 +2977,7 @@ export function buildBlockWrapperStyle(
             : isMenu
               ? (options.menuSectionBackground?.backgroundImage ?? "none")
               : isClientBlock
-              ? "none"
+              ? (options.clientPageBackground?.backgroundImage ?? "none")
               : isServicesBlock || isBookingBlock
               ? "var(--services-section-image, none)"
               : isGallery || isBookingBlock || isServicesBlock || isClientBlock
@@ -2963,10 +3013,10 @@ export function buildBlockWrapperStyle(
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
-        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "100%" : gridWidthCss,
+        width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
-        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : gridLeftCss,
-        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock ? "auto" : 0,
+        marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : gridLeftCss,
+        marginRight: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : 0,
         boxSizing: "border-box",
         color: "var(--block-text)",
         ["--works-content-width" as string]: gridWidthCss,
@@ -5421,7 +5471,7 @@ function renderClient(
   const authPageVisual = resolveBg("authPageBg", "#f3f4f6", "#0f1012");
   const authBlockVisual = resolveBg("authBlockBg", "#ffffff", "#181b22");
   const authSideVisual = resolveBg("authSideBg", "#1f2937", "#111827");
-  const authRightVisual = resolveBg("authRightBg", "#ffffff", "#181b22");
+  const authRightVisual = authBlockVisual;
   const authRadius = readNumber("authRadius", 0);
   const authButtonRadius = readNumber("authButtonRadius", 0);
   const authSocialButtonRadius = readNumber("authSocialButtonRadius", authButtonRadius);
@@ -5462,6 +5512,18 @@ function renderClient(
   } else if (data.clientView === "cabinet") {
     resolvedAuthMode = "cabinet";
   }
+  const contentColumns = clampBlockColumns(
+    style.blockWidthColumns ?? (resolvedAuthMode === "cabinet" ? 8 : 6),
+    block.type
+  );
+  const contentGrid = centeredGridRange(contentColumns);
+  const contentGridStart = clampGridColumn(style.gridStartColumn ?? contentGrid.start);
+  const contentGridEnd = Math.max(
+    contentGridStart,
+    clampGridColumn(style.gridEndColumn ?? contentGrid.end)
+  );
+  const contentWidth = gridSpanWidthCss(contentGridStart, contentGridEnd);
+  const contentLeft = gridSpanLeftCss(contentGridStart);
 
   return (
     <div
@@ -5516,6 +5578,8 @@ function renderClient(
           "--bp-surface": resolvedAuthMode === "login" ? authPageVisual.color : cabinetPageVisual.color,
           "--site-button-radius": `${resolvedAuthMode === "login" ? authButtonRadius : cabinetButtonRadius}px`,
           "--site-radius": `${resolvedAuthMode === "login" ? authRadius : cabinetRadius}px`,
+          "--site-client-content-width": contentWidth,
+          "--site-client-content-left": contentLeft,
         } as CSSProperties
       }
     >

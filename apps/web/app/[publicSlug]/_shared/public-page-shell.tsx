@@ -11,6 +11,7 @@ import {
   DEFAULT_PUBLIC_CLIENT_BLOCK,
   normalizeStyle,
   renderBlock,
+  resolveClientPageBackground,
   type CurrentEntity,
 } from "./public-render";
 import { resolveCoverBackgroundVisual } from "@/features/site-builder/shared/background-visuals";
@@ -217,6 +218,10 @@ export async function renderPublicPageShell({
                 ? style.sectionBgDarkResolved
                 : style.sectionBgLightResolved) || palette.panelColor
             )
+          : undefined,
+      clientPageBackground:
+        block.type === "client" || block.type === "clientLogin" || block.type === "clientCabinet"
+          ? resolveClientPageBackground(block, themeForRender)
           : undefined,
     });
     const isBooking = block.type === "booking";

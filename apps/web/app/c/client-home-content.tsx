@@ -1017,7 +1017,16 @@ export async function ClientHomeContent({
   if (embedded) {
     return (
       <div className="flex w-full flex-col gap-8" style={pageStyle}>
-        {dashboardContent}
+        <div
+          className="flex max-w-full flex-col gap-8"
+          style={{
+            width: "var(--site-client-content-width, 100%)",
+            marginLeft: "var(--site-client-content-left, 0px)",
+            marginRight: 0,
+          }}
+        >
+          {dashboardContent}
+        </div>
       </div>
     );
   }
