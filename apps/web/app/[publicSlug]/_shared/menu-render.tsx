@@ -20,6 +20,9 @@ export type PublicMenuFrame = {
   aishaConfig: SiteAishaWidgetConfig | null;
 };
 
+const isBlockHidden = (block: SiteBlock) =>
+  Boolean((block.data as { hidden?: unknown })?.hidden);
+
 export async function renderPublicMenuFrame(
   publicSlug: string,
   accountLinkOverride?: string | null
@@ -29,7 +32,7 @@ export async function renderPublicMenuFrame(
   const loaderConfig = resolveSiteLoaderConfig(data.draft);
 
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
-  const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
+  const menuBlock = homeBlocks.find((block) => block.type === "menu" && !isBlockHidden(block)) ?? null;
   if (!menuBlock) return null;
   const shouldShowSharedMenu =
     (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;

@@ -78,6 +78,32 @@ function MobilePreviewIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+function HiddenBlockIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M18 18h2V2H10v4" />
+        <path d="M6 6h8v8M1 1l22 22M4 8v14h10v-4" />
+      </g>
+    </svg>
+  );
+}
+
+function TrashIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M11.5 12h3v12h-3zm6 0h3v12h-3z" fill="currentColor" />
+      <path
+        d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20zm4-26h8v2h-8z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeWidth="0.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 const SITE_PREVIEW_MODE_STORAGE_KEY = "site-builder:preview-mode";
 const SITE_MOBILE_VIEWPORT_STORAGE_KEY = "site-builder:mobile-viewport";
 const SITE_PREVIEW_MODE_COOKIE_KEY = "site_builder_preview_mode";
@@ -149,6 +175,10 @@ function getLibraryLabel(type: BlockType, activePage: SitePageKey) {
     if (activePage === "clientLogin") return "Вход";
   }
   return BLOCK_LABELS[type];
+}
+
+function isBlockHidden(block: SiteBlock) {
+  return Boolean((block.data as { hidden?: unknown })?.hidden);
 }
 
 function getSystemPageLibraryBlockTypes(activePage: SitePageKey): BlockType[] | null {
@@ -1895,6 +1925,7 @@ export default function SiteClient({
                 sharedMenuBlock && activePage !== "home" && block.id === sharedMenuBlock.id
               );
               const isBlockActive = block.id === (hoveredBlockId ?? selectedId);
+              const blockHidden = isBlockHidden(block);
               const controlsDark = activeTheme.mode === "dark";
               const leftBtnClass = controlsDark
                 ? "h-8 rounded-sm border border-[#374151] bg-[#111827] px-3 text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
@@ -1995,52 +2026,79 @@ export default function SiteClient({
                           aria-label="Удалить блок"
                           title="Удалить"
                         >
-                          <svg
-                            aria-hidden="true"
-                            className="h-4 w-4"
-                            viewBox="0 0 32 32"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M11.5 12h3v12h-3zm6 0h3v12h-3z" fill="currentColor" />
-                            <path
-                              d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20zm4-26h8v2h-8z"
-                              fill="currentColor"
-                              stroke="currentColor"
-                              strokeWidth="0.8"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                          <TrashIcon />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            closeVariantDrawer();
+                            updateBlock(block.id, (current) => ({
+                              ...current,
+                              data: {
+                                ...(current.data as Record<string, unknown>),
+                                hidden: !isBlockHidden(current),
+                              },
+                            }));
+                          }}
+                          className={iconBtnClass}
+                          aria-label={blockHidden ? "Показать блок" : "Скрыть блок"}
+                          title={blockHidden ? "Показать" : "Скрыть"}
+                        >
+                          <HiddenBlockIcon />
                         </button>
                       </div>
                     )}
                   </div>
                 )}
-                <BlockPreview
-                  block={block}
-                  account={account}
-                  accountProfile={accountProfile}
-                  branding={branding}
-                  locations={editableLocations}
-                  services={services}
-                  specialists={specialists}
-                  promos={promos}
-                  reviews={reviews}
-                  workPhotos={workPhotos}
-                  legalDocuments={legalDocuments}
-                  platformLegalDocuments={platformLegalDocuments}
-                  theme={activeTheme}
-                  loaderConfig={loaderConfig}
-                  currentEntity={currentEntity}
-                  previewMode={previewMode}
-                  previewViewportWidth={previewCanvasWidth}
-                  onThemeToggle={handleThemeToggle}
-                  onSelect={() => {
-                    setSelectedId(block.id);
-                    setSpacingAnchorBlockId(block.id);
-                    setHoveredBlockId(block.id);
-                  }}
-                  isSelected={block.id === selectedId}
-                />
+                {blockHidden ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedId(block.id);
+                      setSpacingAnchorBlockId(block.id);
+                      setHoveredBlockId(block.id);
+                    }}
+                    className={`flex h-[60px] w-full items-center justify-center border-y border-dashed text-sm transition-colors ${
+                      block.id === selectedId
+                        ? "bg-transparent text-[color:var(--bp-ink)]"
+                        : "bg-transparent text-[color:var(--bp-muted)] hover:bg-black/[0.02]"
+                    }`}
+                    style={{ borderColor: activeTheme.borderColor || "#d1d5db" }}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <HiddenBlockIcon className="h-4 w-4" />
+                      <span className="font-semibold">{currentBlockCode}</span>
+                      <span>{getLibraryLabel(block.type, activePageKey)} скрыт</span>
+                    </span>
+                  </button>
+                ) : (
+                  <BlockPreview
+                    block={block}
+                    account={account}
+                    accountProfile={accountProfile}
+                    branding={branding}
+                    locations={editableLocations}
+                    services={services}
+                    specialists={specialists}
+                    promos={promos}
+                    reviews={reviews}
+                    workPhotos={workPhotos}
+                    legalDocuments={legalDocuments}
+                    platformLegalDocuments={platformLegalDocuments}
+                    theme={activeTheme}
+                    loaderConfig={loaderConfig}
+                    currentEntity={currentEntity}
+                    previewMode={previewMode}
+                    previewViewportWidth={previewCanvasWidth}
+                    onThemeToggle={handleThemeToggle}
+                    onSelect={() => {
+                      setSelectedId(block.id);
+                      setSpacingAnchorBlockId(block.id);
+                      setHoveredBlockId(block.id);
+                    }}
+                    isSelected={block.id === selectedId}
+                  />
+                )}
                 <InsertSlot
                   index={index + 1}
                   slotRef={(el) => registerSlotRef(index + 1, el)}

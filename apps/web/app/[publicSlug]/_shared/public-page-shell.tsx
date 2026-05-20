@@ -43,6 +43,9 @@ const moveMenuBlockFirst = (blocks: SiteBlock[]) => {
   return [menuBlock, ...blocks.filter((block) => block.id !== menuBlock.id)];
 };
 
+const isBlockHidden = (block: SiteBlock) =>
+  Boolean((block.data as { hidden?: unknown })?.hidden);
+
 const resolveBlocksForPage = (
   data: PublicSiteData,
   pageKey: SitePageKey,
@@ -61,7 +64,7 @@ const resolveBlocksForPage = (
               ? "legalDocuments"
               : null;
   const homeBlocks = data.draft.pages?.home ?? data.draft.blocks;
-  const menuBlock = homeBlocks.find((block) => block.type === "menu") ?? null;
+  const menuBlock = homeBlocks.find((block) => block.type === "menu" && !isBlockHidden(block)) ?? null;
   const shouldShowSharedMenu =
     menuBlock &&
     (menuBlock.data as { showOnAllPages?: boolean }).showOnAllPages !== false;
@@ -78,7 +81,7 @@ const resolveBlocksForPage = (
   const pageBlocks =
     pageKey === "client" && pageBlocksRaw.length === 0
       ? [DEFAULT_PUBLIC_CLIENT_BLOCK]
-      : pageBlocksRaw;
+      : pageBlocksRaw.filter((block) => !isBlockHidden(block));
 
   return sharedMenuBlock
     ? [
