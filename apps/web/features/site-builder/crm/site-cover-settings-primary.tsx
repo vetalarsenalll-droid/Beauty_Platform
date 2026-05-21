@@ -490,7 +490,7 @@ export function SiteCoverSettingsPrimary({
               aria-hidden
               className={`flex h-4 w-4 items-center justify-center border text-[10px] leading-none transition ${
                 coverArrowAnimated
-                  ? "border-[#ff5a5f] bg-transparent text-[#ff5a5f]"
+                  ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-accent)] text-white"
                   : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
               }`}
             >
@@ -523,7 +523,7 @@ export function SiteCoverSettingsPrimary({
           }}
           className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
           style={{
-            borderColor: coverDrawerKey === item.id ? "#ff5a5f" : panelTheme.border,
+            borderColor: coverDrawerKey === item.id ? panelTheme.accent : panelTheme.border,
             backgroundColor: panelTheme.panel,
             color: coverDrawerKey === item.id ? panelTheme.text : panelTheme.muted,
           }}

@@ -14,6 +14,19 @@ type HistoryMeta = {
 const cloneDraftSnapshot = (value: SiteDraft): SiteDraft =>
   JSON.parse(JSON.stringify(value)) as SiteDraft;
 
+const preserveCurrentThemeMode = (snapshot: SiteDraft, current: SiteDraft): SiteDraft => {
+  const mode = current.theme.mode;
+  const palette = mode === "dark" ? snapshot.theme.darkPalette : snapshot.theme.lightPalette;
+  return {
+    ...snapshot,
+    theme: {
+      ...snapshot.theme,
+      ...palette,
+      mode,
+    },
+  };
+};
+
 export function useDraftHistory(initialDraft: SiteDraft, onTravel?: () => void) {
   const [draft, setDraft] = useState<SiteDraft>(initialDraft);
   const [canUndo, setCanUndo] = useState(false);
@@ -62,7 +75,7 @@ export function useDraftHistory(initialDraft: SiteDraft, onTravel?: () => void) 
     if (!prevSnapshot) return;
     setDraft((current) => {
       historyRef.current.future.push(cloneDraftSnapshot(current));
-      const next = cloneDraftSnapshot(prevSnapshot);
+      const next = preserveCurrentThemeMode(cloneDraftSnapshot(prevSnapshot), current);
       draftRef.current = next;
       return next;
     });
@@ -77,7 +90,7 @@ export function useDraftHistory(initialDraft: SiteDraft, onTravel?: () => void) 
     if (!nextSnapshot) return;
     setDraft((current) => {
       historyRef.current.past.push(cloneDraftSnapshot(current));
-      const next = cloneDraftSnapshot(nextSnapshot);
+      const next = preserveCurrentThemeMode(cloneDraftSnapshot(nextSnapshot), current);
       draftRef.current = next;
       return next;
     });

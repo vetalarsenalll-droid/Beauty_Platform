@@ -1975,6 +1975,9 @@ export default function SiteClient({
               const leftBtnClass = controlsDark
                 ? "h-8 rounded-sm border border-[#374151] bg-[#111827] px-3 text-xs font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
                 : "h-8 rounded-sm border border-[#d1d5db] bg-white px-3 text-xs font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
+              const contentBtnClass = controlsDark
+                ? "h-8 rounded-sm border border-[#4b5563] bg-[#111827] px-3 text-xs font-medium text-[#f3f4f6] shadow-sm transition-colors hover:border-[#6b7280] hover:bg-[#1f2937] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b7280]/45"
+                : "h-8 rounded-sm border border-[#2F8EEF] bg-[#2F8EEF] px-3 text-xs font-medium text-white shadow-sm transition-colors hover:border-[#1f7edb] hover:bg-[#1f7edb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F8EEF]/45";
               const iconBtnClass = controlsDark
                 ? "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#374151] bg-[#111827] text-sm font-medium text-[#e5e7eb] shadow-sm hover:bg-[#1f2937]"
                 : "inline-flex h-8 w-8 items-center justify-center rounded-sm border border-[#d1d5db] bg-white text-sm font-medium text-[#111827] shadow-sm hover:bg-[#f3f4f6]";
@@ -2023,12 +2026,7 @@ export default function SiteClient({
                             setSelectedId(block.id);
                             setRightPanel("content");
                           }}
-                          className={`${leftBtnClass} w-28 rounded-r-none`}
-                          style={{
-                            backgroundColor: panelTheme.save,
-                            borderColor: controlsDark ? "#4b5563" : "#9ca3af",
-                            color: "#ffffff",
-                          }}
+                          className={`${contentBtnClass} w-28 rounded-r-none`}
                         >
                           Контент
                         </button>
@@ -2614,7 +2612,7 @@ export default function SiteClient({
             } as CssVars}
           >
             <div
-              className="sticky top-0 z-20 flex h-12 items-center justify-between border-b px-4"
+              className="sticky top-0 z-20 flex h-14 items-center justify-between border-b px-4"
               style={{ borderColor: panelTheme.border, backgroundColor: panelTheme.surface }}
             >
               <div className="w-8" />

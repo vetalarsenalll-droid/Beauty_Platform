@@ -141,6 +141,7 @@ function SectionButton({
   activePanelSectionId,
   setActivePanelSectionId,
   panelBorder,
+  panelAccent = "#2F8EEF",
   panelText,
   panelMuted,
 }: {
@@ -149,6 +150,7 @@ function SectionButton({
   activePanelSectionId: string | null;
   setActivePanelSectionId: CrmPanelCtx["setActivePanelSectionId"];
   panelBorder: string;
+  panelAccent?: string;
   panelText: string;
   panelMuted: string;
 }) {
@@ -163,7 +165,7 @@ function SectionButton({
       }}
       className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
       style={{
-        borderColor: active ? "#ff5a5f" : panelBorder,
+        borderColor: active ? panelAccent : panelBorder,
         backgroundColor: "transparent",
         color: active ? panelText : panelMuted,
       }}

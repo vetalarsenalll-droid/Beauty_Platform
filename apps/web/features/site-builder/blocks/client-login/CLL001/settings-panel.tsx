@@ -132,7 +132,7 @@ function drawerButton(id: string, label: string, ctx: CrmPanelCtx) {
       }}
       className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
       style={{
-        borderColor: ctx.activePanelSectionId === id ? "#ff5a5f" : ctx.panelTheme.border,
+        borderColor: ctx.activePanelSectionId === id ? ctx.panelTheme.accent : ctx.panelTheme.border,
         backgroundColor: ctx.panelTheme.panel,
         color: ctx.activePanelSectionId === id ? ctx.panelTheme.text : ctx.panelTheme.muted,
       }}

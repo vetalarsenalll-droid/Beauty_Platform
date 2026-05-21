@@ -63,7 +63,7 @@ function renderSectionButton(
       }}
       className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
       style={{
-        borderColor: isActive ? "#ff5a5f" : panelTheme.border,
+        borderColor: isActive ? panelTheme.accent : panelTheme.border,
         backgroundColor: "transparent",
         color: isActive ? panelTheme.text : panelTheme.muted,
       }}

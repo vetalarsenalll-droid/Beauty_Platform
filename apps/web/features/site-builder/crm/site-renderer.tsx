@@ -1295,13 +1295,13 @@ export function FlatCheckbox({
         aria-hidden
         className={`flex h-4 w-4 items-center justify-center border text-[10px] leading-none transition ${
           checked
-            ? "border-[#ff5a5f] bg-transparent text-[#ff5a5f]"
+            ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-accent)] text-white"
             : "border-[color:var(--bp-stroke)] bg-transparent text-transparent"
         }`}
       >
         <span
           className={`h-2 w-1 rotate-45 border-b border-r ${
-            checked ? "border-[#ff5a5f]" : "border-transparent"
+            checked ? "border-white" : "border-transparent"
           }`}
         />
       </span>

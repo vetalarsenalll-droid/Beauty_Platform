@@ -137,7 +137,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
     args.setDraftTracked((prev) => ({
       ...prev,
       theme: applyThemePatch(prev.theme, { mode }),
-    }), { groupKey: "theme-mode" });
+    }), { recordHistory: false });
   };
 
   const updateBlocks = (nextBlocks: SiteBlock[], options?: { recordHistory?: boolean }) => {
