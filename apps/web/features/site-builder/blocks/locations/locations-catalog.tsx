@@ -173,6 +173,9 @@ function resolveGridClassName(cardsPerRow: number, mobileCardsPerRow: number, pr
     if (previewViewportWidth < 640) {
       return mobileCardsPerRow === 2 ? "grid-cols-2" : "grid-cols-1";
     }
+    if (previewViewportWidth < 1280) {
+      return cardsPerRow <= 1 ? "grid-cols-1" : "grid-cols-2";
+    }
     if (cardsPerRow <= 1) return "grid-cols-1";
     if (cardsPerRow === 2) return "grid-cols-2";
     if (cardsPerRow === 4) return "grid-cols-4";
