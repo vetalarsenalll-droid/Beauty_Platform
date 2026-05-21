@@ -7,10 +7,17 @@ function resolveAccountClient(
   session: NonNullable<Awaited<ReturnType<typeof getClientSession>>>
 ) {
   const url = new URL(request.url);
-  const accountSlug = url.searchParams.get("account")?.trim() || "";
+  const rawAccountSlug = url.searchParams.get("account");
+  const accountSlug = rawAccountSlug?.trim() || "";
   const target = accountSlug
     ? session.clients.find((item) => item.accountSlug === accountSlug) ?? null
     : null;
+
+  if (rawAccountSlug !== null && !target) {
+    return {
+      error: jsonError("ACCOUNT_NOT_FOUND", "Организация не найдена.", null, 404),
+    };
+  }
 
   return {
     accountSlug: target?.accountSlug ?? null,
@@ -26,6 +33,7 @@ export async function GET(request: Request) {
   }
 
   const resolved = resolveAccountClient(request, session);
+  if ("error" in resolved) return resolved.error;
 
   const clientPairs = session.clients.map((client) => ({
     accountId: client.accountId,

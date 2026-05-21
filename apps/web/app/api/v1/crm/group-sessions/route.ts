@@ -117,7 +117,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await requireCrmPermission("crm.calendar.read");
+  const session = await requireCrmPermission("crm.appointments.create");
 
   const raw = await request.json().catch(() => null);
   const body = parsePayload(raw);

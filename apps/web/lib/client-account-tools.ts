@@ -164,8 +164,14 @@ export async function rescheduleClientBooking(args: {
 }
 
 export async function updateClientPhone(args: { accountId: number; clientId: number; phone: string }) {
+  const client = await prisma.client.findFirst({
+    where: { id: args.clientId, accountId: args.accountId },
+    select: { id: true },
+  });
+  if (!client) return null;
+
   const updated = await prisma.client.update({
-    where: { id: args.clientId },
+    where: { id: client.id },
     data: { phone: args.phone },
     select: { id: true, phone: true },
   });

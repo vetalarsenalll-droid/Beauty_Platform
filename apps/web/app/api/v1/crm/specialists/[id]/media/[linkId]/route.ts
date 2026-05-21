@@ -34,6 +34,7 @@ export async function DELETE(_request: Request, { params }: Params) {
 
   if (
     !link ||
+    !link.entityType.startsWith("specialist.") ||
     link.entityId !== String(specialistId) ||
     link.asset.accountId !== auth.session.accountId
   ) {
@@ -114,6 +115,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (
     !link ||
+    !link.entityType.startsWith("specialist.") ||
     link.entityId !== String(specialistId) ||
     link.asset.accountId !== auth.session.accountId
   ) {

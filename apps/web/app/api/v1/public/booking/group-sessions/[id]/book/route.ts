@@ -51,6 +51,50 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const requestedLegalVersionIds = Array.from(new Set(legalVersionIds)).sort((a, b) => a - b);
 
+  const [requiredDocs, allowedVersions] = await Promise.all([
+    prisma.legalDocument.findMany({
+      where: { accountId: resolved.account.id, isRequired: true },
+      select: {
+        id: true,
+        versions: {
+          where: { isActive: true },
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+      },
+    }),
+    requestedLegalVersionIds.length > 0
+      ? prisma.legalDocumentVersion.findMany({
+          where: {
+            id: { in: requestedLegalVersionIds },
+            isActive: true,
+            document: { accountId: resolved.account.id },
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const requiredVersionIds = requiredDocs
+    .map((doc) => doc.versions[0]?.id)
+    .filter((id): id is number => Number.isInteger(id));
+  const allowedSet = new Set(allowedVersions.map((item) => item.id));
+  const normalizedLegalVersionIds = requestedLegalVersionIds.filter((id) => allowedSet.has(id));
+
+  if (requiredVersionIds.length > 0) {
+    const provided = new Set(normalizedLegalVersionIds);
+    const missing = requiredVersionIds.filter((id) => !provided.has(id));
+    if (missing.length > 0) {
+      return jsonError(
+        "LEGAL_REQUIRED",
+        "РќРµРѕР±С…РѕРґРёРјРѕ СЃРѕРіР»Р°СЃРёРµ СЃ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹РјРё РґРѕРєСѓРјРµРЅС‚Р°РјРё.",
+        { missingVersionIds: missing },
+        400
+      );
+    }
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const groupSession = await tx.groupSession.findFirst({
       where: {
@@ -136,9 +180,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
 
-    if (requestedLegalVersionIds.length) {
+    if (normalizedLegalVersionIds.length) {
       await tx.legalAcceptance.createMany({
-        data: requestedLegalVersionIds.map((v) => ({
+        data: normalizedLegalVersionIds.map((v) => ({
           accountId: resolved.account.id,
           documentVersionId: v,
           clientId: client.id,

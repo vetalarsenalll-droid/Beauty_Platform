@@ -201,7 +201,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireCrmPermission("crm.calendar.read");
+  const session = await requireCrmPermission("crm.appointments.update");
 
   const resolvedParams = await params;
   const appointmentId = Number(resolvedParams.id);
@@ -464,6 +464,16 @@ export async function PATCH(
         { message: "В это время у специалиста уже есть запись." },
         { status: 400 }
       );
+    }
+  }
+
+  if (body.clientId) {
+    const client = await prisma.client.findFirst({
+      where: { id: body.clientId, accountId: session.accountId },
+      select: { id: true },
+    });
+    if (!client) {
+      return NextResponse.json({ message: "РљР»РёРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ." }, { status: 404 });
     }
   }
 

@@ -10,7 +10,7 @@ const isAppointmentStatus = (value: unknown): value is AppointmentStatus =>
   (Object.values(AppointmentStatus) as string[]).includes(value);
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = await requireCrmPermission("crm.calendar.read");
+  const session = await requireCrmPermission("crm.appointments.update");
 
   const { id } = await params;
   const participantId = Number(id);

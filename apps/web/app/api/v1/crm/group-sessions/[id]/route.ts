@@ -73,7 +73,7 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = await requireCrmPermission("crm.calendar.read");
+  const session = await requireCrmPermission("crm.appointments.update");
   const { id } = await params;
   const sessionId = Number(id);
   if (!Number.isInteger(sessionId)) {

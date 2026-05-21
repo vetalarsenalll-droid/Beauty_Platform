@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 
 type ReviewPhotoGalleryProps = {
@@ -34,13 +34,13 @@ export default function ReviewPhotoGallery({
   const activeUrl = activeIndex == null ? null : photos[activeIndex] ?? null;
   const canNavigate = photos.length > 1;
   const zoomScale = zoomLevel === 0 ? 1 : zoomLevel === 1 ? 1.35 : zoomLevel === 2 ? 1.8 : 2.35;
-  const applyImageTransform = () => {
+  const applyImageTransform = useCallback(() => {
     const image = imageRef.current;
     if (!image) return;
     const { x, y } = panRef.current;
     image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoomScale})`;
-  };
-  const resetPan = () => {
+  }, [zoomScale]);
+  const resetPan = useCallback(() => {
     panRef.current = { x: 0, y: 0 };
     dragRef.current = null;
     draggingRef.current = false;
@@ -48,7 +48,7 @@ export default function ReviewPhotoGallery({
     if (imageRef.current) {
       imageRef.current.style.cursor = zoomLevel > 0 ? "grab" : "default";
     }
-  };
+  }, [applyImageTransform, zoomLevel]);
 
   useEffect(() => {
     if (!activeUrl) return;
@@ -85,7 +85,7 @@ export default function ReviewPhotoGallery({
 
   useEffect(() => {
     resetPan();
-  }, [activeUrl]);
+  }, [activeUrl, resetPan]);
 
   useEffect(() => {
     if (zoomLevel === 0) {
@@ -96,7 +96,7 @@ export default function ReviewPhotoGallery({
     if (imageRef.current) {
       imageRef.current.style.cursor = "grab";
     }
-  }, [zoomLevel]);
+  }, [applyImageTransform, resetPan, zoomLevel]);
 
   useEffect(() => {
     return () => {

@@ -58,7 +58,7 @@ export async function PATCH(request: Request) {
     );
   }
 
-  if (roleId && !Number.isInteger(roleId)) {
+  if (!Number.isInteger(roleId) || roleId <= 0) {
     return jsonError(
       "VALIDATION_FAILED",
       "Некорректная роль.",
@@ -75,6 +75,22 @@ export async function PATCH(request: Request) {
 
   if (roleId && !role) {
     return jsonError("NOT_FOUND", "Роль не найдена.", null, 404);
+  }
+
+  const currentRoleAssignment = await prisma.roleAssignment.findUnique({
+    where: {
+      userId_accountId: {
+        userId: auth.session.userId,
+        accountId: auth.session.accountId,
+      },
+    },
+  });
+  const currentRoleId = currentRoleAssignment?.roleId ?? null;
+  const roleChanged = roleId !== currentRoleId;
+  const canManageRoles = auth.session.permissions.includes("crm.all");
+
+  if (roleChanged && !canManageRoles) {
+    return jsonError("FORBIDDEN", "Недостаточно прав для изменения роли.", null, 403);
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -125,20 +141,22 @@ export async function PATCH(request: Request) {
       });
     }
 
-    await tx.roleAssignment.upsert({
-      where: {
-        userId_accountId: {
+    if (roleChanged) {
+      await tx.roleAssignment.upsert({
+        where: {
+          userId_accountId: {
+            userId: auth.session.userId,
+            accountId: auth.session.accountId,
+          },
+        },
+        create: {
           userId: auth.session.userId,
           accountId: auth.session.accountId,
+          roleId,
         },
-      },
-      create: {
-        userId: auth.session.userId,
-        accountId: auth.session.accountId,
-        roleId,
-      },
-      update: { roleId },
-    });
+        update: { roleId },
+      });
+    }
 
     return {
       id: user.id,

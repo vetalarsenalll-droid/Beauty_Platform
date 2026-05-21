@@ -578,6 +578,9 @@ export async function runClientAccountFlow(args: ClientFlowArgs): Promise<FlowRe
     const newPhone = parsePhone(message);
     if (newPhone) {
       const updated = await updateClientPhone({ accountId, clientId, phone: newPhone });
+      if (!updated) {
+        return { handled: true, reply: "Не нашла ваш клиентский профиль для этого филиала." };
+      }
       return { handled: true, reply: `Готово, обновила телефон: ${updated.phone}.` };
     }
     return { handled: true, reply: "Могу показать и обновить ваш телефон. Напишите новый номер в формате +7..." };

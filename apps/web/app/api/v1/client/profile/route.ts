@@ -110,7 +110,11 @@ export async function PATCH(request: Request) {
   }
 
   const updated = await prisma.client.updateMany({
-    where: { userId: session.userId },
+    where: {
+      id: resolved.clientId,
+      accountId: resolved.accountId,
+      userId: session.userId,
+    },
     data: {
       firstName,
       lastName,

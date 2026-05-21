@@ -5226,7 +5226,7 @@ export default function BookingClient({
                               : "grid-cols-1 sm:grid-cols-2"
                           )}
                         >
-                          {(context?.locations ?? []).map((location) => {
+                          {(context?.locations ?? []).map((location, index) => {
                             const active = location.id === locationId;
                             const openStatus = getLocationOpenStatus(
                               location,
@@ -5260,6 +5260,7 @@ export default function BookingClient({
                                         <UnoptimizedImage
                                           src={location.coverUrl}
                                           alt={location.name}
+                                          loading={index < 2 ? "eager" : "lazy"}
                                           className="aspect-video w-full object-cover"
                                         />
                                       </div>
@@ -5492,7 +5493,7 @@ export default function BookingClient({
 
                     {!loadingServices && !servicesError && (
                       <div className="booking-cards-grid grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
-                        {servicesForServiceStep.map((service) => {
+                        {servicesForServiceStep.map((service, index) => {
                           const price = showFromServiceMetrics
                             ? service.minPrice ?? service.basePrice ?? 0
                             : service.computedPrice ?? service.basePrice ?? 0;
@@ -5528,6 +5529,7 @@ export default function BookingClient({
                                       <UnoptimizedImage
                                         src={service.coverUrl}
                                         alt={service.name}
+                                        loading={index < 2 ? "eager" : "lazy"}
                                         className="h-full w-full object-cover"
                                       />
                                     </div>
@@ -5679,7 +5681,7 @@ export default function BookingClient({
                       (isSpecialistFirst || (!isSpecialistFirst && selectedServiceIds.length > 0 && !!timeChoice)) &&
                       (!isDateFirst || (!loadingDateFirstServiceSlots && selectedServiceIds.length > 0 && !!timeChoice)) && (
                         <div className="booking-cards-grid grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:[grid-template-columns:repeat(var(--bp-cards-cols,2),minmax(0,1fr))]">
-                          {specialistsForSpecialistStepFiltered.map((sp) => {
+                          {specialistsForSpecialistStepFiltered.map((sp, index) => {
                             const active = sp.id === specialistId;
                             const specialistServiceDuration =
                               sp.serviceDurationMin ?? serviceDuration ?? null;
@@ -5713,6 +5715,7 @@ export default function BookingClient({
                                         <UnoptimizedImage
                                           src={sp.coverUrl ?? sp.avatarUrl ?? ""}
                                           alt={sp.name}
+                                          loading={index < 2 ? "eager" : "lazy"}
                                           className="h-full w-full object-cover object-top"
                                         />
                                       </div>

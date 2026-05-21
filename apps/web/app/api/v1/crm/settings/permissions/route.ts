@@ -38,6 +38,14 @@ export async function GET() {
 export async function PATCH(request: Request) {
   const auth = await requireCrmApiPermission("crm.settings.update");
   if ("response" in auth) return auth.response;
+  if (!auth.session.permissions.includes("crm.all")) {
+    return jsonError(
+      "FORBIDDEN",
+      "Недостаточно прав для изменения прав ролей.",
+      null,
+      403
+    );
+  }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {

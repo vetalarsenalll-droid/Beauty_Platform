@@ -14,7 +14,7 @@ const toStr = (value: unknown): string | null =>
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
-  const session = await requireCrmPermission("crm.calendar.read");
+  const session = await requireCrmPermission("crm.appointments.create");
   const { id } = await params;
   const sessionId = Number(id);
   if (!Number.isInteger(sessionId)) {
@@ -33,10 +33,17 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const groupSession = await tx.groupSession.findFirst({
-      where: { id: sessionId, accountId: session.accountId },
-    });
+    const [groupSession, client] = await Promise.all([
+      tx.groupSession.findFirst({
+        where: { id: sessionId, accountId: session.accountId },
+      }),
+      tx.client.findFirst({
+        where: { id: clientId, accountId: session.accountId },
+        select: { id: true },
+      }),
+    ]);
     if (!groupSession) return { error: "NOT_FOUND" as const };
+    if (!client) return { error: "CLIENT_NOT_FOUND" as const };
     if (groupSession.status === "CANCELLED") return { error: "CANCELLED" as const };
     if (groupSession.bookedCount >= groupSession.capacity) {
       return { error: "SESSION_FULL" as const };

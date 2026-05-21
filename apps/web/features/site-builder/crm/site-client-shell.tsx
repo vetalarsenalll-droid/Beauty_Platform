@@ -2150,7 +2150,6 @@ export default function SiteClient({
                       setSpacingAnchorBlockId(block.id);
                       setHoveredBlockId(block.id);
                     }}
-                    isSelected={block.id === selectedId}
                   />
                 )}
                 <InsertSlot

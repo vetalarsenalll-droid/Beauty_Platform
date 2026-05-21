@@ -166,7 +166,7 @@ function parsePayload(raw: unknown): AppointmentPayload | null {
 }
 
 export async function POST(request: Request) {
-  const session = await requireCrmPermission("crm.calendar.read");
+  const session = await requireCrmPermission("crm.appointments.create");
 
   const raw: unknown = await request.json().catch(() => null);
   const body = parsePayload(raw);
@@ -393,7 +393,15 @@ export async function POST(request: Request) {
   }
 
   let clientId = body.clientId ?? null;
-  if (!clientId) {
+  if (clientId) {
+    const client = await prisma.client.findFirst({
+      where: { id: clientId, accountId: session.accountId },
+      select: { id: true },
+    });
+    if (!client) {
+      return NextResponse.json({ message: "РљР»РёРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ." }, { status: 404 });
+    }
+  } else {
     const name = body.clientName?.trim() ?? "";
     const [firstName, ...rest] = name.split(" ").filter(Boolean);
     const lastName = rest.join(" ");

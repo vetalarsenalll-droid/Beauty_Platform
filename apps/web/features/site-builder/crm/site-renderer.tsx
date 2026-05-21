@@ -1928,7 +1928,6 @@ export function BlockPreview({
   previewViewportWidth,
   onThemeToggle,
   onSelect,
-  isSelected,
 }: {
   block: SiteBlock;
   account: AccountInfo;
@@ -1949,7 +1948,6 @@ export function BlockPreview({
   previewViewportWidth?: number;
   onThemeToggle: () => void;
   onSelect: () => void;
-  isSelected: boolean;
 }) {
   const previewRootRef = useRef<HTMLDivElement | null>(null);
   const [coverParallaxOffset, setCoverParallaxOffset] = useState(0);
