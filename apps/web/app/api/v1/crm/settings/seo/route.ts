@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
 import { SEO_PAGE_KEYS, isSeoPageKey } from "@/lib/seo-pages";
-import { mergeVerificationHtmlFiles } from "@/lib/seo-verification";
+import {
+  mergeVerificationHtmlFiles,
+  normalizeSeoHttpUrl,
+  normalizeSeoImageUrl,
+} from "@/lib/seo-verification";
 
 type PageSettingsInput = {
   pageKey: string;
@@ -104,7 +108,10 @@ export async function PATCH(request: Request) {
     ) as Prisma.InputJsonValue,
     title: typeof body.title === "string" ? body.title : null,
     description: typeof body.description === "string" ? body.description : null,
-    ogImageUrl: typeof body.ogImageUrl === "string" ? body.ogImageUrl : null,
+    ogImageUrl:
+      typeof body.ogImageUrl === "string"
+        ? normalizeSeoImageUrl(body.ogImageUrl)
+        : null,
     robots: typeof body.robots === "string" ? body.robots : null,
     sitemapEnabled:
       typeof body.sitemapEnabled === "boolean" ? body.sitemapEnabled : true,
@@ -146,11 +153,15 @@ export async function PATCH(request: Request) {
           description:
             typeof item.description === "string" ? item.description : null,
           ogImageUrl:
-            typeof item.ogImageUrl === "string" ? item.ogImageUrl : null,
+            typeof item.ogImageUrl === "string"
+              ? normalizeSeoImageUrl(item.ogImageUrl)
+              : null,
           keywords:
             typeof item.keywords === "string" ? item.keywords : null,
           canonicalUrl:
-            typeof item.canonicalUrl === "string" ? item.canonicalUrl : null,
+            typeof item.canonicalUrl === "string"
+              ? normalizeSeoHttpUrl(item.canonicalUrl)
+              : null,
           noIndex: typeof item.noIndex === "boolean" ? item.noIndex : false,
           noFollow: typeof item.noFollow === "boolean" ? item.noFollow : false,
         },
@@ -159,11 +170,15 @@ export async function PATCH(request: Request) {
           description:
             typeof item.description === "string" ? item.description : null,
           ogImageUrl:
-            typeof item.ogImageUrl === "string" ? item.ogImageUrl : null,
+            typeof item.ogImageUrl === "string"
+              ? normalizeSeoImageUrl(item.ogImageUrl)
+              : null,
           keywords:
             typeof item.keywords === "string" ? item.keywords : null,
           canonicalUrl:
-            typeof item.canonicalUrl === "string" ? item.canonicalUrl : null,
+            typeof item.canonicalUrl === "string"
+              ? normalizeSeoHttpUrl(item.canonicalUrl)
+              : null,
           noIndex: typeof item.noIndex === "boolean" ? item.noIndex : false,
           noFollow: typeof item.noFollow === "boolean" ? item.noFollow : false,
         },

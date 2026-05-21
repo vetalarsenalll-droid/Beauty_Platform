@@ -2133,20 +2133,11 @@ function renderCover(
       const slideButtonPageRaw = typeof slide.buttonPage === "string" ? slide.buttonPage.trim() : "";
       const slideButtonHref = typeof slide.buttonHref === "string" ? slide.buttonHref.trim() : "";
       const slideImage = typeof slide.imageUrl === "string" ? slide.imageUrl.trim() : "";
+      const normalizedButtonHref = normalizePublicHref(slideButtonHref);
       const resolvedButtonHref =
         resolveCoverSlideTargetHref(slideButtonPageRaw) ||
-        (slideButtonHref.startsWith("#") ||
-        slideButtonHref.startsWith("/") ||
-        slideButtonHref.startsWith("mailto:") ||
-        slideButtonHref.startsWith("tel:") ||
-        slideButtonHref.startsWith("http://") ||
-        slideButtonHref.startsWith("https://")
-          ? slideButtonHref
-          : slideButtonHref
-            ? normalizeExternalHref(slideButtonHref)
-            : publicSlug
-              ? buildBookingLink({ publicSlug, publicBasePath })
-              : "#");
+        normalizedButtonHref ||
+        (publicSlug ? buildBookingLink({ publicSlug, publicBasePath }) : "#");
       return {
         id:
           typeof slide.id === "string" && slide.id.trim()
@@ -2733,10 +2724,31 @@ function renderCover(
   );
 }
 
-function normalizeExternalHref(value: string): string {
-  return value.startsWith("http://") || value.startsWith("https://")
-    ? value
-    : `https://${value}`;
+function normalizeExternalHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePublicHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("javascript:") || lower.startsWith("data:") || lower.startsWith("vbscript:")) {
+    return null;
+  }
+  if (trimmed.startsWith("#")) return trimmed;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.startsWith("/\\")) {
+    return trimmed;
+  }
+  if (lower.startsWith("mailto:") || lower.startsWith("tel:")) return trimmed;
+  return normalizeExternalHref(trimmed);
 }
 
 function resolveSocialHrefByKey(profile: AccountProfile, key: string): string | null {
@@ -3124,12 +3136,17 @@ function renderMenu(
   const showSearch = Boolean(data.showSearch);
   const showAccount = Boolean(data.showAccount);
   const showThemeToggle = Boolean(data.showThemeToggle);
+  const basePath = publicSlug ? publicBasePath : "#";
   const accountLink =
-    accountLinkOverride && accountLinkOverride.trim().length > 0
+    accountLinkOverride &&
+    accountLinkOverride.trim().length > 0 &&
+    !accountLinkOverride.trim().startsWith("/c")
       ? accountLinkOverride
-      : accountSlug
-        ? `/c/login?account=${accountSlug}`
-        : "/c/login";
+      : publicSlug
+        ? `${basePath}/client`
+        : accountSlug
+          ? `/c/login?account=${accountSlug}`
+          : "/c/login";
   const showSocials = Boolean(data.showSocials);
   const socialIconSizeRaw = Number(data.socialIconSize);
   const socialIconSize =
@@ -3162,7 +3179,6 @@ function renderMenu(
   const menuButtonRadius = Number.isFinite(menuButtonRadiusRaw)
     ? Math.max(0, Math.min(80, Math.round(menuButtonRadiusRaw)))
     : 0;
-  const basePath = publicSlug ? publicBasePath : "#";
   const position = data.position === "sticky" ? "sticky" : "static";
   const accountTitleRaw =
     typeof data.accountTitle === "string" ? data.accountTitle.trim() : "";
@@ -3290,7 +3306,8 @@ function renderMenu(
         socialsMode === "custom" ? socialsCustom[key] : socialsAuto[key];
       const value = typeof raw === "string" ? raw.trim() : "";
       if (!value) return null;
-      const href = value.startsWith("http") ? value : `https://${value}`;
+      const href = normalizeExternalHref(value);
+      if (!href) return null;
       return { key, href };
     })
     .filter(Boolean) as Array<{ key: string; href: string }>;

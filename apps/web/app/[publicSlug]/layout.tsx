@@ -3,6 +3,7 @@ import { resolveAishaWidgetConfig, resolveSiteLoaderConfig } from "@/lib/site-bu
 import PublicSiteOverlayLoader from "@/components/public-site-overlay-loader";
 import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import { loadPublicData } from "./_shared/public-data";
+import { getPublicBasePath } from "./_shared/public-domain-context";
 
 type LayoutProps = {
   children: ReactNode;
@@ -14,6 +15,7 @@ export default async function PublicSlugLayout({ children, params }: LayoutProps
   const publicSlug = resolvedParams.publicSlug ?? "";
   const data = await loadPublicData(publicSlug);
   const loaderConfig = data ? resolveSiteLoaderConfig(data.draft) : null;
+  const publicBasePath = data ? await getPublicBasePath(data.publicSlug) : null;
   const baseMode = data ? data.draft.theme.mode : undefined;
   const modeOverride =
     baseMode === "dark" || baseMode === "light"
@@ -22,7 +24,7 @@ export default async function PublicSlugLayout({ children, params }: LayoutProps
   const aishaConfig = data ? resolveAishaWidgetConfig(data.draft, modeOverride) : null;
 
   return (
-    <PublicSiteOverlayLoader loaderConfig={loaderConfig}>
+    <PublicSiteOverlayLoader loaderConfig={loaderConfig} publicBasePath={publicBasePath}>
       {children}
       {data?.account?.slug && aishaConfig?.enabled !== false ? (
         <PublicAiChatWidget accountSlug={data.account.slug} widgetConfig={aishaConfig} themeMode={modeOverride} />

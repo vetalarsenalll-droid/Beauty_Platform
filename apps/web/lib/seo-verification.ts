@@ -46,6 +46,26 @@ export function normalizeVerificationHtmlContent(value: string | null | undefine
   return (value ?? "").trim().slice(0, 4096);
 }
 
+export function normalizeSeoHttpUrl(value: string | null | undefined) {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeSeoImageUrl(value: string | null | undefined) {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.startsWith("/\\")) {
+    return trimmed;
+  }
+  return normalizeSeoHttpUrl(trimmed);
+}
+
 export function normalizeVerificationHtmlFiles(value: unknown) {
   const items = Array.isArray(value) ? value : [];
   const seen = new Set<string>();

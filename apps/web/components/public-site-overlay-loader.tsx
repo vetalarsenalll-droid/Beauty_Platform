@@ -7,11 +7,13 @@ import type { SiteLoaderConfig } from "@/lib/site-builder";
 
 type PublicSiteOverlayLoaderProps = {
   loaderConfig?: SiteLoaderConfig | null;
+  publicBasePath?: string | null;
   children: ReactNode;
 };
 
 export default function PublicSiteOverlayLoader({
   loaderConfig,
+  publicBasePath,
   children,
 }: PublicSiteOverlayLoaderProps) {
   const router = useRouter();
@@ -81,10 +83,21 @@ export default function PublicSiteOverlayLoader({
         enabledConfig.fixedDurationEnabled && Number.isFinite(enabledConfig.fixedDurationSec)
           ? Math.max(1, Math.round(enabledConfig.fixedDurationSec)) * 1000
           : 0;
+      const normalizedBasePath =
+        typeof publicBasePath === "string" ? publicBasePath.replace(/\/+$/, "") : null;
       const currentRootSegment = current.pathname.split("/").filter(Boolean)[0] ?? "";
-      const scopePrefix = currentRootSegment ? `/${currentRootSegment}` : "/";
+      const scopePrefix =
+        normalizedBasePath !== null
+          ? normalizedBasePath
+          : currentRootSegment
+            ? `/${currentRootSegment}`
+            : "";
       const leavesPublicScope =
-        url.pathname !== scopePrefix && !url.pathname.startsWith(`${scopePrefix}/`);
+        scopePrefix === ""
+          ? ["/api", "/c", "/crm", "/platform"].some(
+              (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)
+            )
+          : url.pathname !== scopePrefix && !url.pathname.startsWith(`${scopePrefix}/`);
 
       event.preventDefault();
       shownAtRef.current = Date.now();
@@ -125,7 +138,7 @@ export default function PublicSiteOverlayLoader({
       document.removeEventListener("submit", handleSubmit, true);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [enabledConfig, router]);
+  }, [enabledConfig, publicBasePath, router]);
 
   return (
     <>

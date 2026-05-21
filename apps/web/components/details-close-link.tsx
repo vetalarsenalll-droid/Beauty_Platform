@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 
 type DetailsCloseLinkProps = {
@@ -18,7 +18,6 @@ export default function DetailsCloseLink({
   children,
 }: DetailsCloseLinkProps) {
   const pathname = usePathname();
-  const router = useRouter();
 
   return (
     <Link
@@ -39,14 +38,13 @@ export default function DetailsCloseLink({
           }
           return;
         }
-        event.preventDefault();
         if (targetPath === currentPath && target.search === current.search && target.hash === current.hash) {
+          event.preventDefault();
           if (details instanceof HTMLDetailsElement) {
             details.open = false;
           }
           return;
         }
-        router.push(`${target.pathname}${target.search}${target.hash}`);
         if (details instanceof HTMLDetailsElement) {
           window.setTimeout(() => {
             details.open = false;

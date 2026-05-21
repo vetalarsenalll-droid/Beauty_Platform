@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { parsePublicSlugId } from "@/lib/public-slug";
-import { parseVerificationMetaTags } from "@/lib/seo-verification";
+import {
+  normalizeSeoHttpUrl,
+  normalizeSeoImageUrl,
+  parseVerificationMetaTags,
+} from "@/lib/seo-verification";
 import { seoEntityFallbackKey, type SeoPageKey } from "@/lib/seo-pages";
 
 export async function generatePublicPageMetadata(
@@ -52,7 +56,11 @@ export async function generatePublicPageMetadata(
   const title = seo?.title || globalSeo?.title || undefined;
   const description =
     seo?.description || globalSeo?.description || undefined;
-  const ogImageUrl = seo?.ogImageUrl || globalSeo?.ogImageUrl || undefined;
+  const ogImageUrl =
+    normalizeSeoImageUrl(seo?.ogImageUrl) ??
+    normalizeSeoImageUrl(globalSeo?.ogImageUrl) ??
+    undefined;
+  const canonicalUrl = normalizeSeoHttpUrl(seo?.canonicalUrl) ?? undefined;
   const keywords = seo?.keywords
     ?.split(",")
     .map((item) => item.trim())
@@ -63,7 +71,7 @@ export async function generatePublicPageMetadata(
     description,
     keywords: keywords?.length ? keywords : undefined,
     openGraph: ogImageUrl ? { images: [ogImageUrl] } : undefined,
-    alternates: seo?.canonicalUrl ? { canonical: seo.canonicalUrl } : undefined,
+    alternates: canonicalUrl ? { canonical: canonicalUrl } : undefined,
     robots:
       seo?.noIndex || seo?.noFollow
         ? { index: !seo.noIndex, follow: !seo.noFollow }
