@@ -5158,12 +5158,12 @@ export function MenuPreview({
 
   if (variant === "v1") {
     desktopLayout = (
-      <div className="flex h-full items-center gap-3">
-        <div className="flex shrink-0 items-center gap-2">{logoNode}</div>
-        <div className={`flex min-w-0 flex-1 ${alignClass}`}>
-          <div className="min-w-0">{navNode}</div>
+      <div className="relative h-full">
+        <div className="absolute left-0 top-1/2 flex -translate-y-1/2 items-center gap-2">{logoNode}</div>
+        <div className={`absolute left-1/2 top-1/2 flex min-w-0 -translate-x-1/2 -translate-y-1/2 ${alignClass}`}>
+          <div className="min-w-0 whitespace-nowrap">{navNode}</div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+        <div className="absolute right-0 top-1/2 flex -translate-y-1/2 items-center gap-2 whitespace-nowrap">
           {searchNode}
           {socialsNode}
           {accountNode}
