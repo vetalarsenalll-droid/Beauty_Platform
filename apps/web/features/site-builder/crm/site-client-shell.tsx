@@ -1772,7 +1772,9 @@ export default function SiteClient({
               <button
                 type="button"
                 onClick={() => {
-                  setMobileViewportPickerOpen((open) => !open);
+                  setMobileViewport("mobile360");
+                  setPreviewMode("mobile");
+                  setMobileViewportPickerOpen(false);
                 }}
                 className={`flex h-10 w-10 items-center justify-center rounded-none border-0 bg-transparent transition ${
                   previewMode === "mobile"
@@ -1783,6 +1785,21 @@ export default function SiteClient({
                 title="Мобильный"
               >
                 <MobilePreviewIcon className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileViewportPickerOpen((open) => !open);
+                }}
+                className={`-ml-5 flex h-10 w-5 translate-y-0.5 items-center justify-center rounded-none border-0 bg-transparent text-base leading-none transition ${
+                  mobileViewportPickerOpen
+                    ? "text-[color:var(--bp-ink)]"
+                    : "text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+                }`}
+                aria-label="Выбрать размер мобильного предпросмотра"
+                title="Размер мобильного предпросмотра"
+              >
+                {mobileViewportPickerOpen ? "▴" : "▾"}
               </button>
             </div>
             <button
@@ -2009,7 +2026,7 @@ export default function SiteClient({
                           className={`${leftBtnClass} w-28 rounded-r-none`}
                           style={{
                             backgroundColor: panelTheme.save,
-                            borderColor: panelTheme.save,
+                            borderColor: controlsDark ? "#4b5563" : "#9ca3af",
                             color: "#ffffff",
                           }}
                         >
