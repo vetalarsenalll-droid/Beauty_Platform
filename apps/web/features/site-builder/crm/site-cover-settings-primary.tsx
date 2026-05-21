@@ -43,9 +43,9 @@ type SiteCoverSettingsPrimaryProps = {
   coverImageRadiusPx?: number;
   coverFlipHorizontal?: boolean;
   coverTextVerticalAlign?: "top" | "center" | "bottom";
-  coverDrawerKey: "slider" | "typography" | "button" | "animation" | null;
+  coverDrawerKey: "slider" | "colors" | "typography" | "button" | "animation" | null;
   setCoverDrawerKey: Dispatch<
-    SetStateAction<"slider" | "typography" | "button" | "animation" | null>
+    SetStateAction<"slider" | "colors" | "typography" | "button" | "animation" | null>
   >;
   coverBackgroundPosition: string;
   coverBackgroundFrom: string;

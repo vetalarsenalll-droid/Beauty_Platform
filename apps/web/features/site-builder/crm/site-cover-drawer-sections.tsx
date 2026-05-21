@@ -6,7 +6,7 @@ import { FlatCheckbox, SliderTrack } from "./site-renderer";
 import { renderCoverFlatNumberInput, renderCoverFlatTextInput } from "./cover-settings";
 
 type SiteCoverDrawerSectionsProps = {
-  coverDrawerKey: "slider" | "typography" | "button" | "animation" | null;
+  coverDrawerKey: "slider" | "colors" | "typography" | "button" | "animation" | null;
   selectedBlock: SiteBlock;
   activeTheme: SiteTheme;
   coverStyle: BlockStyle | null;

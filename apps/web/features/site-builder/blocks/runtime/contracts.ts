@@ -95,8 +95,8 @@ export type CrmPanelCtx = {
   activePanelSectionId: string | null;
   setActivePanelSectionId: Dispatch<SetStateAction<string | null>>;
 
-  coverDrawerKey: "slider" | "typography" | "button" | "animation" | null;
-  setCoverDrawerKey: Dispatch<SetStateAction<"slider" | "typography" | "button" | "animation" | null>>;
+  coverDrawerKey: "slider" | "colors" | "typography" | "button" | "animation" | null;
+  setCoverDrawerKey: Dispatch<SetStateAction<"slider" | "colors" | "typography" | "button" | "animation" | null>>;
 
   getCoverWidthButtonRef: () => RefObject<HTMLButtonElement | null>;
   getCoverWidthPopoverRef: () => RefObject<HTMLDivElement | null>;

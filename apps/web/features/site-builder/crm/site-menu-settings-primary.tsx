@@ -2,7 +2,8 @@
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type { EditorSection } from "./site-client-core";
 import { COVER_LINE_OPTIONS, COVER_LINE_STEP_PX, formatCoverLineLabel } from "./site-client-core";
-import { SliderTrack, normalizeBlockStyle, updateBlockStyle } from "./site-renderer";
+import { renderCoverFlatNumberInput } from "./cover-settings";
+import { normalizeBlockStyle, updateBlockStyle } from "./site-renderer";
 import type { PanelTheme } from "./site-shell-theme";
 
 type UpdateBlock = (
@@ -16,8 +17,11 @@ type SiteMenuSettingsPrimaryProps = {
   activeTheme: SiteTheme;
   panelTheme: PanelTheme;
   currentPanelSections: EditorSection[];
-  activePanelSectionId: string | null;
   setActivePanelSectionId: Dispatch<SetStateAction<string | null>>;
+  coverDrawerKey: "slider" | "colors" | "typography" | "button" | "animation" | null;
+  setCoverDrawerKey: Dispatch<
+    SetStateAction<"slider" | "colors" | "typography" | "button" | "animation" | null>
+  >;
   updateBlock: UpdateBlock;
 };
 
@@ -26,8 +30,9 @@ export function SiteMenuSettingsPrimary({
   activeTheme,
   panelTheme,
   currentPanelSections,
-  activePanelSectionId,
   setActivePanelSectionId,
+  coverDrawerKey,
+  setCoverDrawerKey,
   updateBlock,
 }: SiteMenuSettingsPrimaryProps) {
   const data = (selectedBlock.data as Record<string, unknown>) ?? {};
@@ -43,15 +48,23 @@ export function SiteMenuSettingsPrimary({
         ? 64
         : 56;
 
-  const applyMenuHeight = (value: number) => {
+  const updateData = (patch: Record<string, unknown>) => {
     updateBlock(selectedBlock.id, (prev) => ({
       ...prev,
       data: {
         ...(prev.data as Record<string, unknown>),
-        menuHeight: value,
+        ...patch,
       },
     }));
   };
+
+  const applyMenuHeight = (value: number) => {
+    updateData({ menuHeight: value });
+  };
+  const socialIconSizeRaw = Number(data.socialIconSize);
+  const socialIconSize = Number.isFinite(socialIconSizeRaw)
+    ? Math.max(24, Math.min(72, Math.round(socialIconSizeRaw)))
+    : 40;
 
   const menuMarginTopLines = Math.max(
     0,
@@ -64,25 +77,47 @@ export function SiteMenuSettingsPrimary({
 
   return (
     <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
-      <div className="space-y-6">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-            Высота меню
-          </div>
-          <div className="mt-1 text-sm text-[color:var(--bp-muted)]">{menuHeight}px</div>
-          <div className="mt-3">
-            <SliderTrack
-              label="Высота меню"
-              value={menuHeight}
-              min={menuHeightMin}
-              max={96}
-              onChange={applyMenuHeight}
-              accentColor={panelTheme.saveClose}
-              railColor={panelTheme.border}
-            />
-          </div>
+      {renderCoverFlatNumberInput(
+        "Высота меню",
+        menuHeight,
+        menuHeightMin,
+        96,
+        applyMenuHeight
+      )}
+
+      <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+        <div className="min-h-[32px] leading-4">Позиция меню</div>
+        <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+          <select
+            value={(data.position as string) ?? "static"}
+            onChange={(event) => updateData({ position: event.target.value })}
+            className="w-full appearance-none rounded-none border-0 bg-transparent px-0 py-1 pr-6 text-base font-normal normal-case tracking-normal shadow-none outline-none focus:ring-0"
+            style={{
+              border: 0,
+              borderRadius: 0,
+              backgroundColor: "transparent",
+              boxShadow: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              appearance: "none",
+            }}
+          >
+            <option value="static">Статика</option>
+            <option value="sticky">Фиксация при скролле</option>
+          </select>
+          <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
+            ▾
+          </span>
         </div>
-      </div>
+      </label>
+
+      {renderCoverFlatNumberInput(
+        "Размер иконок соцсетей",
+        socialIconSize,
+        24,
+        72,
+        (value) => updateData({ socialIconSize: value })
+      )}
 
       <div className="space-y-3">
         {currentPanelSections
@@ -96,31 +131,33 @@ export function SiteMenuSettingsPrimary({
             const order = ["colors", "typography", "button"];
             return order.indexOf(a.id) - order.indexOf(b.id);
           })
-          .map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setActivePanelSectionId((prev) => (prev === section.id ? null : section.id));
-              }}
-              className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
-              style={{
-                borderColor:
-                  activePanelSectionId === section.id
-                    ? panelTheme.accent
-                    : panelTheme.border,
-                backgroundColor: panelTheme.panel,
-                color:
-                  activePanelSectionId === section.id
-                    ? panelTheme.text
-                    : panelTheme.muted,
-              }}
-            >
-              <span>{section.label}</span>
-              <span className="text-xs">›</span>
-            </button>
-          ))}
+          .map((section) => {
+            const drawerId = section.id as "colors" | "typography" | "button";
+            const isActive = coverDrawerKey === drawerId;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActivePanelSectionId(null);
+                  setCoverDrawerKey((prev) => (prev === drawerId ? null : drawerId));
+                }}
+                className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition"
+                style={{
+                  borderColor: isActive ? panelTheme.accent : panelTheme.border,
+                  backgroundColor: panelTheme.panel,
+                  color: isActive ? panelTheme.text : panelTheme.muted,
+                }}
+              >
+                <span>{section.label}</span>
+                <span className="text-xs">{isActive ? "‹" : "›"}</span>
+              </button>
+            );
+          })}
       </div>
 
       <div className="space-y-3 pt-1">

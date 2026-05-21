@@ -1796,51 +1796,42 @@ export function BlockStyleEditor({
               minMenuHeight,
               Math.min(96, Math.round(currentMenuHeight))
             );
-            const pct =
-              ((menuHeight - minMenuHeight) / (96 - minMenuHeight)) * 100;
             return (
-              <div className="mt-1">
+              <label className="mt-1 block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
                   Высота меню
                 </div>
-                <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                  {menuHeight}px
-                </div>
-                <div className="relative mt-2 h-5">
-                  <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full bg-[color:var(--bp-stroke)]" />
-                  <div
-                    className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
-                    style={{
-                      width: `${Math.max(0, Math.min(100, pct))}%`,
-                      backgroundColor: "#ff5a5f",
-                    }}
-                  />
-                  <div
-                    className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
-                    style={{
-                      left: `${Math.max(0, Math.min(100, pct))}%`,
-                      backgroundColor: "#ff5a5f",
-                    }}
-                  />
+                <div className="mt-2 flex items-center gap-2 border-b border-[color:var(--bp-stroke)] bg-transparent pb-1">
                   <input
-                    type="range"
+                    type="number"
                     min={minMenuHeight}
                     max={96}
-                    step={1}
                     value={menuHeight}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const parsed = Number(event.target.value);
                       onChange({
                         ...block,
                         data: {
                           ...block.data,
-                          menuHeight: Number(event.target.value),
+                          menuHeight: Number.isFinite(parsed)
+                            ? Math.max(minMenuHeight, Math.min(96, Math.round(parsed)))
+                            : minMenuHeight,
                         },
-                      })
-                    }
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      });
+                    }}
+                    className="w-full appearance-none border-0 bg-transparent px-0 py-1 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+                    style={{
+                      border: 0,
+                      borderRadius: 0,
+                      backgroundColor: "transparent",
+                      boxShadow: "none",
+                    }}
                   />
+                  <span className="text-sm font-normal normal-case tracking-normal text-[color:var(--bp-muted)]">
+                    px
+                  </span>
                 </div>
-              </div>
+              </label>
             );
           })()}
 

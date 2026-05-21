@@ -18,7 +18,7 @@ type UseRightPanelArgs = {
   updateBlock: UpdateBlock;
   setActivePanelSectionId: Dispatch<SetStateAction<string | null>>;
   setCoverDrawerKey: Dispatch<
-    SetStateAction<"slider" | "typography" | "button" | "animation" | null>
+    SetStateAction<"slider" | "colors" | "typography" | "button" | "animation" | null>
   >;
   setCoverWidthModalOpen: Dispatch<SetStateAction<boolean>>;
   animationMs: number;

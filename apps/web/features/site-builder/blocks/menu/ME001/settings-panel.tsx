@@ -8,10 +8,10 @@ export function MenuSettingsPanel(ctx: CrmPanelCtx) {
       activeTheme={ctx.activeTheme}
       panelTheme={ctx.panelTheme}
       currentPanelSections={ctx.currentPanelSections}
-      activePanelSectionId={ctx.activePanelSectionId}
       setActivePanelSectionId={ctx.setActivePanelSectionId}
+      coverDrawerKey={ctx.coverDrawerKey}
+      setCoverDrawerKey={ctx.setCoverDrawerKey}
       updateBlock={ctx.updateBlock}
     />
   );
 }
-

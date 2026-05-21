@@ -4,9 +4,15 @@ import { BlockStyleEditor } from "@/features/site-builder/crm/site-editor-panels
 
 export function MenuV3Drawers(ctx: CrmPanelCtx) {
   if (ctx.rightPanel !== "settings") return null;
-  if (!ctx.activePanelSectionId) return null;
+  const activeDrawerKey =
+    ctx.coverDrawerKey === "colors" ||
+    ctx.coverDrawerKey === "typography" ||
+    ctx.coverDrawerKey === "button"
+      ? ctx.coverDrawerKey
+      : null;
+  if (!activeDrawerKey) return null;
 
-  if (ctx.activePanelSectionId === "button") {
+  if (activeDrawerKey === "button") {
     return (
       <SiteMenuButtonDrawer
         selectedBlock={ctx.block}
@@ -21,7 +27,7 @@ export function MenuV3Drawers(ctx: CrmPanelCtx) {
     <BlockStyleEditor
       block={ctx.block}
       theme={ctx.activeTheme}
-      activeSectionId={ctx.activePanelSectionId}
+      activeSectionId={activeDrawerKey}
       onChange={(next) => ctx.updateBlock(ctx.block.id, () => next)}
     />
   );

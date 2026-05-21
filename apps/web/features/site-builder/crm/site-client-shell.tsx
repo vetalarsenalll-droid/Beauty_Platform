@@ -578,7 +578,7 @@ export default function SiteClient({
   const [seoPageSettings, setSeoPageSettings] = useState<SiteSeoPageSetting[]>(initialSeoPageSettings);
   const [activePanelSectionId, setActivePanelSectionId] = useState<string | null>(null);
   const [coverDrawerKey, setCoverDrawerKey] = useState<
-    "slider" | "typography" | "button" | "animation" | null
+    "slider" | "colors" | "typography" | "button" | "animation" | null
   >(null);
   const [coverWidthModalOpen, setCoverWidthModalOpen] = useState(false);
   const coverWidthButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -2622,11 +2622,13 @@ export default function SiteClient({
                     {coverDrawerKey
                       ? coverDrawerKey === "slider"
                         ? "Стиль слайдера"
-                        : coverDrawerKey === "typography"
-                          ? "Типографика"
-                          : coverDrawerKey === "button"
-                            ? "Кнопка"
-                            : "Анимация"
+                        : coverDrawerKey === "colors"
+                          ? "Цвета"
+                          : coverDrawerKey === "typography"
+                            ? "Типографика"
+                            : coverDrawerKey === "button"
+                              ? "Кнопка"
+                              : "Анимация"
                       : currentPanelSections.find((section) => section.id === activePanelSectionId)?.label}
                   </div>
               <div className="w-8" />
