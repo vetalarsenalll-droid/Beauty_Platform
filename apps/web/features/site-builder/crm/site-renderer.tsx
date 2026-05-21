@@ -2052,6 +2052,11 @@ export function BlockPreview({
     typeof previewViewportWidth === "number" &&
     Number.isFinite(previewViewportWidth) &&
     previewViewportWidth <= 480;
+  const useMobileClientLayout =
+    isClient &&
+    typeof previewViewportWidth === "number" &&
+    Number.isFinite(previewViewportWidth) &&
+    previewViewportWidth <= 960;
   const blockWidthColumnsDesktop = isMenu
     ? MAX_BLOCK_COLUMNS
     : clampBlockColumns(style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS, block.type);
@@ -2180,7 +2185,11 @@ export function BlockPreview({
           : 0,
         marginTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : style.marginTop,
         marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : style.marginBottom,
-        paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? style.marginTop : undefined,
+        paddingTop: useMobileClientLayout
+          ? 0
+          : isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection
+            ? style.marginTop
+            : undefined,
         paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? style.marginBottom : undefined,
         ["--booking-page-top-offset" as string]: isBooking ? `${Math.max(0, style.marginTop)}px` : undefined,
         backgroundColor: isLoader
@@ -2509,7 +2518,7 @@ export function renderBlock(
     case "client":
     case "clientLogin":
     case "clientCabinet":
-      return renderClient(block, account, theme, style);
+      return renderClient(block, account, theme, style, previewViewportWidth);
     case "legal":
       return renderLegal(block, theme, style, legalDocuments ?? [], platformLegalDocuments ?? [], currentEntity);
     case "booking":
@@ -5559,6 +5568,7 @@ function ClientCabinetTabsPreview({
   previewOrganizationName,
   previewLocation,
   text,
+  forceSingleColumn = false,
 }: {
   cabinetButtonRadius: number;
   cabinetButtonBg: string;
@@ -5573,6 +5583,7 @@ function ClientCabinetTabsPreview({
   previewOrganizationName: string;
   previewLocation: string;
   text: (key: string, fallback: string) => string;
+  forceSingleColumn?: boolean;
 }) {
   const tabs = ["Обзор", "Записи", "Лояльность", "Оплаты", "Документы", "Отзывы", "Профиль", "Поддержка"];
   const [activeTab, setActiveTab] = useState(tabs[0]);
@@ -5585,7 +5596,7 @@ function ClientCabinetTabsPreview({
 
   const content =
     activeTab === "Обзор" ? (
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div className={`grid gap-4 ${forceSingleColumn ? "" : "lg:grid-cols-[2fr_1fr]"}`}>
         <div className="space-y-4">
           <div className="border p-5" style={cabinetCardStyle}>
             <div className="font-semibold" style={{ color: cabinetTextColor }}>{text("appointmentTitle", "Следующая запись")}</div>
@@ -5677,7 +5688,8 @@ export function renderClient(
   block: SiteBlock,
   account: AccountInfo,
   theme: SiteTheme,
-  style: BlockStyle
+  style: BlockStyle,
+  previewViewportWidth?: number
 ) {
   const data = block.data as Record<string, unknown>;
   const view =
@@ -5775,6 +5787,10 @@ export function renderClient(
   const previewOrganizationCount = "1 организация";
   const previewLocation = "Город";
   const inputRadius = Math.max(0, authFieldRadius);
+  const hasPreviewViewport =
+    typeof previewViewportWidth === "number" && Number.isFinite(previewViewportWidth);
+  const forceFullPageLayout = hasPreviewViewport && previewViewportWidth <= 960;
+  const forceSingleAuthColumn = hasPreviewViewport && previewViewportWidth < 768;
   const contentColumns = clampBlockColumns(
     style.blockWidthColumns ?? (view === "cabinet" ? 8 : 6),
     block.type
@@ -5788,9 +5804,9 @@ export function renderClient(
   const contentWidthPercent = `${((contentGridEnd - contentGridStart + 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const contentLeftPercent = `${((contentGridStart - 1) / MAX_BLOCK_COLUMNS) * 100}%`;
   const clientContentStyle: CSSProperties = {
-    width: contentWidthPercent,
+    width: forceFullPageLayout ? "100%" : contentWidthPercent,
     maxWidth: "100%",
-    marginLeft: contentLeftPercent,
+    marginLeft: forceFullPageLayout ? 0 : contentLeftPercent,
     marginRight: 0,
   };
   const cabinetCardStyle = {
@@ -5801,9 +5817,11 @@ export function renderClient(
   };
 
   const loginPreview = (
-    <div className="p-8" style={{ ...authPageVisual, borderRadius: 0 }}>
+    <div className={forceFullPageLayout ? "p-0" : "p-8"} style={{ ...authPageVisual, borderRadius: 0 }}>
       <div
-        className="grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+        className={`grid overflow-hidden border border-[color:var(--bp-stroke)] shadow-[var(--bp-shadow)] ${
+          forceSingleAuthColumn ? "" : "md:grid-cols-[1.05fr_1fr]"
+        }`}
         style={{
           ...clientContentStyle,
           minHeight: authBlockHeight,
@@ -5812,7 +5830,7 @@ export function renderClient(
           backgroundImage: "none",
         }}
       >
-        <div className="flex flex-col justify-between gap-6 p-8" style={{ ...authSideVisual, color: authSideTextColor }}>
+        <div className={`flex flex-col justify-between gap-6 ${forceFullPageLayout ? "p-5" : "p-8"}`} style={{ ...authSideVisual, color: authSideTextColor }}>
           <div>
             <div className="text-xs uppercase tracking-[0.3em]" style={{ color: authSideMutedColor }}>Клиентский доступ</div>
             <div className="mt-3 font-semibold" style={{ fontSize: authTitleSize }}>{text("authTitle", "Личный кабинет клиента")}</div>
@@ -5829,7 +5847,7 @@ export function renderClient(
             </div>
           </div>
         </div>
-        <div className="p-8" style={{ ...authRightVisual, color: authRightTextColor, fontSize: authFormTextSize }}>
+        <div className={forceFullPageLayout ? "p-5" : "p-8"} style={{ ...authRightVisual, color: authRightTextColor, fontSize: authFormTextSize }}>
           <div className="text-xs uppercase tracking-[0.2em]" style={{ color: authRightMutedColor }}>Личный кабинет</div>
           <div className="mt-2 font-semibold" style={{ fontSize: authFormTitleSize }}>{text("loginTitle", "Вход")}</div>
           <div className="mt-8 space-y-2">
@@ -5891,7 +5909,7 @@ export function renderClient(
   const cabinetPreview = (
     <div style={{ ...cabinetPageVisual, borderRadius: 0 }}>
       <div className="flex flex-col gap-6" style={{ ...clientContentStyle, color: cabinetTextColor }}>
-        <div className="border p-8 shadow-[var(--bp-shadow)]" style={cabinetCardStyle}>
+        <div className={`border shadow-[var(--bp-shadow)] ${forceFullPageLayout ? "p-5" : "p-8"}`} style={cabinetCardStyle}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
               <div className="text-xs uppercase tracking-[0.35em] text-[color:var(--bp-muted)]">{previewOrganizationName}</div>
@@ -5935,6 +5953,7 @@ export function renderClient(
           previewOrganizationName={previewOrganizationName}
           previewLocation={previewLocation}
           text={text}
+          forceSingleColumn={hasPreviewViewport && previewViewportWidth < 960}
         />
       </div>
     </div>

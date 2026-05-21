@@ -55,11 +55,11 @@ export default function ClientLoginPage({
 
   return (
     <div
-      className={`flex items-center ${embedded ? "px-8 py-8" : "min-h-screen justify-center px-6 py-12"}`}
+      className={`site-client-auth-page flex items-center ${embedded ? "px-8 py-8" : "min-h-screen justify-center px-6 py-12"}`}
       style={{ backgroundColor: "var(--site-client-auth-page-bg, var(--bp-surface))", backgroundImage: "var(--site-client-auth-page-bg-image, none)" }}
     >
       <div
-        className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+        className="site-client-auth-card grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
         style={{
           width: embedded ? "var(--site-client-content-width, 100%)" : "100%",
           marginLeft: embedded ? "var(--site-client-content-left, auto)" : "auto",
@@ -70,7 +70,7 @@ export default function ClientLoginPage({
           backgroundImage: "none",
         }}
       >
-        <div className={`flex flex-col justify-between gap-6 ${embedded ? "p-8" : "p-10"}`} style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))", backgroundImage: "var(--site-client-auth-side-bg-image, none)", color: "var(--site-client-auth-side-text,#ffffff)" }}>
+        <div className={`site-client-auth-side flex flex-col justify-between gap-6 ${embedded ? "p-8" : "p-10"}`} style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))", backgroundImage: "var(--site-client-auth-side-bg-image, none)", color: "var(--site-client-auth-side-text,#ffffff)" }}>
           <div>
             <div className="text-xs uppercase tracking-[0.3em]" style={{ color: "var(--site-client-auth-side-muted,rgba(255,255,255,0.7))" }}>
               {embedded ? "Клиентский доступ" : "Marketplace"}
@@ -91,7 +91,7 @@ export default function ClientLoginPage({
             </div>
           </div>
         </div>
-        <div className={embedded ? "p-8" : "p-10"} style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
+        <div className={`site-client-auth-form ${embedded ? "p-8" : "p-10"}`} style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
           <div className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--site-client-auth-right-muted,var(--bp-muted))" }}>
             Личный кабинет
           </div>

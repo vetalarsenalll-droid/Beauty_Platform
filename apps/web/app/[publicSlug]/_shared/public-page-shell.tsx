@@ -183,7 +183,12 @@ export async function renderPublicPageShell({
     : 1120;
   const blocks = resolveBlocksForPage(data, pageKey, currentEntity);
   const pageMenuBlock = blocks.find((block) => block.type === "menu") ?? null;
-  const bookingMobileMenuOffset = pageKey === "booking" ? resolveMenuHeight(pageMenuBlock) : 0;
+  const usesMobileMenuOffset =
+    pageKey === "booking" ||
+    pageKey === "client" ||
+    pageKey === "clientLogin" ||
+    pageKey === "clientCabinet";
+  const bookingMobileMenuOffset = usesMobileMenuOffset ? resolveMenuHeight(pageMenuBlock) : 0;
   const themeStyle = buildThemeStyle(palette);
   let bookingPageBackgroundStyle: CSSProperties | null = null;
   const resolvedSearchParams = searchParams ? await searchParams : null;
@@ -249,6 +254,8 @@ export async function renderPublicPageShell({
           : undefined,
     });
     const isBooking = block.type === "booking";
+    const isClient =
+      block.type === "client" || block.type === "clientLogin" || block.type === "clientCabinet";
     const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
     const bookingTopOffset = Math.max(0, typeof style.marginTop === "number" ? style.marginTop : 0);
     const wrapperStyle = isBooking
@@ -261,6 +268,11 @@ export async function renderPublicPageShell({
           ["--booking-page-top-offset" as string]: `calc(${bookingTopOffset}px + ${bookingMobileMenuOffset}px)`,
           ["--booking-mobile-top-offset" as string]: `${bookingMobileMenuOffset}px`,
         }
+      : isClient
+        ? {
+            ...wrapper.style,
+            ["--site-client-mobile-menu-offset" as string]: `${bookingMobileMenuOffset}px`,
+          }
       : wrapper.style;
     const finalWrapperStyle =
       block.type === "menu"

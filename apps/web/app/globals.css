@@ -297,6 +297,54 @@ html {
   min-height: auto !important;
 }
 
+.site-client-account-block {
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .site-block-client {
+    padding-top: var(--site-client-mobile-menu-offset, 0px) !important;
+  }
+
+  .site-client-account-block {
+    --site-client-content-width: 100% !important;
+    --site-client-content-left: 0px !important;
+  }
+
+  .site-client-account-block .site-client-auth-page {
+    align-items: stretch;
+    padding: 0 !important;
+  }
+
+  .site-client-account-block .site-client-auth-card {
+    max-width: none !important;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-radius: 0 !important;
+    box-shadow: none;
+  }
+
+  .site-client-account-block .site-client-cabinet-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .site-client-account-block .site-client-auth-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .site-client-account-block .site-client-auth-side,
+  .site-client-account-block .site-client-auth-form {
+    padding: 20px !important;
+  }
+
+  .site-client-account-block .site-client-cabinet-page {
+    gap: 20px;
+  }
+}
+
 @media (max-width: 639px) {
   .site-block-booking {
     padding-top: var(--booking-mobile-top-offset, var(--booking-fixed-menu-offset, 0px)) !important;

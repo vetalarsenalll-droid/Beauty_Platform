@@ -90,11 +90,11 @@ export default function ClientRegisterPage({
 
   return (
     <div
-      className={`flex items-center ${embedded ? "px-8 py-8" : "min-h-screen justify-center px-6 py-12"}`}
+      className={`site-client-auth-page flex items-center ${embedded ? "px-8 py-8" : "min-h-screen justify-center px-6 py-12"}`}
       style={{ backgroundColor: "var(--site-client-auth-page-bg, var(--bp-surface))" }}
     >
       <div
-        className="grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
+        className="site-client-auth-card grid w-full max-w-[980px] overflow-hidden border border-[color:var(--bp-stroke)] bg-[color:var(--site-client-auth-block-bg,var(--bp-paper))] shadow-[var(--bp-shadow)] md:grid-cols-[1.05fr_1fr]"
         style={{
           width: embedded ? "var(--site-client-content-width, 100%)" : "100%",
           marginLeft: embedded ? "var(--site-client-content-left, auto)" : "auto",
@@ -106,7 +106,7 @@ export default function ClientRegisterPage({
         }}
       >
         <div
-          className={`flex flex-col justify-between gap-6 text-white ${embedded ? "p-8" : "p-10"}`}
+          className={`site-client-auth-side flex flex-col justify-between gap-6 text-white ${embedded ? "p-8" : "p-10"}`}
           style={{ backgroundColor: "var(--site-client-auth-side-bg,var(--bp-accent))" }}
         >
           <div>
@@ -135,7 +135,7 @@ export default function ClientRegisterPage({
             </div>
           </div>
         </div>
-        <div className={embedded ? "p-8" : "p-10"} style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
+        <div className={`site-client-auth-form ${embedded ? "p-8" : "p-10"}`} style={{ backgroundColor: "var(--site-client-auth-right-bg,#ffffff)", backgroundImage: "var(--site-client-auth-right-bg-image, none)", color: "var(--site-client-auth-right-text,#111827)" }}>
           <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
             Личный кабинет
           </div>

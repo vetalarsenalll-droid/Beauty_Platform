@@ -5,6 +5,7 @@ import PublicBookingClient from "@/components/public-booking-client";
 import MenuSearch from "@/components/menu-search";
 import SiteThemeToggle from "@/components/site-theme-toggle";
 import DetailsCloseButton from "@/components/details-close-button";
+import DetailsCloseLink from "@/components/details-close-link";
 import GallerySlider from "@/components/gallery-slider";
 import PublicReviewAuthModal from "@/components/public-review-auth-modal";
 import ReviewPhotoGallery from "@/components/review-photo-gallery";
@@ -2955,7 +2956,9 @@ export function buildBlockWrapperStyle(
       return {
         className: isMenu
           ? "site-block overflow-visible border border-[color:var(--bp-stroke)] p-0"
-          : "site-block p-0",
+          : isClientBlock
+            ? "site-block site-block-client p-0"
+            : "site-block p-0",
       style: {
         position: options.isMenuSticky ? "sticky" : undefined,
         top: options.isMenuSticky ? 0 : undefined,
@@ -3221,7 +3224,7 @@ function renderMenu(
             ? `${basePath}/client`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
-      <Link
+      <DetailsCloseLink
         key={key}
         href={href}
         className="font-medium whitespace-nowrap"
@@ -3231,7 +3234,7 @@ function renderMenu(
         }}
       >
         {PAGE_LABELS[key]}
-      </Link>
+      </DetailsCloseLink>
     );
   });
   const overlayLinkItems = menuItems.map((key) => {
@@ -3244,7 +3247,7 @@ function renderMenu(
             ? `${basePath}/client`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
     return (
-      <Link
+      <DetailsCloseLink
         key={`${key}-overlay`}
         href={href}
         className="bp-menu-overlay-link w-full max-w-full break-words text-3xl font-medium leading-tight md:text-5xl"
@@ -3260,7 +3263,7 @@ function renderMenu(
         }}
       >
         {PAGE_LABELS[key]}
-      </Link>
+      </DetailsCloseLink>
     );
   });
 
@@ -3446,7 +3449,7 @@ function renderMenu(
                 ? `${basePath}/client`
                 : `${basePath}/${key === "promos" ? "promos" : key}`;
         return (
-          <Link
+          <DetailsCloseLink
             key={`${key}-drawer`}
             href={href}
             className={`bp-menu-drawer-link w-full max-w-full break-words font-medium leading-tight text-[color:var(--block-text,var(--bp-ink))] ${
@@ -3463,7 +3466,7 @@ function renderMenu(
             }}
           >
             {PAGE_LABELS[key]}
-          </Link>
+          </DetailsCloseLink>
         );
       })}
     </div>
@@ -5542,6 +5545,7 @@ function renderClient(
 
   return (
     <div
+      className="site-client-account-block"
       style={
         {
           "--site-client-auth-page-bg": authPageVisual.color,
