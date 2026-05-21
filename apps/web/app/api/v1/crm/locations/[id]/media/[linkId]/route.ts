@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
+import { removeLocalUploadIfPresent } from "@/lib/local-upload-cleanup";
 
 type Params = { params: Promise<{ id: string; linkId: string }> };
 
@@ -41,7 +42,7 @@ export async function DELETE(_request: Request, { params }: Params) {
     return jsonError("NOT_FOUND", "Фото не найдено.", null, 404);
   }
 
-  await prisma.$transaction(async (tx) => {
+  const { removedAsset, assetUrl } = await prisma.$transaction(async (tx) => {
     await tx.mediaLink.delete({ where: { id: link.id } });
     const linksLeft = await tx.mediaLink.count({
       where: { assetId: link.assetId },
@@ -49,7 +50,12 @@ export async function DELETE(_request: Request, { params }: Params) {
     if (linksLeft === 0) {
       await tx.mediaAsset.delete({ where: { id: link.assetId } });
     }
+    return { removedAsset: linksLeft === 0, assetUrl: link.asset.url };
   });
+
+  if (removedAsset) {
+    await removeLocalUploadIfPresent(assetUrl);
+  }
 
   await logAccountAudit({
     accountId: auth.session.accountId,

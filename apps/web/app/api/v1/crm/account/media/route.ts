@@ -7,6 +7,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
+import { removeLocalUploadIfPresent } from "@/lib/local-upload-cleanup";
 
 export const runtime = "nodejs";
 
@@ -203,13 +204,15 @@ export async function POST(request: Request) {
   await writeFile(filePath, outputBuffer);
   const url = `/uploads/accounts/${auth.session.accountId}/${typeKey}/${fileName}`;
 
-  const link = await prisma.$transaction(async (tx) => {
+  const { link, removedUrls } = await prisma.$transaction(async (tx) => {
     const existingLinks = await tx.mediaLink.findMany({
       where: {
         entityType,
         entityId: String(auth.session.accountId),
       },
+      include: { asset: true },
     });
+    const removedUrls: string[] = [];
 
     if (typeKey !== "siteCover" && existingLinks.length > 0) {
       const assetIds = existingLinks.map((item) => item.assetId);
@@ -221,6 +224,7 @@ export async function POST(request: Request) {
       });
       if (left === 0) {
         await tx.mediaAsset.deleteMany({ where: { id: { in: assetIds } } });
+        removedUrls.push(...existingLinks.map((item) => item.asset.url));
       }
     }
 
@@ -260,8 +264,10 @@ export async function POST(request: Request) {
       });
     }
 
-    return newLink;
+    return { link: newLink, removedUrls };
   });
+
+  await Promise.all(removedUrls.map((item) => removeLocalUploadIfPresent(item)));
 
   await logAccountAudit({
     accountId: auth.session.accountId,

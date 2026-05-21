@@ -2,31 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
-import { unlink } from "node:fs/promises";
-import path from "node:path";
+import { removeLocalUploadIfPresent } from "@/lib/local-upload-cleanup";
 
 type Params = { params: Promise<{ linkId: string }> };
 
 function parseId(value: string) {
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : null;
-}
-
-async function removeLocalUploadIfPresent(assetUrl: string) {
-  const url = String(assetUrl ?? "").trim();
-  if (!url.startsWith("/uploads/")) return;
-
-  const rel = url.replace(/^\//, "");
-  const candidate = path.join(process.cwd(), "public", rel);
-  const uploadsRoot = path.join(process.cwd(), "public", "uploads") + path.sep;
-  const resolved = path.resolve(candidate);
-  if (!resolved.startsWith(path.resolve(uploadsRoot))) return;
-
-  try {
-    await unlink(resolved);
-  } catch {
-    // ignore
-  }
 }
 
 export async function DELETE(_request: Request, { params }: Params) {

@@ -102,6 +102,7 @@ export async function POST(request: Request, { params }: Params) {
   const outputBuffer = outputIsPng
     ? await image.png({ compressionLevel: 8 }).toBuffer()
     : await image.jpeg({ quality: 80, mozjpeg: true }).toBuffer();
+  const outputMetadata = await sharp(outputBuffer, { failOnError: false }).metadata();
 
   if (outputBuffer.byteLength > MAX_BYTES) {
     return jsonError("VALIDATION_FAILED", "Сжатое изображение все еще слишком большое.", null, 400);
@@ -119,8 +120,8 @@ export async function POST(request: Request, { params }: Params) {
         accountId: auth.session.accountId,
         url,
         type: "image",
-        width: metadata.width,
-        height: metadata.height,
+        width: outputMetadata.width ?? metadata.width,
+        height: outputMetadata.height ?? metadata.height,
         size: outputBuffer.byteLength,
       },
       select: { id: true, url: true },
