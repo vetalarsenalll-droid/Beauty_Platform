@@ -46,6 +46,17 @@ const moveMenuBlockFirst = (blocks: SiteBlock[]) => {
 const isBlockHidden = (block: SiteBlock) =>
   Boolean((block.data as { hidden?: unknown })?.hidden);
 
+const resolveMenuHeight = (block: SiteBlock | null) => {
+  if (!block || block.type !== "menu") return 0;
+  const raw = Number((block.data as { menuHeight?: unknown })?.menuHeight);
+  const min = block.variant === "v1" ? 40 : 30;
+  return Number.isFinite(raw) && raw >= min && raw <= 96
+    ? Math.round(raw)
+    : block.variant === "v1"
+      ? 64
+      : 56;
+};
+
 const resolveBlocksForPage = (
   data: PublicSiteData,
   pageKey: SitePageKey,
@@ -171,6 +182,8 @@ export async function renderPublicPageShell({
     ? Number(contentWidthRaw)
     : 1120;
   const blocks = resolveBlocksForPage(data, pageKey, currentEntity);
+  const pageMenuBlock = blocks.find((block) => block.type === "menu") ?? null;
+  const bookingMobileMenuOffset = pageKey === "booking" ? resolveMenuHeight(pageMenuBlock) : 0;
   const themeStyle = buildThemeStyle(palette);
   let bookingPageBackgroundStyle: CSSProperties | null = null;
   const resolvedSearchParams = searchParams ? await searchParams : null;
@@ -237,11 +250,16 @@ export async function renderPublicPageShell({
     });
     const isBooking = block.type === "booking";
     const wrapperClassName = `${wrapper.className}${isBooking ? " site-block-booking" : ""}`;
+    const bookingTopOffset = Math.max(0, typeof style.marginTop === "number" ? style.marginTop : 0);
     const wrapperStyle = isBooking
       ? {
           ...wrapper.style,
           borderColor: "transparent",
           boxShadow: "none",
+          ["--booking-block-top-offset" as string]: `${bookingTopOffset}px`,
+          ["--booking-fixed-menu-offset" as string]: `${bookingMobileMenuOffset}px`,
+          ["--booking-page-top-offset" as string]: `calc(${bookingTopOffset}px + ${bookingMobileMenuOffset}px)`,
+          ["--booking-mobile-top-offset" as string]: `${bookingMobileMenuOffset}px`,
         }
       : wrapper.style;
     const finalWrapperStyle =

@@ -3015,6 +3015,10 @@ export function buildBlockWrapperStyle(
           typeof style.marginBottom === "number"
             ? style.marginBottom
             : undefined,
+        ["--booking-page-top-offset" as string]:
+          isBookingBlock && typeof style.marginTop === "number"
+            ? `${Math.max(0, style.marginTop)}px`
+            : undefined,
         width: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "100%" : gridWidthCss,
         maxWidth: "100%",
         marginLeft: isMenu || isGallery || isBookingBlock || isCoverBlock || isServicesBlock || isClientBlock ? "auto" : gridLeftCss,

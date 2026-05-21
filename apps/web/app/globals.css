@@ -297,6 +297,12 @@ html {
   min-height: auto !important;
 }
 
+@media (max-width: 639px) {
+  .site-block-booking {
+    padding-top: var(--booking-mobile-top-offset, var(--booking-fixed-menu-offset, 0px)) !important;
+  }
+}
+
 .booking-root--mobile .booking-shell-grid {
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto minmax(0, 1fr) auto !important;
@@ -306,6 +312,7 @@ html {
 
 .booking-root--mobile {
   position: relative !important;
+  min-height: calc(100svh - var(--booking-mobile-top-offset, var(--booking-page-top-offset, 0px))) !important;
   padding-bottom: var(--booking-mobile-summary-fixed-height, 104px) !important;
 }
 
@@ -332,7 +339,15 @@ html {
 .booking-root--mobile .booking-step-panel {
   display: flex !important;
   flex-direction: column !important;
-  height: var(--booking-mobile-step-height, 420px) !important;
+  height: var(
+    --booking-mobile-step-height,
+    calc(
+      100svh -
+      var(--booking-mobile-top-offset, var(--booking-page-top-offset, 0px)) -
+      var(--booking-mobile-summary-fixed-height, 104px) -
+      132px
+    )
+  ) !important;
   min-height: 260px !important;
 }
 
@@ -787,7 +802,7 @@ html {
   }
 
   .booking-root {
-    min-height: 100svh !important;
+    min-height: calc(100svh - var(--booking-mobile-top-offset, var(--booking-page-top-offset, 0px))) !important;
     padding-bottom: var(--booking-mobile-summary-height, var(--booking-mobile-summary-fixed-height, 104px)) !important;
   }
 
@@ -864,7 +879,15 @@ html {
   .booking-step-panel {
     display: flex !important;
     flex-direction: column !important;
-    height: var(--booking-mobile-step-height, calc(100svh - 270px)) !important;
+    height: var(
+      --booking-mobile-step-height,
+      calc(
+        100svh -
+        var(--booking-mobile-top-offset, var(--booking-page-top-offset, 0px)) -
+        var(--booking-mobile-summary-fixed-height, 104px) -
+        132px
+      )
+    ) !important;
     min-height: 260px !important;
     padding: 12px !important;
     border-radius: 0 !important;

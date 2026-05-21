@@ -2182,6 +2182,7 @@ export function BlockPreview({
         marginBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? 0 : style.marginBottom,
         paddingTop: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? style.marginTop : undefined,
         paddingBottom: isGallery || isBooking || isMenu || isCover || isAisha || isLoader || isClient || isServices || isFlatSection ? style.marginBottom : undefined,
+        ["--booking-page-top-offset" as string]: isBooking ? `${Math.max(0, style.marginTop)}px` : undefined,
         backgroundColor: isLoader
           ? "transparent"
           : isMenu
