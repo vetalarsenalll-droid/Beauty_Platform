@@ -1,0 +1,123 @@
+import { prisma } from "@/lib/prisma";
+import type { getClientSession } from "@/lib/auth";
+
+type ClientSession = NonNullable<Awaited<ReturnType<typeof getClientSession>>>;
+
+export async function buildClientMePayload(session: ClientSession, accountSlug: string | null) {
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    include: { profile: true },
+  });
+
+  let clients = session.clients;
+  let accountClient = accountSlug
+    ? session.clients.find((item) => item.accountSlug === accountSlug) ?? null
+    : null;
+
+  if (accountSlug) {
+    const account = await prisma.account.findUnique({
+      where: { slug: accountSlug },
+    });
+
+    if (account) {
+      let existing = await prisma.client.findFirst({
+        where: {
+          accountId: account.id,
+          userId: session.userId,
+        },
+      });
+
+      if (!existing) {
+        const clientByPhone = user?.phone
+          ? await prisma.client.findFirst({
+              where: { accountId: account.id, phone: user.phone },
+            })
+          : null;
+        let candidate = clientByPhone;
+        if (candidate && candidate.userId && candidate.userId !== session.userId) {
+          candidate = null;
+        }
+
+        if (candidate) {
+          existing = await prisma.client.update({
+            where: { id: candidate.id },
+            data: {
+              userId: candidate.userId ?? session.userId,
+              firstName: candidate.firstName ?? user?.profile?.firstName ?? null,
+              lastName: candidate.lastName ?? user?.profile?.lastName ?? null,
+              phone: candidate.phone ?? user?.phone ?? null,
+              email: candidate.email ?? user?.email ?? session.email ?? null,
+            },
+          });
+        }
+      } else {
+        const needsUpdate =
+          (!existing.firstName && user?.profile?.firstName) ||
+          (!existing.lastName && user?.profile?.lastName) ||
+          (!existing.phone && user?.phone) ||
+          (!existing.email && (user?.email ?? session.email));
+        if (needsUpdate) {
+          await prisma.client.update({
+            where: { id: existing.id },
+            data: {
+              firstName: existing.firstName ?? user?.profile?.firstName ?? null,
+              lastName: existing.lastName ?? user?.profile?.lastName ?? null,
+              phone: existing.phone ?? user?.phone ?? null,
+              email: existing.email ?? user?.email ?? session.email ?? null,
+            },
+          });
+        }
+      }
+
+      const rows = await prisma.client.findMany({
+        where: { userId: session.userId },
+        include: { account: true },
+      });
+
+      clients = rows.map((client) => ({
+        clientId: client.id,
+        accountId: client.accountId,
+        accountSlug: client.account?.slug ?? "",
+        accountName: client.account?.name ?? "",
+        firstName: client.firstName ?? null,
+        lastName: client.lastName ?? null,
+        phone: client.phone ?? null,
+        email: client.email ?? null,
+      }));
+
+      accountClient =
+        clients.find((item) => item.accountSlug === accountSlug) ?? null;
+    }
+  }
+
+  return {
+    user: {
+      id: session.userId,
+      email: session.email,
+      phone: user?.phone ?? null,
+      firstName: user?.profile?.firstName ?? null,
+      lastName: user?.profile?.lastName ?? null,
+    },
+    client: accountClient
+      ? {
+          id: accountClient.clientId,
+          firstName: accountClient.firstName,
+          lastName: accountClient.lastName,
+          phone: accountClient.phone,
+          email: accountClient.email,
+          avatarUrl: session.avatarUrl,
+          accountSlug: accountClient.accountSlug,
+          accountName: accountClient.accountName,
+        }
+      : null,
+    clients,
+  };
+}
+
+export function emptyClientMePayload() {
+  return {
+    user: null,
+    client: null,
+    clients: [],
+  };
+}

@@ -2306,8 +2306,8 @@ export default function BookingClient({
     let mounted = true;
     setLoadingClientProfile(true);
     const url = accountSlug
-      ? `/api/v1/auth/client/me?account=${encodeURIComponent(accountSlug)}`
-      : "/api/v1/auth/client/me";
+      ? `/api/v1/public/booking/client-me?account=${encodeURIComponent(accountSlug)}`
+      : "/api/v1/public/booking/client-me";
 
     fetch(url, { credentials: "include" })
       .then((response) => (response.ok ? response.json() : null))
