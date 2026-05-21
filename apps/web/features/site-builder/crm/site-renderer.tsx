@@ -1821,7 +1821,7 @@ export function CoverImageEditor({
             <option value="custom">Своё изображение</option>
           </select>
           <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-[color:var(--bp-muted)]">
-            ?
+            ▾
           </span>
         </div>
       </label>
