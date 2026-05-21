@@ -148,7 +148,7 @@ export default function PublicSiteOverlayLoader({
           className="fixed inset-0 z-[130] flex items-center justify-center"
           style={
             enabledConfig.backdropEnabled
-              ? { backgroundColor: enabledConfig.backdropColor }
+              ? { background: enabledConfig.backdropColor }
               : { backgroundColor: "transparent" }
           }
         >

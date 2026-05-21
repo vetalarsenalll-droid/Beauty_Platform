@@ -4,6 +4,10 @@ import type { CSSProperties } from "react";
 import type { SiteLoaderConfig } from "@/lib/site-builder";
 
 const dotDelays = ["0ms", "120ms", "240ms"];
+const isGradientColor = (value: string) => value.includes("gradient(");
+
+const paintStyle = (value: string): CSSProperties =>
+  isGradientColor(value) ? { background: value } : { backgroundColor: value };
 
 export default function SiteLoader({
   config,
@@ -31,7 +35,7 @@ export default function SiteLoader({
               {
                 width: dotSize,
                 height: dotSize,
-                backgroundColor: config.color,
+                ...paintStyle(config.color),
                 animationName: "site-loader-wave",
                 animationDuration: duration,
                 animationTimingFunction: "ease-in-out",
@@ -55,9 +59,17 @@ export default function SiteLoader({
           className="absolute inset-0 rounded-full"
           style={
             {
-              borderWidth: thickness,
-              borderStyle: "solid",
-              borderColor: config.color,
+              ...(isGradientColor(config.color)
+                ? {
+                    background: config.color,
+                    WebkitMask: `radial-gradient(farthest-side, transparent calc(100% - ${thickness}px), #000 calc(100% - ${thickness}px))`,
+                    mask: `radial-gradient(farthest-side, transparent calc(100% - ${thickness}px), #000 calc(100% - ${thickness}px))`,
+                  }
+                : {
+                    borderWidth: thickness,
+                    borderStyle: "solid",
+                    borderColor: config.color,
+                  }),
               animationName: "site-loader-pulse-ring",
               animationDuration: duration,
               animationTimingFunction: "ease-out",
@@ -70,7 +82,7 @@ export default function SiteLoader({
           style={{
             width: Math.max(4, Math.round(size * 0.34)),
             height: Math.max(4, Math.round(size * 0.34)),
-            backgroundColor: config.color,
+            ...paintStyle(config.color),
             animationName: "site-loader-pulse-core",
             animationDuration: duration,
             animationTimingFunction: "ease-in-out",
@@ -84,17 +96,27 @@ export default function SiteLoader({
   return (
     <span
       className={`inline-block rounded-full ${className}`}
-      style={{
-        width: size,
-        height: size,
-        borderWidth: thickness,
-        borderStyle: "solid",
-        borderTopColor: "transparent",
-        borderRightColor: config.color,
-        borderBottomColor: config.color,
-        borderLeftColor: config.color,
-        animation: `site-loader-spin ${duration} linear infinite`,
-      }}
+      style={
+        {
+          width: size,
+          height: size,
+          ...(isGradientColor(config.color)
+            ? {
+                background: config.color,
+                WebkitMask: `radial-gradient(farthest-side, transparent calc(100% - ${thickness}px), #000 calc(100% - ${thickness}px))`,
+                mask: `radial-gradient(farthest-side, transparent calc(100% - ${thickness}px), #000 calc(100% - ${thickness}px))`,
+              }
+            : {
+                borderWidth: thickness,
+                borderStyle: "solid",
+                borderTopColor: "transparent",
+                borderRightColor: config.color,
+                borderBottomColor: config.color,
+                borderLeftColor: config.color,
+              }),
+          animation: `site-loader-spin ${duration} linear infinite`,
+        } as CSSProperties
+      }
     />
   );
 }

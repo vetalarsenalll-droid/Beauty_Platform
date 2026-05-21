@@ -332,6 +332,47 @@ const clamp = (value: unknown, min: number, max: number, fallback: number) => {
   return Math.min(max, Math.max(min, n));
 };
 
+type LoaderColorMode = "solid" | "linear" | "radial";
+
+const readLoaderColorMode = (value: unknown): LoaderColorMode =>
+  value === "linear" || value === "radial" ? value : "solid";
+
+const readLoaderString = (value: unknown, fallback: string): string =>
+  typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+const readLoaderNumber = (value: unknown, min: number, max: number, fallback: number): number => {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(next)));
+};
+
+export function resolveLoaderCssColor(
+  data: Record<string, unknown>,
+  {
+    prefix,
+    fallback,
+    dark,
+  }: {
+    prefix: "color" | "backdrop";
+    fallback: string;
+    dark: boolean;
+  }
+) {
+  const suffix = dark ? "Dark" : "";
+  const baseKey = prefix === "color" ? `color${suffix}` : `backdropHex${suffix}`;
+  const fallbackBaseKey = prefix === "color" ? "color" : "backdropHex";
+  const from = readLoaderString(data[baseKey], readLoaderString(data[fallbackBaseKey], fallback));
+  const to = readLoaderString(data[`${prefix}To${suffix}`], readLoaderString(data[`${prefix}To`], from));
+  const mode = readLoaderColorMode(data[`${prefix}Mode${suffix}`] ?? data[`${prefix}Mode`]);
+  const angle = readLoaderNumber(data[`${prefix}Angle${suffix}`] ?? data[`${prefix}Angle`], 0, 360, 180);
+  const stopA = readLoaderNumber(data[`${prefix}StopA${suffix}`] ?? data[`${prefix}StopA`], 0, 100, 0);
+  const stopB = readLoaderNumber(data[`${prefix}StopB${suffix}`] ?? data[`${prefix}StopB`], 0, 100, 100);
+
+  if (mode === "linear") return `linear-gradient(${angle}deg, ${from}, ${to})`;
+  if (mode === "radial") return `radial-gradient(circle, ${from} ${stopA}%, ${to} ${stopB}%)`;
+  return from;
+}
+
 export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | null {
   const homeBlocks = draft.pages?.home ?? draft.blocks;
   const loaderBlock = homeBlocks.find((block) => block.type === "loader");
@@ -344,13 +385,11 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
   const enabled = data.enabled !== false;
   if (!enabled) return null;
 
-  const colorCandidate = isDark ? data.colorDark : data.color;
-  const color =
-    typeof colorCandidate === "string" && colorCandidate.trim()
-      ? colorCandidate.trim()
-      : typeof data.color === "string" && data.color.trim()
-        ? data.color.trim()
-        : DEFAULT_LOADER_CONFIG.color;
+  const color = resolveLoaderCssColor(data, {
+    prefix: "color",
+    fallback: DEFAULT_LOADER_CONFIG.color,
+    dark: isDark,
+  });
   const backdropAlpha = clamp(isDark ? data.backdropOpacityDark : data.backdropOpacity, 0, 1, 0.16);
   const backdropHexCandidate = isDark ? data.backdropHexDark : data.backdropHex;
   const backdropHex =
@@ -360,10 +399,17 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
         ? data.backdropHex.trim()
       : "#111827";
   const backdropColor =
-    typeof (isDark ? data.backdropColorDark : data.backdropColor) === "string" &&
-      String(isDark ? data.backdropColorDark : data.backdropColor).trim()
-      ? String(isDark ? data.backdropColorDark : data.backdropColor).trim()
-      : hexToRgba(backdropHex, backdropAlpha);
+    readLoaderColorMode(data[isDark ? "backdropModeDark" : "backdropMode"] ?? data.backdropMode) ===
+    "solid"
+      ? typeof (isDark ? data.backdropColorDark : data.backdropColor) === "string" &&
+          String(isDark ? data.backdropColorDark : data.backdropColor).trim()
+        ? String(isDark ? data.backdropColorDark : data.backdropColor).trim()
+        : hexToRgba(backdropHex, backdropAlpha)
+      : resolveLoaderCssColor(data, {
+          prefix: "backdrop",
+          fallback: "#111827",
+          dark: isDark,
+        });
 
   return {
     visual: mapVariantToLoaderVisual(loaderBlock.variant),
@@ -1049,11 +1095,19 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         backdropColor: "rgba(17,24,39,0.16)",
         backdropHex: "#111827",
         backdropOpacity: 0.16,
+        backdropMode: "solid",
+        backdropAngle: 180,
         backdropColorDark: "rgba(17,24,39,0.16)",
         backdropHexDark: "#111827",
         backdropOpacityDark: 0.16,
+        backdropModeDark: "solid",
+        backdropAngleDark: 180,
         color: "#111827",
         colorDark: "#111827",
+        colorMode: "solid",
+        colorModeDark: "solid",
+        colorAngle: 180,
+        colorAngleDark: 180,
         size: 36,
         speedMs: 900,
         thickness: 1,

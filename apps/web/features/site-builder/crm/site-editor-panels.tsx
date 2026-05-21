@@ -273,6 +273,7 @@ export function TildaBackgroundColorField({
   onRadialStopBChange,
   onChange,
   placeholder,
+  accentColor = "#ff5a5f",
 }: {
   label: string;
   value: string;
@@ -288,6 +289,7 @@ export function TildaBackgroundColorField({
   onRadialStopBChange?: (value: number) => void;
   onChange: (value: string) => void;
   placeholder?: string;
+  accentColor?: string;
 }) {
   const normalizeLegacyColor = (rawValue: string) => {
     const raw = rawValue.trim().replace(/;$/, "");
@@ -521,14 +523,14 @@ export function TildaBackgroundColorField({
               className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
               style={{
                 width: `${Math.max(0, Math.min(100, (Math.round(angle) / 360) * 100))}%`,
-                backgroundColor: "#ff5a5f",
+                backgroundColor: accentColor,
               }}
             />
             <div
               className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow-sm"
               style={{
                 left: `${Math.max(0, Math.min(100, (Math.round(angle) / 360) * 100))}%`,
-                backgroundColor: "#ff5a5f",
+                backgroundColor: accentColor,
               }}
             />
             <input
@@ -880,29 +882,6 @@ export function BlockEditor({
               value={Number(block.data.speedMs ?? 900)}
               onChange={(event) => updateData({ speedMs: Number(event.target.value) })}
               className="mt-2 w-full"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={Boolean(block.data.fixedDurationEnabled)}
-              onChange={(event) => updateData({ fixedDurationEnabled: event.target.checked })}
-            />
-            Фиксированное время показа лоадера
-          </label>
-          <label className="text-sm">
-            Время показа: {Number(block.data.fixedDurationSec ?? 1)} сек
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              disabled={!Boolean(block.data.fixedDurationEnabled)}
-              value={Number(block.data.fixedDurationSec ?? 1)}
-              onChange={(event) =>
-                updateData({ fixedDurationSec: Number(event.target.value) })
-              }
-              className="mt-2 w-full disabled:opacity-40"
             />
           </label>
           <label className="text-sm">

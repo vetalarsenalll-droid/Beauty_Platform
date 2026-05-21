@@ -8,6 +8,7 @@ import type {
   SitePageKey,
   SiteTheme,
 } from "@/lib/site-builder";
+import { resolveLoaderCssColor } from "@/lib/site-builder";
 import { buildBookingLink } from "@/lib/booking-links";
 import MenuSearch from "@/components/menu-search";
 import BookingClient from "@/app/booking/booking-client";
@@ -2848,13 +2849,11 @@ export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: B
   const data = (block.data ?? {}) as Record<string, unknown>;
   const isDark = theme.mode === "dark";
   const enabled = data.enabled !== false;
-  const resolvedColorCandidate = isDark ? data.colorDark : data.color;
-  const color =
-    typeof resolvedColorCandidate === "string" && resolvedColorCandidate.trim()
-      ? resolvedColorCandidate.trim()
-      : typeof data.color === "string" && data.color.trim()
-        ? data.color.trim()
-      : style.buttonColor || theme.buttonColor;
+  const color = resolveLoaderCssColor(data, {
+    prefix: "color",
+    fallback: style.buttonColor || theme.buttonColor,
+    dark: isDark,
+  });
   const size =
     Number.isFinite(Number(data.size)) && Number(data.size) > 0 ? Number(data.size) : 36;
   const speedMs =
@@ -2881,7 +2880,15 @@ export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: B
     Number.isFinite(Number(isDark ? data.backdropOpacityDark : data.backdropOpacity))
       ? clamp01(Number(isDark ? data.backdropOpacityDark : data.backdropOpacity))
       : parsedBackdrop.alpha;
-  const backdropColor = hexToRgbaString(backdropHex, backdropOpacity);
+  const backdropMode = String((isDark ? data.backdropModeDark : data.backdropMode) ?? data.backdropMode);
+  const backdropColor =
+    backdropMode === "linear" || backdropMode === "radial"
+      ? resolveLoaderCssColor(data, {
+          prefix: "backdrop",
+          fallback: "#111827",
+          dark: isDark,
+        })
+      : hexToRgbaString(backdropHex, backdropOpacity);
 
   const visual =
     block.variant === "v2" ? "dots" : block.variant === "v3" ? "pulse" : "spinner";
@@ -2892,7 +2899,7 @@ export function renderLoaderPreview(block: SiteBlock, theme: SiteTheme, style: B
         className="absolute left-1/2 top-0 h-full w-screen -translate-x-1/2"
         style={
           backdropEnabled && backdropOpacity > 0
-            ? { backgroundColor: backdropColor }
+            ? { background: backdropColor }
             : undefined
         }
       />
