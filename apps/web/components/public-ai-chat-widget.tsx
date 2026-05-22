@@ -148,6 +148,11 @@ function numberOrUndefined(value: unknown) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function stepFontWeight(value: number | undefined, step: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.min(900, Math.max(100, value + step));
+}
+
 export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const {
     accountSlug,
@@ -357,6 +362,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const fabTextWeight = numberOrUndefined(widgetConfig?.widgetButtonTextWeight);
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
   const headingWeight = numberOrUndefined(widgetConfig?.headingWeight);
+  const headerActionWeight = headingWeight ?? 400;
+  const headerTitleWeight = stepFontWeight(headerActionWeight, 200) ?? 600;
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
   const offsetRightPx = Number(widgetConfig?.offsetRightPx ?? 16);
   const offsetBottomPx = Number(widgetConfig?.offsetBottomPx ?? 16);
@@ -762,13 +769,18 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     color: "var(--ai-header-text, var(--ai-text,#111827))",
     fontFamily: headingFont,
     fontSize: `${headingSize}px`,
-    fontWeight: headingWeight,
+  };
+  const headerTitleStyle: CSSProperties = {
+    color: "var(--ai-header-text, var(--ai-text,#111827))",
+    fontFamily: headingFont,
+    fontSize: `${headingSize}px`,
+    fontWeight: headerTitleWeight,
   };
   const headerActionStyle: CSSProperties = {
     color: "var(--ai-header-text, var(--ai-text,#111827))",
     fontFamily: headingFont,
     fontSize: `${headingSize}px`,
-    fontWeight: headingWeight,
+    fontWeight: headerActionWeight,
   };
   const contentTextStyle: CSSProperties = {
     fontFamily: bodyFont,
@@ -798,7 +810,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             className={`shrink-0 flex items-center justify-between gap-3 px-4 ${hasWidgetBorder ? "py-3 border-b border-[color:var(--ai-border)]" : "py-3 border-0"}`}
             style={headerStyle}
           >
-            <div className="text-sm font-semibold text-[color:var(--ai-text,#111827)]" style={headerActionStyle}>
+            <div className="text-sm font-semibold text-[color:var(--ai-text,#111827)]" style={headerTitleStyle}>
               {headerTitle}
             </div>
             <div className="flex items-center gap-2">
