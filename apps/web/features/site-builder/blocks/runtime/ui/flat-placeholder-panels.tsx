@@ -89,34 +89,59 @@ function aishaTextValue(ctx: CrmPanelCtx, key: string, fallback = "Ассист�
 
 type AishaBackgroundOption = { name: string; label: string; url: string };
 
+const aishaAssetListCache: Record<string, AishaBackgroundOption[] | undefined> = {};
+const aishaAssetListRequests: Record<string, Promise<AishaBackgroundOption[]> | undefined> = {};
+
+function normalizeAishaAssetItems(payload: unknown): AishaBackgroundOption[] {
+  const nextItems =
+    payload && typeof payload === "object" && Array.isArray((payload as { items?: unknown }).items)
+      ? (payload as { items: unknown[] }).items
+      : [];
+
+  return nextItems.filter(
+    (item: unknown): item is AishaBackgroundOption =>
+      Boolean(
+        item &&
+          typeof item === "object" &&
+          typeof (item as AishaBackgroundOption).name === "string" &&
+          typeof (item as AishaBackgroundOption).label === "string" &&
+          typeof (item as AishaBackgroundOption).url === "string"
+      )
+  );
+}
+
+function loadAishaAssetItems(endpoint: string) {
+  if (aishaAssetListCache[endpoint]) {
+    return Promise.resolve(aishaAssetListCache[endpoint]);
+  }
+
+  aishaAssetListRequests[endpoint] ??= fetch(endpoint)
+    .then((response) => (response.ok ? response.json() : { items: [] }))
+    .then((payload) => {
+      const items = normalizeAishaAssetItems(payload);
+      aishaAssetListCache[endpoint] = items;
+      return items;
+    })
+    .catch(() => {
+      aishaAssetListCache[endpoint] = [];
+      return [];
+    });
+
+  return aishaAssetListRequests[endpoint];
+}
+
 function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
   const data = ctx.block.data as Record<string, unknown>;
   const selectedUrl = typeof data.widgetIconImageUrl === "string" ? data.widgetIconImageUrl : "";
-  const [items, setItems] = useState<AishaBackgroundOption[]>([]);
+  const [items, setItems] = useState<AishaBackgroundOption[]>(aishaAssetListCache["/api/v1/site-builder/aisha-icons"] ?? []);
   const [open, setOpen] = useState(Boolean(selectedUrl));
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/v1/site-builder/aisha-icons", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { items: [] }))
-      .then((payload) => {
+    loadAishaAssetItems("/api/v1/site-builder/aisha-icons")
+      .then((nextItems) => {
         if (cancelled) return;
-        const nextItems = Array.isArray(payload?.items) ? payload.items : [];
-        setItems(
-          nextItems.filter(
-            (item: unknown): item is AishaBackgroundOption =>
-              Boolean(
-                item &&
-                  typeof item === "object" &&
-                  typeof (item as AishaBackgroundOption).name === "string" &&
-                  typeof (item as AishaBackgroundOption).label === "string" &&
-                  typeof (item as AishaBackgroundOption).url === "string"
-              )
-          )
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
+        setItems(nextItems);
       });
     return () => {
       cancelled = true;
@@ -170,11 +195,6 @@ function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
               );
             })}
           </div>
-          {items.length === 0 ? (
-            <div className="text-xs text-[color:var(--bp-muted)]">
-              Добавьте иконки в папку blocks/aisha/Icon.
-            </div>
-          ) : null}
         </div>
       )}
     </div>
@@ -184,32 +204,16 @@ function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
 function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
   const data = ctx.block.data as Record<string, unknown>;
   const selectedUrl = typeof data.chatBackgroundImageUrl === "string" ? data.chatBackgroundImageUrl : "";
-  const [items, setItems] = useState<AishaBackgroundOption[]>([]);
+  const [items, setItems] = useState<AishaBackgroundOption[]>(aishaAssetListCache["/api/v1/site-builder/aisha-backgrounds"] ?? []);
   const [open, setOpen] = useState(Boolean(selectedUrl));
   const [previewItem, setPreviewItem] = useState<AishaBackgroundOption | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/v1/site-builder/aisha-backgrounds", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { items: [] }))
-      .then((payload) => {
+    loadAishaAssetItems("/api/v1/site-builder/aisha-backgrounds")
+      .then((nextItems) => {
         if (cancelled) return;
-        const nextItems = Array.isArray(payload?.items) ? payload.items : [];
-        setItems(
-          nextItems.filter(
-            (item: unknown): item is AishaBackgroundOption =>
-              Boolean(
-                item &&
-                  typeof item === "object" &&
-                  typeof (item as AishaBackgroundOption).name === "string" &&
-                  typeof (item as AishaBackgroundOption).label === "string" &&
-                  typeof (item as AishaBackgroundOption).url === "string"
-              )
-          )
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
+        setItems(nextItems);
       });
     return () => {
       cancelled = true;
