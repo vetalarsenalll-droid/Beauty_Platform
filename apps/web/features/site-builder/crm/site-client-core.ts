@@ -114,14 +114,33 @@ export const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
   "client",
+  "locations",
+  "services",
+  "specialists",
+  "promos",
   "clientLogin",
   "clientCabinet",
   "legal",
+];
+export const MENU_PAGE_KEYS: SitePageKey[] = [
+  "home",
+  "booking",
+  "client",
   "locations",
   "services",
   "specialists",
   "promos",
 ];
+export const normalizeMenuPageKeys = (value: unknown): SitePageKey[] => {
+  if (!Array.isArray(value)) return [...MENU_PAGE_KEYS];
+  const selected = new Set(
+    value.filter(
+      (item): item is SitePageKey =>
+        typeof item === "string" && (MENU_PAGE_KEYS as readonly string[]).includes(item)
+    )
+  );
+  return MENU_PAGE_KEYS.filter((key) => selected.has(key));
+};
 export const isSystemBlockType = (_type?: unknown): boolean => {
   void _type;
   return false;
@@ -661,7 +680,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
   },
   menu: {
     title: "Меню",
-    menuItems: ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"],
+    menuItems: [...MENU_PAGE_KEYS],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,

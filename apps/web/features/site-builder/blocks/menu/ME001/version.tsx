@@ -1,6 +1,6 @@
 import type { BlockVersion } from "../../runtime/contracts";
 import { makeBlockId } from "@/lib/site-builder";
-import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
+import { MENU_PAGE_KEYS, defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
 import { MenuContentPanel } from "./content-panel";
 import { MenuSettingsPanel } from "./settings-panel";
 import { MenuDrawers } from "./drawers";
@@ -19,7 +19,7 @@ export const ME001: BlockVersion = {
       data: {
         ...base,
         accountTitle: accountName,
-        menuItems: ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"],
+        menuItems: [...MENU_PAGE_KEYS],
         menuHeight: 64,
         style: {
           ...defaultBlockStyle,

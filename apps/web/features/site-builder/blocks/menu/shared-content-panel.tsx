@@ -1,17 +1,14 @@
 import { useState, type ReactNode } from "react";
-import type { SitePageKey } from "@/lib/site-builder";
 import {
-  PAGE_KEYS,
+  MENU_PAGE_KEYS,
   PAGE_LABELS,
   SOCIAL_LABELS,
+  normalizeMenuPageKeys,
 } from "@/features/site-builder/crm/site-client-core";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import type { CrmPanelCtx } from "../runtime/contracts";
 
 type SocialKey = keyof typeof SOCIAL_LABELS;
-const MENU_PAGE_KEYS = PAGE_KEYS.filter(
-  (key) => key !== "clientLogin" && key !== "clientCabinet"
-);
 
 function SectionTitle({ children }: { children: string }) {
   return (
@@ -157,9 +154,7 @@ export function SharedMenuContentPanel(ctx: CrmPanelCtx) {
       data: { ...(prev.data as Record<string, unknown>), ...patch },
     }));
   };
-  const menuItems = Array.isArray(block.data.menuItems)
-    ? (block.data.menuItems as SitePageKey[])
-    : [];
+  const menuItems = normalizeMenuPageKeys(block.data.menuItems);
   const showOnAllPages = block.data.showOnAllPages !== false;
   const selectedMenuCount = menuItems.length;
   const selectedMenuSummary =
@@ -221,7 +216,7 @@ export function SharedMenuContentPanel(ctx: CrmPanelCtx) {
                 checked={checked}
                 onChange={(nextChecked) => {
                   const next = nextChecked
-                    ? [...menuItems, key]
+                    ? normalizeMenuPageKeys([...menuItems, key])
                     : menuItems.filter((item) => item !== key);
                   updateData({ menuItems: next });
                 }}

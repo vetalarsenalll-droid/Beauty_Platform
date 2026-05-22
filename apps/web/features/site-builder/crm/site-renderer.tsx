@@ -52,6 +52,7 @@ import {
   LEGACY_WIDTH_REFERENCE,
   MAX_BLOCK_COLUMNS,
   MAX_BLOCK_WIDTH,
+  MENU_PAGE_KEYS,
   MIN_BLOCK_WIDTH,
   PAGE_KEYS,
   PAGE_LABELS,
@@ -64,6 +65,7 @@ import {
   clampBlockColumns,
   clampGridColumn,
   hexToRgbaString,
+  normalizeMenuPageKeys,
   parseBackdropColor,
 } from "./site-client-core";
 import type { CurrentEntity } from "./site-client-core";
@@ -4709,8 +4711,8 @@ export function renderMenuBlock(
 ) {
   const data = block.data as Record<string, unknown>;
   const menuItems = Array.isArray(data.menuItems)
-    ? (data.menuItems as SitePageKey[]).filter((item) => item in PAGE_LABELS)
-    : PAGE_KEYS;
+    ? normalizeMenuPageKeys(data.menuItems)
+    : [...MENU_PAGE_KEYS];
   const showLogo = data.showLogo !== false;
   const showCompanyName = data.showCompanyName !== false;
   const showButton = Boolean(data.showButton);
