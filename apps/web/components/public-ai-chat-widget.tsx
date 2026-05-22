@@ -22,6 +22,7 @@ type ChatMessage = Message & { ui?: ChatUi | null };
 type StoredThreadState = { threadId: number; threadKey: string | null };
 const MAX_INPUT_LINES = 4;
 const INITIAL_LOAD_TIMEOUT_MS = 8000;
+const FALLBACK_FAB_ANIMATION_COLOR = "var(--ai-button,#111827)";
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
@@ -140,6 +141,142 @@ function clampInputLines(value: string, maxLines: number) {
   const lines = normalized.split("\n");
   if (lines.length <= maxLines) return normalized;
   return lines.slice(0, maxLines).join("\n");
+}
+
+function extractWidgetIconContourColor(imageUrl: string, onColor: (color: string | null) => void) {
+  if (typeof window === "undefined" || !imageUrl) {
+    onColor(null);
+    return () => {};
+  }
+
+  let cancelled = false;
+  const image = new window.Image();
+  image.decoding = "async";
+
+  image.onload = () => {
+    if (cancelled) return;
+
+    try {
+      const canvas = document.createElement("canvas");
+      const size = 48;
+      canvas.width = size;
+      canvas.height = size;
+
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) {
+        onColor(null);
+        return;
+      }
+
+      context.clearRect(0, 0, size, size);
+      context.drawImage(image, 0, 0, size, size);
+
+      const pixels = context.getImageData(0, 0, size, size).data;
+      const colorPixels: Array<{ x: number; y: number; r: number; g: number; b: number; saturation: number; luminance: number }> = [];
+      let fallbackR = 0;
+      let fallbackG = 0;
+      let fallbackB = 0;
+      let fallbackWeight = 0;
+
+      for (let index = 0; index < pixels.length; index += 4) {
+        const alpha = pixels[index + 3] / 255;
+        if (alpha < 0.25) continue;
+
+        const pixelIndex = index / 4;
+        const x = pixelIndex % size;
+        const y = Math.floor(pixelIndex / size);
+        const r = pixels[index];
+        const g = pixels[index + 1];
+        const b = pixels[index + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const saturation = max === 0 ? 0 : (max - min) / max;
+        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        const fallbackPixelWeight = alpha * Math.max(0.2, 1 - Math.abs(luminance - 128) / 220);
+
+        fallbackR += r * fallbackPixelWeight;
+        fallbackG += g * fallbackPixelWeight;
+        fallbackB += b * fallbackPixelWeight;
+        fallbackWeight += fallbackPixelWeight;
+
+        if (luminance > 245 && saturation < 0.12) continue;
+
+        colorPixels.push({ x, y, r, g, b, saturation, luminance });
+      }
+
+      const inset = Math.round(size * 0.12);
+      const innerPixels = colorPixels.filter(
+        (pixel) => pixel.x >= inset && pixel.x < size - inset && pixel.y >= inset && pixel.y < size - inset
+      );
+      const sourcePixels = innerPixels.length > 20 ? innerPixels : colorPixels;
+      const clusters = new Map<string, { r: number; g: number; b: number; weight: number; minX: number; minY: number }>();
+
+      for (const pixel of sourcePixels) {
+        const max = Math.max(pixel.r, pixel.g, pixel.b);
+        const min = Math.min(pixel.r, pixel.g, pixel.b);
+        const chroma = max - min;
+        let hue = 0;
+
+        if (chroma > 0) {
+          if (max === pixel.r) {
+            hue = ((pixel.g - pixel.b) / chroma) % 6;
+          } else if (max === pixel.g) {
+            hue = (pixel.b - pixel.r) / chroma + 2;
+          } else {
+            hue = (pixel.r - pixel.g) / chroma + 4;
+          }
+          hue *= 60;
+          if (hue < 0) hue += 360;
+        }
+
+        const hueBucket = Math.round(hue / 20) * 20;
+        const key = `${hueBucket}`;
+        const contourBias = 1 / (1 + Math.max(0, pixel.x - inset) * 0.015 + Math.max(0, pixel.y - inset) * 0.015);
+        const weight = Math.max(0.2, pixel.saturation) * Math.max(0.35, 1 - pixel.luminance / 380) * contourBias;
+        const current = clusters.get(key) ?? { r: 0, g: 0, b: 0, weight: 0, minX: size, minY: size };
+
+        current.r += pixel.r * weight;
+        current.g += pixel.g * weight;
+        current.b += pixel.b * weight;
+        current.weight += weight;
+        current.minX = Math.min(current.minX, pixel.x);
+        current.minY = Math.min(current.minY, pixel.y);
+        clusters.set(key, current);
+      }
+
+      const bestCluster = [...clusters.values()]
+        .filter((cluster) => cluster.weight > 0)
+        .sort((a, b) => b.weight - a.weight || a.minX + a.minY - (b.minX + b.minY))[0];
+
+      if (bestCluster) {
+        onColor(
+          `rgb(${Math.round(bestCluster.r / bestCluster.weight)}, ${Math.round(bestCluster.g / bestCluster.weight)}, ${Math.round(bestCluster.b / bestCluster.weight)})`
+        );
+        return;
+      }
+
+      if (!fallbackWeight) {
+        onColor(null);
+        return;
+      }
+
+      const r = Math.round(fallbackR / fallbackWeight);
+      const g = Math.round(fallbackG / fallbackWeight);
+      const b = Math.round(fallbackB / fallbackWeight);
+      onColor(`rgb(${r}, ${g}, ${b})`);
+    } catch {
+      onColor(null);
+    }
+  };
+
+  image.onerror = () => {
+    if (!cancelled) onColor(null);
+  };
+  image.src = imageUrl;
+
+  return () => {
+    cancelled = true;
+  };
 }
 
 function numberOrUndefined(value: unknown) {
@@ -333,6 +470,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
   const chatBackgroundImageUrl = widgetConfig?.chatBackgroundImageUrl?.trim() || "";
   const widgetIconImageUrl = widgetConfig?.widgetIconImageUrl?.trim() || "";
+  const [widgetIconDominantColor, setWidgetIconDominantColor] = useState<string | null>(null);
   const widgetIconSizePx = Math.max(24, Math.min(120, Number(widgetConfig?.widgetIconSizePx ?? 48)));
   const keepWidgetButtonText = widgetConfig?.keepWidgetButtonText !== false;
   const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)));
@@ -450,8 +588,17 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     borderRadius: fabRadius,
     ...inlineFabPosition,
     "--ai-fab-animation-speed": `${widgetAnimationSpeedMs}ms`,
-    "--ai-fab-animation-color": "var(--ai-button,#111827)",
+    "--ai-fab-animation-color": widgetIconImageUrl && widgetIconDominantColor
+      ? widgetIconDominantColor
+      : FALLBACK_FAB_ANIMATION_COLOR,
+    "--ai-fab-icon-image": widgetIconImageUrl ? `url("${widgetIconImageUrl.replace(/"/g, '\\"')}")` : undefined,
   } as CSSProperties;
+
+  useEffect(() => {
+    setWidgetIconDominantColor(null);
+    if (!widgetIconImageUrl) return;
+    return extractWidgetIconContourColor(widgetIconImageUrl, setWidgetIconDominantColor);
+  }, [widgetIconImageUrl]);
 
   const lastAssistantIndex = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -1370,19 +1517,23 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           onClick={() => setOpen(true)}
           className={
             widgetIconImageUrl
-              ? `pointer-events-auto group relative isolate flex flex-col items-center gap-1 bg-transparent p-0 text-sm font-semibold text-[color:var(--ai-button-text,#111827)] transition hover:brightness-105 ${fabAnimationClass}`
+              ? `ai-fab-has-icon pointer-events-auto group relative isolate flex flex-col items-center gap-1 bg-transparent p-0 text-sm font-semibold text-[color:var(--ai-button-text,#111827)] transition hover:brightness-105 ${fabAnimationClass}`
               : `pointer-events-auto group relative isolate flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105 ${fabAnimationClass}`
           }
           style={fabButtonStyle}
           aria-label="Открыть ассистента"
         >
           {widgetIconImageUrl ? (
-            <img
-              src={widgetIconImageUrl}
-              alt=""
-              className="shrink-0 object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.25)]"
+            <span
+              className="ai-fab-icon-shell relative isolate inline-flex shrink-0 items-center justify-center"
               style={{ width: `${widgetIconSizePx}px`, height: `${widgetIconSizePx}px` }}
-            />
+            >
+              <img
+                src={widgetIconImageUrl}
+                alt=""
+                className="relative z-[1] h-full w-full object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.25)]"
+              />
+            </span>
           ) : null}
           {(!widgetIconImageUrl || keepWidgetButtonText) ? (
             <span
@@ -1421,6 +1572,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           0% { opacity: 0.5; transform: scale(1); }
           70%, 100% { opacity: 0; transform: scale(1.55); }
         }
+        @keyframes aiFabIconPulseWave {
+          0% { opacity: 0.42; transform: scale(1); }
+          72%, 100% { opacity: 0; transform: scale(1.62); }
+        }
         @keyframes aiFabShake {
           0%, 72%, 100% { transform: translate3d(0, 0, 0); }
           76%, 84%, 92% { transform: translate3d(-2px, 0, 0); }
@@ -1443,6 +1598,30 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           animation: aiFabPulseWave var(--ai-fab-animation-speed, 2400ms) ease-out infinite;
         }
         .ai-fab-anim-pulse::after {
+          animation-delay: calc(var(--ai-fab-animation-speed, 2400ms) / 2);
+        }
+        .ai-fab-has-icon.ai-fab-anim-pulse::before,
+        .ai-fab-has-icon.ai-fab-anim-pulse::after {
+          display: none;
+        }
+        .ai-fab-has-icon.ai-fab-anim-pulse .ai-fab-icon-shell::before,
+        .ai-fab-has-icon.ai-fab-anim-pulse .ai-fab-icon-shell::after {
+          content: "";
+          pointer-events: none;
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-image: var(--ai-fab-icon-image);
+          background-position: center;
+          background-repeat: no-repeat;
+          background-size: contain;
+          opacity: 0;
+          transform-origin: center;
+          animation: aiFabIconPulseWave var(--ai-fab-animation-speed, 2400ms) ease-out infinite;
+          filter: saturate(1.2);
+          will-change: transform, opacity;
+        }
+        .ai-fab-has-icon.ai-fab-anim-pulse .ai-fab-icon-shell::after {
           animation-delay: calc(var(--ai-fab-animation-speed, 2400ms) / 2);
         }
         .ai-fab-anim-shake {
