@@ -75,6 +75,98 @@ function aishaTextValue(ctx: CrmPanelCtx, key: string, fallback = "Ассист�
 
 type AishaBackgroundOption = { name: string; label: string; url: string };
 
+function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
+  const data = ctx.block.data as Record<string, unknown>;
+  const selectedUrl = typeof data.widgetIconImageUrl === "string" ? data.widgetIconImageUrl : "";
+  const [items, setItems] = useState<AishaBackgroundOption[]>([]);
+  const [open, setOpen] = useState(Boolean(selectedUrl));
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/site-builder/aisha-icons", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { items: [] }))
+      .then((payload) => {
+        if (cancelled) return;
+        const nextItems = Array.isArray(payload?.items) ? payload.items : [];
+        setItems(
+          nextItems.filter(
+            (item: unknown): item is AishaBackgroundOption =>
+              Boolean(
+                item &&
+                  typeof item === "object" &&
+                  typeof (item as AishaBackgroundOption).name === "string" &&
+                  typeof (item as AishaBackgroundOption).label === "string" &&
+                  typeof (item as AishaBackgroundOption).url === "string"
+              )
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedItem = items.find((item) => item.url === selectedUrl) ?? null;
+
+  return (
+    <div className="space-y-3 border-t border-[color:var(--bp-stroke)] pt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Иконка виджета
+        </span>
+        <span className="text-xs text-[color:var(--bp-muted)]">
+          {selectedItem?.label ?? "Не выбрана"} {open ? "▴" : "▾"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => updateData(ctx, { widgetIconImageUrl: "" })}
+              className="border border-[color:var(--bp-stroke)] px-3 py-1 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+            >
+              Без иконки
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {items.map((item) => {
+              const selected = selectedUrl === item.url;
+              return (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => updateData(ctx, { widgetIconImageUrl: item.url })}
+                  className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border bg-white p-2 transition ${
+                    selected ? "border-[color:var(--bp-stroke)] ring-1 ring-black/25" : "border-[color:var(--bp-stroke)] hover:border-[color:var(--bp-ink)]/50"
+                  }`}
+                  aria-label={`Выбрать иконку ${item.label}`}
+                  title={item.label}
+                >
+                  <img src={item.url} alt="" className="max-h-full max-w-full object-contain" />
+                </button>
+              );
+            })}
+          </div>
+          {items.length === 0 ? (
+            <div className="text-xs text-[color:var(--bp-muted)]">
+              Добавьте иконки в папку blocks/aisha/Icon.
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
   const data = ctx.block.data as Record<string, unknown>;
   const selectedUrl = typeof data.chatBackgroundImageUrl === "string" ? data.chatBackgroundImageUrl : "";
@@ -492,6 +584,13 @@ export function GenericFlatContentPanel(ctx: CrmPanelCtx) {
           {renderCoverFlatTextInput("Заголовок виджета", aishaTextValue(ctx, "title"), (value) => updateData(ctx, { title: value }))}
           {renderCoverFlatTextInput("Имя ассистента", aishaTextValue(ctx, "assistantName"), (value) => updateData(ctx, { assistantName: value }))}
           {renderCoverFlatTextInput("Текст кнопки", aishaTextValue(ctx, "label"), (value) => updateData(ctx, { label: value }))}
+          <FlatCheckbox
+            checked={(ctx.block.data as Record<string, unknown>).keepWidgetButtonText !== false}
+            onChange={(checked) => updateData(ctx, { keepWidgetButtonText: checked })}
+            label="Оставить текст кнопки"
+          />
+          {flatNumber("Размер виджета", Number(data.widgetIconSizePx) || 48, (value) => updateData(ctx, { widgetIconSizePx: value }), 24, 120)}
+          <AishaWidgetIconPicker ctx={ctx} />
           <AishaChatBackgroundPicker ctx={ctx} />
         </>
       )}
@@ -1089,6 +1188,9 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
           {flatNumber("Скругление кнопок ответов", style.quickReplyRadius ?? 5, (value) => updateStyle(ctx, { quickReplyRadius: value }), 0, 36)}
           <TildaInlineColorField compact label="Фон кнопки виджета" value={color(ctx, "buttonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { buttonColorLight: value, buttonColor: value })} onClear={() => updateStyle(ctx, { buttonColorLight: "transparent", buttonColor: "transparent" })} />
           <TildaInlineColorField compact label="Текст кнопки виджета" value={color(ctx, "buttonTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { buttonTextColorLight: value, buttonTextColor: value })} onClear={() => updateStyle(ctx, { buttonTextColorLight: "transparent", buttonTextColor: "transparent" })} />
+          {flatNumber("Размер шрифта", style.widgetButtonTextSize ?? 14, (value) => updateStyle(ctx, { widgetButtonTextSize: value }), 10, 48)}
+          <FlatSelect label="Шрифт" value={style.widgetButtonTextFont || style.fontBody || ctx.activeTheme.fontBody || "Manrope"} options={FONT_OPTIONS} onChange={(value) => updateStyle(ctx, { widgetButtonTextFont: value })} />
+          <FlatSelect label="Насыщенность" value={String(style.widgetButtonTextWeight ?? "")} options={WEIGHT_OPTIONS} onChange={(value) => updateStyle(ctx, { widgetButtonTextWeight: value ? Number(value) : null })} />
           <TildaInlineColorField compact label="Фон кнопок вариантов" value={color(ctx, "quickReplyButtonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorLight: "transparent" })} />
           <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorLight: "transparent" })} />
         </div>

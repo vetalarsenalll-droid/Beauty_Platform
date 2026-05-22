@@ -229,6 +229,9 @@ export type SiteAishaWidgetConfig = {
   assistantName: string;
   headerTitle: string;
   label: string;
+  keepWidgetButtonText?: boolean;
+  widgetIconImageUrl?: string | null;
+  widgetIconSizePx?: number;
   chatBackgroundImageUrl?: string | null;
   offsetBottomPx: number;
   offsetRightPx: number;
@@ -312,6 +315,9 @@ export type SiteAishaWidgetConfig = {
   backdropOpacityDark?: number | null;
   fontHeading?: string | null;
   fontBody?: string | null;
+  widgetButtonTextFont?: string | null;
+  widgetButtonTextSizePx?: number | null;
+  widgetButtonTextWeight?: number | null;
   headingSizePx?: number | null;
   headingWeight?: number | null;
   subheadingSizePx?: number | null;
@@ -485,6 +491,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       assistantName: "Ассистент",
       headerTitle: "Ассистент",
       label: "Ассистент",
+      keepWidgetButtonText: true,
+      widgetIconImageUrl: null,
+      widgetIconSizePx: 48,
       chatBackgroundImageUrl: null,
       offsetBottomPx: 16,
       offsetRightPx: 16,
@@ -533,6 +542,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       backdropOpacityDark: 50,
       fontHeading: null,
       fontBody: null,
+      widgetButtonTextFont: null,
+      widgetButtonTextSizePx: 14,
+      widgetButtonTextWeight: null,
       headingSizePx: null,
       subheadingSizePx: null,
       textSizePx: null,
@@ -789,6 +801,12 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       typeof data.assistantName === "string" && data.assistantName.trim() ? data.assistantName.trim() : "Ассистент",
     headerTitle: normalizeAishaTitle(data.title),
     label: normalizeAishaLabel(data.label),
+    keepWidgetButtonText: data.keepWidgetButtonText !== false,
+    widgetIconImageUrl:
+      typeof data.widgetIconImageUrl === "string" && data.widgetIconImageUrl.trim()
+        ? data.widgetIconImageUrl.trim()
+        : null,
+    widgetIconSizePx: numInRange(data.widgetIconSizePx, 24, 120, 48),
     chatBackgroundImageUrl:
       typeof data.chatBackgroundImageUrl === "string" && data.chatBackgroundImageUrl.trim()
         ? data.chatBackgroundImageUrl.trim()
@@ -878,6 +896,13 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     backdropOpacityDark,
     fontHeading: textOrNull(style.fontHeading) || textOrNull(theme.fontHeading) || null,
     fontBody: textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
+    widgetButtonTextFont: textOrNull(style.widgetButtonTextFont) || textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
+    widgetButtonTextSizePx: Number.isFinite(Number(style.widgetButtonTextSize))
+      ? numInRange(style.widgetButtonTextSize, 10, 48, 14)
+      : 14,
+    widgetButtonTextWeight: Number.isFinite(Number(style.widgetButtonTextWeight))
+      ? numInRange(style.widgetButtonTextWeight, 100, 900, 400)
+      : null,
     headingWeight: Number.isFinite(Number(style.fontWeightHeading))
       ? numInRange(style.fontWeightHeading, 100, 900, 500)
       : null,
@@ -1034,6 +1059,9 @@ const createAishaBlock = (): SiteBlock => ({
     assistantName: "Ассистент",
     enabled: true,
     label: "Ассистент",
+    keepWidgetButtonText: true,
+    widgetIconImageUrl: "",
+    widgetIconSizePx: 48,
     chatBackgroundImageUrl: "",
     offsetBottomPx: 16,
     offsetRightPx: 16,

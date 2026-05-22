@@ -299,6 +299,9 @@ export type BlockStyle = {
   fontWeightHeading: number | null;
   fontWeightSubheading: number | null;
   fontWeightBody: number | null;
+  widgetButtonTextFont: string;
+  widgetButtonTextWeight: number | null;
+  widgetButtonTextSize: number | null;
   headingSize: number | null;
   subheadingSize: number | null;
   textSize: number | null;
@@ -1344,6 +1347,9 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     fontWeightHeading: toFontWeight(style.fontWeightHeading),
     fontWeightSubheading: toFontWeight(style.fontWeightSubheading),
     fontWeightBody: toFontWeight(style.fontWeightBody),
+    widgetButtonTextFont: typeof style.widgetButtonTextFont === "string" ? style.widgetButtonTextFont : "",
+    widgetButtonTextWeight: toFontWeight(style.widgetButtonTextWeight),
+    widgetButtonTextSize: toNumber(style.widgetButtonTextSize),
     headingSize: toNumber(style.headingSize),
     subheadingSize: toNumber(style.subheadingSize),
     textSize: toNumber(style.textSize),
@@ -8103,6 +8109,12 @@ export function buildAishaWidgetConfig(
         : "Ассистент",
     headerTitle: normalizeAishaTitle(data.title),
     label: normalizeAishaLabel(data.label),
+    keepWidgetButtonText: data.keepWidgetButtonText !== false,
+    widgetIconImageUrl:
+      typeof data.widgetIconImageUrl === "string" && data.widgetIconImageUrl.trim()
+        ? data.widgetIconImageUrl.trim()
+        : null,
+    widgetIconSizePx: toNumberInRange(data.widgetIconSizePx, 24, 120, 48),
     chatBackgroundImageUrl:
       typeof data.chatBackgroundImageUrl === "string" && data.chatBackgroundImageUrl.trim()
         ? data.chatBackgroundImageUrl.trim()
@@ -8258,6 +8270,9 @@ export function buildAishaWidgetConfig(
     backdropOpacityDark,
     fontHeading: style.fontHeading || theme.fontHeading || null,
     fontBody: style.fontBody || theme.fontBody || null,
+    widgetButtonTextFont: style.widgetButtonTextFont || style.fontBody || theme.fontBody || null,
+    widgetButtonTextSizePx: style.widgetButtonTextSize ?? 14,
+    widgetButtonTextWeight: style.widgetButtonTextWeight ?? null,
     headingSizePx: style.headingSize ?? 14,
     headingWeight: style.fontWeightHeading ?? null,
     subheadingSizePx: style.subheadingSize ?? theme.subheadingSize ?? null,

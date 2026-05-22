@@ -321,6 +321,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const headerTitle = (widgetConfig?.headerTitle || "Ассистент").trim() || "Ассистент";
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
   const chatBackgroundImageUrl = widgetConfig?.chatBackgroundImageUrl?.trim() || "";
+  const widgetIconImageUrl = widgetConfig?.widgetIconImageUrl?.trim() || "";
+  const widgetIconSizePx = Math.max(24, Math.min(120, Number(widgetConfig?.widgetIconSizePx ?? 48)));
+  const keepWidgetButtonText = widgetConfig?.keepWidgetButtonText !== false;
   const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)));
   const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)))}px` };
   const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 5)));
@@ -343,6 +346,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const fabLabel = (widgetConfig?.label || "Ассистент").trim() || "Ассистент";
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
+  const fabTextFont = widgetConfig?.widgetButtonTextFont?.trim() || bodyFont;
+  const fabTextSize = Math.max(10, Math.min(48, Number(widgetConfig?.widgetButtonTextSizePx ?? 14)));
+  const fabTextWeight = Number.isFinite(Number(widgetConfig?.widgetButtonTextWeight)) ? Number(widgetConfig?.widgetButtonTextWeight) : undefined;
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
   const headingWeight = Number.isFinite(Number(widgetConfig?.headingWeight)) ? Number(widgetConfig?.headingWeight) : undefined;
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
@@ -1319,11 +1325,40 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
+          className={
+            widgetIconImageUrl
+              ? "pointer-events-auto group flex flex-col items-center gap-1 bg-transparent p-0 text-sm font-semibold text-[color:var(--ai-button-text,#111827)] transition hover:brightness-105"
+              : "pointer-events-auto group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105"
+          }
+          style={{ borderRadius: fabRadius, ...inlineFabPosition }}
           aria-label="Открыть ассистента"
         >
-          <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
-          <span className="whitespace-nowrap">{fabLabel}</span>
+          {widgetIconImageUrl ? (
+            <img
+              src={widgetIconImageUrl}
+              alt=""
+              className="shrink-0 object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.25)]"
+              style={{ width: `${widgetIconSizePx}px`, height: `${widgetIconSizePx}px` }}
+            />
+          ) : (
+            <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
+          )}
+          {(!widgetIconImageUrl || keepWidgetButtonText) ? (
+            <span
+              className={
+                widgetIconImageUrl
+                  ? "whitespace-nowrap text-center leading-tight drop-shadow-sm"
+                  : "whitespace-nowrap"
+              }
+              style={{
+                fontFamily: fabTextFont,
+                fontSize: `${fabTextSize}px`,
+                fontWeight: fabTextWeight,
+              }}
+            >
+              {fabLabel}
+            </span>
+          ) : null}
         </button>
       )}
       <style>{`
