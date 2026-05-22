@@ -302,7 +302,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const panelWidth = Math.max(320, Math.min(560, Number(widgetConfig?.panelWidthPx ?? 400)));
   const panelHeightVh = Math.max(48, Math.min(92, Number(widgetConfig?.panelHeightVh ?? 74)));
   const panelRadius = Math.max(0, Math.min(36, Number(widgetConfig?.radiusPx ?? 10)));
-  const messageRadius = Math.max(4, Math.min(32, Number(widgetConfig?.messageRadiusPx ?? 5)));
+  const messageRadius = Math.max(0, Math.min(32, Number(widgetConfig?.messageRadiusPx ?? 5)));
+  const inputRadius = Math.max(0, Math.min(36, Number(widgetConfig?.inputRadiusPx ?? 5)));
   const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 0));
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
   const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
@@ -311,6 +312,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)))}px` };
   const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 5)));
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
+  const inputRadiusStyle = { borderRadius: `${inputRadius}px` };
   const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
@@ -364,8 +366,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     backdropColor.toLowerCase() !== "transparent";
   const calendarShellClass =
     currentMode === "dark"
-      ? "mt-2 rounded-xl border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
-      : "mt-2 rounded-xl border border-[color:var(--ai-border,#e5e7eb)] bg-white/70 p-2";
+      ? "mt-2 overflow-hidden border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
+      : "mt-2 overflow-hidden border border-[color:var(--ai-border,#e5e7eb)] bg-white/70 p-2";
+  const calendarShellStyle = messageRadiusStyle;
   const consentShellClass =
     currentMode === "dark"
       ? "mt-2 rounded-xl border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
@@ -1036,7 +1039,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                       </div>
                      ) : null}
                     {ui?.kind === "date_picker" && !isTypingThis ? (
-                      <div className={calendarShellClass}>
+                      <div className={calendarShellClass} style={calendarShellStyle}>
                         <div className="mb-2 flex items-center justify-between">
                           <button
                             type="button"
@@ -1237,7 +1240,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}
             style={isFixedMobileFullscreen ? { paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" } : undefined}
           >
-            <div className="relative overflow-hidden rounded-2xl border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]">
+            <div className="relative overflow-hidden border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]" style={inputRadiusStyle}>
               <textarea
                 ref={inputRef}
                 value={text}

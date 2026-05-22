@@ -236,6 +236,7 @@ export type SiteAishaWidgetConfig = {
   radiusPx: number | null;
   buttonRadiusPx: number | null;
   quickReplyRadiusPx?: number | null;
+  inputRadiusPx?: number | null;
   buttonColor: string | null;
   buttonTextColor: string | null;
   panelColor: string | null;
@@ -517,6 +518,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       subheadingSizePx: null,
       textSizePx: null,
       messageRadiusPx: 5,
+      inputRadiusPx: 5,
       panelShadowColor: null,
       panelShadowSize: 0,
     };
@@ -814,8 +816,11 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       ? numInRange(style.textSize, 10, 48, theme.textSize)
       : theme.textSize,
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
-      ? numInRange(style.messageRadius, 4, 32, 5)
+      ? numInRange(style.messageRadius, 0, 32, 5)
       : null,
+    inputRadiusPx: Number.isFinite(Number(style.inputRadius))
+      ? numInRange(style.inputRadius, 0, 36, 5)
+      : 5,
     panelShadowColor: textOrNull(style.shadowColor) || textOrNull(theme.shadowColor) || null,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
       ? numInRange(style.shadowSize, 0, 40, 0)
@@ -961,6 +966,7 @@ const createAishaBlock = (): SiteBlock => ({
       buttonRadius: 5,
       quickReplyRadius: 5,
       messageRadius: 5,
+      inputRadius: 5,
       shadowSize: 0,
     },
   },
@@ -1411,6 +1417,9 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             if (!Number.isFinite(Number(style.messageRadius)) || Number(style.messageRadius) === 16) {
               style.messageRadius = 5;
             }
+            if (!Number.isFinite(Number(style.inputRadius))) {
+              style.inputRadius = 5;
+            }
             if (!Number.isFinite(Number(style.buttonRadius)) || Number(style.buttonRadius) === 0 || Number(style.buttonRadius) === 12) {
               style.buttonRadius = 5;
             }
@@ -1425,6 +1434,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             buttonRadius: 5,
             quickReplyRadius: 5,
             messageRadius: 5,
+            inputRadius: 5,
             shadowSize: 0,
           };
         }

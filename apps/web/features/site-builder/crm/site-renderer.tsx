@@ -82,6 +82,7 @@ export type BlockStyle = {
   radius: number | null;
   buttonRadius: number | null;
   quickReplyRadius?: number | null;
+  inputRadius?: number | null;
   cardRadius?: number | null;
   authPageBg?: string;
   authBlockBg?: string;
@@ -1160,6 +1161,7 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
       "quickReplyTextColor"
     ),
     messageRadius: toNumber(style.messageRadius),
+    inputRadius: toNumber(style.inputRadius),
     sectionBgLightResolved: sectionBgPair.lightResolved,
     sectionBgDarkResolved: sectionBgPair.darkResolved,
     blockBgLightResolved: blockBgPair.lightResolved,
@@ -8139,6 +8141,7 @@ export function buildAishaWidgetConfig(
     subheadingSizePx: style.subheadingSize ?? theme.subheadingSize ?? null,
     textSizePx: style.textSize ?? theme.textSize ?? null,
     messageRadiusPx: style.messageRadius ?? 5,
+    inputRadiusPx: style.inputRadius ?? 5,
     panelShadowColor: style.shadowColor || theme.shadowColor || null,
     panelShadowSize: style.shadowSize ?? 0,
   };

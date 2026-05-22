@@ -884,11 +884,16 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         <div className="space-y-4">
-          {flatNumber("Скругление сообщений", style.messageRadius ?? 5, (value) => updateStyle(ctx, { messageRadius: value }), 4, 32)}
+          {flatNumber("Скругление сообщений", style.messageRadius ?? 5, (value) => updateStyle(ctx, { messageRadius: value }), 0, 32)}
           <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorLight: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorLight: "transparent" })} />
           <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorLight: value })} onClear={() => updateStyle(ctx, { assistantTextColorLight: "transparent" })} />
           <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorLight: value })} onClear={() => updateStyle(ctx, { clientBubbleColorLight: "transparent" })} />
           <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorLight: value })} onClear={() => updateStyle(ctx, { clientTextColorLight: "transparent" })} />
+        </div>
+
+        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Поле ввода</div>
+          {flatNumber("Скругление поля ввода", style.inputRadius ?? 5, (value) => updateStyle(ctx, { inputRadius: value }), 0, 36)}
         </div>
 
         <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
