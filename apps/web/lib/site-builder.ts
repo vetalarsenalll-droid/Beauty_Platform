@@ -229,6 +229,7 @@ export type SiteAishaWidgetConfig = {
   assistantName: string;
   headerTitle: string;
   label: string;
+  chatBackgroundImageUrl?: string | null;
   offsetBottomPx: number;
   offsetRightPx: number;
   panelWidthPx: number;
@@ -484,6 +485,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       assistantName: "Ассистент",
       headerTitle: "Ассистент",
       label: "Ассистент",
+      chatBackgroundImageUrl: null,
       offsetBottomPx: 16,
       offsetRightPx: 16,
       panelWidthPx: 400,
@@ -787,6 +789,10 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       typeof data.assistantName === "string" && data.assistantName.trim() ? data.assistantName.trim() : "Ассистент",
     headerTitle: normalizeAishaTitle(data.title),
     label: normalizeAishaLabel(data.label),
+    chatBackgroundImageUrl:
+      typeof data.chatBackgroundImageUrl === "string" && data.chatBackgroundImageUrl.trim()
+        ? data.chatBackgroundImageUrl.trim()
+        : null,
     offsetBottomPx: numInRange(data.offsetBottomPx, 0, 160, 16),
     offsetRightPx: numInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
@@ -1028,6 +1034,7 @@ const createAishaBlock = (): SiteBlock => ({
     assistantName: "Ассистент",
     enabled: true,
     label: "Ассистент",
+    chatBackgroundImageUrl: "",
     offsetBottomPx: 16,
     offsetRightPx: 16,
     style: {

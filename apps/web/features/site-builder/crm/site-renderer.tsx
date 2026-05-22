@@ -8103,6 +8103,10 @@ export function buildAishaWidgetConfig(
         : "Ассистент",
     headerTitle: normalizeAishaTitle(data.title),
     label: normalizeAishaLabel(data.label),
+    chatBackgroundImageUrl:
+      typeof data.chatBackgroundImageUrl === "string" && data.chatBackgroundImageUrl.trim()
+        ? data.chatBackgroundImageUrl.trim()
+        : null,
     offsetBottomPx: toNumberInRange(data.offsetBottomPx, 0, 160, 16),
     offsetRightPx: toNumberInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,

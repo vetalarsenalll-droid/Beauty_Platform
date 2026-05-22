@@ -1441,6 +1441,7 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     assistantName: "Ассистент",
     enabled: true,
     label: "Ассистент",
+    chatBackgroundImageUrl: "",
     offsetBottomPx: 16,
     offsetRightPx: 16,
     panelWidthPx: 400,

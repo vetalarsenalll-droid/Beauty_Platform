@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
@@ -71,6 +71,145 @@ function aishaTextValue(ctx: CrmPanelCtx, key: string, fallback = "Ассист�
   if (key === "title" && (value === "AI-ассистент записи" || value === "AI-ассистент")) return "Ассистент";
   if (key === "label" && (value === "AI Ассистент" || value === "AI-ассистент" || value === "AI-чат")) return "Ассистент";
   return value;
+}
+
+type AishaBackgroundOption = { name: string; label: string; url: string };
+
+function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
+  const data = ctx.block.data as Record<string, unknown>;
+  const selectedUrl = typeof data.chatBackgroundImageUrl === "string" ? data.chatBackgroundImageUrl : "";
+  const [items, setItems] = useState<AishaBackgroundOption[]>([]);
+  const [open, setOpen] = useState(Boolean(selectedUrl));
+  const [previewItem, setPreviewItem] = useState<AishaBackgroundOption | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/site-builder/aisha-backgrounds", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { items: [] }))
+      .then((payload) => {
+        if (cancelled) return;
+        const nextItems = Array.isArray(payload?.items) ? payload.items : [];
+        setItems(
+          nextItems.filter(
+            (item: unknown): item is AishaBackgroundOption =>
+              Boolean(
+                item &&
+                  typeof item === "object" &&
+                  typeof (item as AishaBackgroundOption).name === "string" &&
+                  typeof (item as AishaBackgroundOption).label === "string" &&
+                  typeof (item as AishaBackgroundOption).url === "string"
+              )
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!previewItem) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewItem(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewItem]);
+
+  const selectedItem = items.find((item) => item.url === selectedUrl) ?? null;
+
+  return (
+    <div className="space-y-3 border-t border-[color:var(--bp-stroke)] pt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+          Фон чата
+        </span>
+        <span className="text-xs text-[color:var(--bp-muted)]">
+          {selectedItem?.label ?? "Не выбран"} {open ? "▴" : "▾"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => updateData(ctx, { chatBackgroundImageUrl: "" })}
+              className="border border-[color:var(--bp-stroke)] px-3 py-1 text-xs text-[color:var(--bp-muted)] hover:text-[color:var(--bp-ink)]"
+            >
+              Без фона
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {items.map((item) => {
+              const selected = selectedUrl === item.url;
+              return (
+                <div key={item.name} className="relative aspect-[40/56] w-32">
+                  <button
+                    type="button"
+                    onClick={() => updateData(ctx, { chatBackgroundImageUrl: item.url })}
+                    className={`h-full w-full overflow-hidden rounded-md border transition ${
+                      selected ? "border-[color:var(--bp-stroke)] ring-1 ring-black/25" : "border-[color:var(--bp-stroke)] hover:border-[color:var(--bp-ink)]/50"
+                    }`}
+                    aria-label={`Выбрать фон ${item.label}`}
+                  >
+                    <img src={item.url} alt="" className="h-full w-full object-cover" />
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-left text-[10px] font-semibold text-white">
+                      {item.label}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewItem(item)}
+                    className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center text-[color:var(--bp-ink)] drop-shadow-sm transition hover:text-black"
+                    aria-label={`Увеличить фон ${item.label}`}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.25">
+                      <circle cx="11" cy="11" r="6" />
+                      <path d="m16 16 4 4" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {items.length === 0 ? (
+            <div className="text-xs text-[color:var(--bp-muted)]">
+              Добавьте изображения в папку blocks/aisha/Fon.
+            </div>
+          ) : null}
+        </div>
+      )}
+      {previewItem ? (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-6"
+          onClick={() => setPreviewItem(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Просмотр фона ${previewItem.label}`}
+        >
+          <div className="relative max-h-full max-w-full" onClick={(event) => event.stopPropagation()}>
+            <img src={previewItem.url} alt={previewItem.label} className="max-h-[86vh] max-w-[86vw] rounded-md object-contain shadow-2xl" />
+            <button
+              type="button"
+              onClick={() => setPreviewItem(null)}
+              className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center text-4xl leading-none text-black drop-shadow-sm hover:text-black/70"
+              aria-label="Закрыть просмотр"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function FlatTextarea({
@@ -353,6 +492,7 @@ export function GenericFlatContentPanel(ctx: CrmPanelCtx) {
           {renderCoverFlatTextInput("Заголовок виджета", aishaTextValue(ctx, "title"), (value) => updateData(ctx, { title: value }))}
           {renderCoverFlatTextInput("Имя ассистента", aishaTextValue(ctx, "assistantName"), (value) => updateData(ctx, { assistantName: value }))}
           {renderCoverFlatTextInput("Текст кнопки", aishaTextValue(ctx, "label"), (value) => updateData(ctx, { label: value }))}
+          <AishaChatBackgroundPicker ctx={ctx} />
         </>
       )}
 

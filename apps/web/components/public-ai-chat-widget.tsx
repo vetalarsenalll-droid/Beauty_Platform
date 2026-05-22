@@ -320,6 +320,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
   const headerTitle = (widgetConfig?.headerTitle || "Ассистент").trim() || "Ассистент";
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
+  const chatBackgroundImageUrl = widgetConfig?.chatBackgroundImageUrl?.trim() || "";
   const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)));
   const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)))}px` };
   const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 5)));
@@ -761,6 +762,13 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     fontFamily: bodyFont,
     fontSize: `${textSize}px`,
   };
+  const chatScrollerStyle: CSSProperties | undefined = chatBackgroundImageUrl
+    ? {
+        backgroundImage: `url("${chatBackgroundImageUrl.replace(/"/g, "%22")}")`,
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+      }
+    : undefined;
 
   return (
     <div className={rootClass} style={rootStyle}>
@@ -803,7 +811,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           </div>
 
           <div className="min-h-0 flex flex-1 flex-col bg-[color:var(--ai-panel,#fff)]" style={contentTextStyle}>
-          <div ref={scrollerRef} className="aisha-chat-scroll flex-1 space-y-3 overflow-y-auto bg-[color:var(--ai-panel,#fff)] px-3 py-3">
+          <div ref={scrollerRef} className="aisha-chat-scroll flex-1 space-y-3 overflow-y-auto bg-[color:var(--ai-panel,#fff)] px-3 py-3" style={chatScrollerStyle}>
             {messages.map((msg, index) => (
               (() => {
                 const messageKey = `${msg.role}-${msg.id ?? index}`;
