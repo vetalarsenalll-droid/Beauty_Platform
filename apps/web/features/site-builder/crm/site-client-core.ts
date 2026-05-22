@@ -320,6 +320,7 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
     { id: "widget", label: "Виджет" },
     { id: "messages", label: "Сообщения" },
     { id: "buttons", label: "Кнопки" },
+    { id: "animation", label: "Анимация" },
     { id: "effects", label: "Эффекты" },
   ],
 };
@@ -573,6 +574,8 @@ export const defaultBlockStyle = {
   widgetButtonTextFont: "var(--font-manrope), sans-serif",
   widgetButtonTextWeight: null,
   widgetButtonTextSize: null,
+  widgetAnimationType: "none",
+  widgetAnimationSpeedMs: 2400,
   headingSize: null,
   subheadingSize: null,
   textSize: null,

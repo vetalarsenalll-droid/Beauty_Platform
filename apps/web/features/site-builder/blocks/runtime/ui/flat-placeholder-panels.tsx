@@ -21,7 +21,7 @@ import {
   updateBlockStyle,
   type BlockStyle,
 } from "@/features/site-builder/crm/site-renderer";
-import { renderCoverFlatNumberInput, renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
+import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import { RatingSettingsPanel } from "@/features/site-builder/blocks/rating-settings-panel";
 import type { CrmPanelCtx } from "../contracts";
 
@@ -48,6 +48,20 @@ const WEIGHT_OPTIONS = [
   { value: "700", label: "700" },
   { value: "800", label: "800" },
 ];
+
+const AISHA_WIDGET_ANIMATION_OPTIONS = [
+  { value: "none", label: "Без анимации" },
+  { value: "pulse", label: "Пульсация" },
+  { value: "shake", label: "Вибрация" },
+  { value: "flip", label: "Переворот" },
+];
+
+const AISHA_WIDGET_ANIMATION_DEFAULT_SPEED_MS: Record<NonNullable<BlockStyle["widgetAnimationType"]>, number> = {
+  none: 2400,
+  pulse: 3500,
+  shake: 4000,
+  flip: 8000,
+};
 
 function updateStyle(ctx: CrmPanelCtx, patch: Partial<BlockStyle>) {
   ctx.updateBlock(ctx.block.id, (prev) => updateBlockStyle(prev, patch));
@@ -474,18 +488,35 @@ function applyGridRange(ctx: CrmPanelCtx, nextStart: number, nextEnd: number) {
   });
 }
 
-function flatNumber(
-  label: string,
-  value: number,
-  onChange: (value: number) => void,
+function FlatNumberInput({
+  label,
+  value,
+  onChange,
   min = 0,
   max = 96,
-  suffix = "px"
-) {
-  const normalized = Number.isFinite(value) ? Math.max(min, Math.min(max, Math.round(value))) : min;
-  if (suffix === "px") {
-    return renderCoverFlatNumberInput(label, normalized, min, max, onChange);
-  }
+  suffix = "px",
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  suffix?: string;
+}) {
+  const normalized = Number.isFinite(value) ? Math.round(value) : min;
+  const [draft, setDraft] = useState(String(normalized));
+
+  useEffect(() => {
+    setDraft(String(normalized));
+  }, [normalized]);
+
+  const commit = (rawValue: string) => {
+    const parsed = Number(rawValue);
+    const next = Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.round(parsed))) : min;
+    setDraft(String(next));
+    onChange(next);
+  };
+
   return (
     <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
       <div className="min-h-[32px] leading-4">{label}</div>
@@ -494,11 +525,21 @@ function flatNumber(
           type="number"
           min={min}
           max={max}
-          value={normalized}
+          value={draft}
           onChange={(event) => {
-            const parsed = Number(event.target.value);
-            onChange(Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.round(parsed))) : min);
+            const nextDraft = event.target.value;
+            setDraft(nextDraft);
+
+            if (nextDraft.trim() === "") {
+              return;
+            }
+
+            const parsed = Number(nextDraft);
+            if (Number.isFinite(parsed)) {
+              onChange(Math.round(parsed));
+            }
           }}
+          onBlur={(event) => commit(event.target.value)}
           className="w-full appearance-none rounded-none border-0 bg-transparent p-0 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
           style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
         />
@@ -506,6 +547,17 @@ function flatNumber(
       </div>
     </label>
   );
+}
+
+function flatNumber(
+  label: string,
+  value: number,
+  onChange: (value: number) => void,
+  min = 0,
+  max = 96,
+  suffix = "px"
+) {
+  return <FlatNumberInput label={label} value={value} onChange={onChange} min={min} max={max} suffix={suffix} />;
 }
 
 function flatPercentSelect(
@@ -938,6 +990,9 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
         {ctx.currentPanelSections.some((section) => section.id === "button" || section.id === "buttons") && (
           <SectionButton id={buttonSectionId} label={ctx.block.type === "aisha" ? "Кнопки" : "Кнопка"} activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         )}
+        {ctx.currentPanelSections.some((section) => section.id === "animation") && (
+          <SectionButton id="animation" label="Анимация" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        )}
         {ctx.currentPanelSections.some((section) => section.id === "reviews") && (
           <SectionButton id="reviews" label="Отзывы" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         )}
@@ -1199,6 +1254,38 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
             <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorDark: "transparent" })} />
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (ctx.block.type === "aisha" && section === "animation") {
+    const animationType =
+      style.widgetAnimationType === "pulse" || style.widgetAnimationType === "shake" || style.widgetAnimationType === "flip"
+        ? style.widgetAnimationType
+        : "none";
+    return (
+      <div className="space-y-6 px-1 pb-8 pt-1">
+        <div className="space-y-4">
+          <FlatSelect
+            label="Анимация кнопки"
+            value={animationType}
+            options={AISHA_WIDGET_ANIMATION_OPTIONS}
+            onChange={(value) => {
+              const nextAnimationType = value as NonNullable<BlockStyle["widgetAnimationType"]>;
+              updateStyle(ctx, {
+                widgetAnimationType: nextAnimationType,
+                widgetAnimationSpeedMs: AISHA_WIDGET_ANIMATION_DEFAULT_SPEED_MS[nextAnimationType],
+              });
+            }}
+          />
+          {flatNumber(
+            "Скорость анимации, мс",
+            style.widgetAnimationSpeedMs ?? 2400,
+            (value) => updateStyle(ctx, { widgetAnimationSpeedMs: value }),
+            600,
+            8000
+          )}
+        </div>
       </div>
     );
   }

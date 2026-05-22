@@ -365,6 +365,13 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const headerActionWeight = headingWeight ?? 400;
   const headerTitleWeight = stepFontWeight(headerActionWeight, 200) ?? 600;
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
+  const widgetAnimationType =
+    widgetConfig?.widgetAnimationType === "pulse" ||
+    widgetConfig?.widgetAnimationType === "shake" ||
+    widgetConfig?.widgetAnimationType === "flip"
+      ? widgetConfig.widgetAnimationType
+      : "none";
+  const widgetAnimationSpeedMs = Math.max(600, Math.min(8000, Number(widgetConfig?.widgetAnimationSpeedMs ?? 2400)));
   const offsetRightPx = Number(widgetConfig?.offsetRightPx ?? 16);
   const offsetBottomPx = Number(widgetConfig?.offsetBottomPx ?? 16);
   const inlineFabPosition: CSSProperties =
@@ -431,6 +438,20 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
       : (widgetConfig?.borderColorLight ?? widgetConfig?.borderColor ?? "")
     ).trim();
   const hasWidgetBorder = effectiveBorderColor.length > 0;
+  const fabAnimationClass =
+    widgetAnimationType === "pulse"
+      ? "ai-fab-anim-pulse"
+      : widgetAnimationType === "shake"
+        ? "ai-fab-anim-shake"
+        : widgetAnimationType === "flip"
+          ? "ai-fab-anim-flip"
+          : "";
+  const fabButtonStyle = {
+    borderRadius: fabRadius,
+    ...inlineFabPosition,
+    "--ai-fab-animation-speed": `${widgetAnimationSpeedMs}ms`,
+    "--ai-fab-animation-color": "var(--ai-button,#111827)",
+  } as CSSProperties;
 
   const lastAssistantIndex = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -1349,10 +1370,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           onClick={() => setOpen(true)}
           className={
             widgetIconImageUrl
-              ? "pointer-events-auto group flex flex-col items-center gap-1 bg-transparent p-0 text-sm font-semibold text-[color:var(--ai-button-text,#111827)] transition hover:brightness-105"
-              : "pointer-events-auto group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105"
+              ? `pointer-events-auto group relative isolate flex flex-col items-center gap-1 bg-transparent p-0 text-sm font-semibold text-[color:var(--ai-button-text,#111827)] transition hover:brightness-105 ${fabAnimationClass}`
+              : `pointer-events-auto group relative isolate flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105 ${fabAnimationClass}`
           }
-          style={{ borderRadius: fabRadius, ...inlineFabPosition }}
+          style={fabButtonStyle}
           aria-label="Открыть ассистента"
         >
           {widgetIconImageUrl ? (
@@ -1362,9 +1383,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               className="shrink-0 object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.25)]"
               style={{ width: `${widgetIconSizePx}px`, height: `${widgetIconSizePx}px` }}
             />
-          ) : (
-            <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
-          )}
+          ) : null}
           {(!widgetIconImageUrl || keepWidgetButtonText) ? (
             <span
               className={
@@ -1397,6 +1416,43 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         .ai-typing-dot {
           animation: aiTypingWave 1s ease-in-out infinite;
           will-change: transform, opacity;
+        }
+        @keyframes aiFabPulseWave {
+          0% { opacity: 0.5; transform: scale(1); }
+          70%, 100% { opacity: 0; transform: scale(1.55); }
+        }
+        @keyframes aiFabShake {
+          0%, 72%, 100% { transform: translate3d(0, 0, 0); }
+          76%, 84%, 92% { transform: translate3d(-2px, 0, 0); }
+          80%, 88%, 96% { transform: translate3d(2px, 0, 0); }
+        }
+        @keyframes aiFabFlip {
+          0%, 68%, 100% { transform: rotateY(0deg); }
+          84% { transform: rotateY(360deg); }
+        }
+        .ai-fab-anim-pulse::before,
+        .ai-fab-anim-pulse::after {
+          content: "";
+          pointer-events: none;
+          position: absolute;
+          inset: -4px;
+          z-index: -1;
+          border: 2px solid var(--ai-fab-animation-color, var(--ai-button,#111827));
+          border-radius: inherit;
+          opacity: 0;
+          animation: aiFabPulseWave var(--ai-fab-animation-speed, 2400ms) ease-out infinite;
+        }
+        .ai-fab-anim-pulse::after {
+          animation-delay: calc(var(--ai-fab-animation-speed, 2400ms) / 2);
+        }
+        .ai-fab-anim-shake {
+          animation: aiFabShake var(--ai-fab-animation-speed, 2400ms) ease-in-out infinite;
+          will-change: transform;
+        }
+        .ai-fab-anim-flip {
+          transform-style: preserve-3d;
+          animation: aiFabFlip var(--ai-fab-animation-speed, 2400ms) ease-in-out infinite;
+          will-change: transform;
         }
         .aisha-chat-scroll {
           scrollbar-width: thin;

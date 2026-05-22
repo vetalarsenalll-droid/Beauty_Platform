@@ -302,6 +302,8 @@ export type BlockStyle = {
   widgetButtonTextFont: string;
   widgetButtonTextWeight: number | null;
   widgetButtonTextSize: number | null;
+  widgetAnimationType?: "none" | "pulse" | "shake" | "flip";
+  widgetAnimationSpeedMs?: number | null;
   headingSize: number | null;
   subheadingSize: number | null;
   textSize: number | null;
@@ -1350,6 +1352,11 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     widgetButtonTextFont: typeof style.widgetButtonTextFont === "string" ? style.widgetButtonTextFont : "",
     widgetButtonTextWeight: toFontWeight(style.widgetButtonTextWeight),
     widgetButtonTextSize: toNumber(style.widgetButtonTextSize),
+    widgetAnimationType:
+      style.widgetAnimationType === "pulse" || style.widgetAnimationType === "shake" || style.widgetAnimationType === "flip"
+        ? style.widgetAnimationType
+        : "none",
+    widgetAnimationSpeedMs: toNumber(style.widgetAnimationSpeedMs),
     headingSize: toNumber(style.headingSize),
     subheadingSize: toNumber(style.subheadingSize),
     textSize: toNumber(style.textSize),
@@ -8273,6 +8280,8 @@ export function buildAishaWidgetConfig(
     widgetButtonTextFont: style.widgetButtonTextFont || style.fontBody || theme.fontBody || null,
     widgetButtonTextSizePx: style.widgetButtonTextSize ?? 14,
     widgetButtonTextWeight: style.widgetButtonTextWeight ?? null,
+    widgetAnimationType: style.widgetAnimationType ?? "none",
+    widgetAnimationSpeedMs: style.widgetAnimationSpeedMs ?? 2400,
     headingSizePx: style.headingSize ?? 14,
     headingWeight: style.fontWeightHeading ?? null,
     subheadingSizePx: style.subheadingSize ?? theme.subheadingSize ?? null,

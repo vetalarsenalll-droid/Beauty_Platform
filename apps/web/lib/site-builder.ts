@@ -318,6 +318,8 @@ export type SiteAishaWidgetConfig = {
   widgetButtonTextFont?: string | null;
   widgetButtonTextSizePx?: number | null;
   widgetButtonTextWeight?: number | null;
+  widgetAnimationType?: "none" | "pulse" | "shake" | "flip";
+  widgetAnimationSpeedMs?: number | null;
   headingSizePx?: number | null;
   headingWeight?: number | null;
   subheadingSizePx?: number | null;
@@ -545,6 +547,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       widgetButtonTextFont: null,
       widgetButtonTextSizePx: 14,
       widgetButtonTextWeight: null,
+      widgetAnimationType: "none",
+      widgetAnimationSpeedMs: 2400,
       headingSizePx: null,
       subheadingSizePx: null,
       textSizePx: null,
@@ -908,6 +912,13 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     widgetButtonTextWeight: numberOrNull(style.widgetButtonTextWeight) !== null
       ? numInRange(style.widgetButtonTextWeight, 100, 900, 400)
       : null,
+    widgetAnimationType:
+      style.widgetAnimationType === "pulse" || style.widgetAnimationType === "shake" || style.widgetAnimationType === "flip"
+        ? style.widgetAnimationType
+        : "none",
+    widgetAnimationSpeedMs: numberOrNull(style.widgetAnimationSpeedMs) !== null
+      ? numInRange(style.widgetAnimationSpeedMs, 600, 8000, 2400)
+      : 2400,
     headingWeight: numberOrNull(style.fontWeightHeading) !== null
       ? numInRange(style.fontWeightHeading, 100, 900, 500)
       : null,
@@ -1074,6 +1085,8 @@ const createAishaBlock = (): SiteBlock => ({
       radius: 10,
       buttonRadius: 5,
       quickReplyRadius: 5,
+      widgetAnimationType: "none",
+      widgetAnimationSpeedMs: 2400,
       messageRadius: 5,
       inputRadius: 25,
       inputSendButtonColorLight: "#111827",
@@ -1567,6 +1580,12 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             if (!Number.isFinite(Number(style.quickReplyRadius)) || Number(style.quickReplyRadius) === 12) {
               style.quickReplyRadius = 5;
             }
+            if (style.widgetAnimationType !== "pulse" && style.widgetAnimationType !== "shake" && style.widgetAnimationType !== "flip") {
+              style.widgetAnimationType = "none";
+            }
+            if (!Number.isFinite(Number(style.widgetAnimationSpeedMs))) {
+              style.widgetAnimationSpeedMs = 2400;
+            }
           }
           safeData.style = style;
         } else if (block.type === "aisha") {
@@ -1585,6 +1604,8 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             inputTextColorLight: "#111827",
             inputTextColorDark: "#f3f4f6",
             inputTextColor: "#111827",
+            widgetAnimationType: "none",
+            widgetAnimationSpeedMs: 2400,
             shadowSize: 0,
           };
         }
