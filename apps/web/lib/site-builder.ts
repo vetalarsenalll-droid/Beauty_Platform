@@ -474,9 +474,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       offsetRightPx: 16,
       panelWidthPx: 400,
       panelHeightVh: 74,
-      radiusPx: null,
-      buttonRadiusPx: null,
-      quickReplyRadiusPx: null,
+      radiusPx: 10,
+      buttonRadiusPx: 5,
+      quickReplyRadiusPx: 5,
       buttonColor: null,
       buttonTextColor: null,
       panelColor: null,
@@ -516,9 +516,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       headingSizePx: null,
       subheadingSizePx: null,
       textSizePx: null,
-      messageRadiusPx: null,
+      messageRadiusPx: 5,
       panelShadowColor: null,
-      panelShadowSize: null,
+      panelShadowSize: 0,
     };
   }
   const data =
@@ -735,13 +735,13 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     offsetRightPx: numInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
     panelHeightVh: 74,
-    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : theme.radius,
+    radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 10) : 10,
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
-      ? numInRange(style.buttonRadius, 0, 36, 999)
-      : theme.buttonRadius,
+      ? numInRange(style.buttonRadius, 0, 36, 5)
+      : 5,
     quickReplyRadiusPx: Number.isFinite(Number(style.quickReplyRadius))
-      ? numInRange(style.quickReplyRadius, 0, 36, 12)
-      : 12,
+      ? numInRange(style.quickReplyRadius, 0, 36, 5)
+      : 5,
     buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
     buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
     panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
@@ -814,12 +814,12 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       ? numInRange(style.textSize, 10, 48, theme.textSize)
       : theme.textSize,
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
-      ? numInRange(style.messageRadius, 4, 32, 16)
+      ? numInRange(style.messageRadius, 4, 32, 5)
       : null,
     panelShadowColor: textOrNull(style.shadowColor) || textOrNull(theme.shadowColor) || null,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
-      ? numInRange(style.shadowSize, 0, 40, 16)
-      : theme.shadowSize,
+      ? numInRange(style.shadowSize, 0, 40, 0)
+      : 0,
   };
 }
 
@@ -956,6 +956,13 @@ const createAishaBlock = (): SiteBlock => ({
     label: "AI Ассистент",
     offsetBottomPx: 16,
     offsetRightPx: 16,
+    style: {
+      radius: 10,
+      buttonRadius: 5,
+      quickReplyRadius: 5,
+      messageRadius: 5,
+      shadowSize: 0,
+    },
   },
 });
 
@@ -1394,7 +1401,32 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           if (Number.isFinite(style.buttonRadius) && Number(style.buttonRadius) === 999) {
             style.buttonRadius = 0;
           }
+          if (block.type === "aisha") {
+            if (!Number.isFinite(Number(style.radius)) || Number(style.radius) === 16) {
+              style.radius = 10;
+            }
+            if (!Number.isFinite(Number(style.shadowSize)) || Number(style.shadowSize) === 16) {
+              style.shadowSize = 0;
+            }
+            if (!Number.isFinite(Number(style.messageRadius)) || Number(style.messageRadius) === 16) {
+              style.messageRadius = 5;
+            }
+            if (!Number.isFinite(Number(style.buttonRadius)) || Number(style.buttonRadius) === 0 || Number(style.buttonRadius) === 12) {
+              style.buttonRadius = 5;
+            }
+            if (!Number.isFinite(Number(style.quickReplyRadius)) || Number(style.quickReplyRadius) === 12) {
+              style.quickReplyRadius = 5;
+            }
+          }
           safeData.style = style;
+        } else if (block.type === "aisha") {
+          safeData.style = {
+            radius: 10,
+            buttonRadius: 5,
+            quickReplyRadius: 5,
+            messageRadius: 5,
+            shadowSize: 0,
+          };
         }
         if (block.type === "menu") {
           const normalizeMenuColor = (value: unknown) => {
@@ -1710,13 +1742,14 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
     : { home: draft.blocks };
   const normalizedHomeBlocks = normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home);
   const legacyAishaBlocks = normalizedHomeBlocks.filter((block) => block.type === "aisha");
+  const hasExplicitAishaPage = Object.prototype.hasOwnProperty.call(pagesInput, "aisha");
 
   const pages: SitePages = {
     home: normalizedHomeBlocks.filter((block) => block.type !== "aisha"),
     booking: normalizeBlocks(pagesInput.booking ?? fallbackPages.booking),
     aisha: normalizeBlocks(
-      pagesInput.aisha && pagesInput.aisha.length > 0
-        ? pagesInput.aisha
+      hasExplicitAishaPage
+        ? pagesInput.aisha ?? []
         : legacyAishaBlocks.length > 0
           ? legacyAishaBlocks
           : fallbackPages.aisha

@@ -299,27 +299,29 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
 
   const panelWidth = Math.max(320, Math.min(560, Number(widgetConfig?.panelWidthPx ?? 400)));
   const panelHeightVh = Math.max(48, Math.min(92, Number(widgetConfig?.panelHeightVh ?? 74)));
-  const panelRadius = Math.max(0, Math.min(36, Number(widgetConfig?.radiusPx ?? 18)));
-  const messageRadius = Math.max(4, Math.min(32, Number(widgetConfig?.messageRadiusPx ?? 16)));
-  const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 16));
+  const panelRadius = Math.max(0, Math.min(36, Number(widgetConfig?.radiusPx ?? 10)));
+  const messageRadius = Math.max(4, Math.min(32, Number(widgetConfig?.messageRadiusPx ?? 5)));
+  const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 0));
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
   const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
-  const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 16)));
-  const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 12)))}px` };
-  const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 12)));
+  const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)));
+  const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)))}px` };
+  const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 5)));
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
   const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
+  const offsetRightPx = Number(widgetConfig?.offsetRightPx ?? 16);
+  const offsetBottomPx = Number(widgetConfig?.offsetBottomPx ?? 16);
   const inlineFabPosition: CSSProperties =
     mode === "inline"
       ? {
           position: "absolute",
-          right: `${Number(widgetConfig?.offsetRightPx ?? 16)}px`,
-          bottom: `${Number(widgetConfig?.offsetBottomPx ?? 16)}px`,
+          right: `${offsetRightPx}px`,
+          bottom: `${offsetBottomPx}px`,
         }
       : {};
   const gradientEnabledByMode =
@@ -688,8 +690,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         }
       : {
           position: "absolute",
-          right: 0,
-          bottom: 0,
+          right: `${offsetRightPx}px`,
+          bottom: `${offsetBottomPx}px`,
           height: `${panelHeightVh}vh`,
           maxHeight: `${panelHeightVh}vh`,
           width: `${panelWidth}px`,
@@ -846,8 +848,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                     /услуга\s*№|специалист\s*:|специалист\s*услуги\s*№|стоимость|длительность|итого|мастер|уровень/iu.test(text)
                   );
                 };
-                const quickReplyRadiusStyle = (variant: "chip" | "time" | "row") => {
-                  const radius = variant === "row" ? Math.max(quickReplyRadius, 14) : quickReplyRadius;
+                const quickReplyRadiusStyle = () => {
+                  const radius = quickReplyRadius;
                   return { borderRadius: `${radius}px` };
                 };
                 const timeControlKind = (option: QuickReply): "show_all" | "part_of_day" | null => {
@@ -891,8 +893,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                     key={messageKey}
                     className={`max-w-[92%] px-3 py-2 text-sm ${
                       msg.role === "user"
-                        ? "ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))] shadow-sm"
-                        : "bg-[color:var(--ai-assistant-bubble,rgba(0,0,0,0.05))] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))] shadow-sm"
+                        ? "ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))]"
+                        : "bg-[color:var(--ai-assistant-bubble,transparent)] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))]"
                     }`}
                     style={messageRadiusStyle}
                   >
@@ -917,7 +919,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                       }
                                       void sendRawMessage(option.value);
                                     }}
-                                    style={quickReplyRadiusStyle("chip")}
+                                    style={quickReplyRadiusStyle()}
                                     className={`border px-3 py-1.5 text-xs font-medium transition rounded-lg ${quickReplySupportClass} disabled:cursor-not-allowed disabled:opacity-60`}
                                   >
                                     {option.label}
@@ -941,7 +943,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                       }
                                       void sendRawMessage(option.value);
                                     }}
-                                    style={quickReplyRadiusStyle("chip")}
+                                    style={quickReplyRadiusStyle()}
                                     className={`border px-3 py-1.5 text-xs font-semibold transition rounded-lg ${quickReplySupportClass} disabled:cursor-not-allowed disabled:opacity-60`}
                                   >
                                     {option.label}
@@ -967,7 +969,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                   }
                                   void sendRawMessage(option.value);
                                 }}
-                                style={quickReplyRadiusStyle("chip")}
+                                style={quickReplyRadiusStyle()}
                                 className={`border px-3 py-1.5 text-xs font-semibold tracking-[0.01em] transition rounded-lg ${quickReplyCategoryClass} disabled:cursor-not-allowed disabled:opacity-60`}
                               >
                                 {option.label}
@@ -997,10 +999,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                     }}
                                     style={
                                       isWideOption
-                                        ? quickReplyRadiusStyle("row")
+                                        ? quickReplyRadiusStyle()
                                         : isTimeOption
-                                        ? quickReplyRadiusStyle("time")
-                                        : quickReplyRadiusStyle("chip")
+                                        ? quickReplyRadiusStyle()
+                                        : quickReplyRadiusStyle()
                                     }
                                     className={`border px-3 py-1.5 text-xs font-medium transition ${
                                       isTimeOption

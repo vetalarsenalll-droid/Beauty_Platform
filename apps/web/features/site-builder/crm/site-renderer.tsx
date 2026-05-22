@@ -8018,9 +8018,9 @@ export function buildAishaWidgetConfig(
     offsetRightPx: toNumberInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
     panelHeightVh: 74,
-    radiusPx: style.radius ?? theme.radius ?? 16,
-    buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 0,
-    quickReplyRadiusPx: style.quickReplyRadius ?? 12,
+    radiusPx: style.radius ?? 10,
+    buttonRadiusPx: style.buttonRadius ?? 5,
+    quickReplyRadiusPx: style.quickReplyRadius ?? 5,
     buttonColor:
       pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) || style.buttonColor || null,
     buttonTextColor:
@@ -8138,9 +8138,9 @@ export function buildAishaWidgetConfig(
     headingSizePx: style.headingSize ?? 14,
     subheadingSizePx: style.subheadingSize ?? theme.subheadingSize ?? null,
     textSizePx: style.textSize ?? theme.textSize ?? null,
-    messageRadiusPx: style.messageRadius ?? 16,
+    messageRadiusPx: style.messageRadius ?? 5,
     panelShadowColor: style.shadowColor || theme.shadowColor || null,
-    panelShadowSize: style.shadowSize ?? theme.shadowSize ?? null,
+    panelShadowSize: style.shadowSize ?? 0,
   };
 }
 
@@ -8169,9 +8169,9 @@ export function renderAisha(
     previewViewportWidth <= 480;
   const inlinePreviewMinHeight = isMobilePreview
     ? previewViewportWidth && previewViewportWidth > 400
-      ? "520px"
-      : "640px"
-    : "calc(74vh + 24px)";
+      ? "565px"
+      : "685px"
+    : "calc(74vh + 69px)";
 
   return (
     <div className="relative w-full overflow-hidden" style={{ minHeight: inlinePreviewMinHeight }}>
