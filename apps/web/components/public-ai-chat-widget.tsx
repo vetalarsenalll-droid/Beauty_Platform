@@ -307,6 +307,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
   const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 16)));
   const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 12)))}px` };
+  const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 12)));
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
   const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
@@ -846,7 +847,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   );
                 };
                 const quickReplyRadiusStyle = (variant: "chip" | "time" | "row") => {
-                  const radius = variant === "row" ? 14 : variant === "time" ? 10 : 12;
+                  const radius = variant === "row" ? Math.max(quickReplyRadius, 14) : quickReplyRadius;
                   return { borderRadius: `${radius}px` };
                 };
                 const timeControlKind = (option: QuickReply): "show_all" | "part_of_day" | null => {
@@ -999,7 +1000,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                                         ? quickReplyRadiusStyle("row")
                                         : isTimeOption
                                         ? quickReplyRadiusStyle("time")
-                                        : buttonRadiusStyle
+                                        : quickReplyRadiusStyle("chip")
                                     }
                                     className={`border px-3 py-1.5 text-xs font-medium transition ${
                                       isTimeOption

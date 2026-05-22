@@ -317,8 +317,10 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
   ],
   aisha: [
     { id: "layout", label: "Основные настройки" },
-    { id: "colors", label: "Цвета" },
     { id: "typography", label: "Типографика" },
+    { id: "widget", label: "Виджет" },
+    { id: "messages", label: "Сообщения" },
+    { id: "buttons", label: "Кнопки" },
     { id: "effects", label: "Эффекты" },
   ],
 };

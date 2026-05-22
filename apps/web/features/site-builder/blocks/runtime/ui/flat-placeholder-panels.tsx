@@ -666,11 +666,17 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
 
       <div className="space-y-3">
         <SectionButton id="typography" label="Типографика" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        {ctx.currentPanelSections.some((section) => section.id === "widget") && (
+          <SectionButton id="widget" label="Виджет" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        )}
+        {ctx.currentPanelSections.some((section) => section.id === "messages") && (
+          <SectionButton id="messages" label="Сообщения" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+        )}
         {ctx.currentPanelSections.some((section) => section.id === "colors") && (
           <SectionButton id="colors" label="Цвета" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         )}
         {ctx.currentPanelSections.some((section) => section.id === "button" || section.id === "buttons") && (
-          <SectionButton id={buttonSectionId} label="Кнопка" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
+          <SectionButton id={buttonSectionId} label={ctx.block.type === "aisha" ? "Кнопки" : "Кнопка"} activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
         )}
         {ctx.currentPanelSections.some((section) => section.id === "reviews") && (
           <SectionButton id="reviews" label="Отзывы" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
@@ -851,56 +857,91 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
     );
   }
 
-  if (section === "colors") {
-    if (ctx.block.type === "aisha") {
-      return (
-        <div className="space-y-6 px-1 pb-8 pt-1">
-          <div className="space-y-4">
-            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Виджет</div>
-            <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { blockBgLight: value, blockBg: value })} onClear={() => updateStyle(ctx, { blockBgLight: "transparent", blockBg: "transparent" })} />
-            <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />
-            <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorLight", ctx.activeTheme.mutedColor)} placeholder={ctx.activeTheme.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorLight: value, mutedColor: value })} onClear={() => updateStyle(ctx, { mutedColorLight: "transparent", mutedColor: "transparent" })} />
-            <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorLight", ctx.activeTheme.borderColor)} placeholder={ctx.activeTheme.borderColor} onChange={(value) => updateStyle(ctx, { borderColorLight: value, borderColor: value })} onClear={() => updateStyle(ctx, { borderColorLight: "transparent", borderColor: "transparent" })} />
-          </div>
-
-          <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
-            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Сообщения</div>
-            <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorLight: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorLight: "transparent" })} />
-            <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorLight: value })} onClear={() => updateStyle(ctx, { assistantTextColorLight: "transparent" })} />
-            <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorLight: value })} onClear={() => updateStyle(ctx, { clientBubbleColorLight: "transparent" })} />
-            <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorLight: value })} onClear={() => updateStyle(ctx, { clientTextColorLight: "transparent" })} />
-          </div>
-
-          <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
-            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Плашка и кнопки</div>
-            <TildaInlineColorField compact label="Цвет плашки" value={color(ctx, "headerBgColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorLight: value })} onClear={() => updateStyle(ctx, { headerBgColorLight: "transparent" })} />
-            <TildaInlineColorField compact label="Цвет текста плашки" value={color(ctx, "headerTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorLight: value })} onClear={() => updateStyle(ctx, { headerTextColorLight: "transparent" })} />
-            <TildaInlineColorField compact label="Цвет кнопки" value={color(ctx, "buttonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { buttonColorLight: value, buttonColor: value })} onClear={() => updateStyle(ctx, { buttonColorLight: "transparent", buttonColor: "transparent" })} />
-            <TildaInlineColorField compact label="Текст кнопки" value={color(ctx, "buttonTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { buttonTextColorLight: value, buttonTextColor: value })} onClear={() => updateStyle(ctx, { buttonTextColorLight: "transparent", buttonTextColor: "transparent" })} />
-            <TildaInlineColorField compact label="Цвет кнопок вариантов" value={color(ctx, "quickReplyButtonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorLight: "transparent" })} />
-            <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorLight: "transparent" })} />
-          </div>
-
-          <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
-          {showDarkTheme && (
-            <div className="space-y-4">
-              <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { blockBgDark: value })} onClear={() => updateStyle(ctx, { blockBgDark: "transparent" })} />
-              <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { textColorDark: value })} onClear={() => updateStyle(ctx, { textColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorDark", ctx.activeTheme.darkPalette.mutedColor)} placeholder={ctx.activeTheme.darkPalette.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorDark: value })} onClear={() => updateStyle(ctx, { mutedColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorDark", ctx.activeTheme.darkPalette.borderColor)} placeholder={ctx.activeTheme.darkPalette.borderColor} onChange={(value) => updateStyle(ctx, { borderColorDark: value })} onClear={() => updateStyle(ctx, { borderColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorDark: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorDark: value })} onClear={() => updateStyle(ctx, { assistantTextColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorDark: value })} onClear={() => updateStyle(ctx, { clientBubbleColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorDark: value })} onClear={() => updateStyle(ctx, { clientTextColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Цвет плашки" value={color(ctx, "headerBgColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorDark: value })} onClear={() => updateStyle(ctx, { headerBgColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Цвет текста плашки" value={color(ctx, "headerTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorDark: value })} onClear={() => updateStyle(ctx, { headerTextColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Цвет кнопок вариантов" value={color(ctx, "quickReplyButtonColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorDark: "transparent" })} />
-              <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorDark: "transparent" })} />
-            </div>
-          )}
+  if (ctx.block.type === "aisha" && section === "widget") {
+    return (
+      <div className="space-y-6 px-1 pb-8 pt-1">
+        <div className="space-y-4">
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Окно виджета</div>
+          <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { blockBgLight: value, blockBg: value })} onClear={() => updateStyle(ctx, { blockBgLight: "transparent", blockBg: "transparent" })} />
+          <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />
+          <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorLight", ctx.activeTheme.mutedColor)} placeholder={ctx.activeTheme.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorLight: value, mutedColor: value })} onClear={() => updateStyle(ctx, { mutedColorLight: "transparent", mutedColor: "transparent" })} />
+          <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorLight", ctx.activeTheme.borderColor)} placeholder={ctx.activeTheme.borderColor} onChange={(value) => updateStyle(ctx, { borderColorLight: value, borderColor: value })} onClear={() => updateStyle(ctx, { borderColorLight: "transparent", borderColor: "transparent" })} />
+          {flatNumber("Скругление виджета", style.radius ?? ctx.activeTheme.radius ?? 18, (value) => updateStyle(ctx, { radius: value }), 0, 36)}
+          {flatNumber("Размер тени", style.shadowSize ?? ctx.activeTheme.shadowSize ?? 16, (value) => updateStyle(ctx, { shadowSize: value }), 0, 40)}
+          <TildaInlineColorField compact label="Цвет тени" value={color(ctx, "shadowColor", ctx.activeTheme.shadowColor || "rgba(0,0,0,0.16)")} placeholder={ctx.activeTheme.shadowColor || "rgba(0,0,0,0.16)"} onChange={(value) => updateStyle(ctx, { shadowColor: value })} onClear={() => updateStyle(ctx, { shadowColor: "transparent" })} />
         </div>
-      );
-    }
+
+        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+          <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Шапка виджета</div>
+          <TildaInlineColorField compact label="Фон шапки" value={color(ctx, "headerBgColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorLight: value })} onClear={() => updateStyle(ctx, { headerBgColorLight: "transparent" })} />
+          <TildaInlineColorField compact label="Текст шапки" value={color(ctx, "headerTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorLight: value })} onClear={() => updateStyle(ctx, { headerTextColorLight: "transparent" })} />
+        </div>
+
+        <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+        {showDarkTheme && (
+          <div className="space-y-4">
+            <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { blockBgDark: value })} onClear={() => updateStyle(ctx, { blockBgDark: "transparent" })} />
+            <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { textColorDark: value })} onClear={() => updateStyle(ctx, { textColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorDark", ctx.activeTheme.darkPalette.mutedColor)} placeholder={ctx.activeTheme.darkPalette.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorDark: value })} onClear={() => updateStyle(ctx, { mutedColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorDark", ctx.activeTheme.darkPalette.borderColor)} placeholder={ctx.activeTheme.darkPalette.borderColor} onChange={(value) => updateStyle(ctx, { borderColorDark: value })} onClear={() => updateStyle(ctx, { borderColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Фон шапки" value={color(ctx, "headerBgColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorDark: value })} onClear={() => updateStyle(ctx, { headerBgColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Текст шапки" value={color(ctx, "headerTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorDark: value })} onClear={() => updateStyle(ctx, { headerTextColorDark: "transparent" })} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (ctx.block.type === "aisha" && section === "messages") {
+    return (
+      <div className="space-y-6 px-1 pb-8 pt-1">
+        <div className="space-y-4">
+          {flatNumber("Скругление сообщений", style.messageRadius ?? 16, (value) => updateStyle(ctx, { messageRadius: value }), 4, 32)}
+          <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorLight: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorLight: "transparent" })} />
+          <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorLight: value })} onClear={() => updateStyle(ctx, { assistantTextColorLight: "transparent" })} />
+          <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorLight: value })} onClear={() => updateStyle(ctx, { clientBubbleColorLight: "transparent" })} />
+          <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorLight: value })} onClear={() => updateStyle(ctx, { clientTextColorLight: "transparent" })} />
+        </div>
+
+        <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+        {showDarkTheme && (
+          <div className="space-y-4">
+            <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorDark: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorDark: value })} onClear={() => updateStyle(ctx, { assistantTextColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorDark: value })} onClear={() => updateStyle(ctx, { clientBubbleColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorDark: value })} onClear={() => updateStyle(ctx, { clientTextColorDark: "transparent" })} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (ctx.block.type === "aisha" && section === "buttons") {
+    return (
+      <div className="space-y-6 px-1 pb-8 pt-1">
+        <div className="space-y-4">
+          {flatNumber("Скругление кнопки виджета", style.buttonRadius ?? ctx.activeTheme.buttonRadius ?? 12, (value) => updateStyle(ctx, { buttonRadius: value }), 0, 36)}
+          {flatNumber("Скругление кнопок ответов", style.quickReplyRadius ?? 12, (value) => updateStyle(ctx, { quickReplyRadius: value }), 0, 36)}
+          <TildaInlineColorField compact label="Фон кнопки виджета" value={color(ctx, "buttonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { buttonColorLight: value, buttonColor: value })} onClear={() => updateStyle(ctx, { buttonColorLight: "transparent", buttonColor: "transparent" })} />
+          <TildaInlineColorField compact label="Текст кнопки виджета" value={color(ctx, "buttonTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { buttonTextColorLight: value, buttonTextColor: value })} onClear={() => updateStyle(ctx, { buttonTextColorLight: "transparent", buttonTextColor: "transparent" })} />
+          <TildaInlineColorField compact label="Фон кнопок вариантов" value={color(ctx, "quickReplyButtonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorLight: "transparent" })} />
+          <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorLight: "transparent" })} />
+        </div>
+
+        <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+        {showDarkTheme && (
+          <div className="space-y-4">
+            <TildaInlineColorField compact label="Фон кнопки виджета" value={color(ctx, "buttonColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { buttonColorDark: value })} onClear={() => updateStyle(ctx, { buttonColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Текст кнопки виджета" value={color(ctx, "buttonTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { buttonTextColorDark: value })} onClear={() => updateStyle(ctx, { buttonTextColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Фон кнопок вариантов" value={color(ctx, "quickReplyButtonColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorDark: "transparent" })} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (section === "colors") {
 
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">

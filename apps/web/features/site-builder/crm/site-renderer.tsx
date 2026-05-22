@@ -81,6 +81,7 @@ export type BlockStyle = {
   useCustomWidth: boolean;
   radius: number | null;
   buttonRadius: number | null;
+  quickReplyRadius?: number | null;
   cardRadius?: number | null;
   authPageBg?: string;
   authBlockBg?: string;
@@ -977,6 +978,7 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     useCustomWidth,
     radius: block.type === "menu" ? 0 : toNumber(style.radius),
     buttonRadius: block.type === "menu" ? 0 : toNumber(style.buttonRadius),
+    quickReplyRadius: toNumber(style.quickReplyRadius),
     cardRadius: toNumber(style.cardRadius),
     bookingImageRadius: toNumber(style.bookingImageRadius),
     sectionBgLight: readColor("sectionBgLight") || readColor("sectionBg"),
@@ -8018,6 +8020,7 @@ export function buildAishaWidgetConfig(
     panelHeightVh: 74,
     radiusPx: style.radius ?? theme.radius ?? 16,
     buttonRadiusPx: style.buttonRadius ?? theme.buttonRadius ?? 0,
+    quickReplyRadiusPx: style.quickReplyRadius ?? 12,
     buttonColor:
       pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) || style.buttonColor || null,
     buttonTextColor:

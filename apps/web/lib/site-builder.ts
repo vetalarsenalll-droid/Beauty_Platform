@@ -235,6 +235,7 @@ export type SiteAishaWidgetConfig = {
   panelHeightVh: number;
   radiusPx: number | null;
   buttonRadiusPx: number | null;
+  quickReplyRadiusPx?: number | null;
   buttonColor: string | null;
   buttonTextColor: string | null;
   panelColor: string | null;
@@ -475,6 +476,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       panelHeightVh: 74,
       radiusPx: null,
       buttonRadiusPx: null,
+      quickReplyRadiusPx: null,
       buttonColor: null,
       buttonTextColor: null,
       panelColor: null,
@@ -737,6 +739,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonRadiusPx: Number.isFinite(Number(style.buttonRadius))
       ? numInRange(style.buttonRadius, 0, 36, 999)
       : theme.buttonRadius,
+    quickReplyRadiusPx: Number.isFinite(Number(style.quickReplyRadius))
+      ? numInRange(style.quickReplyRadius, 0, 36, 12)
+      : 12,
     buttonColor: byMode(style.buttonColor, style.buttonColorLight, style.buttonColorDark),
     buttonTextColor: byMode(style.buttonTextColor, style.buttonTextColorLight, style.buttonTextColorDark),
     panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
