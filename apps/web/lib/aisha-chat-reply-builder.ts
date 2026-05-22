@@ -38,7 +38,6 @@ const norm = (v: string) =>
     .trim();
 
 const has = (m: string, r: RegExp) => r.test(norm(m));
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export function buildDirectBookingKickoffReply(args: {
   date: string | null;
@@ -359,27 +358,15 @@ export function buildBasicChatInfoReply(args: {
         norm(messageForRouting),
       );
     if (modelVendorQuestion) {
-      reply = "Я виртуальный ассистент записи. Помогаю с услугами, временем, специалистами и оформлением записи.";
+      reply = "Я ассистент записи. Помогаю с услугами, временем, специалистами и оформлением записи.";
       return { handled: true, reply, ui };
     }
 
     if (explicitWorkplaceRoleCue) {
       const salonName = accountName || "нашем салоне";
-      reply = `Я ${assistantName}, виртуальный ассистент записи в «${salonName}». Помогаю с выбором услуг, специалистов и оформлением записи.`;
+      reply = `Я ${assistantName}, ассистент записи в «${salonName}». Помогаю с выбором услуг, специалистов и оформлением записи.`;
     } else {
-      const fallback = `Я ${assistantName}, ассистент записи. Помогу с услугами, временем, записью и вашими данными клиента.`;
-      const assistantNameNorm = norm(assistantName);
-      const assistantNamePattern = assistantNameNorm ? new RegExp(`\\b${escapeRegExp(assistantNameNorm)}\\b`, "i") : null;
-      const forbiddenModelIdentity = conversationalReply
-        ? /(сбер|sber|гигачат|gigachat|giga\s*chat|gpt|llm|языковая модель|нейросетевая модель|нейросеть|large language model|\bAssistent\b)/i.test(
-            norm(conversationalReply),
-          )
-        : false;
-      const hasIdentityCue = conversationalReply
-        ? /ассистент/i.test(norm(conversationalReply)) ||
-          (assistantNamePattern ? assistantNamePattern.test(norm(conversationalReply)) : false)
-        : false;
-      reply = conversationalReply && hasIdentityCue && !forbiddenModelIdentity ? conversationalReply : fallback;
+      reply = `Я ${assistantName}. Помогаю с услугами, временем, записью и вашими данными клиента.`;
     }
     return { handled: true, reply, ui };
   }

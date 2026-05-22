@@ -20,7 +20,7 @@ import ProjectClient, {
 const PAGE_LABELS: Partial<Record<SitePageKey, string>> = {
   home: "Главная",
   booking: "Онлайн-запись",
-  aisha: "AI-ассистент",
+  aisha: "Ассистент",
   client: "Личный кабинет",
   legal: "Документы",
   locations: "Локации",

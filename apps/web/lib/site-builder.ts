@@ -159,7 +159,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   reviews: "Отзывы",
   contacts: "Контакты",
   promos: "Промо / скидки",
-  aisha: "AI-ассистент",
+  aisha: "Ассистент",
 };
 
 export const BLOCK_VARIANTS: Record<
@@ -482,8 +482,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     return {
       enabled: false,
       assistantName: "Ассистент",
-      headerTitle: "AI-ассистент записи",
-      label: "AI-чат",
+      headerTitle: "Ассистент",
+      label: "Ассистент",
       offsetBottomPx: 16,
       offsetRightPx: 16,
       panelWidthPx: 400,
@@ -770,14 +770,23 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     textOrNull(style.gradientTo) ||
     textOrNull(theme.darkPalette.gradientTo) ||
     panelGradientToLight;
+  const normalizeAishaTitle = (value: unknown) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text || text === "AI-ассистент записи" || text === "AI-ассистент") return "Ассистент";
+    return text;
+  };
+  const normalizeAishaLabel = (value: unknown) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text || text === "AI Ассистент" || text === "AI-ассистент" || text === "AI-чат") return "Ассистент";
+    return text;
+  };
 
   return {
     enabled: data.enabled !== false,
     assistantName:
       typeof data.assistantName === "string" && data.assistantName.trim() ? data.assistantName.trim() : "Ассистент",
-    headerTitle:
-      typeof data.title === "string" && data.title.trim() ? data.title.trim() : "AI-ассистент записи",
-    label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-чат",
+    headerTitle: normalizeAishaTitle(data.title),
+    label: normalizeAishaLabel(data.label),
     offsetBottomPx: numInRange(data.offsetBottomPx, 0, 160, 16),
     offsetRightPx: numInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
@@ -1015,10 +1024,10 @@ const createAishaBlock = (): SiteBlock => ({
   type: "aisha",
   variant: "v1",
   data: {
-    title: "AI-ассистент записи",
+    title: "Ассистент",
     assistantName: "Ассистент",
     enabled: true,
-    label: "AI Ассистент",
+    label: "Ассистент",
     offsetBottomPx: 16,
     offsetRightPx: 16,
     style: {

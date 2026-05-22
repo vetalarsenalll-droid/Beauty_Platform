@@ -100,7 +100,7 @@ export const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
 export const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
-  aisha: "AI-ассистент",
+  aisha: "Ассистент",
   client: "Личный кабинет",
   clientLogin: "Вход",
   clientCabinet: "Кабинет",
@@ -1437,10 +1437,10 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
     style: defaultBlockStyle,
   },
   aisha: {
-    title: "AI-ассистент записи",
+    title: "Ассистент",
     assistantName: "Ассистент",
     enabled: true,
-    label: "AI Ассистент",
+    label: "Ассистент",
     offsetBottomPx: 16,
     offsetRightPx: 16,
     panelWidthPx: 400,

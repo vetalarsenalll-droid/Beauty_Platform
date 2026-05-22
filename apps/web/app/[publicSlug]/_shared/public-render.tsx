@@ -51,7 +51,7 @@ export type CurrentEntity =
 const PAGE_LABELS = {
   home: "Главная",
   booking: "Онлайн-запись",
-  aisha: "AI-ассистент",
+  aisha: "Ассистент",
   client: "Личный кабинет",
   legal: "Документы",
   locations: "Локации",
@@ -1288,7 +1288,7 @@ function renderAisha(
   if (!enabled) {
     return (
       <div className="border border-[color:var(--site-border)] p-4 text-sm text-[color:var(--site-muted)]">
-        Блок AI-ассистента выключен.
+        Блок ассистента выключен.
       </div>
     );
   }

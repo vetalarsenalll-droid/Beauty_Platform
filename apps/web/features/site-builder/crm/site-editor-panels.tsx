@@ -1375,7 +1375,7 @@ export function BlockEditor({
         <>
           <FieldText
             label="Заголовок виджета"
-            value={(block.data.title as string) ?? "AI-ассистент записи"}
+            value={(block.data.title as string) ?? "Ассистент"}
             onChange={(value) => updateData({ title: value })}
           />
           <FieldText
@@ -1389,11 +1389,11 @@ export function BlockEditor({
               checked={block.data.enabled !== false}
               onChange={(event) => updateData({ enabled: event.target.checked })}
             />
-            {"Показывать AI-ассистента на сайте"}
+            {"Показывать ассистента на сайте"}
           </label>
           <FieldText
             label="Текст кнопки"
-            value={(block.data.label as string) ?? "AI-ассистент"}
+            value={(block.data.label as string) ?? "Ассистент"}
             onChange={(value) => updateData({ label: value })}
           />
         </>

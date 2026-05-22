@@ -21,7 +21,7 @@ export type SeoPageKey = (typeof SEO_PAGE_KEYS)[number];
 export const SEO_PAGE_LABELS: Record<SeoPageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
-  aisha: "AI-ассистент",
+  aisha: "Ассистент",
   client: "Личный кабинет",
   clientLogin: "Вход",
   clientCabinet: "Кабинет",

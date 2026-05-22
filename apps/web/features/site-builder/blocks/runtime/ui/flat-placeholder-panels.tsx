@@ -65,6 +65,14 @@ function textValue(ctx: CrmPanelCtx, key: string, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
+function aishaTextValue(ctx: CrmPanelCtx, key: string, fallback = "Ассистент") {
+  const value = textValue(ctx, key, fallback).trim();
+  if (!value) return fallback;
+  if (key === "title" && (value === "AI-ассистент записи" || value === "AI-ассистент")) return "Ассистент";
+  if (key === "label" && (value === "AI Ассистент" || value === "AI-ассистент" || value === "AI-чат")) return "Ассистент";
+  return value;
+}
+
 function FlatTextarea({
   label,
   value,
@@ -337,6 +345,14 @@ export function GenericFlatContentPanel(ctx: CrmPanelCtx) {
           {commonTitle("Заголовок")}
           <FlatTextarea label="Текст" value={textValue(ctx, "text")} onChange={(value) => updateData(ctx, { text: value })} />
           <FlatCheckbox checked={data.showContacts !== false} onChange={(checked) => updateData(ctx, { showContacts: checked })} label="Показывать контакты" />
+        </>
+      )}
+
+      {ctx.block.type === "aisha" && (
+        <>
+          {renderCoverFlatTextInput("Заголовок виджета", aishaTextValue(ctx, "title"), (value) => updateData(ctx, { title: value }))}
+          {renderCoverFlatTextInput("Имя ассистента", aishaTextValue(ctx, "assistantName"), (value) => updateData(ctx, { assistantName: value }))}
+          {renderCoverFlatTextInput("Текст кнопки", aishaTextValue(ctx, "label"), (value) => updateData(ctx, { label: value }))}
         </>
       )}
 

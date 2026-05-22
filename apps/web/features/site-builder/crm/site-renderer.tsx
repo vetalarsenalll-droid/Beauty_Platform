@@ -70,6 +70,15 @@ import {
 } from "./site-client-core";
 import type { CurrentEntity } from "./site-client-core";
 
+function isInteractiveEventTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'input, textarea, select, button, a, [contenteditable="true"], [data-site-builder-ignore-block-keydown="true"]'
+    )
+  );
+}
+
 export type BlockStyle = {
   marginTop: number;
   marginBottom: number;
@@ -2248,6 +2257,7 @@ export function BlockPreview({
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(event) => {
+        if (isInteractiveEventTarget(event.target)) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onSelect();
@@ -8074,6 +8084,16 @@ export function buildAishaWidgetConfig(
   const backdropColorDark = style.aishaBackdropColorDark?.trim() || backdropColorLight;
   const backdropOpacityLight = toNumberInRange(style.aishaBackdropOpacityLight, 0, 100, 50);
   const backdropOpacityDark = toNumberInRange(style.aishaBackdropOpacityDark, 0, 100, backdropOpacityLight);
+  const normalizeAishaTitle = (value: unknown) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text || text === "AI-ассистент записи" || text === "AI-ассистент") return "Ассистент";
+    return text;
+  };
+  const normalizeAishaLabel = (value: unknown) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text || text === "AI Ассистент" || text === "AI-ассистент" || text === "AI-чат") return "Ассистент";
+    return text;
+  };
 
   return {
     enabled: data.enabled !== false,
@@ -8081,14 +8101,8 @@ export function buildAishaWidgetConfig(
       typeof data.assistantName === "string" && data.assistantName.trim()
         ? data.assistantName.trim()
         : "Ассистент",
-    headerTitle:
-      typeof data.title === "string" && data.title.trim()
-        ? data.title.trim()
-        : "AI-ассистент записи",
-    label:
-      typeof data.label === "string" && data.label.trim()
-        ? data.label.trim()
-        : "AI-ассистент",
+    headerTitle: normalizeAishaTitle(data.title),
+    label: normalizeAishaLabel(data.label),
     offsetBottomPx: toNumberInRange(data.offsetBottomPx, 0, 160, 16),
     offsetRightPx: toNumberInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
@@ -8265,7 +8279,7 @@ export function renderAisha(
   if (!enabled) {
     return (
       <div className="rounded-2xl border border-[color:var(--block-border,var(--site-border))] p-4 text-sm text-[color:var(--block-muted,var(--bp-muted))]">
-        {"Блок AI-ассистента выключен. Включите его в настройках сайта."}
+        {"Блок ассистента выключен. Включите его в настройках сайта."}
       </div>
     );
   }

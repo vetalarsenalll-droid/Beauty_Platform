@@ -318,7 +318,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const inputRadius = Math.max(0, Math.min(36, Number(widgetConfig?.inputRadiusPx ?? 5)));
   const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 0));
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
-  const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
+  const headerTitle = (widgetConfig?.headerTitle || "Ассистент").trim() || "Ассистент";
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
   const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)));
   const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 5)))}px` };
@@ -339,7 +339,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     outline: "none",
     WebkitAppearance: "none",
   };
-  const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
+  const fabLabel = (widgetConfig?.label || "Ассистент").trim() || "Ассистент";
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
@@ -1312,7 +1312,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           type="button"
           onClick={() => setOpen(true)}
           className="pointer-events-auto group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
-          aria-label="Открыть AI-ассистента"
+          aria-label="Открыть ассистента"
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
           <span className="whitespace-nowrap">{fabLabel}</span>
