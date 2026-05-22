@@ -226,6 +226,9 @@ export type BlockStyle = {
   quickReplyTextColorLight: string;
   quickReplyTextColorDark: string;
   quickReplyTextColor: string;
+  inputSendButtonColorLight: string;
+  inputSendButtonColorDark: string;
+  inputSendButtonColor: string;
   aishaBackdropColorLight?: string;
   aishaBackdropColorDark?: string;
   aishaBackdropOpacityLight?: number;
@@ -318,6 +321,8 @@ export type BlockStyle = {
   headerTextColorDarkResolved: string;
   quickReplyButtonColorLightResolved: string;
   quickReplyButtonColorDarkResolved: string;
+  inputSendButtonColorLightResolved: string;
+  inputSendButtonColorDarkResolved: string;
   quickReplyTextColorLightResolved: string;
   quickReplyTextColorDarkResolved: string;
 };
@@ -653,6 +658,13 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     "quickReplyButtonColorLight",
     "quickReplyButtonColorDark",
     "quickReplyButtonColor",
+    theme.lightPalette.buttonColor,
+    theme.darkPalette.buttonColor
+  );
+  const inputSendButtonPair = resolvePair(
+    "inputSendButtonColorLight",
+    "inputSendButtonColorDark",
+    "inputSendButtonColor",
     theme.lightPalette.buttonColor,
     theme.darkPalette.buttonColor
   );
@@ -1160,6 +1172,14 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
       "quickReplyTextColorDark",
       "quickReplyTextColor"
     ),
+    inputSendButtonColorLight:
+      readColor("inputSendButtonColorLight") || readColor("inputSendButtonColor"),
+    inputSendButtonColorDark: readColor("inputSendButtonColorDark"),
+    inputSendButtonColor: resolveColor(
+      "inputSendButtonColorLight",
+      "inputSendButtonColorDark",
+      "inputSendButtonColor"
+    ),
     messageRadius: toNumber(style.messageRadius),
     inputRadius: toNumber(style.inputRadius),
     sectionBgLightResolved: sectionBgPair.lightResolved,
@@ -1196,6 +1216,8 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
     headerTextColorDarkResolved: headerTextPair.darkResolved,
     quickReplyButtonColorLightResolved: quickReplyButtonPair.lightResolved,
     quickReplyButtonColorDarkResolved: quickReplyButtonPair.darkResolved,
+    inputSendButtonColorLightResolved: inputSendButtonPair.lightResolved,
+    inputSendButtonColorDarkResolved: inputSendButtonPair.darkResolved,
     quickReplyTextColorLightResolved: quickReplyTextPair.lightResolved,
     quickReplyTextColorDarkResolved: quickReplyTextPair.darkResolved,
     shadowColor: readColor("shadowColor"),
@@ -8069,6 +8091,10 @@ export function buildAishaWidgetConfig(
       style.quickReplyButtonColorLightResolved || style.buttonColorLightResolved || null,
     quickReplyButtonColorDark:
       style.quickReplyButtonColorDarkResolved || style.buttonColorDarkResolved || null,
+    inputSendButtonColorLight:
+      style.inputSendButtonColorLightResolved || style.buttonColorLightResolved || null,
+    inputSendButtonColorDark:
+      style.inputSendButtonColorDarkResolved || style.buttonColorDarkResolved || null,
     quickReplyTextColorLight:
       style.quickReplyTextColorLightResolved || style.buttonTextColorLightResolved || null,
     quickReplyTextColorDark:
@@ -8121,6 +8147,12 @@ export function buildAishaWidgetConfig(
       pickMode(style.quickReplyButtonColorLightResolved, style.quickReplyButtonColorDarkResolved) ||
       pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) ||
       style.quickReplyButtonColor ||
+      style.buttonColor ||
+      null,
+    inputSendButtonColor:
+      pickMode(style.inputSendButtonColorLightResolved, style.inputSendButtonColorDarkResolved) ||
+      pickMode(style.buttonColorLightResolved, style.buttonColorDarkResolved) ||
+      style.inputSendButtonColor ||
       style.buttonColor ||
       null,
     quickReplyTextColor:

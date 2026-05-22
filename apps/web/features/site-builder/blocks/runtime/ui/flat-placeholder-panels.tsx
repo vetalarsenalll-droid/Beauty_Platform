@@ -894,6 +894,7 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
         <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
           <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Поле ввода</div>
           {flatNumber("Скругление поля ввода", style.inputRadius ?? 5, (value) => updateStyle(ctx, { inputRadius: value }), 0, 36)}
+          <TildaInlineColorField compact label="Цвет кнопки ввода" value={color(ctx, "inputSendButtonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { inputSendButtonColorLight: value, inputSendButtonColor: value })} onClear={() => updateStyle(ctx, { inputSendButtonColorLight: "transparent", inputSendButtonColor: "transparent" })} />
         </div>
 
         <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
@@ -903,6 +904,7 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
             <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorDark: value })} onClear={() => updateStyle(ctx, { assistantTextColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorDark: value })} onClear={() => updateStyle(ctx, { clientBubbleColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorDark: value })} onClear={() => updateStyle(ctx, { clientTextColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет кнопки ввода" value={color(ctx, "inputSendButtonColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { inputSendButtonColorDark: value })} onClear={() => updateStyle(ctx, { inputSendButtonColorDark: "transparent" })} />
           </div>
         )}
       </div>

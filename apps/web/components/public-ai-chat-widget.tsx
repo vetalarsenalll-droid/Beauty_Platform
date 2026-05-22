@@ -276,6 +276,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setVar("--ai-quick-reply-button-dark", widgetConfig?.quickReplyButtonColorDark ?? widgetConfig?.quickReplyButtonColor);
     setVar("--ai-quick-reply-text-light", widgetConfig?.quickReplyTextColorLight ?? widgetConfig?.quickReplyTextColor);
     setVar("--ai-quick-reply-text-dark", widgetConfig?.quickReplyTextColorDark ?? widgetConfig?.quickReplyTextColor);
+    setVar("--ai-input-send-button-light", widgetConfig?.inputSendButtonColorLight ?? widgetConfig?.inputSendButtonColor);
+    setVar("--ai-input-send-button-dark", widgetConfig?.inputSendButtonColorDark ?? widgetConfig?.inputSendButtonColor);
 
     const pickMode = (light?: string | null, dark?: string | null, base?: string | null) =>
       currentMode === "dark" ? dark ?? light ?? base : light ?? dark ?? base;
@@ -294,6 +296,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setVar("--ai-client-text", pickMode(widgetConfig?.clientTextColorLight, widgetConfig?.clientTextColorDark, widgetConfig?.clientTextColor));
     setVar("--ai-quick-reply-button", pickMode(widgetConfig?.quickReplyButtonColorLight, widgetConfig?.quickReplyButtonColorDark, widgetConfig?.quickReplyButtonColor));
     setVar("--ai-quick-reply-text", pickMode(widgetConfig?.quickReplyTextColorLight, widgetConfig?.quickReplyTextColorDark, widgetConfig?.quickReplyTextColor));
+    setVar("--ai-input-send-button", pickMode(widgetConfig?.inputSendButtonColorLight, widgetConfig?.inputSendButtonColorDark, widgetConfig?.inputSendButtonColor));
 
     return vars as CSSProperties;
   }, [widgetConfig, mode, currentMode]);
@@ -313,6 +316,14 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 5)));
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
   const inputRadiusStyle = { borderRadius: `${inputRadius}px` };
+  const inputTextareaStyle: CSSProperties = {
+    backgroundColor: "transparent",
+    border: 0,
+    borderRadius: 0,
+    boxShadow: "none",
+    outline: "none",
+    WebkitAppearance: "none",
+  };
   const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
@@ -1240,7 +1251,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}
             style={isFixedMobileFullscreen ? { paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" } : undefined}
           >
-            <div className="relative overflow-hidden border border-[color:var(--ai-border,#e5e7eb)] bg-[color:var(--ai-input-bg,#d1d5db)]" style={inputRadiusStyle}>
+            <div className="relative overflow-hidden bg-transparent" style={inputRadiusStyle}>
               <textarea
                 ref={inputRef}
                 value={text}
@@ -1254,11 +1265,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 }}
                 placeholder="Введите сообщение"
                 className="block min-h-10 w-full resize-none appearance-none border-0 bg-transparent py-2 pl-3 pr-12 text-sm leading-5 text-[color:var(--ai-text,#111827)] shadow-none outline-none placeholder:text-[color:var(--ai-muted,#6b7280)]"
+                style={inputTextareaStyle}
               />
               <button
                 type="submit"
                 disabled={!canSend}
-                className="absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[color:var(--ai-button,#111827)] text-[color:var(--ai-button-text,#fff)] shadow-sm transition disabled:opacity-50"
+                className="absolute right-1 top-1/2 z-[1] inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-[color:var(--ai-input-send-button,var(--ai-button,#111827))] text-[color:var(--ai-button-text,#fff)] shadow-sm transition disabled:cursor-not-allowed"
                 aria-label="Отправить сообщение"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

@@ -275,6 +275,7 @@ export type SiteAishaWidgetConfig = {
   headerTextColor: string | null;
   quickReplyButtonColor: string | null;
   quickReplyTextColor: string | null;
+  inputSendButtonColor?: string | null;
   assistantBubbleColorLight?: string | null;
   assistantBubbleColorDark?: string | null;
   assistantTextColorLight?: string | null;
@@ -291,6 +292,8 @@ export type SiteAishaWidgetConfig = {
   quickReplyButtonColorDark?: string | null;
   quickReplyTextColorLight?: string | null;
   quickReplyTextColorDark?: string | null;
+  inputSendButtonColorLight?: string | null;
+  inputSendButtonColorDark?: string | null;
   backdropColor: string | null;
   backdropColorLight?: string | null;
   backdropColorDark?: string | null;
@@ -506,6 +509,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       headerTextColor: null,
       quickReplyButtonColor: null,
       quickReplyTextColor: null,
+      inputSendButtonColor: null,
       backdropColor: null,
       backdropColorLight: null,
       backdropColorDark: null,
@@ -669,6 +673,13 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonTextPair.lightResolved,
     buttonTextPair.darkResolved
   );
+  const inputSendButtonPair = resolvePair(
+    "inputSendButtonColorLight",
+    "inputSendButtonColorDark",
+    "inputSendButtonColor",
+    buttonPair.lightResolved,
+    buttonPair.darkResolved
+  );
   const backdropPair = resolvePair(
     "aishaBackdropColorLight",
     "aishaBackdropColorDark",
@@ -782,6 +793,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     headerTextColor: byMode(style.headerTextColor, style.headerTextColorLight, style.headerTextColorDark),
     quickReplyButtonColor: byMode(style.quickReplyButtonColor, quickReplyButtonPair.lightResolved, quickReplyButtonPair.darkResolved),
     quickReplyTextColor: byMode(style.quickReplyTextColor, quickReplyTextPair.lightResolved, quickReplyTextPair.darkResolved),
+    inputSendButtonColor: byMode(style.inputSendButtonColor, inputSendButtonPair.lightResolved, inputSendButtonPair.darkResolved),
     assistantBubbleColorLight: textOrNull(assistantBubblePair.lightResolved) || null,
     assistantBubbleColorDark: textOrNull(assistantBubblePair.darkResolved) || null,
     assistantTextColorLight: textOrNull(assistantTextPair.lightResolved) || null,
@@ -798,6 +810,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     quickReplyButtonColorDark: textOrNull(quickReplyButtonPair.darkResolved) || null,
     quickReplyTextColorLight: textOrNull(quickReplyTextPair.lightResolved) || null,
     quickReplyTextColorDark: textOrNull(quickReplyTextPair.darkResolved) || null,
+    inputSendButtonColorLight: textOrNull(inputSendButtonPair.lightResolved) || null,
+    inputSendButtonColorDark: textOrNull(inputSendButtonPair.darkResolved) || null,
     backdropColor: byMode(style.aishaBackdropColor, backdropPair.lightResolved, backdropPair.darkResolved),
     backdropColorLight: textOrNull(backdropPair.lightResolved) || null,
     backdropColorDark: textOrNull(backdropPair.darkResolved) || null,
@@ -967,6 +981,8 @@ const createAishaBlock = (): SiteBlock => ({
       quickReplyRadius: 5,
       messageRadius: 5,
       inputRadius: 5,
+      inputSendButtonColorLight: "#111827",
+      inputSendButtonColorDark: "#111827",
       shadowSize: 0,
     },
   },
