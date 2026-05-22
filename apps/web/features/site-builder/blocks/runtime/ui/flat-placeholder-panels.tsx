@@ -272,11 +272,6 @@ function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
               );
             })}
           </div>
-          {items.length === 0 ? (
-            <div className="text-xs text-[color:var(--bp-muted)]">
-              Добавьте изображения в папку blocks/aisha/Fon.
-            </div>
-          ) : null}
         </div>
       )}
       {previewItem ? (
