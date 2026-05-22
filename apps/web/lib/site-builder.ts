@@ -800,8 +800,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     fontHeading: textOrNull(style.fontHeading) || textOrNull(theme.fontHeading) || null,
     fontBody: textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
     headingSizePx: Number.isFinite(Number(style.headingSize))
-      ? numInRange(style.headingSize, 10, 96, theme.headingSize)
-      : theme.headingSize,
+      ? numInRange(style.headingSize, 10, 96, 14)
+      : 14,
     subheadingSizePx: Number.isFinite(Number(style.subheadingSize))
       ? numInRange(style.subheadingSize, 10, 64, theme.subheadingSize)
       : theme.subheadingSize,

@@ -103,7 +103,7 @@ function FlatSelect({
 }) {
   return (
     <label className="block">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] text-[11px] font-semibold uppercase leading-4 tracking-[0.15em] text-[color:var(--bp-muted)]">
         {label}
       </div>
       <div className="relative mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
@@ -794,6 +794,27 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
   if (!section) return "";
 
   if (section === "typography") {
+    if (ctx.block.type === "aisha") {
+      return (
+        <div className="space-y-6 px-1 pb-8 pt-1">
+          <div className="space-y-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Заголовок</div>
+            <TildaInlineColorField compact label="Цвет" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />
+            {flatNumber("Размер шрифта", style.headingSize ?? 14, (value) => updateStyle(ctx, { headingSize: value }), 10, 48)}
+            <FlatSelect label="Шрифт" value={style.fontHeading || ctx.activeTheme.fontHeading || "Manrope"} options={FONT_OPTIONS} onChange={(value) => updateStyle(ctx, { fontHeading: value })} />
+            <FlatSelect label="Насыщенность" value={String(style.fontWeightHeading ?? "")} options={WEIGHT_OPTIONS} onChange={(value) => updateStyle(ctx, { fontWeightHeading: value ? Number(value) : null })} />
+          </div>
+
+          <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+          {showDarkTheme && (
+            <div className="space-y-4">
+              <TildaInlineColorField compact label="Цвет" value={color(ctx, "textColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { textColorDark: value })} onClear={() => updateStyle(ctx, { textColorDark: "transparent" })} />
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         <div className="space-y-4">

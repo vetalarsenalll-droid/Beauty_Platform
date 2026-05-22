@@ -8132,7 +8132,7 @@ export function buildAishaWidgetConfig(
     backdropOpacityDark,
     fontHeading: style.fontHeading || theme.fontHeading || null,
     fontBody: style.fontBody || theme.fontBody || null,
-    headingSizePx: style.headingSize ?? theme.headingSize ?? null,
+    headingSizePx: style.headingSize ?? 14,
     subheadingSizePx: style.subheadingSize ?? theme.subheadingSize ?? null,
     textSizePx: style.textSize ?? theme.textSize ?? null,
     messageRadiusPx: style.messageRadius ?? 16,

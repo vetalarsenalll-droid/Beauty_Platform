@@ -312,7 +312,6 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
-  const subheadingSize = Math.max(10, Math.min(22, Number(widgetConfig?.subheadingSizePx ?? 12)));
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
   const inlineFabPosition: CSSProperties =
     mode === "inline"
@@ -708,8 +707,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   };
   const headerActionStyle: CSSProperties = {
     color: "var(--ai-header-text, var(--ai-text,#111827))",
-    fontFamily: bodyFont,
-    fontSize: `${subheadingSize}px`,
+    fontFamily: headingFont,
+    fontSize: `${headingSize}px`,
   };
   const contentTextStyle: CSSProperties = {
     fontFamily: bodyFont,
