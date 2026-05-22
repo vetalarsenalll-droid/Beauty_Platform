@@ -17,11 +17,17 @@ function shouldSkipCustomDomainRewrite(pathname: string) {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/assets/") ||
     pathname.startsWith("/uploads/") ||
+    pathname.startsWith("/crm") ||
+    pathname.startsWith("/platform") ||
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
     (!isRootHtmlVerificationFile && PUBLIC_FILE.test(pathname))
   );
+}
+
+function isLocalHost(host: string) {
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
 function getInternalAppOrigin(fallback: string) {
@@ -43,6 +49,7 @@ async function resolveCustomDomainRewrite(request: NextRequest) {
     request.headers.get("x-forwarded-host") ?? request.headers.get("host")
   );
   if (!host) return null;
+  if (isLocalHost(host)) return null;
 
   const resolveUrl = new URL(
     "/api/internal/domains/resolve",
