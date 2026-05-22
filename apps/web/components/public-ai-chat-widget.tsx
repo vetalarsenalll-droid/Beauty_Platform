@@ -21,6 +21,7 @@ type ChatMessage = Message & { ui?: ChatUi | null };
 
 type StoredThreadState = { threadId: number; threadKey: string | null };
 const MAX_INPUT_LINES = 4;
+const INITIAL_LOAD_TIMEOUT_MS = 8000;
 
 type PublicAiChatWidgetProps = {
   accountSlug: string;
@@ -173,6 +174,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const initLoadIdRef = useRef(0);
 
   const storageKey = useMemo(() => `ai-thread:${accountSlug}`, [accountSlug]);
 
@@ -447,9 +449,13 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
 
   useEffect(() => {
     let cancelled = false;
+    const loadId = initLoadIdRef.current + 1;
+    initLoadIdRef.current = loadId;
     const load = async () => {
       setInitializing(true);
       setLoadError(false);
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), INITIAL_LOAD_TIMEOUT_MS);
       try {
         const savedThread = parseStoredThreadState(window.localStorage.getItem(storageKey));
         const threadQuery =
@@ -458,10 +464,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             : "";
         const response = await fetch(
           `/api/v1/public/ai/chat?account=${encodeURIComponent(accountSlug)}${threadQuery}`,
-          { cache: "no-store", credentials: "include" }
+          { cache: "no-store", credentials: "include", signal: controller.signal }
         );
         const payload = await response.json().catch(() => null);
-        if (cancelled) return;
+        if (cancelled || initLoadIdRef.current !== loadId) return;
         if (!response.ok || !payload?.data) {
           setLoadError(true);
           return;
@@ -480,9 +486,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         setTypingTarget("");
         setTypingVisible("");
       } catch {
-        if (!cancelled) setLoadError(true);
+        if (!cancelled && initLoadIdRef.current === loadId) setLoadError(true);
       } finally {
-        if (!cancelled) setInitializing(false);
+        window.clearTimeout(timeoutId);
+        if (!cancelled && initLoadIdRef.current === loadId) setInitializing(false);
       }
     };
     void load();
@@ -585,7 +592,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   };
 
   const startNewDialog = async () => {
-    if (loading || initializing) return;
+    if (loading) return;
+    initLoadIdRef.current += 1;
+    if (initializing) {
+      setInitializing(false);
+      setLoadError(true);
+    }
     if (threadId) {
       try {
         const response = await fetch(
@@ -630,12 +642,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const isInlineMobileFullscreen = open && isMobilePreviewViewport;
   const isFixedMobileFullscreen = open && isMobileViewport && !isInlineMobileFullscreen;
   const rootClass = isFixedMobileFullscreen
-    ? "public-ai-widget fixed inset-0 z-[170]"
+    ? "public-ai-widget pointer-events-none fixed inset-0 z-[170]"
     : isInlineMobileFullscreen
-      ? `public-ai-widget absolute inset-0 z-[1] ${className ?? ""}`
+      ? `public-ai-widget pointer-events-none absolute inset-0 z-[1] ${className ?? ""}`
     : mode === "floating"
-      ? "public-ai-widget fixed z-[140]"
-      : `public-ai-widget absolute z-[1] ${className ?? ""}`;
+      ? "public-ai-widget pointer-events-none fixed z-[140]"
+      : `public-ai-widget pointer-events-none absolute z-[1] ${className ?? ""}`;
   const rootStyle: CSSProperties = isFixedMobileFullscreen
     ? { ...widgetRootStyle, right: 0, bottom: 0 }
     : isInlineMobileFullscreen
@@ -729,7 +741,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             style={{ backgroundColor: backdropColor, opacity: backdropOpacity }}
           />
         ) : null}
-        <div className={`relative z-[1] flex flex-col overflow-hidden bg-[color:var(--ai-header-bg,var(--ai-panel,#fff))] ${hasWidgetBorder ? "border border-[color:var(--ai-border)]" : "border-0"}`} style={panelStyle}>
+        <div className={`pointer-events-auto relative z-[1] flex flex-col overflow-hidden bg-[color:var(--ai-header-bg,var(--ai-panel,#fff))] ${hasWidgetBorder ? "border border-[color:var(--ai-border)]" : "border-0"}`} style={panelStyle}>
           <div
             className={`shrink-0 flex items-center justify-between gap-3 px-4 ${hasWidgetBorder ? "py-3 border-b border-[color:var(--ai-border)]" : "py-3 border-0"}`}
             style={headerStyle}
@@ -741,7 +753,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               <button
                 type="button"
                 onClick={startNewDialog}
-                disabled={loading || initializing}
+                disabled={loading}
                 className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
                 style={headerActionStyle}
               >
@@ -1266,7 +1278,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
+          className="pointer-events-auto group flex items-center gap-2 bg-[color:var(--ai-button,#111827)] px-4 py-3 text-sm font-semibold text-[color:var(--ai-button-text,#fff)] shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 transition hover:brightness-105" style={{ borderRadius: fabRadius, ...inlineFabPosition }}
           aria-label="Открыть AI-ассистента"
         >
           <span className="h-2 w-2 animate-pulse rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.22)]" />
