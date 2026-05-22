@@ -1139,10 +1139,10 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 return (
                   <div
                     key={messageKey}
-                    className={`max-w-[92%] px-3 py-2 text-sm ${
+                    className={`ai-message-bubble relative max-w-[92%] px-3 py-2 text-sm ${
                       msg.role === "user"
-                        ? "ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))]"
-                        : "bg-[color:var(--ai-assistant-bubble,transparent)] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))]"
+                        ? "ai-message-user ml-auto bg-[color:var(--ai-client-bubble,var(--ai-button,#111827))] text-[color:var(--ai-client-text,var(--ai-button-text,#fff))]"
+                        : "ai-message-assistant bg-[color:var(--ai-assistant-bubble,transparent)] text-[color:var(--ai-assistant-text,var(--ai-text,#111827))]"
                     }`}
                     style={messageRadiusStyle}
                   >
@@ -1567,6 +1567,38 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         .ai-typing-dot {
           animation: aiTypingWave 1s ease-in-out infinite;
           will-change: transform, opacity;
+        }
+        .ai-message-bubble {
+          isolation: isolate;
+        }
+        .ai-message-bubble > * {
+          position: relative;
+          z-index: 1;
+        }
+        .ai-message-assistant {
+          border-bottom-left-radius: 2px !important;
+        }
+        .ai-message-user {
+          border-bottom-right-radius: 2px !important;
+        }
+        .ai-message-bubble::after {
+          content: "";
+          pointer-events: none;
+          position: absolute;
+          bottom: 0;
+          z-index: 0;
+          width: 14px;
+          height: 14px;
+        }
+        .ai-message-assistant::after {
+          left: -8px;
+          background: var(--ai-assistant-bubble, transparent);
+          clip-path: polygon(100% 0, 0 100%, 100% 100%);
+        }
+        .ai-message-user::after {
+          right: -8px;
+          background: var(--ai-client-bubble, var(--ai-button,#111827));
+          clip-path: polygon(0 0, 100% 100%, 0 100%);
         }
         @keyframes aiFabPulseWave {
           0% { opacity: 0.5; transform: scale(1); }
