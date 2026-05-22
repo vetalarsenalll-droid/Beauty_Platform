@@ -20,6 +20,7 @@ import ProjectClient, {
 const PAGE_LABELS: Partial<Record<SitePageKey, string>> = {
   home: "Главная",
   booking: "Онлайн-запись",
+  aisha: "AI-ассистент",
   client: "Личный кабинет",
   legal: "Документы",
   locations: "Локации",
@@ -31,6 +32,7 @@ const PAGE_LABELS: Partial<Record<SitePageKey, string>> = {
 const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
+  "aisha",
   "client",
   "clientLogin",
   "clientCabinet",
@@ -46,6 +48,7 @@ const pageLabel = (key: SitePageKey) =>
 
 const pagePath = (key: SitePageKey) => {
   if (key === "home") return "/";
+  if (key === "aisha") return "/assistant";
   if (key === "clientLogin") return "/client/login";
   if (key === "clientCabinet") return "/client/cabinet";
   return `/${key}`;
@@ -196,6 +199,7 @@ export default async function CrmSiteProjectPage() {
   const availablePageKeys = PAGE_KEYS.filter((key) => {
     if (key === "home") return true;
     if (key === "booking") return true;
+    if (key === "aisha") return true;
     if (key === "client") return false;
     if (key === "clientLogin") return true;
     if (key === "clientCabinet") return true;

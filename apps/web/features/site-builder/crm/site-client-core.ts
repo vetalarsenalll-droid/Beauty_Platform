@@ -100,6 +100,7 @@ export const variantsLabel: Record<"v1" | "v2" | "v3" | "v4" | "v5", string> = {
 export const PAGE_LABELS: Record<SitePageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
+  aisha: "AI-ассистент",
   client: "Личный кабинет",
   clientLogin: "Вход",
   clientCabinet: "Кабинет",
@@ -113,6 +114,7 @@ export const PAGE_LABELS: Record<SitePageKey, string> = {
 export const PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
+  "aisha",
   "client",
   "locations",
   "services",
@@ -316,6 +318,7 @@ export const SETTINGS_SECTIONS_BY_BLOCK: Partial<Record<BlockType, EditorSection
   aisha: [
     { id: "layout", label: "Основные настройки" },
     { id: "colors", label: "Цвета" },
+    { id: "typography", label: "Типографика" },
     { id: "effects", label: "Эффекты" },
   ],
 };

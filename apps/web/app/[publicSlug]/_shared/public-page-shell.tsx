@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type {
+  SiteAishaWidgetConfig,
   SiteBlock,
   SiteLoaderConfig,
   SitePageKey,
@@ -33,6 +34,7 @@ type RenderPublicPageShellParams = {
   accountLinkOverride?: string | null;
   currentEntity?: CurrentEntity;
   loaderConfig?: SiteLoaderConfig | null;
+  aishaWidgetConfig?: SiteAishaWidgetConfig | null;
   includeCoverBackground?: boolean;
   layout?: PublicPageShellLayout;
 };
@@ -159,6 +161,7 @@ export async function renderPublicPageShell({
   accountLinkOverride,
   currentEntity = null,
   loaderConfig = null,
+  aishaWidgetConfig = null,
   includeCoverBackground = false,
   layout,
 }: RenderPublicPageShellParams): Promise<ReactNode> {
@@ -185,6 +188,7 @@ export async function renderPublicPageShell({
   const pageMenuBlock = blocks.find((block) => block.type === "menu") ?? null;
   const usesMobileMenuOffset =
     pageKey === "booking" ||
+    pageKey === "aisha" ||
     pageKey === "client" ||
     pageKey === "clientLogin" ||
     pageKey === "clientCabinet";
@@ -324,7 +328,8 @@ export async function renderPublicPageShell({
           resolvedPublicBasePath,
           accountLinkOverride ?? undefined,
           loaderConfig,
-          clientAuthMode
+          clientAuthMode,
+          aishaWidgetConfig
         )}
       </section>
     );

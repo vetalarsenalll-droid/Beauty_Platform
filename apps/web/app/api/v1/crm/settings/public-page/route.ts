@@ -99,6 +99,7 @@ async function publishPage(pageId: number, contentJson: object, draftJson: objec
 const SITE_PAGE_KEYS = new Set<SitePageKey>([
   "home",
   "booking",
+  "aisha",
   "client",
   "clientLogin",
   "clientCabinet",
@@ -143,6 +144,7 @@ function mergePublishedPageDraft(
     const basePages: SitePages = next.pages ?? currentDraft.pages ?? {
       home: next.blocks,
       booking: [],
+      aisha: [],
       client: [],
       clientLogin: [],
       clientCabinet: [],

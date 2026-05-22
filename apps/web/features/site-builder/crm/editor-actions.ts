@@ -179,6 +179,10 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
       args.setInsertIndex(null);
       return;
     }
+    if (type === "aisha" && args.activePage !== "aisha") {
+      args.setInsertIndex(null);
+      return;
+    }
     if (type === "clientLogin" && args.activePage !== "clientLogin") {
       args.setInsertIndex(null);
       return;

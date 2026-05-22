@@ -2134,12 +2134,12 @@ export function BlockStyleEditor({
       {inSection("layout") && block.type === "aisha" && (
       <>
         <label className="text-sm">
-          {"Отступ снизу:"} {Number(block.data.offsetBottomPx ?? 16)}px
-          <input type="range" min={8} max={64} step={1} value={Number(block.data.offsetBottomPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetBottomPx: Number(event.target.value) } })} className="mt-2 w-full" />
+          {"Отступ виджета снизу:"} {Number(block.data.offsetBottomPx ?? 16)}px
+          <input type="range" min={0} max={160} step={1} value={Number(block.data.offsetBottomPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetBottomPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
         <label className="text-sm">
-          {"Отступ справа:"} {Number(block.data.offsetRightPx ?? 16)}px
-          <input type="range" min={8} max={160} step={1} value={Number(block.data.offsetRightPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetRightPx: Number(event.target.value) } })} className="mt-2 w-full" />
+          {"Отступ виджета справа:"} {Number(block.data.offsetRightPx ?? 16)}px
+          <input type="range" min={0} max={240} step={1} value={Number(block.data.offsetRightPx ?? 16)} onChange={(event) => onChange({ ...block, data: { ...block.data, offsetRightPx: Number(event.target.value) } })} className="mt-2 w-full" />
         </label>
       </>
       )}

@@ -6,6 +6,7 @@ import type { CurrentEntity } from "./site-client-core";
 const PAGE_MENU_ORDER: SitePageKey[] = [
   "home",
   "booking",
+  "aisha",
   "client",
   "clientLogin",
   "clientCabinet",
@@ -63,6 +64,7 @@ export function usePagesMenu({
   const availablePageKeys: SitePageKey[] = orderedPageKeys.filter((key) => {
     if (key === "home") return true;
     if (key === "booking") return true;
+    if (key === "aisha") return true;
     if (key === "promos") return true;
     if (key === "client") return true;
     if (key === "clientLogin") return true;

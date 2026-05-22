@@ -12,6 +12,7 @@ import ReviewPhotoGallery from "@/components/review-photo-gallery";
 import PublicParallaxLayer from "./public-parallax-layer";
 import PublicCoverV2Hero, { type PublicCoverSlide } from "./public-cover-v2-hero";
 import PublicClientAccount from "./public-client-account";
+import PublicAiChatWidget from "@/components/public-ai-chat-widget";
 import type { ClientAuthMode } from "./public-client-account";
 import { ServicesCatalog } from "@/features/site-builder/blocks/services/services-catalog";
 import { SpecialistsCatalog } from "@/features/site-builder/blocks/specialists/specialists-catalog";
@@ -19,6 +20,7 @@ import { LocationsCatalog } from "@/features/site-builder/blocks/locations/locat
 import type { CSSProperties, ReactNode } from "react";
 import {
   type SiteBlock,
+  type SiteAishaWidgetConfig,
   type SiteLoaderConfig,
   type SiteTheme,
 } from "@/lib/site-builder";
@@ -49,6 +51,7 @@ export type CurrentEntity =
 const PAGE_LABELS = {
   home: "Главная",
   booking: "Онлайн-запись",
+  aisha: "AI-ассистент",
   client: "Личный кабинет",
   legal: "Документы",
   locations: "Локации",
@@ -1190,7 +1193,8 @@ export function renderBlock(
   publicBasePath: string,
   accountLinkOverride?: string,
   loaderConfig?: SiteLoaderConfig | null,
-  clientAuthMode: ClientAuthMode = "login"
+  clientAuthMode: ClientAuthMode = "login",
+  aishaWidgetConfig?: SiteAishaWidgetConfig | null
 ) {
   switch (block.type) {
     case "cover":
@@ -1245,6 +1249,8 @@ export function renderBlock(
         theme,
         loaderConfig
       );
+    case "aisha":
+      return renderAisha(block, accountSlug, theme, aishaWidgetConfig);
     case "locations":
       return renderLocations(block, publicSlug, publicBasePath, locations, current, theme);
     case "services":
@@ -1268,6 +1274,38 @@ export function renderBlock(
     default:
       return null;
   }
+}
+
+function renderAisha(
+  block: SiteBlock,
+  accountSlug: string,
+  theme: SiteTheme,
+  widgetConfig?: SiteAishaWidgetConfig | null
+) {
+  const data = block.data as Record<string, unknown>;
+  const enabled = data.enabled !== false && widgetConfig?.enabled !== false;
+
+  if (!enabled) {
+    return (
+      <div className="border border-[color:var(--site-border)] p-4 text-sm text-[color:var(--site-muted)]">
+        Блок AI-ассистента выключен.
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full overflow-hidden" style={{ minHeight: "calc(74vh + 24px)" }}>
+      <PublicAiChatWidget
+        accountSlug={accountSlug}
+        widgetConfig={widgetConfig}
+        mode="inline"
+        defaultOpen
+        className="inset-0"
+        themeMode={theme.mode}
+        disablePageScrollOnMessages
+      />
+    </div>
+  );
 }
 
 function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
@@ -2084,6 +2122,7 @@ function renderCover(
     const basePath = publicSlug ? publicBasePath : "#";
     if (pageKey === "home") return basePath === "" ? "/" : basePath;
     if (pageKey === "booking") return `${basePath}/booking`;
+    if (pageKey === "aisha") return `${basePath}/assistant`;
     if (pageKey === "client") return `${basePath}/client`;
     return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
   };
@@ -3236,6 +3275,8 @@ function renderMenu(
         ? basePath
         : key === "booking"
           ? `${basePath}/booking`
+          : key === "aisha"
+            ? `${basePath}/assistant`
           : key === "client"
             ? `${basePath}/client`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
@@ -3259,6 +3300,8 @@ function renderMenu(
         ? basePath
         : key === "booking"
           ? `${basePath}/booking`
+          : key === "aisha"
+            ? `${basePath}/assistant`
           : key === "client"
             ? `${basePath}/client`
             : `${basePath}/${key === "promos" ? "promos" : key}`;
@@ -3462,6 +3505,8 @@ function renderMenu(
             ? basePath
             : key === "booking"
               ? `${basePath}/booking`
+              : key === "aisha"
+                ? `${basePath}/assistant`
               : key === "client"
                 ? `${basePath}/client`
                 : `${basePath}/${key === "promos" ? "promos" : key}`;
@@ -3497,6 +3542,8 @@ function renderMenu(
             ? basePath
             : key === "booking"
               ? `${basePath}/booking`
+              : key === "aisha"
+                ? `${basePath}/assistant`
               : key === "client"
                 ? `${basePath}/client`
                 : `${basePath}/${key === "promos" ? "promos" : key}`;

@@ -224,6 +224,10 @@ export type BlockStyle = {
   quickReplyTextColorLight: string;
   quickReplyTextColorDark: string;
   quickReplyTextColor: string;
+  aishaBackdropColorLight?: string;
+  aishaBackdropColorDark?: string;
+  aishaBackdropOpacityLight?: number;
+  aishaBackdropOpacityDark?: number;
   messageRadius: number | null;
   shadowColor: string;
   shadowSize: number | null;
@@ -4561,6 +4565,7 @@ function resolveSitePageHref(pageKey: SitePageKey, account: AccountInfo): string
   const basePath = account.publicSlug ? `/${account.publicSlug}` : "#";
   if (pageKey === "home") return basePath;
   if (pageKey === "booking") return `${basePath}/booking`;
+  if (pageKey === "aisha") return `${basePath}/assistant`;
   if (pageKey === "client") return `/c?account=${account.slug}`;
   return `${basePath}/${pageKey === "promos" ? "promos" : pageKey}`;
 }
@@ -7988,6 +7993,10 @@ export function buildAishaWidgetConfig(
   const borderColorLightValue = hasBorderLight ? (style.borderColorLightResolved || style.borderColor || null) : null;
   const borderColorDarkValue = hasBorderDark ? (style.borderColorDarkResolved || style.borderColorLightResolved || style.borderColor || null) : null;
   const borderColorActive = isDark ? borderColorDarkValue : borderColorLightValue;
+  const backdropColorLight = style.aishaBackdropColorLight?.trim() || "transparent";
+  const backdropColorDark = style.aishaBackdropColorDark?.trim() || backdropColorLight;
+  const backdropOpacityLight = toNumberInRange(style.aishaBackdropOpacityLight, 0, 100, 50);
+  const backdropOpacityDark = toNumberInRange(style.aishaBackdropOpacityDark, 0, 100, backdropOpacityLight);
 
   return {
     enabled: data.enabled !== false,
@@ -8003,8 +8012,8 @@ export function buildAishaWidgetConfig(
       typeof data.label === "string" && data.label.trim()
         ? data.label.trim()
         : "AI-ассистент",
-    offsetBottomPx: toNumberInRange(data.offsetBottomPx, 8, 64, 16),
-    offsetRightPx: toNumberInRange(data.offsetRightPx, 8, 160, 16),
+    offsetBottomPx: toNumberInRange(data.offsetBottomPx, 0, 160, 16),
+    offsetRightPx: toNumberInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
     panelHeightVh: 74,
     radiusPx: style.radius ?? theme.radius ?? 16,
@@ -8018,6 +8027,7 @@ export function buildAishaWidgetConfig(
     panelColor: pickMode(style.blockBgLightResolved, style.blockBgDarkResolved) || style.blockBg || null,
     textColor: pickMode(style.textColorLightResolved, style.textColorDarkResolved) || style.textColor || null,
     borderColor: borderColorActive,
+    mutedColor: pickMode(style.mutedColorLightResolved, style.mutedColorDarkResolved) || style.mutedColor || null,
     buttonColorLight: style.buttonColorLightResolved || null,
     buttonColorDark: style.buttonColorDarkResolved || null,
     buttonTextColorLight: style.buttonTextColorLightResolved || null,
@@ -8026,6 +8036,8 @@ export function buildAishaWidgetConfig(
     panelColorDark: style.blockBgDarkResolved || null,
     textColorLight: style.textColorLightResolved || null,
     textColorDark: style.textColorDarkResolved || null,
+    mutedColorLight: style.mutedColorLightResolved || null,
+    mutedColorDark: style.mutedColorDarkResolved || null,
     borderColorLight: borderColorLightValue,
     borderColorDark: borderColorDarkValue,
     assistantBubbleColorLight:
@@ -8112,6 +8124,17 @@ export function buildAishaWidgetConfig(
       style.quickReplyTextColor ||
       style.buttonTextColor ||
       null,
+    backdropColor: isDark ? backdropColorDark : backdropColorLight,
+    backdropColorLight,
+    backdropColorDark,
+    backdropOpacity: isDark ? backdropOpacityDark : backdropOpacityLight,
+    backdropOpacityLight,
+    backdropOpacityDark,
+    fontHeading: style.fontHeading || theme.fontHeading || null,
+    fontBody: style.fontBody || theme.fontBody || null,
+    headingSizePx: style.headingSize ?? theme.headingSize ?? null,
+    subheadingSizePx: style.subheadingSize ?? theme.subheadingSize ?? null,
+    textSizePx: style.textSize ?? theme.textSize ?? null,
     messageRadiusPx: style.messageRadius ?? 16,
     panelShadowColor: style.shadowColor || theme.shadowColor || null,
     panelShadowSize: style.shadowSize ?? theme.shadowSize ?? null,

@@ -1,6 +1,7 @@
 export const SEO_PAGE_KEYS = [
   "home",
   "booking",
+  "aisha",
   "client",
   "clientLogin",
   "clientCabinet",
@@ -20,6 +21,7 @@ export type SeoPageKey = (typeof SEO_PAGE_KEYS)[number];
 export const SEO_PAGE_LABELS: Record<SeoPageKey, string> = {
   home: "Главная",
   booking: "Онлайн-запись",
+  aisha: "AI-ассистент",
   client: "Личный кабинет",
   clientLogin: "Вход",
   clientCabinet: "Кабинет",
@@ -37,6 +39,7 @@ export const SEO_PAGE_LABELS: Record<SeoPageKey, string> = {
 export const SEO_PAGE_PATHS: Record<SeoPageKey, string> = {
   home: "/",
   booking: "/booking",
+  aisha: "/assistant",
   client: "/client",
   clientLogin: "/client/login",
   clientCabinet: "/client/cabinet",

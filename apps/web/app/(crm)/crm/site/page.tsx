@@ -20,6 +20,7 @@ import { Prisma } from "@prisma/client";
 const ALLOWED_PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
+  "aisha",
   "client",
   "clientLogin",
   "clientCabinet",

@@ -274,6 +274,25 @@ function flatNumber(
   );
 }
 
+function flatPercentSelect(
+  label: string,
+  value: number,
+  onChange: (value: number) => void
+) {
+  const normalized = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : 50;
+  return (
+    <FlatSelect
+      label={label}
+      value={String(normalized)}
+      options={Array.from({ length: 11 }, (_, i) => {
+        const pct = i * 10;
+        return { value: String(pct), label: `${pct}%` };
+      })}
+      onChange={(next) => onChange(Number(next))}
+    />
+  );
+}
+
 function JsonTextarea(ctx: CrmPanelCtx, key: string, label: string, fallback: unknown) {
   const raw = (ctx.block.data as Record<string, unknown>)[key];
   const value = JSON.stringify(raw ?? fallback, null, 2);
@@ -576,55 +595,74 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
   const darkMode = backgroundMode(raw.servicesSectionBackgroundModeDark ?? raw.servicesSectionBackgroundModeLight);
   const lightBg = readRawString(ctx, "servicesSectionBackgroundFromLight", style.sectionBgLight || "#ffffff");
   const darkBg = readRawString(ctx, "servicesSectionBackgroundFromDark", style.sectionBgDark || "#16181d");
+  const isAisha = ctx.block.type === "aisha";
+  const lightBackdropColor = readRawString(ctx, "aishaBackdropColorLight", "transparent");
+  const darkBackdropColor = readRawString(ctx, "aishaBackdropColorDark", lightBackdropColor);
+  const lightBackdropOpacity = Number.isFinite(Number(raw.aishaBackdropOpacityLight))
+    ? Math.max(0, Math.min(100, Math.round(Number(raw.aishaBackdropOpacityLight))))
+    : 50;
+  const darkBackdropOpacity = Number.isFinite(Number(raw.aishaBackdropOpacityDark))
+    ? Math.max(0, Math.min(100, Math.round(Number(raw.aishaBackdropOpacityDark))))
+    : lightBackdropOpacity;
+  const aishaOffsetBottom = Number.isFinite(Number((ctx.block.data as Record<string, unknown>).offsetBottomPx))
+    ? Math.max(0, Math.min(160, Math.round(Number((ctx.block.data as Record<string, unknown>).offsetBottomPx))))
+    : 16;
+  const aishaOffsetRight = Number.isFinite(Number((ctx.block.data as Record<string, unknown>).offsetRightPx))
+    ? Math.max(0, Math.min(240, Math.round(Number((ctx.block.data as Record<string, unknown>).offsetRightPx))))
+    : 16;
 
   return (
     <div className="space-y-6 px-1 pb-8 pt-1">
-      <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
-          Ширина блока
-        </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setWidthPopoverOpen((prev) => !prev)}
-            className="mt-2 flex w-full items-center justify-between border-b pb-2 text-left text-sm"
-            style={{ borderColor: panelBorder }}
-          >
-            <span>{Math.max(1, gridEnd - gridStart + 1)} колонок</span>
-            <span className="text-sm leading-none">{widthPopoverOpen ? "^" : "v"}</span>
-          </button>
-          {widthPopoverOpen && (
-            <div
-              className="absolute inset-x-0 top-[calc(100%+8px)] z-[160] rounded-none border px-3 py-4 shadow-2xl"
-              style={{ backgroundColor: panel, borderColor: panelBorder }}
-            >
-              <CoverGridWidthControl
-                start={gridStart}
-                end={gridEnd}
-                onChange={(nextStart, nextEnd) => applyGridRange(ctx, nextStart, nextEnd)}
-                compact
-              />
+      {!isAisha && (
+        <>
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
+              Ширина блока
             </div>
-          )}
-        </div>
-      </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setWidthPopoverOpen((prev) => !prev)}
+                className="mt-2 flex w-full items-center justify-between border-b pb-2 text-left text-sm"
+                style={{ borderColor: panelBorder }}
+              >
+                <span>{Math.max(1, gridEnd - gridStart + 1)} колонок</span>
+                <span className="text-sm leading-none">{widthPopoverOpen ? "^" : "v"}</span>
+              </button>
+              {widthPopoverOpen && (
+                <div
+                  className="absolute inset-x-0 top-[calc(100%+8px)] z-[160] rounded-none border px-3 py-4 shadow-2xl"
+                  style={{ backgroundColor: panel, borderColor: panelBorder }}
+                >
+                  <CoverGridWidthControl
+                    start={gridStart}
+                    end={gridEnd}
+                    onChange={(nextStart, nextEnd) => applyGridRange(ctx, nextStart, nextEnd)}
+                    compact
+                  />
+                </div>
+              )}
+            </div>
+          </div>
 
-      <FlatSelect
-        label="Выравнивание"
-        value={style.textAlign ?? "left"}
-        options={[
-          { value: "left", label: "По левому краю" },
-          { value: "center", label: "По центру" },
-          { value: "right", label: "По правому краю" },
-        ]}
-        onChange={(value) =>
-          updateStyle(ctx, {
-            textAlign: value as BlockStyle["textAlign"],
-            textAlignHeading: value as BlockStyle["textAlign"],
-            textAlignSubheading: value as BlockStyle["textAlign"],
-          })
-        }
-      />
+          <FlatSelect
+            label="Выравнивание"
+            value={style.textAlign ?? "left"}
+            options={[
+              { value: "left", label: "По левому краю" },
+              { value: "center", label: "По центру" },
+              { value: "right", label: "По правому краю" },
+            ]}
+            onChange={(value) =>
+              updateStyle(ctx, {
+                textAlign: value as BlockStyle["textAlign"],
+                textAlignHeading: value as BlockStyle["textAlign"],
+                textAlignSubheading: value as BlockStyle["textAlign"],
+              })
+            }
+          />
+        </>
+      )}
 
       <div className="space-y-3">
         <SectionButton id="typography" label="Типографика" activePanelSectionId={ctx.activePanelSectionId} setActivePanelSectionId={ctx.setActivePanelSectionId} panelBorder={panelBorder} panelText={panelText} panelMuted={panelMuted} />
@@ -639,71 +677,110 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <FlatSelect
-          label="Отступ сверху"
-          value={String(marginLines(style.marginTop))}
-          options={COVER_LINE_OPTIONS.map((value) => ({ value: String(value), label: formatCoverLineLabel(value) }))}
-          onChange={(value) => updateStyle(ctx, { marginTop: Math.round(Number(value) * COVER_LINE_STEP_PX) })}
-        />
-        <FlatSelect
-          label="Отступ снизу"
-          value={String(marginLines(style.marginBottom))}
-          options={COVER_LINE_OPTIONS.map((value) => ({ value: String(value), label: formatCoverLineLabel(value) }))}
-          onChange={(value) => updateStyle(ctx, { marginBottom: Math.round(Number(value) * COVER_LINE_STEP_PX) })}
-        />
-      </div>
+      {isAisha ? (
+        <div className="grid grid-cols-2 gap-3">
+          {flatNumber("Отступ виджета снизу", aishaOffsetBottom, (value) => updateData(ctx, { offsetBottomPx: value }), 0, 160, "px")}
+          {flatNumber("Отступ виджета справа", aishaOffsetRight, (value) => updateData(ctx, { offsetRightPx: value }), 0, 240, "px")}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <FlatSelect
+            label="Отступ сверху"
+            value={String(marginLines(style.marginTop))}
+            options={COVER_LINE_OPTIONS.map((value) => ({ value: String(value), label: formatCoverLineLabel(value) }))}
+            onChange={(value) => updateStyle(ctx, { marginTop: Math.round(Number(value) * COVER_LINE_STEP_PX) })}
+          />
+          <FlatSelect
+            label="Отступ снизу"
+            value={String(marginLines(style.marginBottom))}
+            options={COVER_LINE_OPTIONS.map((value) => ({ value: String(value), label: formatCoverLineLabel(value) }))}
+            onChange={(value) => updateStyle(ctx, { marginBottom: Math.round(Number(value) * COVER_LINE_STEP_PX) })}
+          />
+        </div>
+      )}
 
-      <TildaBackgroundColorField
-        label="Цвет фона для всего блока"
-        value={lightBg}
-        mode={lightMode}
-        secondValue={String(raw.servicesSectionBackgroundToLight ?? lightBg)}
-        angle={Number(raw.servicesSectionBackgroundAngleLight ?? 135)}
-        radialStopA={Number(raw.servicesSectionBackgroundStopALight ?? 0)}
-        radialStopB={Number(raw.servicesSectionBackgroundStopBLight ?? 100)}
-        placeholder="#ffffff"
-        onModeChange={(mode) => updateStyle(ctx, { servicesSectionBackgroundModeLight: mode })}
-        onSecondChange={(value) => updateStyle(ctx, { servicesSectionBackgroundToLight: value })}
-        onAngleChange={(value) => updateStyle(ctx, { servicesSectionBackgroundAngleLight: value })}
-        onRadialStopAChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopALight: value })}
-        onRadialStopBChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopBLight: value })}
-        onChange={(value) =>
-          updateStyle(ctx, {
-            sectionBgLight: value,
-            sectionBg: value,
-            servicesSectionBackgroundFromLight: value,
-            servicesSectionBackgroundToLight:
-              lightMode === "solid" ? value : String(raw.servicesSectionBackgroundToLight ?? value),
-          })
-        }
-      />
-
-      <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
-      {showDarkTheme && (
+      {isAisha ? (
+        <div className="grid grid-cols-2 gap-4">
+          <TildaInlineColorField
+            compact
+            label="Затемнение"
+            value={lightBackdropColor}
+            placeholder=""
+            onChange={(value) => updateStyle(ctx, { aishaBackdropColorLight: value })}
+            onClear={() => updateStyle(ctx, { aishaBackdropColorLight: "transparent" })}
+          />
+          {flatPercentSelect("Непрозрачность", lightBackdropOpacity, (value) =>
+            updateStyle(ctx, { aishaBackdropOpacityLight: value })
+          )}
+        </div>
+      ) : (
         <TildaBackgroundColorField
           label="Цвет фона для всего блока"
-          value={darkBg}
-          mode={darkMode}
-          secondValue={String(raw.servicesSectionBackgroundToDark ?? darkBg)}
-          angle={Number(raw.servicesSectionBackgroundAngleDark ?? raw.servicesSectionBackgroundAngleLight ?? 135)}
-          radialStopA={Number(raw.servicesSectionBackgroundStopADark ?? raw.servicesSectionBackgroundStopALight ?? 0)}
-          radialStopB={Number(raw.servicesSectionBackgroundStopBDark ?? raw.servicesSectionBackgroundStopBLight ?? 100)}
-          placeholder="#16181d"
-          onModeChange={(mode) => updateStyle(ctx, { servicesSectionBackgroundModeDark: mode })}
-          onSecondChange={(value) => updateStyle(ctx, { servicesSectionBackgroundToDark: value })}
-          onAngleChange={(value) => updateStyle(ctx, { servicesSectionBackgroundAngleDark: value })}
-          onRadialStopAChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopADark: value })}
-          onRadialStopBChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopBDark: value })}
+          value={lightBg}
+          mode={lightMode}
+          secondValue={String(raw.servicesSectionBackgroundToLight ?? lightBg)}
+          angle={Number(raw.servicesSectionBackgroundAngleLight ?? 135)}
+          radialStopA={Number(raw.servicesSectionBackgroundStopALight ?? 0)}
+          radialStopB={Number(raw.servicesSectionBackgroundStopBLight ?? 100)}
+          placeholder="#ffffff"
+          onModeChange={(mode) => updateStyle(ctx, { servicesSectionBackgroundModeLight: mode })}
+          onSecondChange={(value) => updateStyle(ctx, { servicesSectionBackgroundToLight: value })}
+          onAngleChange={(value) => updateStyle(ctx, { servicesSectionBackgroundAngleLight: value })}
+          onRadialStopAChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopALight: value })}
+          onRadialStopBChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopBLight: value })}
           onChange={(value) =>
             updateStyle(ctx, {
-              sectionBgDark: value,
-              servicesSectionBackgroundFromDark: value,
-              servicesSectionBackgroundToDark:
-                darkMode === "solid" ? value : String(raw.servicesSectionBackgroundToDark ?? value),
+              sectionBgLight: value,
+              sectionBg: value,
+              servicesSectionBackgroundFromLight: value,
+              servicesSectionBackgroundToLight:
+                lightMode === "solid" ? value : String(raw.servicesSectionBackgroundToLight ?? value),
             })
           }
         />
+      )}
+
+      <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+      {showDarkTheme && (
+        isAisha ? (
+          <div className="grid grid-cols-2 gap-4">
+            <TildaInlineColorField
+              compact
+              label="Затемнение"
+              value={darkBackdropColor}
+              placeholder=""
+              onChange={(value) => updateStyle(ctx, { aishaBackdropColorDark: value })}
+              onClear={() => updateStyle(ctx, { aishaBackdropColorDark: "transparent" })}
+            />
+            {flatPercentSelect("Непрозрачность", darkBackdropOpacity, (value) =>
+              updateStyle(ctx, { aishaBackdropOpacityDark: value })
+            )}
+          </div>
+        ) : (
+          <TildaBackgroundColorField
+            label="Цвет фона для всего блока"
+            value={darkBg}
+            mode={darkMode}
+            secondValue={String(raw.servicesSectionBackgroundToDark ?? darkBg)}
+            angle={Number(raw.servicesSectionBackgroundAngleDark ?? raw.servicesSectionBackgroundAngleLight ?? 135)}
+            radialStopA={Number(raw.servicesSectionBackgroundStopADark ?? raw.servicesSectionBackgroundStopALight ?? 0)}
+            radialStopB={Number(raw.servicesSectionBackgroundStopBDark ?? raw.servicesSectionBackgroundStopBLight ?? 100)}
+            placeholder="#16181d"
+            onModeChange={(mode) => updateStyle(ctx, { servicesSectionBackgroundModeDark: mode })}
+            onSecondChange={(value) => updateStyle(ctx, { servicesSectionBackgroundToDark: value })}
+            onAngleChange={(value) => updateStyle(ctx, { servicesSectionBackgroundAngleDark: value })}
+            onRadialStopAChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopADark: value })}
+            onRadialStopBChange={(value) => updateStyle(ctx, { servicesSectionBackgroundStopBDark: value })}
+            onChange={(value) =>
+              updateStyle(ctx, {
+                sectionBgDark: value,
+                servicesSectionBackgroundFromDark: value,
+                servicesSectionBackgroundToDark:
+                  darkMode === "solid" ? value : String(raw.servicesSectionBackgroundToDark ?? value),
+              })
+            }
+          />
+        )
       )}
     </div>
   );
@@ -754,6 +831,56 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
   }
 
   if (section === "colors") {
+    if (ctx.block.type === "aisha") {
+      return (
+        <div className="space-y-6 px-1 pb-8 pt-1">
+          <div className="space-y-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Виджет</div>
+            <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { blockBgLight: value, blockBg: value })} onClear={() => updateStyle(ctx, { blockBgLight: "transparent", blockBg: "transparent" })} />
+            <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />
+            <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorLight", ctx.activeTheme.mutedColor)} placeholder={ctx.activeTheme.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorLight: value, mutedColor: value })} onClear={() => updateStyle(ctx, { mutedColorLight: "transparent", mutedColor: "transparent" })} />
+            <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorLight", ctx.activeTheme.borderColor)} placeholder={ctx.activeTheme.borderColor} onChange={(value) => updateStyle(ctx, { borderColorLight: value, borderColor: value })} onClear={() => updateStyle(ctx, { borderColorLight: "transparent", borderColor: "transparent" })} />
+          </div>
+
+          <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Сообщения</div>
+            <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorLight: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorLight: "transparent" })} />
+            <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorLight: value })} onClear={() => updateStyle(ctx, { assistantTextColorLight: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorLight: value })} onClear={() => updateStyle(ctx, { clientBubbleColorLight: "transparent" })} />
+            <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorLight: value })} onClear={() => updateStyle(ctx, { clientTextColorLight: "transparent" })} />
+          </div>
+
+          <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Плашка и кнопки</div>
+            <TildaInlineColorField compact label="Цвет плашки" value={color(ctx, "headerBgColorLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorLight: value })} onClear={() => updateStyle(ctx, { headerBgColorLight: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет текста плашки" value={color(ctx, "headerTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorLight: value })} onClear={() => updateStyle(ctx, { headerTextColorLight: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет кнопки" value={color(ctx, "buttonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { buttonColorLight: value, buttonColor: value })} onClear={() => updateStyle(ctx, { buttonColorLight: "transparent", buttonColor: "transparent" })} />
+            <TildaInlineColorField compact label="Текст кнопки" value={color(ctx, "buttonTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { buttonTextColorLight: value, buttonTextColor: value })} onClear={() => updateStyle(ctx, { buttonTextColorLight: "transparent", buttonTextColor: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет кнопок вариантов" value={color(ctx, "quickReplyButtonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorLight: "transparent" })} />
+            <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorLight: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorLight: "transparent" })} />
+          </div>
+
+          <DarkThemeToggle open={showDarkTheme} setOpen={setShowDarkTheme} />
+          {showDarkTheme && (
+            <div className="space-y-4">
+              <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { blockBgDark: value })} onClear={() => updateStyle(ctx, { blockBgDark: "transparent" })} />
+              <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { textColorDark: value })} onClear={() => updateStyle(ctx, { textColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorDark", ctx.activeTheme.darkPalette.mutedColor)} placeholder={ctx.activeTheme.darkPalette.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorDark: value })} onClear={() => updateStyle(ctx, { mutedColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorDark", ctx.activeTheme.darkPalette.borderColor)} placeholder={ctx.activeTheme.darkPalette.borderColor} onChange={(value) => updateStyle(ctx, { borderColorDark: value })} onClear={() => updateStyle(ctx, { borderColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет ответа ассистента" value={color(ctx, "assistantBubbleColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { assistantBubbleColorDark: value })} onClear={() => updateStyle(ctx, { assistantBubbleColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorDark: value })} onClear={() => updateStyle(ctx, { assistantTextColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorDark: value })} onClear={() => updateStyle(ctx, { clientBubbleColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorDark: value })} onClear={() => updateStyle(ctx, { clientTextColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет плашки" value={color(ctx, "headerBgColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorDark: value })} onClear={() => updateStyle(ctx, { headerBgColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет текста плашки" value={color(ctx, "headerTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorDark: value })} onClear={() => updateStyle(ctx, { headerTextColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Цвет кнопок вариантов" value={color(ctx, "quickReplyButtonColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { quickReplyButtonColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyButtonColorDark: "transparent" })} />
+              <TildaInlineColorField compact label="Текст кнопок вариантов" value={color(ctx, "quickReplyTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { quickReplyTextColorDark: value })} onClear={() => updateStyle(ctx, { quickReplyTextColorDark: "transparent" })} />
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6 px-1 pb-8 pt-1">
         <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />

@@ -6,6 +6,7 @@ export function ensurePages(value: SiteDraft): SitePages {
     value.pages ?? {
       home: value.blocks,
       booking: [],
+      aisha: [],
       client: [],
       clientLogin: [],
       clientCabinet: [],

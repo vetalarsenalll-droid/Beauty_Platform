@@ -91,6 +91,7 @@ export type SiteBlock = {
 export type SitePageKey =
   | "home"
   | "booking"
+  | "aisha"
   | "client"
   | "clientLogin"
   | "clientCabinet"
@@ -103,6 +104,7 @@ export type SitePageKey =
 export const SITE_PAGE_KEYS: SitePageKey[] = [
   "home",
   "booking",
+  "aisha",
   "client",
   "clientLogin",
   "clientCabinet",
@@ -112,6 +114,7 @@ export const SITE_PAGE_KEYS: SitePageKey[] = [
   "specialists",
   "promos",
 ];
+const MENU_PAGE_KEYS: SitePageKey[] = ["home", "booking", "client", "locations", "services", "specialists", "promos"];
 export const DEFAULT_ACCOUNT_NAME = "Салон красоты";
 
 export type SitePages = Record<SitePageKey, SiteBlock[]>;
@@ -245,6 +248,9 @@ export type SiteAishaWidgetConfig = {
   panelColorDark?: string | null;
   textColorLight?: string | null;
   textColorDark?: string | null;
+  mutedColor?: string | null;
+  mutedColorLight?: string | null;
+  mutedColorDark?: string | null;
   borderColorLight?: string | null;
   borderColorDark?: string | null;
   gradientEnabled: boolean;
@@ -283,6 +289,17 @@ export type SiteAishaWidgetConfig = {
   quickReplyButtonColorDark?: string | null;
   quickReplyTextColorLight?: string | null;
   quickReplyTextColorDark?: string | null;
+  backdropColor: string | null;
+  backdropColorLight?: string | null;
+  backdropColorDark?: string | null;
+  backdropOpacity: number | null;
+  backdropOpacityLight?: number | null;
+  backdropOpacityDark?: number | null;
+  fontHeading?: string | null;
+  fontBody?: string | null;
+  headingSizePx?: number | null;
+  subheadingSizePx?: number | null;
+  textSizePx?: number | null;
   messageRadiusPx: number | null;
   panelShadowColor: string | null;
   panelShadowSize: number | null;
@@ -441,7 +458,11 @@ export function resolveSiteLoaderConfig(draft: SiteDraft): SiteLoaderConfig | nu
 
 export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light" | "dark"): SiteAishaWidgetConfig {
   const homeBlocks = draft.pages?.home ?? draft.blocks;
-  const aishaBlock = homeBlocks.find((block) => block.type === "aisha") ?? null;
+  const aishaPageBlocks = draft.pages?.aisha ?? [];
+  const aishaBlock =
+    aishaPageBlocks.find((block) => block.type === "aisha") ??
+    homeBlocks.find((block) => block.type === "aisha") ??
+    null;
   if (!aishaBlock) {
     return {
       enabled: false,
@@ -459,6 +480,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       panelColor: null,
       textColor: null,
       borderColor: null,
+      mutedColor: null,
+      mutedColorLight: null,
+      mutedColorDark: null,
       gradientEnabled: false,
       gradientEnabledLight: false,
       gradientEnabledDark: false,
@@ -479,6 +503,17 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       headerTextColor: null,
       quickReplyButtonColor: null,
       quickReplyTextColor: null,
+      backdropColor: null,
+      backdropColorLight: null,
+      backdropColorDark: null,
+      backdropOpacity: 50,
+      backdropOpacityLight: 50,
+      backdropOpacityDark: 50,
+      fontHeading: null,
+      fontBody: null,
+      headingSizePx: null,
+      subheadingSizePx: null,
+      textSizePx: null,
       messageRadiusPx: null,
       panelShadowColor: null,
       panelShadowSize: null,
@@ -553,6 +588,13 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     theme.lightPalette.borderColor,
     theme.darkPalette.borderColor
   );
+  const mutedPair = resolvePair(
+    "mutedColorLight",
+    "mutedColorDark",
+    "mutedColor",
+    theme.lightPalette.mutedColor,
+    theme.darkPalette.mutedColor
+  );
   const buttonPair = resolvePair(
     "buttonColorLight",
     "buttonColorDark",
@@ -623,6 +665,19 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonTextPair.lightResolved,
     buttonTextPair.darkResolved
   );
+  const backdropPair = resolvePair(
+    "aishaBackdropColorLight",
+    "aishaBackdropColorDark",
+    "aishaBackdropColor",
+    "transparent",
+    "transparent"
+  );
+  const backdropOpacityLight = Number.isFinite(Number(style.aishaBackdropOpacityLight))
+    ? numInRange(style.aishaBackdropOpacityLight, 0, 100, 50)
+    : 50;
+  const backdropOpacityDark = Number.isFinite(Number(style.aishaBackdropOpacityDark))
+    ? numInRange(style.aishaBackdropOpacityDark, 0, 100, backdropOpacityLight)
+    : backdropOpacityLight;
 
   const gradientEnabledLight =
     typeof style.gradientEnabledLight === "boolean"
@@ -674,8 +729,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     headerTitle:
       typeof data.title === "string" && data.title.trim() ? data.title.trim() : "AI-ассистент записи",
     label: typeof data.label === "string" && data.label.trim() ? data.label.trim() : "AI-чат",
-    offsetBottomPx: numInRange(data.offsetBottomPx, 8, 64, 16),
-    offsetRightPx: numInRange(data.offsetRightPx, 8, 64, 16),
+    offsetBottomPx: numInRange(data.offsetBottomPx, 0, 160, 16),
+    offsetRightPx: numInRange(data.offsetRightPx, 0, 240, 16),
     panelWidthPx: 400,
     panelHeightVh: 74,
     radiusPx: Number.isFinite(Number(style.radius)) ? numInRange(style.radius, 0, 36, 16) : theme.radius,
@@ -687,6 +742,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     panelColor: byMode(style.blockBg, style.blockBgLight, style.blockBgDark),
     textColor: byMode(style.textColor, style.textColorLight, style.textColorDark),
     borderColor: byMode(style.borderColor, style.borderColorLight, style.borderColorDark),
+    mutedColor: byMode(style.mutedColor, mutedPair.lightResolved, mutedPair.darkResolved),
     buttonColorLight: textOrNull(buttonPair.lightResolved) || null,
     buttonColorDark: textOrNull(buttonPair.darkResolved) || null,
     buttonTextColorLight: textOrNull(buttonTextPair.lightResolved) || null,
@@ -697,6 +753,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     textColorDark: textOrNull(textPair.darkResolved) || null,
     borderColorLight: textOrNull(borderPair.lightResolved) || null,
     borderColorDark: textOrNull(borderPair.darkResolved) || null,
+    mutedColorLight: textOrNull(mutedPair.lightResolved) || null,
+    mutedColorDark: textOrNull(mutedPair.darkResolved) || null,
     gradientEnabled: isDark ? gradientEnabledDark : gradientEnabledLight,
     gradientEnabledLight,
     gradientEnabledDark,
@@ -733,6 +791,23 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     quickReplyButtonColorDark: textOrNull(quickReplyButtonPair.darkResolved) || null,
     quickReplyTextColorLight: textOrNull(quickReplyTextPair.lightResolved) || null,
     quickReplyTextColorDark: textOrNull(quickReplyTextPair.darkResolved) || null,
+    backdropColor: byMode(style.aishaBackdropColor, backdropPair.lightResolved, backdropPair.darkResolved),
+    backdropColorLight: textOrNull(backdropPair.lightResolved) || null,
+    backdropColorDark: textOrNull(backdropPair.darkResolved) || null,
+    backdropOpacity: isDark ? backdropOpacityDark : backdropOpacityLight,
+    backdropOpacityLight,
+    backdropOpacityDark,
+    fontHeading: textOrNull(style.fontHeading) || textOrNull(theme.fontHeading) || null,
+    fontBody: textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
+    headingSizePx: Number.isFinite(Number(style.headingSize))
+      ? numInRange(style.headingSize, 10, 96, theme.headingSize)
+      : theme.headingSize,
+    subheadingSizePx: Number.isFinite(Number(style.subheadingSize))
+      ? numInRange(style.subheadingSize, 10, 64, theme.subheadingSize)
+      : theme.subheadingSize,
+    textSizePx: Number.isFinite(Number(style.textSize))
+      ? numInRange(style.textSize, 10, 48, theme.textSize)
+      : theme.textSize,
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))
       ? numInRange(style.messageRadius, 4, 32, 16)
       : null,
@@ -756,7 +831,7 @@ const createMenuBlock = (accountTitle = ""): SiteBlock => ({
   variant: "v1",
   data: {
     title: "Меню",
-    menuItems: ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"],
+    menuItems: [...MENU_PAGE_KEYS],
     showLogo: true,
     showCompanyName: true,
     showOnAllPages: true,
@@ -862,6 +937,20 @@ const createBookingBlock = (): SiteBlock => ({
       subheadingSize: 16,
       textSize: 14,
     },
+  },
+});
+
+const createAishaBlock = (): SiteBlock => ({
+  id: makeBlockId(),
+  type: "aisha",
+  variant: "v1",
+  data: {
+    title: "AI-ассистент записи",
+    assistantName: "Ассистент",
+    enabled: true,
+    label: "AI Ассистент",
+    offsetBottomPx: 16,
+    offsetRightPx: 16,
   },
 });
 
@@ -1120,21 +1209,9 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
         },
       },
     },
-    {
-      id: makeBlockId(),
-      type: "aisha",
-      variant: "v1",
-      data: {
-        title: "AI-ассистент записи",
-        assistantName: "Ассистент",
-        enabled: true,
-        label: "AI Ассистент",
-        offsetBottomPx: 16,
-        offsetRightPx: 16,
-      },
-    },
   ];
   const bookingBlocks: SiteBlock[] = [createBookingBlock()];
+  const aishaBlocks: SiteBlock[] = [createAishaBlock()];
   const clientBlocks: SiteBlock[] = [createClientBlock()];
   const clientLoginBlocks: SiteBlock[] = [createClientLoginBlock()];
   const clientCabinetBlocks: SiteBlock[] = [createClientCabinetBlock()];
@@ -1202,6 +1279,7 @@ export const createDefaultDraft = (accountName: string): SiteDraft => {
     pages: {
       home: homeBlocks,
       booking: bookingBlocks,
+      aisha: aishaBlocks,
       client: clientBlocks,
       clientLogin: clientLoginBlocks,
       clientCabinet: clientCabinetBlocks,
@@ -1344,9 +1422,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             return value;
           };
           const menuItems = Array.isArray(safeData.menuItems)
-            ? (safeData.menuItems as SitePageKey[]).filter((item) =>
-                ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"].includes(item)
-              )
+            ? MENU_PAGE_KEYS.filter((key) => (safeData.menuItems as SitePageKey[]).includes(key))
             : [];
           const presetVersionRaw = Number(safeData.presetVersion);
           const hasMenuPreset = Number.isFinite(presetVersionRaw) && presetVersionRaw >= 1;
@@ -1396,7 +1472,7 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
           }
           safeData.menuItems = menuItems.length
             ? menuItems
-            : ["home", "booking", "client", "legal", "locations", "services", "specialists", "promos"];
+            : [...MENU_PAGE_KEYS];
           const socialIconSizeRaw = Number(safeData.socialIconSize);
           safeData.socialIconSize =
             Number.isFinite(socialIconSizeRaw) && socialIconSizeRaw >= 24 && socialIconSizeRaw <= 72
@@ -1627,10 +1703,19 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
   const pagesInput = hasStructuredPages
     ? (draft.pages as Partial<SitePages>)
     : { home: draft.blocks };
+  const normalizedHomeBlocks = normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home);
+  const legacyAishaBlocks = normalizedHomeBlocks.filter((block) => block.type === "aisha");
 
   const pages: SitePages = {
-    home: normalizeBlocks(pagesInput.home ?? draft.blocks ?? fallbackPages.home),
+    home: normalizedHomeBlocks.filter((block) => block.type !== "aisha"),
     booking: normalizeBlocks(pagesInput.booking ?? fallbackPages.booking),
+    aisha: normalizeBlocks(
+      pagesInput.aisha && pagesInput.aisha.length > 0
+        ? pagesInput.aisha
+        : legacyAishaBlocks.length > 0
+          ? legacyAishaBlocks
+          : fallbackPages.aisha
+    ),
     client: normalizeBlocks(
       pagesInput.client && pagesInput.client.length > 0 ? pagesInput.client : fallbackPages.client
     ),

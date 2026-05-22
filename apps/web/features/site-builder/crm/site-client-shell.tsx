@@ -194,6 +194,7 @@ function isBlockHidden(block: SiteBlock) {
 
 function getSystemPageLibraryBlockTypes(activePage: SitePageKey): BlockType[] | null {
   if (activePage === "booking") return ["booking"];
+  if (activePage === "aisha") return ["aisha"];
   if (activePage === "clientLogin") return ["clientLogin"];
   if (activePage === "clientCabinet") return ["clientCabinet"];
   return null;
@@ -230,6 +231,7 @@ function buildCurrentPublicUrl(
   if (currentEntity?.type === "legalDocument") return `${basePath}/legal/${currentEntity.id}`;
   if (activePage === "home") return basePath;
   if (activePage === "booking") return `${basePath}/booking`;
+  if (activePage === "aisha") return `${basePath}/assistant`;
   if (activePage === "client") return `/c?account=${accountSlug}`;
   return `${basePath}/${activePage}`;
 }
@@ -522,7 +524,7 @@ export default function SiteClient({
     [activeBlockTypes, draft.blocks, draft.pages]
   );
   const activePageKey: SitePageKey = activePage;
-  const isSystemPage = activePageKey === "booking";
+  const isSystemPage = activePageKey === "booking" || activePageKey === "aisha";
   const isLegalDocumentPage = activePageKey === "legal" && currentEntity?.type === "legalDocument";
   const pageBlocks: SiteBlock[] = useMemo(
     () => {
@@ -1105,6 +1107,7 @@ export default function SiteClient({
       if (systemPageTypes) return systemPageTypes;
       return LIBRARY_BLOCK_TYPES.filter((type) => {
         if (type === "booking") return false;
+        if (type === "aisha") return false;
         if (type === "client") return false;
         if (type === "clientLogin") return false;
         if (type === "clientCabinet") return false;

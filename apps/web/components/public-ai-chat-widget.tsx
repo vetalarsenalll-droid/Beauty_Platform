@@ -250,6 +250,8 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setVar("--ai-panel-dark", widgetConfig?.panelColorDark ?? widgetConfig?.panelColor);
     setVar("--ai-text-light", widgetConfig?.textColorLight ?? widgetConfig?.textColor);
     setVar("--ai-text-dark", widgetConfig?.textColorDark ?? widgetConfig?.textColor);
+    setVar("--ai-muted-light", widgetConfig?.mutedColorLight ?? widgetConfig?.mutedColor);
+    setVar("--ai-muted-dark", widgetConfig?.mutedColorDark ?? widgetConfig?.mutedColor);
     setVar("--ai-border-light", widgetConfig?.borderColorLight ?? widgetConfig?.borderColor);
     setVar("--ai-border-dark", widgetConfig?.borderColorDark ?? widgetConfig?.borderColor);
     setVar("--ai-button-light", widgetConfig?.buttonColorLight ?? widgetConfig?.buttonColor);
@@ -278,6 +280,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
 
     setVar("--ai-panel", pickMode(widgetConfig?.panelColorLight, widgetConfig?.panelColorDark, widgetConfig?.panelColor));
     setVar("--ai-text", pickMode(widgetConfig?.textColorLight, widgetConfig?.textColorDark, widgetConfig?.textColor));
+    setVar("--ai-muted", pickMode(widgetConfig?.mutedColorLight, widgetConfig?.mutedColorDark, widgetConfig?.mutedColor));
     setVar("--ai-border", pickMode(widgetConfig?.borderColorLight, widgetConfig?.borderColorDark, widgetConfig?.borderColor));
     setVar("--ai-button", pickMode(widgetConfig?.buttonColorLight, widgetConfig?.buttonColorDark, widgetConfig?.buttonColor));
     setVar("--ai-button-text", pickMode(widgetConfig?.buttonTextColorLight, widgetConfig?.buttonTextColorDark, widgetConfig?.buttonTextColor));
@@ -294,18 +297,23 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   }, [widgetConfig, mode, currentMode]);
 
 
-  const panelWidth = 400;
-  const panelHeightVh = 74;
-  const panelRadius = 18;
-  const messageRadius = 16;
+  const panelWidth = Math.max(320, Math.min(560, Number(widgetConfig?.panelWidthPx ?? 400)));
+  const panelHeightVh = Math.max(48, Math.min(92, Number(widgetConfig?.panelHeightVh ?? 74)));
+  const panelRadius = Math.max(0, Math.min(36, Number(widgetConfig?.radiusPx ?? 18)));
+  const messageRadius = Math.max(4, Math.min(32, Number(widgetConfig?.messageRadiusPx ?? 16)));
   const panelShadowSize = Math.max(0, Number(widgetConfig?.panelShadowSize ?? 16));
   const panelShadowColor = widgetConfig?.panelShadowColor?.trim() || "rgba(0,0,0,0.16)";
   const headerTitle = (widgetConfig?.headerTitle || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438").trim() || "AI-\u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442 \u0437\u0430\u043f\u0438\u0441\u0438";
   const assistantName = (widgetConfig?.assistantName || "Ассистент").trim() || "Ассистент";
-  const fabRadius = 16;
-  const buttonRadiusStyle = { borderRadius: "12px" };
+  const fabRadius = Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 16)));
+  const buttonRadiusStyle = { borderRadius: `${Math.max(0, Math.min(36, Number(widgetConfig?.buttonRadiusPx ?? 12)))}px` };
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
   const fabLabel = (widgetConfig?.label || "AI-\u0447\u0430\u0442").trim() || "AI-\u0447\u0430\u0442";
+  const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
+  const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
+  const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
+  const subheadingSize = Math.max(10, Math.min(22, Number(widgetConfig?.subheadingSizePx ?? 12)));
+  const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
   const inlineFabPosition: CSSProperties =
     mode === "inline"
       ? {
@@ -334,6 +342,22 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     gradientEnabledByMode && panelGradientFromByMode && panelGradientToByMode
       ? `linear-gradient(${gradientDirectionByMode === "horizontal" ? "to right" : "to bottom"}, ${panelGradientFromByMode}, ${panelGradientToByMode})`
       : undefined;
+  const backdropColor =
+    (currentMode === "dark"
+      ? (widgetConfig?.backdropColorDark ?? widgetConfig?.backdropColorLight ?? widgetConfig?.backdropColor)
+      : (widgetConfig?.backdropColorLight ?? widgetConfig?.backdropColorDark ?? widgetConfig?.backdropColor)
+    )?.trim() || "";
+  const backdropOpacityRaw =
+    currentMode === "dark"
+      ? (widgetConfig?.backdropOpacityDark ?? widgetConfig?.backdropOpacityLight ?? widgetConfig?.backdropOpacity)
+      : (widgetConfig?.backdropOpacityLight ?? widgetConfig?.backdropOpacityDark ?? widgetConfig?.backdropOpacity);
+  const backdropOpacity = Math.max(0, Math.min(1, Number(backdropOpacityRaw ?? 50) / 100));
+  const showBackdrop =
+    open &&
+    mode === "floating" &&
+    backdropOpacity > 0 &&
+    backdropColor.length > 0 &&
+    backdropColor.toLowerCase() !== "transparent";
   const calendarShellClass =
     currentMode === "dark"
       ? "mt-2 rounded-xl border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
@@ -679,15 +703,31 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const headerStyle: CSSProperties = {
     backgroundColor: "var(--ai-header-bg, var(--ai-panel, transparent))",
     color: "var(--ai-header-text, var(--ai-text,#111827))",
+    fontFamily: headingFont,
+    fontSize: `${headingSize}px`,
   };
   const headerActionStyle: CSSProperties = {
     color: "var(--ai-header-text, var(--ai-text,#111827))",
+    fontFamily: bodyFont,
+    fontSize: `${subheadingSize}px`,
+  };
+  const contentTextStyle: CSSProperties = {
+    fontFamily: bodyFont,
+    fontSize: `${textSize}px`,
   };
 
   return (
     <div className={rootClass} style={rootStyle}>
       {open ? (
-        <div className={`flex flex-col overflow-hidden bg-[color:var(--ai-header-bg,var(--ai-panel,#fff))] ${hasWidgetBorder ? "border border-[color:var(--ai-border)]" : "border-0"}`} style={panelStyle}>
+        <>
+        {showBackdrop ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-[0]"
+            style={{ backgroundColor: backdropColor, opacity: backdropOpacity }}
+          />
+        ) : null}
+        <div className={`relative z-[1] flex flex-col overflow-hidden bg-[color:var(--ai-header-bg,var(--ai-panel,#fff))] ${hasWidgetBorder ? "border border-[color:var(--ai-border)]" : "border-0"}`} style={panelStyle}>
           <div
             className={`shrink-0 flex items-center justify-between gap-3 px-4 ${hasWidgetBorder ? "py-3 border-b border-[color:var(--ai-border)]" : "py-3 border-0"}`}
             style={headerStyle}
@@ -716,7 +756,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             </div>
           </div>
 
-          <div className="min-h-0 flex flex-1 flex-col bg-[color:var(--ai-panel,#fff)]">
+          <div className="min-h-0 flex flex-1 flex-col bg-[color:var(--ai-panel,#fff)]" style={contentTextStyle}>
           <div ref={scrollerRef} className="aisha-chat-scroll flex-1 space-y-3 overflow-y-auto bg-[color:var(--ai-panel,#fff)] px-3 py-3">
             {messages.map((msg, index) => (
               (() => {
@@ -1219,6 +1259,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
           </form>
           </div>
         </div>
+        </>
       ) : (
         <button
           type="button"
