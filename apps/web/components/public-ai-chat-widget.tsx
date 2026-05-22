@@ -552,10 +552,14 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const backdropOpacity = Math.max(0, Math.min(1, Number(backdropOpacityRaw ?? 50) / 100));
   const showBackdrop =
     open &&
-    mode === "floating" &&
+    (mode === "floating" || mode === "inline") &&
     backdropOpacity > 0 &&
     backdropColor.length > 0 &&
     backdropColor.toLowerCase() !== "transparent";
+  const backdropClassName =
+    mode === "inline"
+      ? "pointer-events-none absolute inset-0 z-[0]"
+      : "pointer-events-none fixed inset-0 z-[0]";
   const calendarShellClass =
     currentMode === "dark"
       ? "mt-2 overflow-hidden border border-[color:var(--ai-border,#334155)] bg-white/5 p-2"
@@ -969,7 +973,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         {showBackdrop ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0 z-[0]"
+            className={backdropClassName}
             style={{ backgroundColor: backdropColor, opacity: backdropOpacity }}
           />
         ) : null}

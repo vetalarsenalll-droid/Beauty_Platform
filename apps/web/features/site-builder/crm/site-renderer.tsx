@@ -1357,6 +1357,10 @@ export function normalizeBlockStyle(block: SiteBlock, theme: SiteTheme): BlockSt
         ? style.widgetAnimationType
         : "none",
     widgetAnimationSpeedMs: toNumber(style.widgetAnimationSpeedMs),
+    aishaBackdropColorLight: typeof style.aishaBackdropColorLight === "string" ? style.aishaBackdropColorLight : "",
+    aishaBackdropColorDark: typeof style.aishaBackdropColorDark === "string" ? style.aishaBackdropColorDark : "",
+    aishaBackdropOpacityLight: toNumber(style.aishaBackdropOpacityLight) ?? undefined,
+    aishaBackdropOpacityDark: toNumber(style.aishaBackdropOpacityDark) ?? undefined,
     headingSize: toNumber(style.headingSize),
     subheadingSize: toNumber(style.subheadingSize),
     textSize: toNumber(style.textSize),
