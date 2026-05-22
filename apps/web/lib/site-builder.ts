@@ -276,6 +276,9 @@ export type SiteAishaWidgetConfig = {
   quickReplyButtonColor: string | null;
   quickReplyTextColor: string | null;
   inputSendButtonColor?: string | null;
+  inputBgColor?: string | null;
+  inputBorderColor?: string | null;
+  inputTextColor?: string | null;
   assistantBubbleColorLight?: string | null;
   assistantBubbleColorDark?: string | null;
   assistantTextColorLight?: string | null;
@@ -294,6 +297,12 @@ export type SiteAishaWidgetConfig = {
   quickReplyTextColorDark?: string | null;
   inputSendButtonColorLight?: string | null;
   inputSendButtonColorDark?: string | null;
+  inputBgColorLight?: string | null;
+  inputBgColorDark?: string | null;
+  inputBorderColorLight?: string | null;
+  inputBorderColorDark?: string | null;
+  inputTextColorLight?: string | null;
+  inputTextColorDark?: string | null;
   backdropColor: string | null;
   backdropColorLight?: string | null;
   backdropColorDark?: string | null;
@@ -303,6 +312,7 @@ export type SiteAishaWidgetConfig = {
   fontHeading?: string | null;
   fontBody?: string | null;
   headingSizePx?: number | null;
+  headingWeight?: number | null;
   subheadingSizePx?: number | null;
   textSizePx?: number | null;
   messageRadiusPx: number | null;
@@ -510,6 +520,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       quickReplyButtonColor: null,
       quickReplyTextColor: null,
       inputSendButtonColor: null,
+      inputBgColor: null,
+      inputBorderColor: null,
+      inputTextColor: null,
       backdropColor: null,
       backdropColorLight: null,
       backdropColorDark: null,
@@ -522,7 +535,7 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       subheadingSizePx: null,
       textSizePx: null,
       messageRadiusPx: 5,
-      inputRadiusPx: 5,
+      inputRadiusPx: 25,
       panelShadowColor: null,
       panelShadowSize: 0,
     };
@@ -680,6 +693,27 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     buttonPair.lightResolved,
     buttonPair.darkResolved
   );
+  const inputBgPair = resolvePair(
+    "inputBgColorLight",
+    "inputBgColorDark",
+    "inputBgColor",
+    "#fafafa",
+    "#111827"
+  );
+  const inputBorderPair = resolvePair(
+    "inputBorderColorLight",
+    "inputBorderColorDark",
+    "inputBorderColor",
+    "#e5e7eb",
+    "#374151"
+  );
+  const inputTextPair = resolvePair(
+    "inputTextColorLight",
+    "inputTextColorDark",
+    "inputTextColor",
+    textPair.lightResolved,
+    textPair.darkResolved
+  );
   const backdropPair = resolvePair(
     "aishaBackdropColorLight",
     "aishaBackdropColorDark",
@@ -794,6 +828,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     quickReplyButtonColor: byMode(style.quickReplyButtonColor, quickReplyButtonPair.lightResolved, quickReplyButtonPair.darkResolved),
     quickReplyTextColor: byMode(style.quickReplyTextColor, quickReplyTextPair.lightResolved, quickReplyTextPair.darkResolved),
     inputSendButtonColor: byMode(style.inputSendButtonColor, inputSendButtonPair.lightResolved, inputSendButtonPair.darkResolved),
+    inputBgColor: byMode(style.inputBgColor, inputBgPair.lightResolved, inputBgPair.darkResolved),
+    inputBorderColor: byMode(style.inputBorderColor, inputBorderPair.lightResolved, inputBorderPair.darkResolved),
+    inputTextColor: byMode(style.inputTextColor, inputTextPair.lightResolved, inputTextPair.darkResolved),
     assistantBubbleColorLight: textOrNull(assistantBubblePair.lightResolved) || null,
     assistantBubbleColorDark: textOrNull(assistantBubblePair.darkResolved) || null,
     assistantTextColorLight: textOrNull(assistantTextPair.lightResolved) || null,
@@ -812,6 +849,12 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     quickReplyTextColorDark: textOrNull(quickReplyTextPair.darkResolved) || null,
     inputSendButtonColorLight: textOrNull(inputSendButtonPair.lightResolved) || null,
     inputSendButtonColorDark: textOrNull(inputSendButtonPair.darkResolved) || null,
+    inputBgColorLight: textOrNull(inputBgPair.lightResolved) || null,
+    inputBgColorDark: textOrNull(inputBgPair.darkResolved) || null,
+    inputBorderColorLight: textOrNull(inputBorderPair.lightResolved) || null,
+    inputBorderColorDark: textOrNull(inputBorderPair.darkResolved) || null,
+    inputTextColorLight: textOrNull(inputTextPair.lightResolved) || null,
+    inputTextColorDark: textOrNull(inputTextPair.darkResolved) || null,
     backdropColor: byMode(style.aishaBackdropColor, backdropPair.lightResolved, backdropPair.darkResolved),
     backdropColorLight: textOrNull(backdropPair.lightResolved) || null,
     backdropColorDark: textOrNull(backdropPair.darkResolved) || null,
@@ -820,6 +863,9 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     backdropOpacityDark,
     fontHeading: textOrNull(style.fontHeading) || textOrNull(theme.fontHeading) || null,
     fontBody: textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
+    headingWeight: Number.isFinite(Number(style.fontWeightHeading))
+      ? numInRange(style.fontWeightHeading, 100, 900, 500)
+      : null,
     headingSizePx: Number.isFinite(Number(style.headingSize))
       ? numInRange(style.headingSize, 10, 96, 14)
       : 14,
@@ -833,8 +879,8 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
       ? numInRange(style.messageRadius, 0, 32, 5)
       : null,
     inputRadiusPx: Number.isFinite(Number(style.inputRadius))
-      ? numInRange(style.inputRadius, 0, 36, 5)
-      : 5,
+      ? numInRange(style.inputRadius, 0, 36, 25)
+      : 25,
     panelShadowColor: textOrNull(style.shadowColor) || textOrNull(theme.shadowColor) || null,
     panelShadowSize: Number.isFinite(Number(style.shadowSize))
       ? numInRange(style.shadowSize, 0, 40, 0)
@@ -980,9 +1026,18 @@ const createAishaBlock = (): SiteBlock => ({
       buttonRadius: 5,
       quickReplyRadius: 5,
       messageRadius: 5,
-      inputRadius: 5,
+      inputRadius: 25,
       inputSendButtonColorLight: "#111827",
       inputSendButtonColorDark: "#111827",
+      inputBgColorLight: "#fafafa",
+      inputBgColorDark: "#111827",
+      inputBgColor: "#fafafa",
+      inputBorderColorLight: "#e5e7eb",
+      inputBorderColorDark: "#374151",
+      inputBorderColor: "#e5e7eb",
+      inputTextColorLight: "#111827",
+      inputTextColorDark: "#f3f4f6",
+      inputTextColor: "#111827",
       shadowSize: 0,
     },
   },
@@ -1434,7 +1489,28 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
               style.messageRadius = 5;
             }
             if (!Number.isFinite(Number(style.inputRadius))) {
-              style.inputRadius = 5;
+              style.inputRadius = 25;
+            }
+            if (typeof style.inputBgColorLight !== "string" || !style.inputBgColorLight.trim()) {
+              style.inputBgColorLight = "#fafafa";
+              style.inputBgColor = "#fafafa";
+            }
+            if (typeof style.inputBgColorDark !== "string" || !style.inputBgColorDark.trim()) {
+              style.inputBgColorDark = "#111827";
+            }
+            if (typeof style.inputBorderColorLight !== "string" || !style.inputBorderColorLight.trim()) {
+              style.inputBorderColorLight = "#e5e7eb";
+              style.inputBorderColor = "#e5e7eb";
+            }
+            if (typeof style.inputBorderColorDark !== "string" || !style.inputBorderColorDark.trim()) {
+              style.inputBorderColorDark = "#374151";
+            }
+            if (typeof style.inputTextColorLight !== "string" || !style.inputTextColorLight.trim()) {
+              style.inputTextColorLight = "#111827";
+              style.inputTextColor = "#111827";
+            }
+            if (typeof style.inputTextColorDark !== "string" || !style.inputTextColorDark.trim()) {
+              style.inputTextColorDark = "#f3f4f6";
             }
             if (!Number.isFinite(Number(style.buttonRadius)) || Number(style.buttonRadius) === 0 || Number(style.buttonRadius) === 12) {
               style.buttonRadius = 5;
@@ -1450,7 +1526,16 @@ export const normalizeDraft = (value: unknown, accountName?: string): SiteDraft 
             buttonRadius: 5,
             quickReplyRadius: 5,
             messageRadius: 5,
-            inputRadius: 5,
+            inputRadius: 25,
+            inputBgColorLight: "#fafafa",
+            inputBgColorDark: "#111827",
+            inputBgColor: "#fafafa",
+            inputBorderColorLight: "#e5e7eb",
+            inputBorderColorDark: "#374151",
+            inputBorderColor: "#e5e7eb",
+            inputTextColorLight: "#111827",
+            inputTextColorDark: "#f3f4f6",
+            inputTextColor: "#111827",
             shadowSize: 0,
           };
         }

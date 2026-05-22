@@ -613,6 +613,14 @@ export function GenericFlatSettingsPanel(ctx: CrmPanelCtx) {
 
   return (
     <div className="space-y-6 px-1 pb-8 pt-1">
+      {isAisha && (
+        <FlatCheckbox
+          checked={(ctx.block.data as Record<string, unknown>).enabled !== false}
+          onChange={(checked) => updateData(ctx, { enabled: checked })}
+          label="Показывать виджет на сайте"
+        />
+      )}
+
       {!isAisha && (
         <>
           <div>
@@ -850,7 +858,7 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
           <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgLight", ctx.activeTheme.panelColor)} placeholder={ctx.activeTheme.panelColor} onChange={(value) => updateStyle(ctx, { blockBgLight: value, blockBg: value })} onClear={() => updateStyle(ctx, { blockBgLight: "transparent", blockBg: "transparent" })} />
           <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { textColorLight: value, textColor: value })} onClear={() => updateStyle(ctx, { textColorLight: "transparent", textColor: "transparent" })} />
           <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorLight", ctx.activeTheme.mutedColor)} placeholder={ctx.activeTheme.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorLight: value, mutedColor: value })} onClear={() => updateStyle(ctx, { mutedColorLight: "transparent", mutedColor: "transparent" })} />
-          <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorLight", ctx.activeTheme.borderColor)} placeholder={ctx.activeTheme.borderColor} onChange={(value) => updateStyle(ctx, { borderColorLight: value, borderColor: value })} onClear={() => updateStyle(ctx, { borderColorLight: "transparent", borderColor: "transparent" })} />
+          <TildaInlineColorField compact label="Контур" value={color(ctx, "borderColorLight", ctx.activeTheme.borderColor)} placeholder={ctx.activeTheme.borderColor} onChange={(value) => updateStyle(ctx, { borderColorLight: value, borderColor: value })} onClear={() => updateStyle(ctx, { borderColorLight: "transparent", borderColor: "transparent" })} />
           {flatNumber("Скругление виджета", style.radius ?? 10, (value) => updateStyle(ctx, { radius: value }), 0, 36)}
           {flatNumber("Размер тени", style.shadowSize ?? 0, (value) => updateStyle(ctx, { shadowSize: value }), 0, 40)}
           <TildaInlineColorField compact label="Цвет тени" value={color(ctx, "shadowColor", ctx.activeTheme.shadowColor || "rgba(0,0,0,0.16)")} placeholder={ctx.activeTheme.shadowColor || "rgba(0,0,0,0.16)"} onChange={(value) => updateStyle(ctx, { shadowColor: value })} onClear={() => updateStyle(ctx, { shadowColor: "transparent" })} />
@@ -871,7 +879,7 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
             <TildaInlineColorField compact label="Фон окна" value={color(ctx, "blockBgDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { blockBgDark: value })} onClear={() => updateStyle(ctx, { blockBgDark: "transparent" })} />
             <TildaInlineColorField compact label="Основной текст" value={color(ctx, "textColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { textColorDark: value })} onClear={() => updateStyle(ctx, { textColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Вторичный текст" value={color(ctx, "mutedColorDark", ctx.activeTheme.darkPalette.mutedColor)} placeholder={ctx.activeTheme.darkPalette.mutedColor} onChange={(value) => updateStyle(ctx, { mutedColorDark: value })} onClear={() => updateStyle(ctx, { mutedColorDark: "transparent" })} />
-            <TildaInlineColorField compact label="Обводка" value={color(ctx, "borderColorDark", ctx.activeTheme.darkPalette.borderColor)} placeholder={ctx.activeTheme.darkPalette.borderColor} onChange={(value) => updateStyle(ctx, { borderColorDark: value })} onClear={() => updateStyle(ctx, { borderColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Контур" value={color(ctx, "borderColorDark", ctx.activeTheme.darkPalette.borderColor)} placeholder={ctx.activeTheme.darkPalette.borderColor} onChange={(value) => updateStyle(ctx, { borderColorDark: value })} onClear={() => updateStyle(ctx, { borderColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Фон шапки" value={color(ctx, "headerBgColorDark", ctx.activeTheme.darkPalette.panelColor)} placeholder={ctx.activeTheme.darkPalette.panelColor} onChange={(value) => updateStyle(ctx, { headerBgColorDark: value })} onClear={() => updateStyle(ctx, { headerBgColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Текст шапки" value={color(ctx, "headerTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { headerTextColorDark: value })} onClear={() => updateStyle(ctx, { headerTextColorDark: "transparent" })} />
           </div>
@@ -891,9 +899,12 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
           <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorLight", ctx.activeTheme.buttonTextColor)} placeholder={ctx.activeTheme.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorLight: value })} onClear={() => updateStyle(ctx, { clientTextColorLight: "transparent" })} />
         </div>
 
-        <div className="space-y-4 border-t border-[color:var(--bp-stroke)] pt-4">
+        <div className="space-y-4 pt-4">
           <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Поле ввода</div>
-          {flatNumber("Скругление поля ввода", style.inputRadius ?? 5, (value) => updateStyle(ctx, { inputRadius: value }), 0, 36)}
+          <TildaInlineColorField compact label="Цвет поля ввода" value={color(ctx, "inputBgColorLight", "#fafafa")} placeholder="#fafafa" onChange={(value) => updateStyle(ctx, { inputBgColorLight: value, inputBgColor: value })} onClear={() => updateStyle(ctx, { inputBgColorLight: "#fafafa", inputBgColor: "#fafafa" })} />
+          <TildaInlineColorField compact label="Цвет текста" value={color(ctx, "inputTextColorLight", ctx.activeTheme.textColor)} placeholder={ctx.activeTheme.textColor} onChange={(value) => updateStyle(ctx, { inputTextColorLight: value, inputTextColor: value })} onClear={() => updateStyle(ctx, { inputTextColorLight: "transparent", inputTextColor: "transparent" })} />
+          <TildaInlineColorField compact label="Контур" value={color(ctx, "inputBorderColorLight", "#e5e7eb")} placeholder="#e5e7eb" onChange={(value) => updateStyle(ctx, { inputBorderColorLight: value, inputBorderColor: value })} onClear={() => updateStyle(ctx, { inputBorderColorLight: "#e5e7eb", inputBorderColor: "#e5e7eb" })} />
+          {flatNumber("Скругление поля ввода", style.inputRadius ?? 25, (value) => updateStyle(ctx, { inputRadius: value }), 0, 36)}
           <TildaInlineColorField compact label="Цвет кнопки ввода" value={color(ctx, "inputSendButtonColorLight", ctx.activeTheme.buttonColor)} placeholder={ctx.activeTheme.buttonColor} onChange={(value) => updateStyle(ctx, { inputSendButtonColorLight: value, inputSendButtonColor: value })} onClear={() => updateStyle(ctx, { inputSendButtonColorLight: "transparent", inputSendButtonColor: "transparent" })} />
         </div>
 
@@ -904,6 +915,9 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
             <TildaInlineColorField compact label="Текст ассистента" value={color(ctx, "assistantTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { assistantTextColorDark: value })} onClear={() => updateStyle(ctx, { assistantTextColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Цвет сообщения клиента" value={color(ctx, "clientBubbleColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { clientBubbleColorDark: value })} onClear={() => updateStyle(ctx, { clientBubbleColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Текст клиента" value={color(ctx, "clientTextColorDark", ctx.activeTheme.darkPalette.buttonTextColor)} placeholder={ctx.activeTheme.darkPalette.buttonTextColor} onChange={(value) => updateStyle(ctx, { clientTextColorDark: value })} onClear={() => updateStyle(ctx, { clientTextColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет поля ввода" value={color(ctx, "inputBgColorDark", "transparent")} placeholder="transparent" onChange={(value) => updateStyle(ctx, { inputBgColorDark: value })} onClear={() => updateStyle(ctx, { inputBgColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Цвет текста поля" value={color(ctx, "inputTextColorDark", ctx.activeTheme.darkPalette.textColor)} placeholder={ctx.activeTheme.darkPalette.textColor} onChange={(value) => updateStyle(ctx, { inputTextColorDark: value })} onClear={() => updateStyle(ctx, { inputTextColorDark: "transparent" })} />
+            <TildaInlineColorField compact label="Контур поля ввода" value={color(ctx, "inputBorderColorDark", "transparent")} placeholder="transparent" onChange={(value) => updateStyle(ctx, { inputBorderColorDark: value })} onClear={() => updateStyle(ctx, { inputBorderColorDark: "transparent" })} />
             <TildaInlineColorField compact label="Цвет кнопки ввода" value={color(ctx, "inputSendButtonColorDark", ctx.activeTheme.darkPalette.buttonColor)} placeholder={ctx.activeTheme.darkPalette.buttonColor} onChange={(value) => updateStyle(ctx, { inputSendButtonColorDark: value })} onClear={() => updateStyle(ctx, { inputSendButtonColorDark: "transparent" })} />
           </div>
         )}

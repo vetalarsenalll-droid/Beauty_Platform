@@ -278,6 +278,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setVar("--ai-quick-reply-text-dark", widgetConfig?.quickReplyTextColorDark ?? widgetConfig?.quickReplyTextColor);
     setVar("--ai-input-send-button-light", widgetConfig?.inputSendButtonColorLight ?? widgetConfig?.inputSendButtonColor);
     setVar("--ai-input-send-button-dark", widgetConfig?.inputSendButtonColorDark ?? widgetConfig?.inputSendButtonColor);
+    setVar("--ai-input-bg-light", widgetConfig?.inputBgColorLight ?? widgetConfig?.inputBgColor);
+    setVar("--ai-input-bg-dark", widgetConfig?.inputBgColorDark ?? widgetConfig?.inputBgColor);
+    setVar("--ai-input-border-light", widgetConfig?.inputBorderColorLight ?? widgetConfig?.inputBorderColor);
+    setVar("--ai-input-border-dark", widgetConfig?.inputBorderColorDark ?? widgetConfig?.inputBorderColor);
+    setVar("--ai-input-text-light", widgetConfig?.inputTextColorLight ?? widgetConfig?.inputTextColor);
+    setVar("--ai-input-text-dark", widgetConfig?.inputTextColorDark ?? widgetConfig?.inputTextColor);
 
     const pickMode = (light?: string | null, dark?: string | null, base?: string | null) =>
       currentMode === "dark" ? dark ?? light ?? base : light ?? dark ?? base;
@@ -297,6 +303,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     setVar("--ai-quick-reply-button", pickMode(widgetConfig?.quickReplyButtonColorLight, widgetConfig?.quickReplyButtonColorDark, widgetConfig?.quickReplyButtonColor));
     setVar("--ai-quick-reply-text", pickMode(widgetConfig?.quickReplyTextColorLight, widgetConfig?.quickReplyTextColorDark, widgetConfig?.quickReplyTextColor));
     setVar("--ai-input-send-button", pickMode(widgetConfig?.inputSendButtonColorLight, widgetConfig?.inputSendButtonColorDark, widgetConfig?.inputSendButtonColor));
+    setVar("--ai-input-bg", pickMode(widgetConfig?.inputBgColorLight, widgetConfig?.inputBgColorDark, widgetConfig?.inputBgColor));
+    setVar("--ai-input-border", pickMode(widgetConfig?.inputBorderColorLight, widgetConfig?.inputBorderColorDark, widgetConfig?.inputBorderColor));
+    setVar("--ai-input-text", pickMode(widgetConfig?.inputTextColorLight, widgetConfig?.inputTextColorDark, widgetConfig?.inputTextColor));
 
     return vars as CSSProperties;
   }, [widgetConfig, mode, currentMode]);
@@ -316,11 +325,17 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const quickReplyRadius = Math.max(0, Math.min(36, Number(widgetConfig?.quickReplyRadiusPx ?? 5)));
   const messageRadiusStyle = { borderRadius: `${messageRadius}px` };
   const inputRadiusStyle = { borderRadius: `${inputRadius}px` };
+  const inputShellStyle: CSSProperties = {
+    ...inputRadiusStyle,
+    backgroundColor: "var(--ai-input-bg, transparent)",
+    borderColor: "var(--ai-input-border, transparent)",
+  };
   const inputTextareaStyle: CSSProperties = {
     backgroundColor: "transparent",
     border: 0,
     borderRadius: 0,
     boxShadow: "none",
+    color: "var(--ai-input-text, var(--ai-text,#111827))",
     outline: "none",
     WebkitAppearance: "none",
   };
@@ -328,6 +343,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const headingFont = widgetConfig?.fontHeading?.trim() || undefined;
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
+  const headingWeight = Number.isFinite(Number(widgetConfig?.headingWeight)) ? Number(widgetConfig?.headingWeight) : undefined;
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
   const offsetRightPx = Number(widgetConfig?.offsetRightPx ?? 16);
   const offsetBottomPx = Number(widgetConfig?.offsetBottomPx ?? 16);
@@ -733,11 +749,13 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     color: "var(--ai-header-text, var(--ai-text,#111827))",
     fontFamily: headingFont,
     fontSize: `${headingSize}px`,
+    fontWeight: headingWeight,
   };
   const headerActionStyle: CSSProperties = {
     color: "var(--ai-header-text, var(--ai-text,#111827))",
     fontFamily: headingFont,
     fontSize: `${headingSize}px`,
+    fontWeight: headingWeight,
   };
   const contentTextStyle: CSSProperties = {
     fontFamily: bodyFont,
@@ -1251,7 +1269,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
             className={`bg-[color:var(--ai-panel,#fff)] p-3 ${hasWidgetBorder ? "border-t border-[color:var(--ai-border)]" : "border-0"}`}
             style={isFixedMobileFullscreen ? { paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" } : undefined}
           >
-            <div className="relative overflow-hidden bg-transparent" style={inputRadiusStyle}>
+            <div className="relative overflow-hidden border bg-transparent" style={inputShellStyle}>
               <textarea
                 ref={inputRef}
                 value={text}
@@ -1264,7 +1282,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                   }
                 }}
                 placeholder="Введите сообщение"
-                className="block min-h-10 w-full resize-none appearance-none border-0 bg-transparent py-2 pl-3 pr-12 text-sm leading-5 text-[color:var(--ai-text,#111827)] shadow-none outline-none placeholder:text-[color:var(--ai-muted,#6b7280)]"
+                className="block min-h-10 w-full resize-none appearance-none border-0 bg-transparent py-2 pl-3 pr-12 text-sm leading-5 text-[color:var(--ai-input-text,var(--ai-text,#111827))] shadow-none outline-none placeholder:text-[color:var(--ai-input-text,var(--ai-text,#111827))]"
                 style={inputTextareaStyle}
               />
               <button
