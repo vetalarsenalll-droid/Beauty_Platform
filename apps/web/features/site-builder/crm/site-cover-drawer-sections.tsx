@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type { BlockStyle } from "./site-renderer";
 import { TildaInlineColorField } from "./site-editor-panels";
@@ -290,7 +290,7 @@ export function SiteCoverDrawerSections({
           onClick={() => setShowSliderDarkThemeAdvanced((prev) => !prev)}
           className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
           style={{
-            borderColor: showSliderDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+            borderColor: showSliderDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
             backgroundColor: "transparent",
             color: showSliderDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
           }}
@@ -477,7 +477,7 @@ export function SiteCoverDrawerSections({
           onClick={() => setShowButtonDarkThemeAdvanced((prev) => !prev)}
           className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b border-[color:var(--bp-stroke)] px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
           style={{
-            borderColor: showButtonDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+            borderColor: showButtonDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
             backgroundColor: "transparent",
             color: showButtonDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
           }}
@@ -723,4 +723,5 @@ export function SiteCoverDrawerSections({
 
   return null;
 }
+
 

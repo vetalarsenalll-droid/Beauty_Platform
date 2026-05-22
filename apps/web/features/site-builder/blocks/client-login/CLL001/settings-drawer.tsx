@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import type { ReactNode } from "react";
 import { TildaInlineColorField } from "@/features/site-builder/crm/site-editor-panels";
 import { renderCoverFlatNumberInput, renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
@@ -26,7 +26,7 @@ function darkToggle(open: boolean, setOpen: (next: boolean) => void, ctx: CrmPan
       onClick={() => setOpen(!open)}
       className="flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition"
       style={{
-        borderColor: open ? "#ff5a5f" : ctx.panelTheme.border,
+        borderColor: open ? "var(--bp-save-close,var(--bp-accent))" : ctx.panelTheme.border,
         color: open ? ctx.panelTheme.text : ctx.panelTheme.muted,
       }}
     >
@@ -124,3 +124,4 @@ export function ClientLoginSettingsDrawer(ctx: CrmPanelCtx) {
     </div>
   );
 }
+

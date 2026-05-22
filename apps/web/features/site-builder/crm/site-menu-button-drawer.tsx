@@ -205,7 +205,7 @@ export function SiteMenuButtonDrawer({
         onClick={() => setDarkOpen((prev) => !prev)}
         className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
         style={{
-          borderColor: darkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+          borderColor: darkOpen ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
           backgroundColor: "transparent",
           color: darkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
         }}
@@ -258,3 +258,4 @@ export function SiteMenuButtonDrawer({
     </div>
   );
 }
+

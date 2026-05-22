@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { TildaBackgroundColorField, CoverGridWidthControl } from "@/features/site-builder/crm/site-editor-panels";
 import { renderCoverFlatNumberInput } from "@/features/site-builder/crm/cover-settings";
 import {
@@ -189,7 +189,7 @@ export function ClientCabinetSettingsPanel(ctx: CrmPanelCtx) {
         {lineSelect("Отступ снизу", marginBottomLines, (value) => updateCabinetStyle(ctx, { marginBottom: Math.round(value * COVER_LINE_STEP_PX) }))}
       </div>
       <BackgroundField label="Цвет фона для всего блока" prefix="cabinetPageBg" fallback="#eef2f7" style={style} ctx={ctx} />
-      <button type="button" onClick={() => setDarkOpen((prev) => !prev)} className="mt-3 flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition" style={{ borderColor: darkOpen ? "#2F8EEF" : ctx.panelTheme.border, color: darkOpen ? ctx.panelTheme.text : ctx.panelTheme.muted }}>
+      <button type="button" onClick={() => setDarkOpen((prev) => !prev)} className="mt-3 flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition" style={{ borderColor: darkOpen ? "var(--bp-save-close,var(--bp-accent))" : ctx.panelTheme.border, color: darkOpen ? ctx.panelTheme.text : ctx.panelTheme.muted }}>
         <span className="inline-flex items-center gap-2">
           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z" /></svg>
           <span>Темная тема</span>
@@ -205,3 +205,4 @@ export function ClientCabinetSettingsPanel(ctx: CrmPanelCtx) {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
@@ -304,7 +304,7 @@ export function BO001SettingsPanel(ctx: CrmPanelCtx) {
         onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
         className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
         style={{
-          borderColor: showDarkThemeAdvanced ? "#2F8EEF" : panelTheme.border,
+          borderColor: showDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : panelTheme.border,
           backgroundColor: "transparent",
           color: showDarkThemeAdvanced ? panelTheme.text : panelTheme.muted,
         }}
@@ -346,3 +346,4 @@ export function BO001SettingsPanel(ctx: CrmPanelCtx) {
     </div>
   );
 }
+

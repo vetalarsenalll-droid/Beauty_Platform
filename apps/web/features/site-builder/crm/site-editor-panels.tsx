@@ -2704,7 +2704,7 @@ export function BlockStyleEditor({
             onClick={() => setMenuColorsDarkOpen((prev) => !prev)}
             className="mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
             style={{
-              borderColor: menuColorsDarkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: menuColorsDarkOpen ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: menuColorsDarkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -3297,7 +3297,7 @@ export function BlockStyleEditor({
             onClick={() => setCoverTypographyDarkOpen((prev) => !prev)}
             className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
             style={{
-              borderColor: coverTypographyDarkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: coverTypographyDarkOpen ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: coverTypographyDarkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -3634,7 +3634,7 @@ export function BlockStyleEditor({
             onClick={() => setCoverTypographyDarkOpen((prev) => !prev)}
             className="mt-2 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm text-[color:var(--bp-muted)] transition"
             style={{
-              borderColor: coverTypographyDarkOpen ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: coverTypographyDarkOpen ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: coverTypographyDarkOpen ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -3785,5 +3785,6 @@ export function BlockStyleEditor({
     </div>
   );
 }
+
 
 

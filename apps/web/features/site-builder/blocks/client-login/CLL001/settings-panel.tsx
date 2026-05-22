@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { TildaBackgroundColorField, CoverGridWidthControl } from "@/features/site-builder/crm/site-editor-panels";
 import { renderCoverFlatNumberInput } from "@/features/site-builder/crm/cover-settings";
 import {
@@ -214,7 +214,7 @@ export function ClientLoginSettingsPanel(ctx: CrmPanelCtx) {
         onClick={() => setDarkOpen((prev) => !prev)}
         className="mt-3 flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition"
         style={{
-          borderColor: darkOpen ? "#ff5a5f" : ctx.panelTheme.border,
+          borderColor: darkOpen ? "var(--bp-save-close,var(--bp-accent))" : ctx.panelTheme.border,
           color: darkOpen ? ctx.panelTheme.text : ctx.panelTheme.muted,
         }}
       >
@@ -236,3 +236,4 @@ export function ClientLoginSettingsPanel(ctx: CrmPanelCtx) {
     </div>
   );
 }
+

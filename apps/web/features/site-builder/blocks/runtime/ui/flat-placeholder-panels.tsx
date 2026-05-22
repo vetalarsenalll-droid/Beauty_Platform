@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   COVER_LINE_OPTIONS,
   COVER_LINE_STEP_PX,
@@ -189,7 +189,7 @@ function DarkThemeToggle({
       onClick={() => setOpen((prev) => !prev)}
       className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
       style={{
-        borderColor: open ? "#ff5a5f" : "var(--bp-stroke)",
+        borderColor: open ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
         backgroundColor: "transparent",
         color: open ? "var(--bp-ink)" : "var(--bp-muted)",
       }}
@@ -841,3 +841,4 @@ export function GenericFlatDrawers(ctx: CrmPanelCtx) {
     </div>
   );
 }
+

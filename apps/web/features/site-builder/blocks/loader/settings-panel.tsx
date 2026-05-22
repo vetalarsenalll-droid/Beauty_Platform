@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   LEGACY_WIDTH_REFERENCE,
   MAX_BLOCK_COLUMNS,
@@ -74,7 +74,7 @@ function DarkThemeToggle({
       onClick={() => setOpen((prev) => !prev)}
       className="mt-3 flex w-full items-center justify-between border-b px-0 py-2 text-left text-sm transition"
       style={{
-        borderColor: open ? "#ff5a5f" : "var(--bp-stroke)",
+        borderColor: open ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
         backgroundColor: "transparent",
         color: open ? "var(--bp-ink)" : "var(--bp-muted)",
       }}
@@ -220,3 +220,4 @@ export function SharedLoaderSettingsPanel(ctx: CrmPanelCtx) {
     </div>
   );
 }
+

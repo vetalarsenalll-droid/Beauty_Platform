@@ -1,4 +1,4 @@
-import {
+﻿import {
   useRef,
   useState,
 } from "react";
@@ -512,7 +512,7 @@ export function SiteSpecialistsSettingsDrawer({
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
             className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
             style={{
-              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: showDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -729,7 +729,7 @@ export function SiteSpecialistsSettingsDrawer({
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
             className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
             style={{
-              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: showDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -886,7 +886,7 @@ export function SiteSpecialistsSettingsDrawer({
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
             className="mt-3 mb-1 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
             style={{
-              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: showDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -1138,7 +1138,7 @@ export function SiteSpecialistsSettingsDrawer({
             onClick={() => setShowDarkThemeAdvanced((prev) => !prev)}
             className="mb-4 flex w-full items-center justify-between rounded-none border-0 border-b px-0 py-2 text-left text-sm transition"
             style={{
-              borderColor: showDarkThemeAdvanced ? "#ff5a5f" : "var(--bp-stroke)",
+              borderColor: showDarkThemeAdvanced ? "var(--bp-save-close,var(--bp-accent))" : "var(--bp-stroke)",
               backgroundColor: "transparent",
               color: showDarkThemeAdvanced ? "var(--bp-ink)" : "var(--bp-muted)",
             }}
@@ -1180,3 +1180,4 @@ export function SiteSpecialistsSettingsDrawer({
 
   return null;
 }
+
