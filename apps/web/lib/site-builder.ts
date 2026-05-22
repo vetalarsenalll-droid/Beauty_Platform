@@ -568,6 +568,11 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     if (!Number.isFinite(n)) return fallback;
     return Math.min(max, Math.max(min, Math.round(n)));
   };
+  const numberOrNull = (value: unknown) => {
+    if (value === null || typeof value === "undefined" || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
   const textOrNull = (value: unknown) =>
     typeof value === "string" && value.trim() ? value.trim() : null;
   const readColor = (key: string) =>
@@ -897,22 +902,22 @@ export function resolveAishaWidgetConfig(draft: SiteDraft, modeOverride?: "light
     fontHeading: textOrNull(style.fontHeading) || textOrNull(theme.fontHeading) || null,
     fontBody: textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
     widgetButtonTextFont: textOrNull(style.widgetButtonTextFont) || textOrNull(style.fontBody) || textOrNull(theme.fontBody) || null,
-    widgetButtonTextSizePx: Number.isFinite(Number(style.widgetButtonTextSize))
+    widgetButtonTextSizePx: numberOrNull(style.widgetButtonTextSize) !== null
       ? numInRange(style.widgetButtonTextSize, 10, 48, 14)
       : 14,
-    widgetButtonTextWeight: Number.isFinite(Number(style.widgetButtonTextWeight))
+    widgetButtonTextWeight: numberOrNull(style.widgetButtonTextWeight) !== null
       ? numInRange(style.widgetButtonTextWeight, 100, 900, 400)
       : null,
-    headingWeight: Number.isFinite(Number(style.fontWeightHeading))
+    headingWeight: numberOrNull(style.fontWeightHeading) !== null
       ? numInRange(style.fontWeightHeading, 100, 900, 500)
       : null,
-    headingSizePx: Number.isFinite(Number(style.headingSize))
+    headingSizePx: numberOrNull(style.headingSize) !== null
       ? numInRange(style.headingSize, 10, 96, 14)
       : 14,
-    subheadingSizePx: Number.isFinite(Number(style.subheadingSize))
+    subheadingSizePx: numberOrNull(style.subheadingSize) !== null
       ? numInRange(style.subheadingSize, 10, 64, theme.subheadingSize)
       : theme.subheadingSize,
-    textSizePx: Number.isFinite(Number(style.textSize))
+    textSizePx: numberOrNull(style.textSize) !== null
       ? numInRange(style.textSize, 10, 48, theme.textSize)
       : theme.textSize,
     messageRadiusPx: Number.isFinite(Number(style.messageRadius))

@@ -142,6 +142,12 @@ function clampInputLines(value: string, maxLines: number) {
   return lines.slice(0, maxLines).join("\n");
 }
 
+function numberOrUndefined(value: unknown) {
+  if (value === null || typeof value === "undefined" || value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const {
     accountSlug,
@@ -348,9 +354,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
   const bodyFont = widgetConfig?.fontBody?.trim() || undefined;
   const fabTextFont = widgetConfig?.widgetButtonTextFont?.trim() || bodyFont;
   const fabTextSize = Math.max(10, Math.min(48, Number(widgetConfig?.widgetButtonTextSizePx ?? 14)));
-  const fabTextWeight = Number.isFinite(Number(widgetConfig?.widgetButtonTextWeight)) ? Number(widgetConfig?.widgetButtonTextWeight) : undefined;
+  const fabTextWeight = numberOrUndefined(widgetConfig?.widgetButtonTextWeight);
   const headingSize = Math.max(12, Math.min(28, Number(widgetConfig?.headingSizePx ?? 14)));
-  const headingWeight = Number.isFinite(Number(widgetConfig?.headingWeight)) ? Number(widgetConfig?.headingWeight) : undefined;
+  const headingWeight = numberOrUndefined(widgetConfig?.headingWeight);
   const textSize = Math.max(10, Math.min(20, Number(widgetConfig?.textSizePx ?? 14)));
   const offsetRightPx = Number(widgetConfig?.offsetRightPx ?? 16);
   const offsetBottomPx = Number(widgetConfig?.offsetBottomPx ?? 16);
@@ -800,7 +806,7 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
                 type="button"
                 onClick={startNewDialog}
                 disabled={loading}
-                className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50"
+                className="px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-50"
                 style={headerActionStyle}
               >
                 Новый диалог
@@ -808,10 +814,14 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-2 py-1 text-xs text-[color:var(--ai-muted,#6b7280)] hover:bg-black/5"
+                className="inline-flex h-7 w-7 items-center justify-center text-[color:var(--ai-muted,#6b7280)] transition-opacity hover:opacity-70"
                 style={headerActionStyle}
+                aria-label="Закрыть"
+                title="Закрыть"
               >
-                Закрыть
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
               </button>
             </div>
           </div>
