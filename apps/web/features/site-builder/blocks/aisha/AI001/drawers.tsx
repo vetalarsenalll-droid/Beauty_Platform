@@ -5,7 +5,7 @@ import {
   color,
   flatNumber,
   updateStyle,
-} from "../../runtime/ui/flat-placeholder-panels";
+} from "../../runtime/ui/flat-panel-helpers";
 import { TildaInlineColorField } from "@/features/site-builder/crm/site-editor-panels";
 import { normalizeBlockStyle, type BlockStyle } from "@/features/site-builder/crm/site-renderer";
 import type { CrmPanelCtx } from "../../runtime/contracts";

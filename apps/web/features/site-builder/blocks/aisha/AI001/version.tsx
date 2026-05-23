@@ -1,14 +1,32 @@
 import type { BlockVersion } from "../../runtime/contracts";
-import { makeGenericVersion } from "../../runtime/ui/generic-version";
+import { makeBlockId, type SiteBlock } from "@/lib/site-builder";
+import { defaultBlockData, defaultBlockStyle } from "@/features/site-builder/crm/site-client-core";
 import { AI001ContentPanel } from "./content-panel";
 import { AI001Drawers } from "./drawers";
 import { AI001SettingsPanel } from "./settings-panel";
 
-const base = makeGenericVersion("AI001", "aisha", "v1");
-
 export const AI001 = {
-  ...base,
+  blockCode: "AI001",
+  normalizeData: (input) => (typeof input === "object" && input ? (input as Record<string, unknown>) : {}),
+  createDefault: ({ accountName }) => {
+    const base = (defaultBlockData.aisha ?? {}) as Record<string, unknown>;
+    const baseStyle =
+      typeof base.style === "object" && base.style ? (base.style as Record<string, unknown>) : {};
+    return {
+      id: makeBlockId(),
+      type: "aisha",
+      variant: "v1",
+      data: {
+        ...base,
+        title: typeof base.title === "string" ? base.title : accountName,
+        style: { ...defaultBlockStyle, ...baseStyle },
+      },
+    } satisfies SiteBlock;
+  },
+  renderCRM: () => "",
+  renderPublic: () => "",
   contentPanel: (ctx) => <AI001ContentPanel {...ctx} />,
   settingsPanel: (ctx) => <AI001SettingsPanel {...ctx} />,
   drawers: (ctx) => <AI001Drawers {...ctx} />,
+  actions: () => {},
 } satisfies BlockVersion;

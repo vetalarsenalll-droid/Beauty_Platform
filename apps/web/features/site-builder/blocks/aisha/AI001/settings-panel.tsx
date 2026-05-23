@@ -11,7 +11,7 @@ import {
   readRawString,
   updateData,
   updateStyle,
-} from "../../runtime/ui/flat-placeholder-panels";
+} from "../../runtime/ui/flat-panel-helpers";
 
 export function AI001SettingsPanel(ctx: CrmPanelCtx) {
   const [showDarkTheme, setShowDarkTheme] = useState(false);

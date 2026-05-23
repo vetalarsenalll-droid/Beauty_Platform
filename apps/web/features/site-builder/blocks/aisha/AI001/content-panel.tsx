@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
-import { flatNumber, textValue, updateData } from "../../runtime/ui/flat-placeholder-panels";
+import { flatNumber, textValue, updateData } from "../../runtime/ui/flat-panel-helpers";
 
 type AishaAssetOption = { name: string; label: string; url: string };
 type PreviewBounds = { left: number; top: number; width: number; height: number };
