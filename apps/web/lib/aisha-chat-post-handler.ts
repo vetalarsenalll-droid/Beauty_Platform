@@ -14,6 +14,7 @@ import { handleClientActionsDomain } from "@/lib/aisha-handle-client-actions";
 import { handleBookingDomain } from "@/lib/aisha-handle-booking";
 import { handleChatOnlyDomain } from "@/lib/aisha-handle-chat-only";
 import { runWithAiUsageContext } from "@/lib/ai-usage";
+import { checkAiAccessAllowed } from "@/lib/ai-billing";
 import type { Action } from "@/lib/aisha-chat-types";
 import { applyRouteDecisionGuards } from "@/lib/aisha-route-contract";
 import { apiData } from "@/lib/booking-tools";
@@ -128,6 +129,11 @@ export async function handlePublicAiChatPost(request: Request) {
   if (!resolved.account) return failSoft("account_not_found");
 
   try {
+    const aiAccess = await checkAiAccessAllowed(resolved.account.id, "public_site", { actionId: turnAction.id });
+    if (!aiAccess.allowed) {
+      return failSoft(aiAccess.reason ?? "ai_access_denied");
+    }
+
     return await runWithAiUsageContext(
       { accountId: resolved.account.id, threadId: thread.id, actionId: turnAction.id },
       async () => {

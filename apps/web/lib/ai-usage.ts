@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { getGlobalAiNumberSetting } from "@/lib/ai-settings";
 import { prisma } from "@/lib/prisma";
 
 type AiUsageContext = {
@@ -42,6 +43,10 @@ export function runWithAiUsageContext<T>(context: AiUsageContext, fn: () => Prom
   return usageContext.run(context, fn);
 }
 
+export function getAiUsageContext() {
+  return usageContext.getStore() ?? null;
+}
+
 export async function recordAiUsage(input: AiUsageInput) {
   const context = usageContext.getStore();
   const totalTokens = input.usage.totalTokens ?? 0;
@@ -50,8 +55,14 @@ export async function recordAiUsage(input: AiUsageInput) {
 
   if (!Number.isFinite(totalTokens) || totalTokens <= 0) return;
 
-  const packageRub = readPositiveNumber(process.env.GIGACHAT_PACKAGE_RUB, DEFAULT_GIGACHAT_PACKAGE_RUB);
-  const packageTokens = readPositiveNumber(process.env.GIGACHAT_PACKAGE_TOKENS, DEFAULT_GIGACHAT_PACKAGE_TOKENS);
+  const packageRub = await getGlobalAiNumberSetting(
+    "gigachat.packageRub",
+    readPositiveNumber(process.env.GIGACHAT_PACKAGE_RUB, DEFAULT_GIGACHAT_PACKAGE_RUB),
+  );
+  const packageTokens = await getGlobalAiNumberSetting(
+    "gigachat.packageTokens",
+    readPositiveNumber(process.env.GIGACHAT_PACKAGE_TOKENS, DEFAULT_GIGACHAT_PACKAGE_TOKENS),
+  );
   const costPerTokenRub = packageRub / packageTokens;
   const markupPercent = readMarkupPercent();
   const costRub = totalTokens * costPerTokenRub;

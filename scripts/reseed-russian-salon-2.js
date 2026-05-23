@@ -164,6 +164,17 @@ async function ensurePermissions() {
     "crm.promos.read",
     "crm.loyalty.read",
     "crm.analytics.read",
+    "crm.assistant.read",
+    "crm.assistant.manage",
+    "crm.assistant.site.read",
+    "crm.assistant.site.manage",
+    "crm.assistant.dialogs.read",
+    "crm.assistant.analytics.read",
+    "crm.assistant.billing.read",
+    "crm.assistant.billing.manage",
+    "crm.assistant.agent.use",
+    "crm.assistant.agent.write",
+    "crm.assistant.logs.read",
     "crm.settings.read",
     "crm.settings.update",
   ];
@@ -181,6 +192,20 @@ async function ensurePermissions() {
     update: {},
     create: { key: "platform.all", description: "Полный доступ платформы" },
   });
+  for (const key of [
+    "platform.ai.read",
+    "platform.ai.manage",
+    "platform.ai.packages.manage",
+    "platform.ai.accounts.manage",
+    "platform.ai.usage.read",
+    "platform.ai.ledger.manage",
+  ]) {
+    await prisma.platformPermission.upsert({
+      where: { key },
+      update: {},
+      create: { key, description: key },
+    });
+  }
 }
 
 async function resolveOwnerUser() {

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { recordAiUsage } from "@/lib/ai-usage";
+import { checkAiAccessAllowed } from "@/lib/ai-billing";
+import { getGlobalAiSetting } from "@/lib/ai-settings";
+import { getAiUsageContext, recordAiUsage } from "@/lib/ai-usage";
 
 type ChatRole = "system" | "user" | "assistant";
 
@@ -21,6 +23,7 @@ type GigaChatCompletionResult = {
 
 type GigaChatCompletionOptions = {
   purpose?: string;
+  scope?: "public_site" | "crm_agent";
 };
 
 type OAuthResponse = {
@@ -99,8 +102,8 @@ function resolveChatUrl() {
   return process.env.GIGACHAT_API_URL?.trim() || DEFAULT_CHAT_URL;
 }
 
-function resolveModel() {
-  return process.env.GIGACHAT_MODEL?.trim() || DEFAULT_MODEL;
+async function resolveModel() {
+  return (await getGlobalAiSetting("gigachat.model")) || process.env.GIGACHAT_MODEL?.trim() || DEFAULT_MODEL;
 }
 
 async function fetchAccessToken(): Promise<string> {
@@ -159,7 +162,7 @@ async function fetchAccessToken(): Promise<string> {
 }
 
 async function requestCompletion(messages: ChatMessage[], accessToken: string) {
-  const model = resolveModel();
+  const model = await resolveModel();
   return withGigaChatNetworkEnv(() =>
     fetch(resolveChatUrl(), {
       method: "POST",
@@ -185,6 +188,16 @@ export async function createGigaChatCompletion(
   messages: ChatMessage[],
   options: GigaChatCompletionOptions = {},
 ): Promise<GigaChatCompletionResult> {
+  const usageContext = getAiUsageContext();
+  if (usageContext?.accountId) {
+    const access = await checkAiAccessAllowed(usageContext.accountId, options.scope ?? "public_site", {
+      actionId: usageContext.actionId,
+    });
+    if (!access.allowed) {
+      throw new Error(`AI access denied: ${access.reason ?? "ai_access_denied"}`);
+    }
+  }
+
   let accessToken = await fetchAccessToken();
   let response: Response;
 
@@ -228,7 +241,7 @@ export async function createGigaChatCompletion(
 
   const result = {
     content,
-    model: payload.model || resolveModel(),
+    model: payload.model || (await resolveModel()),
     finishReason: choice?.finish_reason ?? null,
     usage: {
       promptTokens: payload.usage?.prompt_tokens ?? null,

@@ -29,7 +29,6 @@ import {
   SectionButton,
   color,
   flatNumber,
-  flatPercentSelect,
   rawStyle,
   readRawString,
   textValue,

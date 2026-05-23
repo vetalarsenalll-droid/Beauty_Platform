@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
@@ -80,7 +81,6 @@ function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(!aishaAssetListCache[endpoint]);
     loadAssetItems(endpoint).then((nextItems) => {
       if (!cancelled) {
         setItems(nextItems);
@@ -131,7 +131,7 @@ function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
                     aria-label={`Выбрать иконку ${item.label}`}
                     title={item.label}
                   >
-                    <img src={item.url} alt="" className="max-h-full max-w-full object-contain" />
+                    <Image src={item.url} alt="" width={64} height={64} unoptimized className="max-h-full max-w-full object-contain" />
                   </button>
                 );
               })}
@@ -179,7 +179,6 @@ function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(!aishaAssetListCache[endpoint]);
     loadAssetItems(endpoint).then((nextItems) => {
       if (!cancelled) {
         setItems(nextItems);
@@ -238,7 +237,7 @@ function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
                       }`}
                       aria-label={`Выбрать фон ${item.label}`}
                     >
-                      <img src={item.url} alt="" className="h-full w-full object-cover" />
+                      <Image src={item.url} alt="" fill sizes="128px" unoptimized className="object-cover" />
                       <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-left text-[10px] font-semibold text-white">
                         {item.label}
                       </span>
@@ -282,9 +281,12 @@ function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
         >
           <div className="flex h-full w-full items-center justify-center" onClick={(event) => event.stopPropagation()}>
             <div className="relative inline-block max-h-full max-w-full overflow-hidden rounded-md shadow-2xl">
-              <img
+              <Image
                 src={previewItem.url}
                 alt={previewItem.label}
+                width={720}
+                height={1008}
+                unoptimized
                 className="block max-w-full object-contain"
                 style={{ maxHeight: previewBounds ? Math.max(80, previewBounds.height - 48) : "calc(100vh - 48px)" }}
               />

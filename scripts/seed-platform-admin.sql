@@ -14,6 +14,17 @@ VALUES
 ON CONFLICT ("key") DO UPDATE
 SET "description" = EXCLUDED."description";
 
+INSERT INTO "PlatformPermission" ("key", "description", "createdAt")
+VALUES
+  ('platform.ai.read', 'Просмотр AI-раздела платформы', NOW()),
+  ('platform.ai.manage', 'Управление AI-разделом платформы', NOW()),
+  ('platform.ai.packages.manage', 'Управление AI-пакетами', NOW()),
+  ('platform.ai.accounts.manage', 'Управление AI-доступом аккаунтов', NOW()),
+  ('platform.ai.usage.read', 'Просмотр глобального AI-расхода', NOW()),
+  ('platform.ai.ledger.manage', 'Управление AI-балансами и движениями', NOW())
+ON CONFLICT ("key") DO UPDATE
+SET "description" = EXCLUDED."description";
+
 INSERT INTO "User" ("email", "status", "type", "createdAt", "updatedAt")
 VALUES ('admin@beauty.local', 'ACTIVE', 'STAFF', NOW(), NOW())
 ON CONFLICT ("email") DO UPDATE

@@ -49,4 +49,20 @@ VALUES
 ON CONFLICT ("key") DO UPDATE
 SET "description" = EXCLUDED."description";
 
+INSERT INTO "Permission" ("key", "description", "createdAt")
+VALUES
+  ('crm.assistant.read', 'Просмотр раздела Ассистент', NOW()),
+  ('crm.assistant.manage', 'Управление AI-ассистентом', NOW()),
+  ('crm.assistant.site.read', 'Просмотр настроек ассистента на сайте', NOW()),
+  ('crm.assistant.site.manage', 'Управление ассистентом на сайте', NOW()),
+  ('crm.assistant.dialogs.read', 'Просмотр диалогов AI-ассистента', NOW()),
+  ('crm.assistant.analytics.read', 'Просмотр аналитики AI-ассистента', NOW()),
+  ('crm.assistant.billing.read', 'Просмотр AI-баланса и списаний', NOW()),
+  ('crm.assistant.billing.manage', 'Покупка AI-пакетов и управление AI-балансом', NOW()),
+  ('crm.assistant.agent.use', 'Использование CRM AI-агента', NOW()),
+  ('crm.assistant.agent.write', 'Подтверждение действий CRM AI-агента', NOW()),
+  ('crm.assistant.logs.read', 'Просмотр технических AI-логов', NOW())
+ON CONFLICT ("key") DO UPDATE
+SET "description" = EXCLUDED."description";
+
 COMMIT;

@@ -2254,6 +2254,71 @@ model AiBalanceLedger {
   @@index([type])
 }
 
+model AiProviderPool {
+  id             Int      @id @default(autoincrement())
+  provider       String
+  model          String
+  packageTokens  Int
+  packageCostRub Decimal  @db.Decimal(18, 2)
+  isActive       Boolean  @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([provider, model])
+  @@index([isActive])
+}
+
+model AiAccessPackage {
+  id                Int      @id @default(autoincrement())
+  code              String   @unique
+  name              String
+  includedCreditRub Decimal  @db.Decimal(18, 2)
+  displayTokens     Int?
+  priceRub          Decimal  @db.Decimal(18, 2)
+  isActive          Boolean  @default(true)
+  archivedAt        DateTime?
+  sortOrder         Int      @default(0)
+  description       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model AiAccessPurchase {
+  id        Int       @id @default(autoincrement())
+  accountId Int
+  packageId Int?
+  invoiceId Int?
+  amountRub Decimal   @db.Decimal(18, 2)
+  creditRub Decimal   @db.Decimal(18, 2)
+  status    String
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  @@index([accountId, createdAt])
+  @@index([packageId])
+  @@index([invoiceId])
+  @@index([status])
+}
+
+model AiAccountAccess {
+  id                     Int      @id @default(autoincrement())
+  accountId              Int      @unique
+  aiEnabled              Boolean  @default(true)
+  siteAssistantEnabled   Boolean  @default(true)
+  crmAgentEnabled        Boolean  @default(false)
+  dailySpendLimitRub     Decimal? @db.Decimal(18, 2)
+  monthlySpendLimitRub   Decimal? @db.Decimal(18, 2)
+  minBalanceNotifyRub    Decimal? @db.Decimal(18, 2)
+  stopWhenBalanceBelowRub Decimal? @db.Decimal(18, 2)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
 model AiLog {
   id        Int      @id @default(autoincrement())
   actionId  Int?

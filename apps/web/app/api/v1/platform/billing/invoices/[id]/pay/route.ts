@@ -37,6 +37,15 @@ export async function POST(_request: Request, { params }: Params) {
     return jsonOk({ status: "PAID" });
   }
 
+  const aiPurchases = await prisma.$queryRaw<
+    Array<{ id: number; accountId: number; creditRub: { toString(): string }; status: string }>
+  >`
+    SELECT "id", "accountId", "creditRub", "status"
+    FROM "AiAccessPurchase"
+    WHERE "invoiceId" = ${invoice.id}
+  `;
+  const isAiInvoice = aiPurchases.length > 0;
+
   const payment = await prisma.platformPayment.create({
     data: {
       invoiceId: invoice.id,
@@ -54,7 +63,23 @@ export async function POST(_request: Request, { params }: Params) {
     data: { status: "PAID", paidAt },
   });
 
-  if (invoice.subscriptionId) {
+  if (isAiInvoice) {
+    for (const purchase of aiPurchases.filter((item) => item.status !== "PAID")) {
+      await prisma.$executeRaw`
+        UPDATE "AiAccessPurchase"
+        SET "status" = 'PAID', "paidAt" = NOW()
+        WHERE "id" = ${purchase.id}
+      `;
+      await prisma.aiBalanceLedger.create({
+        data: {
+          accountId: purchase.accountId,
+          type: "purchase",
+          amountRub: Number(purchase.creditRub).toFixed(6),
+          comment: `AI invoice #${invoice.id}`,
+        },
+      });
+    }
+  } else if (invoice.subscriptionId) {
     await prisma.platformSubscription.update({
       where: { id: invoice.subscriptionId },
       data: {

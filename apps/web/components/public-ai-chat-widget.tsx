@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
 
@@ -1532,9 +1533,12 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
               className="ai-fab-icon-shell relative isolate inline-flex shrink-0 items-center justify-center"
               style={{ width: `${widgetIconSizePx}px`, height: `${widgetIconSizePx}px` }}
             >
-              <img
+              <Image
                 src={widgetIconImageUrl}
                 alt=""
+                width={widgetIconSizePx}
+                height={widgetIconSizePx}
+                unoptimized
                 className="relative z-[1] h-full w-full object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.25)]"
               />
             </span>

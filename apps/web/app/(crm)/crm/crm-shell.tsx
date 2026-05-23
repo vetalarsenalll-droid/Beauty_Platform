@@ -89,6 +89,12 @@ const NAV_ITEMS: NavItem[] = [
     permission: "crm.analytics.read",
   },
   {
+    label: "Ассистент",
+    href: "/crm/assistant",
+    icon: <IconSpark />,
+    permission: "crm.assistant.read",
+  },
+  {
     label: "Сайт",
     href: "/crm/site",
     icon: <IconLayout />,
@@ -775,6 +781,16 @@ function IconPulse() {
   return (
     <IconBase>
       <path d="M3 12h4l2-5 4 10 2-5h4" />
+    </IconBase>
+  );
+}
+
+function IconSpark() {
+  return (
+    <IconBase>
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z" />
+      <path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9Z" />
+      <path d="M5 14l.7 1.6L7.5 16l-1.8.4L5 18l-.7-1.6L2.5 16l1.8-.4Z" />
     </IconBase>
   );
 }
