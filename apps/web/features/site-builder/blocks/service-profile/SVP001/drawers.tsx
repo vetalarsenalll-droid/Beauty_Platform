@@ -1,1 +1,1 @@
-export { GenericFlatDrawers as SVP001Drawers } from "../../runtime/ui/flat-placeholder-panels";
+export { ProfileDrawers as SVP001Drawers } from "../../profile-shared/drawers";

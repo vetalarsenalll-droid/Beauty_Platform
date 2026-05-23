@@ -1,1 +1,6 @@
-export { GenericFlatContentPanel as SPP001ContentPanel } from "../../runtime/ui/flat-placeholder-panels";
+import type { CrmPanelCtx } from "../../runtime/contracts";
+import { ProfileContentPanel } from "../../profile-shared/content-panel";
+
+export function SPP001ContentPanel(ctx: CrmPanelCtx) {
+  return <ProfileContentPanel {...ctx} profileType="specialistProfile" />;
+}

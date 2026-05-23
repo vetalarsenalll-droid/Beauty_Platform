@@ -354,47 +354,6 @@ export function GenericFlatContentPanel(ctx: CrmPanelCtx) {
         </>
       )}
 
-      {ctx.block.type === "locationProfile" && (
-        <>
-          {commonTitle("Заголовок")}
-          <FlatSelect
-            label="Локация"
-            value={data.locationId ? String(data.locationId) : ""}
-            options={entityOptions(ctx.locations, "Автоматически")}
-            onChange={(value) => updateData(ctx, { locationId: value ? Number(value) : null })}
-          />
-          <FlatCheckbox checked={data.showServices !== false} onChange={(checked) => updateData(ctx, { showServices: checked })} label="Показывать услуги" />
-          <FlatCheckbox checked={data.showSpecialists !== false} onChange={(checked) => updateData(ctx, { showSpecialists: checked })} label="Показывать специалистов" />
-        </>
-      )}
-
-      {ctx.block.type === "serviceProfile" && (
-        <>
-          {commonTitle("Заголовок")}
-          <FlatSelect
-            label="Услуга"
-            value={data.serviceId ? String(data.serviceId) : ""}
-            options={entityOptions(ctx.services, "Автоматически")}
-            onChange={(value) => updateData(ctx, { serviceId: value ? Number(value) : null })}
-          />
-          <FlatCheckbox checked={data.showSpecialists !== false} onChange={(checked) => updateData(ctx, { showSpecialists: checked })} label="Показывать специалистов" />
-          <FlatCheckbox checked={data.showBookingButton !== false} onChange={(checked) => updateData(ctx, { showBookingButton: checked })} label="Показывать кнопку записи" />
-        </>
-      )}
-
-      {ctx.block.type === "specialistProfile" && (
-        <>
-          {commonTitle("Заголовок")}
-          <FlatSelect
-            label="Специалист"
-            value={data.specialistId ? String(data.specialistId) : ""}
-            options={entityOptions(ctx.specialists, "Автоматически")}
-            onChange={(value) => updateData(ctx, { specialistId: value ? Number(value) : null })}
-          />
-          <FlatCheckbox checked={data.showServices !== false} onChange={(checked) => updateData(ctx, { showServices: checked })} label="Показывать услуги" />
-          <FlatCheckbox checked={data.showBookingButton !== false} onChange={(checked) => updateData(ctx, { showBookingButton: checked })} label="Показывать кнопку записи" />
-        </>
-      )}
     </div>
   );
 }
