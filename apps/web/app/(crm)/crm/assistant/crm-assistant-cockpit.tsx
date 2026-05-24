@@ -656,6 +656,41 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
     }
   }
 
+  async function moveThreadGroup(id: number, direction: -1 | 1) {
+    if (busy) return;
+    const ordered = [...threadGroups].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+    const index = ordered.findIndex((group) => group.id === id);
+    const swapIndex = index + direction;
+    if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return;
+
+    const current = ordered[index];
+    const target = ordered[swapIndex];
+    const currentOrder = current.sortOrder;
+    const targetOrder = target.sortOrder;
+    setBusy(true);
+    setError(null);
+    try {
+      const [currentResponse, targetResponse] = await Promise.all([
+        fetch(`/api/v1/crm/assistant/thread-groups/${current.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: targetOrder }),
+        }),
+        fetch(`/api/v1/crm/assistant/thread-groups/${target.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: currentOrder }),
+        }),
+      ]);
+      if (!currentResponse.ok || !targetResponse.ok) throw new Error("Не удалось изменить порядок групп.");
+      await loadThreads();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ошибка сортировки групп.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function deleteThreadGroup(id: number) {
     if (busy) return;
     setBusy(true);
@@ -875,7 +910,7 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
                   No group
                 </button>
               </div>
-              {threadGroups.slice(0, 5).map((group) => (
+              {threadGroups.map((group, index) => (
                 <div key={group.id} className="flex items-center gap-1 rounded-md bg-[color:var(--bp-bg)] px-2 py-1">
                   {editingGroupId === group.id ? (
                     <>
@@ -891,6 +926,24 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
                   ) : (
                     <>
                       <button type="button" onClick={() => setSelectedThreadGroupId(group.id)} className={`min-w-0 flex-1 truncate text-left text-[11px] ${selectedThreadGroupId === group.id ? "font-medium text-[color:var(--bp-text)]" : "text-[color:var(--bp-muted)]"}`}>{group.title}</button>
+                      <button
+                        type="button"
+                        onClick={() => moveThreadGroup(group.id, -1)}
+                        disabled={busy || index === 0}
+                        className="text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-text)] disabled:opacity-40"
+                        aria-label="Move group up"
+                      >
+                        Up
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveThreadGroup(group.id, 1)}
+                        disabled={busy || index === threadGroups.length - 1}
+                        className="text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-text)] disabled:opacity-40"
+                        aria-label="Move group down"
+                      >
+                        Down
+                      </button>
                       <button
                         type="button"
                         onClick={() => {

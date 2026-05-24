@@ -288,6 +288,61 @@ function parseWorkTimeRange(message: string) {
   };
 }
 
+function parseAppointmentLookupRange(message: string) {
+  const text = normalizeCrmText(message);
+  const today = startOfLocalDay(new Date());
+  if (/\b(сегодня|сегодняшн)\b/u.test(text) && /\b(завтра|завтрашн)\b/u.test(text)) {
+    return { dateFrom: today, dateTo: addLocalDays(today, 1), label: "за сегодня и завтра" };
+  }
+  if (/\b(сегодня|сегодняшн)\b/u.test(text)) {
+    return { dateFrom: today, dateTo: today, label: "за сегодня" };
+  }
+  if (/\b(вчера|вчерашн)\b/u.test(text)) {
+    const yesterday = addLocalDays(today, -1);
+    return { dateFrom: yesterday, dateTo: yesterday, label: "за вчера" };
+  }
+  if (/\b(завтра|завтрашн)\b/u.test(text)) {
+    const tomorrow = addLocalDays(today, 1);
+    return { dateFrom: tomorrow, dateTo: tomorrow, label: "на завтра" };
+  }
+  if (/\b(прошл|последн)\w*\s+недел|\bнедел[юеи]\b/u.test(text)) {
+    return { dateFrom: addLocalDays(today, -7), dateTo: today, label: "за последнюю неделю" };
+  }
+  const numeric = text.match(/\b(\d{1,2})[.\-/](\d{1,2})(?:[.\-/](\d{2,4}))?\b/u);
+  if (numeric) {
+    const day = Number(numeric[1]);
+    const month = Number(numeric[2]);
+    const rawYear = numeric[3] ? Number(numeric[3]) : today.getFullYear();
+    const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+    const date = startOfLocalDay(new Date(year, month - 1, day));
+    if (!Number.isNaN(date.getTime())) return { dateFrom: date, dateTo: date, label: `за ${date.toLocaleDateString("ru-RU")}` };
+  }
+  if (/\b(сколько|какие|какое|что за|покажи|были|было|посещени|визит|запис)\b/u.test(text)) {
+    return { dateFrom: today, dateTo: addLocalDays(today, 1), label: "за сегодня и завтра" };
+  }
+  return null;
+}
+
+function isAppointmentLookupMessage(message: string) {
+  const text = normalizeCrmText(message);
+  if (/\b(запиши|создай|перенеси|отмени|сними|удали)\b/u.test(text)) return false;
+  return /\b(запис|визит|посещени|прием|приём)\b/u.test(text) && /\b(сколько|какие|какое|что за|покажи|найди|были|было|прошл|последн|сегодня|завтра|вчера|недел)\b/u.test(text);
+}
+
+function appointmentCardDetails(cards: CrmAgentCard[]) {
+  return cards
+    .filter((card) => card.type === "appointment")
+    .slice(0, 8)
+    .map((card, index) => {
+      const data = isRecordValue(card.data) ? card.data : {};
+      const start = typeof data.startAt === "string" ? new Date(data.startAt) : null;
+      const startText = start && !Number.isNaN(start.getTime())
+        ? start.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+        : null;
+      return `${index + 1}. ${[card.title, startText, card.subtitle, ...(card.meta ?? [])].filter(Boolean).join(" - ")}`;
+    });
+}
+
 function inferReadToolName(message: string) {
   const text = message.toLocaleLowerCase("ru-RU");
   if (/(свободн|окн|слот|окошк|какое время|какие дни)/i.test(text)) return "appointments.findAvailableSlots";
@@ -876,6 +931,62 @@ async function executeDeterministicFallback(input: {
   };
 }
 
+async function executeAppointmentLookupFromText(input: {
+  accountId: number;
+  runId: number;
+  threadId: number;
+  message: string;
+  scope: CrmAgentScope;
+  threadState: unknown;
+}): Promise<ContinuationExecution | null> {
+  const text = normalizeCrmText(input.message);
+  const previousAppointmentCards = parseStoredCards(input.threadState).filter((card) => card.type === "appointment");
+  if (previousAppointmentCards.length && /\b(какое|какие|что за|подробн|например)\b/u.test(text)) {
+    const details = appointmentCardDetails(previousAppointmentCards);
+    return {
+      selectedEntity: previousAppointmentCards.length === 1 ? { type: "appointment", id: previousAppointmentCards[0].id } : null,
+      execution: {
+        selectedToolName: null,
+        toolResult: toJsonValue({ appointments: previousAppointmentCards.map((card) => card.data).filter(Boolean) }),
+        answer: details.length ? `Вот что нашёл по этим посещениям:\n${details.join("\n")}` : "В прошлом ответе не сохранились детали посещения. Уточните период, и я покажу записи карточками.",
+      },
+    };
+  }
+
+  if (!isAppointmentLookupMessage(input.message)) return null;
+  const range = parseAppointmentLookupRange(input.message);
+  if (!range) return null;
+  const tool = getCrmAgentTool("appointments.search");
+  if (!tool || tool.mode !== "read") return null;
+  const args = {
+    dateFrom: isoDateOnly(range.dateFrom),
+    dateTo: endOfLocalDay(range.dateTo).toISOString(),
+    take: 50,
+  };
+  const result = await runReadTool({
+    tool,
+    args,
+    scope: input.scope,
+    accountId: input.accountId,
+    runId: input.runId,
+    threadId: input.threadId,
+  });
+  const object = isRecordValue(result) ? result : null;
+  const appointments = Array.isArray(object?.appointments) ? object.appointments : [];
+  const count = appointments.length;
+  return {
+    selectedEntity: null,
+    execution: {
+      selectedToolName: tool.name,
+      toolResult: result,
+      answer: count
+        ? `Нашёл ${count} ${count === 1 ? "запись" : count < 5 ? "записи" : "записей"} ${range.label}. Показываю детали карточками ниже.`
+        : `За ${range.label.replace(/^за\s+/u, "")} записей не нашёл.`,
+      observations: [{ step: 1, toolName: tool.name, args, result: compactJsonValue(result), error: null }],
+    },
+  };
+}
+
 async function findBestClient(accountId: number, message: string, cards: CrmAgentCard[], selected: CrmAgentCard | null) {
   const explicit = message.match(/(?:client|клиент[ау]?|клиента)\s*[#№]\s*(\d+)/iu);
   if (explicit) return { id: Number(explicit[1]), title: `#${explicit[1]}` };
@@ -979,6 +1090,188 @@ function clarificationExecution(question: string, options: Array<{ label: string
     selectedToolName: null,
     toolResult: toJsonValue({ clarification: { question, options } }),
     answer: options.length ? `${question}\n${options.map((option, index) => `${index + 1}. ${option.label}`).join("\n")}` : question,
+  };
+}
+
+function quotedValue(message: string) {
+  const match = message.match(/[«"]([^»"]+)[»"]/u);
+  return match?.[1]?.trim() || null;
+}
+
+function textAfterAny(message: string, markers: string[]) {
+  for (const marker of markers) {
+    const index = normalizeCrmText(message).indexOf(normalizeCrmText(marker));
+    if (index >= 0) {
+      const raw = message.slice(index + marker.length).replace(/^[:\s-]+/u, "").trim();
+      if (raw) return raw;
+    }
+  }
+  return null;
+}
+
+function parseMoneyLike(message: string) {
+  const match = normalizeCrmText(message).match(/\b(?:цена|стоимость|прайс|за)\s*(\d{2,7})(?:[.,](\d{1,2}))?\b/u) ?? normalizeCrmText(message).match(/\b(\d{2,7})(?:[.,](\d{1,2}))?\s*(?:руб|₽|р)\b/u);
+  if (!match) return null;
+  return `${match[1]}${match[2] ? `.${match[2].padEnd(2, "0")}` : ".00"}`;
+}
+
+function parseDurationMin(message: string) {
+  const text = normalizeCrmText(message);
+  const hours = text.match(/\b(\d{1,2})\s*(?:ч|час|часа|часов)\b/u);
+  const minutes = text.match(/\b(\d{1,3})\s*(?:мин|минут)\b/u);
+  const total = (hours ? Number(hours[1]) * 60 : 0) + (minutes ? Number(minutes[1]) : 0);
+  return total > 0 ? total : null;
+}
+
+function parseBooleanIntent(message: string) {
+  const text = normalizeCrmText(message);
+  if (/\b(включи|актив|показывай|опубликуй|публичн)\b/u.test(text)) return true;
+  if (/\b(выключи|скрой|архив|неактив|не показывай|непубличн)\b/u.test(text)) return false;
+  return null;
+}
+
+function updateArgsFromEditMessage(intent: string, entityId: number, message: string): Prisma.JsonObject | null {
+  const text = normalizeCrmText(message);
+  const name = quotedValue(message) ?? textAfterAny(message, ["название", "имя", "назови"]);
+  const description = textAfterAny(message, ["описание", "текст"]);
+  const status = /\b(актив|active)\b/u.test(text) ? "ACTIVE" : /\b(архив|неактив|inactive)\b/u.test(text) ? "ARCHIVED" : null;
+
+  if (intent === "edit_service") {
+    const args: Prisma.JsonObject = { serviceId: entityId };
+    if (name) args.name = name;
+    if (description) args.description = description;
+    const price = parseMoneyLike(message);
+    if (price) args.basePrice = price;
+    const duration = parseDurationMin(message);
+    if (duration) args.baseDurationMin = duration;
+    const active = parseBooleanIntent(message);
+    if (active != null) args.isActive = active;
+    return Object.keys(args).length > 1 ? args : null;
+  }
+
+  if (intent === "edit_location") {
+    const args: Prisma.JsonObject = { locationId: entityId };
+    if (name) args.name = name;
+    const address = textAfterAny(message, ["адрес"]);
+    if (address) args.address = address;
+    if (description) args.description = description;
+    const phone = message.match(/(?:\+?\d[\d\s().-]{7,}\d)/u)?.[0]?.replace(/[^\d+]/g, "");
+    if (phone) args.phone = phone;
+    if (status) args.status = status;
+    return Object.keys(args).length > 1 ? args : null;
+  }
+
+  if (intent === "edit_promo") {
+    const args: Prisma.JsonObject = { promotionId: entityId };
+    if (name) args.name = name;
+    const percent = text.match(/\b(\d{1,2})\s*%/u);
+    if (percent) {
+      args.type = "PERCENT";
+      args.value = percent[1];
+    }
+    const money = parseMoneyLike(message);
+    if (money && !percent) {
+      args.type = "FIXED";
+      args.value = money;
+    }
+    const active = parseBooleanIntent(message);
+    if (active != null) args.isActive = active;
+    return Object.keys(args).length > 1 ? args : null;
+  }
+
+  if (intent === "edit_specialist") {
+    const args: Prisma.JsonObject = { specialistId: entityId };
+    const bio = textAfterAny(message, ["био", "описание", "профиль"]);
+    if (bio) args.bio = bio;
+    const isPublic = parseBooleanIntent(message);
+    if (isPublic != null) args.isPublic = isPublic;
+    return Object.keys(args).length > 1 ? args : null;
+  }
+
+  return null;
+}
+
+function selectedEntityFromState(value: unknown) {
+  if (!isRecordValue(value) || !isRecordValue(value.selectedEntity)) return null;
+  const type = typeof value.selectedEntity.type === "string" ? value.selectedEntity.type : null;
+  const id = numericEntityId(value.selectedEntity.id as number | string | null);
+  return type && id ? { type, id } : null;
+}
+
+function inferEditIntentFromEntityType(type: string | null) {
+  if (type === "service") return "edit_service";
+  if (type === "location") return "edit_location";
+  if (type === "promo") return "edit_promo";
+  if (type === "specialist") return "edit_specialist";
+  return null;
+}
+
+async function executeEntityEditFromText(input: {
+  accountId: number;
+  userId: number;
+  runId: number;
+  threadId: number;
+  message: string;
+  scope: CrmAgentScope;
+  threadState: unknown;
+  autopilot: Awaited<ReturnType<typeof buildCrmAgentAccountContext>>["autopilot"];
+}): Promise<ContinuationExecution | null> {
+  const text = normalizeCrmText(input.message);
+  const selected = selectedEntityFromState(input.threadState);
+  const explicitService = input.message.match(/(?:услуг[ауи]?|service)\s*[#№]\s*(\d+)/iu);
+  const explicitLocation = input.message.match(/(?:локаци[яюи]?|филиал|location)\s*[#№]\s*(\d+)/iu);
+  const explicitPromo = input.message.match(/(?:акци[яюи]?|promo|promotion)\s*[#№]\s*(\d+)/iu);
+  const explicitSpecialist = input.message.match(/(?:сотрудник[ау]?|специалист[ау]?|мастер[ау]?|specialist)\s*[#№]\s*(\d+)/iu);
+  const explicit = explicitService
+    ? { intent: "edit_service", type: "service", id: Number(explicitService[1]) }
+    : explicitLocation
+      ? { intent: "edit_location", type: "location", id: Number(explicitLocation[1]) }
+      : explicitPromo
+        ? { intent: "edit_promo", type: "promo", id: Number(explicitPromo[1]) }
+        : explicitSpecialist
+          ? { intent: "edit_specialist", type: "specialist", id: Number(explicitSpecialist[1]) }
+          : null;
+  const selectedIntent = inferEditIntentFromEntityType(selected?.type ?? null);
+  const selectedId = selected?.id ?? null;
+  const parsedSelectedArgs = selectedIntent && selectedId ? updateArgsFromEditMessage(selectedIntent, selectedId, input.message) : null;
+  const inferredIntent =
+    explicit?.intent ??
+    (parsedSelectedArgs || /\b(измени|обнови|поменяй|поставь|сделай|цена|стоимость|прайс|адрес|телефон|описание|название|био|скрой|опубликуй|актив|неактив|публичн)\b/u.test(text)
+      ? selectedIntent
+      : null);
+  const entityId = explicit?.id ?? selected?.id ?? null;
+  if (!inferredIntent || !entityId) return null;
+
+  const toolNameByIntent: Record<string, string> = {
+    edit_service: "services.draftUpdate",
+    edit_location: "locations.draftUpdate",
+    edit_promo: "promos.draftUpdate",
+    edit_specialist: "specialists.draftUpdate",
+  };
+  const args = parsedSelectedArgs && inferredIntent === selectedIntent && entityId === selectedId
+    ? parsedSelectedArgs
+    : updateArgsFromEditMessage(inferredIntent, entityId, input.message);
+  if (!args) {
+    return {
+      selectedEntity: { type: explicit?.type ?? selected?.type ?? "service", id: entityId } as ContinuationExecution["selectedEntity"],
+      pendingClarification: toJsonValue({ kind: "edit_entity", intent: inferredIntent, entityId }),
+      execution: clarificationExecution("Что именно изменить? Укажите новое название, цену, длительность, адрес, описание, статус или текст профиля."),
+    };
+  }
+  const tool = getCrmAgentTool(toolNameByIntent[inferredIntent]);
+  if (!tool || tool.mode !== "draft") return null;
+  const result = await runDraftTool({ tool, args, scope: input.scope, accountId: input.accountId, runId: input.runId, threadId: input.threadId });
+  const autopilot = await maybeExecuteAutopilotAction({ accountId: input.accountId, actionId: pendingActionIdFromResult(result), userId: input.userId, settings: input.autopilot });
+  const type = inferredIntent === "edit_service" ? "service" : inferredIntent === "edit_location" ? "location" : inferredIntent === "edit_promo" ? "promo" : "specialist";
+  return {
+    selectedEntity: { type, id: entityId } as ContinuationExecution["selectedEntity"],
+    execution: {
+      selectedToolName: tool.name,
+      toolResult: toJsonValue({ draft: result, autopilot }),
+      answer: "Подготовил изменение карточки. Проверьте preview и подтвердите действие.",
+      observations: [{ step: 1, toolName: tool.name, args, result: compactJsonValue(result), error: null }],
+      autopilot,
+    },
   };
 }
 
@@ -1981,10 +2274,13 @@ async function executeScheduleWorkdayFlow(input: {
   threadId: number;
   message: string;
   scope: CrmAgentScope;
+  threadState?: unknown;
   autopilot: Awaited<ReturnType<typeof buildCrmAgentAccountContext>>["autopilot"];
 }): Promise<ToolExecution | null> {
   const query = extractScheduleWorkdayQuery(input.message);
-  if (!query) return null;
+  const selected = selectedEntityFromState(input.threadState);
+  const selectedSpecialistId = selected?.type === "specialist" ? selected.id : null;
+  if (!query && !selectedSpecialistId) return null;
 
   const date = parseRelativeScheduleDate(input.message);
   if (!date) {
@@ -1997,7 +2293,56 @@ async function executeScheduleWorkdayFlow(input: {
 
   const specialistsTool = getCrmAgentTool("specialists.search");
   const scheduleTool = getCrmAgentTool("specialists.draftScheduleUpdate");
-  if (!specialistsTool || !scheduleTool || scheduleTool.mode !== "draft") return null;
+  if (!scheduleTool || scheduleTool.mode !== "draft" || (!selectedSpecialistId && !specialistsTool)) return null;
+
+  if (selectedSpecialistId) {
+    const specialist = await prisma.specialistProfile.findFirst({
+      where: { id: selectedSpecialistId, accountId: input.accountId },
+      select: {
+        id: true,
+        user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+        locations: { select: { location: { select: { id: true, name: true } } }, take: 5 },
+      },
+    });
+    if (!specialist) {
+      return { selectedToolName: null, toolResult: null, answer: "Не нашёл выбранного сотрудника в аккаунте." };
+    }
+    const specialistName = [specialist.user.profile?.firstName, specialist.user.profile?.lastName].filter(Boolean).join(" ").trim() || `сотрудник #${specialist.id}`;
+    const firstLocation = specialist.locations[0]?.location ?? null;
+    const timeRange = parseWorkTimeRange(input.message);
+    const draftArgs = {
+      specialistId: specialist.id,
+      date: isoDateOnly(date),
+      type: "WORKING",
+      startTime: timeRange.startTime,
+      endTime: timeRange.endTime,
+      ...(firstLocation ? { locationId: firstLocation.id } : {}),
+      notes: "Создано CRM-ассистентом",
+    };
+    const draftResult = await runDraftTool({
+      tool: scheduleTool,
+      args: draftArgs,
+      scope: input.scope,
+      accountId: input.accountId,
+      runId: input.runId,
+      threadId: input.threadId,
+    });
+    const autopilot = await maybeExecuteAutopilotAction({
+      accountId: input.accountId,
+      actionId: pendingActionIdFromResult(draftResult),
+      userId: input.userId,
+      settings: input.autopilot,
+    });
+    return {
+      selectedToolName: scheduleTool.name,
+      toolResult: toJsonValue({ draft: draftResult, autopilot }),
+      answer: `Подготовил черновик рабочего дня: ${specialistName}, ${date.toLocaleDateString("ru-RU")}, ${timeRange.startTime}-${timeRange.endTime}. Проверьте и подтвердите действие.`,
+      observations: [{ step: 1, toolName: scheduleTool.name, args: draftArgs, result: compactJsonValue(draftResult), error: null }],
+      autopilot,
+    };
+  }
+
+  if (!specialistsTool) return null;
 
   const specialistsResult = await runReadTool({
     tool: specialistsTool,
@@ -2135,7 +2480,10 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
       pendingActions: initialPendingActions,
     });
     const actionIntentFlow = continuationExecution || input.requestedToolName ? null : await executeActionIntentFlow({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const appointmentCreate = continuationExecution || actionIntentFlow || input.requestedToolName
+    const appointmentLookup = continuationExecution || actionIntentFlow || input.requestedToolName
+      ? null
+      : await executeAppointmentLookupFromText({ ...input, scope, threadState: storedThreadState?.state ?? null });
+    const appointmentCreate = continuationExecution || actionIntentFlow || appointmentLookup || input.requestedToolName
       ? null
       : await executeAppointmentCreateFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
     const appointmentReschedule = continuationExecution || actionIntentFlow || appointmentCreate || input.requestedToolName
@@ -2144,23 +2492,30 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
     const notificationSend = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || input.requestedToolName
       ? null
       : await executeNotificationSendFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const appointmentCancel = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || input.requestedToolName
+    const entityEdit = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || input.requestedToolName
+      ? null
+      : await executeEntityEditFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
+    const appointmentCancel = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || input.requestedToolName
       ? null
       : await executeAppointmentCancelFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const reviewReply = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || appointmentCancel || input.requestedToolName
+    const reviewReply = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || input.requestedToolName
       ? null
       : await executeReviewReplyFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const clientCreate = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || appointmentCancel || reviewReply || input.requestedToolName
+    const clientCreate = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || input.requestedToolName
       ? null
       : await executeClientCreateFromText({ ...input, scope, autopilot: context.autopilot });
-    const scheduleWorkday = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || appointmentCancel || reviewReply || clientCreate || input.requestedToolName ? null : await executeScheduleWorkdayFlow({ ...input, scope, autopilot: context.autopilot });
-    const specialistAvailability = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || appointmentCancel || reviewReply || clientCreate || scheduleWorkday || input.requestedToolName ? null : await executeSpecialistAvailabilityFlow({ ...input, scope });
+    const scheduleWorkday = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || clientCreate || input.requestedToolName ? null : await executeScheduleWorkdayFlow({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
+    const specialistAvailability = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || clientCreate || scheduleWorkday || input.requestedToolName ? null : await executeSpecialistAvailabilityFlow({ ...input, scope });
     if (continuationExecution) {
       execution = continuationExecution.execution;
       llmStatus = { used: false, mode: "thread_continuation", continuationKind: continuation.kind, confidence: continuation.confidence };
     } else if (actionIntentFlow) {
       execution = actionIntentFlow;
       llmStatus = { used: false, mode: "deterministic_action_intent", actionIntent: input.actionIntent ?? null };
+    } else if (appointmentLookup) {
+      continuationExecution = appointmentLookup;
+      execution = appointmentLookup.execution;
+      llmStatus = { used: false, mode: "deterministic_appointment_lookup" };
     } else if (appointmentCreate) {
       continuationExecution = appointmentCreate;
       execution = appointmentCreate.execution;
@@ -2173,6 +2528,10 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
       continuationExecution = notificationSend;
       execution = notificationSend.execution;
       llmStatus = { used: false, mode: "deterministic_notification_send" };
+    } else if (entityEdit) {
+      continuationExecution = entityEdit;
+      execution = entityEdit.execution;
+      llmStatus = { used: false, mode: "deterministic_entity_edit" };
     } else if (appointmentCancel) {
       continuationExecution = appointmentCancel;
       execution = appointmentCancel.execution;
@@ -2222,12 +2581,16 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
       }
     }
 
+    const actionIntentSelectedEntity =
+      input.actionEntity?.type && input.actionEntity.id != null
+        ? { type: input.actionEntity.type as "client" | "specialist" | "service" | "location" | "appointment" | "review" | "promo" | "slot", id: input.actionEntity.id }
+        : null;
     const structured = buildCrmAgentStructuredResponse({
       selectedToolName: execution.selectedToolName,
       toolResult: execution.toolResult,
       toolSteps: execution.observations ?? [],
       previousThreadState: storedThreadState?.state ?? null,
-      selectedEntity: continuationExecution?.selectedEntity ?? null,
+      selectedEntity: continuationExecution?.selectedEntity ?? actionIntentSelectedEntity,
       pendingClarification: continuationExecution?.pendingClarification ?? null,
     });
     const groundedAnswer = buildCrmAgentGroundedAnswer({
