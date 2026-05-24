@@ -84,6 +84,7 @@ const expectedDraftScenarios = [
 const draftToolsSource = read("apps/web/lib/crm-agent-draft-tools.ts");
 const registrySource = read("apps/web/lib/crm-agent-tool-registry.ts");
 const executorSource = read("apps/web/lib/crm-agent-action-executor.ts");
+const domainToolsSource = read("apps/web/lib/crm-agent-domain-tools.ts");
 const orchestratorSource = read("apps/web/lib/crm-agent-orchestrator.ts");
 const llmContractSource = read("apps/web/lib/crm-agent-llm-contract.ts");
 const campaignsSource = read("apps/web/lib/crm-agent-campaigns.ts");
@@ -115,6 +116,14 @@ assert(/assertAppointmentSlotAvailable[\s\S]*appointment\.create[\s\S]*appointme
 assert(/assertClientMarketingConsent[\s\S]*notification\.send/s.test(executorSource), "Direct notification send must require marketing consent.");
 assert(/filterClientsWithMarketingConsent[\s\S]*notification\.campaign\.send/s.test(executorSource), "Campaign notification send must filter clients by marketing consent.");
 assert(/executeLlmToolLoop[\s\S]*role:\s*"tool"[\s\S]*toolSteps/s.test(orchestratorSource), "LLM tool loop must persist tool observations and expose toolSteps.");
+assert(/loadConversationHistory[\s\S]*listCrmAgentMessages[\s\S]*role: "user_current"[\s\S]*conversationHistory/s.test(orchestratorSource), "CRM agent must pass conversation history into the LLM loop.");
+assert(/function searchTokens[\s\S]*function normalizeSearchText[\s\S]*function levenshteinDistance[\s\S]*function rankSearchResults/s.test(domainToolsSource), "CRM read tools must have shared fuzzy search helpers.");
+assert(/searchCrmAgentClients[\s\S]*rankSearchResults[\s\S]*firstName[\s\S]*lastName[\s\S]*phone[\s\S]*email/s.test(domainToolsSource), "Client search must support tokenized and typo-tolerant matching.");
+assert(/searchCrmAgentServices[\s\S]*rankSearchResults[\s\S]*service\.name[\s\S]*service\.description[\s\S]*category/s.test(domainToolsSource), "Service search must support tokenized and typo-tolerant matching.");
+assert(/searchCrmAgentSpecialists[\s\S]*rankSearchResults[\s\S]*firstName[\s\S]*lastName[\s\S]*services[\s\S]*locations/s.test(domainToolsSource), "Specialist search must support full names and small typos.");
+assert(/searchCrmAgentLocations[\s\S]*rankSearchResults[\s\S]*location\.name[\s\S]*location\.address/s.test(domainToolsSource), "Location search must support tokenized and typo-tolerant matching.");
+assert(/searchCrmAgentPromos[\s\S]*stringArg\(args, "query"\)[\s\S]*rankSearchResults[\s\S]*promotion\.name[\s\S]*promoCodes/s.test(domainToolsSource), "Promo search must support query matching.");
+assert(/conversationHistory[\s\S]*Короткие ответы пользователя[\s\S]*ты напиши/s.test(llmContractSource), "LLM prompt must treat short replies as continuation of the previous task.");
 assert(/Для записей, услуг, сотрудников, локаций и акций предпочитай специализированные draft-инструменты/.test(llmContractSource), "LLM prompt must prefer specialized draft tools.");
 assert(/Активно используй memory[\s\S]*тон общения[\s\S]*фокус бизнеса/s.test(llmContractSource), "LLM prompt must actively use CRM-agent memory.");
 assert(/buildCrmAgentMemoryHints[\s\S]*preferredOffer[\s\S]*memoryHints/s.test(campaignsSource), "Campaign drafts must use memory hints.");

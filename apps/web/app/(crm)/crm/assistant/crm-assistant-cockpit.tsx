@@ -23,6 +23,18 @@ type ChatMessage = {
   createdAt?: string;
 };
 
+type AgentWorkItem = {
+  toolName?: string | null;
+  error?: string | null;
+};
+
+type AgentWork = {
+  answer: string;
+  selectedToolName?: string | null;
+  toolSteps: AgentWorkItem[];
+  pendingActions: AssistantAction[];
+};
+
 export type CockpitData = {
   context: {
     account?: { name?: string | null; slug?: string | null } | null;
@@ -194,6 +206,25 @@ function textFromValue(value: unknown) {
   return text.length > 160 ? `${text.slice(0, 160)}...` : text;
 }
 
+function toolLabel(value?: string | null) {
+  if (!value) return "данные CRM";
+  const labels: Record<string, string> = {
+    "appointments.findAvailableSlots": "свободные окна",
+    "appointments.search": "записи",
+    "clients.search": "клиентов",
+    "reviews.search": "отзывы",
+    "services.search": "услуги",
+    "specialists.search": "сотрудников",
+    "locations.search": "локации",
+    "promos.search": "акции",
+    "analytics.workload": "загрузку",
+    "analytics.retention": "клиентов для возврата",
+    "site.health": "сайт",
+    "insights.generate": "рекомендации",
+  };
+  return labels[value] ?? value;
+}
+
 function campaignResultText(value: unknown, error?: string | null) {
   if (error) return `Ошибка: ${error}`;
   const data = value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : null;
@@ -218,6 +249,7 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
   const [loadingThread, setLoadingThread] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sitePreview, setSitePreview] = useState<{ title: string; text: string } | null>(null);
+  const [agentWork, setAgentWork] = useState<AgentWork | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const pendingActions = data.context.pendingActions;
@@ -276,6 +308,12 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
       if (!response.ok) throw new Error(payload?.error?.message || "Ассистент не ответил.");
       setThreadId(payload.data.threadId);
       setMessages((current) => [...current, { role: "assistant", content: payload.data.answer, createdAt: new Date().toISOString() }]);
+      setAgentWork({
+        answer: payload.data.answer,
+        selectedToolName: payload.data.selectedToolName ?? null,
+        toolSteps: Array.isArray(payload.data.toolSteps) ? payload.data.toolSteps : [],
+        pendingActions: Array.isArray(payload.data.pendingActions) ? payload.data.pendingActions : [],
+      });
       await refreshSummary();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ошибка запроса.");
@@ -454,6 +492,21 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
         </div>
 
         <Panel title="Ожидает вашего решения" emptyText="Пока нет действий на подтверждение.">
+          {pendingActions.length === 0 && agentWork ? (
+            <div className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-bg)] p-3">
+              <div className="text-sm font-medium">Последняя работа агента</div>
+              <div className="mt-2 text-sm leading-6 text-[color:var(--bp-muted)]">{agentWork.answer}</div>
+              {agentWork.selectedToolName || agentWork.toolSteps.length ? (
+                <div className="mt-3 grid gap-2">
+                  {agentWork.selectedToolName ? <AgentStep text={`Проверил: ${toolLabel(agentWork.selectedToolName)}`} /> : null}
+                  {agentWork.toolSteps.map((step, index) => (
+                    <AgentStep key={`${step.toolName ?? "step"}-${index}`} text={step.error ? `Ошибка: ${step.error}` : `Шаг ${index + 1}: ${toolLabel(step.toolName)}`} />
+                  ))}
+                </div>
+              ) : null}
+              {agentWork.pendingActions.length ? <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Подготовлено действий: {agentWork.pendingActions.length}</div> : null}
+            </div>
+          ) : null}
           {pendingActions.map((action) => (
             <div key={action.id} className="rounded-lg border border-[color:var(--bp-stroke)] p-3">
               <div className="flex items-start justify-between gap-2">
@@ -578,6 +631,14 @@ function EmptyChat({ text }: { text: string }) {
   return (
     <div className="flex min-h-full items-center justify-center text-center text-sm text-[color:var(--bp-muted)]">
       <div>{text}</div>
+    </div>
+  );
+}
+
+function AgentStep({ text }: { text: string }) {
+  return (
+    <div className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 py-1.5 text-xs text-[color:var(--bp-muted)]">
+      {text}
     </div>
   );
 }

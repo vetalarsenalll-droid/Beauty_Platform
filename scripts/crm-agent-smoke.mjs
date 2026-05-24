@@ -214,9 +214,19 @@ assertContains(
   "Orchestrator must support a multi-step LLM tool-calling loop with persisted tool observations",
 );
 assertContains(
+  "apps/web/lib/crm-agent-orchestrator.ts",
+  /loadConversationHistory[\s\S]*listCrmAgentMessages[\s\S]*role: "user_current"[\s\S]*conversationHistory/s,
+  "CRM agent must pass conversation history into the LLM loop",
+);
+assertContains(
   "apps/web/lib/crm-agent-llm-contract.ts",
   /observations[\s\S]*не запрашивай тот же инструмент[\s\S]*step/s,
   "LLM contract must pass tool observations back into the next model step",
+);
+assertContains(
+  "apps/web/lib/crm-agent-llm-contract.ts",
+  /conversationHistory[\s\S]*Короткие ответы пользователя[\s\S]*ты напиши/s,
+  "LLM contract must treat short replies as continuation of the previous task",
 );
 assertContains(
   "apps/web/lib/crm-agent-orchestrator.ts",

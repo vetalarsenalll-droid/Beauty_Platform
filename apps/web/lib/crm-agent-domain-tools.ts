@@ -66,6 +66,94 @@ function takeArg(args: Prisma.JsonObject, fallback = 20, max = 100) {
   return Math.min(Math.max(Math.trunc(value), 1), max);
 }
 
+function searchTokens(query: string | null) {
+  return query
+    ? query
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 2)
+        .slice(0, 5)
+    : [];
+}
+
+function normalizeSearchText(value: string | null | undefined) {
+  return String(value ?? "")
+    .toLocaleLowerCase("ru-RU")
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function levenshteinDistance(a: string, b: string) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + cost);
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+function tokenDistance(queryToken: string, candidateTokens: string[]) {
+  let best = Number.POSITIVE_INFINITY;
+  for (const candidate of candidateTokens) {
+    if (!candidate) continue;
+    if (candidate === queryToken) return 0;
+    if (candidate.includes(queryToken) || queryToken.includes(candidate)) best = Math.min(best, 0.25);
+    const maxDistance = queryToken.length <= 4 ? 1 : queryToken.length <= 8 ? 2 : 3;
+    const distance = levenshteinDistance(queryToken, candidate);
+    if (distance <= maxDistance) best = Math.min(best, distance);
+  }
+  return best;
+}
+
+function searchScore(query: string | null, labels: Array<string | null | undefined>) {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return 0;
+
+  const queryTokens = searchTokens(normalizedQuery);
+  const normalizedLabels = labels.map(normalizeSearchText).filter(Boolean);
+  const joined = normalizedLabels.join(" ");
+  if (!joined) return Number.POSITIVE_INFINITY;
+  if (joined.includes(normalizedQuery)) return 0;
+
+  const candidateTokens = joined.split(/\s+/).filter(Boolean);
+  let total = 0;
+  for (const token of queryTokens) {
+    const distance = tokenDistance(token, candidateTokens);
+    if (!Number.isFinite(distance)) return Number.POSITIVE_INFINITY;
+    total += distance;
+  }
+  return total + Math.max(0, queryTokens.length - 1) * 0.1;
+}
+
+function rankSearchResults<T>(
+  items: T[],
+  query: string | null,
+  labels: (item: T) => Array<string | null | undefined>,
+  take: number,
+) {
+  if (!normalizeSearchText(query)) return items.slice(0, take);
+  return items
+    .map((item, index) => ({ item, index, score: searchScore(query, labels(item)) }))
+    .filter((item) => Number.isFinite(item.score))
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .slice(0, take)
+    .map((item) => item.item);
+}
+
+function candidateTake(take: number, query: string | null) {
+  return query ? Math.min(Math.max(take * 10, 200), 500) : take;
+}
+
 function hasPermission(scope: CrmAgentScope, permission?: string) {
   return !permission || scope.permissions.includes("crm.all") || scope.permissions.includes(permission);
 }
@@ -92,19 +180,9 @@ export async function searchCrmAgentClients(argsInput: Prisma.JsonObject, scope:
   const clients = await prisma.client.findMany({
     where: {
       accountId: scope.accountId,
-      ...(query
-        ? {
-            OR: [
-              { firstName: { contains: query, mode: "insensitive" } },
-              { lastName: { contains: query, mode: "insensitive" } },
-              { phone: { contains: query, mode: "insensitive" } },
-              { email: { contains: query, mode: "insensitive" } },
-            ],
-          }
-        : {}),
     },
     orderBy: { updatedAt: "desc" },
-    take,
+    take: candidateTake(take, query),
     select: {
       id: true,
       firstName: true,
@@ -122,9 +200,22 @@ export async function searchCrmAgentClients(argsInput: Prisma.JsonObject, scope:
       },
     },
   });
+  const rankedClients = rankSearchResults(
+    clients,
+    query,
+    (client) => [
+      client.firstName,
+      client.lastName,
+      [client.firstName, client.lastName].filter(Boolean).join(" "),
+      client.phone,
+      client.email,
+      ...client.tags.map((item) => item.tag.name),
+    ],
+    take,
+  );
 
   return toJsonValue({
-    clients: clients.map((client) => ({
+    clients: rankedClients.map((client) => ({
       ...client,
       tags: client.tags.map((item) => item.tag.name),
       appointments: client.appointments.map((appointment) => ({
@@ -325,10 +416,9 @@ export async function searchCrmAgentServices(argsInput: Prisma.JsonObject, scope
   const services = await prisma.service.findMany({
     where: {
       accountId: scope.accountId,
-      ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
     },
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
-    take,
+    take: candidateTake(take, query),
     select: {
       id: true,
       name: true,
@@ -342,9 +432,15 @@ export async function searchCrmAgentServices(argsInput: Prisma.JsonObject, scope
       locations: { select: { locationId: true }, take: 20 },
     },
   });
+  const rankedServices = rankSearchResults(
+    services,
+    query,
+    (service) => [service.name, service.description, service.category?.name],
+    take,
+  );
 
   return toJsonValue({
-    services: services.map((service) => ({
+    services: rankedServices.map((service) => ({
       ...service,
       basePrice: toMoney(service.basePrice),
       specialistIds: service.specialists.map((item) => item.specialistId),
@@ -363,21 +459,9 @@ export async function searchCrmAgentSpecialists(argsInput: Prisma.JsonObject, sc
   const specialists = await prisma.specialistProfile.findMany({
     where: {
       accountId: scope.accountId,
-      ...(query
-        ? {
-            user: {
-              profile: {
-                OR: [
-                  { firstName: { contains: query, mode: "insensitive" } },
-                  { lastName: { contains: query, mode: "insensitive" } },
-                ],
-              },
-            },
-          }
-        : {}),
     },
     orderBy: [{ isPublic: "desc" }, { createdAt: "desc" }],
-    take,
+    take: candidateTake(take, query),
     select: {
       id: true,
       bio: true,
@@ -388,9 +472,22 @@ export async function searchCrmAgentSpecialists(argsInput: Prisma.JsonObject, sc
       locations: { select: { location: { select: { id: true, name: true } } }, take: 30 },
     },
   });
+  const rankedSpecialists = rankSearchResults(
+    specialists,
+    query,
+    (specialist) => [
+      specialist.user.profile?.firstName,
+      specialist.user.profile?.lastName,
+      [specialist.user.profile?.firstName, specialist.user.profile?.lastName].filter(Boolean).join(" "),
+      specialist.bio,
+      ...specialist.services.map((item) => item.service.name),
+      ...specialist.locations.map((item) => item.location.name),
+    ],
+    take,
+  );
 
   return toJsonValue({
-    specialists: specialists.map((specialist) => ({
+    specialists: rankedSpecialists.map((specialist) => ({
       id: specialist.id,
       bio: specialist.bio,
       isPublic: specialist.isPublic,
@@ -410,10 +507,9 @@ export async function searchCrmAgentLocations(argsInput: Prisma.JsonObject, scop
   const locations = await prisma.location.findMany({
     where: {
       accountId: scope.accountId,
-      ...(query ? { name: { contains: query, mode: "insensitive" } } : {}),
     },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-    take,
+    take: candidateTake(take, query),
     select: {
       id: true,
       name: true,
@@ -424,12 +520,14 @@ export async function searchCrmAgentLocations(argsInput: Prisma.JsonObject, scop
       hours: { orderBy: { dayOfWeek: "asc" }, select: { dayOfWeek: true, startTime: true, endTime: true } },
     },
   });
+  const rankedLocations = rankSearchResults(locations, query, (location) => [location.name, location.address, location.description, location.phone], take);
 
-  return toJsonValue({ locations });
+  return toJsonValue({ locations: rankedLocations });
 }
 
 export async function searchCrmAgentPromos(argsInput: Prisma.JsonObject, scope: CrmAgentScope) {
   const args = asObject(argsInput);
+  const query = stringArg(args, "query");
   const activeOnly = args.activeOnly !== false;
   const take = takeArg(args, 50);
 
@@ -439,7 +537,7 @@ export async function searchCrmAgentPromos(argsInput: Prisma.JsonObject, scope: 
       ...(activeOnly ? { isActive: true } : {}),
     },
     orderBy: { createdAt: "desc" },
-    take,
+    take: candidateTake(take, query),
     select: {
       id: true,
       name: true,
@@ -452,9 +550,15 @@ export async function searchCrmAgentPromos(argsInput: Prisma.JsonObject, scope: 
       promoCodes: { select: { code: true, maxUses: true, maxUsesPerClient: true }, take: 20 },
     },
   });
+  const rankedPromotions = rankSearchResults(
+    promotions,
+    query,
+    (promotion) => [promotion.name, promotion.type, ...promotion.promoCodes.map((code) => code.code)],
+    take,
+  );
 
   return toJsonValue({
-    promotions: promotions.map((promotion) => ({
+    promotions: rankedPromotions.map((promotion) => ({
       ...promotion,
       value: toMoney(promotion.value),
     })),

@@ -4,7 +4,12 @@ import { canAutopilotExecuteCrmAgentAction } from "@/lib/crm-agent-autopilot";
 import { buildCrmAgentAccountContext } from "@/lib/crm-agent-context";
 import { executeCrmAgentReadTool } from "@/lib/crm-agent-domain-tools";
 import { generateCrmAgentInsights } from "@/lib/crm-agent-insights";
-import { requestCrmAgentLlmCommand, type CrmAgentLlmCommand, type CrmAgentLlmObservation } from "@/lib/crm-agent-llm-contract";
+import {
+  requestCrmAgentLlmCommand,
+  type CrmAgentLlmCommand,
+  type CrmAgentLlmHistoryMessage,
+  type CrmAgentLlmObservation,
+} from "@/lib/crm-agent-llm-contract";
 import {
   appendCrmAgentMessage,
   confirmPendingAction,
@@ -13,6 +18,7 @@ import {
   finishAgentRun,
   finishAgentToolCall,
   getPendingActionForAccount,
+  listCrmAgentMessages,
   listPendingActions,
   writeAgentAudit,
 } from "@/lib/crm-agent-persistence";
@@ -66,6 +72,32 @@ function commandKey(command: CrmAgentLlmCommand) {
   return `${command.command}:${JSON.stringify("args" in command ? command.args : {})}`;
 }
 
+function compactHistoryContent(content: string, maxLength = 3000) {
+  const text = String(content || "").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+async function loadConversationHistory(input: {
+  accountId: number;
+  threadId: number;
+  currentMessage: string;
+}): Promise<CrmAgentLlmHistoryMessage[]> {
+  const messages = await listCrmAgentMessages({
+    accountId: input.accountId,
+    threadId: input.threadId,
+    take: 40,
+  });
+
+  return messages
+    .filter((message) => message.role === "user" || message.role === "assistant" || message.role === "tool")
+    .map((message) => ({
+      role: message.role,
+      content: compactHistoryContent(message.content),
+      createdAt: message.createdAt.toISOString(),
+    }))
+    .concat([{ role: "user_current", content: input.currentMessage, createdAt: new Date().toISOString() }]);
+}
+
 function hasPermission(permissions: string[], permission?: string | null) {
   return !permission || permissions.includes("crm.all") || permissions.includes(permission);
 }
@@ -87,7 +119,7 @@ function stringField(args: Prisma.JsonObject, key: string) {
 
 function inferReadToolName(message: string) {
   const text = message.toLocaleLowerCase("ru-RU");
-  if (/(свободн.*окн|слот|окошк)/i.test(text)) return "appointments.findAvailableSlots";
+  if (/(свободн|окн|слот|окошк|какое время|какие дни)/i.test(text)) return "appointments.findAvailableSlots";
   if (/(отзыв|жалоб|оценк|рейтинг)/i.test(text)) return "reviews.search";
   if (/(клиент|телефон|почт|контакт)/i.test(text)) return "clients.search";
   if (/(запис|визит|брон|приём|прием)/i.test(text)) return "appointments.search";
@@ -99,6 +131,38 @@ function inferReadToolName(message: string) {
   if (/(загруз|выруч|аналит|слаб.*дн|неявк|отмен)/i.test(text)) return "analytics.workload";
   if (/(сайт|поиск|описан|карточк)/i.test(text)) return "site.health";
   return null;
+}
+
+function extractSpecialistAvailabilityQuery(message: string) {
+  const text = message.trim();
+  if (!/(свободн|окн|слот|время|дни|расписан)/i.test(text)) return null;
+  const normalized = text
+    .replace(/[?!.]+/g, " ")
+    .replace(/\b(какие|какое|когда|есть|свободные|свободна|свободен|свободно|свободны|дни|день|время|окна|окно|слоты|слот|расписание|напиши|покажи|у)\b/giu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return null;
+  if (normalized.length < 3 || normalized.length > 80) return null;
+  return normalized;
+}
+
+function daySlotsSummary(slots: Array<{ startAt?: string; endAt?: string; locationName?: string | null }>) {
+  const byDay = new Map<string, string[]>();
+  for (const slot of slots.slice(0, 40)) {
+    if (!slot.startAt || !slot.endAt) continue;
+    const start = new Date(slot.startAt);
+    const end = new Date(slot.endAt);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
+    const day = start.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", weekday: "short" });
+    const time = `${start.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}-${end.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}${slot.locationName ? `, ${slot.locationName}` : ""}`;
+    const current = byDay.get(day) ?? [];
+    if (current.length < 6) current.push(time);
+    byDay.set(day, current);
+  }
+  return Array.from(byDay.entries())
+    .slice(0, 8)
+    .map(([day, times]) => `${day}: ${times.join("; ")}`)
+    .join("\n");
 }
 
 function fallbackAnswer(message: string, selectedToolName: string | null, toolResult: Prisma.JsonValue | null) {
@@ -422,6 +486,7 @@ async function executeLlmToolLoop(input: {
   context: Awaited<ReturnType<typeof buildCrmAgentAccountContext>>;
   tools: CrmAgentToolDefinition[];
   scope: CrmAgentScope;
+  conversationHistory: CrmAgentLlmHistoryMessage[];
 }) {
   const observations: CrmAgentLlmObservation[] = [];
   const seenCommands = new Set<string>();
@@ -439,6 +504,7 @@ async function executeLlmToolLoop(input: {
       memory: toJsonValue(input.context.memory),
       insights: toJsonValue(input.context.insights),
       tools: input.tools,
+      conversationHistory: input.conversationHistory,
       observations,
       step,
     });
@@ -624,6 +690,87 @@ async function executeDeterministicFallback(input: {
   };
 }
 
+async function executeSpecialistAvailabilityFlow(input: {
+  accountId: number;
+  runId: number;
+  threadId: number;
+  message: string;
+  scope: CrmAgentScope;
+}): Promise<ToolExecution | null> {
+  const query = extractSpecialistAvailabilityQuery(input.message);
+  if (!query) return null;
+
+  const specialistsTool = getCrmAgentTool("specialists.search");
+  const slotsTool = getCrmAgentTool("appointments.findAvailableSlots");
+  if (!specialistsTool || !slotsTool) return null;
+
+  const specialistsResult = await runReadTool({
+    tool: specialistsTool,
+    args: { query, take: 5 },
+    scope: input.scope,
+    accountId: input.accountId,
+    runId: input.runId,
+    threadId: input.threadId,
+  });
+  await appendCrmAgentMessage({
+    threadId: input.threadId,
+    role: "tool",
+    content: JSON.stringify({ step: 1, toolName: specialistsTool.name, args: { query, take: 5 }, result: compactJsonValue(specialistsResult) }),
+  });
+
+  const specialistsObject = specialistsResult && typeof specialistsResult === "object" && !Array.isArray(specialistsResult) ? specialistsResult : null;
+  const specialists = Array.isArray(specialistsObject?.specialists) ? specialistsObject.specialists : [];
+  const specialist = specialists.find((item) => item && typeof item === "object" && !Array.isArray(item) && typeof item.id === "number");
+  if (!specialist || typeof specialist !== "object" || Array.isArray(specialist) || typeof specialist.id !== "number") {
+    return {
+      selectedToolName: "specialists.search",
+      toolResult: specialistsResult,
+      answer: `Не нашёл сотрудника по запросу «${query}». Проверьте написание имени или выберите сотрудника из списка.`,
+      observations: [{ step: 1, toolName: specialistsTool.name, args: { query, take: 5 }, result: compactJsonValue(specialistsResult), error: null }],
+    };
+  }
+
+  const profile = "profile" in specialist && specialist.profile && typeof specialist.profile === "object" && !Array.isArray(specialist.profile) ? specialist.profile as { firstName?: string | null; lastName?: string | null } : {};
+  const specialistName = [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() || `сотрудника #${specialist.id}`;
+  const dateFrom = new Date();
+  const dateTo = new Date(dateFrom);
+  dateTo.setDate(dateTo.getDate() + 7);
+  const slotArgs = {
+    specialistId: specialist.id,
+    dateFrom: dateFrom.toISOString(),
+    dateTo: dateTo.toISOString(),
+    take: 60,
+  };
+  const slotsResult = await runReadTool({
+    tool: slotsTool,
+    args: slotArgs,
+    scope: input.scope,
+    accountId: input.accountId,
+    runId: input.runId,
+    threadId: input.threadId,
+  });
+  await appendCrmAgentMessage({
+    threadId: input.threadId,
+    role: "tool",
+    content: JSON.stringify({ step: 2, toolName: slotsTool.name, args: slotArgs, result: compactJsonValue(slotsResult) }),
+  });
+
+  const slotsObject = slotsResult && typeof slotsResult === "object" && !Array.isArray(slotsResult) ? slotsResult : null;
+  const slots = Array.isArray(slotsObject?.slots) ? slotsObject.slots as Array<{ startAt?: string; endAt?: string; locationName?: string | null }> : [];
+  const summary = daySlotsSummary(slots);
+  return {
+    selectedToolName: "appointments.findAvailableSlots",
+    toolResult: slotsResult,
+    answer: slots.length
+      ? `У ${specialistName} на ближайшие 7 дней есть такие свободные окна:\n${summary}\n\nЕсли нужно, подготовлю запись или сообщение клиенту под выбранное время.`
+      : `У ${specialistName} на ближайшие 7 дней свободных окон не нашёл.`,
+    observations: [
+      { step: 1, toolName: specialistsTool.name, args: { query, take: 5 }, result: compactJsonValue(specialistsResult), error: null },
+      { step: 2, toolName: slotsTool.name, args: slotArgs, result: compactJsonValue(slotsResult), error: null },
+    ],
+  };
+}
+
 export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
   const scope: CrmAgentScope = {
     accountId: input.accountId,
@@ -638,12 +785,21 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
     permissions: input.permissions,
   });
   const tools = listCrmAgentToolsForPermissions(input.permissions);
+  const conversationHistory = await loadConversationHistory({
+    accountId: input.accountId,
+    threadId: input.threadId,
+    currentMessage: input.message,
+  });
 
   let execution: ToolExecution;
   let llmStatus: Prisma.JsonObject = { used: false };
 
   try {
-    if (input.requestedToolName) {
+    const specialistAvailability = input.requestedToolName ? null : await executeSpecialistAvailabilityFlow({ ...input, scope });
+    if (specialistAvailability) {
+      execution = specialistAvailability;
+      llmStatus = { used: false, mode: "deterministic_specialist_availability" };
+    } else if (input.requestedToolName) {
       execution = await executeDeterministicFallback({ ...input, scope });
     } else {
       const loop = await executeLlmToolLoop({
@@ -656,6 +812,7 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
         context,
         tools,
         scope,
+        conversationHistory,
       });
 
       if (loop.ok) {

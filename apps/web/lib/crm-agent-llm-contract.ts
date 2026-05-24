@@ -45,6 +45,12 @@ export type CrmAgentLlmObservation = {
   error?: string | null;
 };
 
+export type CrmAgentLlmHistoryMessage = {
+  role: string;
+  content: string;
+  createdAt?: string;
+};
+
 function isJsonObject(value: unknown): value is Prisma.JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -136,6 +142,12 @@ function buildSystemPrompt(tools: CrmAgentToolDefinition[]) {
     '{"command":"update_memory","args":{"key":"tone_of_voice","value":"...","summary":"краткое описание на русском"},"answer":"короткое вступление на русском"}',
     '{"command":"analyze","analysisType":"insights","args":{},"answer":"короткое вступление на русском"}',
     "Если для ответа нужны данные, сначала верни read. После результата инструмента выбери следующий read, draft_action, update_memory, analyze или финальный answer.",
+    "Ты полноценный агент, а не одноразовый чат. Всегда учитывай conversationHistory из user payload: это текущий диалог, включая прошлые ответы пользователя, ответы ассистента и результаты инструментов.",
+    "Ты работаешь внутри CRM для сотрудника салона. Никогда не отвечай так, будто ты внешний клиентский бот: не пиши «свяжитесь с салоном», «посмотрите на сайте», «уточните у салона». Вместо этого сам используй CRM-инструменты.",
+    "На вопросы про свободные дни, свободное время, окна или расписание конкретного специалиста обязательно используй appointments.findAvailableSlots. Если известен только текст имени, сначала используй specialists.search, затем appointments.findAvailableSlots по specialistId.",
+    "Короткие ответы пользователя вроде «да», «ок», «сделай», «ты напиши», «подготовь сам», «выбери сам» считай продолжением предыдущей задачи. Не проси заново объяснять контекст, если он есть в conversationHistory.",
+    "Если пользователь просит «ты напиши» после найденных окон, отзывов, клиентов или другой выборки, сам предложи разумный текст или подготовь черновик через подходящий draft_action, если данных достаточно.",
+    "Если в conversationHistory есть role=tool, это результат уже выполненного инструмента из прошлых ходов. Используй его как фактические данные и не запрашивай заново без необходимости.",
     "Для записей, услуг, сотрудников, локаций и акций предпочитай специализированные draft-инструменты вместо action.prepare.",
     "Активно используй memory из user payload: тон общения, позиционирование, фокус бизнеса, аудиторию и предпочитаемые предложения. Если memory противоречит фактам CRM, опирайся на факты CRM.",
     "Если в user payload есть observations, это результаты уже выполненных инструментов. Используй их, не запрашивай тот же инструмент с теми же аргументами повторно.",
@@ -156,6 +168,7 @@ export async function requestCrmAgentLlmCommand(input: {
   insights: Prisma.JsonValue;
   tools: CrmAgentToolDefinition[];
   observations?: CrmAgentLlmObservation[];
+  conversationHistory?: CrmAgentLlmHistoryMessage[];
   step?: number;
 }): Promise<CrmAgentLlmResult> {
   try {
@@ -172,6 +185,7 @@ export async function requestCrmAgentLlmCommand(input: {
                 contextSummary: input.contextSummary,
                 memory: input.memory,
                 insights: input.insights,
+                conversationHistory: input.conversationHistory ?? [],
                 observations: input.observations ?? [],
                 step: input.step ?? 1,
               }),
