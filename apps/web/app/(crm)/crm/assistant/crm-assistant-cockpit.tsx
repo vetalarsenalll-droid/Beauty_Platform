@@ -16,11 +16,44 @@ type AssistantAction = {
   createdAt?: string;
 };
 
+type AssistantEntity = {
+  type: "client" | "specialist" | "service" | "location" | "appointment" | "review" | "promo" | "slot" | string;
+  id: number | string;
+  title: string;
+  subtitle?: string | null;
+  meta?: string[];
+  data?: unknown;
+};
+
+type AssistantCard = AssistantEntity & {
+  actions: Array<{ intent: string; label: string }>;
+};
+
 type ChatMessage = {
   id?: number;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   createdAt?: string;
+  cards?: AssistantCard[];
+};
+
+type AssistantThread = {
+  id: number;
+  title: string | null;
+  groupId: number | null;
+  archivedAt: string | null;
+  deletedAt: string | null;
+  pinnedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastMessage: { role: string; content: string; createdAt: string } | null;
+};
+
+type AssistantThreadGroup = {
+  id: number;
+  title: string;
+  sortOrder: number;
 };
 
 type AgentWorkItem = {
@@ -33,6 +66,7 @@ type AgentWork = {
   selectedToolName?: string | null;
   toolSteps: AgentWorkItem[];
   pendingActions: AssistantAction[];
+  cards: AssistantCard[];
 };
 
 export type CockpitData = {
@@ -198,12 +232,82 @@ function formatDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDateOnly(value?: unknown) {
+  if (typeof value !== "string") return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 function textFromValue(value: unknown) {
   if (value == null) return "";
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   const text = JSON.stringify(value);
   return text.length > 160 ? `${text.slice(0, 160)}...` : text;
+}
+
+function pendingActionPreviewRows(action: AssistantAction) {
+  const payload = action.payload && typeof action.payload === "object" && !Array.isArray(action.payload) ? (action.payload as JsonRecord) : null;
+  if (!payload) return [];
+
+  if (
+    payload.clientName ||
+    payload.serviceName ||
+    payload.specialistName ||
+    payload.locationName ||
+    payload.oldStartAt
+  ) {
+    return [
+      ["Client", textFromValue(payload.clientName) || (payload.clientId != null ? `#${payload.clientId}` : "")],
+      ["Appointment", payload.appointmentId != null ? `#${payload.appointmentId}` : ""],
+      ["Service", textFromValue(payload.serviceName) || (payload.serviceId != null ? `#${payload.serviceId}` : "")],
+      ["Specialist", textFromValue(payload.specialistName) || (payload.specialistId != null ? `#${payload.specialistId}` : "")],
+      ["Location", textFromValue(payload.locationName) || (payload.locationId != null ? `#${payload.locationId}` : "")],
+      ["Was", typeof payload.oldStartAt === "string" ? formatDate(payload.oldStartAt) : ""],
+      ["Start", typeof payload.startAt === "string" ? formatDate(payload.startAt) : ""],
+      ["End", typeof payload.endAt === "string" ? formatDate(payload.endAt) : ""],
+      ["Channel", textFromValue(payload.channel)],
+      ["Text", textFromValue(payload.bodyText)],
+    ].filter((row) => row[1]);
+  }
+
+  if (action.actionType === "specialist.schedule.update") {
+    return [
+      ["Специалист", payload.specialistId != null ? `#${payload.specialistId}` : ""],
+      ["Дата", formatDateOnly(payload.date)],
+      ["Тип", payload.type === "WORKING" ? "Рабочий день" : textFromValue(payload.type)],
+      ["Время", [textFromValue(payload.startTime), textFromValue(payload.endTime)].filter(Boolean).join("-")],
+      ["Локация", payload.locationId != null ? `#${payload.locationId}` : "Не указана"],
+      ["Заметка", textFromValue(payload.notes)],
+    ].filter((row) => row[1]);
+  }
+
+  if (action.actionType === "appointment.create" || action.actionType === "appointment.reschedule" || action.actionType === "appointment.cancel") {
+    return [
+      ["Клиент", payload.clientId != null ? `#${payload.clientId}` : ""],
+      ["Запись", payload.appointmentId != null ? `#${payload.appointmentId}` : ""],
+      ["Услуга", payload.serviceId != null ? `#${payload.serviceId}` : ""],
+      ["Сотрудник", payload.specialistId != null ? `#${payload.specialistId}` : ""],
+      ["Локация", payload.locationId != null ? `#${payload.locationId}` : ""],
+      ["Начало", typeof payload.startAt === "string" ? formatDate(payload.startAt) : ""],
+      ["Конец", typeof payload.endAt === "string" ? formatDate(payload.endAt) : ""],
+      ["Причина", textFromValue(payload.reason)],
+    ].filter((row) => row[1]);
+  }
+
+  if (action.actionType === "notification.send") {
+    return [
+      ["Клиент", payload.clientId != null ? `#${payload.clientId}` : ""],
+      ["Канал", textFromValue(payload.channel)],
+      ["Текст", textFromValue(payload.bodyText)],
+    ].filter((row) => row[1]);
+  }
+
+  const rows = Object.entries(payload)
+    .filter(([, value]) => value != null && value !== "")
+    .slice(0, 6)
+    .map(([key, value]) => [key, textFromValue(value)]);
+  return rows;
 }
 
 function toolLabel(value?: string | null) {
@@ -240,11 +344,137 @@ function campaignResultText(value: unknown, error?: string | null) {
   return `Отправлено: ${sent}. Доставлено: ${delivered}. Ошибок: ${failed}. Без согласия: ${skipped}.${conversionText}`;
 }
 
+function threadPreview(thread: AssistantThread) {
+  const text = thread.lastMessage?.content?.trim() || "Пустой диалог";
+  return text.length > 72 ? `${text.slice(0, 72)}...` : text;
+}
+
+function threadDateGroup(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Старые";
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((start.getTime() - day.getTime()) / 86_400_000);
+  if (diffDays === 0) return "Сегодня";
+  if (diffDays === 1) return "Вчера";
+  if (diffDays < 7) return "Неделя";
+  return "Старые";
+}
+
+function entityTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    client: "Клиент",
+    specialist: "Сотрудник",
+    service: "Услуга",
+    location: "Локация",
+    appointment: "Запись",
+    review: "Отзыв",
+    promo: "Акция",
+    slot: "Окно",
+  };
+  return labels[type] ?? type;
+}
+
+function entityHref(card: AssistantCard) {
+  if (card.type === "client") return `/crm/clients/${card.id}`;
+  if (card.type === "specialist") return `/crm/specialists/${card.id}`;
+  if (card.type === "service") return `/crm/services/${card.id}`;
+  if (card.type === "location") return `/crm/locations/${card.id}`;
+  if (card.type === "appointment") {
+    const data = card.data && typeof card.data === "object" && !Array.isArray(card.data) ? (card.data as JsonRecord) : null;
+    const startAt = typeof data?.startAt === "string" ? data.startAt.slice(0, 10) : "";
+    return `/crm/calendar?appointmentId=${card.id}${startAt ? `&date=${startAt}` : ""}`;
+  }
+  if (card.type === "review") return "/crm/reviews";
+  return null;
+}
+
+function entityActionMessage(card: AssistantCard, intent: string) {
+  if (intent === "open_profile") return `открой ${entityTypeLabel(card.type).toLocaleLowerCase("ru-RU")} #${card.id}`;
+  if (intent === "create_appointment") return `подготовь запись для ${entityTypeLabel(card.type).toLocaleLowerCase("ru-RU")} #${card.id}`;
+  if (intent === "send_message") return `подготовь сообщение для ${entityTypeLabel(card.type).toLocaleLowerCase("ru-RU")} #${card.id}`;
+  if (intent === "show_visits") return `покажи визиты клиента #${card.id}`;
+  if (intent === "show_schedule") return `покажи график ${entityTypeLabel(card.type).toLocaleLowerCase("ru-RU")} #${card.id}`;
+  if (intent === "set_workday") return `поставь рабочий день сотруднику #${card.id}`;
+  if (intent === "find_slots") return `найди свободные окна сотрудника #${card.id}`;
+  if (intent === "reschedule_appointment") return `перенеси запись #${card.id}`;
+  if (intent === "cancel_appointment") return `отмени запись #${card.id}`;
+  if (intent === "reply_review") return `подготовь ответ на отзыв #${card.id}`;
+  return `${intent} ${card.type} #${card.id}`;
+}
+
+function AssistantEntityCards({ cards, busy, onAction }: { cards?: AssistantCard[]; busy: boolean; onAction: (card: AssistantCard, intent: string) => void }) {
+  if (!cards?.length) return null;
+  return (
+    <div className="mt-3 grid gap-2">
+      {cards.map((card) => {
+        const href = entityHref(card);
+        return (
+          <div key={`${card.type}-${card.id}`} className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-bg)] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-[0.12em] text-[color:var(--bp-muted)]">{entityTypeLabel(card.type)}</div>
+                <div className="mt-1 truncate text-sm font-semibold">{card.title}</div>
+                {card.subtitle ? <div className="mt-1 line-clamp-2 text-xs leading-5 text-[color:var(--bp-muted)]">{card.subtitle}</div> : null}
+              </div>
+              {href ? (
+                <a href={href} className="shrink-0 rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-[11px] font-medium hover:border-[color:var(--bp-accent)]">
+                  Открыть
+                </a>
+              ) : null}
+            </div>
+            {card.meta?.length ? (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {card.meta.slice(0, 4).map((item) => (
+                  <span key={item} className="rounded-md bg-[color:var(--bp-paper)] px-2 py-1 text-[11px] text-[color:var(--bp-muted)]">
+                    {item}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {card.actions?.length ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {card.actions
+                  .filter((action) => !(action.intent === "open_profile" && href))
+                  .slice(0, 4)
+                  .map((action) => (
+                    <button
+                      key={action.intent}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onAction(card, action.intent)}
+                      className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-[11px] font-medium hover:border-[color:var(--bp-accent)] disabled:opacity-50"
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData }) {
   const [data, setData] = useState(initialData);
   const [threadId, setThreadId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [threads, setThreads] = useState<AssistantThread[]>([]);
+  const [threadGroups, setThreadGroups] = useState<AssistantThreadGroup[]>([]);
+  const [threadSearch, setThreadSearch] = useState("");
+  const [selectedThreadGroupId, setSelectedThreadGroupId] = useState<number | "all" | "none">("all");
+  const [showArchivedThreads, setShowArchivedThreads] = useState(false);
+  const [showDeletedThreads, setShowDeletedThreads] = useState(false);
+  const [editingThreadId, setEditingThreadId] = useState<number | null>(null);
+  const [editingThreadTitle, setEditingThreadTitle] = useState("");
+  const [newGroupTitle, setNewGroupTitle] = useState("");
+  const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+  const [editingGroupTitle, setEditingGroupTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingThread, setLoadingThread] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -258,9 +488,24 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
   const lastRun = data.debug?.runs[0] ?? null;
   const totalPending = pendingActions.length + draftCount + data.context.insights.length;
   const toolsCount = useMemo(() => data.tools.length, [data.tools]);
+  const filteredThreads = useMemo(() => {
+    const query = threadSearch.trim().toLocaleLowerCase("ru-RU");
+    const grouped = selectedThreadGroupId === "all"
+      ? threads
+      : selectedThreadGroupId === "none"
+        ? threads.filter((thread) => !thread.groupId)
+        : threads.filter((thread) => thread.groupId === selectedThreadGroupId);
+    if (!query) return grouped;
+    return grouped.filter((thread) => {
+      const haystack = [thread.title, thread.lastMessage?.content, String(thread.id)].filter(Boolean).join(" ").toLocaleLowerCase("ru-RU");
+      return haystack.includes(query);
+    });
+  }, [threads, threadSearch, selectedThreadGroupId]);
 
   useEffect(() => {
-    loadThread().catch((cause) => setError(cause instanceof Error ? cause.message : "Не удалось загрузить историю."));
+    Promise.all([loadThread(), loadThreads()]).catch((cause) => setError(cause instanceof Error ? cause.message : "Не удалось загрузить историю."));
+    // Initial bootstrap only; loaders intentionally use the first render state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -274,14 +519,32 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
     setData(payload.data);
   }
 
-  async function loadThread(options?: { fresh?: boolean }) {
+  async function loadThreads(options?: { includeArchived?: boolean; includeDeleted?: boolean }) {
+    const includeArchived = options?.includeArchived ?? showArchivedThreads;
+    const includeDeleted = options?.includeDeleted ?? showDeletedThreads;
+    const params = new URLSearchParams();
+    if (includeArchived) params.set("archived", "1");
+    if (includeDeleted) params.set("deleted", "1");
+    const response = await fetch(`/api/v1/crm/assistant/threads${params.toString() ? `?${params.toString()}` : ""}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload?.error?.message || "Не удалось загрузить список диалогов.");
+    setThreads(Array.isArray(payload.data.threads) ? payload.data.threads : []);
+    setThreadGroups(Array.isArray(payload.data.groups) ? payload.data.groups : []);
+  }
+
+  async function loadThread(options?: { fresh?: boolean; threadId?: number }) {
     setLoadingThread(true);
-    const response = await fetch(`/api/v1/crm/assistant/thread${options?.fresh ? "?new=1" : ""}`, { cache: "no-store" });
+    const params = new URLSearchParams();
+    if (options?.fresh) params.set("new", "1");
+    if (options?.threadId) params.set("threadId", String(options.threadId));
+    const query = params.toString();
+    const response = await fetch(`/api/v1/crm/assistant/thread${query ? `?${query}` : ""}`, { cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload?.error?.message || "Не удалось загрузить диалог.");
     setThreadId(payload.data.thread.id);
     setMessages(payload.data.messages);
     setLoadingThread(false);
+    await loadThreads();
   }
 
   async function startNewThread() {
@@ -291,7 +554,138 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
     await loadThread({ fresh: true });
   }
 
-  async function sendMessageText(text: string) {
+  async function openThread(id: number) {
+    if (busy || id === threadId) return;
+    setError(null);
+    setAgentWork(null);
+    await loadThread({ threadId: id });
+  }
+
+  async function deleteThread(id: number) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/crm/assistant/threads/${id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || "Не удалось удалить диалог.");
+      if (id === threadId) {
+        setMessages([]);
+        setThreadId(null);
+        await loadThread({ fresh: true });
+      } else {
+        await loadThreads();
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ошибка удаления диалога.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function patchThread(id: number, body: JsonRecord) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/crm/assistant/threads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || "Не удалось обновить диалог.");
+      await loadThreads();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ошибка обновления диалога.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveThreadTitle(id: number) {
+    const title = editingThreadTitle.trim();
+    if (!title) return;
+    await patchThread(id, { title });
+    setEditingThreadId(null);
+    setEditingThreadTitle("");
+  }
+
+  async function createThreadGroup() {
+    const title = newGroupTitle.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/v1/crm/assistant/thread-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || "Не удалось создать группу.");
+      setNewGroupTitle("");
+      await loadThreads();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ошибка создания группы.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveThreadGroupTitle(id: number) {
+    const title = editingGroupTitle.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/crm/assistant/thread-groups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || "Не удалось обновить группу.");
+      setEditingGroupId(null);
+      setEditingGroupTitle("");
+      await loadThreads();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ошибка обновления группы.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteThreadGroup(id: number) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/crm/assistant/thread-groups/${id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error?.message || "Не удалось удалить группу.");
+      if (selectedThreadGroupId === id) setSelectedThreadGroupId("all");
+      await loadThreads();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ошибка удаления группы.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleArchivedThreads() {
+    const next = !showArchivedThreads;
+    setShowArchivedThreads(next);
+    await loadThreads({ includeArchived: next });
+  }
+
+  async function toggleDeletedThreads() {
+    const next = !showDeletedThreads;
+    setShowDeletedThreads(next);
+    await loadThreads({ includeDeleted: next });
+  }
+
+  async function sendMessageText(text: string, structured?: { actionIntent: string; entity: { type: string; id: number | string } }) {
     const clean = text.trim();
     if (!clean || busy) return;
     setBusy(true);
@@ -302,19 +696,29 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
       const response = await fetch("/api/v1/crm/assistant/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: clean, threadId }),
+        body: JSON.stringify({ message: clean, threadId, ...structured }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error?.message || "Ассистент не ответил.");
       setThreadId(payload.data.threadId);
-      setMessages((current) => [...current, { role: "assistant", content: payload.data.answer, createdAt: new Date().toISOString() }]);
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: payload.data.answer,
+          createdAt: new Date().toISOString(),
+          cards: Array.isArray(payload.data.cards) ? payload.data.cards : [],
+        },
+      ]);
       setAgentWork({
         answer: payload.data.answer,
         selectedToolName: payload.data.selectedToolName ?? null,
         toolSteps: Array.isArray(payload.data.toolSteps) ? payload.data.toolSteps : [],
         pendingActions: Array.isArray(payload.data.pendingActions) ? payload.data.pendingActions : [],
+        cards: Array.isArray(payload.data.cards) ? payload.data.cards : [],
       });
       await refreshSummary();
+      await loadThreads();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ошибка запроса.");
     } finally {
@@ -327,6 +731,13 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
     await sendMessageText(message);
   }
 
+  function sendCardAction(card: AssistantCard, intent: string) {
+    void sendMessageText(entityActionMessage(card, intent), {
+      actionIntent: intent,
+      entity: { type: card.type, id: card.id },
+    });
+  }
+
   async function processAction(actionId: number, operation: "confirm" | "reject") {
     setBusy(true);
     setError(null);
@@ -335,6 +746,7 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error?.message || "Не удалось обработать действие.");
       await refreshSummary();
+      await loadThreads();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ошибка действия.");
     } finally {
@@ -437,7 +849,232 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
         <Metric title="Баланс ассистента" value={`${formatMoney(data.context.ai.balanceRub)} ₽`} hint={data.context.ai.crmAgentEnabled ? "Ассистент включён" : "Ассистент выключен"} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.85fr)]">
+      <section className="grid gap-4 xl:grid-cols-[280px_minmax(0,1.25fr)_minmax(360px,0.85fr)]">
+        <div className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 shadow-[var(--bp-shadow)]">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold">Диалоги</h2>
+              <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{threads.length} активных</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => startNewThread().catch((cause) => setError(cause instanceof Error ? cause.message : "Не удалось начать новый диалог."))}
+              className="rounded-lg bg-[color:var(--bp-accent)] px-2.5 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+              disabled={busy}
+            >
+              Новый
+            </button>
+          </div>
+          {threadGroups.length ? (
+            <div className="mt-3 grid gap-1">
+              <div className="mb-1 flex flex-wrap gap-1">
+                <button type="button" onClick={() => setSelectedThreadGroupId("all")} className={`rounded-md px-2 py-1 text-[11px] ${selectedThreadGroupId === "all" ? "bg-[color:var(--bp-accent)] text-white" : "bg-[color:var(--bp-bg)] text-[color:var(--bp-muted)]"}`}>
+                  All
+                </button>
+                <button type="button" onClick={() => setSelectedThreadGroupId("none")} className={`rounded-md px-2 py-1 text-[11px] ${selectedThreadGroupId === "none" ? "bg-[color:var(--bp-accent)] text-white" : "bg-[color:var(--bp-bg)] text-[color:var(--bp-muted)]"}`}>
+                  No group
+                </button>
+              </div>
+              {threadGroups.slice(0, 5).map((group) => (
+                <div key={group.id} className="flex items-center gap-1 rounded-md bg-[color:var(--bp-bg)] px-2 py-1">
+                  {editingGroupId === group.id ? (
+                    <>
+                      <input
+                        value={editingGroupTitle}
+                        onChange={(event) => setEditingGroupTitle(event.target.value)}
+                        className="min-w-0 flex-1 rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-[11px] outline-none"
+                      />
+                      <button type="button" onClick={() => saveThreadGroupTitle(group.id)} disabled={busy || !editingGroupTitle.trim()} className="text-[11px] font-medium disabled:opacity-50">
+                        OK
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => setSelectedThreadGroupId(group.id)} className={`min-w-0 flex-1 truncate text-left text-[11px] ${selectedThreadGroupId === group.id ? "font-medium text-[color:var(--bp-text)]" : "text-[color:var(--bp-muted)]"}`}>{group.title}</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingGroupId(group.id);
+                          setEditingGroupTitle(group.title);
+                        }}
+                        className="text-[11px] text-[color:var(--bp-muted)] hover:text-[color:var(--bp-text)]"
+                      >
+                        Переим.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteThreadGroup(group.id)}
+                        disabled={busy}
+                        className="text-[11px] text-[color:var(--bp-muted)] hover:text-red-700 disabled:opacity-50"
+                      >
+                        Del
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-3 grid gap-2">
+            <input
+              value={threadSearch}
+              onChange={(event) => setThreadSearch(event.target.value)}
+              placeholder="Поиск диалогов"
+              className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-xs outline-none focus:border-[color:var(--bp-accent)]"
+            />
+            <div className="flex gap-2">
+              <input
+                value={newGroupTitle}
+                onChange={(event) => setNewGroupTitle(event.target.value)}
+                placeholder="Новая группа"
+                className="min-w-0 flex-1 rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-xs outline-none focus:border-[color:var(--bp-accent)]"
+              />
+              <button type="button" onClick={createThreadGroup} disabled={busy || !newGroupTitle.trim()} className="rounded-lg border border-[color:var(--bp-stroke)] px-2.5 py-1.5 text-xs font-medium disabled:opacity-50">
+                +
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => toggleArchivedThreads().catch((cause) => setError(cause instanceof Error ? cause.message : "Не удалось переключить архив."))}
+              disabled={busy}
+              className="rounded-lg border border-[color:var(--bp-stroke)] px-3 py-1.5 text-xs text-[color:var(--bp-muted)] disabled:opacity-50"
+            >
+              {showArchivedThreads ? "Скрыть архив" : "Показать архив"}
+            </button>
+          </div>
+            <button
+              type="button"
+              onClick={() => toggleDeletedThreads().catch((cause) => setError(cause instanceof Error ? cause.message : "Не удалось переключить удаленные диалоги."))}
+              disabled={busy}
+              className="rounded-lg border border-[color:var(--bp-stroke)] px-3 py-1.5 text-xs text-[color:var(--bp-muted)] disabled:opacity-50"
+            >
+              {showDeletedThreads ? "Скрыть удаленные" : "Показать удаленные"}
+            </button>
+          <div className="mt-3 grid max-h-[640px] gap-2 overflow-y-auto pr-1">
+            {filteredThreads.length === 0 ? <div className="rounded-lg border border-dashed border-[color:var(--bp-stroke)] p-3 text-xs text-[color:var(--bp-muted)]">Пока нет сохранённых диалогов.</div> : null}
+            {filteredThreads.map((thread, index) => {
+              const group = threadDateGroup(thread.updatedAt);
+              const previousGroup = index > 0 ? threadDateGroup(filteredThreads[index - 1].updatedAt) : null;
+              return (
+              <div
+                key={thread.id}
+                className={`rounded-lg border p-2 transition ${
+                  thread.id === threadId
+                    ? "border-[color:var(--bp-accent)] bg-[color:var(--bp-bg)]"
+                    : "border-[color:var(--bp-stroke)] hover:border-[color:var(--bp-accent)]"
+                }`}
+              >
+                {group !== previousGroup ? <div className="-mx-1 mb-2 px-1 text-[11px] font-medium uppercase text-[color:var(--bp-muted)]">{group}</div> : null}
+                <button type="button" onClick={() => openThread(thread.id)} disabled={busy} className="block w-full text-left disabled:opacity-50">
+                  <div className="flex items-center justify-between gap-2">
+                    {editingThreadId === thread.id ? (
+                      <input
+                        value={editingThreadTitle}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => setEditingThreadTitle(event.target.value)}
+                        className="min-w-0 flex-1 rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none"
+                      />
+                    ) : (
+                      <div className="min-w-0 truncate text-sm font-medium">{thread.title || `Диалог #${thread.id}`}</div>
+                    )}
+                    {thread.pinnedAt ? <span className="text-[11px] text-[color:var(--bp-muted)]">Закр.</span> : null}
+                    {thread.archivedAt ? <span className="text-[11px] text-[color:var(--bp-muted)]">Арх.</span> : null}
+                    {thread.deletedAt ? <span className="text-[11px] text-[color:var(--bp-muted)]">Del</span> : null}
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-xs leading-5 text-[color:var(--bp-muted)]">{threadPreview(thread)}</div>
+                  <div className="mt-1 text-[11px] text-[color:var(--bp-muted)]">{formatDate(thread.updatedAt)}</div>
+                </button>
+                <div className="mt-2 grid gap-2">
+                  <select
+                    value={thread.groupId ?? ""}
+                    onChange={(event) => patchThread(thread.id, { groupId: event.target.value ? Number(event.target.value) : null })}
+                    disabled={busy}
+                    className="w-full rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-[11px] outline-none disabled:opacity-50"
+                  >
+                    <option value="">Без группы</option>
+                    {threadGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-2 flex flex-wrap justify-end gap-1">
+                  {editingThreadId === thread.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => saveThreadTitle(thread.id)}
+                        disabled={busy || !editingThreadTitle.trim()}
+                        className="rounded-md px-2 py-1 text-[11px] font-medium text-[color:var(--bp-accent)] disabled:opacity-50"
+                      >
+                        OK
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingThreadId(null);
+                          setEditingThreadTitle("");
+                        }}
+                        className="rounded-md px-2 py-1 text-[11px] text-[color:var(--bp-muted)]"
+                      >
+                        Отмена
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingThreadId(thread.id);
+                        setEditingThreadTitle(thread.title || `Диалог #${thread.id}`);
+                      }}
+                      disabled={busy}
+                      className="rounded-md px-2 py-1 text-[11px] text-[color:var(--bp-muted)] hover:bg-[color:var(--bp-bg)] disabled:opacity-50"
+                    >
+                      Переим.
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => patchThread(thread.id, { pinned: !thread.pinnedAt })}
+                    disabled={busy}
+                    className="rounded-md px-2 py-1 text-[11px] text-[color:var(--bp-muted)] hover:bg-[color:var(--bp-bg)] disabled:opacity-50"
+                  >
+                    {thread.pinnedAt ? "Откреп." : "Закреп."}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => patchThread(thread.id, { archived: !thread.archivedAt })}
+                    disabled={busy}
+                    className="rounded-md px-2 py-1 text-[11px] text-[color:var(--bp-muted)] hover:bg-[color:var(--bp-bg)] disabled:opacity-50"
+                  >
+                    {thread.archivedAt ? "Вернуть" : "Архив"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteThread(thread.id)}
+                    disabled={busy}
+                    className="rounded-md px-2 py-1 text-[11px] text-[color:var(--bp-muted)] hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                  >
+                    Удалить
+                  </button>
+                  {thread.deletedAt ? (
+                    <button
+                      type="button"
+                      onClick={() => patchThread(thread.id, { deleted: false })}
+                      disabled={busy}
+                      className="rounded-md px-2 py-1 text-[11px] text-[color:var(--bp-muted)] hover:bg-[color:var(--bp-bg)] disabled:opacity-50"
+                    >
+                      Restore
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-4 shadow-[var(--bp-shadow)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -458,6 +1095,7 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
                   }`}
                 >
                   {item.content}
+                  {item.role === "assistant" ? <AssistantEntityCards cards={item.cards} busy={busy} onAction={sendCardAction} /> : null}
                   {item.createdAt ? <div className={`mt-1 text-[11px] ${item.role === "user" ? "text-white/70" : "text-[color:var(--bp-muted)]"}`}>{formatDate(item.createdAt)}</div> : null}
                 </div>
               </div>
@@ -504,30 +1142,65 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
                   ))}
                 </div>
               ) : null}
+              <AssistantEntityCards cards={agentWork.cards} busy={busy} onAction={sendCardAction} />
               {agentWork.pendingActions.length ? <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Подготовлено действий: {agentWork.pendingActions.length}</div> : null}
             </div>
           ) : null}
-          {pendingActions.map((action) => (
-            <div key={action.id} className="rounded-lg border border-[color:var(--bp-stroke)] p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-sm font-medium">{action.summary}</div>
-                  <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                    {label(actionLabels, action.actionType)} {action.expiresAt ? `· до ${formatDate(action.expiresAt)}` : ""}
+          {pendingActions.map((action) => {
+            const previewRows = pendingActionPreviewRows(action);
+            return (
+              <div key={action.id} className="rounded-lg border border-[color:var(--bp-stroke)] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium">{action.summary}</div>
+                    <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                      {label(actionLabels, action.actionType)} {action.expiresAt ? `· до ${formatDate(action.expiresAt)}` : ""}
+                    </div>
                   </div>
+                  <span className="rounded-md bg-[color:var(--bp-bg)] px-2 py-1 text-xs">{label(statusLabels, action.status)}</span>
                 </div>
-                <span className="rounded-md bg-[color:var(--bp-bg)] px-2 py-1 text-xs">{label(statusLabels, action.status)}</span>
+                {previewRows.length ? (
+                  <div className="mt-3 grid gap-1 rounded-lg bg-[color:var(--bp-bg)] p-2">
+                    {previewRows.map(([key, value]) => (
+                      <div key={key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-2 text-xs leading-5">
+                        <div className="text-[color:var(--bp-muted)]">{key}</div>
+                        <div className="min-w-0 break-words font-medium">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {["appointment.create", "appointment.reschedule", "specialist.schedule.update", "notification.send"].includes(action.actionType) ? (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {action.actionType !== "notification.send" ? (
+                      <>
+                        <button type="button" onClick={() => sendMessageText("не в 10, а в 12")} disabled={busy} className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-[11px] disabled:opacity-50">
+                          Изменить время
+                        </button>
+                        <button type="button" onClick={() => sendMessageText("другая локация")} disabled={busy} className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-[11px] disabled:opacity-50">
+                          Другая локация
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => sendMessageText("изменить текст сообщения")} disabled={busy} className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-[11px] disabled:opacity-50">
+                        Изменить текст
+                      </button>
+                    )}
+                    <button type="button" onClick={() => sendMessageText("отмена")} disabled={busy} className="rounded-md border border-[color:var(--bp-stroke)] px-2 py-1 text-[11px] disabled:opacity-50">
+                      Отменить
+                    </button>
+                  </div>
+                ) : null}
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => processAction(action.id, "confirm")} disabled={busy} className="rounded-lg bg-[color:var(--bp-accent)] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+                    Подтвердить
+                  </button>
+                  <button onClick={() => processAction(action.id, "reject")} disabled={busy} className="rounded-lg border border-[color:var(--bp-stroke)] px-3 py-1.5 text-xs font-medium disabled:opacity-50">
+                    Отклонить
+                  </button>
+                </div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <button onClick={() => processAction(action.id, "confirm")} disabled={busy} className="rounded-lg bg-[color:var(--bp-accent)] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
-                  Подтвердить
-                </button>
-                <button onClick={() => processAction(action.id, "reject")} disabled={busy} className="rounded-lg border border-[color:var(--bp-stroke)] px-3 py-1.5 text-xs font-medium disabled:opacity-50">
-                  Отклонить
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </Panel>
       </section>
 

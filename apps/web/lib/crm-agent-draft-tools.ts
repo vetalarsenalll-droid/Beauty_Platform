@@ -89,8 +89,9 @@ async function createDraftAction(input: {
 }
 
 async function assertClient(accountId: number, clientId: number) {
-  const client = await prisma.client.findFirst({ where: { id: clientId, accountId }, select: { id: true } });
+  const client = await prisma.client.findFirst({ where: { id: clientId, accountId }, select: { id: true, firstName: true, lastName: true, phone: true, email: true } });
   if (!client) throw new Error("Клиент не найден в аккаунте.");
+  return client;
 }
 
 async function assertReview(accountId: number, reviewId: number) {
@@ -158,19 +159,24 @@ async function assertService(accountId: number, serviceId: number) {
 }
 
 async function assertSpecialist(accountId: number, specialistId: number) {
-  const specialist = await prisma.specialistProfile.findFirst({ where: { id: specialistId, accountId }, select: { id: true } });
+  const specialist = await prisma.specialistProfile.findFirst({
+    where: { id: specialistId, accountId },
+    select: { id: true, user: { select: { profile: { select: { firstName: true, lastName: true } } } } },
+  });
   if (!specialist) throw new Error("Сотрудник не найден в аккаунте.");
+  return specialist;
 }
 
 async function assertLocation(accountId: number, locationId: number) {
-  const location = await prisma.location.findFirst({ where: { id: locationId, accountId }, select: { id: true } });
+  const location = await prisma.location.findFirst({ where: { id: locationId, accountId }, select: { id: true, name: true } });
   if (!location) throw new Error("Локация не найдена в аккаунте.");
+  return location;
 }
 
 async function assertAppointment(accountId: number, appointmentId: number) {
   const appointment = await prisma.appointment.findFirst({
     where: { id: appointmentId, accountId },
-    select: { id: true, durationTotalMin: true, specialistId: true, locationId: true },
+    select: { id: true, startAt: true, durationTotalMin: true, specialistId: true, locationId: true },
   });
   if (!appointment) throw new Error("Запись не найдена в аккаунте.");
   return appointment;
@@ -181,19 +187,25 @@ export async function draftAppointmentCreate(args: Prisma.JsonObject, scope: Crm
   const serviceId = requiredNumber(args, "serviceId");
   const specialistId = requiredNumber(args, "specialistId");
   const locationId = requiredNumber(args, "locationId");
-  await Promise.all([
+  const [client, service, specialist, location] = await Promise.all([
     assertClient(scope.accountId, clientId),
     assertService(scope.accountId, serviceId),
     assertSpecialist(scope.accountId, specialistId),
     assertLocation(scope.accountId, locationId),
   ]);
+  const clientName = [client.firstName, client.lastName].filter(Boolean).join(" ").trim() || client.phone || client.email || `#${clientId}`;
+  const specialistName = [specialist.user.profile?.firstName, specialist.user.profile?.lastName].filter(Boolean).join(" ").trim() || `#${specialistId}`;
 
   const startAt = requiredDateString(args, "startAt");
   const payload = {
     clientId,
+    clientName,
     serviceId,
+    serviceName: service.name,
     specialistId,
+    specialistName,
     locationId,
+    locationName: location.name,
     startAt,
     ...(optionalDateString(args, "endAt") ? { endAt: optionalDateString(args, "endAt") } : {}),
     ...(numberArg(args, "durationTotalMin") != null ? { durationTotalMin: numberArg(args, "durationTotalMin") } : {}),
@@ -213,12 +225,13 @@ export async function draftAppointmentCreate(args: Prisma.JsonObject, scope: Crm
 
 export async function draftAppointmentReschedule(args: Prisma.JsonObject, scope: CrmAgentScope) {
   const appointmentId = requiredNumber(args, "appointmentId");
-  await assertAppointment(scope.accountId, appointmentId);
+  const appointment = await assertAppointment(scope.accountId, appointmentId);
   const startAt = requiredDateString(args, "startAt");
   const specialistId = numberArg(args, "specialistId");
   const locationId = numberArg(args, "locationId");
-  if (specialistId != null) await assertSpecialist(scope.accountId, specialistId);
-  if (locationId != null) await assertLocation(scope.accountId, locationId);
+  const specialist = specialistId != null ? await assertSpecialist(scope.accountId, specialistId) : null;
+  const location = locationId != null ? await assertLocation(scope.accountId, locationId) : null;
+  const specialistName = specialist ? [specialist.user.profile?.firstName, specialist.user.profile?.lastName].filter(Boolean).join(" ").trim() || `#${specialistId}` : null;
 
   return createDraftAction({
     scope,
@@ -226,10 +239,13 @@ export async function draftAppointmentReschedule(args: Prisma.JsonObject, scope:
     summary: `Перенести запись #${appointmentId} на ${startAt}`,
     payload: {
       appointmentId,
+      oldStartAt: appointment.startAt.toISOString(),
       startAt,
       ...(optionalDateString(args, "endAt") ? { endAt: optionalDateString(args, "endAt") } : {}),
       ...(specialistId != null ? { specialistId } : {}),
+      ...(specialistName ? { specialistName } : {}),
       ...(locationId != null ? { locationId } : {}),
+      ...(location ? { locationName: location.name } : {}),
       ...(stringArg(args, "comment") ? { comment: stringArg(args, "comment") } : {}),
     },
     permission: "crm.appointments.reschedule",
@@ -334,16 +350,19 @@ export async function draftSpecialistUpdate(args: Prisma.JsonObject, scope: CrmA
 export async function draftSpecialistScheduleUpdate(args: Prisma.JsonObject, scope: CrmAgentScope) {
   const specialistId = requiredNumber(args, "specialistId");
   const locationId = numberArg(args, "locationId");
-  await assertSpecialist(scope.accountId, specialistId);
-  if (locationId != null) await assertLocation(scope.accountId, locationId);
+  const specialist = await assertSpecialist(scope.accountId, specialistId);
+  const location = locationId != null ? await assertLocation(scope.accountId, locationId) : null;
+  const specialistName = [specialist.user.profile?.firstName, specialist.user.profile?.lastName].filter(Boolean).join(" ").trim() || `#${specialistId}`;
   return createDraftAction({
     scope,
     actionType: "specialist.schedule.update",
     summary: `Обновить график сотрудника #${specialistId}`,
     payload: {
       specialistId,
+      specialistName,
       date: requiredDateString(args, "date"),
       ...(locationId != null ? { locationId } : {}),
+      ...(location ? { locationName: location.name } : {}),
       ...(stringArg(args, "type") ? { type: stringArg(args, "type") } : {}),
       ...(args.startTime !== undefined ? { startTime: stringArg(args, "startTime") } : {}),
       ...(args.endTime !== undefined ? { endTime: stringArg(args, "endTime") } : {}),
@@ -477,13 +496,15 @@ export async function draftReviewReply(args: Prisma.JsonObject, scope: CrmAgentS
 
 export async function draftNotificationSend(args: Prisma.JsonObject, scope: CrmAgentScope) {
   const clientId = requiredNumber(args, "clientId");
-  await assertClient(scope.accountId, clientId);
+  const client = await assertClient(scope.accountId, clientId);
+  const clientName = [client.firstName, client.lastName].filter(Boolean).join(" ").trim() || client.phone || client.email || `#${clientId}`;
   return createDraftAction({
     scope,
     actionType: "notification.send",
     summary: `Send notification to client #${clientId}`,
     payload: {
       clientId,
+      clientName,
       channel: requiredString(args, "channel"),
       bodyText: requiredString(args, "bodyText"),
       ...(stringArg(args, "title") ? { title: stringArg(args, "title") } : {}),

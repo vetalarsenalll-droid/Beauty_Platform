@@ -659,6 +659,8 @@ model Account {
   legalAcceptances        LegalAcceptance[]
   onlineBookingSessions   OnlineBookingSession[]
   onlineBookingSteps      OnlineBookingStep[]
+  aiThreads               AiThread[]
+  aiThreadGroups          AiThreadGroup[]
   webhookEndpoints        WebhookEndpoint[]
   audits                  AccountAuditLog[]
   invites                 AccountInvite[]
@@ -1157,6 +1159,7 @@ model User {
   notificationPreferences NotificationPreference[]
   outboxItems             OutboxItem[]
   aiThreads               AiThread[]
+  aiThreadGroups          AiThreadGroup[]
   platformAdmin           PlatformAdmin?
   accountAudits           AccountAuditLog[]
   locationManagers        LocationManager[]
@@ -2240,18 +2243,55 @@ model WebhookDelivery {
 }
 
 model AiThread {
-  id        Int      @id @default(autoincrement())
-  accountId Int?
-  clientId  Int?
-  userId    Int?
-  title     String?
-  createdAt DateTime @default(now())
+  id         Int       @id @default(autoincrement())
+  accountId  Int?
+  clientId   Int?
+  userId     Int?
+  groupId    Int?
+  title      String?
+  archivedAt DateTime?
+  deletedAt  DateTime?
+  pinnedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  client       Client?         @relation(fields: [clientId], references: [id])
-  user         User?           @relation(fields: [userId], references: [id])
+  account      Account?       @relation(fields: [accountId], references: [id])
+  client       Client?        @relation(fields: [clientId], references: [id])
+  user         User?          @relation(fields: [userId], references: [id])
+  group        AiThreadGroup? @relation(fields: [groupId], references: [id])
   messages     AiMessage[]
   actions      AiAction[]
   bookingDraft AiBookingDraft?
+  state        AiThreadState?
+
+  @@index([accountId, userId, deletedAt, updatedAt])
+  @@index([accountId, groupId, updatedAt])
+  @@index([accountId, pinnedAt])
+}
+
+model AiThreadGroup {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  userId    Int?
+  title     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account    @relation(fields: [accountId], references: [id])
+  user    User?      @relation(fields: [userId], references: [id])
+  threads AiThread[]
+
+  @@index([accountId, userId, sortOrder])
+}
+
+model AiThreadState {
+  threadId  Int      @id
+  state     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 }
 
 model AiMessage {

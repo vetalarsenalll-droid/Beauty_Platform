@@ -86,6 +86,7 @@ const registrySource = read("apps/web/lib/crm-agent-tool-registry.ts");
 const executorSource = read("apps/web/lib/crm-agent-action-executor.ts");
 const domainToolsSource = read("apps/web/lib/crm-agent-domain-tools.ts");
 const orchestratorSource = read("apps/web/lib/crm-agent-orchestrator.ts");
+const threadContinuationSource = read("apps/web/lib/crm-agent-thread-continuation.ts");
 const llmContractSource = read("apps/web/lib/crm-agent-llm-contract.ts");
 const campaignsSource = read("apps/web/lib/crm-agent-campaigns.ts");
 const autopilotSource = read("apps/web/lib/crm-agent-autopilot.ts");
@@ -117,6 +118,44 @@ assert(/assertClientMarketingConsent[\s\S]*notification\.send/s.test(executorSou
 assert(/filterClientsWithMarketingConsent[\s\S]*notification\.campaign\.send/s.test(executorSource), "Campaign notification send must filter clients by marketing consent.");
 assert(/executeLlmToolLoop[\s\S]*role:\s*"tool"[\s\S]*toolSteps/s.test(orchestratorSource), "LLM tool loop must persist tool observations and expose toolSteps.");
 assert(/loadConversationHistory[\s\S]*listCrmAgentMessages[\s\S]*role: "user_current"[\s\S]*conversationHistory/s.test(orchestratorSource), "CRM agent must pass conversation history into the LLM loop.");
+assert(/model AiThread[\s\S]*groupId[\s\S]*archivedAt[\s\S]*deletedAt[\s\S]*pinnedAt[\s\S]*model AiThreadGroup[\s\S]*model AiThreadState/s.test(schemaSource), "CRM agent must have manageable chat threads, groups and thread state.");
+assert(/listCrmAgentThreads[\s\S]*deletedAt: null[\s\S]*listCrmAgentThreadGroups[\s\S]*updateCrmAgentThread[\s\S]*deleteCrmAgentThread[\s\S]*updateCrmAgentThreadState/s.test(read("apps/web/lib/crm-agent-persistence.ts")), "CRM agent persistence must support thread workspace operations.");
+assert(/executeScheduleWorkdayFlow[\s\S]*extractScheduleWorkdayQuery[\s\S]*specialists\.search[\s\S]*specialists\.draftScheduleUpdate[\s\S]*deterministic_schedule_workday/s.test(orchestratorSource), "CRM agent must handle working-day schedule commands deterministically.");
+assert(/executeActionIntentFlow[\s\S]*appointments\.findAvailableSlots[\s\S]*show_visits[\s\S]*appointments\.search[\s\S]*deterministic_action_intent/s.test(orchestratorSource), "CRM agent must handle structured card action intents deterministically.");
+assert(/buildCrmAgentStructuredResponse[\s\S]*updateCrmAgentThreadState[\s\S]*entities[\s\S]*cards[\s\S]*suggestedActions[\s\S]*threadState/s.test(orchestratorSource), "CRM agent chat must expose structured entities, cards, suggested actions and thread state.");
+assert(
+  threadContinuationSource.includes("resolveThreadContinuation")
+    && threadContinuationSource.includes("select_entity")
+    && threadContinuationSource.includes("confirm_pending_action")
+    && threadContinuationSource.includes("cancel_pending_action")
+    && threadContinuationSource.includes("correction"),
+  "CRM agent must resolve short thread continuations from AiThreadState.",
+);
+assert(
+  threadContinuationSource.includes("resolveEntitySelection")
+    && threadContinuationSource.includes("latestCards")
+    && threadContinuationSource.includes("parseOrdinal")
+    && threadContinuationSource.includes("parseTime")
+    && threadContinuationSource.includes("selectedEntity"),
+  "CRM agent must select entities from previous cards by ordinal, time, name and selected entity references.",
+);
+assert(/getCrmAgentThreadState[\s\S]*resolveThreadContinuation[\s\S]*thread_continuation[\s\S]*selectedEntity[\s\S]*pendingClarification/s.test(orchestratorSource), "CRM agent orchestrator must use AiThreadState before falling back to LLM.");
+assert(/executeAppointmentCreateFromText[\s\S]*appointments\.draftCreate[\s\S]*deterministic_appointment_create/s.test(orchestratorSource), "CRM agent must create appointment drafts deterministically from text.");
+assert(/executeAppointmentRescheduleFromText[\s\S]*appointments\.draftReschedule[\s\S]*deterministic_appointment_reschedule/s.test(orchestratorSource), "CRM agent must reschedule appointments deterministically from text.");
+assert(/executeNotificationSendFromText[\s\S]*notifications\.draftSend[\s\S]*deterministic_notification_send/s.test(orchestratorSource), "CRM agent must prepare client notifications deterministically from text.");
+assert(/executeAppointmentCancelFromText[\s\S]*appointments\.draftCancel[\s\S]*deterministic_appointment_cancel/s.test(orchestratorSource), "CRM agent must cancel appointment drafts deterministically from text.");
+assert(/executeReviewReplyFromText[\s\S]*reviews\.draftReply[\s\S]*deterministic_review_reply/s.test(orchestratorSource), "CRM agent must prepare review replies deterministically from text.");
+assert(/executeClientCreateFromText[\s\S]*clients\.draftCreate[\s\S]*deterministic_client_create/s.test(orchestratorSource), "CRM agent must prepare client creation deterministically from text.");
+assert(/input\.resolution\.kind === "correction"[\s\S]*aiPendingAction\.updateMany[\s\S]*payload/s.test(orchestratorSource), "CRM agent must apply correction continuations to pending actions.");
+assert(/applySelectedCardToPendingAction[\s\S]*card\.type === "slot"[\s\S]*card\.type === "location"[\s\S]*aiPendingAction\.updateMany/s.test(orchestratorSource), "CRM agent must apply selected slots and locations to pending actions.");
+assert(/buildCrmAgentGroundedAnswer[\s\S]*appointments\.findAvailableSlots[\s\S]*Свободных окон/s.test(read("apps/web/lib/crm-agent-structured-response.ts")), "CRM agent must build grounded CRM summaries from cards/tool results.");
+assert(/cards:\s*agentResult\.cards[\s\S]*suggestedActions:\s*agentResult\.suggestedActions[\s\S]*threadState:\s*agentResult\.threadState/s.test(read("apps/web/app/api/v1/crm/assistant/chat/route.ts")), "CRM assistant chat API must return structured response fields.");
+assert(/AssistantEntityCards[\s\S]*entityActionMessage[\s\S]*actionIntent[\s\S]*pendingActionPreviewRows/s.test(read("apps/web/app/(crm)/crm/assistant/crm-assistant-cockpit.tsx")), "CRM assistant UI must render entity cards, structured card actions and pending action previews.");
+assert(/threadSearch[\s\S]*showArchivedThreads[\s\S]*patchThread[\s\S]*createThreadGroup[\s\S]*saveThreadGroupTitle/s.test(read("apps/web/app/(crm)/crm/assistant/crm-assistant-cockpit.tsx")), "CRM assistant thread sidebar must support search, archive, pin, rename and groups.");
+assert(/updateCrmAgentThreadGroup[\s\S]*groupId[\s\S]*title[\s\S]*sortOrder/s.test(read("apps/web/app/api/v1/crm/assistant/thread-groups/[id]/route.ts")), "CRM assistant must expose thread group update endpoint.");
+assert(/deleteCrmAgentThreadGroup[\s\S]*DELETE/s.test(read("apps/web/app/api/v1/crm/assistant/thread-groups/[id]/route.ts")), "CRM assistant must expose thread group deletion endpoint.");
+assert(/showDeletedThreads[\s\S]*deleted: false[\s\S]*Restore/s.test(read("apps/web/app/(crm)/crm/assistant/crm-assistant-cockpit.tsx")), "CRM assistant thread sidebar must support deleted thread restore.");
+assert(/api\/v1\/crm\/assistant\/threads[\s\S]*openThread[\s\S]*deleteThread[\s\S]*Диалоги/s.test(read("apps/web/app/(crm)/crm/assistant/crm-assistant-cockpit.tsx")), "CRM assistant UI must expose a thread sidebar.");
 assert(/function searchTokens[\s\S]*function normalizeSearchText[\s\S]*function levenshteinDistance[\s\S]*function rankSearchResults/s.test(domainToolsSource), "CRM read tools must have shared fuzzy search helpers.");
 assert(/searchCrmAgentClients[\s\S]*rankSearchResults[\s\S]*firstName[\s\S]*lastName[\s\S]*phone[\s\S]*email/s.test(domainToolsSource), "Client search must support tokenized and typo-tolerant matching.");
 assert(/searchCrmAgentServices[\s\S]*rankSearchResults[\s\S]*service\.name[\s\S]*service\.description[\s\S]*category/s.test(domainToolsSource), "Service search must support tokenized and typo-tolerant matching.");

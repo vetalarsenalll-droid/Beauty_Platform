@@ -19,6 +19,7 @@ export async function getOrCreateCrmAgentThread(input: {
         id: input.threadId,
         accountId: input.accountId,
         userId: input.userId,
+        deletedAt: null,
       },
     });
     if (existing) return existing;
@@ -41,9 +42,10 @@ export async function getLatestCrmAgentThread(input: {
     where: {
       accountId: input.accountId,
       userId: input.userId,
-      title: "CRM AI Agent",
+      deletedAt: null,
+      archivedAt: null,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ pinnedAt: "desc" }, { updatedAt: "desc" }],
   });
 }
 
@@ -61,17 +63,179 @@ export async function getOrCreateCurrentCrmAgentThread(input: {
   return latest ?? getOrCreateCrmAgentThread(input);
 }
 
+export async function listCrmAgentThreads(input: {
+  accountId: number;
+  userId: number;
+  includeArchived?: boolean;
+  includeDeleted?: boolean;
+  take?: number;
+}) {
+  return prisma.aiThread.findMany({
+    where: {
+      accountId: input.accountId,
+      userId: input.userId,
+      ...(input.includeDeleted ? { deletedAt: { not: null } } : { deletedAt: null }),
+      ...(input.includeArchived ? {} : { archivedAt: null }),
+    },
+    orderBy: [{ pinnedAt: "desc" }, { updatedAt: "desc" }],
+    take: input.take ?? 50,
+    select: {
+      id: true,
+      title: true,
+      groupId: true,
+      archivedAt: true,
+      deletedAt: true,
+      pinnedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { role: true, content: true, createdAt: true },
+      },
+      _count: { select: { messages: true } },
+    },
+  });
+}
+
+export async function listCrmAgentThreadGroups(input: {
+  accountId: number;
+  userId: number;
+}) {
+  return prisma.aiThreadGroup.findMany({
+    where: { accountId: input.accountId, userId: input.userId },
+    orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
+  });
+}
+
+export async function updateCrmAgentThread(input: {
+  accountId: number;
+  userId: number;
+  threadId: number;
+  title?: string | null;
+  groupId?: number | null;
+  archived?: boolean;
+  pinned?: boolean;
+  deleted?: boolean;
+}) {
+  if (input.groupId != null) {
+    const group = await prisma.aiThreadGroup.findFirst({
+      where: { id: input.groupId, accountId: input.accountId, userId: input.userId },
+      select: { id: true },
+    });
+    if (!group) throw new Error("Thread group was not found.");
+  }
+  return prisma.aiThread.updateMany({
+    where: { id: input.threadId, accountId: input.accountId, userId: input.userId },
+    data: {
+      ...(input.title !== undefined ? { title: input.title?.trim() || "CRM AI Agent" } : {}),
+      ...(input.groupId !== undefined ? { groupId: input.groupId } : {}),
+      ...(input.archived !== undefined ? { archivedAt: input.archived ? new Date() : null } : {}),
+      ...(input.pinned !== undefined ? { pinnedAt: input.pinned ? new Date() : null } : {}),
+      ...(input.deleted !== undefined ? { deletedAt: input.deleted ? new Date() : null } : {}),
+    },
+  });
+}
+
+export async function deleteCrmAgentThread(input: {
+  accountId: number;
+  userId: number;
+  threadId: number;
+}) {
+  return prisma.aiThread.updateMany({
+    where: { id: input.threadId, accountId: input.accountId, userId: input.userId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+}
+
+export async function createCrmAgentThreadGroup(input: {
+  accountId: number;
+  userId: number;
+  title: string;
+}) {
+  return prisma.aiThreadGroup.create({
+    data: {
+      accountId: input.accountId,
+      userId: input.userId,
+      title: input.title.trim() || "Группа",
+    },
+  });
+}
+
+export async function updateCrmAgentThreadGroup(input: {
+  accountId: number;
+  userId: number;
+  groupId: number;
+  title?: string | null;
+  sortOrder?: number | null;
+}) {
+  return prisma.aiThreadGroup.updateMany({
+    where: { id: input.groupId, accountId: input.accountId, userId: input.userId },
+    data: {
+      ...(input.title !== undefined ? { title: input.title?.trim() || "Группа" } : {}),
+      ...(typeof input.sortOrder === "number" ? { sortOrder: Math.trunc(input.sortOrder) } : {}),
+    },
+  });
+}
+
+export async function deleteCrmAgentThreadGroup(input: {
+  accountId: number;
+  userId: number;
+  groupId: number;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const group = await tx.aiThreadGroup.findFirst({
+      where: { id: input.groupId, accountId: input.accountId, userId: input.userId },
+      select: { id: true },
+    });
+    if (!group) return { count: 0 };
+    await tx.aiThread.updateMany({
+      where: { accountId: input.accountId, userId: input.userId, groupId: input.groupId },
+      data: { groupId: null },
+    });
+    await tx.aiThreadGroup.delete({ where: { id: input.groupId } });
+    return { count: 1 };
+  });
+}
+
+export async function updateCrmAgentThreadState(input: {
+  threadId: number;
+  state: Prisma.InputJsonValue;
+}) {
+  return prisma.aiThreadState.upsert({
+    where: { threadId: input.threadId },
+    create: { threadId: input.threadId, state: input.state },
+    update: { state: input.state },
+  });
+}
+
+export async function getCrmAgentThreadState(input: {
+  accountId: number;
+  threadId: number;
+}) {
+  return prisma.aiThreadState.findFirst({
+    where: { threadId: input.threadId, thread: { accountId: input.accountId, deletedAt: null } },
+  });
+}
+
 export async function appendCrmAgentMessage(input: {
   threadId: number;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
 }) {
-  return prisma.aiMessage.create({
-    data: {
-      threadId: input.threadId,
-      role: input.role,
-      content: input.content,
-    },
+  return prisma.$transaction(async (tx) => {
+    const message = await tx.aiMessage.create({
+      data: {
+        threadId: input.threadId,
+        role: input.role,
+        content: input.content,
+      },
+    });
+    await tx.aiThread.update({
+      where: { id: input.threadId },
+      data: { updatedAt: new Date() },
+    });
+    return message;
   });
 }
 
@@ -81,7 +245,7 @@ export async function listCrmAgentMessages(input: {
   take?: number;
 }) {
   const thread = await prisma.aiThread.findFirst({
-    where: { id: input.threadId, accountId: input.accountId },
+    where: { id: input.threadId, accountId: input.accountId, deletedAt: null },
     select: { id: true },
   });
   if (!thread) return [];
