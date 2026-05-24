@@ -4,6 +4,6 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "node ./src/index.ts"
+    "dev": "node ./src/index.mjs"
   }
 }

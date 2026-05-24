@@ -163,6 +163,7 @@ enum NotificationChannel {
 enum DeliveryStatus {
   QUEUED
   SENT
+  DELIVERED
   FAILED
   DEAD
 }
@@ -284,6 +285,63 @@ enum ReviewStatus {
   PUBLISHED
   PENDING
   HIDDEN
+}
+
+enum AiPendingActionStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  EXECUTED
+  FAILED
+  EXPIRED
+}
+
+enum AiAccountInsightStatus {
+  NEW
+  VIEWED
+  ACCEPTED
+  DISMISSED
+  EXPIRED
+}
+
+enum AiAgentTaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  DISMISSED
+  FAILED
+}
+
+enum AiAgentCampaignStatus {
+  DRAFT
+  READY
+  PENDING_CONFIRMATION
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+enum AiAgentDraftStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  APPROVED
+  APPLIED
+  REJECTED
+  FAILED
+}
+
+enum AiAgentRunStatus {
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum AiAgentToolCallStatus {
+  RUNNING
+  DONE
+  FAILED
 }
 
 enum OutboxScope {
@@ -1452,6 +1510,7 @@ model Client {
   lastName  String?
   phone     String?
   email     String?
+  birthDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2373,6 +2432,219 @@ model AiBookingDraft {
   thread AiThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
   @@index([bookingAttemptKey])
+}
+
+model AiPendingAction {
+  id          Int                   @id @default(autoincrement())
+  accountId   Int
+  userId      Int?
+  threadId    Int?
+  actionType  String
+  payload     Json
+  summary     String
+  status      AiPendingActionStatus @default(PENDING)
+  result      Json?
+  error       String?
+  riskLevel   String                @default("medium")
+  permission  String?
+  expiresAt   DateTime
+  confirmedAt DateTime?
+  executedAt  DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([threadId, status])
+  @@index([actionType])
+  @@index([expiresAt])
+}
+
+model AiAccountMemory {
+  id         Int      @id @default(autoincrement())
+  accountId  Int
+  key        String
+  value      Json
+  confidence Decimal  @default(1) @db.Decimal(5, 4)
+  source     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([accountId, key])
+  @@index([accountId, updatedAt])
+}
+
+model AiAccountInsight {
+  id        Int                    @id @default(autoincrement())
+  accountId Int
+  type      String
+  title     String
+  summary   String
+  data      Json
+  priority  Int                    @default(0)
+  status    AiAccountInsightStatus @default(NEW)
+  expiresAt DateTime?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([accountId, status, priority, createdAt])
+  @@index([accountId, type, status])
+  @@index([expiresAt])
+}
+
+model AiAgentTask {
+  id              Int               @id @default(autoincrement())
+  accountId       Int
+  type            String
+  title           String
+  description     String?
+  payload         Json
+  status          AiAgentTaskStatus @default(OPEN)
+  sourceInsightId Int?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([accountId, type, status])
+  @@index([sourceInsightId])
+}
+
+model AiAgentCampaign {
+  id          Int                   @id @default(autoincrement())
+  accountId   Int
+  title       String
+  goal        String
+  audience    Json
+  offer       Json?
+  content     Json
+  channels    String[]
+  status      AiAgentCampaignStatus @default(DRAFT)
+  result      Json?
+  error       String?
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([scheduledAt])
+}
+
+model AiAgentCampaignConversion {
+  id            Int      @id @default(autoincrement())
+  accountId     Int
+  campaignId    Int
+  clientId      Int
+  appointmentId Int
+  revenue       Decimal  @db.Decimal(12, 2)
+  occurredAt    DateTime
+  createdAt     DateTime @default(now())
+
+  @@unique([campaignId, appointmentId])
+  @@index([accountId, campaignId, occurredAt])
+  @@index([clientId, occurredAt])
+}
+
+model AiAgentNotificationDraft {
+  id          Int                @id @default(autoincrement())
+  accountId   Int
+  campaignId  Int?
+  title       String
+  channel     String
+  audience    Json
+  bodyText    String
+  status      AiAgentDraftStatus @default(DRAFT)
+  result      Json?
+  error       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([campaignId])
+}
+
+model AiAgentReviewDraft {
+  id        Int                @id @default(autoincrement())
+  accountId Int
+  reviewId  Int
+  replyText String
+  status    AiAgentDraftStatus @default(DRAFT)
+  result    Json?
+  error     String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([reviewId])
+}
+
+model AiAgentSiteDraft {
+  id         Int                @id @default(autoincrement())
+  accountId  Int
+  targetType String
+  targetId   String?
+  patch       Json
+  summary     String
+  status      AiAgentDraftStatus @default(DRAFT)
+  result      Json?
+  error       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([accountId, targetType])
+}
+
+model AiAgentRun {
+  id         Int              @id @default(autoincrement())
+  accountId  Int
+  userId     Int?
+  threadId   Int?
+  runType    String
+  status     AiAgentRunStatus @default(RUNNING)
+  input      Json?
+  output     Json?
+  error      String?
+  startedAt  DateTime         @default(now())
+  finishedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([accountId, runType, createdAt])
+  @@index([accountId, status, createdAt])
+  @@index([threadId])
+}
+
+model AiAgentToolCall {
+  id         Int                   @id @default(autoincrement())
+  accountId  Int
+  runId      Int?
+  threadId   Int?
+  toolName   String
+  arguments  Json
+  result     Json?
+  status     AiAgentToolCallStatus @default(RUNNING)
+  error      String?
+  startedAt  DateTime              @default(now())
+  finishedAt DateTime?
+  createdAt  DateTime              @default(now())
+
+  @@index([accountId, toolName, createdAt])
+  @@index([runId])
+  @@index([threadId])
+}
+
+model AiAgentAudit {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  userId    Int?
+  action    String
+  targetType String
+  targetId  String?
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action])
 }
 
 model OnlineBookingSession {

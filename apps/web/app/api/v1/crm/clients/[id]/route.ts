@@ -14,6 +14,14 @@ function parseId(value: string) {
   return id;
 }
 
+function parseBirthDate(value: unknown) {
+  if (value == null || value === "") return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return undefined;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 export async function GET(_request: Request, context: RouteContext) {
   const auth = await requireCrmApiPermission("crm.clients.read");
   if ("response" in auth) return auth.response;
@@ -38,6 +46,7 @@ export async function GET(_request: Request, context: RouteContext) {
     lastName: client.lastName,
     phone: client.phone,
     email: client.email,
+    birthDate: client.birthDate ? client.birthDate.toISOString().slice(0, 10) : null,
     createdAt: client.createdAt.toISOString(),
     updatedAt: client.updatedAt.toISOString(),
   });
@@ -67,6 +76,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     body.phone !== undefined ? normalizeRuPhone(String(body.phone).trim()) : undefined;
   const email =
     body.email !== undefined ? String(body.email).trim() || null : undefined;
+  const birthDate =
+    body.birthDate !== undefined ? parseBirthDate(body.birthDate) : undefined;
+  if (birthDate === undefined && body.birthDate !== undefined) {
+    return jsonError("VALIDATION_FAILED", "birthDate must be a valid date.", { field: "birthDate" }, 400);
+  }
 
   const updated = await prisma.client.updateMany({
     where: { id: clientId, accountId: auth.session.accountId },
@@ -75,6 +89,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(lastName !== undefined ? { lastName } : {}),
       ...(phone !== undefined ? { phone } : {}),
       ...(email !== undefined ? { email } : {}),
+      ...(birthDate !== undefined ? { birthDate } : {}),
     },
   });
 
@@ -88,7 +103,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     action: "Обновлен клиент",
     targetType: "client",
     targetId: clientId,
-    diffJson: { firstName, lastName, phone, email },
+    diffJson: { firstName, lastName, phone, email, birthDate: birthDate ? birthDate.toISOString().slice(0, 10) : birthDate },
   });
 
   const client = await prisma.client.findFirst({
@@ -105,6 +120,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     lastName: client.lastName,
     phone: client.phone,
     email: client.email,
+    birthDate: client.birthDate ? client.birthDate.toISOString().slice(0, 10) : null,
     createdAt: client.createdAt.toISOString(),
     updatedAt: client.updatedAt.toISOString(),
   });

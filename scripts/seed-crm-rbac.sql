@@ -52,16 +52,30 @@ SET "description" = EXCLUDED."description";
 INSERT INTO "Permission" ("key", "description", "createdAt")
 VALUES
   ('crm.assistant.read', 'Просмотр раздела Ассистент', NOW()),
-  ('crm.assistant.manage', 'Управление AI-ассистентом', NOW()),
+  ('crm.assistant.manage', 'Управление ИИ-ассистентом', NOW()),
   ('crm.assistant.site.read', 'Просмотр настроек ассистента на сайте', NOW()),
   ('crm.assistant.site.manage', 'Управление ассистентом на сайте', NOW()),
-  ('crm.assistant.dialogs.read', 'Просмотр диалогов AI-ассистента', NOW()),
-  ('crm.assistant.analytics.read', 'Просмотр аналитики AI-ассистента', NOW()),
-  ('crm.assistant.billing.read', 'Просмотр AI-баланса и списаний', NOW()),
-  ('crm.assistant.billing.manage', 'Покупка AI-пакетов и управление AI-балансом', NOW()),
-  ('crm.assistant.agent.use', 'Использование CRM AI-агента', NOW()),
-  ('crm.assistant.agent.write', 'Подтверждение действий CRM AI-агента', NOW()),
-  ('crm.assistant.logs.read', 'Просмотр технических AI-логов', NOW())
+  ('crm.assistant.dialogs.read', 'Просмотр диалогов ИИ-ассистента', NOW()),
+  ('crm.assistant.analytics.read', 'Просмотр аналитики ИИ-ассистента', NOW()),
+  ('crm.assistant.billing.read', 'Просмотр ИИ-баланса и списаний', NOW()),
+  ('crm.assistant.billing.manage', 'Покупка ИИ-пакетов и управление ИИ-балансом', NOW()),
+  ('crm.assistant.agent.use', 'Использование CRM ИИ-агента', NOW()),
+  ('crm.assistant.agent.write', 'Подтверждение действий CRM ИИ-агента', NOW()),
+  ('crm.assistant.chat', 'Чат с CRM ИИ-агентом', NOW()),
+  ('crm.assistant.actions.confirm', 'Подтверждение действий CRM ИИ-агента', NOW()),
+  ('crm.assistant.insights.read', 'Просмотр рекомендаций CRM ИИ-агента', NOW()),
+  ('crm.assistant.insights.manage', 'Управление рекомендациями CRM ИИ-агента', NOW()),
+  ('crm.assistant.campaigns.manage', 'Управление ИИ-кампаниями CRM', NOW()),
+  ('crm.assistant.memory.manage', 'Управление памятью CRM ИИ-агента', NOW()),
+  ('crm.assistant.autopilot.manage', 'Управление автопилотом CRM ИИ-агента', NOW()),
+  ('crm.assistant.logs.read', 'Просмотр технических ИИ-логов', NOW())
+ON CONFLICT ("key") DO UPDATE
+SET "description" = EXCLUDED."description";
+
+INSERT INTO "Permission" ("key", "description", "createdAt")
+VALUES
+  ('crm.reviews.read', 'Просмотр отзывов', NOW()),
+  ('crm.reviews.manage', 'Управление отзывами', NOW())
 ON CONFLICT ("key") DO UPDATE
 SET "description" = EXCLUDED."description";
 

@@ -4,6 +4,14 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { logAccountAudit } from "@/lib/crm-audit";
 
+function parseBirthDate(value: unknown) {
+  if (value == null || value === "") return null;
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return undefined;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 export async function GET() {
   const auth = await requireCrmApiPermission("crm.clients.read");
   if ("response" in auth) return auth.response;
@@ -20,6 +28,7 @@ export async function GET() {
       lastName: client.lastName,
       phone: client.phone,
       email: client.email,
+      birthDate: client.birthDate ? client.birthDate.toISOString().slice(0, 10) : null,
       createdAt: client.createdAt.toISOString(),
       updatedAt: client.updatedAt.toISOString(),
     }))
@@ -40,6 +49,10 @@ export async function POST(request: Request) {
   const lastName = body.lastName ? String(body.lastName).trim() : null;
   const phone = normalizeRuPhone(body.phone ? String(body.phone).trim() : null);
   const email = body.email ? String(body.email).trim() : null;
+  const birthDate = parseBirthDate(body.birthDate);
+  if (birthDate === undefined) {
+    return jsonError("VALIDATION_FAILED", "birthDate must be a valid date.", { field: "birthDate" }, 400);
+  }
 
   if (!firstName && !lastName && !phone && !email) {
     return jsonError(
@@ -57,6 +70,7 @@ export async function POST(request: Request) {
       lastName,
       phone,
       email,
+      birthDate,
     },
   });
 
@@ -71,6 +85,7 @@ export async function POST(request: Request) {
       lastName,
       phone,
       email,
+      birthDate: birthDate ? birthDate.toISOString().slice(0, 10) : null,
     },
   });
 
@@ -81,6 +96,7 @@ export async function POST(request: Request) {
       lastName: created.lastName,
       phone: created.phone,
       email: created.email,
+      birthDate: created.birthDate ? created.birthDate.toISOString().slice(0, 10) : null,
       createdAt: created.createdAt.toISOString(),
       updatedAt: created.updatedAt.toISOString(),
     },
