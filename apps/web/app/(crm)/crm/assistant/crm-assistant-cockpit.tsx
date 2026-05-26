@@ -67,6 +67,9 @@ type AgentWork = {
   toolSteps: AgentWorkItem[];
   pendingActions: AssistantAction[];
   cards: AssistantCard[];
+  clarification?: unknown;
+  llm?: JsonRecord | null;
+  threadState?: JsonRecord | null;
 };
 
 export type CockpitData = {
@@ -244,6 +247,43 @@ function textFromValue(value: unknown) {
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   const text = JSON.stringify(value);
   return text.length > 160 ? `${text.slice(0, 160)}...` : text;
+}
+
+function recordFromValue(value: unknown): JsonRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : null;
+}
+
+function agentTraceRows(work: AgentWork) {
+  const rows: Array<[string, string]> = [];
+  const llm = recordFromValue(work.llm);
+  const trace = recordFromValue(llm?.trace);
+  const threadState = recordFromValue(work.threadState);
+  const activeTask = recordFromValue(threadState?.activeTask);
+  const goal = recordFromValue(activeTask?.goal);
+  const plan = recordFromValue(activeTask?.plan);
+  const planSteps = Array.isArray(plan?.steps) ? plan.steps : [];
+  const missing = Array.isArray(activeTask?.missing) ? activeTask.missing.filter((item) => typeof item === "string") : [];
+  const selectedEntities = recordFromValue(activeTask?.selectedEntities);
+
+  if (typeof llm?.mode === "string") rows.push(["Режим", llm.mode]);
+  if (typeof trace?.runtime === "string") rows.push(["Runtime", trace.runtime]);
+  if (typeof goal?.toolName === "string") rows.push(["Цель", goal.toolName]);
+  if (typeof activeTask?.status === "string") rows.push(["Статус задачи", activeTask.status]);
+  if (planSteps.length) {
+    rows.push([
+      "План",
+      planSteps
+        .map((step, index) => {
+          const item = recordFromValue(step);
+          return `${index + 1}. ${typeof item?.toolName === "string" ? item.toolName : "step"}`;
+        })
+        .join(" -> "),
+    ]);
+  }
+  if (missing.length) rows.push(["Не хватает", missing.join(", ")]);
+  if (selectedEntities && Object.keys(selectedEntities).length) rows.push(["Выбрано", textFromValue(selectedEntities)]);
+  if (work.clarification) rows.push(["Уточнение", textFromValue(work.clarification)]);
+  return rows;
 }
 
 function pendingActionPreviewRows(action: AssistantAction) {
@@ -751,6 +791,9 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
         toolSteps: Array.isArray(payload.data.toolSteps) ? payload.data.toolSteps : [],
         pendingActions: Array.isArray(payload.data.pendingActions) ? payload.data.pendingActions : [],
         cards: Array.isArray(payload.data.cards) ? payload.data.cards : [],
+        clarification: payload.data.clarification ?? null,
+        llm: recordFromValue(payload.data.llm),
+        threadState: recordFromValue(payload.data.threadState),
       });
       await refreshSummary();
       await loadThreads();
@@ -1195,6 +1238,7 @@ export function CrmAssistantCockpit({ initialData }: { initialData: CockpitData 
                   ))}
                 </div>
               ) : null}
+              {agentTraceRows(agentWork).length ? <AgentTrace rows={agentTraceRows(agentWork)} /> : null}
               <AssistantEntityCards cards={agentWork.cards} busy={busy} onAction={sendCardAction} />
               {agentWork.pendingActions.length ? <div className="mt-3 text-xs text-[color:var(--bp-muted)]">Подготовлено действий: {agentWork.pendingActions.length}</div> : null}
             </div>
@@ -1366,6 +1410,23 @@ function AgentStep({ text }: { text: string }) {
     <div className="rounded-md border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-2 py-1.5 text-xs text-[color:var(--bp-muted)]">
       {text}
     </div>
+  );
+}
+
+function AgentTrace({ rows }: { rows: Array<[string, string]> }) {
+  if (!rows.length) return null;
+  return (
+    <details className="mt-3 rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-2">
+      <summary className="cursor-pointer text-xs font-medium text-[color:var(--bp-muted)]">Trace выполнения</summary>
+      <div className="mt-2 grid gap-1">
+        {rows.map(([key, value]) => (
+          <div key={key} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 text-[11px] leading-5">
+            <div className="text-[color:var(--bp-muted)]">{key}</div>
+            <div className="min-w-0 break-words font-medium">{value}</div>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 

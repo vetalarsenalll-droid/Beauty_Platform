@@ -26,6 +26,7 @@ import {
   updateCrmAgentThreadState,
   writeAgentAudit,
 } from "@/lib/crm-agent-persistence";
+import { buildCrmAgentActiveTaskFromContinuation, buildCrmAgentActiveTaskFromExecution, runCrmAgentRuntime } from "@/lib/crm-agent-runtime";
 import { buildCrmAgentGroundedAnswer, buildCrmAgentStructuredResponse, type CrmAgentCard } from "@/lib/crm-agent-structured-response";
 import { resolveThreadContinuation, type CrmAgentContinuationResolution } from "@/lib/crm-agent-thread-continuation";
 import { getCrmAgentTool, listCrmAgentToolsForPermissions } from "@/lib/crm-agent-tool-registry";
@@ -2471,7 +2472,7 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
           message: input.message,
           threadState: storedThreadState?.state ?? null,
           pendingActions: initialPendingActions,
-        });
+    });
     continuationExecution = await executeThreadContinuation({
       accountId: input.accountId,
       userId: input.userId,
@@ -2480,10 +2481,20 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
       pendingActions: initialPendingActions,
     });
     const actionIntentFlow = continuationExecution || input.requestedToolName ? null : await executeActionIntentFlow({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const appointmentLookup = continuationExecution || actionIntentFlow || input.requestedToolName
+    const runtimeResult = continuationExecution || actionIntentFlow || input.requestedToolName
+      ? null
+      : await runCrmAgentRuntime({
+          message: input.message,
+          accountId: input.accountId,
+          runId: input.runId,
+          threadId: input.threadId,
+          scope,
+          threadState: storedThreadState?.state ?? null,
+        });
+    const appointmentLookup = continuationExecution || actionIntentFlow || runtimeResult || input.requestedToolName
       ? null
       : await executeAppointmentLookupFromText({ ...input, scope, threadState: storedThreadState?.state ?? null });
-    const appointmentCreate = continuationExecution || actionIntentFlow || appointmentLookup || input.requestedToolName
+    const appointmentCreate = continuationExecution || actionIntentFlow || runtimeResult || appointmentLookup || input.requestedToolName
       ? null
       : await executeAppointmentCreateFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
     const appointmentReschedule = continuationExecution || actionIntentFlow || appointmentCreate || input.requestedToolName
@@ -2512,6 +2523,9 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
     } else if (actionIntentFlow) {
       execution = actionIntentFlow;
       llmStatus = { used: false, mode: "deterministic_action_intent", actionIntent: input.actionIntent ?? null };
+    } else if (runtimeResult) {
+      execution = runtimeResult.execution;
+      llmStatus = { used: false, mode: "crm_agent_runtime", trace: runtimeResult.trace };
     } else if (appointmentLookup) {
       continuationExecution = appointmentLookup;
       execution = appointmentLookup.execution;
@@ -2585,13 +2599,29 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
       input.actionEntity?.type && input.actionEntity.id != null
         ? { type: input.actionEntity.type as "client" | "specialist" | "service" | "location" | "appointment" | "review" | "promo" | "slot", id: input.actionEntity.id }
         : null;
+    const continuationActiveTask = continuation.kind === "correction"
+      ? buildCrmAgentActiveTaskFromContinuation({
+          threadState: storedThreadState?.state ?? null,
+          toolResult: execution.toolResult,
+        })
+      : null;
+    const runtimeActiveTask = runtimeResult?.activeTask ?? continuationActiveTask ?? buildCrmAgentActiveTaskFromExecution({
+      message: input.message,
+      threadState: storedThreadState?.state ?? null,
+      selectedToolName: execution.selectedToolName,
+      toolResult: execution.toolResult,
+      observations: execution.observations ?? [],
+      selectedEntity: continuationExecution?.selectedEntity ?? actionIntentSelectedEntity,
+      source: "legacy_skill",
+    });
     const structured = buildCrmAgentStructuredResponse({
       selectedToolName: execution.selectedToolName,
       toolResult: execution.toolResult,
       toolSteps: execution.observations ?? [],
       previousThreadState: storedThreadState?.state ?? null,
       selectedEntity: continuationExecution?.selectedEntity ?? actionIntentSelectedEntity,
-      pendingClarification: continuationExecution?.pendingClarification ?? null,
+      pendingClarification: continuationExecution?.pendingClarification ?? runtimeResult?.pendingClarification ?? null,
+      activeTask: runtimeActiveTask ? toJsonValue(runtimeActiveTask) : undefined,
     });
     const groundedAnswer = buildCrmAgentGroundedAnswer({
       selectedToolName: execution.selectedToolName,

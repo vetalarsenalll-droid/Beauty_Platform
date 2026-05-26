@@ -68,6 +68,7 @@ function parseThreadState(value: unknown): CrmAgentThreadStateSnapshot | null {
     selectedEntity,
     pendingClarification: (value.pendingClarification ?? null) as Prisma.JsonValue | null,
     lastToolName: typeof value.lastToolName === "string" ? value.lastToolName : null,
+    activeTask: (value.activeTask ?? null) as Prisma.JsonValue | null,
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
   };
 }
@@ -146,6 +147,55 @@ function clarificationForCards(question: string, cards: CrmAgentCard[]) {
       value: { type: card.type, id: card.id } as Prisma.JsonObject,
     })),
   };
+}
+
+function isClarificationOption(value: unknown): value is { label?: unknown; value?: unknown } {
+  return isRecord(value);
+}
+
+function resolvePendingClarification(message: string, state: CrmAgentThreadStateSnapshot): CrmAgentContinuationResolution | null {
+  const clarification = state.pendingClarification;
+  if (!isRecord(clarification) || !Array.isArray(clarification.options)) return null;
+
+  const text = normalizeText(message);
+  const rawOptions: unknown[] = clarification.options;
+  const options = rawOptions.filter(isClarificationOption);
+  const ordinal = parseOrdinal(text);
+  const ordinalOption = ordinal != null ? options[ordinal] : null;
+  const matchedOption = ordinalOption ?? options.find((option) => {
+    const label = typeof option.label === "string" ? normalizeText(option.label) : "";
+    return label.length >= 3 && label.split(" ").some((part) => part.length >= 3 && text.includes(part));
+  });
+  if (!matchedOption || !isRecord(matchedOption.value)) return null;
+
+  const value = matchedOption.value;
+  if (isEntityType(value.type) && (typeof value.id === "number" || typeof value.id === "string")) {
+    const card = state.latestCards.find((item) => item.type === value.type && String(item.id) === String(value.id));
+    if (card) {
+      return {
+        kind: "select_entity",
+        entity: { type: card.type, id: card.id },
+        card,
+        confidence: ordinalOption ? 0.94 : 0.86,
+        reason: ordinalOption ? "ordinal" : "name",
+      };
+    }
+    return {
+      kind: "clarify",
+      confidence: 0.7,
+      question: "Не нашел выбранный вариант среди последних карточек. Выберите вариант из списка еще раз.",
+      options: rawOptions.map((option) => ({
+        label: isClarificationOption(option) && typeof option.label === "string" ? option.label : "Variant",
+        value: isClarificationOption(option) ? option.value as Prisma.JsonValue : null,
+      })),
+    };
+  }
+
+  if (typeof value.actionId === "number") {
+    return { kind: "confirm_pending_action", actionId: value.actionId, confidence: 0.9 };
+  }
+
+  return null;
 }
 
 function resolveEntitySelection(message: string, state: CrmAgentThreadStateSnapshot): CrmAgentContinuationResolution | null {
@@ -255,6 +305,9 @@ export function resolveThreadContinuation(input: {
   if (pending) return pending;
 
   if (state) {
+    const clarification = resolvePendingClarification(input.message, state);
+    if (clarification) return clarification;
+
     const entity = resolveEntitySelection(input.message, state);
     if (entity) return entity;
   }

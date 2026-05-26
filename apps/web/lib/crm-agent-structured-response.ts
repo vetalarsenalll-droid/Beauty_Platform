@@ -31,6 +31,7 @@ export type CrmAgentThreadStateSnapshot = {
   selectedEntity: { type: CrmAgentEntityType; id: number | string } | null;
   pendingClarification: Prisma.JsonValue | null;
   lastToolName: string | null;
+  activeTask?: Prisma.JsonValue | null;
   updatedAt: string;
 };
 
@@ -93,6 +94,7 @@ function parsePreviousThreadState(value: unknown): CrmAgentThreadStateSnapshot |
     selectedEntity,
     pendingClarification: (value.pendingClarification ?? null) as Prisma.JsonValue | null,
     lastToolName: typeof value.lastToolName === "string" ? value.lastToolName : null,
+    activeTask: (value.activeTask ?? null) as Prisma.JsonValue | null,
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
   };
 }
@@ -301,6 +303,7 @@ export function buildCrmAgentStructuredResponse(input: {
   previousThreadState?: unknown;
   selectedEntity?: { type: CrmAgentEntityType; id: number | string } | null;
   pendingClarification?: Prisma.JsonValue | null;
+  activeTask?: Prisma.JsonValue | null;
 }) {
   const previousThreadState = parsePreviousThreadState(input.previousThreadState);
   const cardsByKey = new Map<string, CrmAgentCard>();
@@ -336,6 +339,7 @@ export function buildCrmAgentStructuredResponse(input: {
     selectedEntity: input.selectedEntity ?? (newCards.length && entities[0] ? { type: entities[0].type, id: entities[0].id } : previousThreadState?.selectedEntity ?? null),
     pendingClarification: input.pendingClarification ?? null,
     lastToolName: input.selectedToolName ?? previousThreadState?.lastToolName ?? null,
+    activeTask: input.activeTask !== undefined ? input.activeTask : previousThreadState?.activeTask ?? null,
     updatedAt: new Date().toISOString(),
   };
 
@@ -343,7 +347,7 @@ export function buildCrmAgentStructuredResponse(input: {
     entities,
     cards,
     suggestedActions,
-    clarification: null,
+    clarification: input.pendingClarification ?? null,
     threadState,
   };
 }
