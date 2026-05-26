@@ -20,6 +20,7 @@ import {
   finishAgentToolCall,
   getPendingActionForAccount,
   getCrmAgentThreadState,
+  listAccountInsights,
   listCrmAgentMessages,
   listPendingActions,
   rejectPendingAction,
@@ -358,6 +359,91 @@ function inferReadToolName(message: string) {
   if (/(загруз|выруч|аналит|слаб.*дн|неявк|отмен)/i.test(text)) return "analytics.workload";
   if (/(сайт|поиск|описан|карточк)/i.test(text)) return "site.health";
   return null;
+}
+
+function isAttentionOverviewMessage(message: string) {
+  const text = normalizeCrmText(message);
+  return (
+    /\b(что|чего|какие|какая|покажи|проверь|дай|собери)\b/u.test(text) &&
+    /\b(внимани|важн|срочн|приоритет|проблем|улучш|рекомендац|сегодня)\b/u.test(text)
+  ) || /\b(что\s+сегодня\s+требует\s+внимани|требует\s+внимани|что\s+важно\s+сегодня)\b/u.test(text);
+}
+
+function attentionAnswer(input: {
+  createdCount: number;
+  insights: Array<{ title: string; summary: string; priority: number; type: string }>;
+  pendingActions: Array<{ summary: string; actionType: string; riskLevel: string }>;
+}) {
+  const parts: string[] = [];
+  parts.push(input.createdCount > 0 ? `Проверил аккаунт и нашёл новые рекомендации: ${input.createdCount}.` : "Проверил аккаунт: новых рекомендаций не добавилось.");
+
+  if (input.pendingActions.length) {
+    parts.push(`На подтверждении сейчас ${input.pendingActions.length}: ${input.pendingActions.slice(0, 3).map((action) => action.summary).join("; ")}.`);
+  }
+
+  if (input.insights.length) {
+    const top = input.insights
+      .slice(0, 5)
+      .map((insight, index) => `${index + 1}. ${insight.title}: ${insight.summary}`)
+      .join("\n");
+    parts.push(`Что требует внимания:\n${top}`);
+  } else if (!input.pendingActions.length) {
+    parts.push("Критичных открытых рекомендаций и действий на подтверждение сейчас нет.");
+  }
+
+  parts.push("Могу сразу подготовить действие по любому пункту: сообщение клиентам, акцию, ответ на отзыв, правку сайта или запись.");
+  return parts.join("\n\n");
+}
+
+async function executeAttentionOverview(input: {
+  accountId: number;
+  message: string;
+}): Promise<ToolExecution | null> {
+  if (!isAttentionOverviewMessage(input.message)) return null;
+
+  const generated = await generateCrmAgentInsights(input.accountId);
+  const [insights, pendingActions] = await Promise.all([
+    listAccountInsights({ accountId: input.accountId, status: "NEW", take: 8 }),
+    listPendingActions({ accountId: input.accountId, take: 8 }),
+  ]);
+
+  const normalizedInsights = insights.map((insight) => ({
+    id: insight.id,
+    type: insight.type,
+    title: insight.title,
+    summary: insight.summary,
+    priority: insight.priority,
+    data: insight.data,
+  }));
+  const normalizedActions = pendingActions.map((action) => ({
+    id: action.id,
+    actionType: action.actionType,
+    summary: action.summary,
+    riskLevel: action.riskLevel,
+    permission: action.permission,
+  }));
+
+  return {
+    selectedToolName: "insights.generate",
+    toolResult: toJsonValue({
+      createdCount: generated.createdCount,
+      created: generated.created,
+      insights: normalizedInsights,
+      pendingActions: normalizedActions,
+    }),
+    answer: attentionAnswer({
+      createdCount: generated.createdCount,
+      insights: normalizedInsights,
+      pendingActions: normalizedActions,
+    }),
+    observations: [{
+      step: 1,
+      toolName: "insights.generate",
+      args: {},
+      result: compactJsonValue({ createdCount: generated.createdCount, insights: normalizedInsights, pendingActions: normalizedActions }),
+      error: null,
+    }],
+  };
 }
 
 function extractSpecialistAvailabilityQuery(message: string) {
@@ -2481,7 +2567,13 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
       pendingActions: initialPendingActions,
     });
     const actionIntentFlow = continuationExecution || input.requestedToolName ? null : await executeActionIntentFlow({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const runtimeResult = continuationExecution || actionIntentFlow || input.requestedToolName
+    const attentionOverview = continuationExecution || actionIntentFlow || input.requestedToolName
+      ? null
+      : await executeAttentionOverview({
+          accountId: input.accountId,
+          message: input.message,
+        });
+    const runtimeResult = continuationExecution || actionIntentFlow || attentionOverview || input.requestedToolName
       ? null
       : await runCrmAgentRuntime({
           message: input.message,
@@ -2491,38 +2583,41 @@ export async function runCrmAgentChat(input: RunCrmAgentChatInput) {
           scope,
           threadState: storedThreadState?.state ?? null,
         });
-    const appointmentLookup = continuationExecution || actionIntentFlow || runtimeResult || input.requestedToolName
+    const appointmentLookup = continuationExecution || actionIntentFlow || attentionOverview || runtimeResult || input.requestedToolName
       ? null
       : await executeAppointmentLookupFromText({ ...input, scope, threadState: storedThreadState?.state ?? null });
-    const appointmentCreate = continuationExecution || actionIntentFlow || runtimeResult || appointmentLookup || input.requestedToolName
+    const appointmentCreate = continuationExecution || actionIntentFlow || attentionOverview || runtimeResult || appointmentLookup || input.requestedToolName
       ? null
       : await executeAppointmentCreateFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const appointmentReschedule = continuationExecution || actionIntentFlow || appointmentCreate || input.requestedToolName
+    const appointmentReschedule = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || input.requestedToolName
       ? null
       : await executeAppointmentRescheduleFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const notificationSend = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || input.requestedToolName
+    const notificationSend = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || input.requestedToolName
       ? null
       : await executeNotificationSendFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const entityEdit = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || input.requestedToolName
+    const entityEdit = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || notificationSend || input.requestedToolName
       ? null
       : await executeEntityEditFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const appointmentCancel = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || input.requestedToolName
+    const appointmentCancel = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || input.requestedToolName
       ? null
       : await executeAppointmentCancelFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const reviewReply = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || input.requestedToolName
+    const reviewReply = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || input.requestedToolName
       ? null
       : await executeReviewReplyFromText({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const clientCreate = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || input.requestedToolName
+    const clientCreate = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || input.requestedToolName
       ? null
       : await executeClientCreateFromText({ ...input, scope, autopilot: context.autopilot });
-    const scheduleWorkday = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || clientCreate || input.requestedToolName ? null : await executeScheduleWorkdayFlow({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
-    const specialistAvailability = continuationExecution || actionIntentFlow || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || clientCreate || scheduleWorkday || input.requestedToolName ? null : await executeSpecialistAvailabilityFlow({ ...input, scope });
+    const scheduleWorkday = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || clientCreate || input.requestedToolName ? null : await executeScheduleWorkdayFlow({ ...input, scope, threadState: storedThreadState?.state ?? null, autopilot: context.autopilot });
+    const specialistAvailability = continuationExecution || actionIntentFlow || attentionOverview || appointmentCreate || appointmentReschedule || notificationSend || entityEdit || appointmentCancel || reviewReply || clientCreate || scheduleWorkday || input.requestedToolName ? null : await executeSpecialistAvailabilityFlow({ ...input, scope });
     if (continuationExecution) {
       execution = continuationExecution.execution;
       llmStatus = { used: false, mode: "thread_continuation", continuationKind: continuation.kind, confidence: continuation.confidence };
     } else if (actionIntentFlow) {
       execution = actionIntentFlow;
       llmStatus = { used: false, mode: "deterministic_action_intent", actionIntent: input.actionIntent ?? null };
+    } else if (attentionOverview) {
+      execution = attentionOverview;
+      llmStatus = { used: false, mode: "deterministic_attention_overview" };
     } else if (runtimeResult) {
       execution = runtimeResult.execution;
       llmStatus = { used: false, mode: "crm_agent_runtime", trace: runtimeResult.trace };
