@@ -279,6 +279,12 @@ async function main() {
     },
   });
 
+  await prisma.aiAccountAccess.upsert({
+    where: { accountId: account.id },
+    update: { aiEnabled: true, siteAssistantEnabled: true, crmAgentEnabled: true },
+    create: { accountId: account.id, aiEnabled: true, siteAssistantEnabled: true, crmAgentEnabled: true },
+  });
+
   const ownerRole = await prisma.role.create({
     data: { accountId: account.id, name: RoleName.OWNER },
   });

@@ -287,63 +287,6 @@ enum ReviewStatus {
   HIDDEN
 }
 
-enum AiPendingActionStatus {
-  PENDING
-  CONFIRMED
-  REJECTED
-  EXECUTED
-  FAILED
-  EXPIRED
-}
-
-enum AiAccountInsightStatus {
-  NEW
-  VIEWED
-  ACCEPTED
-  DISMISSED
-  EXPIRED
-}
-
-enum AiAgentTaskStatus {
-  OPEN
-  IN_PROGRESS
-  DONE
-  DISMISSED
-  FAILED
-}
-
-enum AiAgentCampaignStatus {
-  DRAFT
-  READY
-  PENDING_CONFIRMATION
-  SCHEDULED
-  SENDING
-  SENT
-  CANCELLED
-  FAILED
-}
-
-enum AiAgentDraftStatus {
-  DRAFT
-  PENDING_CONFIRMATION
-  APPROVED
-  APPLIED
-  REJECTED
-  FAILED
-}
-
-enum AiAgentRunStatus {
-  RUNNING
-  DONE
-  FAILED
-}
-
-enum AiAgentToolCallStatus {
-  RUNNING
-  DONE
-  FAILED
-}
-
 enum OutboxScope {
   PLATFORM
   ACCOUNT
@@ -2474,38 +2417,161 @@ model AiBookingDraft {
   @@index([bookingAttemptKey])
 }
 
-model AiPendingAction {
-  id          Int                   @id @default(autoincrement())
-  accountId   Int
-  userId      Int?
-  threadId    Int?
-  actionType  String
-  payload     Json
-  summary     String
-  status      AiPendingActionStatus @default(PENDING)
-  result      Json?
-  error       String?
-  riskLevel   String                @default("medium")
-  permission  String?
-  expiresAt   DateTime
-  confirmedAt DateTime?
-  executedAt  DateTime?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+model CrmAgentSession {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  userId    Int?
+  status    String   @default("ACTIVE")
+  mode      String   @default("chat")
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([accountId, status, createdAt])
-  @@index([threadId, status])
-  @@index([actionType])
-  @@index([expiresAt])
+  messages  CrmAgentMessage[]
+  states    CrmAgentState[]
+  plans     CrmAgentPlan[]
+  artifacts CrmAgentArtifact[]
+
+  @@index([accountId, userId, status, updatedAt])
 }
 
-model AiAccountMemory {
+model CrmAgentMessage {
+  id        Int      @id @default(autoincrement())
+  sessionId Int
+  role      String
+  content   String
+  data      Json?
+  createdAt DateTime @default(now())
+
+  session CrmAgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model CrmAgentState {
+  id         Int      @id @default(autoincrement())
+  sessionId  Int
+  accountId  Int
+  goalType   String
+  status     String
+  slots      Json
+  candidates Json?
+  selected   Json?
+  missing    Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  session CrmAgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, goalType, status])
+  @@index([sessionId, updatedAt])
+}
+
+model CrmAgentPlan {
+  id        Int      @id @default(autoincrement())
+  sessionId Int
+  accountId Int
+  goalType  String
+  goal      Json
+  status    String
+  result    Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session CrmAgentSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  steps   CrmAgentPlanStep[]
+
+  @@index([accountId, status, createdAt])
+  @@index([goalType])
+}
+
+model CrmAgentPlanStep {
+  id         Int       @id @default(autoincrement())
+  planId     Int
+  order      Int
+  type       String
+  toolName   String?
+  args       Json?
+  result     Json?
+  status     String
+  error      String?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  plan CrmAgentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, order])
+  @@index([status])
+}
+
+model CrmAgentAction {
+  id          Int       @id @default(autoincrement())
+  accountId   Int
+  userId      Int?
+  sessionId   Int?
+  actionType  String
+  summary     String
+  payload     Json
+  status      String    @default("PENDING")
+  riskLevel   String
+  permission  String?
+  result      Json?
+  error       String?
+  expiresAt   DateTime?
+  confirmedAt DateTime?
+  executedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([accountId, status, createdAt])
+  @@index([sessionId, status])
+  @@index([actionType])
+}
+
+model CrmAgentToolCall {
+  id         Int       @id @default(autoincrement())
+  accountId  Int
+  sessionId  Int?
+  planStepId Int?
+  toolName   String
+  args       Json
+  result     Json?
+  error      String?
+  status     String    @default("RUNNING")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([accountId, toolName, startedAt])
+  @@index([sessionId])
+  @@index([planStepId])
+}
+
+model CrmAgentArtifact {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  sessionId Int?
+  planId    Int?
+  type      String
+  title     String?
+  data      Json
+  createdAt DateTime @default(now())
+
+  session CrmAgentSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, type, createdAt])
+  @@index([sessionId])
+  @@index([planId])
+}
+
+model CrmAgentMemory {
   id         Int      @id @default(autoincrement())
   accountId  Int
   key        String
   value      Json
-  confidence Decimal  @default(1) @db.Decimal(5, 4)
   source     String?
+  confidence Decimal  @default(1) @db.Decimal(5, 4)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -2513,43 +2579,66 @@ model AiAccountMemory {
   @@index([accountId, updatedAt])
 }
 
-model AiAccountInsight {
-  id        Int                    @id @default(autoincrement())
+model CrmAgentInsight {
+  id        Int       @id @default(autoincrement())
   accountId Int
   type      String
   title     String
   summary   String
   data      Json
-  priority  Int                    @default(0)
-  status    AiAccountInsightStatus @default(NEW)
+  priority  Int       @default(0)
+  status    String    @default("NEW")
   expiresAt DateTime?
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([accountId, status, priority, createdAt])
   @@index([accountId, type, status])
-  @@index([expiresAt])
 }
 
-model AiAgentTask {
-  id              Int               @id @default(autoincrement())
-  accountId       Int
-  type            String
-  title           String
-  description     String?
-  payload         Json
-  status          AiAgentTaskStatus @default(OPEN)
-  sourceInsightId Int?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+model CrmAgentTask {
+  id          Int      @id @default(autoincrement())
+  accountId   Int
+  sessionId   Int?
+  type        String
+  title       String
+  description String?
+  payload     Json
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([accountId, status, createdAt])
   @@index([accountId, type, status])
-  @@index([sourceInsightId])
 }
 
-model AiAgentCampaign {
-  id          Int                   @id @default(autoincrement())
+model CrmAgentPolicy {
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, key])
+}
+
+model CrmAgentKnowledgeSnapshot {
+  id        Int       @id @default(autoincrement())
+  accountId Int
+  type      String
+  data      Json
+  version   Int       @default(1)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([accountId, type])
+  @@index([expiresAt])
+}
+
+model CrmAgentCampaign {
+  id          Int       @id @default(autoincrement())
   accountId   Int
   title       String
   goal        String
@@ -2557,134 +2646,54 @@ model AiAgentCampaign {
   offer       Json?
   content     Json
   channels    String[]
-  status      AiAgentCampaignStatus @default(DRAFT)
-  result      Json?
-  error       String?
+  status      String    @default("DRAFT")
   scheduledAt DateTime?
   sentAt      DateTime?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  result      Json?
+  error       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  recipients CrmAgentCampaignRecipient[]
 
   @@index([accountId, status, createdAt])
   @@index([scheduledAt])
 }
 
-model AiAgentCampaignConversion {
-  id            Int      @id @default(autoincrement())
-  accountId     Int
-  campaignId    Int
-  clientId      Int
-  appointmentId Int
-  revenue       Decimal  @db.Decimal(12, 2)
-  occurredAt    DateTime
-  createdAt     DateTime @default(now())
-
-  @@unique([campaignId, appointmentId])
-  @@index([accountId, campaignId, occurredAt])
-  @@index([clientId, occurredAt])
-}
-
-model AiAgentNotificationDraft {
-  id          Int                @id @default(autoincrement())
-  accountId   Int
-  campaignId  Int?
-  title       String
-  channel     String
-  audience    Json
-  bodyText    String
-  status      AiAgentDraftStatus @default(DRAFT)
-  result      Json?
-  error       String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-
-  @@index([accountId, status, createdAt])
-  @@index([campaignId])
-}
-
-model AiAgentReviewDraft {
-  id        Int                @id @default(autoincrement())
-  accountId Int
-  reviewId  Int
-  replyText String
-  status    AiAgentDraftStatus @default(DRAFT)
-  result    Json?
-  error     String?
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
-
-  @@index([accountId, status, createdAt])
-  @@index([reviewId])
-}
-
-model AiAgentSiteDraft {
-  id         Int                @id @default(autoincrement())
+model CrmAgentCampaignRecipient {
+  id         Int       @id @default(autoincrement())
+  campaignId Int
   accountId  Int
-  targetType String
-  targetId   String?
-  patch       Json
-  summary     String
-  status      AiAgentDraftStatus @default(DRAFT)
-  result      Json?
-  error       String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  clientId   Int
+  channel    String
+  status     String    @default("PENDING")
+  target     String?
+  message    String
+  result     Json?
+  error      String?
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  campaign CrmAgentCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([accountId, status, createdAt])
-  @@index([accountId, targetType])
+  @@index([campaignId, status])
+  @@index([clientId, createdAt])
 }
 
-model AiAgentRun {
-  id         Int              @id @default(autoincrement())
+model CrmAgentAudit {
+  id         Int      @id @default(autoincrement())
   accountId  Int
   userId     Int?
-  threadId   Int?
-  runType    String
-  status     AiAgentRunStatus @default(RUNNING)
-  input      Json?
-  output     Json?
-  error      String?
-  startedAt  DateTime         @default(now())
-  finishedAt DateTime?
-  createdAt  DateTime         @default(now())
-
-  @@index([accountId, runType, createdAt])
-  @@index([accountId, status, createdAt])
-  @@index([threadId])
-}
-
-model AiAgentToolCall {
-  id         Int                   @id @default(autoincrement())
-  accountId  Int
-  runId      Int?
-  threadId   Int?
-  toolName   String
-  arguments  Json
-  result     Json?
-  status     AiAgentToolCallStatus @default(RUNNING)
-  error      String?
-  startedAt  DateTime              @default(now())
-  finishedAt DateTime?
-  createdAt  DateTime              @default(now())
-
-  @@index([accountId, toolName, createdAt])
-  @@index([runId])
-  @@index([threadId])
-}
-
-model AiAgentAudit {
-  id        Int      @id @default(autoincrement())
-  accountId Int
-  userId    Int?
-  action    String
-  targetType String
-  targetId  String?
-  data      Json?
-  createdAt DateTime @default(now())
+  sessionId  Int?
+  action     String
+  targetType String?
+  targetId   String?
+  data       Json?
+  createdAt  DateTime @default(now())
 
   @@index([accountId, createdAt])
-  @@index([userId, createdAt])
-  @@index([action])
+  @@index([sessionId])
 }
 
 model OnlineBookingSession {

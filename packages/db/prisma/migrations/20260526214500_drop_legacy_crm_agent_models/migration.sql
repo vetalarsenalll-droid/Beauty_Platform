@@ -1,0 +1,20 @@
+DROP TABLE IF EXISTS "AiAgentCampaignConversion";
+DROP TABLE IF EXISTS "AiAgentToolCall";
+DROP TABLE IF EXISTS "AiAgentRun";
+DROP TABLE IF EXISTS "AiAgentAudit";
+DROP TABLE IF EXISTS "AiAgentSiteDraft";
+DROP TABLE IF EXISTS "AiAgentReviewDraft";
+DROP TABLE IF EXISTS "AiAgentNotificationDraft";
+DROP TABLE IF EXISTS "AiAgentCampaign";
+DROP TABLE IF EXISTS "AiAgentTask";
+DROP TABLE IF EXISTS "AiAccountInsight";
+DROP TABLE IF EXISTS "AiAccountMemory";
+DROP TABLE IF EXISTS "AiPendingAction";
+
+DROP TYPE IF EXISTS "AiAgentToolCallStatus";
+DROP TYPE IF EXISTS "AiAgentRunStatus";
+DROP TYPE IF EXISTS "AiAgentDraftStatus";
+DROP TYPE IF EXISTS "AiAgentCampaignStatus";
+DROP TYPE IF EXISTS "AiAgentTaskStatus";
+DROP TYPE IF EXISTS "AiAccountInsightStatus";
+DROP TYPE IF EXISTS "AiPendingActionStatus";

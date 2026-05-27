@@ -89,10 +89,16 @@ const NAV_ITEMS: NavItem[] = [
     permission: "crm.analytics.read",
   },
   {
-    label: "Ассистент",
-    href: "/crm/assistant",
+    label: "Агент",
+    href: "/crm/agent",
     icon: <IconSpark />,
-    permission: "crm.assistant.read",
+    permission: "crm.assistant.agent.use",
+  },
+  {
+    label: "Аиша",
+    href: "/crm/assistant/site",
+    icon: <IconSpark />,
+    permission: "crm.assistant.site.read",
   },
   {
     label: "Сайт",

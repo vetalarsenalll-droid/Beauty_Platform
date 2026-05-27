@@ -606,6 +606,61 @@ model CrmAgentAudit {
 }
 ```
 
+## 4.3 Account scope и постоянный контекст аккаунта
+
+CRM Agent v2 всегда работает внутри одного текущего CRM-аккаунта. Граница работы агента - `accountId`, полученный из авторизованной CRM-сессии/API context. Пользователь не передает `accountId` свободным текстом, и агент не выбирает аккаунт сам.
+
+Принцип:
+
+```text
+1. Каждый turn агента имеет обязательный accountId.
+2. Все session/message/state/plan/action/toolCall/artifact/memory/insight/task/audit записи создаются с этим accountId или связаны с session этого accountId.
+3. Все read tools, resolvers, draft tools и execute tools обязаны фильтровать данные по accountId.
+4. Нельзя читать, показывать, планировать, подготавливать или выполнять действие с данными другого accountId.
+5. Нельзя использовать id сущности без проверки, что сущность принадлежит текущему accountId.
+6. Нельзя доверять accountId из prompt, message, tool args или UI payload, если он отличается от серверного auth context.
+7. Conversation router, conversational layer, planner, inspector и runtime получают account context только для текущего accountId.
+8. Memory агента, policies, insights, pending actions и knowledge snapshots изолированы по accountId.
+9. Audit и tool trace должны сохранять accountId, чтобы любое действие было проверяемым.
+```
+
+Агент должен быть "погружен" в аккаунт, но это не означает загрузку всей базы в prompt на каждый turn. Правильная модель:
+
+```text
+account context:
+  компактная сводка аккаунта, прав, настроек, локаций, услуг, активных задач, pending actions, памяти и последних сообщений.
+
+read tools:
+  безопасный доступ к полным данным текущего accountId по необходимости: клиенты, записи, услуги, специалисты, расписание, отзывы, акции, сайт, аналитика, память.
+
+workspace:
+  показывает только найденные или релевантные данные текущего accountId.
+```
+
+Обязательные проверки:
+
+```text
+auth accountId -> runtime input accountId
+runtime accountId -> context loader
+runtime accountId -> router/conversation/planner request
+runtime accountId -> every tool context
+tool context accountId -> every Prisma where clause
+entity id -> ownership check by accountId before use
+action payload entity ids -> ownership check before preview/execute
+sessionId -> must belong to accountId before loading history/state/actions/artifacts
+```
+
+Запрещено:
+
+```text
+1. Передавать в LLM данные нескольких аккаунтов.
+2. Делать global search без accountId.
+3. Использовать accountId из пользовательского текста.
+4. Сохранять CrmAgent* записи без accountId, если модель требует account scope.
+5. Показывать в UI карточки/таблицы/preview, полученные не через account-scoped tool/context.
+6. Выполнять action по id, если action.accountId != текущему accountId.
+```
+
 ## 5. Структура нового кода
 
 Создать отдельную директорию:
@@ -1966,10 +2021,140 @@ trace плана
 Агент не должен ограничиваться текстовым ответом. Каждый ответ может включать `workspace`, который UI отображает как интерактивный интерфейс.
 
 ```text
-Пользователь пишет свободным текстом -> planner определяет цель -> runtime возвращает текст + workspace.
+Пользователь пишет свободным текстом -> conversation router определяет тип реплики.
+Если это обычный диалог или общий CRM-вопрос -> conversational layer отвечает без planner.
+Если это CRM-задача или продолжение активной задачи -> planner определяет цель -> runtime возвращает текст + workspace.
 Пользователь кликает карточку / tab / кнопку / редактирует форму -> UI отправляет command.
 Runtime применяет command к state -> возвращает обновленный workspace.
 Опасное действие всегда проходит через action preview и подтверждение.
+```
+
+### 17.1.1 Conversation-first слой
+
+CRM Agent v2 должен ощущаться как внутренний агент, погруженный в аккаунт CRM, по принципу Codex в VS Code: пользователь свободно пишет, агент понимает контекст, ведет нормальный диалог, сам решает когда нужно читать данные, когда строить план, когда уточнять, когда подготовить изменение и когда ждать подтверждения. Это не intent-bot, не scripted bot и не набор заранее прописанных фраз.
+
+Planner является инструментом для задач, но не первым и не единственным режимом ответа. Основной входной слой должен быть conversation-first: сначала понять реплику и состояние диалога, затем выбрать режим работы.
+
+Перед planner должен работать `conversation router`, который классифицирует входящее сообщение:
+
+```text
+smalltalk:
+  приветствие, благодарность, короткие человеческие реплики, проверка "ты тут?"
+  Ответ: живой короткий ответ без создания CrmAgentPlan.
+
+crm_question:
+  общий вопрос по CRM/аккаунту без намерения менять данные.
+  Примеры: "что у нас сегодня?", "как дела с записями?", "что посоветуешь улучшить?"
+  Ответ: conversational layer может читать account context и безопасные read tools, но не создает action draft.
+
+crm_task:
+  явная задача найти, создать, изменить, записать, отменить, подготовить, отправить, опубликовать.
+  Ответ: planner строит goal/slots/steps, runtime выполняет read/draft steps и возвращает workspace.
+
+task_continuation:
+  пользователь продолжает активную задачу: выбирает вариант текстом, уточняет слот, просит поправить draft.
+  Ответ: runtime использует latest CrmAgentState и решает, нужен ли command handler, planner или conversational clarification.
+
+unsupported:
+  запрос вне CRM, опасный или невозможный в текущих правах.
+  Ответ: объяснить ограничение и предложить CRM-релевантный следующий шаг.
+```
+
+Требования к conversation layer:
+
+```text
+1. Не создавать CrmAgentPlan для smalltalk и простых общих ответов.
+2. Не использовать hardcoded phrase lists, regex или keyword rules как основной механизм общения.
+3. Router и conversational layer должны быть LLM-first: модель классифицирует реплику и генерирует естественный ответ на основе prompt, history, account context и state.
+4. Regex/keyword fallback допустим только как аварийный degradation path при недоступности LLM, а не как продуктовая логика.
+5. Использовать историю session и компактный account context, чтобы ответы были привязаны к текущему салону/аккаунту.
+6. Для crm_question уметь вызывать только read tools или context-loader, без draft/execute.
+7. Для crm_task передавать управление planner с явной причиной routing decision.
+8. Для task_continuation учитывать latest CrmAgentState, выбранные слоты, pending actions и последний workspace.
+9. Сохранять assistant messages так же, как task responses, но помечать data.mode = conversation|question|task.
+10. UI должен показывать обычный диалог без пустого "Плана" и без технического workspace, если плана нет.
+11. Запрещено расширять поведение добавлением новых if/else на фразы пользователя, кроме явно помеченного fallback слоя.
+```
+
+Новые модули:
+
+```text
+apps/web/lib/crm-agent-v2/core/conversation-router.ts
+apps/web/lib/crm-agent-v2/core/conversation.ts
+apps/web/lib/crm-agent-v2/core/conversation-prompts.ts
+```
+
+Минимальный контракт router:
+
+```ts
+type CrmAgentRouteKind =
+  | "smalltalk"
+  | "crm_question"
+  | "crm_task"
+  | "task_continuation"
+  | "unsupported";
+
+type CrmAgentRouteDecision = {
+  kind: CrmAgentRouteKind;
+  confidence: number;
+  reason: string;
+  suggestedGoalType?: string;
+  needsAccountContext: boolean;
+  allowedToolModes: Array<"read" | "draft" | "execute">;
+};
+```
+
+Router должен вызываться через отдельный LLM prompt, а не через набор regex:
+
+```text
+System:
+Ты входной router CRM Agent v2. Ты не отвечаешь пользователю и не строишь план.
+Твоя задача - понять тип следующего шага в диалоге по сообщению, истории, state и CRM-контексту.
+Верни строгий JSON CrmAgentRouteDecision.
+Не классифицируй общую человеческую реплику как crm_task.
+Не отправляй в planner вопрос, если пользователь не просит выполнить CRM-действие.
+Если пользователь спрашивает о состоянии CRM, выбери crm_question и read-only mode.
+Если пользователь продолжает текущую задачу короткой репликой, выбери task_continuation.
+```
+
+Минимальный контракт conversational ответа:
+
+```ts
+type CrmAgentConversationResponse = {
+  answer: string;
+  workspace?: CrmAgentUiWorkspace;
+  usedTools?: Array<{ toolName: string; status: string }>;
+  shouldEscalateToPlanner: boolean;
+  plannerHint?: string;
+};
+```
+
+Conversational layer должен вызываться через отдельный LLM prompt:
+
+```text
+System:
+Ты CRM Agent v2 внутри аккаунта салона. Общайся естественно, как рабочий агент в CRM, похожий по роли на Codex в VS Code.
+Ты можешь обсуждать CRM-контекст, объяснять возможности, задавать уточняющие вопросы и давать read-only сводки.
+Не создавай план и не обещай изменение, если пользователь не попросил задачу.
+Не выполняй и не готовь изменения без planner/action preview/confirmation.
+Не говори шаблонными бот-фразами и не раскрывай внутренний routing.
+```
+
+Примеры ожидаемого поведения:
+
+```text
+User: Привет
+Agent: Привет. Я на месте. Могу помочь с записями, клиентами, услугами, расписанием, отзывами или просто разобраться, что сейчас происходит в салоне.
+Result: no CrmAgentPlan, workspace.mode = "conversation" или empty.
+
+User: Что у нас сегодня по записям?
+Agent: Смотрит context/read tools, отвечает сводкой, может показать таблицу записей. Не создает action draft.
+
+User: Запиши Анну на маникюр завтра
+Agent: route=crm_task -> planner -> runtime -> workspace с клиентами/услугами/окнами/preview.
+
+User: Выбери вторую Анну
+Agent: route=task_continuation -> применяет выбор к latest state или просит уточнить, если контекст потерян.
 ```
 
 ### 17.2 Интерактивные элементы
@@ -2284,34 +2469,49 @@ confirm -> campaign scheduled/sent according to selected command
 Этот чеклист является источником правды во время выполнения плана.
 
 ```text
-[ ] 1. Зафиксировать этот план.
-[ ] 2. Создать миграцию добавления CrmAgent* моделей, не удаляя старые таблицы.
-[ ] 3. Создать apps/web/lib/crm-agent-v2/core/types.ts, включая интерактивные UI-типы.
-[ ] 4. Создать action registry.
-[ ] 5. Создать tool registry.
-[ ] 6. Создать planner contract на GigaChat.
-[ ] 7. Создать session/state/artifact/action persistence.
-[ ] 8. Создать context-loader.
-[ ] 9. Создать resolvers.
-[ ] 10. Создать inspector.
-[ ] 11. Создать runtime loop.
-[ ] 12. Создать обработчик interactive commands.
-[ ] 13. Создать read tools.
-[ ] 14. Создать draft tools.
-[ ] 15. Создать execute tools.
-[ ] 16. Создать policy.
-[ ] 17. Создать skills.
-[ ] 18. Создать API v2.
-[ ] 19. Создать UI v2 /crm/agent как интерактивный cockpit.
-[ ] 20. Подключить permissions и feature flag.
-[ ] 21. Создать worker v2.
-[ ] 22. Создать dialog/e2e tests и UI tests интерактивного workspace.
-[ ] 23. Прогнать typecheck/lint/tests.
-[ ] 24. Включить CRM Agent v2 под feature flag для проверки.
-[ ] 25. Переключить навигацию CRM на /crm/agent, не удаляя страницы Аиши.
-[ ] 26. Удалить старые файлы crm-agent-*, старые API/UI именно CRM Agent и старые worker branches.
-[ ] 27. Создать миграцию удаления старых CRM Agent моделей и связанных enum после проверки references.
-[ ] 28. После проверки удалить остатки старых references.
+[x] 1. Зафиксировать этот план. Результат: план содержит архитектуру, ограничения по Аише, интерактивный UI, чеклист, журнал и протокол возобновления.
+[x] 2. Создать миграцию добавления CrmAgent* моделей, не удаляя старые таблицы. Результат: добавлены модели в Prisma schema и миграция 20260526203000_crm_agent_v2_models.
+[x] 3. Создать apps/web/lib/crm-agent-v2/core/types.ts, включая интерактивные UI-типы. Результат: добавлены базовые контракты goal/state/cards/workspace/forms/tools/chat response.
+[x] 4. Создать action registry. Результат: добавлен контрактный реестр actions с action types, правами, рисками, confirmation policy, слотами и helper-функциями.
+[x] 5. Создать tool registry. Результат: добавлен контрактный реестр tools с read/draft/execute режимами, правами, рисками и helper-функциями.
+[x] 6. Создать planner contract на GigaChat. Результат: добавлен planner contract/parser для GigaChat со строгим JSON-планом.
+[x] 7. Создать session/state/artifact/action persistence. Результат: добавлен account-scoped persistence слой для session/message/state/plan/artifact/action/toolCall/audit.
+[x] 8. Создать context-loader. Результат: добавлен loader компактного CRM/AI/session context для planner/runtime.
+[x] 9. Создать resolvers. Результат: добавлен resolver слой для account-scoped разрешения клиентов, услуг, специалистов, локаций, записей и памяти.
+[x] 10. Создать inspector. Результат: добавлен inspector планов с проверкой tools/actions, прав, слотов и confirmation risk.
+[x] 11. Создать runtime loop. Результат: добавлен runtime каркас session/message/context/planner/inspector/persistence/response.
+[x] 12. Создать обработчик interactive commands. Результат: добавлен handler UI-команд select/confirm_action/reject_action.
+[x] 13. Создать read tools. Результат: добавлены read handlers для search/get/analytics/site/memory/slots tools и привязка к registry.
+[x] 14. Создать draft tools. Результат: добавлены actions.prepare/actions.preview handlers для создания и preview CrmAgentAction.
+[x] 15. Создать execute tools. Результат: добавлены actions.confirm/actions.reject handlers и executor для базовых CRM mutations.
+[x] 16. Создать policy. Результат: добавлен policy модуль для feature flag, permissions, risk и confirmation decisions.
+[x] 17. Создать skills. Результат: добавлен registry доменных skills для planner/runtime.
+[x] 18. Создать API v2. Результат: добавлены routes chat/interactions/actions confirm-reject/sessions/artifacts/policies/capabilities под /api/v1/crm/agent-v2.
+[x] 19. Создать UI v2 /crm/agent как интерактивный cockpit. Результат: добавлен новый /crm/agent с диалогом, workspace, sessions, actions, artifacts, trace и capabilities.
+[x] 20. Подключить permissions и feature flag. Результат: v2 UI/API используют crm.assistant.agent.use/write и общий AiAccountAccess.crmAgentEnabled feature policy.
+[x] 21. Создать worker v2. Результат: добавлен background pass для crm_agent_v2 actions/briefs/snapshots/insights/campaigns/conversions/retry на CrmAgent* таблицах.
+[x] 22. Создать dialog/e2e tests и UI tests интерактивного workspace. Результат: добавлены node-based v2 dialog scenario и UI workspace contract tests.
+[x] 23. Прогнать typecheck/lint/tests. Результат: прошли typecheck, lint, test:crm-agent-v2, test:crm-agent и node --check worker.
+[x] 24. Включить CRM Agent v2 под feature flag для проверки. Результат: dev/reseed аккаунты получают AiAccountAccess.crmAgentEnabled=true, production default остается false.
+[x] 25. Переключить навигацию CRM на /crm/agent, не удаляя страницы Аиши. Результат: основной пункт "Агент" ведет на /crm/agent, "Аиша" ведет на /crm/assistant/site.
+[x] 26. Удалить старые файлы crm-agent-*, старые API/UI именно CRM Agent и старые worker branches. Result: legacy crm-agent-* lib/API/UI/scripts removed; worker now runs only CrmAgent* v2 pass.
+[x] 27. Создать миграцию удаления старых CRM Agent моделей и связанных enum после проверки references. Результат: из Prisma schema удалены legacy AiPendingAction/AiAccountMemory/AiAccountInsight/AiAgent* модели и enum, добавлена migration 20260526214500_drop_legacy_crm_agent_models.
+[x] 28. После проверки удалить остатки старых references. Результат: runtime-код, scripts, package.json и Prisma schema проверены; старых references не осталось, кроме исторических migrations и самого плана.
+[x] 29. Довести runtime loop до фактического выполнения плана. Результат: runtime выполняет allowed tool steps через registry handlers, пишет CrmAgentToolCall, обновляет CrmAgentPlanStep/CrmAgentPlan statuses и возвращает step results в workspace/trace; execute steps, требующие подтверждения, безопасно переводятся в needs_user/skipped.
+[x] 30. Довести resolver/clarification pipeline. Результат: runtime извлекает resolver results и available slots из tool results, сохраняет candidates/selected/missing и slot statuses в CrmAgentState, отдаёт candidate cards с командами select:<slot>:<id> для client/service/specialist/location/appointment/time.
+[x] 31. Синхронизировать action registry и executor. Результат: planner/UI capabilities получают только executable actions, draft prepare/preview явно отклоняют неподдержанные action types, canUseCrmAgentAction возвращает false для unsupported.
+[x] 32. Довести draft/preview до production-контракта. Результат: draft actions имеют before/after/diff preview, runtime строит editable payload form, save_draft:<actionId> обновляет pending action payload и пересчитывает preview.
+[x] 33. Довести UI workspace интерактивность. Результат: preview/workspace/card команды confirm_action:<id>/reject_action:<id> и kind confirm/reject вызывают /api/v1/crm/agent-v2/actions/[id]/confirm|reject execute API; UI обновляет action status/result/error, refresh sessions и снимает обработанные commands. select:<slot>:<value> сохраняет state и возвращает обновленный workspace с selected/remaining candidate cards и таблицей выбора; table row commands материализуются как row-level select:{slot}:{value}; command parser сохраняет encoded datetime/string values. save_draft сохраняет текущий session state, а runtime передает latest state planner при следующем текстовом turn. UX follow-up 2026-05-27: простые приветствия отвечаются без planner, prompt больше не содержит meta-answer "Коротко по-русски...", slot/date/status/table labels нормализованы для пользователя, duplicate React keys для slot cards устранены.
+[x] 34. Создать LLM-first conversation router до planner. Результат: добавлен apps/web/lib/crm-agent-v2/core/conversation-router.ts с LLM-first routeCrmAgentConversationTurn, JSON parser, route kinds smalltalk/crm_question/crm_task/task_continuation/unsupported, server-side accountId в request, запрет execute из router и аварийный fallback без phrase-list UX.
+[x] 35. Создать LLM-first conversational layer. Результат: добавлены apps/web/lib/crm-agent-v2/core/conversation.ts и conversation-prompts.ts; слой отвечает через LLM/context текущего accountId без CrmAgentPlan, поддерживает read-only tool usage для crm_question, запрещает draft/execute и может эскалировать к planner через shouldEscalateToPlanner/plannerHint.
+[x] 36. Перестроить runCrmAgentTurn в conversation-first runtime. Результат: runCrmAgentTurn загружает account-scoped context/latest state, вызывает conversation router до planner, отправляет smalltalk/crm_question/unsupported в conversational layer без CrmAgentPlan/planTrace, planner вызывает только для crm_task/task_continuation или escalation, simpleConversationAnswer оставлен только fallback при degraded routing/conversation.
+[x] 37. Довести task_continuation. Результат: добавлен task-continuation handler, который до planner применяет текстовый выбор кандидата по latest CrmAgentState, фиксирует текстовое время в state, правит latest pending action draft по тексту пользователя и передает plannerHint, если продолжение не удалось применить напрямую.
+[x] 38. Обновить UI под обычный диалог. Результат: добавлен workspace.mode=conversation в core types/conversation runtime, обычные реплики возвращают conversation workspace без planTrace, стартовый cockpit больше не принуждает начинать с задачи и quick prompts включают CRM-вопросы и CRM-задачи.
+[x] 39. Добавить CRM question read-only сценарии. Результат: conversation prompt содержит read-only сценарии для "что сегодня по записям", "сколько клиентов без визита/кого пора вернуть", "какие отзывы требуют внимания" и "что посоветуешь улучшить" с маппингом на appointments.search, analytics.workload, analytics.retention, reviews.search и site.health без draft/execute.
+[x] 40. Добавить safety, permissions и account isolation для conversation layer. Результат: conversation read tools ограничены текущим списком permitted read tools, user-provided accountId/userId вычищаются из tool args, read-tool вызовы пишут CrmAgentToolCall trace и CrmAgentAudit, prompt запрещает брать accountId из текста/args.
+[x] 41. Добавить conversation-first и account-scope тесты. Результат: scripts/crm-agent-v2-dialog-tests.mjs, scripts/crm-agent-v2-ui-tests.mjs и scripts/crm-agent-v2-integration-tests.mjs покрывают smalltalk/crm_question/unsupported no-plan path, crm_question read-only/no-action, crm_task planner persistence, task_continuation before planner, UI no empty planTrace, fallback-only hardcoded replies, Aisha smoke suite presence и account-scope/cross-account negative contracts для route/session/tool-call/context/execute ownership.
+[~] 42. Добавить настоящие integration/e2e проверки после conversation-first перестройки. Частично выполнено 2026-05-27: добавлен scripts/crm-agent-v2-integration-tests.mjs и package script test:crm-agent-v2:integration; общий test:crm-agent-v2 запускает dialog/ui/integration bundle. Harness расширен под conversation-first DB-сценарии: ambiguity selection, draft edit, crm_question read-only/no-plan/no-action с tool trace/audit, task_continuation state/pending draft, account isolation/cross-account denial, confirm execute appointment, rejection и Aisha smoke regression. Нужно при CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL прогнать DB-сценарии, затем добавить live API route checks при наличии auth cookie/server.
+[ ] 43. Финальная readiness-сверка. Нужно: прогнать typecheck/lint/prisma validate/generate/test:crm-agent-v2/new integration tests/conversation-first tests/account-isolation tests/Aisha smoke, проверить критерии раздела 21 и только после этого поставить current_step=complete.
 ```
 
 ### 20.2 Текущий статус реализации
@@ -2319,14 +2519,65 @@ confirm -> campaign scheduled/sent according to selected command
 Этот блок обновлять после каждого шага. Это главный указатель для продолжения работы после потери контекста, смены агента или прерывания сессии.
 
 ```yaml
-current_step: "1. Зафиксировать этот план"
-current_status: "not_started"
-next_step: "2. Создать миграцию добавления CrmAgent* моделей"
-last_completed_step: null
-last_update: null
+current_step: "42"
+current_status: "in_progress: step 42 DB integration harness expanded; real DB/API run still pending env"
+next_step: "42. Add real integration/e2e checks after conversation-first rewrite"
+last_completed_step: "41. Conversation-first and account-scope tests completed"
+last_update: "2026-05-27"
 resume_instruction: "Если работа была прервана, прочитать 20.1-20.3, сверить чеклист с кодом и продолжить с current_step/next_step, не начиная заново."
 notes:
-  - "Перед началом реализации поставить шаг 1 в [~], после фиксации плана отметить [x]."
+  - "2026-05-26 audit: прежний статус complete был преждевременным. Выполнены foundation/removal/API/UI/worker/contract tests, но production-критерии раздела 21 еще не закрыты."
+  - "Закрыто step 29: runtime loop теперь исполняет safe planner tool steps через registry и пишет CrmAgentToolCall trace; execute steps с required confirmation не автоисполняются из /chat."
+  - "Невыполнено: action registry шире фактического execute-tools; часть actions доступна в registry, но executeActionMutation завершится Execute action is not implemented."
+  - "Невыполнено: clarification 0/1/many/missing/conflict и interactive selection покрыты контрактно, но не доведены до полноценного resolver-driven сценария."
+  - "Невыполнено: draft preview before/after, ручная правка draft и продолжение того же сценария текстом требуют реальной end-to-end реализации и тестов."
+  - "Невыполнено: текущие scripts/crm-agent-v2-* являются contract/smoke проверками по коду, нужны integration/e2e проверки через API/DB/UI и Aisha regression smoke."
+  - "Шаг 2 выполнен: Prisma schema валидна, старые AiAgent* и Aisha модели не удалялись."
+  - "Шаг 3 выполнен: typecheck прошел."
+  - "Шаг 4 выполнен: добавлен apps/web/lib/crm-agent-v2/core/actions.ts, typecheck прошел."
+  - "Шаг 5 выполнен: добавлен apps/web/lib/crm-agent-v2/core/tools.ts, typecheck прошел."
+  - "Шаг 6 выполнен: добавлен apps/web/lib/crm-agent-v2/core/planner.ts, typecheck прошел."
+  - "Шаг 7 выполнен: добавлен apps/web/lib/crm-agent-v2/core/persistence.ts, prisma generate и typecheck прошли."
+  - "Шаг 8 выполнен: добавлен apps/web/lib/crm-agent-v2/core/context.ts, typecheck прошел."
+  - "Шаг 9 выполнен: добавлен apps/web/lib/crm-agent-v2/core/resolvers.ts, typecheck прошел."
+  - "Шаг 10 выполнен: добавлен apps/web/lib/crm-agent-v2/core/inspector.ts, typecheck прошел."
+  - "Шаг 11 выполнен: добавлен apps/web/lib/crm-agent-v2/core/runtime.ts, typecheck прошел."
+  - "Шаг 12 выполнен: добавлен apps/web/lib/crm-agent-v2/core/commands.ts, typecheck прошел."
+  - "Шаг 13 выполнен: добавлен apps/web/lib/crm-agent-v2/core/read-tools.ts, tools registry подключает read handlers, typecheck прошел."
+  - "Шаг 14 выполнен: добавлен apps/web/lib/crm-agent-v2/core/draft-tools.ts, tools registry подключает draft handlers, typecheck прошел."
+  - "Шаг 15 выполнен: добавлен apps/web/lib/crm-agent-v2/core/execute-tools.ts, tools registry подключает execute handlers, typecheck прошел."
+  - "Шаг 16 выполнен: добавлен apps/web/lib/crm-agent-v2/core/policy.ts, typecheck прошел."
+  - "Шаг 17 выполнен: добавлен apps/web/lib/crm-agent-v2/core/skills.ts, typecheck прошел."
+  - "Шаг 18 выполнен: добавлены routes chat/interactions/actions confirm-reject/sessions/artifacts/policies/capabilities, typecheck прошел."
+  - "Шаг 19 выполнен: добавлен /crm/agent cockpit, typecheck прошел."
+  - "Шаг 20 выполнен: v2 routes/nav/page переведены на crm.assistant.agent.use/write и feature policy AiAccountAccess.crmAgentEnabled, typecheck прошел."
+  - "Шаг 21 выполнен: добавлен worker v2 background pass в apps/worker/src/index.mjs, node --check и typecheck прошли."
+  - "Шаг 22 выполнен: добавлены scripts/crm-agent-v2-dialog-tests.mjs и scripts/crm-agent-v2-ui-tests.mjs, npm run test:crm-agent-v2 прошел."
+  - "Шаг 23 выполнен: npm run typecheck, npm run lint, npm run test:crm-agent-v2, npm run test:crm-agent и node --check apps/worker/src/index.mjs прошли."
+  - "Шаг 24 выполнен: scripts/reseed-russian-salon*.js включают crmAgentEnabled=true для dev/test аккаунтов, node --check, test:crm-agent-v2 и typecheck прошли."
+  - "Шаг 25 выполнен: CRM nav переключен на /crm/agent, Аиша оставлена отдельным пунктом /crm/assistant/site, typecheck и UI test прошли."
+  - "Шаг 26 выполнен: удалены legacy crm-agent-* lib файлы, старые CRM Agent API/UI, старые crm-agent smoke/regression scripts и старые worker branches; worker теперь выполняет только CrmAgent* v2 pass. Проверки прошли: node --check apps/worker/src/index.mjs, npm run typecheck, npm run lint, npm run test:crm-agent-v2."
+  - "Шаг 27 выполнен: удалены legacy AiPendingAction, AiAccountMemory, AiAccountInsight, AiAgent* модели и связанные enum из Prisma schema; добавлена migration 20260526214500_drop_legacy_crm_agent_models. Проверки прошли: npm run prisma:validate, prisma generate, npm run typecheck, npm run lint, npm run test:crm-agent-v2, node --check apps/worker/src/index.mjs."
+  - "Шаг 28 выполнен: rg-проверка по runtime-коду, scripts, package.json и Prisma schema не нашла legacy CRM Agent references; оставшиеся упоминания находятся только в исторических migrations и CRM_AGENT_V2_IMPLEMENTATION_PLAN.md как журнал/контекст выполненного удаления."
+  - "Шаг 29 выполнен: apps/web/lib/crm-agent-v2/core/runtime.ts выполняет allowed read/draft/preview tool steps через registry handlers, пишет CrmAgentToolCall, обновляет CrmAgentPlanStep/CrmAgentPlan и возвращает актуальный trace/results. Execute steps с required confirmation остаются в needs_user/skipped, чтобы не обходить confirm API."
+  - "Шаг 30 выполнен: runtime извлекает resolver results и appointments.findAvailableSlots из step results, сохраняет candidates/selected/missing/status в CrmAgentState и строит candidate cards с select:<slot>:<id> commands."
+  - "Шаг 31 выполнен: listCrmAgentActionsForPermissions/listCrmAgentActionsByDomain/canUseCrmAgentAction фильтруют unsupported actions, draft prepare/preview отклоняют неподдержанные action types до execute."
+  - "Шаг 32 выполнен: actions.prepare/actions.preview строят before/after preview, runtime выводит preview card/workspace.preview/editable form, save_draft:<actionId> обновляет pending action payload и пересчитывает preview. Integration/e2e остаются в step 34."
+  - "Шаг 33 in progress: confirm/reject commands из workspace/card/preview UI теперь идут в /actions/[id]/confirm|reject execute API, а не в generic interactions; после ответа UI обновляет action status и снимает обработанные confirm/reject commands из текущего preview."
+  - "Шаг 33 in progress: select commands теперь возвращают обновленный workspace по тому же session state; таблицы поддерживают row-level commands; parser select сохраняет encoded datetime/string values."
+  - "Шаг 33 выполнен: save_draft сохраняет текущий session state, runtime передает latest CrmAgentState в planner на следующем текстовом turn, UI workspace interactivity закрыта контрактно. Реальные API/DB/e2e проверки идут в step 34."
+  - "Шаг 33 UX follow-up: исправлен ответ на приветствие без planner, удален meta-answer из planner prompt, нормализованы русские labels/date/status в workspace и исправлены duplicate React keys для slot cards."
+  - "Шаг 34 прежней версии был integration/e2e, но он перенесен в step 42, потому что сначала нужно исправить planner-first архитектуру."
+  - "2026-05-27 audit: текущий runtime все еще planner-first. Для полноценного Codex-like агента добавлены обязательные steps 34-43: conversation router, conversational layer, conversation-first runtime, task_continuation, UI и тесты."
+  - "2026-05-27 account-scope hardening: раздел 4.3 доведен в коде для текущего v2 каркаса; persistence/context/execute tools теперь дополнительно проверяют accountId ownership. Следующий функциональный шаг остается step 34 conversation router."
+  - "Шаг 34 выполнен: добавлен LLM-first conversation router с route decision contract, account-scoped input и fallback только как degradation path."
+  - "Шаг 35 выполнен: добавлен LLM-first conversational layer с read-only CRM question tools, account-scoped prompts и запретом draft/execute."
+  - "Шаг 36 выполнен: runtime теперь conversation-first; обычные реплики и CRM-вопросы отвечают через router/conversation без CrmAgentPlan/planTrace, planner включается для задач/продолжений или escalation."
+  - "Шаг 37 выполнен: task_continuation теперь сначала пытается применить текст к latest state/pending action: выбор варианта, время и правка draft; неприменимые продолжения уходят в planner с plannerHint."
+  - "Шаг 38 выполнен: UI и core contract поддерживают workspace.mode=conversation; стартовый экран и quick prompts позволяют обычные вопросы и задачи без принуждения начинать с task."
+  - "Шаг 39 выполнен: conversation prompt закрепляет read-only CRM question сценарии и маппит их на безопасные read tools без draft/execute."
+  - "Шаг 40 выполнен: conversation read-tool calls теперь имеют permission allow-list, очищают account/user ids из args и пишут tool trace/audit."
+  - "Шаг 41 выполнен: contract tests покрывают conversation-first routing, no-plan conversation/question paths, task continuation before planner, UI no empty planTrace, fallback-only hardcoded replies, Aisha smoke presence и account-scope/cross-account guards."
 ```
 
 ### 20.3 Журнал выполнения
@@ -2334,6 +2585,925 @@ notes:
 Каждое изменение по плану добавлять новой записью сверху или снизу списка. Журнал нужен не для истории ради истории, а чтобы другой агент мог понять, что реально было сделано, какие проверки запускались и почему следующий шаг именно такой.
 
 ```text
+2026-05-27 - step 42 - partial DB harness expansion
+Что сделано:
+- scripts/crm-agent-v2-integration-tests.mjs расширен opt-in DB-сценариями под conversation-first runtime contracts: crm_question read-only/no-plan/no-action с CrmAgentToolCall без planStepId и CrmAgentAudit, task_continuation state/pending draft, cross-account negative updates для session/planStep/toolCall/action.
+- Cleanup integration fixture теперь удаляет v2 audit/toolCall/plan/action/state/artifact данные по основному и secondary account.
+- Follow-up fix: conversation layer больше не финализирует placeholder "посмотрю данные CRM" для вопросов о филиалах без чтения данных; добавлен required read fallback на locations.search all mode, prompt scenario для филиалов/локаций и read-tool режим all:true для списка филиалов текущего аккаунта.
+- Architecture correction: сценарный fallback для филиалов заменен на общий repair-pass и generic resolver contract. Router/conversation prompts теперь восстанавливают короткие продолжения из history, final prompt запрещает раскрывать внутренние tools пользователю, а resolver layer поддерживает all/listAll для broad list запросов без per-domain костылей.
+Измененные файлы:
+- scripts/crm-agent-v2-integration-tests.mjs
+- apps/web/lib/crm-agent-v2/core/conversation.ts
+- apps/web/lib/crm-agent-v2/core/conversation-prompts.ts
+- apps/web/lib/crm-agent-v2/core/read-tools.ts
+- apps/web/lib/crm-agent-v2/core/resolvers.ts
+- apps/web/lib/crm-agent-v2/core/tools.ts
+- apps/web/lib/crm-agent-v2/core/conversation-router.ts
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2
+- npm run typecheck
+Следующий шаг:
+- step 42: run opt-in DB integration with CRM_AGENT_V2_INTEGRATION=1 and DATABASE_URL, then add live API route checks if auth/server are available.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 41 - completed
+Что сделано:
+- scripts/crm-agent-v2-dialog-tests.mjs расширен проверками conversation-first runtime: router до planner, smalltalk/crm_question/unsupported через conversation layer без planTrace, crm_task с planner persistence, task_continuation до planner, read-only/no-action для CRM questions и account-scoped route/session/tool-call/context contracts.
+- scripts/crm-agent-v2-ui-tests.mjs проверяет conversation workspace и отсутствие пустого planTrace в обычном диалоге.
+- scripts/crm-agent-v2-integration-tests.mjs теперь всегда выполняет static conversation-first/account-scope checks до DB skip, включая Aisha smoke suite presence; DB-сценарии остаются opt-in через CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+Измененные файлы:
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 42: Adapt and run real integration/e2e checks after conversation-first rewrite.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 40 - completed
+Что сделано:
+- conversation.ts ограничивает LLM readToolRequests списком currently permitted read tools.
+- Перед вызовом read tool удаляются user-provided accountId/account_id/userId/user_id из args, включая nested objects.
+- Каждый read-tool вызов из conversation создает CrmAgentToolCall без planStepId и закрывает его DONE/FAILED.
+- Для successful/failed/denied read-tool вызовов пишется CrmAgentAudit с action conversation.read_tool/conversation.read_tool_failed/conversation.read_tool_denied.
+- conversation prompt явно запрещает брать accountId/userId/entity ownership из текста пользователя или tool args.
+- Contract tests расширены проверками trace, audit, arg stripping, allowedToolNames и prompt accountId запрета.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/conversation.ts
+- apps/web/lib/crm-agent-v2/core/conversation-prompts.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 41: Add conversation-first and account-scope tests.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 39 - completed
+Что сделано:
+- conversation-prompts.ts расширен read-only CRM question сценариями.
+- "что сегодня по записям" мапится на appointments.search и analytics.workload.
+- "сколько клиентов без визита" / "кого пора вернуть" мапится на analytics.retention.
+- "какие отзывы требуют внимания" мапится на reviews.search.
+- "что посоветуешь улучшить" мапится на analytics.workload, analytics.retention, reviews.search и site.health.
+- Prompt явно фиксирует, что эти сценарии не создают draft/action/preview/execute и должны честно сообщать о недоступных по permissions данных.
+- Contract tests расширены проверками read-only CRM question сценариев и tool mapping.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/conversation-prompts.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 40: Add safety, permissions and account isolation for conversation layer.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 38 - completed
+Что сделано:
+- В core types добавлен CrmAgentWorkspaceMode "conversation".
+- Conversational layer возвращает workspace.mode="conversation" для обычного диалога без read tools.
+- Runtime fallback conversation workspace тоже переведен на mode="conversation".
+- Стартовый экран /crm/agent больше не говорит "Начните с задачи"; quick prompts включают CRM-вопросы и CRM-задачи.
+- UI workspace hint поддерживает conversation mode, а история говорит о первом сообщении, не только о первой задаче.
+- Contract tests расширены проверками conversation mode, вопросных quick prompts и отсутствия принуждения начать с задачи.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/types.ts
+- apps/web/lib/crm-agent-v2/core/conversation.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 39: Add CRM question read-only scenarios.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 37 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/task-continuation.ts.
+- Runtime для route.kind=task_continuation теперь до planner вызывает handleCrmAgentTaskContinuation.
+- Text continuation "выбери вторую"/"2" применяет выбор к latest CrmAgentState candidates, сохраняет новый CrmAgentState и возвращает selection workspace без нового пустого planner.
+- Text continuation с временем вроде "завтра на 15:00" выбирает matching time candidate или фиксирует time slot в latest state.
+- Text continuation для draft вроде "измени текст: ..." использует latest pending CrmAgentAction текущей session/account, обновляет payload, пересчитывает preview и возвращает preview workspace с confirm/reject commands.
+- Если continuation нельзя применить напрямую, runtime передает plannerHint с latest state summary, чтобы planner продолжал текущую задачу, а не начинал пустой сценарий.
+- Persistence получил account-scoped getLatestPendingCrmAgentActionForSession.
+- UI contract tests расширены проверками task-continuation handler, pending action lookup, selection/time/draft edit wiring.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/task-continuation.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/lib/crm-agent-v2/core/persistence.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 38: Update UI for ordinary dialog and conversation workspace.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 36 - completed
+Что сделано:
+- runCrmAgentTurn перестроен в conversation-first runtime: после сохранения user message загружается account-scoped context/latest state и вызывается routeCrmAgentConversationTurn.
+- Для smalltalk/crm_question/unsupported вызывается runCrmAgentConversation; ответ сохраняется как assistant message с data.mode conversation/question, без CrmAgentPlan, CrmAgentArtifact runtime inspection и planTrace.
+- Planner вызывается только для crm_task/task_continuation, при ошибке router без простого fallback или при shouldEscalateToPlanner из conversational layer; routing decision и plannerHint передаются в planner context.
+- simpleConversationAnswer оставлен только как аварийный fallback при degraded router/conversation path, а не как основной механизм общения.
+- Runtime продолжает прокидывать auth-derived accountId в context/router/conversation/planner/tool calls.
+- UI contract tests обновлены: проверяют route-before-planner, подключение conversation layer и fallback-only simpleConversationAnswer.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:dialogs
+- npm run test:crm-agent-v2:ui
+- npm run test:crm-agent-v2:integration
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 37: Finish task_continuation over latest state, pending actions and workspace.
+Блокеры:
+- DB integration остался пропущен без CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL.
+
+2026-05-27 - step 35 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/conversation-prompts.ts.
+- Создан apps/web/lib/crm-agent-v2/core/conversation.ts.
+- runCrmAgentConversation вызывает LLM через crm_agent_v2_conversation / crm_agent_v2_conversation_final.
+- Для crm_question поддержаны read-only tool requests через executeCrmAgentReadTool; доступные tools фильтруются по permissions и mode=read.
+- Prompt запрещает готовить/выполнять изменения и ограничивает ответы contextSummary текущего accountId.
+- Добавлены response contracts: answer, workspace/cards, usedTools, shouldEscalateToPlanner, plannerHint.
+- Contract tests расширены проверками conversational layer, read-only tools, account-scoped prompt и отсутствия action prepare/confirm.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/conversation-prompts.ts
+- apps/web/lib/crm-agent-v2/core/conversation.ts
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 36: Wire router/conversation into runCrmAgentTurn before planner.
+Блокеры:
+- нет
+
+2026-05-27 - step 34 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/conversation-router.ts.
+- Добавлены CrmAgentRouteKind, CrmAgentRouteDecision, CrmAgentConversationRouterRequest/Result.
+- routeCrmAgentConversationTurn вызывает GigaChat через отдельный purpose crm_agent_v2_conversation_router и crm_agent scope.
+- Router prompt запрещает брать accountId из текста пользователя, не отправляет обычный диалог в planner, разрешает crm_question только read mode и запрещает execute из router.
+- Добавлен parser strict JSON и normalize/enforce allowedToolModes.
+- Добавлен fallbackRouteDecision только как аварийный degradation path при ошибке LLM.
+- Contract tests расширены проверками LLM-first router, route kinds, server-side accountId, запрета phrase includes и запрета execute.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/conversation-router.ts
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 35: Implement LLM-first conversational layer.
+Блокеры:
+- нет
+
+2026-05-27 - account-scope hardening completed
+Что сделано:
+- Усилен persistence слой: addCrmAgentMessage/saveCrmAgentTaskState/createPlan/createArtifact/createAction/startToolCall/writeAudit проверяют, что session/plan/planStep принадлежит текущему accountId.
+- updateCrmAgentPlanStep теперь обновляет шаг только через plan.accountId.
+- finishCrmAgentToolCall теперь обновляет tool call только по текущему accountId.
+- loadCrmAgentContext теперь грузит history сообщений только через session текущего accountId.
+- appointment.create теперь проверяет ownership client/service/specialist/location и bindings service-specialist/service-location перед созданием записи.
+- service.create/service.update теперь проверяют categoryId на принадлежность текущему accountId или глобальную категорию.
+- UI contract test расширен проверками account scope/account isolation.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/persistence.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/lib/crm-agent-v2/core/commands.ts
+- apps/web/lib/crm-agent-v2/core/context.ts
+- apps/web/lib/crm-agent-v2/core/execute-tools.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 34: Implement LLM-first conversation router before planner.
+Блокеры:
+- нет
+
+2026-05-27 - checklist reordered for conversation-first work
+Что сделано:
+- Прежний step 34 с integration/e2e проверками перенесен в step 42, потому что тестировать нужно уже conversation-first архитектуру, а не planner-first промежуточное состояние.
+- Current step теперь 34: создать conversation router до planner.
+- Финальная readiness остается step 43.
+- Уточнено требование: router и conversational layer должны быть LLM-first, как у Codex-like агента; основной UX нельзя строить на hardcoded phrase lists/regex.
+- Добавлен раздел 4.3: CRM Agent всегда работает только внутри auth-derived accountId, получает контекст только текущего аккаунта, а все tools/resolvers/actions обязаны проверять accountId ownership.
+- Steps 34-43 усилены требованиями account context/account isolation и cross-account negative tests.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- Документ обновлен вручную; код не менялся.
+Следующий шаг:
+- step 34: Implement conversation router before planner.
+Блокеры:
+- нет
+
+2026-05-27 - conversation-first roadmap added
+Что сделано:
+- Зафиксировано архитектурное требование: CRM Agent v2 должен сначала проходить через conversation router, а planner включается только для CRM-задач и продолжений активных задач.
+- Добавлен раздел 17.1.1 Conversation-first слой с типами routing: smalltalk, crm_question, crm_task, task_continuation, unsupported.
+- Добавлены новые обязательные steps 35-43: conversation-router, conversational layer, перестройка runtime, task_continuation, UI для обычного диалога, read-only CRM question scenarios, safety/permissions, conversation-first tests и финальная readiness-сверка.
+- Текущий статус обновлен: step 34 остается in_progress, но production-ready теперь невозможен без steps 35-43.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- Документ обновлен вручную; код не менялся.
+Следующий шаг:
+- Закрыть step 34 DB/API integration, затем начать step 35 conversation router.
+Блокеры:
+- Для step 34 все еще нужен DATABASE_URL и CRM_AGENT_V2_INTEGRATION=1.
+
+2026-05-27 - step 33 - UX follow-up completed
+Что сделано:
+- Убран источник пользовательского ответа "Коротко по-русски..." из planner prompt; example answer заменен на реальный пример ответа.
+- Runtime отвечает на простые приветствия/благодарность без planner, чтобы агент мог нормально общаться.
+- Candidate slot title форматируется как понятная дата/время, а не ISO timestamp.
+- Selection workspace/table/card labels переведены на русский: варианты, выбрано, состояние, статус, выбрать.
+- Cockpit форматирует ISO datetime, переводит slot/status labels, скрывает технические id-поля в карточках и не показывает #id для slot cards.
+- Исправлены duplicate React keys для slot cards.
+- UI smoke test расширен проверками simpleConversationAnswer, отсутствия meta-answer в prompt, русских selection labels и datetime formatting.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/planner.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/lib/crm-agent-v2/core/commands.ts
+- apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- current_step остается 34: DB/API integration run pending.
+Блокеры:
+- DB integration для step 34 все еще требует DATABASE_URL и CRM_AGENT_V2_INTEGRATION=1.
+
+2026-05-27 - step 34 - in_progress
+Что сделано:
+- Добавлен scripts/crm-agent-v2-integration-tests.mjs.
+- Integration harness при CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL создает изолированный account fixture через Prisma.
+- Покрыты DB-сценарии: ambiguity selection state, draft payload edit, confirm execute appointment with service/status history, rejection reason, Aisha smoke regression.
+- Добавлен package script test:crm-agent-v2:integration.
+- npm run test:crm-agent-v2 теперь запускает dialog, UI и integration bundle; integration script без env явно skip.
+- UI contract test обновлен под закрытый step 33 и наличие step 34 integration script.
+Измененные файлы:
+- scripts/crm-agent-v2-integration-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- package.json
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- node --check scripts/crm-agent-v2-integration-tests.mjs
+- node scripts/crm-agent-v2-integration-tests.mjs (skipped: нет CRM_AGENT_V2_INTEGRATION=1/DATABASE_URL)
+- npm run test:crm-agent-v2 (integration skipped по env)
+- npm run typecheck
+Следующий шаг:
+- продолжить step 34: запустить CRM_AGENT_V2_INTEGRATION=1 с тестовой DATABASE_URL и добавить live API route checks при наличии тестовой auth-сессии.
+Блокеры:
+- В текущем окружении DATABASE_URL не задан, поэтому реальные DB integration сценарии не выполнены.
+
+2026-05-27 - step 33 - completed
+Что сделано:
+- Runtime больше не отправляет planner state:null при продолжении той же session; latest CrmAgentState сериализуется и передается в planner request.
+- saveDraftCommand сохраняет текущий session state со статусом ready_for_confirmation вместо возврата пустого command-state.
+- UI contract test расширен проверками сохранения state при save_draft и передачи latest state в planner.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/lib/crm-agent-v2/core/commands.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- node scripts/crm-agent-v2-ui-tests.mjs
+Следующий шаг:
+- step 34: Добавить настоящие integration/e2e проверки для appointment booking, ambiguity selection, draft edit, confirm execute, rejection и Aisha smoke regression.
+Блокеры:
+- нет
+
+2026-05-27 - step 33 - in_progress
+Что сделано:
+- selectCommand теперь после выбора сохраняет CrmAgentState и возвращает непустой workspace с cards/tabs/table по текущим candidates/selected/missing.
+- Selection workspace показывает выбранные карточки, оставшиеся варианты и таблицу с rowCommands select:{slot}:{value}.
+- Cockpit Table теперь рендерит row-level command buttons и материализует command id из данных строки.
+- parseCommand для select:<slot>:<value> теперь сохраняет значения с двоеточиями/URL encoding, включая datetime значения слотов времени.
+- UI contract test расширен проверками parseActionCommand/materializeRowCommand/buildSelectionWorkspace/decodeCommandPart и частичного статуса [~] step 33 в плане.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/commands.ts
+- apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- node scripts/crm-agent-v2-ui-tests.mjs
+Следующий шаг:
+- продолжить step 33: довести draft edit continuation после save_draft и проверить реальные API/DB сценарии перед step 34.
+Блокеры:
+- нет
+
+2026-05-27 - step 33 - in_progress
+Что сделано:
+- В cockpit добавлен routing для command kind confirm/reject и command ids confirm_action:<id>/reject_action:<id>.
+- Workspace/card/preview confirm/reject теперь вызывают /api/v1/crm/agent-v2/actions/[id]/confirm или /reject, то есть execute tool handlers, а не /interactions.
+- После execute UI обновляет локальный action status/result/error, обновляет список sessions и убирает обработанные confirm/reject commands из текущего response workspace/cards/tabs.
+Измененные файлы:
+- apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- node scripts/crm-agent-v2-ui-tests.mjs
+- npm run typecheck
+Следующий шаг:
+- продолжить step 33: проверить/довести выбор вариантов из card/table commands и обновление session state после интерактивных selection/edit flows.
+Блокеры:
+- нет
+
+2026-05-26 - step 32 - completed
+Что сделано:
+- Добавлен editable draft form в runtime workspace для preview cards с actionId.
+- Добавлен command save_draft:<actionId>.
+- Добавлен persistence updateCrmAgentActionPayload для pending actions.
+- Interactive command handler saveDraftCommand обновляет payload, пересчитывает before/after/diff preview и возвращает обновленный preview workspace.
+- Cockpit form корректно отправляет text/textarea/number/toggle поля.
+- UI contract test расширен проверками save_draft/buildDraftForm/updateCrmAgentActionPayload.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/persistence.ts
+- apps/web/lib/crm-agent-v2/core/draft-tools.ts
+- apps/web/lib/crm-agent-v2/core/commands.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 33: Довести UI workspace интерактивность.
+Блокеры:
+- нет
+
+2026-05-26 - step 31 - completed
+Что сделано:
+- В actions registry добавлен явный список executable actions, соответствующий текущему executeActionMutation.
+- listCrmAgentActionsForPermissions и listCrmAgentActionsByDomain теперь возвращают только actions, которые реально поддержаны executor.
+- canUseCrmAgentAction возвращает false для unsupported actions.
+- actions.prepare/actions.preview отклоняют unsupported action types до создания draft.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/actions.ts
+- apps/web/lib/crm-agent-v2/core/draft-tools.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 32: Довести draft/preview до production-контракта.
+Блокеры:
+- нет
+
+2026-05-26 - step 30 - completed
+Что сделано:
+- Runtime начал извлекать resolver results из read tool outputs и переносить их в CrmAgentState: candidates, selected, missing и slot statuses.
+- Добавлена обработка appointments.findAvailableSlots как candidates для slot `time`.
+- Candidate cards получают clickable commands формата select:<slot>:<id>, совместимые с interactive command handler.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 31: Синхронизировать action registry и executor.
+Блокеры:
+- нет
+
+2026-05-26 - step 29 - completed
+Что сделано:
+- В apps/web/lib/crm-agent-v2/core/runtime.ts добавлен execution loop для allowed planner tool steps.
+- Runtime теперь запускает tool handlers из registry, пишет CrmAgentToolCall через start/finish, обновляет CrmAgentPlanStep и CrmAgentPlan statuses.
+- В workspace добавлена вкладка Results, cards и planTrace теперь получают фактические statuses/result/error выполненных steps.
+- Execute steps, требующие подтверждения, не автоисполняются из chat route и переводятся в needs_user/skipped, чтобы не обходить отдельные confirm/reject API.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 30: Довести resolver/clarification pipeline.
+Блокеры:
+- нет
+
+2026-05-26 - readiness audit - status corrected to in_progress
+Что сделано:
+- Выполнена повторная сверка плана с кодом после step 28.
+- Подтверждено: foundation v2, Prisma models, core registries, API/UI, worker v2, feature flag, удаление legacy CRM Agent и contract tests существуют.
+- Выявлено: статус complete был преждевременным, потому что runtime не выполняет planner steps через tool registry, tool calls не пишутся общим loop, action registry шире фактического executor, resolver-driven clarification и draft edit/preview не закрыты end-to-end.
+- В чеклист добавлены steps 29-35 как обязательные до production-ready статуса.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2
+- npm run prisma:validate
+- npm run typecheck
+- rg legacy CRM Agent references вне migrations/plan
+Следующий шаг:
+- step 29: Довести runtime loop до фактического выполнения плана.
+Блокеры:
+- нет
+
+2026-05-26 - step 28 - completed
+Что сделано:
+- Выполнена финальная rg-проверка legacy CRM Agent identifiers и путей: AiPendingAction/AiAccountMemory/AiAccountInsight/AiAgent*, связанные enum, crm-agent-* без v2, /api/v1/crm/assistant, crm-assistant-cockpit, старые test:crm-agent scripts и старые worker branch names.
+- В runtime-коде, scripts, package.json и packages/db/prisma/schema.prisma старых references не найдено.
+- Оставшиеся совпадения находятся только в исторических migrations и CRM_AGENT_V2_IMPLEMENTATION_PLAN.md, где они нужны как контекст удаления и журнал выполненных шагов.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- rg legacy CRM Agent references по repo без node_modules, .next и historical migrations
+Следующий шаг:
+- план выполнен
+Блокеры:
+- нет
+
+2026-05-26 - step 27 - completed
+Что сделано:
+- Проверены references legacy AiPendingAction/AiAccountMemory/AiAccountInsight/AiAgent* и связанных enum: в runtime-коде, scripts, package.json и Prisma schema после удаления их нет.
+- Из packages/db/prisma/schema.prisma удалены legacy CRM Agent модели: AiPendingAction, AiAccountMemory, AiAccountInsight, AiAgentTask, AiAgentCampaign, AiAgentCampaignConversion, AiAgentNotificationDraft, AiAgentReviewDraft, AiAgentSiteDraft, AiAgentRun, AiAgentToolCall, AiAgentAudit.
+- Из packages/db/prisma/schema.prisma удалены enum: AiPendingActionStatus, AiAccountInsightStatus, AiAgentTaskStatus, AiAgentCampaignStatus, AiAgentDraftStatus, AiAgentRunStatus, AiAgentToolCallStatus.
+- Добавлена migration packages/db/prisma/migrations/20260526214500_drop_legacy_crm_agent_models/migration.sql с DROP TABLE IF EXISTS и DROP TYPE IF EXISTS.
+- Выполнен prisma generate после временной остановки процессов, которые держали Windows Prisma query engine; web dev server снова запущен на http://127.0.0.1:3000.
+Измененные файлы:
+- packages/db/prisma/schema.prisma
+- packages/db/prisma/migrations/20260526214500_drop_legacy_crm_agent_models/migration.sql
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run prisma:validate
+- powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 generate
+- npm run typecheck
+- npm run lint
+- npm run test:crm-agent-v2
+- node --check apps/worker/src/index.mjs
+Следующий шаг:
+- step 28: После проверки удалить остатки старых references.
+Блокеры:
+- нет
+
+2026-05-26 - step 26 - completed
+Что сделано:
+- Удалены legacy apps/web/lib/crm-agent-*.ts.
+- Удалены старые CRM Agent API apps/web/app/api/v1/crm/assistant/**.
+- Удален старый CRM Agent UI apps/web/app/(crm)/crm/assistant/page.tsx и crm-assistant-cockpit.tsx.
+- Удалены старые scripts/crm-agent-smoke.mjs и scripts/crm-agent-regression.mjs, из package.json убраны старые test:crm-agent* scripts.
+- apps/worker/src/index.mjs заменен на v2-only background pass, который работает с CrmAgent* таблицами и больше не выполняет старые AiAgent/AiPendingAction ветки.
+- Страницы Аиши, AI billing/settings и Aisha analytics оставлены.
+Измененные файлы:
+- apps/web/app/(crm)/crm/assistant/page.tsx
+- apps/web/app/(crm)/crm/assistant/crm-assistant-cockpit.tsx
+- apps/web/app/api/v1/crm/assistant/**
+- apps/web/lib/crm-agent-*.ts
+- apps/worker/src/index.mjs
+- package.json
+- scripts/crm-agent-smoke.mjs
+- scripts/crm-agent-regression.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- node --check apps/worker/src/index.mjs
+- npm run typecheck
+- npm run lint
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 27: Создать миграцию удаления старых CRM Agent моделей и связанных enum после проверки references.
+Блокеры:
+- нет
+
+2026-05-26 - step 25 - completed
+Что сделано:
+- Основной пункт CRM-навигации "Агент" теперь ведет на /crm/agent и требует crm.assistant.agent.use.
+- Добавлен отдельный пункт "Аиша" на /crm/assistant/site с crm.assistant.site.read, страницы Аиши не удалялись.
+Измененные файлы:
+- apps/web/app/(crm)/crm/crm-shell.tsx
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:ui
+Следующий шаг:
+- step 26: Удалить старые файлы crm-agent-*, старые API/UI именно CRM Agent и старые worker branches.
+Блокеры:
+- нет
+
+2026-05-26 - step 24 - completed
+Что сделано:
+- В dev/reseed scripts для тестовых салонов создается AiAccountAccess с aiEnabled=true, siteAssistantEnabled=true, crmAgentEnabled=true.
+- Production default в миграции AiAccountAccess.crmAgentEnabled=false не изменялся.
+Измененные файлы:
+- scripts/reseed-russian-salon.js
+- scripts/reseed-russian-salon-2.js
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- node --check scripts/reseed-russian-salon.js
+- node --check scripts/reseed-russian-salon-2.js
+- npm run test:crm-agent-v2
+- npm run typecheck
+Следующий шаг:
+- step 25: Переключить навигацию CRM на /crm/agent, не удаляя страницы Аиши.
+Блокеры:
+- нет
+
+2026-05-26 - step 23 - completed
+Что сделано:
+- Прогнаны основные проверки после API/UI/worker/tests.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run lint
+- npm run test:crm-agent-v2
+- npm run test:crm-agent
+- node --check apps/worker/src/index.mjs
+Следующий шаг:
+- step 24: Включить CRM Agent v2 под feature flag для проверки.
+Блокеры:
+- нет
+
+2026-05-26 - step 22 - completed
+Что сделано:
+- Добавлен scripts/crm-agent-v2-dialog-tests.mjs со сценариями appointment booking, new client continuation, schedule day off, service copy update, daily attention overview.
+- Добавлен scripts/crm-agent-v2-ui-tests.mjs для проверки интерактивного workspace contract: tabs/cards/forms/tables/preview/commands/trace/capabilities.
+- В package.json добавлены scripts test:crm-agent-v2:dialogs, test:crm-agent-v2:ui, test:crm-agent-v2.
+Измененные файлы:
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- package.json
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2
+Следующий шаг:
+- step 23: Прогнать typecheck/lint/tests.
+Блокеры:
+- нет
+
+2026-05-26 - step 21 - completed
+Что сделано:
+- В apps/worker/src/index.mjs добавлен runCrmAgentV2BackgroundPass.
+- Добавлены jobs: expire actions, daily/weekly brief tasks, refresh knowledge snapshots, generate insights, send campaigns, sync campaign conversions, retry failed campaign recipients.
+- Worker v2 пишет состояние только в CrmAgent* таблицы; CRM-данные читает для аналитики, snapshots и conversions.
+Измененные файлы:
+- apps/worker/src/index.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- node --check apps/worker/src/index.mjs
+- npm run typecheck
+Следующий шаг:
+- step 22: Создать dialog/e2e tests и UI tests интерактивного workspace.
+Блокеры:
+- нет
+
+2026-05-26 - step 20 - completed
+Что сделано:
+- API v2 переведен на входные permissions crm.assistant.agent.use и crm.assistant.agent.write.
+- Навигационный пункт Agent v2 скрывается без crm.assistant.agent.use.
+- Страница /crm/agent проверяет общий feature policy на базе AiAccountAccess.crmAgentEnabled.
+Измененные файлы:
+- apps/web/app/api/v1/crm/agent-v2/chat/route.ts
+- apps/web/app/api/v1/crm/agent-v2/interactions/route.ts
+- apps/web/app/api/v1/crm/agent-v2/actions/[id]/confirm/route.ts
+- apps/web/app/api/v1/crm/agent-v2/actions/[id]/reject/route.ts
+- apps/web/app/api/v1/crm/agent-v2/sessions/route.ts
+- apps/web/app/api/v1/crm/agent-v2/sessions/[id]/route.ts
+- apps/web/app/api/v1/crm/agent-v2/artifacts/route.ts
+- apps/web/app/api/v1/crm/agent-v2/policies/route.ts
+- apps/web/app/api/v1/crm/agent-v2/capabilities/route.ts
+- apps/web/app/(crm)/crm/agent/page.tsx
+- apps/web/app/(crm)/crm/crm-shell.tsx
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 21: Создать worker v2.
+Блокеры:
+- нет
+
+2026-05-26 - step 19 - completed
+Что сделано:
+- Создана страница apps/web/app/(crm)/crm/agent/page.tsx.
+- Создан интерактивный cockpit apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx с диалогом, sessions, actions, artifacts, workspace tabs/cards/forms/tables/preview, plan trace и capabilities.
+- Добавлен отдельный пункт навигации Agent v2, не заменяя /crm/assistant и не затрагивая страницы Аиши.
+Измененные файлы:
+- apps/web/app/(crm)/crm/agent/page.tsx
+- apps/web/app/(crm)/crm/agent/crm-agent-v2-cockpit.tsx
+- apps/web/app/(crm)/crm/crm-shell.tsx
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 20: Подключить permissions и feature flag.
+Блокеры:
+- нет
+
+2026-05-26 - step 18 - completed
+Что сделано:
+- Создан общий helper apps/web/app/api/v1/crm/agent-v2/_shared.ts для auth, feature policy, cookies, id и pagination.
+- Добавлены routes: chat, interactions, actions/[id]/confirm, actions/[id]/reject, sessions, sessions/[id], artifacts, policies, capabilities.
+- Confirm/reject routes используют execute tool handlers actions.confirm/actions.reject; capabilities возвращает доступные skills/tools/actions по permissions.
+Измененные файлы:
+- apps/web/app/api/v1/crm/agent-v2/_shared.ts
+- apps/web/app/api/v1/crm/agent-v2/chat/route.ts
+- apps/web/app/api/v1/crm/agent-v2/interactions/route.ts
+- apps/web/app/api/v1/crm/agent-v2/actions/[id]/confirm/route.ts
+- apps/web/app/api/v1/crm/agent-v2/actions/[id]/reject/route.ts
+- apps/web/app/api/v1/crm/agent-v2/sessions/route.ts
+- apps/web/app/api/v1/crm/agent-v2/sessions/[id]/route.ts
+- apps/web/app/api/v1/crm/agent-v2/artifacts/route.ts
+- apps/web/app/api/v1/crm/agent-v2/policies/route.ts
+- apps/web/app/api/v1/crm/agent-v2/capabilities/route.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 19: Создать UI v2 /crm/agent как интерактивный cockpit.
+Блокеры:
+- нет
+
+2026-05-26 - step 17 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/skills.ts.
+- Добавлены domain skills: appointment_booking, client_profile, service_catalog, specialist_profile, schedule_management, location_management, promotion_management, review_management, client_notifications, site_content, agent_memory, analytics_insights.
+- Добавлены helper-функции get/list/find by permissions/goal.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/skills.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 18: Создать API v2.
+Блокеры:
+- нет
+
+2026-05-26 - step 16 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/policy.ts.
+- Добавлены проверки feature policy через AiAccountAccess, tool/action permission decisions, risk comparison и auto-execute policy.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/policy.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 17: Создать skills.
+Блокеры:
+- нет
+
+2026-05-26 - step 15 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/execute-tools.ts.
+- Добавлены handlers actions.confirm/actions.reject.
+- actions.confirm подтверждает CrmAgentAction и выполняет поддерживаемые мутации: memory/autopilot memory, clients, appointment create/cancel, services, locations, review.reply.
+- tools.ts теперь подключает execute handlers после draft/read handlers.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/execute-tools.ts
+- apps/web/lib/crm-agent-v2/core/tools.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 16: Создать policy.
+Блокеры:
+- нет
+
+2026-05-26 - step 14 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/draft-tools.ts.
+- Добавлены handlers actions.prepare и actions.preview для CrmAgentAction.
+- tools.ts теперь подключает draft handlers после read handlers.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/draft-tools.ts
+- apps/web/lib/crm-agent-v2/core/tools.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 15: Создать execute tools.
+Блокеры:
+- нет
+
+2026-05-26 - step 13 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/read-tools.ts.
+- Добавлены handlers для clients/services/specialists/locations/appointments/reviews/promos/analytics/site/memory read tools.
+- tools.ts теперь подключает read handlers через attachCrmAgentReadToolHandlers.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/read-tools.ts
+- apps/web/lib/crm-agent-v2/core/tools.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 14: Создать draft tools.
+Блокеры:
+- нет
+
+2026-05-26 - step 12 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/commands.ts.
+- Добавлен handler interactive commands для select:<slot>:<value>, confirm_action:<id>, reject_action:<id>.
+- Handler проверяет session/account, permission для action и сохраняет новое state/message.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/commands.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 13: Создать read tools.
+Блокеры:
+- нет
+
+2026-05-26 - step 11 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/runtime.ts.
+- Runtime создает/загружает session, пишет user/assistant messages, грузит context, вызывает planner, inspector, сохраняет plan/state/artifact и возвращает CrmAgentChatResponse.
+- Исполнение tools/actions намеренно не включено: read/draft/execute tools идут отдельными шагами 13-15.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 12: Создать обработчик interactive commands.
+Блокеры:
+- нет
+
+2026-05-26 - step 10 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/inspector.ts.
+- Добавлена проверка unknown tool/action, permissions, required slots, tool mode mismatch и confirmation by risk.
+- Inspector возвращает findings, allowedSteps, blockedSteps, общий risk и requiresConfirmation.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/inspector.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 11: Создать runtime loop.
+Блокеры:
+- нет
+
+2026-05-26 - step 9 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/resolvers.ts.
+- Добавлены account-scoped resolvers для client/service/specialist/location/appointment/memory.
+- Добавлены статусы empty/resolved/ambiguous/not_found и единый resolveCrmAgentEntity/resolveCrmAgentSlot.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/resolvers.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 10: Создать inspector.
+Блокеры:
+- нет
+
+2026-05-26 - step 8 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/context.ts.
+- Добавлен loadCrmAgentContext с account summary, AI access, memory, insights, pending actions и session history.
+- Добавлен compactCrmAgentContext для передачи компактной сводки planner/runtime.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/context.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 9: Создать resolvers.
+Блокеры:
+- нет
+
+2026-05-26 - step 7 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/persistence.ts.
+- Добавлены функции для session/message/state/plan/planStep/artifact/action/toolCall/audit.
+- Для новых Prisma delegates выполнен prisma generate.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/persistence.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 generate
+- npm run typecheck
+Следующий шаг:
+- step 8: Создать context-loader.
+Блокеры:
+- нет
+
+2026-05-26 - step 6 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/planner.ts.
+- Добавлены типы planner request/result/plan/steps и parser строгого JSON.
+- Добавлен GigaChat wrapper requestCrmAgentPlannerPlan с crm_agent scope и purpose crm_agent_v2_planner.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/planner.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 7: Создать session/state/artifact/action persistence.
+Блокеры:
+- нет
+
+2026-05-26 - step 5 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/tools.ts.
+- Добавлен реестр инструментов read/draft/execute для клиентов, услуг, специалистов, локаций, записей, расписания, отзывов, акций, аналитики, сайта, памяти и actions.
+- Добавлены helper-функции get/list/filter/canUse и ограничение по maxRisk.
+- В CrmAgentToolDefinition handler сделан опциональным, чтобы registry мог существовать до реализации tool handlers.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/types.ts
+- apps/web/lib/crm-agent-v2/core/tools.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 6: Создать planner contract на GigaChat.
+Блокеры:
+- нет
+
+2026-05-26 - step 4 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/actions.ts.
+- Добавлен реестр action types для записей, клиентов, услуг, специалистов, расписания, локаций, акций, отзывов, уведомлений, сайта, памяти и autopilot.
+- Добавлены helper-функции get/list/filter/canUse и проверка недостающих обязательных слотов.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/actions.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 5: Создать tool registry.
+Блокеры:
+- нет
+
+2026-05-26 - step 3 - completed
+Что сделано:
+- Создан apps/web/lib/crm-agent-v2/core/types.ts.
+- Добавлены типы goal, task state, slots, candidates, cards, workspace, tabs, forms, tables, preview, commands, action/tool definitions, chat response.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/types.ts
+Проверка:
+- npm run typecheck
+Следующий шаг:
+- step 4: Создать action registry.
+Блокеры:
+- нет
+
+2026-05-26 - step 2 - completed
+Что сделано:
+- Добавлены модели CrmAgentSession, CrmAgentMessage, CrmAgentState, CrmAgentPlan, CrmAgentPlanStep, CrmAgentAction, CrmAgentToolCall, CrmAgentArtifact, CrmAgentMemory, CrmAgentInsight, CrmAgentTask, CrmAgentPolicy, CrmAgentKnowledgeSnapshot, CrmAgentCampaign, CrmAgentCampaignRecipient, CrmAgentAudit.
+- Создана миграция добавления новых таблиц без удаления старых AiAgent* таблиц.
+Измененные файлы:
+- packages/db/prisma/schema.prisma
+- packages/db/prisma/migrations/20260526203000_crm_agent_v2_models/migration.sql
+Проверка:
+- npm run prisma:validate
+Следующий шаг:
+- step 3: Создать apps/web/lib/crm-agent-v2/core/types.ts.
+Блокеры:
+- нет
+
+2026-05-26 - step 1 - completed
+Что сделано:
+- План зафиксирован как рабочий документ реализации CRM Agent v2.
+- Добавлены ограничения по Аише, интерактивному UI, чеклисту, текущему статусу и протоколу возобновления.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- Проверена структура раздела 20 и наличие протокола продолжения.
+Следующий шаг:
+- step 2: Создать миграцию добавления CrmAgent* моделей.
+Блокеры:
+- нет
+
 YYYY-MM-DD HH:mm - step N - status
 Что сделано:
 - ...
@@ -2383,4 +3553,32 @@ CRM Agent v2 считается готовым, когда:
 11. Есть trace плана и tool calls.
 12. Есть worker для фоновых insights/campaigns.
 13. Есть e2e диалоги и UI tests по ключевым интерактивным сценариям.
+```
+
+### 21.1 Текущая сверка готовности
+
+Статус на 2026-05-26: `in_progress`, не production-ready.
+
+```text
+Выполнено:
+1. Старый CRM Agent код удален; страницы Аиши/AI-биллинга/AI-настроек сохранены.
+3. Planner contract на GigaChat есть.
+4. Action registry есть.
+5. State задачи сохраняется в CrmAgentState.
+7. Базовый workspace contract и UI cockpit есть.
+10. Confirm/reject flow для CrmAgentAction есть.
+11. Plan trace частично есть через CrmAgentPlanStep; persistence для CrmAgentToolCall есть.
+12. Worker v2 для фоновых insights/campaigns есть.
+13. Быстрые dialog/UI contract tests есть.
+
+Не выполнено / требует доработки:
+2. Аиша не подтверждена свежим smoke/regression после удаления legacy CRM Agent.
+3. Planner есть, но runtime не исполняет построенный план end-to-end.
+4. Не все действия из action registry имеют execute implementation или безопасно скрыты как unsupported.
+6. Уточнения 0/1/many/missing/conflict не доведены до resolver-driven end-to-end сценариев.
+7. Workspace есть, но интерактивные controls требуют проверки реальными API/DB сценариями.
+8. Выбор кликом, ручная правка draft и продолжение текстом не закрыты end-to-end.
+9. Preview before/after есть только как общий draft preview contract, не гарантирован для каждого draft.
+11. Tool calls не пишутся общим runtime loop при выполнении planner steps.
+13. Нужны настоящие integration/e2e tests, текущие тесты в основном проверяют наличие контрактов и wiring.
 ```
