@@ -188,6 +188,17 @@ async function loadActionBefore(actionType: string, payload: JsonRecord, ctx: Cr
 }
 
 function buildActionAfter(actionType: string, payload: JsonRecord, before: Record<string, unknown> | null) {
+  if (actionType === "specialist.create") {
+    const nameParts = splitHumanName(payload);
+    return {
+      ...(before ?? {}),
+      ...payload,
+      firstName: stringArg(payload.firstName) ?? nameParts.firstName,
+      lastName: stringArg(payload.lastName) ?? nameParts.lastName,
+      status: stringArg(payload.status) ?? "INVITED",
+      isPublic: typeof payload.isPublic === "boolean" ? payload.isPublic : true,
+    };
+  }
   if (actionType === "appointment.cancel") {
     return { ...(before ?? {}), ...payload, status: "CANCELLED" };
   }
@@ -232,4 +243,15 @@ function dateArg(value: unknown) {
 
 function recordArg(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function splitHumanName(payload: JsonRecord) {
+  const explicitFirstName = stringArg(payload.firstName);
+  const explicitLastName = stringArg(payload.lastName);
+  const name = stringArg(payload.name) ?? [explicitLastName, explicitFirstName].filter(Boolean).join(" ");
+  const parts = name.split(/\s+/).filter(Boolean);
+  return {
+    firstName: explicitFirstName ?? parts[1] ?? parts[0] ?? "",
+    lastName: explicitLastName ?? (parts.length > 1 ? parts[0] : null),
+  };
 }

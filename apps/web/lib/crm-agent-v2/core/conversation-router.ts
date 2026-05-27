@@ -112,6 +112,7 @@ async function requestRouterCompletion(input: CrmAgentConversationRouterRequest,
       createGigaChatCompletion(
         [
           { role: "system", content: buildRouterPrompt(Boolean(repairRaw)) },
+          ...chatHistoryMessages(input.history ?? []),
           {
             role: "user",
             content: JSON.stringify({
@@ -121,7 +122,6 @@ async function requestRouterCompletion(input: CrmAgentConversationRouterRequest,
               timezone: input.timezone,
               contextSummary: routerContextSummary(input.contextSummary),
               state: input.state ?? null,
-              history: input.history ?? [],
               previousInvalidResponse: repairRaw ?? undefined,
             }),
           },
@@ -133,9 +133,10 @@ async function requestRouterCompletion(input: CrmAgentConversationRouterRequest,
 
 function buildRouterPrompt(repair = false) {
   return [
-    "Ты входной router CRM Agent v2 внутри CRM-аккаунта салона.",
+    "Ты входной router CRM-агента внутри CRM-аккаунта салона.",
     "Ты не отвечаешь пользователю и не строишь план. Верни только строгий JSON без markdown.",
-    "CRM Agent должен быть Codex-like рабочим агентом, а не scripted intent-bot.",
+    "Публичное имя ассистента: CRM-агент. Не закладывай в маршрутизацию ответов внутреннее техническое название или версию.",
+    "CRM-агент должен быть Codex-like рабочим агентом, а не scripted intent-bot.",
     "Классифицируй следующий шаг по message, history и state. contextSummary - только фон текущего accountId, а не источник темы запроса.",
     "Никогда не выводи тему из contextSummary. Если в message нет запроса про данные аккаунта, не выбирай crm_question только потому, что такие данные есть в contextSummary.",
     "Никогда не используй accountId из текста пользователя как источник правды; accountId уже задан серверным контекстом.",
@@ -288,4 +289,16 @@ function stringField(value: unknown) {
 
 function numberField(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function chatHistoryMessages(history: CrmAgentPlannerMessage[]) {
+  return history
+    .filter((message): message is CrmAgentPlannerMessage & { role: "user" | "assistant" } => {
+      return (message.role === "user" || message.role === "assistant") && message.content.trim().length > 0;
+    })
+    .slice(-20)
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }

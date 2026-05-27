@@ -80,11 +80,13 @@ for (const text of ["Диалог", "История", "Контекст", "На 
 assert(cockpit.includes("onKeyDown={handleInputKeyDown}") && cockpit.includes("event.key !== \"Enter\""), "Composer must send on Enter and keep Shift+Enter for new lines");
 assert(cockpit.includes("overflow-y-auto") && cockpit.includes("h-[calc(100vh-7rem)]"), "CRM Agent page must keep chat/history/context panes scrollable without stretching the page");
 assert(cockpit.includes("openSession") && cockpit.includes("/api/v1/crm/agent-v2/sessions/${sessionId}"), "Session history must behave like chat history and restore messages");
+assert(cockpit.includes("useState<number | null>(null)") && !cockpit.includes("initialData.sessions[0]?.id ?? null"), "Opening CRM Agent must start a visible new chat instead of silently continuing the latest saved session");
 assert(cockpit.includes("credentials: \"same-origin\"") && cockpit.includes("Не удалось открыть чат."), "Session history API errors must not crash the UI");
 assert(!cockpit.includes("Что умеет агент"), "CRM Agent page must not show a separate tutorial/capabilities panel in the main UI");
 
 assert(page.includes("requireCrmPermission(\"crm.assistant.agent.use\")"), "CRM Agent v2 page must require agent.use permission");
 assert(page.includes("checkCrmAgentFeaturePolicy"), "CRM Agent v2 page must check feature policy");
+assert(page.includes("CRM-агент") && !page.includes("CRM Agent v2"), "CRM Agent page must use the public Russian assistant name");
 assert(shell.includes("href: \"/crm/agent\""), "CRM shell must expose /crm/agent navigation item");
 assert(shell.includes("permission: \"crm.assistant.agent.use\""), "CRM shell must guard /crm/agent navigation by agent.use permission");
 assert(runtime.includes("buildDraftForm"), "Runtime must build editable draft forms");
@@ -114,6 +116,7 @@ assert(!planner.includes("Коротко по-русски, что будет с
 assert(commands.includes("Выбор сохранен. Можно продолжить."), "Selection command responses must be user-facing Russian text");
 assert(cockpit.includes("formatDateTime"), "Cockpit must format ISO datetime values for users");
 assert(cockpit.includes("slotLabel"), "Cockpit must translate slot names");
+assert(cockpit.includes('"answer"') && cockpit.includes("hiddenDataKeys"), "Cockpit must hide technical answer keys from visible data cards");
 assert(read("apps/web/lib/crm-agent-v2/core/types.ts").includes("\"conversation\""), "UI type contract must support conversation workspace mode");
 assert(cockpit.includes("mode: \"conversation\""), "Cockpit start workspace must be conversation-first");
 assert(cockpit.includes("Что сегодня по записям?"), "Quick prompts must include CRM questions");

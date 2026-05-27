@@ -182,7 +182,7 @@ const riskLabel: Record<string, string> = {
 export function CrmAgentV2Cockpit({ initialData }: { initialData: CrmAgentV2InitialData }) {
   const [sessions, setSessions] = useState(initialData.sessions);
   const [actions, setActions] = useState(initialData.actions);
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(initialData.sessions[0]?.id ?? null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [response, setResponse] = useState<ChatResponse | null>(null);
@@ -787,6 +787,7 @@ function KeyValueList({ value }: { value: JsonRecord }) {
 }
 
 const hiddenDataKeys = new Set([
+  "answer",
   "slot",
   "value",
   "rank",

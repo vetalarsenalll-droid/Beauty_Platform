@@ -17,7 +17,7 @@ import {
   updateCrmAgentPlanStatus,
   updateCrmAgentPlanStep,
 } from "./persistence";
-import { requestCrmAgentPlannerPlan, type CrmAgentPlannerPlan } from "./planner";
+import { requestCrmAgentPlannerPlan, type CrmAgentPlannerMessage, type CrmAgentPlannerPlan } from "./planner";
 import { handleCrmAgentTaskContinuation } from "./task-continuation";
 import { crmAgentToolRegistry, getCrmAgentTool, listCrmAgentToolsForPermissions } from "./tools";
 import type {
@@ -66,6 +66,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
   const timezone = input.timezone ?? "Europe/Moscow";
   const contextSummary = compactCrmAgentContext(context);
   const serializedState = latestState ? serializePlannerState(latestState) : null;
+  const priorHistory = historyBeforeCurrentTurn(context.history, input.message);
 
   const routeResult = await routeCrmAgentConversationTurn({
     accountId: input.accountId,
@@ -76,7 +77,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     timezone,
     contextSummary,
     state: serializedState,
-    history: context.history,
+    history: priorHistory,
   });
 
   const routeError = routeResult.ok ? (routeResult.fallback ? routeResult.error : null) : routeResult.error;
@@ -141,7 +142,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
         timezone,
         contextSummary,
         state: serializedState,
-        history: context.history,
+        history: priorHistory,
       });
 
       if (!conversation.shouldEscalateToPlanner) {
@@ -204,7 +205,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     timezone,
     contextSummary,
     state: serializedState,
-    history: context.history,
+    history: priorHistory,
     tools,
     actions,
   });
@@ -223,7 +224,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
         timezone,
         contextSummary,
         state: serializedState,
-        history: context.history,
+        history: priorHistory,
       });
 
       if (!conversation.shouldEscalateToPlanner) {
@@ -281,15 +282,45 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     });
   }
 
+  const runtimePlan =
+    recoverSpecialistCreatePlan({
+      message: input.message,
+      history: priorHistory,
+      route: routeDecision,
+      state: serializedState,
+      plan: plannerResult.plan,
+    }) ?? plannerResult.plan;
+
+  if (runtimePlan.status === "answer_only" || runtimePlan.status === "unsupported") {
+    return saveConversationResponse({
+      sessionId: session.id,
+      accountId: input.accountId,
+      answer: runtimePlan.answer || "Понял.",
+      state: latestState ? taskStateFromRecord(latestState) : buildEmptyState(session.id, input.accountId, "completed"),
+      workspace: {
+        mode: "conversation",
+        title: "Диалог",
+        commands: [],
+      },
+      cards: [],
+      data: {
+        mode: "conversation",
+        route: routeDecision,
+        plannerStatus: runtimePlan.status,
+        raw: plannerResult.raw,
+      },
+    });
+  }
+
   const inspection = inspectCrmAgentPlan({
-    plan: plannerResult.plan,
+    plan: runtimePlan,
     permissions: input.permissions,
   });
 
   const persistedPlan = await createCrmAgentPlan({
     sessionId: session.id,
     accountId: input.accountId,
-    plan: plannerResult.plan,
+    plan: runtimePlan,
   });
 
   const execution = inspection.ok
@@ -300,7 +331,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
         permissions: input.permissions,
         planId: persistedPlan.id,
         steps: persistedPlan.steps,
-        plannerSteps: plannerResult.plan.steps,
+        plannerSteps: runtimePlan.steps,
         allowedOrders: new Set(inspection.allowedSteps.map((step) => step.order)),
         requiresConfirmation: inspection.requiresConfirmation,
       })
@@ -309,10 +340,10 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
   const state = buildTaskState({
     sessionId: session.id,
     accountId: input.accountId,
-    plan: plannerResult.plan,
+    plan: runtimePlan,
     stepResults: execution.results,
     status: resolveRuntimeStateStatus({
-      plan: plannerResult.plan,
+      plan: runtimePlan,
       inspectionOk: inspection.ok,
       executionFailed: execution.failed,
       needsUser: execution.needsUser || inspection.requiresConfirmation,
@@ -321,9 +352,9 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
   });
   await saveCrmAgentTaskState(state);
 
-  const cards = buildRuntimeCards(plannerResult.plan, inspection.findings, execution.results);
+  const cards = buildRuntimeCards(runtimePlan, inspection.findings, execution.results);
   const workspace = buildRuntimeWorkspace(
-    plannerResult.plan,
+    runtimePlan,
     cards,
     inspection.requiresConfirmation || execution.needsUser,
     execution.results,
@@ -339,14 +370,14 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     data: {
       inspection,
       execution,
-      plan: plannerResult.plan,
+      plan: runtimePlan,
     } as Prisma.InputJsonValue,
   });
 
   const answer = hasMissingActionSlots(inspection.findings)
     ? missingActionSlotsAnswer(inspection.findings)
     : inspection.ok
-    ? plannerResult.plan.answer || "План подготовлен."
+    ? runtimePlan.answer || "План подготовлен."
     : `План требует исправления: ${inspection.findings
         .filter((finding) => finding.severity === "error")
         .map((finding) => userFacingInspectionMessage(finding.message))
@@ -379,9 +410,9 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
             question: missingActionSlotsAnswer(inspection.findings),
             options: [],
           }
-        : plannerResult.plan.status === "needs_clarification"
+        : runtimePlan.status === "needs_clarification"
         ? {
-            question: plannerResult.plan.clarificationQuestion || plannerResult.plan.answer || "Нужно уточнение.",
+            question: runtimePlan.clarificationQuestion || runtimePlan.answer || "Нужно уточнение.",
             options: [],
           }
         : undefined,
@@ -431,6 +462,12 @@ function shouldUseConversationLayer(route: CrmAgentRouteDecision) {
   return route.kind === "smalltalk" || route.kind === "crm_question" || route.kind === "unsupported";
 }
 
+function historyBeforeCurrentTurn(history: CrmAgentPlannerMessage[], message: string): CrmAgentPlannerMessage[] {
+  const last = history.at(-1);
+  if (last?.role !== "user" || last.content.trim() !== message.trim()) return history;
+  return history.slice(0, -1);
+}
+
 function plannerFailureConversationRoute(route: CrmAgentRouteDecision, plannerError: string): CrmAgentRouteDecision {
   return {
     kind: "unsupported",
@@ -476,6 +513,172 @@ function plannerMessageWithRouting(message: string, route: CrmAgentRouteDecision
     .join("\n");
 }
 
+function recoverSpecialistCreatePlan(input: {
+  message: string;
+  history: CrmAgentPlannerMessage[];
+  route: CrmAgentRouteDecision;
+  state: Prisma.JsonObject | null;
+  plan: CrmAgentPlannerPlan;
+}): CrmAgentPlannerPlan | null {
+  if (!isSpecialistCreateContext(input)) return null;
+  if (hasExecutableSpecialistCreateStep(input.plan)) return null;
+
+  const facts = extractSpecialistCreateFacts(input.message, input.history);
+  if (!facts.name) {
+    return {
+      goal: {
+        type: "specialist.create",
+        intent: "create",
+        confidence: 0.8,
+        slots: {},
+        userFacingSummary: "Создать специалиста",
+      },
+      status: "needs_clarification",
+      answer: "Кого зарегистрировать? Напишите ФИО специалиста.",
+      missingSlots: ["name"],
+      clarificationQuestion: "Кого зарегистрировать? Напишите ФИО специалиста.",
+      steps: [],
+    };
+  }
+
+  const summary = `Создать специалиста ${facts.name}`;
+  const payload: Record<string, unknown> = {
+    name: facts.name,
+  };
+  if (facts.phone) payload.phone = facts.phone;
+  if (facts.bio) payload.bio = facts.bio;
+
+  return {
+    goal: {
+      type: "specialist.create",
+      intent: "create",
+      confidence: 0.9,
+      slots: {
+        name: facts.name,
+        ...(facts.phone ? { phone: facts.phone } : {}),
+        ...(facts.bio ? { bio: facts.bio } : {}),
+      },
+      userFacingSummary: summary,
+    },
+    status: "planned",
+    answer: `Подготовил регистрацию специалиста ${facts.name}. Проверьте карточку и подтвердите создание.`,
+    missingSlots: [],
+    clarificationQuestion: "",
+    steps: [
+      {
+        order: 1,
+        type: "draft",
+        toolName: "actions.prepare",
+        actionName: "specialist.create",
+        args: {
+          actionType: "specialist.create",
+          summary,
+          payload: payload as Prisma.JsonObject,
+        },
+        reason: "Подготовить карточку нового специалиста без графика и привязки услуг.",
+      },
+    ],
+  };
+}
+
+function isSpecialistCreateContext(input: {
+  message: string;
+  history: CrmAgentPlannerMessage[];
+  route: CrmAgentRouteDecision;
+  state: Prisma.JsonObject | null;
+  plan: CrmAgentPlannerPlan;
+}) {
+  if (input.plan.goal.type === "specialist.create") return true;
+  if (input.route.suggestedGoalType === "specialist.create") return true;
+  if (typeof input.state?.goalType === "string" && input.state.goalType === "specialist.create") return true;
+
+  const text = [...input.history.map((item) => item.content), input.message].join(" ").toLowerCase();
+  return (
+    /(созда|добав|зарегистр)/iu.test(text) &&
+    /(специалист|мастер|сотрудник)/iu.test(text)
+  );
+}
+
+function hasExecutableSpecialistCreateStep(plan: CrmAgentPlannerPlan) {
+  return plan.steps.some((step) => {
+    return (
+      step.actionName === "specialist.create" &&
+      (step.toolName === "actions.prepare" || step.type === "draft") &&
+      isRecord(step.args?.payload) &&
+      typeof step.args.payload.name === "string" &&
+      step.args.payload.name.trim().length > 0
+    );
+  });
+}
+
+function extractSpecialistCreateFacts(message: string, history: CrmAgentPlannerMessage[]) {
+  const userTexts = [...history.filter((item) => item.role === "user").map((item) => item.content), message];
+  const combined = userTexts.join(" ");
+  return {
+    name: extractSpecialistName(userTexts),
+    phone: combined.match(/(?:\+?7|8)?[\s(.-]*\d{3}[\s).-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}/)?.[0] ?? null,
+    bio: extractSpecialistBio(userTexts),
+  };
+}
+
+function extractSpecialistName(userTexts: string[]) {
+  const stopWords = new Set([
+    "создай",
+    "создать",
+    "добавь",
+    "добавить",
+    "зарегистрируй",
+    "зарегистрировать",
+    "специалиста",
+    "специалист",
+    "мастера",
+    "мастер",
+    "маникюра",
+    "педикюра",
+    "просто",
+    "пока",
+    "срм",
+    "crm",
+    "ее",
+    "её",
+    "его",
+    "она",
+    "он",
+    "работать",
+    "клиентами",
+    "услуги",
+    "график",
+    "тел",
+    "телефон",
+  ]);
+
+  for (const text of [...userTexts].reverse()) {
+    const words = text
+      .match(/[А-Яа-яЁё-]{3,}/g)
+      ?.map((word) => word.trim())
+      .filter((word) => !stopWords.has(word.toLowerCase()));
+    if (!words || words.length < 2) continue;
+    const nameWords = words.slice(0, 3);
+    if (nameWords.length >= 2) return nameWords.map(capitalizeRuWord).join(" ");
+  }
+  return null;
+}
+
+function extractSpecialistBio(userTexts: string[]) {
+  const text = userTexts.join(" ").toLowerCase();
+  if (text.includes("маникюр")) return "Мастер маникюра";
+  if (text.includes("педикюр")) return "Мастер педикюра";
+  if (text.includes("бров")) return "Бровист";
+  if (text.includes("косметолог")) return "Косметолог";
+  if (text.includes("парикмах")) return "Парикмахер";
+  return null;
+}
+
+function capitalizeRuWord(value: string) {
+  const lower = value.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 async function executeRuntimePlanSteps(input: {
   accountId: number;
   userId?: number | null;
@@ -494,7 +697,8 @@ async function executeRuntimePlanSteps(input: {
   await updateCrmAgentPlanStatus({ accountId: input.accountId, planId: input.planId, status: "running" });
 
   for (const step of input.steps) {
-    const toolName = step.toolName;
+    const plannerStep = input.plannerSteps.find((item) => item.order === step.order) ?? null;
+    const toolName = resolveRuntimeToolName(step, plannerStep);
     if (!input.allowedOrders.has(step.order)) {
       await updateCrmAgentPlanStep({ accountId: input.accountId, planStepId: step.id, status: "skipped", error: "Step blocked by inspector." });
       results.push({ order: step.order, type: step.type, toolName, status: "skipped", error: "Step blocked by inspector." });
@@ -528,7 +732,7 @@ async function executeRuntimePlanSteps(input: {
       continue;
     }
 
-    const args = normalizeRuntimeToolArgs(step, input.plannerSteps.find((plannerStep) => plannerStep.order === step.order) ?? null);
+    const args = normalizeRuntimeToolArgs(step, plannerStep);
     const toolCall = await startCrmAgentToolCall({
       accountId: input.accountId,
       sessionId: input.sessionId,
@@ -583,6 +787,14 @@ function normalizeRuntimeToolArgs(step: PersistedPlanStep, plannerStep: CrmAgent
   }
 
   return args;
+}
+
+function resolveRuntimeToolName(step: PersistedPlanStep, plannerStep: CrmAgentPlannerPlan["steps"][number] | null) {
+  if (step.toolName) return step.toolName;
+  if (!plannerStep?.actionName) return null;
+  if (step.type === "draft") return "actions.prepare";
+  if (step.type === "preview") return "actions.preview";
+  return null;
 }
 
 function resolveRuntimeStateStatus(input: {

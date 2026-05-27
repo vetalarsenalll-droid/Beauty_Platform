@@ -12,7 +12,7 @@ export async function requireCrmAgentApi(permission: string) {
   const feature = await checkCrmAgentFeaturePolicy(auth.session.accountId);
   if (!feature.allowed) {
     return {
-      response: jsonError("CRM_AGENT_DISABLED", feature.reason ?? "CRM Agent v2 is disabled.", null, 403),
+      response: jsonError("CRM_AGENT_DISABLED", feature.reason ?? "CRM-агент отключён.", null, 403),
     };
   }
 

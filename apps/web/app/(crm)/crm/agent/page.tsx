@@ -17,10 +17,10 @@ export default async function CrmAgentPage() {
   if (!feature.allowed) {
     return (
       <div className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--bp-panel)] p-6">
-        <div className="text-xs uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">CRM Agent v2</div>
+        <div className="text-xs uppercase tracking-[0.18em] text-[color:var(--bp-muted)]">CRM-агент</div>
         <h1 className="mt-2 text-2xl font-semibold">Агент выключен</h1>
         <p className="mt-2 max-w-2xl text-sm text-[color:var(--bp-muted)]">
-          Для этого аккаунта недоступен CRM Agent v2. Используется единый флаг AiAccountAccess.crmAgentEnabled.
+          Для этого аккаунта недоступен CRM-агент. Используется единый флаг AiAccountAccess.crmAgentEnabled.
         </p>
       </div>
     );

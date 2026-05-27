@@ -23,6 +23,7 @@ export type CrmAgentActionName =
   | "service.create"
   | "service.update"
   | "service.archive"
+  | "specialist.create"
   | "specialist.update"
   | "specialist.schedule.update"
   | "location.create"
@@ -152,6 +153,17 @@ export const crmAgentActionRegistry = [
     risk: "high",
     permission: "crm.services.delete",
     skill: "service_catalog",
+  }),
+  action({
+    name: "specialist.create",
+    domain: "specialists",
+    intent: "create",
+    description: "Create a staff specialist profile.",
+    requiredSlots: ["name"],
+    optionalSlots: ["firstName", "lastName", "phone", "email", "bio", "levelId", "categoryIds", "status", "isPublic"],
+    risk: "medium",
+    permission: "crm.specialists.create",
+    skill: "specialist_profile",
   }),
   action({
     name: "specialist.update",
@@ -343,6 +355,7 @@ const executableActionNames = new Set<CrmAgentActionName>([
   "service.create",
   "service.update",
   "service.archive",
+  "specialist.create",
   "location.create",
   "location.update",
   "review.reply",

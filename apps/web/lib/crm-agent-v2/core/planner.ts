@@ -131,14 +131,13 @@ export function parseCrmAgentPlannerPlan(raw: string): CrmAgentPlannerPlan | nul
   }
   if (!isJsonObject(parsed)) return null;
 
-  const goal = normalizeGoal(parsed.goal);
-  if (!goal) return null;
-
   const rawStatus = typeof parsed.status === "string" ? parsed.status : "planned";
   const status =
     rawStatus === "needs_clarification" || rawStatus === "answer_only" || rawStatus === "unsupported"
       ? rawStatus
       : "planned";
+  const goal = normalizeGoal(parsed.goal) ?? fallbackGoalForStatus(status);
+  if (!goal) return null;
 
   return {
     goal,
@@ -147,6 +146,17 @@ export function parseCrmAgentPlannerPlan(raw: string): CrmAgentPlannerPlan | nul
     missingSlots: stringArray(parsed.missingSlots),
     clarificationQuestion: typeof parsed.clarificationQuestion === "string" ? parsed.clarificationQuestion : undefined,
     steps: normalizeSteps(parsed.steps),
+  };
+}
+
+function fallbackGoalForStatus(status: CrmAgentPlannerPlan["status"]): CrmAgentGoal | null {
+  if (status !== "answer_only" && status !== "unsupported") return null;
+  return {
+    type: status === "answer_only" ? "conversation.answer" : "conversation.unsupported",
+    intent: "read",
+    confidence: 0,
+    slots: {},
+    userFacingSummary: "",
   };
 }
 
@@ -176,7 +186,8 @@ function buildPlannerPrompt(input: CrmAgentPlannerRequest) {
   );
 
   return [
-    "Ты planner внутреннего CRM Agent v2 для русскоязычного салона или студии услуг.",
+    "Ты planner внутреннего CRM-агента для русскоязычного салона или студии услуг.",
+    "Публичное имя ассистента: CRM-агент. В пользовательском answer не называй его внутренним техническим названием, версией, кодовым именем или названием LLM-провайдера.",
     "Верни только строгий JSON без markdown.",
     "Не выполняй изменения. Любое изменение должно идти через draft/preview/confirm steps.",
     "Если данных не хватает, верни status=needs_clarification, missingSlots и clarificationQuestion.",
@@ -222,6 +233,7 @@ export async function requestCrmAgentPlannerPlan(input: CrmAgentPlannerRequest):
         createGigaChatCompletion(
           [
             { role: "system", content: buildPlannerPrompt(input) },
+            ...chatHistoryMessages(input.history ?? []),
             {
               role: "user",
               content: JSON.stringify({
@@ -230,7 +242,6 @@ export async function requestCrmAgentPlannerPlan(input: CrmAgentPlannerRequest):
                 timezone: input.timezone,
                 contextSummary: input.contextSummary,
                 state: input.state ?? null,
-                history: input.history ?? [],
               }),
             },
           ],
@@ -251,4 +262,16 @@ export async function requestCrmAgentPlannerPlan(input: CrmAgentPlannerRequest):
       model: null,
     };
   }
+}
+
+function chatHistoryMessages(history: CrmAgentPlannerMessage[]) {
+  return history
+    .filter((message): message is CrmAgentPlannerMessage & { role: "user" | "assistant" } => {
+      return (message.role === "user" || message.role === "assistant") && message.content.trim().length > 0;
+    })
+    .slice(-20)
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }

@@ -64,12 +64,16 @@ export const crmAgentSkills = [
   {
     name: "specialist_profile",
     title: "Specialist profile",
-    description: "Inspect and update specialist public profile fields.",
-    goalTypes: ["specialist.search", "specialist.update"],
+    description: "Inspect, create and update specialist profiles.",
+    goalTypes: ["specialist.search", "specialist.create", "specialist.update"],
     tools: ["specialists.search", "specialists.get", "actions.prepare", "actions.preview"],
-    actions: ["specialist.update", "site.specialist.copy.update"],
+    actions: ["specialist.create", "specialist.update", "site.specialist.copy.update"],
     requiredPermissions: ["crm.specialists.read"],
-    plannerHints: ["Use specialists.search when the user gives only a name or service hint."],
+    plannerHints: [
+      "Use specialist.create when the user asks to add a new staff specialist.",
+      "For specialist.create, a full name is enough to prepare a draft; email and phone are optional when unavailable.",
+      "Use specialists.search when the user gives only a name or service hint for an existing specialist.",
+    ],
   },
   {
     name: "schedule_management",

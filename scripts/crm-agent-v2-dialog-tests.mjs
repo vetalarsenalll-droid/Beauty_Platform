@@ -64,6 +64,14 @@ const scenarios = [
     expectedUi: ["select", "preview", "confirm"],
   },
   {
+    name: "specialist create",
+    user: "Create specialist Elizaveta Fedunkina, manicure master, phone 89000000000.",
+    goal: "specialist.create",
+    tools: ["specialists.search", "actions.prepare", "actions.preview"],
+    actions: ["specialist.create"],
+    expectedUi: ["form", "preview", "confirm"],
+  },
+  {
     name: "service copy update",
     user: "Обнови описание услуги Детская стрижка.",
     goal: "service.update",
@@ -96,6 +104,9 @@ for (const scenario of scenarios) {
 
 assertIncludes("apps/web/lib/crm-agent-v2/core/runtime.ts", "requestCrmAgentPlannerPlan", "Runtime must call the planner");
 assertOrder(runtimeSource, "routeCrmAgentConversationTurn", "requestCrmAgentPlannerPlan", "Runtime must classify the turn before planner");
+assert(runtimeSource.includes("historyBeforeCurrentTurn") && runtimeSource.includes("priorHistory"), "Runtime must not duplicate the current user message inside model history");
+assert(runtimeSource.includes("recoverSpecialistCreatePlan") && runtimeSource.includes('"specialist.create"'), "Runtime must recover specialist.create drafts from dialog history when planner over-clarifies");
+assert(runtimeSource.includes("Кого зарегистрировать? Напишите ФИО специалиста."), "Specialist create clarification must ask only for the name, not schedule or services");
 assertOrder(runtimeSource, "routeDecision.kind === \"task_continuation\"", "const plannerResult = await requestCrmAgentPlannerPlan", "Task continuation must use latest state before planner fallback");
 assert(runtimeSource.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk, CRM questions and unsupported turns must stay in conversation layer");
 assert(runtimeSource.includes("conversationModeForRoute(routeDecision)") && runtimeSource.includes("planTrace: []"), "Conversation responses must be persisted without a task plan trace");
@@ -115,6 +126,13 @@ assert(routerSource.includes("smalltalk") && routerSource.includes("crm_question
 assert(!routerSource.includes("message.includes("), "Conversation router must not be implemented as phrase includes checks");
 assertIncludes("apps/web/lib/crm-agent-v2/core/conversation.ts", "createGigaChatCompletion", "Conversational layer must be LLM-first");
 assertIncludes("apps/web/lib/crm-agent-v2/core/conversation.ts", "crm_agent_v2_conversation", "Conversational layer must use its own AI purpose");
+assert(conversationSource.includes("chatHistoryMessages") && conversationSource.includes("...chatHistoryMessages(input.history ?? [])"), "Conversation layer must pass recent session history as chat messages, not only as JSON payload");
+assert(conversationSource.includes("runNaturalCrmAgentConversation") && conversationSource.includes('input.route.kind !== "crm_question"'), "Ordinary conversation must bypass the JSON draft parser");
+assert(conversationPromptsSource.includes("Отвечай обычным текстом на русском языке, не JSON"), "Natural conversation prompt must not require JSON for smalltalk");
+assert(conversationPromptsSource.includes("Публичное имя: CRM-агент"), "Conversation prompts must define the public assistant name");
+assert(conversationPromptsSource.includes("внутренним техническим названием") && conversationPromptsSource.includes("названием LLM-провайдера"), "Conversation prompts must hide internal version and model/provider identity");
+assert(!conversationPromptsSource.includes("CRM Agent v2"), "Conversation prompts must not expose the internal v2 name to the model");
+assert(!conversationPromptsSource.includes("С чем конкретно помогу?"), "Conversation prompts must not contain copyable disliked stock phrases");
 assertIncludes("apps/web/lib/crm-agent-v2/core/conversation.ts", "executeCrmAgentReadTool", "Conversational layer must support read-only CRM questions");
 assertIncludes("apps/web/lib/crm-agent-v2/core/conversation.ts", "tool.mode === \"read\"", "Conversational layer must list only read tools");
 assert(!read("apps/web/lib/crm-agent-v2/core/read-tools.ts").includes("getCrmAgentTool"), "Read tools must not import tools registry at runtime; it creates a Next.js circular initialization crash");
@@ -122,6 +140,11 @@ assert(conversationSource.includes("input.route.kind === \"crm_question\" && !dr
 assert(conversationSource.includes("allowedToolNames") && conversationSource.includes("conversation.read_tool_denied"), "CRM question read tools must enforce current permissions");
 assert(conversationSource.includes("planStepId: null"), "Conversation read-tool traces must not be attached to planner steps");
 assert(conversationSource.includes("shouldRepairMissingReadTools"), "CRM questions must not finalize placeholder answers when read tools are missing");
+assert(conversationSource.includes("shouldRepairEmptyConversationDraft") && conversationSource.includes("invalid_conversation_json"), "Conversation layer must repair invalid or empty model drafts before using a fallback answer");
+assert(conversationSource.includes("isSchemaPlaceholderAnswer"), "Conversation layer must reject copied schema placeholders as user answers");
+assert(!conversationPromptsSource.includes("Короткий естественный ответ пользователю или предварительная фраза."), "Conversation prompt must not contain copyable user-answer placeholders");
+assert(!conversationPromptsSource.includes("Сводка по данным CRM и следующий полезный шаг."), "Conversation final prompt must not contain copyable user-answer placeholders");
+assert(!conversationSource.includes("Для этого лучше перейти к задаче CRM"), "Conversation fallback must not push ordinary dialog into CRM task wording");
 assert(conversationSource.includes("crm_question_without_read_tools"), "CRM question repair must be generic, not scenario-specific");
 assert(conversationSource.includes("withFallbackReadToolRequest") && conversationSource.includes("readToolForSuggestedGoal"), "CRM questions must have a backend fallback read-tool selection from suggestedGoalType");
 assert(!conversationSource.includes("филиал|филиалы"), "Conversation runtime must not hardcode branch phrase lists");
@@ -142,6 +165,10 @@ assert(persistenceSource.includes("where: { id: input.sessionId, accountId: inpu
 assert(persistenceSource.includes("where: { id: input.planStepId, plan: { accountId: input.accountId } }"), "Plan step updates must be account-scoped");
 assert(persistenceSource.includes("where: { id: input.toolCallId, accountId: input.accountId }"), "Tool-call finishing must be account-scoped");
 assert(contextSource.includes("session: { accountId: input.accountId }"), "History/context loading must not cross account boundaries");
+assert(contextSource.includes('orderBy: { createdAt: "desc" }') && contextSource.includes("messages.reverse().map"), "Context loading must use the latest messages and restore chronological order");
+assert(plannerSource.includes("fallbackGoalForStatus") && plannerSource.includes('"conversation.answer"'), "Planner parser must accept answer_only/unsupported responses without requiring a task goal");
+assert(plannerSource.includes("chatHistoryMessages") && plannerSource.includes("...chatHistoryMessages(input.history ?? [])"), "Planner must receive recent session history as chat messages");
+assert(routerSource.includes("chatHistoryMessages") && routerSource.includes("...chatHistoryMessages(input.history ?? [])"), "Router must receive recent session history as chat messages");
 assertIncludes("apps/web/lib/crm-agent-v2/core/runtime.ts", "inspectCrmAgentPlan", "Runtime must inspect plans before returning UI state");
 assert(runtimeSource.includes("hasMissingActionSlots") && runtimeSource.includes("missingActionSlotsAnswer"), "Runtime must convert missing action slots into user-facing clarification");
 assert(runtimeSource.includes("userFacingInspectionMessage"), "Runtime must localize inspector messages before showing them to users");

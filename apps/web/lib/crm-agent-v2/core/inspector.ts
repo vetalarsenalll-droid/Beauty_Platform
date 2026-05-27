@@ -172,7 +172,12 @@ function inspectAction(step: CrmAgentPlannerStep, action: CrmAgentRegisteredActi
     findings.push(stepFinding(step, "error", "missing_action_permission", `Missing permission for action ${action.name}.`));
   }
 
-  const missingSlots = getMissingCrmAgentActionSlots(action.name, step.args ?? {});
+  const actionArgs = step.args ?? {};
+  const actionSlots =
+    typeof actionArgs.payload === "object" && actionArgs.payload !== null && !Array.isArray(actionArgs.payload)
+      ? (actionArgs.payload as Record<string, unknown>)
+      : actionArgs;
+  const missingSlots = getMissingCrmAgentActionSlots(action.name, actionSlots);
   if (missingSlots.length) {
     findings.push(
       stepFinding(step, "error", "missing_action_slots", `Action ${action.name} is missing slots: ${missingSlots.join(", ")}.`),

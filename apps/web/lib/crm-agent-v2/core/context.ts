@@ -158,7 +158,7 @@ export async function loadCrmAgentContext(input: {
     input.sessionId
       ? prisma.crmAgentMessage.findMany({
           where: { sessionId: input.sessionId, session: { accountId: input.accountId } },
-          orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: "desc" },
           take: 50,
           select: { role: true, content: true, data: true },
         })
@@ -224,7 +224,7 @@ export async function loadCrmAgentContext(input: {
       permission: action.permission,
       createdAt: action.createdAt.toISOString(),
     })),
-    history: messages.map((message) => ({
+    history: messages.reverse().map((message) => ({
       role: plannerRole(message.role),
       content: message.content,
       data: message.data,

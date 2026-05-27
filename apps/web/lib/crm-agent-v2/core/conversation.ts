@@ -5,6 +5,8 @@ import type { CrmAgentRouteDecision } from "./conversation-router";
 import {
   buildCrmAgentConversationDraftPrompt,
   buildCrmAgentConversationFinalPrompt,
+  buildCrmAgentNaturalConversationPayload,
+  buildCrmAgentNaturalConversationPrompt,
   buildCrmAgentConversationPayload,
 } from "./conversation-prompts";
 import { finishCrmAgentToolCall, startCrmAgentToolCall, writeCrmAgentAudit } from "./persistence";
@@ -62,9 +64,27 @@ type ReadToolResult = {
 };
 
 export async function runCrmAgentConversation(input: RunCrmAgentConversationInput): Promise<CrmAgentConversationResponse> {
+  if (input.route.kind !== "crm_question") {
+    return runNaturalCrmAgentConversation(input);
+  }
+
   const readTools = listCrmAgentToolsForPermissions(input.permissions).filter((tool) => tool.mode === "read");
   let draftCompletion = await requestConversationDraft(input, readTools);
-  let draft = parseConversationDraft(draftCompletion.content) ?? {
+  let draft = parseConversationDraft(draftCompletion.content);
+
+  if (!draft || shouldRepairEmptyConversationDraft(draft)) {
+    const repairedCompletion = await requestConversationDraft(input, readTools, {
+      previousAnswer: draft?.answer ?? draftCompletion.content,
+      reason: draft ? "empty_conversation_answer" : "invalid_conversation_json",
+    });
+    const repairedDraft = parseConversationDraft(repairedCompletion.content);
+    if (repairedDraft) {
+      draftCompletion = repairedCompletion;
+      draft = repairedDraft;
+    }
+  }
+
+  draft ??= {
     answer: "",
     readToolRequests: [],
     shouldEscalateToPlanner: false,
@@ -131,6 +151,48 @@ export async function runCrmAgentConversation(input: RunCrmAgentConversationInpu
   };
 }
 
+async function runNaturalCrmAgentConversation(input: RunCrmAgentConversationInput): Promise<CrmAgentConversationResponse> {
+  const completion = await requestNaturalConversation(input);
+  return {
+    answer: completion.content,
+    workspace: buildConversationWorkspace(completion.content, []),
+    cards: [],
+    usedTools: [],
+    shouldEscalateToPlanner: false,
+    raw: completion.content,
+    model: completion.model,
+  };
+}
+
+async function requestNaturalConversation(input: RunCrmAgentConversationInput) {
+  return runWithAiUsageContext(
+    {
+      accountId: input.accountId,
+      threadId: input.sessionId ?? null,
+      actionId: null,
+    },
+    () =>
+      createGigaChatCompletion(
+        [
+          { role: "system", content: buildCrmAgentNaturalConversationPrompt(input.route) },
+          ...chatHistoryMessages(input.history ?? []),
+          {
+            role: "user",
+            content: buildCrmAgentNaturalConversationPayload({
+              message: input.message,
+              route: input.route,
+              nowIso: input.nowIso,
+              timezone: input.timezone,
+              contextSummary: input.contextSummary,
+              state: input.state ?? null,
+            }),
+          },
+        ],
+        { purpose: "crm_agent_v2_conversation", scope: "crm_agent" },
+      ),
+  );
+}
+
 async function requestConversationDraft(
   input: RunCrmAgentConversationInput,
   readTools: ReturnType<typeof listCrmAgentToolsForPermissions>,
@@ -146,6 +208,7 @@ async function requestConversationDraft(
       createGigaChatCompletion(
         [
           { role: "system", content: buildCrmAgentConversationDraftPrompt({ route: input.route, readTools, repair }) },
+          ...chatHistoryMessages(input.history ?? []),
           {
             role: "user",
             content: buildCrmAgentConversationPayload({
@@ -155,7 +218,6 @@ async function requestConversationDraft(
               timezone: input.timezone,
               contextSummary: input.contextSummary,
               state: input.state ?? null,
-              history: input.history ?? [],
             }),
           },
         ],
@@ -175,6 +237,7 @@ async function requestConversationFinal(input: RunCrmAgentConversationInput, rea
       createGigaChatCompletion(
         [
           { role: "system", content: buildCrmAgentConversationFinalPrompt() },
+          ...chatHistoryMessages(input.history ?? []),
           {
             role: "user",
             content: buildCrmAgentConversationPayload({
@@ -184,7 +247,6 @@ async function requestConversationFinal(input: RunCrmAgentConversationInput, rea
               timezone: input.timezone,
               contextSummary: input.contextSummary,
               state: input.state ?? null,
-              history: input.history ?? [],
               readToolResults,
             }),
           },
@@ -394,6 +456,20 @@ function shouldRepairMissingReadTools(route: CrmAgentRouteDecision, draft: Conve
   return /(посмотр|провер|уточн|сейчас|данные crm|отвечу по текущему аккаунту|look|check|fetch|let me)/i.test(answer);
 }
 
+function shouldRepairEmptyConversationDraft(draft: ConversationDraft) {
+  return (!draft.answer.trim() || isSchemaPlaceholderAnswer(draft.answer)) && !draft.readToolRequests.length && !draft.shouldEscalateToPlanner;
+}
+
+function isSchemaPlaceholderAnswer(answer: string) {
+  const normalized = answer.trim().toLocaleLowerCase("ru-RU");
+  return (
+    normalized === "короткий естественный ответ пользователю или предварительная фраза." ||
+    normalized === "сводка по данным crm и следующий полезный шаг." ||
+    normalized.includes("placeholder") ||
+    normalized.includes("описание схемы")
+  );
+}
+
 function buildConversationWorkspace(answer: string, readToolResults: ReadToolResult[]): CrmAgentUiWorkspace {
   if (!readToolResults.length) {
     return {
@@ -440,7 +516,7 @@ function buildConversationCards(readToolResults: ReadToolResult[]): CrmAgentCard
 function fallbackAnswer(kind: CrmAgentRouteDecision["kind"]) {
   if (kind === "smalltalk") return "Я на месте. Можем спокойно обсудить CRM или перейти к задаче.";
   if (kind === "crm_question") return "Не удалось надежно разобрать ответ модели. Напишите вопрос по CRM чуть конкретнее.";
-  return "Понял. Для этого лучше перейти к задаче CRM.";
+  return "Не получил корректный ответ модели. Повторите сообщение чуть иначе.";
 }
 
 function extractStringField(jsonLike: string, field: string) {
@@ -475,4 +551,16 @@ function isRecord(value: unknown): value is JsonRecord {
 
 function inputJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
+}
+
+function chatHistoryMessages(history: CrmAgentPlannerMessage[]) {
+  return history
+    .filter((message): message is CrmAgentPlannerMessage & { role: "user" | "assistant" } => {
+      return (message.role === "user" || message.role === "assistant") && message.content.trim().length > 0;
+    })
+    .slice(-20)
+    .map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
 }
