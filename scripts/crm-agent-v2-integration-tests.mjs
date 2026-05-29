@@ -1,6 +1,7 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { PrismaClient } from "@prisma/client";
 import { createJiti } from "jiti";
 
@@ -24,6 +25,7 @@ const jiti = createJiti(path.join(root, "apps/web/test-entry.js"), {
   alias: { "@": path.join(root, "apps/web") },
 });
 const { getCrmAgentExecuteToolHandler } = jiti("./lib/crm-agent-v2/core/execute-tools.ts");
+const { createSession } = jiti("@/lib/auth.ts");
 const workerModulePromise = import("../apps/worker/src/index.mjs");
 const runId = `crm-agent-v2-it-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const created = {
@@ -31,6 +33,8 @@ const created = {
   otherAccountId: null,
   userId: null,
   specialistUserId: null,
+  liveUserIds: [],
+  liveRoleIds: [],
   clientIds: [],
   appointmentIds: [],
   mediaAssetIds: [],
@@ -62,11 +66,14 @@ function runStaticContractChecks() {
 
   assert(runtime.indexOf("routeCrmAgentConversationTurn") < runtime.indexOf("requestCrmAgentPlannerPlan"), "Runtime must stay conversation-first before planner.");
   assert(runtime.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk/crm_question/unsupported must avoid planner unless escalated.");
+  assert(runtime.includes("shouldRecoverRouterFallbackWithPlanner") && runtime.includes("Escalate to planner recovery instead of natural conversation"), "Router fallback must recover through planner instead of unsafe natural conversation.");
+  assert(runtime.includes("routeDiagnostics") && runtime.includes("routerRaw"), "Router fallback diagnostics must be persisted with runtime output.");
   assert(read("apps/web/lib/crm-agent-v2/core/conversation-router.ts").includes("readOnlyCrmQuestionDecision"), "Router fallback must preserve read-only CRM questions when the LLM route degrades.");
   assert(runtime.includes("handleCrmAgentTaskContinuation") && runtime.indexOf("routeDecision.kind === \"task_continuation\"") < runtime.indexOf("const plannerResult = await requestCrmAgentPlannerPlan"), "Task continuation must use latest state before planner.");
   assert(conversation.includes("input.route.kind === \"crm_question\" && !draft.shouldEscalateToPlanner"), "CRM questions must run only read-only conversation tools.");
   assert(conversation.includes("withFallbackReadToolRequest") && conversation.includes("readToolForSuggestedGoal"), "CRM questions must fall back to router-suggested read tools when draft tools are missing.");
   assert(!conversation.includes("actions.prepare") && !conversation.includes("actions.confirm"), "Conversation layer must not draft or execute actions.");
+  assert(conversation.includes("enforceNoMutationSuccessWithoutToolResult") && conversation.includes("Данные в CRM не изменены"), "Conversation layer must block false mutation-success answers without action/tool results.");
   assert(conversation.includes("stripUnsafeToolArgs") && conversation.includes("allowedToolNames"), "Conversation read tools must strip unsafe ids and enforce permissions.");
   assert(chatRoute.includes("accountId: auth.session.accountId") && !chatRoute.includes("body.accountId"), "Chat API must derive accountId from auth only.");
   assert(chatRoute.includes("enforceRateLimit") && chatRoute.includes("crm-agent-v2-chat"), "Chat API must rate-limit CRM Agent turns.");
@@ -96,6 +103,7 @@ async function main() {
   await testMediaExecutePath(fixture);
   await testCampaignExecutePath(fixture);
   await testWorkerJobRateLimits(fixture);
+  await testLiveApiRoutes(fixture);
   await testRejection(fixture);
   await testAishaSmokeRegression();
   console.log(JSON.stringify({ ok: true, runId }));
@@ -773,6 +781,158 @@ async function testWorkerJobRateLimits({ account, clientA }) {
   assert(sentWebhooks === 2 && queuedWebhooks === 1, "Webhook worker should leave excess deliveries queued.");
 }
 
+async function testLiveApiRoutes({ account }) {
+  if (process.env.CRM_AGENT_V2_LIVE_API !== "1") {
+    return;
+  }
+
+  const baseUrl = process.env.CRM_AGENT_V2_LIVE_BASE_URL || `http://127.0.0.1:${process.env.CRM_AGENT_V2_LIVE_PORT || "4012"}`;
+  const server = process.env.CRM_AGENT_V2_LIVE_USE_EXISTING === "1" ? null : await startLiveApiServer(baseUrl);
+  try {
+    const auth = await createLiveApiAuth(account.id);
+    const headers = {
+      Authorization: `Bearer ${auth.accessToken}`,
+      "Content-Type": "application/json",
+    };
+
+    const capabilities = await liveRequest(baseUrl, "/api/v1/crm/agent-v2/capabilities", { headers });
+    assert(capabilities.status === 200, `Live capabilities route should return 200, got ${capabilities.status}.`);
+    assert(Array.isArray(capabilities.payload?.data?.tools), "Live capabilities route should return tools.");
+    assert(Array.isArray(capabilities.payload?.data?.actions), "Live capabilities route should return actions.");
+
+    const createdSession = await liveRequest(baseUrl, "/api/v1/crm/agent-v2/sessions", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title: "Live API route check", mode: "chat" }),
+    });
+    assert(createdSession.status === 201, `Live session create route should return 201, got ${createdSession.status}.`);
+    const sessionId = createdSession.payload?.data?.id;
+    assert(Number.isInteger(sessionId), "Live session create route should return session id.");
+    created.sessionIds.push(sessionId);
+
+    const sessionDetail = await liveRequest(baseUrl, `/api/v1/crm/agent-v2/sessions/${sessionId}`, { headers });
+    assert(sessionDetail.status === 200, `Live session detail route should return 200, got ${sessionDetail.status}.`);
+    assert(sessionDetail.payload?.data?.id === sessionId, "Live session detail should be account-scoped and return the created session.");
+
+    const action = await prisma.crmAgentAction.create({
+      data: {
+        accountId: account.id,
+        sessionId,
+        userId: auth.userId,
+        actionType: "memory.update",
+        summary: "Live API reject check",
+        riskLevel: "medium",
+        permission: "crm.assistant.memory.manage",
+        payload: { key: "live-api-check", value: { ok: true } },
+      },
+    });
+    created.actionIds.push(action.id);
+
+    const reject = await liveRequest(baseUrl, `/api/v1/crm/agent-v2/actions/${action.id}/reject`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ reason: "live api test" }),
+    });
+    assert(reject.status === 200, `Live action reject route should return 200, got ${reject.status}.`);
+    assert(reject.payload?.data?.status === "REJECTED", "Live reject route should reject the pending action.");
+
+    const storedAction = await prisma.crmAgentAction.findUnique({ where: { id: action.id }, select: { status: true } });
+    assert(storedAction?.status === "REJECTED", "Live reject route should persist REJECTED status.");
+
+    const unauthorized = await liveRequest(baseUrl, "/api/v1/crm/agent-v2/capabilities");
+    assert(unauthorized.status === 401, `Live capabilities without auth should return 401, got ${unauthorized.status}.`);
+  } finally {
+    if (server) {
+      server.kill("SIGTERM");
+    }
+  }
+}
+
+async function createLiveApiAuth(accountId) {
+  const user = await prisma.user.create({
+    data: {
+      email: `${runId}-live-api@example.test`,
+      status: "ACTIVE",
+      type: "STAFF",
+    },
+  });
+  created.liveUserIds.push(user.id);
+
+  const role = await prisma.role.upsert({
+    where: { accountId_name: { accountId, name: "OWNER" } },
+    update: {},
+    create: {
+      accountId,
+      name: "OWNER",
+    },
+  });
+  created.liveRoleIds.push(role.id);
+
+  const permissionKeys = ["crm.all", "crm.assistant.agent.use", "crm.assistant.agent.write", "crm.assistant.memory.manage"];
+  const permissions = await Promise.all(
+    permissionKeys.map((key) =>
+      prisma.permission.upsert({
+        where: { key },
+        update: {},
+        create: { key, description: key },
+      }),
+    ),
+  );
+  await prisma.rolePermission.createMany({
+    data: permissions.map((permission) => ({ roleId: role.id, permissionId: permission.id })),
+    skipDuplicates: true,
+  });
+  await prisma.roleAssignment.create({
+    data: {
+      userId: user.id,
+      accountId,
+      roleId: role.id,
+    },
+  });
+
+  const session = await createSession({ userId: user.id, sessionType: "CRM", accountId });
+  return { userId: user.id, accessToken: session.accessToken };
+}
+
+async function startLiveApiServer(baseUrl) {
+  const url = new URL(baseUrl);
+  const port = url.port || "4012";
+  const dev = spawn("npm", ["--workspace", "apps/web", "run", "dev", "--", "--port", port], {
+    cwd: root,
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: true,
+    env: { ...process.env },
+  });
+
+  dev.stdout?.on("data", (data) => process.stdout.write(data.toString("utf8")));
+  dev.stderr?.on("data", (data) => process.stdout.write(data.toString("utf8")));
+
+  await waitForLiveApiServer(baseUrl);
+  return dev;
+}
+
+async function waitForLiveApiServer(baseUrl, timeoutMs = 90_000) {
+  const startedAt = Date.now();
+  let lastError = "";
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/crm/agent-v2/capabilities`);
+      if (response.status === 401 || response.status === 403 || response.status === 200) return;
+      lastError = `status ${response.status}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await delay(500);
+  }
+  throw new Error(`Live API server did not become ready at ${baseUrl}: ${lastError}`);
+}
+
+async function liveRequest(baseUrl, route, init = {}) {
+  const response = await fetch(`${baseUrl}${route}`, init);
+  const payload = await response.json().catch(() => null);
+  return { status: response.status, payload };
+}
+
 async function testRejection({ account, session }) {
   const action = await prisma.crmAgentAction.create({
     data: {
@@ -831,6 +991,11 @@ async function cleanup() {
     prisma.serviceLocation.deleteMany({ where: { service: { accountId: created.accountId } } }),
     prisma.mediaLink.deleteMany({ where: { asset: { accountId: { in: accountIds } } } }),
     prisma.mediaAsset.deleteMany({ where: { id: { in: created.mediaAssetIds } } }),
+    prisma.userSession.deleteMany({ where: { userId: { in: created.liveUserIds } } }),
+    prisma.roleAssignment.deleteMany({ where: { userId: { in: created.liveUserIds } } }),
+    prisma.rolePermission.deleteMany({ where: { roleId: { in: created.liveRoleIds } } }),
+    prisma.role.deleteMany({ where: { id: { in: created.liveRoleIds } } }),
+    prisma.user.deleteMany({ where: { id: { in: created.liveUserIds } } }),
     prisma.specialistProfile.deleteMany({ where: { accountId: created.accountId } }),
     prisma.service.deleteMany({ where: { accountId: created.accountId } }),
     prisma.location.deleteMany({ where: { accountId: created.accountId } }),

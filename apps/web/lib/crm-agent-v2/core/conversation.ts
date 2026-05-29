@@ -153,15 +153,29 @@ export async function runCrmAgentConversation(input: RunCrmAgentConversationInpu
 
 async function runNaturalCrmAgentConversation(input: RunCrmAgentConversationInput): Promise<CrmAgentConversationResponse> {
   const completion = await requestNaturalConversation(input);
+  const answer = enforceNoMutationSuccessWithoutToolResult(completion.content);
   return {
-    answer: completion.content,
-    workspace: buildConversationWorkspace(completion.content, []),
+    answer,
+    workspace: buildConversationWorkspace(answer, []),
     cards: [],
     usedTools: [],
     shouldEscalateToPlanner: false,
     raw: completion.content,
     model: completion.model,
   };
+}
+
+function enforceNoMutationSuccessWithoutToolResult(answer: string) {
+  if (!containsMutationSuccessClaim(answer)) return answer;
+  return "Не могу подтвердить выполнение действия: в этом сообщении не было подготовленного действия, preview или результата выполнения. Данные в CRM не изменены.";
+}
+
+function containsMutationSuccessClaim(answer: string) {
+  const normalized = answer.toLocaleLowerCase("ru-RU");
+  const firstPersonCompleted = /\b(записал[аи]?|создал[аи]?|добавил[аи]?|изменил[аи]?|обновил[аи]?|отменил[аи]?|перен[её]с|перенесл[аи]?|удалил[аи]?|опубликовал[аи]?|отправил[аи]?)\b/iu.test(normalized);
+  const completionClaim = /\b(вс[её]\s+готово|готово|выполнено|действие\s+выполнено|запись\s+создана)\b/iu.test(normalized);
+  const crmMutationSubject = /\b(запис|клиент|услуг|специалист|мастер|расписан|график|отзыв|кампан|уведомлен|плат[её]ж|возврат|документ|webhook|интеграц)\w*/iu.test(normalized);
+  return firstPersonCompleted || (completionClaim && crmMutationSubject);
 }
 
 async function requestNaturalConversation(input: RunCrmAgentConversationInput) {

@@ -1,7 +1,7 @@
 # CRM Agent v2: продуктовый план реализации полного каталога действий
 
 Дата создания: 2026-05-28
-Статус документа: `in_progress`
+Статус документа: `completed`
 Назначение: единый план для реализации полного каталога действий CRM Agent v2. Любой агент должен уметь открыть этот файл, понять текущий статус, архитектуру, порядок работ и продолжить с первого незавершенного шага.
 
 ## 1. Цель
@@ -22,36 +22,16 @@
 
 ## 2. Текущий статус
 
-На 2026-05-28 полный каталог не реализован.
+На 2026-05-29 полный каталог доведен до production-ready состояния по Definition of Done этого плана.
 
-Сейчас есть частичная реализация в старой структуре:
+Текущее состояние:
 
-- `apps/web/lib/crm-agent-v2/core/actions.ts` - небольшой registry действий.
-- `apps/web/lib/crm-agent-v2/core/tools.ts` - общий registry read/draft/execute tools.
-- `apps/web/lib/crm-agent-v2/core/draft-tools.ts` - общий preview/prepare для pending actions.
-- `apps/web/lib/crm-agent-v2/core/execute-tools.ts` - общий execute для части действий.
-- `apps/web/lib/crm-agent-v2/core/runtime.ts` - runtime planner/inspector/execution loop.
-- `apps/web/lib/crm-agent-v2/core/inspector.ts` - проверка plan steps, permissions, required slots.
-- `apps/web/lib/crm-agent-v2/core/read-tools.ts` - часть read tools.
-
-Частично реализованные действия:
-
-- `appointment.create`
-- `appointment.cancel`
-- `client.create`
-- `client.update`
-- `service.create`
-- `service.update`
-- `service.archive`
-- `specialist.create`
-- `location.create`
-- `location.update`
-- `review.reply`
-- `site.service.copy.update`
-- `memory.update`
-- `autopilot.setting.update`
-
-Проблема текущей структуры: action definition, preview, execute и доменные проверки разбросаны по разным файлам. Для полного каталога это станет трудно поддерживать.
+- `planned: 0`;
+- `blocked: 0`;
+- все actions из раздела 8 представлены в `apps/web/lib/crm-agent-v2/actions/**`;
+- action definitions, preview/read/execute handlers и доменные проверки перенесены в структуру "one action = one file" там, где действие требует отдельного поведения;
+- static hardening gates, DB-backed representative execute paths, audit/idempotency/account isolation checks и worker job-level batch limit tests пройдены;
+- матрица "DB fixture на каждый implemented action" оставлена как future hardening, а не blocker этого плана.
 
 ## 3. Целевая архитектура
 
@@ -412,6 +392,21 @@ YYYY-MM-DD HH:mm - step N - status
 5. Продолжить с первого шага со статусом не `completed`.
 
 ## 5. Журнал выполнения
+
+2026-05-29 21:00 - post-readiness sync - completed
+Что сделано:
+- Синхронизирован статус документа после завершения step 43 в `CRM_AGENT_V2_IMPLEMENTATION_PLAN.md`.
+- Верхний статус `CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md` переведен в `completed`.
+- Подтверждено, что final DoD consolidation уже закрыла action catalog: `planned: 0`, `blocked: 0`, все actions из раздела 8 представлены в catalog и имеют production status.
+Измененные файлы:
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npx prisma generate --schema packages/db/prisma/schema.prisma
+- git diff --check
+Следующее:
+- Future hardening по необходимости: расширять DB fixture matrix на каждый implemented action/domain.
+Блокеры:
+- Нет.
 
 2026-05-28 00:00 - step 0 - completed
 Что сделано:

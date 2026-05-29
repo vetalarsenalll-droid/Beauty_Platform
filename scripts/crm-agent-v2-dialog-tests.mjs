@@ -115,6 +115,10 @@ assert(runtimeSource.includes("recoverSpecialistCreatePlan") && runtimeSource.in
 assert(runtimeSource.includes("Кого зарегистрировать? Напишите ФИО специалиста."), "Specialist create clarification must ask only for the name, not schedule or services");
 assertOrder(runtimeSource, "routeDecision.kind === \"task_continuation\"", "const plannerResult = await requestCrmAgentPlannerPlan", "Task continuation must use latest state before planner fallback");
 assert(runtimeSource.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk, CRM questions and unsupported turns must stay in conversation layer");
+assert(runtimeSource.includes("shouldRecoverRouterFallbackWithPlanner"), "Runtime must recover router fallback through planner instead of unsafe natural conversation");
+assert(runtimeSource.includes("Router fallback could not classify the turn safely") && runtimeSource.includes("Escalate to planner recovery instead of natural conversation"), "Router fallback recovery must explicitly avoid natural conversation for unclassified turns");
+assert(runtimeSource.includes("Do not claim that a CRM mutation was completed unless a draft/action/tool result exists"), "Planner recovery hint must forbid false mutation success");
+assert(runtimeSource.includes("routeDiagnostics") && runtimeSource.includes("routerRaw"), "Runtime must persist router fallback diagnostics for debugging invalid router output");
 assert(runtimeSource.includes("conversationModeForRoute(routeDecision)") && runtimeSource.includes("planTrace: []"), "Conversation responses must be persisted without a task plan trace");
 assert(runtimeSource.includes("mode: \"task\"") && runtimeSource.includes("planId: persistedPlan.id"), "CRM tasks must still invoke and persist planner output");
 assert(runtimeSource.includes("fallback: \"degradedConversationAnswer\""), "Degraded LLM fallback must be explicit and non-scripted");
@@ -134,6 +138,8 @@ assertIncludes("apps/web/lib/crm-agent-v2/core/conversation.ts", "createGigaChat
 assertIncludes("apps/web/lib/crm-agent-v2/core/conversation.ts", "crm_agent_v2_conversation", "Conversational layer must use its own AI purpose");
 assert(conversationSource.includes("chatHistoryMessages") && conversationSource.includes("...chatHistoryMessages(input.history ?? [])"), "Conversation layer must pass recent session history as chat messages, not only as JSON payload");
 assert(conversationSource.includes("runNaturalCrmAgentConversation") && conversationSource.includes('input.route.kind !== "crm_question"'), "Ordinary conversation must bypass the JSON draft parser");
+assert(conversationSource.includes("enforceNoMutationSuccessWithoutToolResult") && conversationSource.includes("containsMutationSuccessClaim"), "Natural conversation must guard against mutation success claims without tool/action results");
+assert(conversationSource.includes("Данные в CRM не изменены"), "False mutation-success guard must explicitly tell the user that CRM data was not changed");
 assert(conversationPromptsSource.includes("Отвечай обычным текстом на русском языке, не JSON"), "Natural conversation prompt must not require JSON for smalltalk");
 assert(conversationPromptsSource.includes("Публичное имя: CRM-агент"), "Conversation prompts must define the public assistant name");
 assert(conversationPromptsSource.includes("внутренним техническим названием") && conversationPromptsSource.includes("названием LLM-провайдера"), "Conversation prompts must hide internal version and model/provider identity");

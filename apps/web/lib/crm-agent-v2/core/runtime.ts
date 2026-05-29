@@ -104,7 +104,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     });
   }
 
-  const routeDecision: CrmAgentRouteDecision = routeResult.ok
+  let routeDecision: CrmAgentRouteDecision = routeResult.ok
     ? routeResult.decision
     : {
         kind: "crm_task",
@@ -115,6 +115,27 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
       };
 
   let plannerHint: string | undefined;
+  const routeDiagnostics = {
+    routeFallback: routeResult.ok ? routeResult.fallback : false,
+    routeError,
+    routerRaw: routeResult.ok ? routeResult.raw : null,
+  };
+  if (shouldRecoverRouterFallbackWithPlanner(routeResult, routeDecision)) {
+    const recoveryReason = routeError ?? "router_fallback";
+    routeDecision = {
+      kind: "crm_task",
+      confidence: 0.1,
+      reason: `Router fallback could not classify the turn safely: ${recoveryReason}. Escalate to planner recovery instead of natural conversation.`,
+      needsAccountContext: true,
+      allowedToolModes: ["read", "draft"],
+    };
+    plannerHint = [
+      `Router fallback error: ${recoveryReason}.`,
+      "Classify this turn safely in planner.",
+      "If this is not a CRM task, return answer_only or unsupported.",
+      "Do not claim that a CRM mutation was completed unless a draft/action/tool result exists.",
+    ].join(" ");
+  }
   if (routeDecision.kind === "task_continuation") {
     const continuation = await handleCrmAgentTaskContinuation({
       accountId: input.accountId,
@@ -161,6 +182,8 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
             mode: conversationModeForRoute(routeDecision),
             route: routeDecision,
             routeFallback: routeResult.ok ? routeResult.fallback : false,
+            routeError,
+            routerRaw: routeResult.ok ? routeResult.raw : null,
             usedTools: conversation.usedTools,
             model: conversation.model,
             raw: conversation.raw,
@@ -244,6 +267,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
             route: conversationRoute,
             originalRoute: routeDecision,
             plannerError: plannerResult.error,
+            routeDiagnostics,
             usedTools: conversation.usedTools,
             model: conversation.model,
             raw: conversation.raw,
@@ -307,6 +331,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
         mode: "conversation",
         route: routeDecision,
         plannerStatus: runtimePlan.status,
+        routeDiagnostics,
         raw: plannerResult.raw,
       },
     });
@@ -391,6 +416,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     data: {
       mode: "task",
       route: routeDecision,
+      routeDiagnostics,
       plannerHint: plannerHint ?? null,
       planId: persistedPlan.id,
       inspection,
@@ -460,6 +486,13 @@ async function saveConversationResponse(input: {
 
 function shouldUseConversationLayer(route: CrmAgentRouteDecision) {
   return route.kind === "smalltalk" || route.kind === "crm_question" || route.kind === "unsupported";
+}
+
+function shouldRecoverRouterFallbackWithPlanner(
+  routeResult: Awaited<ReturnType<typeof routeCrmAgentConversationTurn>>,
+  route: CrmAgentRouteDecision,
+) {
+  return routeResult.ok && routeResult.fallback && route.kind === "unsupported";
 }
 
 function historyBeforeCurrentTurn(history: CrmAgentPlannerMessage[], message: string): CrmAgentPlannerMessage[] {

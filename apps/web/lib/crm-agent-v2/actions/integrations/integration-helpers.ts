@@ -1,7 +1,7 @@
 import { DeliveryStatus, WebhookStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildActionPreview } from "../action-preview";
-import { inputJson, numberOrNull, optionalString, requiredNumber, requiredString, type JsonRecord } from "../action-helpers";
+import { numberOrNull, requiredNumber, requiredString, type JsonRecord } from "../action-helpers";
 import type { CrmAgentActionContext } from "../types";
 
 const WEBHOOK_STATUSES: WebhookStatus[] = ["ACTIVE", "PAUSED", "DISABLED"];

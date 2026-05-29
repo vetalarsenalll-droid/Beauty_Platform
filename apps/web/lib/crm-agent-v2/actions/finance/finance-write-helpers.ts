@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { buildActionPreview } from "../action-preview";
-import { inputJson, optionalString, requiredNumber, requiredString, type JsonRecord } from "../action-helpers";
+import { inputJson, optionalString, requiredNumber, type JsonRecord } from "../action-helpers";
 import type { CrmAgentActionContext } from "../types";
 import { financeRange, financeTake, money } from "./finance-read-helpers";
 

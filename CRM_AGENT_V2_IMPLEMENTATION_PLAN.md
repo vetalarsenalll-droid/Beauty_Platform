@@ -2510,8 +2510,8 @@ confirm -> campaign scheduled/sent according to selected command
 [x] 39. Добавить CRM question read-only сценарии. Результат: conversation prompt содержит read-only сценарии для "что сегодня по записям", "сколько клиентов без визита/кого пора вернуть", "какие отзывы требуют внимания" и "что посоветуешь улучшить" с маппингом на appointments.search, analytics.workload, analytics.retention, reviews.search и site.health без draft/execute.
 [x] 40. Добавить safety, permissions и account isolation для conversation layer. Результат: conversation read tools ограничены текущим списком permitted read tools, user-provided accountId/userId вычищаются из tool args, read-tool вызовы пишут CrmAgentToolCall trace и CrmAgentAudit, prompt запрещает брать accountId из текста/args.
 [x] 41. Добавить conversation-first и account-scope тесты. Результат: scripts/crm-agent-v2-dialog-tests.mjs, scripts/crm-agent-v2-ui-tests.mjs и scripts/crm-agent-v2-integration-tests.mjs покрывают smalltalk/crm_question/unsupported no-plan path, crm_question read-only/no-action, crm_task planner persistence, task_continuation before planner, UI no empty planTrace, fallback-only hardcoded replies, Aisha smoke suite presence и account-scope/cross-account negative contracts для route/session/tool-call/context/execute ownership.
-[~] 42. Добавить настоящие integration/e2e проверки после conversation-first перестройки. Частично выполнено 2026-05-27: добавлен scripts/crm-agent-v2-integration-tests.mjs и package script test:crm-agent-v2:integration; общий test:crm-agent-v2 запускает dialog/ui/integration bundle. Harness расширен под conversation-first DB-сценарии: ambiguity selection, draft edit, crm_question read-only/no-plan/no-action с tool trace/audit, task_continuation state/pending draft, account isolation/cross-account denial, confirm execute appointment, rejection и Aisha smoke regression. Нужно при CRM_AGENT_V2_INTEGRATION=1 и DATABASE_URL прогнать DB-сценарии, затем добавить live API route checks при наличии auth cookie/server.
-[ ] 43. Финальная readiness-сверка. Нужно: прогнать typecheck/lint/prisma validate/generate/test:crm-agent-v2/new integration tests/conversation-first tests/account-isolation tests/Aisha smoke, проверить критерии раздела 21 и только после этого поставить current_step=complete.
+[x] 42. Добавить настоящие integration/e2e проверки после conversation-first перестройки. Выполнено: scripts/crm-agent-v2-integration-tests.mjs покрывает DB-сценарии conversation-first runtime, account isolation, confirm/reject execute, media/campaign worker limits, Aisha smoke regression и opt-in live API route checks. 2026-05-29 blocker "router fallback -> false mutation success" исправлен: fallback `unsupported` теперь восстанавливается через planner, natural conversation блокирует mutation-success без action/tool result, добавлены contract regression checks, DB suite прошел. Live API checks прошли против существующего `http://127.0.0.1:3000`.
+[x] 43. Финальная readiness-сверка. Выполнено: typecheck, lint, prisma validate/generate, test:crm-agent-v2, DB integration, live API route checks, conversation-first tests, account-isolation checks и Aisha smoke прошли. Критерии раздела 21 сверены, current_step переведен в complete.
 ```
 
 ### 20.2 Текущий статус реализации
@@ -2519,19 +2519,21 @@ confirm -> campaign scheduled/sent according to selected command
 Этот блок обновлять после каждого шага. Это главный указатель для продолжения работы после потери контекста, смены агента или прерывания сессии.
 
 ```yaml
-current_step: "42"
-current_status: "in_progress: step 42 DB integration harness expanded; real DB/API run still pending env"
-next_step: "42. Add real integration/e2e checks after conversation-first rewrite"
-last_completed_step: "41. Conversation-first and account-scope tests completed"
-last_update: "2026-05-27"
+current_step: "complete"
+current_status: "completed: CRM Agent v2 implementation readiness audit passed"
+next_step: "Use CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md for post-readiness action catalog/product hardening work"
+last_completed_step: "43. Final readiness audit completed"
+last_update: "2026-05-29"
 resume_instruction: "Если работа была прервана, прочитать 20.1-20.3, сверить чеклист с кодом и продолжить с current_step/next_step, не начиная заново."
 notes:
+  - "2026-05-29 blocker: чат #30 показал ложный ответ 'Записала...' без CrmAgentState, CrmAgentPlan, CrmAgentAction и без записи через agent flow. Message data: mode=conversation, route.kind=unsupported, routeFallback=true, usedTools=[]; значит задача не дошла до planner/action pipeline."
+  - "2026-05-29 blocker fix: router fallback unsupported больше не идет в natural conversation; runtime восстанавливает такой turn через planner recovery, сохраняет routeDiagnostics/routerRaw, а natural conversation применяет invariant против mutation-success без action/tool result."
+  - "2026-05-29 regression coverage: dialog/integration contract checks закрепляют planner recovery для router fallback и guard 'Данные в CRM не изменены' для ложных success-ответов."
+  - "2026-05-29 live API checks: opt-in harness CRM_AGENT_V2_LIVE_API=1 проверяет реальные HTTP routes capabilities, sessions create/detail, action reject и unauthenticated guard через Bearer CRM session."
+  - "2026-05-29 readiness complete: typecheck, lint, prisma validate, prisma generate, test:crm-agent-v2, DB integration, live API checks и Aisha smoke прошли."
   - "2026-05-26 audit: прежний статус complete был преждевременным. Выполнены foundation/removal/API/UI/worker/contract tests, но production-критерии раздела 21 еще не закрыты."
   - "Закрыто step 29: runtime loop теперь исполняет safe planner tool steps через registry и пишет CrmAgentToolCall trace; execute steps с required confirmation не автоисполняются из /chat."
-  - "Невыполнено: action registry шире фактического execute-tools; часть actions доступна в registry, но executeActionMutation завершится Execute action is not implemented."
-  - "Невыполнено: clarification 0/1/many/missing/conflict и interactive selection покрыты контрактно, но не доведены до полноценного resolver-driven сценария."
-  - "Невыполнено: draft preview before/after, ручная правка draft и продолжение того же сценария текстом требуют реальной end-to-end реализации и тестов."
-  - "Невыполнено: текущие scripts/crm-agent-v2-* являются contract/smoke проверками по коду, нужны integration/e2e проверки через API/DB/UI и Aisha regression smoke."
+  - "2026-05-29 doc cleanup: прежние строки `Невыполнено` по action registry, resolver/clarification, draft preview/edit и integration/e2e устарели; соответствующие требования закрыты steps 31, 32, 37, 41, 42 и 43."
   - "Шаг 2 выполнен: Prisma schema валидна, старые AiAgent* и Aisha модели не удалялись."
   - "Шаг 3 выполнен: typecheck прошел."
   - "Шаг 4 выполнен: добавлен apps/web/lib/crm-agent-v2/core/actions.ts, typecheck прошел."
@@ -2585,6 +2587,95 @@ notes:
 Каждое изменение по плану добавлять новой записью сверху или снизу списка. Журнал нужен не для истории ради истории, а чтобы другой агент мог понять, что реально было сделано, какие проверки запускались и почему следующий шаг именно такой.
 
 ```text
+2026-05-29 - step 43 completed
+Что сделано:
+- Повторен `npx prisma generate --schema packages/db/prisma/schema.prisma` после остановки локального Next dev server.
+- `prisma generate` прошел, Windows lock на `query_engine-windows.dll.node` больше не блокирует readiness.
+- Step 43 переведен в completed.
+- Текущий статус реализации переведен в `complete`.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npx prisma generate --schema packages/db/prisma/schema.prisma
+- Предыдущая readiness-сверка уже прошла: typecheck, lint, prisma validate, test:crm-agent-v2, DB integration, live API checks и Aisha smoke.
+Следующий шаг:
+- Продолжать только пост-readiness работу по `CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md`.
+Блокеры:
+- Нет.
+
+2026-05-29 - step 42 completed, step 43 readiness started
+Что сделано:
+- `scripts/crm-agent-v2-integration-tests.mjs` расширен opt-in live API route checks.
+- Live API harness создает реальную CRM user session через DB/auth helper и проверяет HTTP routes с Bearer token:
+  - `GET /api/v1/crm/agent-v2/capabilities`;
+  - `POST /api/v1/crm/agent-v2/sessions`;
+  - `GET /api/v1/crm/agent-v2/sessions/:id`;
+  - `POST /api/v1/crm/agent-v2/actions/:id/reject`;
+  - unauthenticated capabilities guard.
+- Live API route checks прошли против существующего `http://127.0.0.1:3000`.
+- Step 42 переведен в completed.
+- Step 43 readiness audit начат.
+- Убраны lint warnings по неиспользуемым imports в finance/integrations action helpers.
+Измененные файлы:
+- scripts/crm-agent-v2-integration-tests.mjs
+- apps/web/lib/crm-agent-v2/actions/finance/finance-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/integration-helpers.ts
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2
+- CRM_AGENT_V2_INTEGRATION=1 CRM_AGENT_V2_LIVE_API=1 CRM_AGENT_V2_LIVE_USE_EXISTING=1 CRM_AGENT_V2_LIVE_BASE_URL=http://127.0.0.1:3000 npm run test:crm-agent-v2:integration
+- npm run lint
+- npx prisma validate --schema packages/db/prisma/schema.prisma
+Следующий шаг:
+- Остановить/перезапустить локальный Next dev server, затем повторить `npx prisma generate --schema packages/db/prisma/schema.prisma`.
+- Если `prisma generate` пройдет, завершить step 43 final readiness audit.
+Блокеры:
+- `npx prisma generate --schema packages/db/prisma/schema.prisma` сейчас падает с `EPERM rename ... query_engine-windows.dll.node.tmp -> query_engine-windows.dll.node`; активны node/Next dev процессы, которые держат Prisma query engine.
+
+2026-05-29 - step 42 router fallback blocker fixed
+Что сделано:
+- Исправлен runtime recovery: если LLM-router падает/возвращает невалидный ответ и fallback был `unsupported`, turn больше не уходит в natural conversation, а переводится в planner recovery route `crm_task`.
+- Planner recovery получает явную подсказку: классифицировать turn безопасно, вернуть `answer_only`/`unsupported`, если это не CRM-задача, и не утверждать CRM-мутацию без draft/action/tool result.
+- Runtime теперь сохраняет `routeDiagnostics` (`routeFallback`, `routeError`, `routerRaw`) в task/conversation data для диагностики invalid router output.
+- Natural conversation получил серверный invariant `enforceNoMutationSuccessWithoutToolResult`: ложные ответы вида "записала/создала/готово" без action/tool result заменяются на честное сообщение, что CRM-данные не изменены.
+- Contract regression checks добавлены в dialog и integration suites, чтобы старый путь `router fallback -> unsupported natural conversation -> false success` не вернулся.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- apps/web/lib/crm-agent-v2/core/conversation.ts
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2
+Следующий шаг:
+- Завершить оставшуюся часть step 42: live API route checks при наличии auth cookie/server, затем step 43 final readiness audit.
+Блокеры:
+- Нет blocker по false mutation success. Остается live API route coverage из step 42.
+
+2026-05-29 - step 42 blocker documented
+Что сделано:
+- Проведена диагностика реального диалога `CrmAgentSession #30`, где агент ответил "Записала Анну...", но не создал запись.
+- Подтверждено по БД: для session #30 нет `CrmAgentState`, `CrmAgentPlan`, `CrmAgentAction`; assistant messages сохранены как `mode=conversation`, `route.kind=unsupported`, `routeFallback=true`, `usedTools=[]`.
+- Установлен корень проблемы: при сбое/невалидном JSON LLM-router возвращает fallback `unsupported`; runtime отправляет такой turn в natural conversation, где модель может сгенерировать ложный success без planner/action pipeline.
+- Зафиксировано, что это blocker step 42/43, а не проблема полного action catalog.
+Что нужно исправить:
+- Router/planner recovery: router failure/invalid JSON для потенциально мутационной CRM-задачи не должен превращаться в natural conversation success; допустимые исходы - нормальный planner path или честный failure "действие не подготовлено, запись не создана".
+- Серверный invariant: conversational layer не имеет права утверждать выполненную CRM-мутацию без persisted `CrmAgentAction`, tool result или execute result в текущем turn.
+- Диагностика: сохранять router fallback reason/raw/error достаточно явно, чтобы следующий раз видеть причину invalid router response.
+- Regression coverage: добавить тест на сценарий чата #30 и искусственный router fallback/invalid response: не должно быть текста "записала/готово" без pending action/confirm; appointment не должен создаваться без confirmation.
+Измененные файлы:
+- CRM_AGENT_V2_IMPLEMENTATION_PLAN.md
+Проверка:
+- Диагностика выполнена запросом к локальной DB по session #30.
+Следующий шаг:
+- Исправить step 42 blocker в runtime/router/conversation contract и добавить regression tests.
+Блокеры:
+- До исправления blocker step 43 final readiness начинать нельзя.
+
 2026-05-27 - step 42 - partial DB harness expansion
 Что сделано:
 - scripts/crm-agent-v2-integration-tests.mjs расширен opt-in DB-сценариями под conversation-first runtime contracts: crm_question read-only/no-plan/no-action с CrmAgentToolCall без planStepId и CrmAgentAudit, task_continuation state/pending draft, cross-account negative updates для session/planStep/toolCall/action.
