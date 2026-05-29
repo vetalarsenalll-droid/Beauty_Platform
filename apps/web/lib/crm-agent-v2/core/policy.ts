@@ -49,7 +49,7 @@ export function checkCrmAgentActionPolicy(ctx: CrmAgentPolicyContext, actionName
   if (!action) {
     return { allowed: false, reason: "unknown_action", requiresConfirmation: false, risk: "low" };
   }
-  if (!hasPermission(ctx.permissions, action.permission)) {
+  if (action.permission !== "self" && !hasPermission(ctx.permissions, action.permission)) {
     return { allowed: false, reason: "missing_permission", requiresConfirmation: false, risk: action.risk };
   }
   const requiresConfirmation =

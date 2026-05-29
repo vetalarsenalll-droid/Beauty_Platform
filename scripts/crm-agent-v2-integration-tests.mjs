@@ -44,6 +44,8 @@ function runStaticContractChecks() {
   const conversation = read("apps/web/lib/crm-agent-v2/core/conversation.ts");
   const persistence = read("apps/web/lib/crm-agent-v2/core/persistence.ts");
   const executeTools = read("apps/web/lib/crm-agent-v2/core/execute-tools.ts");
+  const actionHelpers = read("apps/web/lib/crm-agent-v2/actions/action-helpers.ts");
+  const hardening = read("scripts/crm-agent-v2-hardening-tests.mjs");
   const chatRoute = read("apps/web/app/api/v1/crm/agent-v2/chat/route.ts");
   const aishaSmoke = read("scripts/aisha-smoke-scenarios.mjs");
 
@@ -56,9 +58,19 @@ function runStaticContractChecks() {
   assert(!conversation.includes("actions.prepare") && !conversation.includes("actions.confirm"), "Conversation layer must not draft or execute actions.");
   assert(conversation.includes("stripUnsafeToolArgs") && conversation.includes("allowedToolNames"), "Conversation read tools must strip unsafe ids and enforce permissions.");
   assert(chatRoute.includes("accountId: auth.session.accountId") && !chatRoute.includes("body.accountId"), "Chat API must derive accountId from auth only.");
+  assert(chatRoute.includes("enforceRateLimit") && chatRoute.includes("crm-agent-v2-chat"), "Chat API must rate-limit CRM Agent turns.");
   assert(persistence.includes("where: { id: input.sessionId, accountId: input.accountId }"), "Session persistence must be account scoped.");
   assert(persistence.includes("where: { id: input.toolCallId, accountId: input.accountId }"), "Tool-call updates must be account scoped.");
-  assert(executeTools.includes("assertClientBelongsToAccount") && executeTools.includes("assertServiceLocationBinding"), "Execute tools must enforce ownership and binding checks.");
+  assert(persistence.includes("where: { id: input.actionId, accountId: input.accountId, status: \"PENDING\" }"), "Action confirmation must be account scoped and pending-only.");
+  assert(executeTools.includes('if (action.status === "EXECUTED") return'), "Action confirmation must be idempotent for already executed actions.");
+  assert(executeTools.includes("const preview = definition.preview ? await definition.preview") && executeTools.includes("writeCrmAgentAudit"), "Execute path must write audit with preview context.");
+  assert(executeTools.indexOf("const result = await definition.execute") < executeTools.lastIndexOf("writeCrmAgentAudit"), "Execute path must audit after successful handler execution.");
+  assert(hardening.includes("mutating action must define preview") && hardening.includes("critical action must require separate sensitive confirmation"), "Hardening suite must enforce preview and critical confirmation policy.");
+  assert(
+    (executeTools.includes("assertClientBelongsToAccount") || actionHelpers.includes("assertClientBelongsToAccount")) &&
+      (executeTools.includes("assertServiceLocationBinding") || actionHelpers.includes("assertServiceLocationBinding")),
+    "Execute path must enforce ownership and binding checks.",
+  );
   assert(aishaSmoke.includes("const checks = []") && aishaSmoke.includes("function check("), "Aisha smoke regression suite must remain present.");
 }
 

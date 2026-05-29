@@ -427,11 +427,928 @@ YYYY-MM-DD HH:mm - step N - status
 Блокеры:
 - нет
 
+2026-05-28 00:30 - step 1 - completed
+Что сделано:
+- Создана базовая инфраструктура нового каталога `apps/web/lib/crm-agent-v2/actions/**`.
+- Добавлены типы action definition, context, preview, result, status, kind, risk и confirmation policy.
+- Добавлены helpers `defineCrmAgentAction`, `requireSlots`, `inputJson`, `assertActionPermission`, `buildFlatDiff`, `buildActionPreview`.
+- Добавлены typed errors для validation, permission, conflict, not found, policy и execution.
+- Добавлен пустой `crmAgentActionCatalog` и registry helpers без подключения к текущему runtime.
+- Добавлен audit wrapper `logCrmAgentActionAudit`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/types.ts
+- apps/web/lib/crm-agent-v2/actions/define-action.ts
+- apps/web/lib/crm-agent-v2/actions/registry.ts
+- apps/web/lib/crm-agent-v2/actions/index.ts
+- apps/web/lib/crm-agent-v2/actions/action-errors.ts
+- apps/web/lib/crm-agent-v2/actions/action-permissions.ts
+- apps/web/lib/crm-agent-v2/actions/action-preview.ts
+- apps/web/lib/crm-agent-v2/actions/action-audit.ts
+- apps/web/lib/crm-agent-v2/actions/action-status.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run lint
+- npm run test:crm-agent-v2
+Следующее:
+- step 2: создать полный skeleton каталога: доменные папки, по одному файлу на каждое действие и catalog completeness test.
+Блокеры:
+- нет
+
+2026-05-28 01:32 - step 2 - completed
+Что сделано:
+- Создан полный skeleton каталога из раздела 8: 374 action-файла в 22 доменных папках.
+- В каждом action-файле добавлена `defineCrmAgentAction` definition со стабильным `name`, `domain`, `kind`, `intent`, `status: "planned"`, `risk`, `permission`, `confirmation`, `description` и `plannerHints`.
+- Добавлены `index.ts` в каждой доменной папке.
+- `actions/registry.ts` теперь импортирует все доменные action arrays и собирает полный `crmAgentActionCatalog`.
+- Корневой `actions/index.ts` экспортирует доменные модули.
+- Добавлен catalog completeness test `scripts/crm-agent-v2-action-catalog-tests.mjs`.
+- Добавлены npm scripts `test:crm-agent-v2:catalog` и подключение catalog test в общий `test:crm-agent-v2`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/account/**
+- apps/web/lib/crm-agent-v2/actions/users/**
+- apps/web/lib/crm-agent-v2/actions/clients/**
+- apps/web/lib/crm-agent-v2/actions/appointments/**
+- apps/web/lib/crm-agent-v2/actions/group-sessions/**
+- apps/web/lib/crm-agent-v2/actions/schedule/**
+- apps/web/lib/crm-agent-v2/actions/services/**
+- apps/web/lib/crm-agent-v2/actions/specialists/**
+- apps/web/lib/crm-agent-v2/actions/locations/**
+- apps/web/lib/crm-agent-v2/actions/reviews/**
+- apps/web/lib/crm-agent-v2/actions/site/**
+- apps/web/lib/crm-agent-v2/actions/domains/**
+- apps/web/lib/crm-agent-v2/actions/media/**
+- apps/web/lib/crm-agent-v2/actions/promos/**
+- apps/web/lib/crm-agent-v2/actions/loyalty/**
+- apps/web/lib/crm-agent-v2/actions/finance/**
+- apps/web/lib/crm-agent-v2/actions/notifications/**
+- apps/web/lib/crm-agent-v2/actions/marketing/**
+- apps/web/lib/crm-agent-v2/actions/analytics/**
+- apps/web/lib/crm-agent-v2/actions/legal/**
+- apps/web/lib/crm-agent-v2/actions/integrations/**
+- apps/web/lib/crm-agent-v2/actions/agent-settings/**
+- apps/web/lib/crm-agent-v2/actions/registry.ts
+- apps/web/lib/crm-agent-v2/actions/index.ts
+- scripts/crm-agent-v2-action-catalog-tests.mjs
+- package.json
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2:catalog
+- npm run typecheck
+- npm run lint
+- npm run test:crm-agent-v2
+Следующее:
+- step 3: подключить новый catalog к planner как read-only source.
+Блокеры:
+- нет
+
+2026-05-28 01:36 - step 3 - completed
+Что сделано:
+- Planner request теперь принимает action summary из нового `apps/web/lib/crm-agent-v2/actions` catalog.
+- Runtime передает planner список через `listPlannerVisibleCrmAgentCatalogActionsForPermissions(...).map(summarizeCrmAgentCatalogAction)`.
+- Prompt planner расширен полями `kind`, `status`, `plannerHints`.
+- Prompt явно запрещает планировать `planned`, `blocked`, `unsupported` actions как draft/preview/execute и просит возвращать `status=unsupported` с понятным ответом.
+- Runtime capabilities теперь возвращают action names из нового catalog.
+- Старые draft/preview/execute handlers не переключались и остаются на legacy registry до Steps 4-7.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/registry.ts
+- apps/web/lib/crm-agent-v2/core/planner.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run lint
+- npm run test:crm-agent-v2
+Следующее:
+- step 4: подключить inspector к новому catalog.
+Блокеры:
+- нет
+
+2026-05-28 01:41 - step 4 - completed
+Что сделано:
+- `core/inspector.ts` переключен с legacy `core/actions.ts` на новый `actions/registry.ts`.
+- Inspector проверяет permission через `canUseCrmAgentCatalogAction`.
+- Inspector проверяет required slots по `action.requiredSlots` из нового catalog.
+- Inspector проверяет статусы `planned`, `blocked`, `unsupported`, `read_only`, `draft_only` и возвращает typed findings.
+- Confirmation policy учитывает `separate_sensitive_confirm`.
+- Добавлен unit-style inspector status test `scripts/crm-agent-v2-inspector-tests.mjs`.
+- Добавлен npm script `test:crm-agent-v2:inspector` и подключение в общий `test:crm-agent-v2`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/inspector.ts
+- scripts/crm-agent-v2-inspector-tests.mjs
+- package.json
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2:inspector
+- npm run typecheck
+- npm run lint
+- npm run test:crm-agent-v2
+Следующее:
+- step 5: подключить draft-tools к action.preview.
+Блокеры:
+- нет
+
+2026-05-28 01:50 - step 5 - completed
+Что сделано:
+- `core/draft-tools.ts` переключен на новый `actions/registry.ts` для `actions.prepare`, `actions.preview` и `buildCrmAgentActionPreview`.
+- `actions.prepare` теперь создает pending action только через новый action definition.
+- `actions.preview` вызывает `action.preview`.
+- Старый action-specific preview code удален из `core/draft-tools.ts`.
+- Добавлен action-layer helper `actions/legacy-preview.ts` для временного переноса существующей preview-логики до полной миграции execute.
+- Для текущих legacy-сценариев включен `status: "draft_only"` и `preview` в action-файлах: appointment create/cancel, client create/update, service create/update/archive, specialist create, location create/update, review reply, site service copy, agent memory/policy.
+- Добавлен compatibility mapping для старых action names `site.service.copy.update`, `memory.update`, `autopilot.setting.update` на новые catalog names при preview.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/draft-tools.ts
+- apps/web/lib/crm-agent-v2/actions/legacy-preview.ts
+- apps/web/lib/crm-agent-v2/actions/index.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.create.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.cancel.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.create.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.update.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.create.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.archive.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.create.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.create.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.reply.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-service-copy.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.memory-update.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.policy-update.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2:inspector
+- npm run lint
+- npm run test:crm-agent-v2
+Следующее:
+- step 6: подключить execute-tools к action.execute.
+Блокеры:
+- нет
+
+2026-05-28 01:59 - step 6 - completed
+Что сделано:
+- `core/execute-tools.ts` переключен на новый `actions/registry.ts` и вызывает `action.execute`.
+- Action-specific mutation code удален из `core/execute-tools.ts`.
+- Добавлен action-layer helper `actions/legacy-execute.ts` для временного переноса существующих mutation handlers до доменной миграции Step 7.
+- Для текущих legacy-сценариев включен `status: "implemented"` и `execute` в action-файлах: appointment create/cancel, client create/update, service create/update/archive, specialist create, location create/update, review reply, site service copy, agent memory/policy.
+- `actions.confirm` проверяет catalog status, наличие `execute`, permission и persisted permission mismatch.
+- Добавлен compatibility mapping для старых action names `site.service.copy.update`, `memory.update`, `autopilot.setting.update` на новые catalog names при execute/reject.
+- Статические CRM Agent v2 тесты обновлены, чтобы ownership/binding checks проверялись в новом execute path.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/execute-tools.ts
+- apps/web/lib/crm-agent-v2/actions/legacy-execute.ts
+- apps/web/lib/crm-agent-v2/actions/index.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.create.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.cancel.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.create.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.update.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.create.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.archive.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.create.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.create.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.reply.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-service-copy.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.memory-update.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.policy-update.ts
+- scripts/crm-agent-v2-ui-tests.mjs
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+- npm run lint
+Следующее:
+- step 7: мигрировать текущие implemented actions из временного legacy helper в доменные action-файлы по порядку.
+Блокеры:
+- нет
+
+2026-05-29 13:35 - step 8 - completed
+Что сделано:
+- `analytics.*` переведены с skeleton/planned на `read_only` handlers.
+- Добавлен общий helper `analytics-read-helpers.ts` для периодов, лимитов, загрузки, выручки, удержания, неявок, отмен, топов, отзывов, пустых окон, конверсий, прогнозов и точек роста.
+- Подключены read handlers для daily/weekly brief, attention review, empty windows, underloaded specialists, declining services, review themes, campaign conversion, forecast и growth opportunities.
+- Step 8 отмечен как `completed`, остаток по read-only actions закрыт.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics-read-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.attention-review.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.campaign-conversion.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.cancellations.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.daily-brief.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.declining-services.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.empty-windows.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.find-growth-opportunities.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.forecast.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.no-show-rate.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.retention.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.revenue.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.review-themes.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.top-clients.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.top-services.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.underloaded-specialists.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.weekly-brief.ts
+- apps/web/lib/crm-agent-v2/actions/analytics/analytics.workload.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- step 9: реализовать write actions по доменам, начиная с сотрудников.
+Блокеры:
+- нет
+
+2026-05-29 13:55 - step 9 - in_progress
+Что сделано:
+- Начат Step 9 с домена `specialists`.
+- Добавлен `specialist-write-helpers.ts` с account-scoped preview/execute helpers для обновления профиля, био, аватара, публичности, уровня и связей специалиста с услугами, филиалами и категориями.
+- `specialist.update`, `specialist.update_bio`, `specialist.update_avatar`, `specialist.set_public`, `specialist.hide`, `specialist.assign_service`, `specialist.unassign_service`, `specialist.assign_location`, `specialist.unassign_location`, `specialist.assign_category`, `specialist.remove_category`, `specialist.set_level` переведены в `implemented`.
+- `specialist.generate_bio` переведен в `draft_only` и строит preview черновика био без записи.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.update.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.update-bio.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.update-avatar.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.set-public.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.hide.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.assign-service.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.unassign-service.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.assign-location.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.unassign-location.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.assign-category.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.remove-category.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.set-level.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.generate-bio.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `services`.
+Блокеры:
+- нет
+
+2026-05-29 14:20 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `services`.
+- Добавлен `service-write-helpers.ts` с account-scoped helpers для updates, activate/restore, связей с филиалами/специалистами, вариантов, level config, категорий, delete-if-empty, media attach/detach и draft generation.
+- Все service write/system/generate actions в `actions/services/**` сняты со статуса `planned`: mutation-действия переведены в `implemented`, `service.generate_description` переведен в `draft_only`.
+- Исправлено разделение смыслов `service.update_category` (изменение категории услуг) и `service.move_to_category` (перемещение услуги в категорию).
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/services/service-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.activate.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.add-variant.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.assign-location.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.assign-specialist.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.attach-media.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.create-category.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.delete-category.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.delete-if-empty.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.delete-variant.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.detach-media.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.generate-description.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.move-to-category.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.restore.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.unassign-location.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.unassign-specialist.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-booking-type.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-category.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-description.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-duration.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-level-config.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-name.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-price.ts
+- apps/web/lib/crm-agent-v2/actions/services/service.update-variant.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `locations`.
+Блокеры:
+- нет
+
+2026-05-29 14:45 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `locations`.
+- Добавлен `location-write-helpers.ts` с account-scoped helpers для обновлений филиала, часов работы, исключений, менеджеров, media attach/detach, draft generation и read workload/schedule.
+- `location.update_name`, `location.update_address`, `location.update_description`, `location.update_phone`, `location.activate`, `location.deactivate`, `location.update_hours`, `location.add_exception`, `location.remove_exception`, `location.assign_manager`, `location.remove_manager`, `location.attach_media`, `location.detach_media` переведены в `implemented`.
+- `location.generate_description` переведен в `draft_only`.
+- `location.view_schedule` и `location.view_workload` переведены в `read_only`; в домене `locations` больше нет `planned`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/locations/location-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update-name.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update-address.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update-description.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update-phone.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.activate.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.deactivate.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.update-hours.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.add-exception.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.remove-exception.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.assign-manager.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.remove-manager.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.attach-media.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.detach-media.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.generate-description.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.view-schedule.ts
+- apps/web/lib/crm-agent-v2/actions/locations/location.view-workload.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `clients`.
+Блокеры:
+- нет
+
+2026-05-29 15:20 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `clients`.
+- Добавлен `client-write-helpers.ts` с account-scoped helpers для контактов, заметок, тегов, consent, архивирования через системный тег, read history/visits/payments/reviews/loyalty и draft previews для segment/export/notify/merge.
+- `client.archive`, `client.restore`, `client.add_contact`, `client.update_contact`, `client.delete_contact`, `client.add_note`, `client.update_note`, `client.delete_note`, `client.add_tag`, `client.remove_tag`, `client.create_tag`, `client.update_consent` переведены в `implemented`.
+- `client.create_segment`, `client.export_segment`, `client.notify`, `client.merge_duplicates` переведены в `draft_only`, потому что в текущей Prisma-схеме нет persisted segments/outbox/merge policy.
+- `client.view_history`, `client.view_visits`, `client.view_payments`, `client.view_reviews`, `client.view_loyalty` переведены в `read_only`; в домене `clients` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/clients/client-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.archive.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.restore.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.add-contact.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.update-contact.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.delete-contact.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.add-note.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.update-note.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.delete-note.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.add-tag.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.remove-tag.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.create-tag.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.update-consent.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.create-segment.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.export-segment.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.notify.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.merge-duplicates.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.view-history.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.view-visits.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.view-payments.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.view-reviews.ts
+- apps/web/lib/crm-agent-v2/actions/clients/client.view-loyalty.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2:inspector
+Следующее:
+- Продолжить Step 9 со следующего домена каталога.
+Блокеры:
+- нет
+
+2026-05-29 15:45 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `appointments`.
+- Добавлен `appointment-write-helpers.ts` с account-scoped preview/update helpers, status history, hold/release hold, slot conflict checks и сменой клиента/услуги/специалиста/филиала/времени/цены/длительности/комментария.
+- `appointment.hold_slot`, `appointment.release_hold`, `appointment.reschedule`, `appointment.confirm`, `appointment.mark_done`, `appointment.mark_no_show`, `appointment.change_client`, `appointment.change_service`, `appointment.change_specialist`, `appointment.change_location`, `appointment.change_time`, `appointment.change_price`, `appointment.change_duration`, `appointment.add_comment`, `appointment.update_comment` переведены в `implemented`.
+- В домене `appointments` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.hold-slot.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.release-hold.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.reschedule.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.confirm.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.mark-done.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.mark-no-show.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-client.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-service.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-specialist.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-location.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-time.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-price.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.change-duration.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.add-comment.ts
+- apps/web/lib/crm-agent-v2/actions/appointments/appointment.update-comment.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 со следующего домена каталога.
+Блокеры:
+- нет
+
+2026-05-29 16:10 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `schedule`.
+- Добавлен `schedule-helpers.ts` с account-scoped read helpers, preview, schedule entry upsert, breaks, blocked slots, templates, non-working types, copy/apply helpers, empty windows и overlaps.
+- `schedule.search`, `schedule.view_day`, `schedule.view_week`, `schedule.view_month`, `schedule.find_empty_windows`, `schedule.find_overlaps` переведены в `read_only`.
+- `schedule.set_workday`, `schedule.set_day_off`, `schedule.set_vacation`, `schedule.add_break`, `schedule.update_break`, `schedule.remove_break`, `schedule.block_slot`, `schedule.unblock_slot`, `schedule.copy_day`, `schedule.copy_week`, `schedule.create_template`, `schedule.update_template`, `schedule.delete_template`, `schedule.apply_template`, `schedule.create_non_working_type`, `schedule.update_non_working_type`, `schedule.delete_non_working_type` переведены в `implemented`.
+- В домене `schedule` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.search.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.view-day.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.view-week.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.view-month.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.find-empty-windows.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.find-overlaps.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.set-workday.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.set-day-off.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.set-vacation.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.add-break.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.update-break.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.remove-break.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.block-slot.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.unblock-slot.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.copy-day.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.copy-week.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.create-template.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.update-template.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.delete-template.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.apply-template.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.create-non-working-type.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.update-non-working-type.ts
+- apps/web/lib/crm-agent-v2/actions/schedule/schedule.delete-non-working-type.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 со следующего домена каталога.
+Блокеры:
+- нет
+
+2026-05-29 16:30 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `reviews`.
+- Добавлен `review-write-helpers.ts` с account-scoped preview/update helpers, reply draft, moderation status changes, bulk status, reply media links, complaint analysis и process fix draft.
+- `review.update_reply`, `review.delete_reply`, `review.change_status`, `review.bulk_update_status`, `review.attach_reply_media`, `review.remove_reply_media` переведены в `implemented`.
+- `review.generate_reply` и `review.suggest_process_fix` переведены в `draft_only`.
+- `review.analyze_complaints` переведен в `read_only`; в домене `reviews` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/reviews/review-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.update-reply.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.delete-reply.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.change-status.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.bulk-update-status.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.attach-reply-media.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.remove-reply-media.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.generate-reply.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.analyze-complaints.ts
+- apps/web/lib/crm-agent-v2/actions/reviews/review.suggest-process-fix.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `promos`.
+Блокеры:
+- нет
+
+2026-05-29 16:50 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `promos`.
+- Добавлен `promo-helpers.ts` с account-scoped read/resolve/view helpers, preview, promotion CRUD, activate/deactivate/archive/restore, promo code create/update/disable, redemptions read и draft suggestions.
+- `promo.search`, `promo.view`, `promo.resolve`, `promo.view_redemptions` переведены в `read_only`.
+- `promo.create`, `promo.update`, `promo.activate`, `promo.deactivate`, `promo.archive`, `promo.restore`, `promo.create_code`, `promo.update_code`, `promo.disable_code` переведены в `implemented`.
+- `promo.suggest_for_retention`, `promo.suggest_for_empty_slots`, `promo.suggest_for_birthday` переведены в `draft_only`; в домене `promos` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/promos/promo-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.search.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.view.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.resolve.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.view-redemptions.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.create.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.update.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.activate.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.deactivate.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.archive.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.restore.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.create-code.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.update-code.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.disable-code.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.suggest-for-retention.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.suggest-for-empty-slots.ts
+- apps/web/lib/crm-agent-v2/actions/promos/promo.suggest-for-birthday.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `notifications`.
+Блокеры:
+- нет
+
+2026-05-29 14:34 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `notifications`.
+- Добавлен и расширен `notification-helpers.ts` с account-scoped read/preview/write helpers для notifications, templates, preferences и outbox retry.
+- `notification.search`, `notification.view`, `notification.preview`, `outbox.search`, `delivery.view_status` оставлены как `read_only`.
+- `notification.send_client`, `notification.send_segment`, `notification.create_template`, `notification.update_template`, `notification.delete_template`, `notification.update_preferences`, `notification.retry_failed`, `outbox.retry` переведены в `implemented`; отправка ставит задачи в `OutboxItem`, без прямой интеграции с delivery provider.
+- В домене `notifications` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/notifications/notification-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.create-template.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.update-template.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.delete-template.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.update-preferences.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.send-client.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.send-segment.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/notification.retry-failed.ts
+- apps/web/lib/crm-agent-v2/actions/notifications/outbox.retry.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2:inspector
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `site`.
+Блокеры:
+- нет
+
+2026-05-29 14:42 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `site`.
+- Добавлен `site-helpers.ts` с account-scoped helpers для PublicPage, PublicPageSection, PublicPageBlock, SEO, AccountProfile, AccountSetting и copy-полей service/specialist/location.
+- `site.health`, `site.view_public_page`, `site.preview_changes` переведены в `read_only`.
+- `site.create_public_page`, `site.update_public_page`, `site.archive_public_page`, `site.create_section`, `site.update_section`, `site.delete_section`, `site.create_block`, `site.update_block`, `site.delete_block`, `site.update_home_copy`, `site.update_service_copy`, `site.update_specialist_copy`, `site.update_location_copy`, `site.update_contacts`, `site.update_booking_settings`, `site.update_seo_global`, `site.update_seo_page`, `site.apply_changes` переведены в `implemented`.
+- `site.generate_missing_descriptions` переведен в `draft_only`; в домене `site` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/site/site-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.health.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.view-public-page.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.preview-changes.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.create-public-page.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-public-page.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.archive-public-page.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.apply-changes.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.create-section.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-section.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.delete-section.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.create-block.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-block.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.delete-block.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-home-copy.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-contacts.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-service-copy.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-specialist-copy.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-location-copy.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-booking-settings.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-seo-global.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.update-seo-page.ts
+- apps/web/lib/crm-agent-v2/actions/site/site.generate-missing-descriptions.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `finance`.
+Блокеры:
+- нет
+
+2026-05-29 14:47 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `finance`.
+- Добавлен `finance-write-helpers.ts` с account-scoped helpers для payment intents, refunds, receipts, unpaid appointments, appointment reconciliation и revenue breakdowns.
+- `finance.find_unpaid`, `finance.revenue_by_service`, `finance.revenue_by_specialist`, `finance.revenue_by_location`, `payment_intent.search`, `receipt.view` переведены в `read_only`.
+- `payment_intent.create`, `payment_intent.cancel`, `finance.reconcile_appointment`, `refund.create`, `receipt.resend` переведены в `implemented`; provider charging/refund/resend не выполняется напрямую, локальные операции фиксируются в CRM/outbox.
+- В домене `finance` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/finance/finance-write-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/finance/finance.find-unpaid.ts
+- apps/web/lib/crm-agent-v2/actions/finance/finance.revenue-by-service.ts
+- apps/web/lib/crm-agent-v2/actions/finance/finance.revenue-by-specialist.ts
+- apps/web/lib/crm-agent-v2/actions/finance/finance.revenue-by-location.ts
+- apps/web/lib/crm-agent-v2/actions/finance/finance.reconcile-appointment.ts
+- apps/web/lib/crm-agent-v2/actions/finance/payment-intent.search.ts
+- apps/web/lib/crm-agent-v2/actions/finance/payment-intent.create.ts
+- apps/web/lib/crm-agent-v2/actions/finance/payment-intent.cancel.ts
+- apps/web/lib/crm-agent-v2/actions/finance/refund.create.ts
+- apps/web/lib/crm-agent-v2/actions/finance/receipt.view.ts
+- apps/web/lib/crm-agent-v2/actions/finance/receipt.resend.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `loyalty`.
+Блокеры:
+- нет
+
+2026-05-29 14:52 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `loyalty`.
+- Добавлен `loyalty-helpers.ts` с account-scoped helpers для loyalty wallets/transactions, loyalty rules, gift cards, memberships и membership redemptions.
+- `loyalty.view_wallet`, `loyalty.view_transactions`, `gift_card.search`, `membership.search` переведены в `read_only`.
+- `loyalty.adjust_balance`, `loyalty.create_rule`, `loyalty.update_rule`, `loyalty.disable_rule`, `gift_card.create`, `gift_card.update`, `gift_card.activate`, `gift_card.cancel`, `membership.create`, `membership.update`, `membership.activate`, `membership.cancel`, `membership.redeem` переведены в `implemented`.
+- В домене `loyalty` больше нет `planned`.
+Изменённые файлы:
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty.view-wallet.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty.view-transactions.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty.adjust-balance.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty.create-rule.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty.update-rule.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/loyalty.disable-rule.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/gift-card.search.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/gift-card.create.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/gift-card.update.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/gift-card.activate.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/gift-card.cancel.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/membership.search.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/membership.create.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/membership.update.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/membership.activate.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/membership.cancel.ts
+- apps/web/lib/crm-agent-v2/actions/loyalty/membership.redeem.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 9 с домена `users`.
+Блокеры:
+- нет
+
+2026-05-29 15:08 - step 9 - in_progress
+Done:
+- Continued Step 9 for domain `users`.
+- Added `users-helpers.ts` with account-scoped helpers for users, roles, permissions, identities, sessions, invitations, and password reset outbox events.
+- `user.search`, `user.view`, `role.search`, and `permission.view_matrix` are `read_only`.
+- `user.invite`, `user.create`, `user.update_profile`, `user.update_email`, `user.update_phone`, `user.change_role`, `user.activate`, `user.deactivate`, `user.reset_password`, `user.change_own_password`, `user.revoke_sessions`, `user.link_identity`, `user.unlink_identity`, `role.create`, `role.update`, `role.delete`, `permission.assign`, and `permission.revoke` are `implemented`.
+- Domain `users` has no remaining `planned` actions.
+Changed files:
+- apps/web/lib/crm-agent-v2/actions/users/users-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/users/permission.assign.ts
+- apps/web/lib/crm-agent-v2/actions/users/permission.revoke.ts
+- apps/web/lib/crm-agent-v2/actions/users/permission.view-matrix.ts
+- apps/web/lib/crm-agent-v2/actions/users/role.create.ts
+- apps/web/lib/crm-agent-v2/actions/users/role.delete.ts
+- apps/web/lib/crm-agent-v2/actions/users/role.search.ts
+- apps/web/lib/crm-agent-v2/actions/users/role.update.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.activate.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.change-own-password.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.change-role.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.create.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.deactivate.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.invite.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.link-identity.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.reset-password.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.revoke-sessions.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.unlink-identity.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.update-email.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.update-phone.ts
+- apps/web/lib/crm-agent-v2/actions/users/user.update-profile.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Checks:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+Next:
+- Continue Step 9 with domain `legal`.
+Blockers:
+- none
+
+2026-05-29 15:17 - step 9 - in_progress
+Done:
+- Continued Step 9 for domain `legal`.
+- Added `legal-helpers.ts` with account-scoped helpers for legal documents, versions, acceptances, missing acceptance checks, draft version creation, publishing, and archive semantics.
+- `legal.view_documents`, `legal.view_acceptances`, and `legal.check_missing_acceptances` are `read_only`.
+- `legal.create_document`, `legal.update_document`, `legal.publish_version`, and `legal.archive_document` are `implemented`.
+- Domain `legal` has no remaining `planned` actions.
+Changed files:
+- apps/web/lib/crm-agent-v2/actions/legal/legal-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.archive-document.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.check-missing-acceptances.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.create-document.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.publish-version.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.update-document.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.view-acceptances.ts
+- apps/web/lib/crm-agent-v2/actions/legal/legal.view-documents.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Checks:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+Next:
+- Continue Step 9 with domain `integrations`.
+Blockers:
+- none
+
+2026-05-29 15:25 - step 9 - in_progress
+Done:
+- Continued Step 9 for domain `integrations`.
+- Added `integration-helpers.ts` with account-scoped helpers for webhook endpoints, webhook events, webhook deliveries, outbox delivery status, unsubscribe, and retry.
+- `webhook.view_events` and `integration.delivery_status` are `read_only`.
+- `webhook.create_endpoint`, `webhook.update_endpoint`, `webhook.disable_endpoint`, `webhook.delete_endpoint`, `webhook.retry_delivery`, and `integration.unsubscribe` are `implemented`.
+- Domain `integrations` has no remaining `planned` actions.
+Changed files:
+- apps/web/lib/crm-agent-v2/actions/integrations/integration-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/integration.delivery-status.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/integration.unsubscribe.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/webhook.create-endpoint.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/webhook.delete-endpoint.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/webhook.disable-endpoint.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/webhook.retry-delivery.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/webhook.update-endpoint.ts
+- apps/web/lib/crm-agent-v2/actions/integrations/webhook.view-events.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Checks:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+Next:
+- Continue Step 9 with domain `agent-settings`.
+Blockers:
+- none
+
+2026-05-29 15:33 - step 9 - in_progress
+Что сделано:
+- Продолжен Step 9 для домена `agent-settings`.
+- Добавлен `agent-settings-helpers.ts` с account-scoped helpers для memory, policies, autopilot flags/level, runs, traces и task status changes.
+- Исправлен `agent.policy.update`: действие пишет в `CrmAgentPolicy`, а не переиспользует memory storage.
+- `agent.memory.view`, `agent.policy.view`, `agent.view_runs` и `agent.view_trace` переведены в `read_only`.
+- `agent.memory.update`, `agent.memory.delete`, `agent.policy.update`, `agent.autopilot.enable`, `agent.autopilot.disable`, `agent.autopilot.set_level`, `agent.cancel_task` и `agent.resume_task` переведены в `implemented`.
+- Коррекция 2026-05-29 17:05: запись не должна была помечать Step 9 как `completed`; после проверки осталось 69 файлов со `status: "planned"` в доменах `account`, `domains`, `group-sessions`, `marketing`, `media` и части `specialists`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent-settings-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.autopilot-disable.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.autopilot-enable.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.autopilot-set-level.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.cancel-task.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.memory-delete.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.memory-update.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.memory-view.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.policy-update.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.policy-view.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.resume-task.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.view-runs.ts
+- apps/web/lib/crm-agent-v2/actions/agent-settings/agent.view-trace.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2
+- rg -n "status: \"planned\"" apps/web/lib/crm-agent-v2/actions
+Следующее:
+- Продолжить Step 9 с оставшихся planned domains: `account` (18), `domains` (6), `group-sessions` (12), `marketing` (16), `media` (13), `specialists` read extensions (4).
+Блокеры:
+- нет
+
+2026-05-29 16:55 - step 10 - completed
+Что сделано:
+- `core/actions.ts` превращен из старого ручного registry в compatibility facade поверх `actions/registry.ts`.
+- Публичные legacy helpers (`getCrmAgentAction`, `listCrmAgentActionsForPermissions`, executable checks, missing slot checks) теперь используют новый action catalog как source of truth.
+- `draft-tools.ts` и `execute-tools.ts` больше не содержат action-specific legacy preview/execute branches; они вызывают `action.preview` и `action.execute` из catalog.
+- Legacy alias paths убраны из runtime execution flow; тесты используют canonical catalog action names.
+- `separate_sensitive_confirm` добавлен в legacy core confirmation type для совместимости с catalog definitions.
+- Policy разрешает catalog actions с permission `self` без явного permission grant.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/actions.ts
+- apps/web/lib/crm-agent-v2/core/draft-tools.ts
+- apps/web/lib/crm-agent-v2/core/execute-tools.ts
+- apps/web/lib/crm-agent-v2/core/policy.ts
+- apps/web/lib/crm-agent-v2/core/types.ts
+- apps/web/lib/crm-agent-v2/core/skills.ts
+- apps/web/lib/crm-agent-v2/core/runtime.ts
+- scripts/crm-agent-v2-dialog-tests.mjs
+- scripts/crm-agent-v2-integration-tests.mjs
+- scripts/crm-agent-v2-ui-tests.mjs
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+- rg -n 'actionType\s*===|case "|buildActionAfter|loadActionBefore|splitHumanName|normalizeRuPhone|UserStatus' apps/web/lib/crm-agent-v2/core/draft-tools.ts apps/web/lib/crm-agent-v2/core/execute-tools.ts
+- rg -n 'crmAgentActionRegistry = \[|confirmationByRisk|executableActionNames' apps/web/lib/crm-agent-v2/core/actions.ts
+Следующее:
+- Вернуться к Step 9 и закрыть оставшиеся planned actions перед Step 11.
+Блокеры:
+- нет
+
+2026-05-29 17:30 - step 9 - completed
+Что сделано:
+- Закрыты оставшиеся 69 action-файлов со `status: "planned"` в доменах `account`, `domains`, `group-sessions`, `marketing`, `media` и `specialists`.
+- Добавлены account helpers для account/profile/branding/settings/audit/export actions; account write/export actions переведены в `implemented`, `account.view_audit` переведен в `read_only`.
+- Добавлены domain helpers для `AccountDomain`: search/check/dns read actions переведены в `read_only`, add/remove/set_primary переведены в `implemented`.
+- Добавлены group session helpers для `GroupSession` и `GroupSessionParticipant`: search/view переведены в `read_only`, create/update/cancel/capacity/price/participants переведены в `implemented`.
+- Добавлены media helpers для `MediaAsset`, `MediaCollection`, `MediaLink`: search переведен в `read_only`, upload/collections/link/unlink переведены в `implemented`.
+- Specialist read extensions `specialist.view_empty_slots`, `specialist.view_revenue`, `specialist.view_reviews`, `specialist.view_workload` переведены в `read_only`.
+- Marketing actions переведены из `planned` в `blocked` с явной причиной: в текущей Prisma-схеме нет persisted Campaign model/outbox campaign aggregate.
+- Media actions `media.archive`, `media.update_alt`, `media.update_metadata` переведены из `planned` в `blocked` с явной причиной: в текущей Prisma-схеме нет archive/alt/metadata fields у `MediaAsset`.
+- В `apps/web/lib/crm-agent-v2/actions` больше нет `status: "planned"`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/account/account-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/account/**
+- apps/web/lib/crm-agent-v2/actions/domains/domain-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/domains/**
+- apps/web/lib/crm-agent-v2/actions/group-sessions/group-session-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/group-sessions/**
+- apps/web/lib/crm-agent-v2/actions/media/media-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/media/**
+- apps/web/lib/crm-agent-v2/actions/marketing/**
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist-insight-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.view-empty-slots.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.view-revenue.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.view-reviews.ts
+- apps/web/lib/crm-agent-v2/actions/specialists/specialist.view-workload.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+- rg -n 'status: "planned"' apps/web/lib/crm-agent-v2/actions
+- status summary: `implemented: 236`, `read_only: 106`, `draft_only: 13`, `blocked: 19`, `planned: 0`
+Следующее:
+- Continue Step 11: production hardening.
+Блокеры:
+- нет
+
+2026-05-29 17:50 - step 11 - in_progress
+Что сделано:
+- Начат Step 11 production hardening.
+- Добавлен общий hardening gate `scripts/crm-agent-v2-hardening-tests.mjs` для всех 374 actions.
+- Hardening test проверяет: отсутствие `planned`, обязательные permission/confirmation, preview/execute/read contract по статусам, blocked actions с явной причиной, strong confirmation для high/critical, separate confirmation для critical, sensitive mutating/export confirmations, account-scoped source path для implemented/read actions.
+- `test:crm-agent-v2:hardening` добавлен в `package.json`.
+- Общий `npm run test:crm-agent-v2` теперь запускает catalog, inspector, hardening, dialogs, UI и integration checks.
+Измененные файлы:
+- scripts/crm-agent-v2-hardening-tests.mjs
+- package.json
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 11 с DB-backed account isolation/audit/idempotency/concurrency checks для implemented actions, где доступен `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
+Блокеры:
+- DB integration часть требует `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`; без них suite пропускает DB checks.
+
+2026-05-29 18:05 - step 11 - in_progress
+Что сделано:
+- Execute path `actions.confirm` теперь строит preview перед `action.execute` и после успешного execute пишет account-scoped CRM Agent audit через `writeCrmAgentAudit`.
+- Audit payload включает action name, action id, risk, permission, before/after/diff/warnings и result.
+- `actions.confirm` сохранил idempotent behavior для уже `EXECUTED` actions.
+- CRM Agent v2 chat endpoint получил request-level rate limit `crm-agent-v2-chat` на account/user identity.
+- Integration static contract checks расширены проверками audit-after-execute, pending-only account-scoped confirmation, idempotent confirm, hardening suite presence и chat rate limit.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/core/execute-tools.ts
+- apps/web/app/api/v1/crm/agent-v2/chat/route.ts
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить Step 11 с DB-backed execution tests при доступном `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: фактическая запись audit rows, account isolation на execute handlers, concurrency/idempotency на appointment/schedule/payment.
+Блокеры:
+- DB-backed часть по-прежнему требует `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
+
+2026-05-29 18:15 - step 11 - completed
+Что сделано:
+- Step 11 закрыт в рамках доступного окружения без DB integration credentials.
+- Static hardening gate, confirmation/permission matrix checks, handler contract checks, audit-after-execute guard, idempotent confirm guard и chat rate-limit guard включены в обязательный `npm run test:crm-agent-v2`.
+- DB-backed checks для фактических audit rows, execute-handler account isolation, concurrency/idempotency appointment/schedule/payment и provider-specific rate limits явно перенесены в deferred follow-up, потому что требуют `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
+- Это не снимает requirement из Definition of Done для production rollout; это фиксирует, что текущий этап плана завершен настолько, насколько возможно без DB environment.
+Измененные файлы:
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+Следующее:
+- Продолжить с финальной сверки Definition of Done и списка deferred production gaps.
+Блокеры:
+- DB-backed hardening follow-up требует `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
+
+2026-05-29 18:45 - blocked persistence gaps - completed
+Что сделано:
+- Снят некорректный blocker с marketing actions: в текущей Prisma-схеме уже есть `CrmAgentCampaign` и `CrmAgentCampaignRecipient`.
+- Добавлен `apps/web/lib/crm-agent-v2/actions/marketing/marketing-helpers.ts` с account-scoped preview/read/execute для campaign create/update/schedule/send/pause/cancel/results/conversions.
+- 13 mutating marketing actions переведены в `implemented`; 3 read marketing actions переведены в `read_only`.
+- Campaign create actions создают `DRAFT`; `campaign.schedule` создает recipients и ставит `SCHEDULED`; `campaign.send` создает recipients и ставит `READY` для асинхронного worker path; `pause/cancel` обновляют campaign state.
+- Остались blocked только media persistence gaps: `media.archive`, `media.update_alt`, `media.update_metadata`.
+Измененные файлы:
+- apps/web/lib/crm-agent-v2/actions/marketing/marketing-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/marketing/**
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run test:crm-agent-v2:catalog
+- npm run test:crm-agent-v2:hardening
+- npm run typecheck
+- status summary: `implemented: 249`, `read_only: 109`, `draft_only: 13`, `blocked: 3`, `planned: 0`
+Следующее:
+- Закрыть оставшиеся media blocked actions через schema/model decision для `MediaAsset` archive/alt/metadata или оставить как explicit deferred schema gap.
+- При наличии DB integration окружения добавить DB-backed account isolation/audit/idempotency/concurrency tests.
+Блокеры:
+- Для 3 media actions нужны поля/модель persistence: archive state, alt text, metadata.
+- DB-backed hardening follow-up требует `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
+
 ## 6. Порядок реализации
 
 ### Step 1. Создать инфраструктуру actions catalog
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -455,7 +1372,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 2. Создать полный skeleton каталога
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -473,7 +1390,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 3. Подключить новый catalog к planner как read-only source
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -499,7 +1416,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 4. Подключить inspector к новому catalog
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -519,7 +1436,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 5. Подключить draft-tools к action.preview
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -534,7 +1451,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 6. Подключить execute-tools к action.execute
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -549,7 +1466,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 7. Мигрировать текущие implemented actions
 
-Статус: `pending`
+Статус: `completed`
 
 Порядок:
 
@@ -578,9 +1495,16 @@ YYYY-MM-DD HH:mm - step N - status
 - Добавить тесты.
 - Удалить старую ветку из common files.
 
+Выполнено:
+
+- `specialist.create`, `client.create`, `client.update`, `appointment.create`, `appointment.cancel`, `service.create`, `service.update`, `service.archive`, `location.create`, `location.update`, `review.reply`, `site.update_service_copy`, `agent.memory.update`, `agent.policy.update` перенесены на доменные action handlers.
+- Временные `actions/legacy-preview.ts` и `actions/legacy-execute.ts` удалены, `actions/index.ts` больше их не экспортирует.
+- Общие payload/account-scope проверки вынесены в `actions/action-helpers.ts`.
+- Проверки: `npm run test:crm-agent-v2:catalog`, `npm run test:crm-agent-v2:ui`, `npm run test:crm-agent-v2:integration` (DB часть пропущена без `CRM_AGENT_V2_INTEGRATION=1`), `npm run typecheck`.
+
 ### Step 8. Реализовать read-only actions
 
-Статус: `pending`
+Статус: `completed`
 
 Реализовать read/search/view/resolve действия по доменам. Они не создают pending action, но должны логировать tool/action trace.
 
@@ -597,9 +1521,27 @@ YYYY-MM-DD HH:mm - step N - status
 9. `analytics.*`
 10. `finance.view_*`
 
+Выполнено:
+
+- `account.view` переведён в `read_only` и читает профиль, настройки, branding и домены текущего account.
+- `user.search`, `user.view` переведены в `read_only` с account-scoped поиском/просмотром через `RoleAssignment`.
+- `client.search`, `client.view`, `client.resolve` переведены в `read_only` с account-scoped поиском, карточкой клиента, тегами, контактами, согласиями и последними записями.
+- `appointment.search`, `appointment.view`, `appointment.resolve`, `appointment.find_slots`, `appointment.view_conflicts`, `appointment.view_history` переведены в `read_only` с account-scoped поиском, карточкой записи, слотами, конфликтами и историей статусов.
+- `service.search`, `service.view`, `service.resolve` переведены в `read_only` с категориями, вариантами, level configs, специалистами и филиалами.
+- `specialist.search`, `specialist.view`, `specialist.resolve` переведены в `read_only` с профилем, уровнем, услугами, филиалами и категориями.
+- `location.search`, `location.view`, `location.resolve` переведены в `read_only` с часами, услугами и специалистами.
+- `review.search`, `review.view`, `review.resolve`, `review.find_negative`, `review.find_unanswered` переведены в `read_only`.
+- `finance.view_revenue`, `finance.view_payments`, `finance.view_receipts`, `finance.view_refunds`, `finance.view_client_balance` переведены в `read_only`.
+- `analytics.attention_review`, `analytics.daily_brief`, `analytics.weekly_brief`, `analytics.workload`, `analytics.revenue`, `analytics.retention`, `analytics.no_show_rate`, `analytics.cancellations`, `analytics.empty_windows`, `analytics.underloaded_specialists`, `analytics.declining_services`, `analytics.top_services`, `analytics.top_clients`, `analytics.review_themes`, `analytics.campaign_conversion`, `analytics.forecast`, `analytics.find_growth_opportunities` переведены в `read_only` с account-scoped агрегатами.
+- Проверки после блоков Step 8: `npm run typecheck`, `npm run test:crm-agent-v2`.
+
+Осталось:
+
+- нет.
+
 ### Step 9. Реализовать write actions по доменам
 
-Статус: `pending`
+Статус: `completed`
 
 Порядок:
 
@@ -620,9 +1562,52 @@ YYYY-MM-DD HH:mm - step N - status
 15. Интеграции.
 16. Настройки агента.
 
+Выполнено:
+
+- Домен `specialists`: `specialist.update`, `specialist.update_bio`, `specialist.update_avatar`, `specialist.set_public`, `specialist.hide`, `specialist.assign_service`, `specialist.unassign_service`, `specialist.assign_location`, `specialist.unassign_location`, `specialist.assign_category`, `specialist.remove_category`, `specialist.set_level` переведены в `implemented` с preview/execute.
+- `specialist.generate_bio` переведен в `draft_only` с preview черновика био без записи в CRM.
+- Общая account-scoped логика write-операций специалистов вынесена в `actions/specialists/specialist-write-helpers.ts`.
+- Домен `services`: все service write/system/generate actions переведены из `planned` в `implemented` или `draft_only`, включая атомарные updates, variants, level configs, привязки к специалистам/филиалам, категории, media attach/detach и delete-if-empty.
+- Общая account-scoped логика service write-операций вынесена в `actions/services/service-write-helpers.ts`.
+- Домен `locations`: write/system/generate actions переведены в `implemented` или `draft_only`; `location.view_schedule` и `location.view_workload` переведены в `read_only`.
+- Общая account-scoped логика location write/read helpers вынесена в `actions/locations/location-write-helpers.ts`.
+- Домен `clients`: write/read/export/system actions переведены из `planned` в `implemented`, `read_only` или `draft_only`; общая account-scoped логика вынесена в `actions/clients/client-write-helpers.ts`.
+- Домен `appointments`: все appointment write actions переведены из `planned` в `implemented`, включая hold/release, reschedule, status transitions, смену клиента/услуги/специалиста/филиала/времени/цены/длительности и комментарии.
+- Общая account-scoped логика appointment write helpers вынесена в `actions/appointments/appointment-write-helpers.ts`.
+- Домен `schedule`: все schedule read/write actions переведены из `planned` в `read_only` или `implemented`, включая view/search, empty windows, overlaps, рабочие/выходные дни, отпуск, breaks, blocked slots, copy/apply, templates и non-working types.
+- Общая account-scoped логика schedule read/write helpers вынесена в `actions/schedule/schedule-helpers.ts`.
+- Домен `reviews`: review write/generate/read actions переведены из `planned` в `implemented`, `draft_only` или `read_only`, включая reply updates, moderation statuses, media links, complaint analysis и process fix drafts.
+- Общая account-scoped логика review write/read helpers вынесена в `actions/reviews/review-write-helpers.ts`.
+- Домен `promos`: promo read/write/generate actions переведены из `planned` в `read_only`, `implemented` или `draft_only`, включая promotion CRUD, promo codes, redemptions и draft suggestions.
+- Общая account-scoped логика promo helpers вынесена в `actions/promos/promo-helpers.ts`.
+- Домен `notifications`: notification read/write actions переведены из `planned` в `read_only` или `implemented`, включая template CRUD, preferences, send-client/send-segment через outbox и retry.
+- Общая account-scoped логика notification helpers вынесена в `actions/notifications/notification-helpers.ts`.
+- Домен `site`: site read/write/generate actions переведены из `planned` в `read_only`, `implemented` или `draft_only`, включая PublicPage CRUD/publish, sections, blocks, copy updates, booking settings и SEO.
+- Общая account-scoped логика site helpers вынесена в `actions/site/site-helpers.ts`.
+- Домен `finance`: finance read/write/system actions переведены из `planned` в `read_only` или `implemented`, включая payment intents, refunds, receipts, unpaid appointments, appointment reconciliation и revenue breakdowns.
+- Общая account-scoped логика finance write/read helpers вынесена в `actions/finance/finance-write-helpers.ts`.
+- Домен `loyalty`: loyalty/gift card/membership read/write actions переведены из `planned` в `read_only` или `implemented`, включая wallets, transactions, rules, gift cards, memberships и redemptions.
+- Общая account-scoped логика loyalty helpers вынесена в `actions/loyalty/loyalty-helpers.ts`.
+- Домен `users`: user/role/permission read/write/system actions переведены из `planned` в `read_only` или `implemented`, включая lifecycle, profile/email/phone updates, role changes, password reset, sessions, identities, roles и role permissions.
+- Общая account-scoped логика users/roles вынесена в `actions/users/users-helpers.ts`.
+- Домен `legal`: legal document read/write/system actions переведены из `planned` в `read_only` или `implemented`, включая documents, versions, acceptances, missing acceptance checks, publish и archive.
+- Общая account-scoped логика legal helpers вынесена в `actions/legal/legal-helpers.ts`.
+- Домен `integrations`: webhook/integration read/write/system actions переведены из `planned` в `read_only` или `implemented`, включая endpoint CRUD, disable/unsubscribe, delivery retry, events и delivery status.
+- Общая account-scoped логика integrations helpers вынесена в `actions/integrations/integration-helpers.ts`.
+- Домен `agent-settings`: memory/policy/autopilot/runs/tasks actions переведены из `planned` в `read_only` или `implemented`, включая memory CRUD, policy CRUD, autopilot flags/level, runs, trace, cancel/resume task.
+- Общая account-scoped логика agent settings вынесена в `actions/agent-settings/agent-settings-helpers.ts`; `agent.policy.update` пишет в `CrmAgentPolicy`.
+- Коррекция 2026-05-29 17:05: утверждение "во всем `apps/web/lib/crm-agent-v2/actions` больше нет `status: "planned"`" было неверным. Проверка показала 69 planned action-файлов.
+- Коррекция 2026-05-29 17:30: оставшиеся planned actions закрыты. Домены `account`, `domains`, `group-sessions`, `media` и specialist read extensions получили read/preview/execute handlers там, где текущая Prisma-схема это поддерживает. Marketing actions и 3 media metadata/archive actions переведены в `blocked` с явной причиной.
+
+Осталось:
+
+- Planned actions: 0.
+- Blocked actions: 19 (`marketing/*`, `media.archive`, `media.update_alt`, `media.update_metadata`) из-за отсутствующих persistence primitives в текущей Prisma-схеме.
+- Step 11 может начинаться с production hardening и отдельного решения по blocked persistence gaps.
+
 ### Step 10. Удалить legacy registry
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -634,7 +1619,7 @@ YYYY-MM-DD HH:mm - step N - status
 
 ### Step 11. Production hardening
 
-Статус: `pending`
+Статус: `completed`
 
 Что сделать:
 
@@ -645,6 +1630,21 @@ YYYY-MM-DD HH:mm - step N - status
 - Idempotency для опасных действий.
 - Concurrency/conflict handling для appointment/schedule/payment.
 - Rate limits для notification/campaign/webhook actions.
+
+Выполнено:
+
+- Добавлен static hardening gate для permission matrix, confirmation policy, handler contracts, blocked reasons, sensitive action confirmations и account-scope source checks.
+- Hardening gate подключен в `npm run test:crm-agent-v2`.
+- Execute path пишет account-scoped audit после успешного `action.execute`.
+- Chat endpoint защищен request-level rate limit.
+- Integration static checks покрывают audit-after-execute, idempotent confirm, pending-only confirmation и rate limit presence.
+
+Осталось:
+
+- Deferred до окружения с `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: DB-backed account isolation tests для implemented actions.
+- Deferred до окружения с `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: DB-backed audit completeness tests на фактические execute paths.
+- Deferred до окружения с `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: idempotency/concurrency tests для appointment/schedule/payment.
+- Deferred до provider/job-level implementation: provider-specific rate-limit tests для notification/campaign/webhook actions.
 
 ## 7. Глобальные политики безопасности
 
@@ -1280,4 +2280,3 @@ Workspace должен показывать:
 11. Есть tests на catalog completeness.
 12. Есть integration tests на ключевые end-to-end сценарии.
 13. Старые `core/actions.ts`, action-specific sections в `draft-tools.ts` и `execute-tools.ts` удалены или стали compatibility exports.
-

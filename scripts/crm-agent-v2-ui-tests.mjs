@@ -24,6 +24,7 @@ const commandsPath = "apps/web/lib/crm-agent-v2/core/commands.ts";
 const persistencePath = "apps/web/lib/crm-agent-v2/core/persistence.ts";
 const contextPath = "apps/web/lib/crm-agent-v2/core/context.ts";
 const executeToolsPath = "apps/web/lib/crm-agent-v2/core/execute-tools.ts";
+const actionHelpersPath = "apps/web/lib/crm-agent-v2/actions/action-helpers.ts";
 const chatRoutePath = "apps/web/app/api/v1/crm/agent-v2/chat/route.ts";
 const planPath = "CRM_AGENT_V2_IMPLEMENTATION_PLAN.md";
 const cockpit = read(cockpitPath);
@@ -39,6 +40,7 @@ const commands = read(commandsPath);
 const persistence = read(persistencePath);
 const context = read(contextPath);
 const executeTools = read(executeToolsPath);
+const actionHelpers = read(actionHelpersPath);
 const chatRoute = read(chatRoutePath);
 const plan = read(planPath);
 
@@ -168,7 +170,10 @@ for (const ownershipCheck of [
   "assertServiceSpecialistBinding",
   "assertServiceLocationBinding",
 ]) {
-  assert(executeTools.includes(ownershipCheck), `Execute tools must include ownership/binding check: ${ownershipCheck}`);
+  assert(
+    executeTools.includes(ownershipCheck) || actionHelpers.includes(ownershipCheck),
+    `Execute path must include ownership/binding check: ${ownershipCheck}`,
+  );
 }
 
-console.log(JSON.stringify({ ok: true, checked: [cockpitPath, pagePath, shellPath, runtimePath, routerPath, conversationPath, conversationPromptsPath, taskContinuationPath, commandsPath, persistencePath, contextPath, executeToolsPath] }));
+console.log(JSON.stringify({ ok: true, checked: [cockpitPath, pagePath, shellPath, runtimePath, routerPath, conversationPath, conversationPromptsPath, taskContinuationPath, commandsPath, persistencePath, contextPath, executeToolsPath, actionHelpersPath] }));

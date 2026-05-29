@@ -4,7 +4,7 @@ export type CrmAgentIntent = "read" | "create" | "update" | "delete" | "analyze"
 
 export type CrmAgentRiskLevel = "low" | "medium" | "high" | "critical";
 
-export type CrmAgentConfirmationPolicy = "never" | "medium_plus" | "always";
+export type CrmAgentConfirmationPolicy = "never" | "medium_plus" | "always" | "separate_sensitive_confirm";
 
 export type CrmAgentToolMode = "read" | "draft" | "execute";
 

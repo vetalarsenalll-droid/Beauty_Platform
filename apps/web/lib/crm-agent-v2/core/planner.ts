@@ -1,8 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { runWithAiUsageContext } from "@/lib/ai-usage";
 import { createGigaChatCompletion } from "@/lib/gigachat";
+import type { CrmAgentCatalogSummaryAction } from "../actions";
 import type { CrmAgentGoal, CrmAgentIntent, CrmAgentPlanStepType } from "./types";
-import type { CrmAgentRegisteredActionDefinition } from "./actions";
 import type { CrmAgentRegisteredToolDefinition } from "./tools";
 
 export type CrmAgentPlannerMessage = {
@@ -32,7 +32,7 @@ export type CrmAgentPlannerRequest = {
   state?: Prisma.JsonObject | null;
   history?: CrmAgentPlannerMessage[];
   tools: CrmAgentRegisteredToolDefinition[];
-  actions: CrmAgentRegisteredActionDefinition[];
+  actions: CrmAgentCatalogSummaryAction[];
 };
 
 export type CrmAgentPlannerPlan = {
@@ -175,13 +175,16 @@ function buildPlannerPrompt(input: CrmAgentPlannerRequest) {
     JSON.stringify({
       name: action.name,
       domain: action.domain,
+      kind: action.kind,
       intent: action.intent,
+      status: action.status,
       requiredSlots: action.requiredSlots,
       optionalSlots: action.optionalSlots,
       risk: action.risk,
       permission: action.permission,
       confirmation: action.confirmation,
       description: action.description,
+      plannerHints: action.plannerHints,
     }),
   );
 
@@ -193,7 +196,9 @@ function buildPlannerPrompt(input: CrmAgentPlannerRequest) {
     "Если данных не хватает, верни status=needs_clarification, missingSlots и clarificationQuestion.",
     "Если пользователь просто здоровается, благодарит или задает общий вопрос без CRM-задачи, верни status=answer_only, пустые steps и нормальный дружелюбный ответ. Не копируй пример из инструкции.",
     "Если нужен поиск сущностей или свободных окон, запланируй read/resolve steps через доступные tools.",
-    "Если пользователь просит создать, изменить, отменить, отправить или опубликовать, выбери actionName из action registry и сначала запланируй read/resolve steps для обязательных сущностей.",
+    "Если пользователь просит создать, изменить, отменить, отправить или опубликовать, выбери actionName только из action registry и сначала запланируй read/resolve steps для обязательных сущностей.",
+    "Учитывай status action: implemented/draft_only можно планировать для draft/preview; read_only используй только для чтения; planned/blocked/unsupported не планируй как draft/preview/execute.",
+    "Если пользователь просит действие, которое есть только со status planned/blocked/unsupported, верни status=unsupported и коротко объясни, что действие описано в каталоге, но еще не подключено к выполнению.",
     "Не планируй draft/preview для action, пока requiredSlots этой action не заполнены в args или не будут получены предыдущими resolve/read шагами. Если обязательные данные нельзя получить из сообщения и состояния, верни needs_clarification.",
     "Опасные действия с risk high/critical требуют preview и execute только после пользовательского подтверждения.",
     "Форма ответа:",

@@ -1,10 +1,5 @@
 import type { CrmAgentPlannerPlan, CrmAgentPlannerStep } from "./planner";
-import {
-  canUseCrmAgentAction,
-  getCrmAgentAction,
-  getMissingCrmAgentActionSlots,
-  type CrmAgentRegisteredActionDefinition,
-} from "./actions";
+import { canUseCrmAgentCatalogAction, getCrmAgentCatalogAction, type CrmAgentActionDefinition } from "../actions";
 import { canUseCrmAgentTool, getCrmAgentTool, type CrmAgentRegisteredToolDefinition } from "./tools";
 import type { CrmAgentRiskLevel } from "./types";
 
@@ -117,7 +112,7 @@ function inspectCrmAgentPlanStep(step: CrmAgentPlannerStep, permissions: string[
   let requiresConfirmation = false;
 
   const tool = step.toolName ? getCrmAgentTool(step.toolName) : null;
-  const action = step.actionName ? getCrmAgentAction(step.actionName) : null;
+  const action = step.actionName ? getCrmAgentCatalogAction(step.actionName) : null;
 
   if (step.toolName && !tool) {
     findings.push(stepFinding(step, "error", "unknown_tool", `Unknown tool: ${step.toolName}.`));
@@ -166,10 +161,29 @@ function inspectTool(step: CrmAgentPlannerStep, tool: CrmAgentRegisteredToolDefi
   };
 }
 
-function inspectAction(step: CrmAgentPlannerStep, action: CrmAgentRegisteredActionDefinition, permissions: string[]) {
+function inspectAction(step: CrmAgentPlannerStep, action: CrmAgentActionDefinition, permissions: string[]) {
   const findings: CrmAgentInspectionFinding[] = [];
-  if (!canUseCrmAgentAction(action.name, permissions)) {
+  if (!canUseCrmAgentCatalogAction(action, permissions)) {
     findings.push(stepFinding(step, "error", "missing_action_permission", `Missing permission for action ${action.name}.`));
+  }
+
+  if (action.status === "planned" || action.status === "blocked" || action.status === "unsupported") {
+    findings.push(
+      stepFinding(
+        step,
+        "error",
+        "action_not_available",
+        `Action ${action.name} is ${action.status} in the catalog and is not connected to runtime execution yet.`,
+      ),
+    );
+  }
+
+  if (action.status === "read_only" && (step.type === "draft" || step.type === "preview" || step.type === "execute")) {
+    findings.push(stepFinding(step, "error", "read_only_action_cannot_mutate", `Action ${action.name} is read-only.`));
+  }
+
+  if (action.status === "draft_only" && step.type === "execute") {
+    findings.push(stepFinding(step, "error", "draft_only_action_cannot_execute", `Action ${action.name} can prepare a draft but cannot execute.`));
   }
 
   const actionArgs = step.args ?? {};
@@ -177,7 +191,7 @@ function inspectAction(step: CrmAgentPlannerStep, action: CrmAgentRegisteredActi
     typeof actionArgs.payload === "object" && actionArgs.payload !== null && !Array.isArray(actionArgs.payload)
       ? (actionArgs.payload as Record<string, unknown>)
       : actionArgs;
-  const missingSlots = getMissingCrmAgentActionSlots(action.name, actionSlots);
+  const missingSlots = getMissingCrmAgentCatalogActionSlots(action, actionSlots);
   if (missingSlots.length) {
     findings.push(
       stepFinding(step, "error", "missing_action_slots", `Action ${action.name} is missing slots: ${missingSlots.join(", ")}.`),
@@ -191,6 +205,11 @@ function inspectAction(step: CrmAgentPlannerStep, action: CrmAgentRegisteredActi
   return {
     findings,
     risk: action.risk,
-    requiresConfirmation: action.confirmation === "always" || riskRank[action.risk] >= riskRank.high,
+    requiresConfirmation:
+      action.confirmation === "always" || action.confirmation === "separate_sensitive_confirm" || riskRank[action.risk] >= riskRank.high,
   };
+}
+
+function getMissingCrmAgentCatalogActionSlots(action: CrmAgentActionDefinition, slots: Record<string, unknown>) {
+  return action.requiredSlots.filter((slot) => slots[slot] === undefined || slots[slot] === null || slots[slot] === "");
 }

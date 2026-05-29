@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { crmAgentActionRegistry, listCrmAgentActionsForPermissions } from "./actions";
+import { listPlannerVisibleCrmAgentCatalogActionsForPermissions, summarizeCrmAgentCatalogAction } from "../actions";
 import { runCrmAgentConversation } from "./conversation";
 import { routeCrmAgentConversationTurn, type CrmAgentRouteDecision } from "./conversation-router";
 import { compactCrmAgentContext, loadCrmAgentContext } from "./context";
@@ -194,7 +194,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
   }
 
   const tools = listCrmAgentToolsForPermissions(input.permissions);
-  const actions = listCrmAgentActionsForPermissions(input.permissions);
+  const actions = listPlannerVisibleCrmAgentCatalogActionsForPermissions(input.permissions).map(summarizeCrmAgentCatalogAction);
 
   const plannerResult = await requestCrmAgentPlannerPlan({
     accountId: input.accountId,
@@ -1395,6 +1395,6 @@ function jsonClone(value: unknown): unknown {
 export function getCrmAgentRuntimeCapabilities() {
   return {
     tools: crmAgentToolRegistry.map((tool) => tool.name),
-    actions: crmAgentActionRegistry.map((action) => action.name),
+    actions: listPlannerVisibleCrmAgentCatalogActionsForPermissions(["crm.all"]).map((action) => action.name),
   };
 }

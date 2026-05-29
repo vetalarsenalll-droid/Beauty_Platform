@@ -34,7 +34,13 @@ const chatRouteSource = read("apps/web/app/api/v1/crm/agent-v2/chat/route.ts");
 const inspectorSource = read("apps/web/lib/crm-agent-v2/core/inspector.ts");
 const commandsSource = read("apps/web/lib/crm-agent-v2/core/commands.ts");
 const toolsSource = read("apps/web/lib/crm-agent-v2/core/tools.ts");
-const actionsSource = read("apps/web/lib/crm-agent-v2/core/actions.ts");
+const actionsSource = [
+  read("apps/web/lib/crm-agent-v2/actions/registry.ts"),
+  ...fs
+    .readdirSync(path.join(root, "apps/web/lib/crm-agent-v2/actions"), { recursive: true })
+    .filter((file) => String(file).endsWith(".ts"))
+    .map((file) => read(path.join("apps/web/lib/crm-agent-v2/actions", String(file)))),
+].join("\n");
 const skillsSource = read("apps/web/lib/crm-agent-v2/core/skills.ts");
 const workerSource = read("apps/worker/src/index.mjs");
 
@@ -60,7 +66,7 @@ const scenarios = [
     user: "Поставь Марии завтра выходной.",
     goal: "schedule.update",
     tools: ["specialists.search", "actions.prepare", "actions.preview"],
-    actions: ["specialist.schedule.update"],
+    actions: ["schedule.set_day_off"],
     expectedUi: ["select", "preview", "confirm"],
   },
   {
@@ -76,7 +82,7 @@ const scenarios = [
     user: "Обнови описание услуги Детская стрижка.",
     goal: "service.update",
     tools: ["services.search", "actions.prepare", "actions.preview"],
-    actions: ["service.update", "site.service.copy.update"],
+    actions: ["service.update", "site.update_service_copy"],
     expectedUi: ["form", "preview", "confirm"],
   },
   {

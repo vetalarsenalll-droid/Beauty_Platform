@@ -1,10 +1,19 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { runCrmAgentTurn } from "@/lib/crm-agent-v2/core/runtime";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { requireCrmAgentApi, withCrmAgentAuthCookie } from "../_shared";
 
 export async function POST(request: Request) {
   const auth = await requireCrmAgentApi("crm.assistant.agent.use");
   if ("response" in auth) return auth.response;
+  const limited = enforceRateLimit({
+    request,
+    scope: "crm-agent-v2-chat",
+    limit: 60,
+    windowMs: 60_000,
+    identity: `${auth.session.accountId}:${auth.session.userId ?? "anonymous"}`,
+  });
+  if (limited) return withCrmAgentAuthCookie(limited, auth);
 
   try {
     const body = await request.json().catch(() => null);
