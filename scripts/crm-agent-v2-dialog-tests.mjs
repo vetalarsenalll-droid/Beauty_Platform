@@ -112,6 +112,8 @@ assertIncludes("apps/web/lib/crm-agent-v2/core/runtime.ts", "requestCrmAgentPlan
 assertOrder(runtimeSource, "routeCrmAgentConversationTurn", "requestCrmAgentPlannerPlan", "Runtime must classify the turn before planner");
 assert(runtimeSource.includes("historyBeforeCurrentTurn") && runtimeSource.includes("priorHistory"), "Runtime must not duplicate the current user message inside model history");
 assert(runtimeSource.includes("recoverSpecialistCreatePlan") && runtimeSource.includes('"specialist.create"'), "Runtime must recover specialist.create drafts from dialog history when planner over-clarifies");
+assert(runtimeSource.includes("recoverAppointmentCreatePlan") && runtimeSource.includes('"clients.search"') && runtimeSource.includes('"services.search"'), "Runtime must recover empty appointment.create planner output into client/service read steps");
+assert(runtimeSource.includes("extractServiceQueryFromBookingMessage"), "Appointment recovery must extract service query from booking text");
 assert(runtimeSource.includes("Кого зарегистрировать? Напишите ФИО специалиста."), "Specialist create clarification must ask only for the name, not schedule or services");
 assertOrder(runtimeSource, "routeDecision.kind === \"task_continuation\"", "const plannerResult = await requestCrmAgentPlannerPlan", "Task continuation must use latest state before planner fallback");
 assert(runtimeSource.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk, CRM questions and unsupported turns must stay in conversation layer");

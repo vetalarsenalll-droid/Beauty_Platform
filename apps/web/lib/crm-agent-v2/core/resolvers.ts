@@ -51,6 +51,10 @@ function searchTokens(query: string | null | undefined) {
     .slice(0, 6);
 }
 
+function comparableToken(value: string) {
+  return value.replace(/[\u044c\u0430\u0435\u0443\u044b\u043e\u0438\u044e\u044f]+$/iu, "");
+}
+
 function scoreLabels(query: string | null | undefined, labels: Array<string | null | undefined>) {
   const normalizedQuery = normalizeText(query);
   if (!normalizedQuery) return 0;
@@ -60,14 +64,23 @@ function scoreLabels(query: string | null | undefined, labels: Array<string | nu
   if (joined === normalizedQuery) return 0;
   if (joined.includes(normalizedQuery)) return 0.2;
 
-  const candidateTokens = new Set(joined.split(/\s+/).filter(Boolean));
+  const candidateTokens = new Set(joined.split(/\s+/).filter((token) => token.length >= 2));
   const tokens = searchTokens(normalizedQuery);
   if (!tokens.length) return Number.POSITIVE_INFINITY;
 
   let misses = 0;
   for (const token of tokens) {
+    const comparableQuery = comparableToken(token);
     const hasMatch = [...candidateTokens].some(
-      (candidate) => candidate === token || candidate.includes(token) || token.includes(candidate),
+      (candidate) => {
+        const comparableCandidate = comparableToken(candidate);
+        return (
+          candidate === token ||
+          candidate.includes(token) ||
+          (candidate.length >= 4 && token.includes(candidate)) ||
+          (comparableQuery.length >= 4 && comparableCandidate.length >= 4 && comparableCandidate === comparableQuery)
+        );
+      },
     );
     if (!hasMatch) misses += 1;
   }

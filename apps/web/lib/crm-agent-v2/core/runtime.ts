@@ -313,7 +313,12 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
       route: routeDecision,
       state: serializedState,
       plan: plannerResult.plan,
-    }) ?? plannerResult.plan;
+    }) ??
+    recoverAppointmentCreatePlan({
+      message: input.message,
+      plan: plannerResult.plan,
+    }) ??
+    plannerResult.plan;
 
   if (runtimePlan.status === "answer_only" || runtimePlan.status === "unsupported") {
     return saveConversationResponse({
@@ -382,7 +387,6 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     runtimePlan,
     cards,
     inspection.requiresConfirmation || execution.needsUser,
-    execution.results,
     state,
   );
 
@@ -614,6 +618,64 @@ function recoverSpecialistCreatePlan(input: {
   };
 }
 
+function recoverAppointmentCreatePlan(input: {
+  message: string;
+  plan: CrmAgentPlannerPlan;
+}): CrmAgentPlannerPlan | null {
+  if (input.plan.goal.type !== "appointment.create") return null;
+  if (input.plan.steps.length > 0) return null;
+
+  const clientQuery = slotQuery(input.plan.goal.slots.client) ?? extractClientQueryFromBookingMessage(input.message);
+  const serviceQuery = slotQuery(input.plan.goal.slots.service) ?? extractServiceQueryFromBookingMessage(input.message);
+  const steps: CrmAgentPlannerPlan["steps"] = [];
+
+  if (clientQuery) {
+    steps.push({
+      order: steps.length + 1,
+      type: "read",
+      toolName: "clients.search",
+      args: { query: clientQuery },
+      reason: "Найти клиента",
+    });
+  }
+  if (serviceQuery) {
+    steps.push({
+      order: steps.length + 1,
+      type: "read",
+      toolName: "services.search",
+      args: { query: serviceQuery },
+      reason: "Найти услугу",
+    });
+  }
+
+  if (!steps.length) {
+    return {
+      ...input.plan,
+      status: "needs_clarification",
+      answer: "Кого и на какую услугу записать?",
+      missingSlots: ["client", "service"],
+      clarificationQuestion: "Кого и на какую услугу записать?",
+    };
+  }
+
+  return {
+    ...input.plan,
+    status: "planned",
+    answer: input.plan.answer || "Проверю клиента, услугу и свободные окна, затем покажу варианты для выбора.",
+    missingSlots: [],
+    clarificationQuestion: "",
+    steps,
+    goal: {
+      ...input.plan.goal,
+      slots: {
+        ...input.plan.goal.slots,
+        ...(clientQuery ? { client: { query: clientQuery } } : {}),
+        ...(serviceQuery ? { service: { query: serviceQuery } } : {}),
+      },
+    },
+  };
+}
+
 function isSpecialistCreateContext(input: {
   message: string;
   history: CrmAgentPlannerMessage[];
@@ -642,6 +704,28 @@ function hasExecutableSpecialistCreateStep(plan: CrmAgentPlannerPlan) {
       step.args.payload.name.trim().length > 0
     );
   });
+}
+
+function slotQuery(value: unknown) {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (isRecord(value) && typeof value.query === "string" && value.query.trim()) return value.query.trim();
+  return null;
+}
+
+function extractClientQueryFromBookingMessage(message: string) {
+  const match = message.match(/\b(?:запиши|записать)\s+([А-ЯЁA-Z][а-яёa-z-]{1,})(?:\s+[А-ЯЁA-Z][а-яёa-z-]{1,})?/iu);
+  return match?.[1]?.trim() ?? null;
+}
+
+function extractServiceQueryFromBookingMessage(message: string) {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  const match = normalized.match(/\bна\s+(.+?)(?:\s+на\s+(?:ближайшее|сегодня|завтра|послезавтра|\d|утро|день|вечер)|$)/iu);
+  const raw = match?.[1]?.trim();
+  if (!raw) return null;
+  return raw
+    .replace(/\b(?:ближайшее|свободное|удобное)\s+время\b/giu, "")
+    .replace(/[.?!]+$/u, "")
+    .trim() || null;
 }
 
 function extractSpecialistCreateFacts(message: string, history: CrmAgentPlannerMessage[]) {
@@ -1067,7 +1151,10 @@ function buildRuntimeCards(
           id: candidate.id,
           title: candidate.title,
           subtitle: candidate.subtitle ?? null,
-          data: isRecord(candidate.data) ? candidate.data : { value: candidate.data },
+          data: {
+            ...(isRecord(candidate.data) ? candidate.data : { value: candidate.data }),
+            slot: resolution.entity,
+          },
           actions: [
             {
               id: `select:${resolution.entity}:${candidate.id}`,
@@ -1205,7 +1292,7 @@ function extractAvailableSlotResult(step: RuntimeStepResult): {
       const subtitle = [slot.serviceName, slot.specialistName, slot.locationName].filter((item): item is string => typeof item === "string").join(" | ");
       return {
         type: "slot",
-        id: String(slot.startAt),
+        id: slotCandidateId(slot),
         title,
         subtitle: subtitle || null,
         data: { ...slot, rank: index + 1 },
@@ -1253,10 +1340,11 @@ function buildRuntimeWorkspace(
   plan: CrmAgentPlannerPlan,
   cards: CrmAgentCard[],
   requiresConfirmation: boolean,
-  stepResults: RuntimeStepResult[],
   state: CrmAgentTaskState,
 ): CrmAgentUiWorkspace {
-  const selectionCards = cards.filter((card) => card.actions?.some((action) => action.kind === "select"));
+  const activeSlot = activeSelectionSlot(state);
+  const selectionCards = cards.filter((card) => card.actions?.some((action) => action.kind === "select") && card.data?.slot === activeSlot);
+  const selectedCards = buildSelectedSummaryCards(state);
   const previewCard = cards.find((card) => card.type === "preview");
   const preview = isRecord(previewCard?.data?.preview) && isRecord(previewCard.data.preview.after)
     ? {
@@ -1269,60 +1357,70 @@ function buildRuntimeWorkspace(
   const form = previewCard ? buildDraftForm(previewCard) : undefined;
   return {
     mode: selectionCards.length || state.status === "needs_clarification" ? "select" : form ? "form" : preview ? "preview" : requiresConfirmation ? "confirm" : "report",
-    title: plan.goal.userFacingSummary || plan.goal.type,
-    cards,
+    title: selectionCards.length ? selectionTitle(activeSlot) : plan.goal.userFacingSummary || plan.goal.type,
+    cards: selectionCards.length ? selectionCards : selectedCards.length ? selectedCards : cards,
     form,
     preview,
     tabs: [
       {
         id: "selection",
-        title: "Варианты",
+        title: selectionTitle(activeSlot),
         badge: selectionCards.length,
         cards: selectionCards,
       },
       {
-        id: "plan",
-        title: "План",
-        badge: plan.steps.length,
-        table: {
-          columns: [
-            { key: "order", title: "Шаг", type: "number" },
-            { key: "type", title: "Тип" },
-            { key: "toolName", title: "Инструмент" },
-            { key: "actionName", title: "Действие" },
-            { key: "reason", title: "Зачем" },
-          ],
-          rows: plan.steps.map((step) => ({
-            order: step.order,
-            type: step.type,
-            toolName: step.toolName ?? "",
-            actionName: step.actionName ?? "",
-            reason: step.reason,
-          })),
-        },
-      },
-      {
-        id: "results",
-        title: "Результаты",
-        badge: stepResults.length,
-        table: {
-          columns: [
-            { key: "order", title: "Шаг", type: "number" },
-            { key: "toolName", title: "Инструмент" },
-            { key: "status", title: "Статус", type: "status" },
-            { key: "error", title: "Ошибка" },
-          ],
-          rows: stepResults.map((step) => ({
-            order: step.order,
-            toolName: step.toolName ?? "",
-            status: step.status,
-            error: step.error ?? "",
-          })),
-        },
+        id: "selected",
+        title: "Выбрано",
+        badge: selectedCards.length,
+        cards: selectedCards,
       },
     ],
     commands: actionCommands,
   };
+}
+
+function activeSelectionSlot(state: CrmAgentTaskState) {
+  return state.missing[0] ?? Object.keys(state.candidates).find((slot) => !state.selected[slot]) ?? "";
+}
+
+function selectionTitle(slot: string) {
+  const map: Record<string, string> = {
+    client: "Выберите клиента",
+    service: "Выберите услугу",
+    specialist: "Выберите специалиста",
+    location: "Выберите филиал",
+    time: "Выберите время",
+  };
+  return map[slot] ?? "Выберите вариант";
+}
+
+function buildSelectedSummaryCards(state: CrmAgentTaskState): CrmAgentCard[] {
+  return Object.entries(state.selected).flatMap(([slot, selectedId]) => {
+    const candidate = (state.candidates[slot] ?? []).find((item) => item.id === selectedId);
+    if (!candidate) return [];
+    return [{
+      type: cardTypeForCandidate(candidate.type),
+      id: candidate.id,
+      title: candidate.type === "slot" ? formatSlotDate(String(candidate.title)) : candidate.title,
+      subtitle: slotLabel(slot),
+      data: { slot, value: candidate.id, status: "selected" },
+    }];
+  });
+}
+
+function slotLabel(slot: string) {
+  const map: Record<string, string> = {
+    client: "Клиент",
+    service: "Услуга",
+    specialist: "Специалист",
+    location: "Филиал",
+    time: "Время",
+  };
+  return map[slot] ?? slot;
+}
+
+function slotCandidateId(slot: Record<string, unknown>) {
+  return [slot.startAt, slot.specialistId, slot.locationId].filter((item) => item != null && item !== "").map(String).join("|");
 }
 
 function buildDraftForm(card: CrmAgentCard): CrmAgentUiWorkspace["form"] {

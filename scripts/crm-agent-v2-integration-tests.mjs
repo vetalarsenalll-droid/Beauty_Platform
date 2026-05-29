@@ -67,6 +67,7 @@ function runStaticContractChecks() {
   assert(runtime.indexOf("routeCrmAgentConversationTurn") < runtime.indexOf("requestCrmAgentPlannerPlan"), "Runtime must stay conversation-first before planner.");
   assert(runtime.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk/crm_question/unsupported must avoid planner unless escalated.");
   assert(runtime.includes("shouldRecoverRouterFallbackWithPlanner") && runtime.includes("Escalate to planner recovery instead of natural conversation"), "Router fallback must recover through planner instead of unsafe natural conversation.");
+  assert(runtime.includes("recoverAppointmentCreatePlan") && runtime.includes('"clients.search"') && runtime.includes('"services.search"'), "Empty appointment.create plans must recover into client/service searches.");
   assert(runtime.includes("routeDiagnostics") && runtime.includes("routerRaw"), "Router fallback diagnostics must be persisted with runtime output.");
   assert(read("apps/web/lib/crm-agent-v2/core/conversation-router.ts").includes("readOnlyCrmQuestionDecision"), "Router fallback must preserve read-only CRM questions when the LLM route degrades.");
   assert(runtime.includes("handleCrmAgentTaskContinuation") && runtime.indexOf("routeDecision.kind === \"task_continuation\"") < runtime.indexOf("const plannerResult = await requestCrmAgentPlannerPlan"), "Task continuation must use latest state before planner.");

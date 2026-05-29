@@ -316,28 +316,26 @@ function emptyState(sessionId: number, accountId: number, status: CrmAgentTaskSt
 
 function buildSelectionWorkspace(state: CrmAgentTaskState, activeSlot: string): CrmAgentUiWorkspace {
   const cards = buildSelectionCards(state);
-  const selectionCards = cards.filter((card) => card.actions?.some((action) => action.kind === "select"));
+  const selectionCards = cards.filter((card) => card.actions?.some((action) => action.kind === "select") && card.data?.slot === activeSlot);
   const selectedCards = cards.filter((card) => card.data?.status === "selected");
-  const rows = Object.entries(state.candidates).flatMap(([slot, candidates]) =>
-    candidates.map((candidate) => ({
-      slot,
+  const rows = (state.candidates[activeSlot] ?? []).map((candidate) => ({
+      slot: activeSlot,
       value: candidate.id,
       type: candidate.type,
       title: candidate.title,
       subtitle: candidate.subtitle ?? "",
-      status: state.selected[slot] === candidate.id ? "selected" : "available",
-    })),
-  );
+      status: state.selected[activeSlot] === candidate.id ? "selected" : "available",
+    }));
 
   return {
     mode: state.missing.length ? "select" : "report",
-    title: state.missing.length ? selectionAnswer(state, activeSlot) : "Выбор сохранен. Можно продолжить.",
+    title: selectionAnswer(state, activeSlot),
     activeTabId: selectionCards.length ? "selection" : "selected",
-    cards,
+    cards: selectionCards.length ? selectionCards : selectedCards,
     tabs: [
       {
         id: "selection",
-        title: "Варианты",
+        title: selectionTabTitle(activeSlot),
         badge: selectionCards.length,
         cards: [],
         table: rows.length
@@ -508,7 +506,7 @@ function availableSlotCandidates(value: unknown): CrmAgentTaskState["candidates"
         .join(" | ");
       return {
         type: "slot",
-        id: String(slot.startAt),
+        id: slotCandidateId(slot),
         title: formatSlotDate(String(slot.startAt)),
         subtitle: subtitle || null,
         data: { ...slot, rank: index + 1 },
@@ -541,12 +539,27 @@ function numberValue(value: unknown) {
 }
 
 function selectionAnswer(state: CrmAgentTaskState, activeSlot: string) {
-  if (!state.missing.length) return "Выбор сохранен. Можно продолжить.";
+  if (!state.missing.length) {
+    return state.goalType === "appointment.create"
+      ? "Все параметры выбраны. Напишите «продолжить», чтобы подготовить черновик записи."
+      : "Выбор сохранен. Можно продолжить.";
+  }
   if (state.goalType === "appointment.create") {
     const labels = state.missing.map(slotLabel).join(", ");
     return `Выбор сохранен. Для записи осталось уточнить: ${labels}.`;
   }
   return `Выбор сохранен. Осталось уточнить: ${slotLabel(activeSlot)}.`;
+}
+
+function selectionTabTitle(slot: string) {
+  const map: Record<string, string> = {
+    client: "Клиенты",
+    service: "Услуги",
+    specialist: "Специалисты",
+    location: "Филиалы",
+    time: "Время",
+  };
+  return map[slot] ?? "Варианты";
 }
 
 function slotLabel(slot: string) {
@@ -582,6 +595,10 @@ function formatSlotDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function slotCandidateId(slot: Record<string, unknown>) {
+  return [slot.startAt, slot.specialistId, slot.locationId].filter((item) => item != null && item !== "").map(String).join("|");
 }
 
 function isTaskStatus(value: string): value is CrmAgentTaskState["status"] {
