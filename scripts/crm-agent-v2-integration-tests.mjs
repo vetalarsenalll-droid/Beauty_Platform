@@ -68,8 +68,9 @@ function runStaticContractChecks() {
   assert(runtime.indexOf("routeCrmAgentConversationTurn") < runtime.indexOf("requestCrmAgentPlannerPlan"), "Runtime must stay conversation-first before planner.");
   assert(runtime.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk/crm_question/unsupported must avoid planner unless escalated.");
   assert(runtime.includes("shouldRecoverRouterFallbackWithPlanner") && runtime.includes("Escalate to planner recovery instead of natural conversation"), "Router fallback must recover through planner instead of unsafe natural conversation.");
-  assert(runtime.includes("recoverAppointmentCreatePlan") && runtime.includes('"clients.search"') && runtime.includes('"services.search"'), "Empty appointment.create plans must recover into client/service searches.");
-  assert(runtime.includes("recoverAppointmentCreatePlanFromMessage"), "Planner failure for appointment.create must recover into real read steps instead of conversation fallback.");
+  assert(!runtime.includes("recoverAppointmentCreatePlan"), "Runtime must not recover appointment.create through deterministic phrase parsing.");
+  assert(!runtime.includes("recoverAppointmentCreatePlanFromMessage"), "Planner failure for appointment.create must remain visible instead of regex recovery.");
+  assert(!runtime.includes("extractClientQueryFromBookingMessage") && !runtime.includes("extractServiceQueryFromBookingMessage"), "Runtime must not parse appointment client/service from user phrases with regex.");
   assert(runtime.includes("taskStateClarificationAnswer"), "Runtime must not reuse hallucinated planner answers when read results leave unresolved slots.");
   assert(runtime.includes("shouldHandleActiveTaskContinuation"), "Active appointment task continuations must not depend only on router JSON.");
   assert(runtime.includes("routeDiagnostics") && runtime.includes("routerRaw"), "Router fallback diagnostics must be persisted with runtime output.");
@@ -100,6 +101,7 @@ function runStaticContractChecks() {
 async function main() {
   await testRealAccountNorthernOrchid();
   const fixture = await createFixture();
+  await testResolverInflectedClientNames(fixture);
   await testAmbiguitySelection(fixture);
   await testDraftEdit(fixture);
   await testCrmQuestionReadOnly(fixture);
@@ -134,6 +136,23 @@ async function testRealAccountNorthernOrchid() {
   const serviceTitles = haircut.candidates.map((candidate) => candidate.title);
   assert(serviceTitles.includes("Мужская стрижка"), "Real account service search must include Мужская стрижка for стрижка.");
   assert(haircut.status === "ambiguous", "Real account haircut query should stay ambiguous until the operator picks a service.");
+}
+
+async function testResolverInflectedClientNames({ account }) {
+  const client = await prisma.client.create({
+    data: {
+      accountId: account.id,
+      firstName: "Анна",
+      lastName: "Тестовая",
+      phone: `+7920${Date.now().toString().slice(-7)}`,
+    },
+  });
+  created.clientIds.push(client.id);
+
+  const inflected = await resolveCrmAgentClient({ accountId: account.id }, { query: "Анну", take: 8 });
+  const fullInflected = await resolveCrmAgentClient({ accountId: account.id }, { query: "Анну Тестовую", take: 8 });
+  assert(inflected.candidates.some((candidate) => candidate.id === client.id), "Client resolver must match Анну to stored Анна.");
+  assert(fullInflected.candidates.some((candidate) => candidate.id === client.id), "Client resolver must match Анну Тестовую to stored Анна Тестовая.");
 }
 
 async function createFixture() {

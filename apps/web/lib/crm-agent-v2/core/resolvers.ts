@@ -78,7 +78,7 @@ function scoreLabels(query: string | null | undefined, labels: Array<string | nu
           candidate === token ||
           candidate.includes(token) ||
           (candidate.length >= 4 && token.includes(candidate)) ||
-          (comparableQuery.length >= 4 && comparableCandidate.length >= 4 && comparableCandidate === comparableQuery)
+          (comparableQuery.length >= 3 && comparableCandidate.length >= 3 && comparableCandidate === comparableQuery)
         );
       },
     );

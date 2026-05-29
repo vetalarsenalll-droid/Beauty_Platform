@@ -43,7 +43,7 @@ export function parseCrmAgentRouteDecision(raw: string): CrmAgentRouteDecision |
   try {
     parsed = JSON.parse(jsonText);
   } catch {
-    return null;
+    parsed = parseJsonObjectWithRepairedKeys(jsonText);
   }
   if (!isRecord(parsed)) return null;
 
@@ -277,6 +277,49 @@ function extractJsonObject(text: string) {
   const end = trimmed.lastIndexOf("}");
   if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
   return null;
+}
+
+function parseJsonObjectWithRepairedKeys(jsonLike: string): unknown {
+  const repaired = trimExtraClosingBraces(jsonLike)
+    .replace(/([,{]\s*)\.([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
+    .replace(/([,{]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
+    .replace(/:\s*'([^']*)'/g, ':"$1"');
+  try {
+    return JSON.parse(repaired);
+  } catch {
+    return null;
+  }
+}
+
+function trimExtraClosingBraces(jsonLike: string) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let end = -1;
+  for (let index = 0; index < jsonLike.length; index += 1) {
+    const char = jsonLike[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) end = index + 1;
+      if (depth < 0) break;
+    }
+  }
+  return end > 0 ? jsonLike.slice(0, end) : jsonLike;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

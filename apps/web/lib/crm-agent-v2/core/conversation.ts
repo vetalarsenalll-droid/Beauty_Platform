@@ -374,21 +374,24 @@ function stripUnsafeToolArgs(args: JsonRecord): JsonRecord {
 
 function parseConversationDraft(raw: string): ConversationDraft | null {
   const jsonText = extractJsonObject(raw);
-  if (!jsonText) return null;
+  if (!jsonText) return parseReadToolOnlyDraft(raw);
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonText);
   } catch {
     const answer = extractStringField(jsonText, "answer");
-    if (!answer) return null;
+    const readToolOnly = parseReadToolOnlyDraft(jsonText);
+    if (!answer) return readToolOnly;
     return {
       answer,
-      readToolRequests: [],
+      readToolRequests: readToolOnly?.readToolRequests ?? [],
       shouldEscalateToPlanner: extractBooleanField(jsonText, "shouldEscalateToPlanner") === true,
       plannerHint: extractStringField(jsonText, "plannerHint") ?? undefined,
     };
   }
   if (!isRecord(parsed)) return null;
+  const readToolOnly = parseReadToolOnlyRecord(parsed);
+  if (readToolOnly) return readToolOnly;
   return {
     answer: typeof parsed.answer === "string" ? parsed.answer : "",
     readToolRequests: normalizeReadToolRequests(parsed.readToolRequests),
@@ -423,15 +426,40 @@ function parseConversationFinal(raw: string): ConversationFinal | null {
 function normalizeReadToolRequests(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): ConversationDraft["readToolRequests"] => {
-    if (!isRecord(item) || typeof item.toolName !== "string") return [];
+    if (!isRecord(item)) return [];
+    const toolName = typeof item.toolName === "string" ? item.toolName : typeof item.name === "string" ? item.name : null;
+    if (!toolName) return [];
     return [
       {
-        toolName: item.toolName,
+        toolName,
         args: isRecord(item.args) ? item.args : {},
         reason: typeof item.reason === "string" ? item.reason : undefined,
       },
     ];
   });
+}
+
+function parseReadToolOnlyDraft(raw: string): ConversationDraft | null {
+  const jsonText = extractJsonObject(raw);
+  if (!jsonText) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    return null;
+  }
+  if (!isRecord(parsed)) return null;
+  return parseReadToolOnlyRecord(parsed);
+}
+
+function parseReadToolOnlyRecord(parsed: JsonRecord): ConversationDraft | null {
+  const requests = normalizeReadToolRequests([parsed]);
+  if (!requests.length) return null;
+  return {
+    answer: "",
+    readToolRequests: requests,
+    shouldEscalateToPlanner: false,
+  };
 }
 
 function withFallbackReadToolRequest(
