@@ -25,6 +25,7 @@ const jiti = createJiti(path.join(root, "apps/web/test-entry.js"), {
   alias: { "@": path.join(root, "apps/web") },
 });
 const { getCrmAgentExecuteToolHandler } = jiti("./lib/crm-agent-v2/core/execute-tools.ts");
+const { resolveCrmAgentClient, resolveCrmAgentService } = jiti("./lib/crm-agent-v2/core/resolvers.ts");
 const { createSession } = jiti("@/lib/auth.ts");
 const workerModulePromise = import("../apps/worker/src/index.mjs");
 const runId = `crm-agent-v2-it-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -68,6 +69,9 @@ function runStaticContractChecks() {
   assert(runtime.includes("route.kind === \"smalltalk\" || route.kind === \"crm_question\" || route.kind === \"unsupported\""), "Smalltalk/crm_question/unsupported must avoid planner unless escalated.");
   assert(runtime.includes("shouldRecoverRouterFallbackWithPlanner") && runtime.includes("Escalate to planner recovery instead of natural conversation"), "Router fallback must recover through planner instead of unsafe natural conversation.");
   assert(runtime.includes("recoverAppointmentCreatePlan") && runtime.includes('"clients.search"') && runtime.includes('"services.search"'), "Empty appointment.create plans must recover into client/service searches.");
+  assert(runtime.includes("recoverAppointmentCreatePlanFromMessage"), "Planner failure for appointment.create must recover into real read steps instead of conversation fallback.");
+  assert(runtime.includes("taskStateClarificationAnswer"), "Runtime must not reuse hallucinated planner answers when read results leave unresolved slots.");
+  assert(runtime.includes("shouldHandleActiveTaskContinuation"), "Active appointment task continuations must not depend only on router JSON.");
   assert(runtime.includes("routeDiagnostics") && runtime.includes("routerRaw"), "Router fallback diagnostics must be persisted with runtime output.");
   assert(read("apps/web/lib/crm-agent-v2/core/conversation-router.ts").includes("readOnlyCrmQuestionDecision"), "Router fallback must preserve read-only CRM questions when the LLM route degrades.");
   assert(runtime.includes("handleCrmAgentTaskContinuation") && runtime.indexOf("routeDecision.kind === \"task_continuation\"") < runtime.indexOf("const plannerResult = await requestCrmAgentPlannerPlan"), "Task continuation must use latest state before planner.");
@@ -94,6 +98,7 @@ function runStaticContractChecks() {
 }
 
 async function main() {
+  await testRealAccountNorthernOrchid();
   const fixture = await createFixture();
   await testAmbiguitySelection(fixture);
   await testDraftEdit(fixture);
@@ -108,6 +113,27 @@ async function main() {
   await testRejection(fixture);
   await testAishaSmokeRegression();
   console.log(JSON.stringify({ ok: true, runId }));
+}
+
+async function testRealAccountNorthernOrchid() {
+  const accountId = Number(process.env.CRM_AGENT_V2_REAL_ACCOUNT_ID ?? 0);
+  if (!Number.isInteger(accountId) || accountId <= 0) return;
+
+  const account = await prisma.account.findUnique({ where: { id: accountId }, select: { id: true, name: true, slug: true } });
+  assert(account?.slug === "severnaya-orhideya", `Real CRM Agent account must be severnaya-orhideya, got ${account?.slug ?? "missing"}.`);
+
+  const vitalByFormal = await resolveCrmAgentClient({ accountId }, { query: "Виталий", take: 8 });
+  const vitalByUserText = await resolveCrmAgentClient({ accountId }, { query: "виталю", take: 8 });
+  const formalTitles = vitalByFormal.candidates.map((candidate) => candidate.title);
+  const userTextTitles = vitalByUserText.candidates.map((candidate) => candidate.title);
+  assert(formalTitles.some((title) => title.includes("Виталя")), "Real account client search must match Виталий to stored Виталя.");
+  assert(userTextTitles.some((title) => title.includes("Виталя")), "Real account client search must match user text виталю to stored Виталя.");
+  assert(vitalByFormal.status === "ambiguous", "Real account has multiple Виталя clients, so client slot must be ambiguous, not not_found.");
+
+  const haircut = await resolveCrmAgentService({ accountId }, { query: "стрижка", take: 8 });
+  const serviceTitles = haircut.candidates.map((candidate) => candidate.title);
+  assert(serviceTitles.includes("Мужская стрижка"), "Real account service search must include Мужская стрижка for стрижка.");
+  assert(haircut.status === "ambiguous", "Real account haircut query should stay ambiguous until the operator picks a service.");
 }
 
 async function createFixture() {

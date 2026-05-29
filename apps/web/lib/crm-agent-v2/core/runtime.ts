@@ -136,7 +136,7 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
       "Do not claim that a CRM mutation was completed unless a draft/action/tool result exists.",
     ].join(" ");
   }
-  if (routeDecision.kind === "task_continuation") {
+  if (routeDecision.kind === "task_continuation" || shouldHandleActiveTaskContinuation(latestState, input.message)) {
     const continuation = await handleCrmAgentTaskContinuation({
       accountId: input.accountId,
       userId: input.userId ?? null,
@@ -234,6 +234,19 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
   });
 
   if (!plannerResult.ok) {
+    const recoveredPlan = recoverAppointmentCreatePlanFromMessage(input.message);
+    if (recoveredPlan) {
+      return runRecoveredPlannerFailurePlan({
+        input,
+        session,
+        routeDecision,
+        routeDiagnostics,
+        plannerHint,
+        plan: recoveredPlan,
+        plannerError: plannerResult.error,
+      });
+    }
+
     try {
       const conversationRoute = plannerFailureConversationRoute(routeDecision, plannerResult.error);
       const conversation = await runCrmAgentConversation({
@@ -403,8 +416,11 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
     } as Prisma.InputJsonValue,
   });
 
+  const stateClarificationAnswer = taskStateClarificationAnswer(state);
   const answer = hasMissingActionSlots(inspection.findings)
     ? missingActionSlotsAnswer(inspection.findings)
+    : stateClarificationAnswer
+    ? stateClarificationAnswer
     : inspection.ok
     ? runtimePlan.answer || "План подготовлен."
     : `План требует исправления: ${inspection.findings
@@ -446,6 +462,117 @@ export async function runCrmAgentTurn(input: RunCrmAgentTurnInput): Promise<CrmA
             options: [],
           }
         : undefined,
+    planTrace: buildPlanTrace(persistedPlan.steps, execution.results),
+  };
+}
+
+async function runRecoveredPlannerFailurePlan(input: {
+  input: RunCrmAgentTurnInput;
+  session: RuntimeSession;
+  routeDecision: CrmAgentRouteDecision;
+  routeDiagnostics: {
+    routeFallback: boolean;
+    routeError: string | null;
+    routerRaw: string | null;
+  };
+  plannerHint?: string;
+  plan: CrmAgentPlannerPlan;
+  plannerError: string;
+}): Promise<CrmAgentChatResponse> {
+  const runtimePlan = input.plan;
+  const inspection = inspectCrmAgentPlan({
+    plan: runtimePlan,
+    permissions: input.input.permissions,
+  });
+
+  const persistedPlan = await createCrmAgentPlan({
+    sessionId: input.session.id,
+    accountId: input.input.accountId,
+    plan: runtimePlan,
+  });
+
+  const execution = inspection.ok
+    ? await executeRuntimePlanSteps({
+        accountId: input.input.accountId,
+        userId: input.input.userId ?? null,
+        sessionId: input.session.id,
+        permissions: input.input.permissions,
+        planId: persistedPlan.id,
+        steps: persistedPlan.steps,
+        plannerSteps: runtimePlan.steps,
+        allowedOrders: new Set(inspection.allowedSteps.map((step) => step.order)),
+        requiresConfirmation: inspection.requiresConfirmation,
+      })
+    : { status: "blocked" as const, results: [], failed: false, needsUser: false };
+
+  const state = buildTaskState({
+    sessionId: input.session.id,
+    accountId: input.input.accountId,
+    plan: runtimePlan,
+    stepResults: execution.results,
+    status: resolveRuntimeStateStatus({
+      plan: runtimePlan,
+      inspectionOk: inspection.ok,
+      executionFailed: execution.failed,
+      needsUser: execution.needsUser || inspection.requiresConfirmation,
+      missingActionSlots: hasMissingActionSlots(inspection.findings),
+    }),
+  });
+  await saveCrmAgentTaskState(state);
+
+  const cards = buildRuntimeCards(runtimePlan, inspection.findings, execution.results);
+  const workspace = buildRuntimeWorkspace(
+    runtimePlan,
+    cards,
+    inspection.requiresConfirmation || execution.needsUser,
+    state,
+  );
+
+  const stateClarificationAnswer = taskStateClarificationAnswer(state);
+  const answer = hasMissingActionSlots(inspection.findings)
+    ? missingActionSlotsAnswer(inspection.findings)
+    : stateClarificationAnswer
+    ? stateClarificationAnswer
+    : runtimePlan.answer || "План подготовлен.";
+
+  await createCrmAgentArtifact({
+    accountId: input.input.accountId,
+    sessionId: input.session.id,
+    planId: persistedPlan.id,
+    type: "report",
+    title: "Runtime inspection",
+    data: {
+      inspection,
+      execution,
+      plan: runtimePlan,
+      plannerError: input.plannerError,
+    } as Prisma.InputJsonValue,
+  });
+
+  await addCrmAgentMessage({
+    accountId: input.input.accountId,
+    sessionId: input.session.id,
+    role: "assistant",
+    content: answer,
+    data: {
+      mode: "task",
+      route: input.routeDecision,
+      routeDiagnostics: input.routeDiagnostics,
+      plannerHint: input.plannerHint ?? null,
+      plannerError: input.plannerError,
+      planId: persistedPlan.id,
+      inspection,
+      execution,
+    } as Prisma.InputJsonValue,
+  });
+
+  return {
+    answer,
+    sessionId: input.session.id,
+    state,
+    cards,
+    workspace,
+    clarification: stateClarificationAnswer ? { question: stateClarificationAnswer, options: [] } : undefined,
     planTrace: buildPlanTrace(persistedPlan.steps, execution.results),
   };
 }
@@ -497,6 +624,16 @@ function shouldRecoverRouterFallbackWithPlanner(
   route: CrmAgentRouteDecision,
 ) {
   return routeResult.ok && routeResult.fallback && route.kind === "unsupported";
+}
+
+function shouldHandleActiveTaskContinuation(
+  latestState: NonNullable<Awaited<ReturnType<typeof getLatestCrmAgentTaskState>>> | null,
+  message: string,
+) {
+  if (!latestState || latestState.status === "completed" || latestState.status === "failed") return false;
+  const missing = Array.isArray(latestState.missing) ? latestState.missing : [];
+  if (!missing.length && latestState.status !== "collecting" && latestState.status !== "needs_clarification") return false;
+  return /^(сам|сама|сами|предложи|подбери|любой|любая|да|ок|хорошо|первый|первая|второй|вторая|\d+)(?:\s|$)/i.test(message.trim());
 }
 
 function historyBeforeCurrentTurn(history: CrmAgentPlannerMessage[], message: string): CrmAgentPlannerMessage[] {
@@ -676,6 +813,32 @@ function recoverAppointmentCreatePlan(input: {
   };
 }
 
+function recoverAppointmentCreatePlanFromMessage(message: string): CrmAgentPlannerPlan | null {
+  const clientQuery = extractClientQueryFromBookingMessage(message);
+  const serviceQuery = extractServiceQueryFromBookingMessage(message);
+  if (!clientQuery || !serviceQuery) return null;
+  return recoverAppointmentCreatePlan({
+    message,
+    plan: {
+      goal: {
+        type: "appointment.create",
+        intent: "create",
+        confidence: 0.6,
+        slots: {
+          client: { query: clientQuery },
+          service: { query: serviceQuery },
+        },
+        userFacingSummary: `Записать ${clientQuery} на ${serviceQuery}`,
+      },
+      status: "planned",
+      answer: "Проверю клиента, услугу и свободные окна, затем покажу варианты для выбора.",
+      missingSlots: [],
+      clarificationQuestion: "",
+      steps: [],
+    },
+  });
+}
+
 function isSpecialistCreateContext(input: {
   message: string;
   history: CrmAgentPlannerMessage[];
@@ -713,13 +876,15 @@ function slotQuery(value: unknown) {
 }
 
 function extractClientQueryFromBookingMessage(message: string) {
-  const match = message.match(/\b(?:запиши|записать)\s+([А-ЯЁA-Z][а-яёa-z-]{1,})(?:\s+[А-ЯЁA-Z][а-яёa-z-]{1,})?/iu);
-  return match?.[1]?.trim() ?? null;
+  const commandMatch = message.match(/(?:^|\s)(?:запиши|записать)\s+([А-ЯЁA-Z][а-яёa-z-]{1,})(?:\s+[А-ЯЁA-Z][а-яёa-z-]{1,})?/iu);
+  if (commandMatch?.[1]?.trim()) return commandMatch[1].trim();
+  const leadingMatch = message.match(/^\s*([А-ЯЁA-Zа-яёa-z-]{2,})(?:\s+[А-ЯЁA-Zа-яёa-z-]{2,})?\s+на\s+/iu);
+  return leadingMatch?.[1]?.trim() ?? null;
 }
 
 function extractServiceQueryFromBookingMessage(message: string) {
   const normalized = message.replace(/\s+/g, " ").trim();
-  const match = normalized.match(/\bна\s+(.+?)(?:\s+на\s+(?:ближайшее|сегодня|завтра|послезавтра|\d|утро|день|вечер)|$)/iu);
+  const match = normalized.match(/(?:^|\s)на\s+(.+?)(?:\s+на\s+(?:ближайшее|сегодня|завтра|послезавтра|\d|утро|день|вечер)|$)/iu);
   const raw = match?.[1]?.trim();
   if (!raw) return null;
   return raw
@@ -1417,6 +1582,27 @@ function slotLabel(slot: string) {
     time: "Время",
   };
   return map[slot] ?? slot;
+}
+
+function taskStateClarificationAnswer(state: CrmAgentTaskState) {
+  if (!state.missing.length || state.status === "failed") return null;
+  const activeSlot = state.missing[0];
+  const candidates = state.candidates[activeSlot] ?? [];
+  if (candidates.length > 1) {
+    return `${selectionTitle(activeSlot)}: найдено ${candidates.length}. Выберите подходящий вариант.`;
+  }
+  if (candidates.length === 1) {
+    return `${selectionTitle(activeSlot)}: найден один вариант, подтвердите его.`;
+  }
+  if (activeSlot === "client") {
+    const query = state.slots.client?.query ? ` "${state.slots.client.query}"` : "";
+    return `Клиента${query} не нашёл. Уточните имя или телефон клиента.`;
+  }
+  if (activeSlot === "service") {
+    const query = state.slots.service?.query ? ` "${state.slots.service.query}"` : "";
+    return `Услугу${query} не нашёл. Уточните услугу.`;
+  }
+  return `Нужно уточнить: ${slotLabel(activeSlot)}.`;
 }
 
 function slotCandidateId(slot: Record<string, unknown>) {

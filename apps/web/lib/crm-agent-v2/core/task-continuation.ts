@@ -36,6 +36,34 @@ export async function handleCrmAgentTaskContinuation(
 ): Promise<CrmAgentTaskContinuationResult> {
   const state = input.state ? cloneState(input.state) : null;
   if (state) {
+    if (isAutoSuggestRequest(input.message) && state.missing.length) {
+      const activeSlot = state.missing[0];
+      const answer = pendingSelectionAnswer(state, activeSlot);
+      await addCrmAgentMessage({
+        accountId: input.accountId,
+        sessionId: input.sessionId,
+        role: "assistant",
+        content: answer,
+        data: inputJson({
+          mode: "task_continuation",
+          kind: "pending_selection",
+          slot: activeSlot,
+        }),
+      });
+      return {
+        handled: true,
+        plannerHint: `User asked the agent to suggest, but the current task still needs ${activeSlot} selection from real candidates.`,
+        response: {
+          answer,
+          sessionId: input.sessionId,
+          state,
+          cards: buildContinuationCards(state),
+          workspace: buildContinuationWorkspace(state, activeSlot),
+          planTrace: [],
+        },
+      };
+    }
+
     const selection = selectCandidateFromText(state, input.message, input.timezone);
     if (selection) {
       applyCandidateSelection(state, selection.slot, selection.candidate);
@@ -143,6 +171,21 @@ function candidateSlotsInPriority(state: CrmAgentTaskState) {
     .map(([slot]) => slot);
   const remaining = Object.keys(state.candidates).filter((slot) => (state.candidates[slot] ?? []).length > 0);
   return [...new Set([...unresolved, ...ambiguous, ...remaining])];
+}
+
+function isAutoSuggestRequest(message: string) {
+  return /(?:^|\s)(сам|сама|сами|предложи|подбери|любой|любая)(?:\s|$)/i.test(message);
+}
+
+function pendingSelectionAnswer(state: CrmAgentTaskState, activeSlot: string) {
+  const candidates = state.candidates[activeSlot] ?? [];
+  if (candidates.length > 1) {
+    return `${selectionTabTitle(activeSlot)}: найдено ${candidates.length}. Выберите подходящий вариант, чтобы я продолжил по реальным данным.`;
+  }
+  if (candidates.length === 1) {
+    return `${selectionTabTitle(activeSlot)}: найден один вариант. Подтвердите его, чтобы я продолжил по реальным данным.`;
+  }
+  return `Нужно уточнить: ${slotLabel(activeSlot)}. Без этого я не могу предложить реальное окно записи.`;
 }
 
 function applyCandidateSelection(state: CrmAgentTaskState, slot: string, candidate: CrmAgentCandidate) {
@@ -408,7 +451,7 @@ function buildContinuationWorkspace(state: CrmAgentTaskState, activeSlot: string
 
   return {
     mode: state.missing.length ? "select" : "report",
-    title: selectionAnswer(state, activeSlot),
+    title: selectionCards.length ? selectionTitle(activeSlot) : selectionAnswer(state, activeSlot),
     activeTabId: selectionCards.length ? "selection" : "selected",
     cards: selectionCards.length ? selectionCards : selectedCards,
     tabs: [
@@ -578,6 +621,17 @@ function selectionTabTitle(slot: string) {
     time: "Время",
   };
   return map[slot] ?? "Варианты";
+}
+
+function selectionTitle(slot: string) {
+  const map: Record<string, string> = {
+    client: "Выберите клиента",
+    service: "Выберите услугу",
+    specialist: "Выберите специалиста",
+    location: "Выберите филиал",
+    time: "Выберите время",
+  };
+  return map[slot] ?? "Выберите вариант";
 }
 
 function slotLabel(slot: string) {

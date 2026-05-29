@@ -52,7 +52,7 @@ function searchTokens(query: string | null | undefined) {
 }
 
 function comparableToken(value: string) {
-  return value.replace(/[\u044c\u0430\u0435\u0443\u044b\u043e\u0438\u044e\u044f]+$/iu, "");
+  return value.replace(/[\u0439\u044c\u0430\u0435\u0443\u044b\u043e\u0438\u044e\u044f]+$/iu, "");
 }
 
 function scoreLabels(query: string | null | undefined, labels: Array<string | null | undefined>) {

@@ -108,8 +108,11 @@ assert(runtime.includes("activeSelectionSlot(state)") && runtime.includes("build
 assert(!runtime.includes('id: "plan"') && !runtime.includes('id: "results"'), "Runtime workspace must keep technical plan/results out of the main operator tabs");
 assert(runtime.includes("slotCandidateId(slot)"), "Runtime available slot candidates must use a compound id");
 assert(resolvers.includes("token.length >= 2") && resolvers.includes("candidate.length >= 4"), "Resolver ranking must not match query by one-letter candidate tokens");
-assert(resolvers.includes("comparableToken") && resolvers.includes("\\u044c\\u0430\\u0435"), "Resolver ranking must normalize Russian name endings such as Vital/Vitalya");
+assert(resolvers.includes("comparableToken") && resolvers.includes("\\u0439\\u044c\\u0430"), "Resolver ranking must normalize Russian name endings such as Vitaliy/Vitalya");
 assert(runtime.includes("return state.missing[0] ?? Object.keys(state.candidates).find"), "Runtime selection workspace must keep the first missing slot active even when it has no candidates");
+assert(runtime.includes("recoverAppointmentCreatePlanFromMessage"), "Runtime must recover appointment booking when planner JSON fails");
+assert(runtime.includes("taskStateClarificationAnswer"), "Runtime must not show hallucinated planner answers while slots are unresolved");
+assert(runtime.includes("shouldHandleActiveTaskContinuation"), "Runtime must continue active tasks even when router JSON fails");
 assert(commands.includes("decodeCommandPart"), "Interactive select commands must preserve encoded values such as datetimes");
 assert(commands.includes("loadCurrentStateOrEmpty"), "Saving a draft must preserve the current session task state");
 assert(runtime.includes("serializePlannerState"), "Runtime must pass latest session state to the planner on continuation");
