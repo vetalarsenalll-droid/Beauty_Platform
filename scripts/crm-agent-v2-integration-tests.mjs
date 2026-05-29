@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
+import { createJiti } from "jiti";
 
 const root = process.cwd();
 const enabled = process.env.CRM_AGENT_V2_INTEGRATION === "1";
@@ -19,6 +20,11 @@ if (!process.env.DATABASE_URL) {
 }
 
 const prisma = new PrismaClient({ log: ["error"] });
+const jiti = createJiti(path.join(root, "apps/web/test-entry.js"), {
+  alias: { "@": path.join(root, "apps/web") },
+});
+const { getCrmAgentExecuteToolHandler } = jiti("./lib/crm-agent-v2/core/execute-tools.ts");
+const workerModulePromise = import("../apps/worker/src/index.mjs");
 const runId = `crm-agent-v2-it-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const created = {
   accountId: null,
@@ -27,6 +33,11 @@ const created = {
   specialistUserId: null,
   clientIds: [],
   appointmentIds: [],
+  mediaAssetIds: [],
+  campaignIds: [],
+  outboxItemIds: [],
+  webhookEndpointIds: [],
+  webhookDeliveryIds: [],
   actionIds: [],
   sessionIds: [],
 };
@@ -82,6 +93,9 @@ async function main() {
   await testTaskContinuationStateAndDraft(fixture);
   await testCrossAccountDenial(fixture);
   await testConfirmExecuteAppointment(fixture);
+  await testMediaExecutePath(fixture);
+  await testCampaignExecutePath(fixture);
+  await testWorkerJobRateLimits(fixture);
   await testRejection(fixture);
   await testAishaSmokeRegression();
   console.log(JSON.stringify({ ok: true, runId }));
@@ -405,7 +419,7 @@ async function testConfirmExecuteAppointment({ account, session, clientA, servic
       actionType: "appointment.create",
       summary: "Create appointment",
       riskLevel: "medium",
-      permission: "crm.appointments.write",
+      permission: "crm.appointments.create",
       payload: {
         clientId: clientA.id,
         serviceId: service.id,
@@ -418,37 +432,345 @@ async function testConfirmExecuteAppointment({ account, session, clientA, servic
   });
   created.actionIds.push(action.id);
 
-  const appointment = await prisma.appointment.create({
+  const confirmHandler = getCrmAgentExecuteToolHandler("actions.confirm");
+  assert(typeof confirmHandler === "function", "actions.confirm handler must be importable for DB-backed execution tests.");
+
+  const wrongAccountDenied = await confirmHandler(
+    { actionId: action.id },
+    {
+      accountId: account.id + 999_999,
+      userId: null,
+      sessionId: session.id,
+      permissions: ["crm.appointments.create"],
+    },
+  )
+    .then(() => false)
+    .catch((error) => error instanceof Error && error.message === "Action not found.");
+  assert(wrongAccountDenied, "Real actions.confirm must deny cross-account action execution.");
+
+  const confirmResult = await confirmHandler({
+    actionId: action.id,
+  }, {
+    accountId: account.id,
+    userId: null,
+    sessionId: session.id,
+    permissions: ["crm.appointments.create"],
+  });
+  assert(confirmResult?.status === "EXECUTED", "Real actions.confirm should execute the appointment action.");
+  const appointmentId = confirmResult?.result?.data?.appointmentId;
+  assert(Number.isInteger(appointmentId), "Real actions.confirm should return an appointment id.");
+  created.appointmentIds.push(appointmentId);
+
+  const repeatedConfirm = await confirmHandler({
+    actionId: action.id,
+  }, {
+    accountId: account.id,
+    userId: null,
+    sessionId: session.id,
+    permissions: ["crm.appointments.create"],
+  });
+  assert(repeatedConfirm?.status === "EXECUTED", "Repeated actions.confirm should be idempotent.");
+  assert(repeatedConfirm?.result?.data?.appointmentId === appointmentId, "Repeated actions.confirm must not create a second appointment.");
+
+  const conflictAction = await prisma.crmAgentAction.create({
     data: {
       accountId: account.id,
-      clientId: clientA.id,
-      specialistId: specialist.id,
-      locationId: location.id,
-      startAt,
-      endAt,
-      status: "NEW",
-      priceTotal: "2500",
-      durationTotalMin: 60,
-      source: "CRM_AGENT_V2_INTEGRATION",
-      services: { create: { serviceId: service.id, price: "2500", durationMin: 60, specialistId: specialist.id } },
-      statusHistory: { create: { actorType: "CRM_AGENT_V2", toStatus: "NEW" } },
+      sessionId: session.id,
+      actionType: "appointment.create",
+      summary: "Create conflicting appointment",
+      riskLevel: "medium",
+      permission: "crm.appointments.create",
+      payload: {
+        clientId: clientA.id,
+        serviceId: service.id,
+        specialistId: specialist.id,
+        locationId: location.id,
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+      },
     },
   });
-  created.appointmentIds.push(appointment.id);
+  created.actionIds.push(conflictAction.id);
 
-  await prisma.crmAgentAction.update({
-    where: { id: action.id },
-    data: { status: "EXECUTED", confirmedAt: new Date(), executedAt: new Date(), result: { appointmentId: appointment.id } },
+  const conflictResult = await confirmHandler({
+    actionId: conflictAction.id,
+  }, {
+    accountId: account.id,
+    userId: null,
+    sessionId: session.id,
+    permissions: ["crm.appointments.create"],
   });
+  assert(conflictResult?.status === "FAILED", "Conflicting appointment execution should fail through the real execute path.");
+  assert(String(conflictResult?.error ?? "").includes("conflicts"), "Conflicting appointment failure should explain the slot conflict.");
 
-  const [storedAction, storedAppointment] = await Promise.all([
+  const [storedAction, storedAppointment, audit, appointmentCount, failedConflict] = await Promise.all([
     prisma.crmAgentAction.findUnique({ where: { id: action.id } }),
-    prisma.appointment.findUnique({ where: { id: appointment.id }, include: { services: true, statusHistory: true } }),
+    prisma.appointment.findUnique({ where: { id: appointmentId }, include: { services: true, statusHistory: true } }),
+    prisma.crmAgentAudit.findFirst({ where: { accountId: account.id, sessionId: session.id, action: "appointment.create", targetId: String(action.id) } }),
+    prisma.appointment.count({ where: { accountId: account.id, specialistId: specialist.id, locationId: location.id, startAt, endAt } }),
+    prisma.crmAgentAction.findUnique({ where: { id: conflictAction.id } }),
   ]);
   assert(storedAction?.status === "EXECUTED", "Confirm scenario should mark action EXECUTED.");
-  assert(storedAction?.result?.appointmentId === appointment.id, "Confirm scenario should store appointment result.");
+  assert(storedAction?.result?.data?.appointmentId === appointmentId, "Confirm scenario should store appointment result.");
   assert(storedAppointment?.services.length === 1, "Created appointment should include service link.");
   assert(storedAppointment?.statusHistory.length === 1, "Created appointment should include status history.");
+  assert(audit?.data?.actionName === "appointment.create", "Real execute path should write action audit.");
+  assert(audit?.data?.result?.data?.appointmentId === appointmentId, "Audit payload should include execute result.");
+  assert(Array.isArray(audit?.data?.diff), "Audit payload should include preview diff.");
+  assert(appointmentCount === 1, "Idempotent/conflict checks should leave exactly one appointment in the slot.");
+  assert(failedConflict?.status === "FAILED", "Failed conflict action should persist FAILED status.");
+}
+
+async function testMediaExecutePath({ account, session }) {
+  const confirmHandler = getCrmAgentExecuteToolHandler("actions.confirm");
+  assert(typeof confirmHandler === "function", "actions.confirm handler must be importable for media execution tests.");
+
+  const uploadAction = await prisma.crmAgentAction.create({
+    data: {
+      accountId: account.id,
+      sessionId: session.id,
+      actionType: "media.upload",
+      summary: "Upload media",
+      riskLevel: "medium",
+      permission: "crm.media.upload",
+      payload: {
+        url: `https://example.test/${runId}/asset.jpg`,
+        type: "image/jpeg",
+        width: 640,
+        height: 480,
+        altText: "Initial alt",
+        metadata: { source: "integration" },
+      },
+    },
+  });
+  created.actionIds.push(uploadAction.id);
+
+  const uploadResult = await confirmHandler({ actionId: uploadAction.id }, {
+    accountId: account.id,
+    userId: null,
+    sessionId: session.id,
+    permissions: ["crm.media.upload"],
+  });
+  const mediaAssetId = uploadResult?.result?.data?.mediaAssetId;
+  assert(uploadResult?.status === "EXECUTED" && Number.isInteger(mediaAssetId), "media.upload should execute through actions.confirm.");
+  created.mediaAssetIds.push(mediaAssetId);
+
+  const altAction = await prisma.crmAgentAction.create({
+    data: {
+      accountId: account.id,
+      sessionId: session.id,
+      actionType: "media.update_alt",
+      summary: "Update media alt",
+      riskLevel: "low",
+      permission: "crm.media.update",
+      payload: { assetId: mediaAssetId, altText: "Updated integration alt" },
+    },
+  });
+  const metadataAction = await prisma.crmAgentAction.create({
+    data: {
+      accountId: account.id,
+      sessionId: session.id,
+      actionType: "media.update_metadata",
+      summary: "Update media metadata",
+      riskLevel: "medium",
+      permission: "crm.media.update",
+      payload: { assetId: mediaAssetId, metadata: { source: "integration", checked: true } },
+    },
+  });
+  const archiveAction = await prisma.crmAgentAction.create({
+    data: {
+      accountId: account.id,
+      sessionId: session.id,
+      actionType: "media.archive",
+      summary: "Archive media",
+      riskLevel: "high",
+      permission: "crm.media.update",
+      payload: { assetId: mediaAssetId },
+    },
+  });
+  created.actionIds.push(altAction.id, metadataAction.id, archiveAction.id);
+
+  const altResult = await confirmHandler({ actionId: altAction.id }, { accountId: account.id, userId: null, sessionId: session.id, permissions: ["crm.media.update"] });
+  const metadataResult = await confirmHandler({ actionId: metadataAction.id }, { accountId: account.id, userId: null, sessionId: session.id, permissions: ["crm.media.update"] });
+  const archiveResult = await confirmHandler({ actionId: archiveAction.id }, { accountId: account.id, userId: null, sessionId: session.id, permissions: ["crm.media.update"] });
+
+  const [asset, auditCount] = await Promise.all([
+    prisma.mediaAsset.findUnique({ where: { id: mediaAssetId } }),
+    prisma.crmAgentAudit.count({
+      where: {
+        accountId: account.id,
+        sessionId: session.id,
+        action: { in: ["media.upload", "media.update_alt", "media.update_metadata", "media.archive"] },
+      },
+    }),
+  ]);
+  assert(altResult?.status === "EXECUTED", "media.update_alt should execute through actions.confirm.");
+  assert(metadataResult?.status === "EXECUTED", "media.update_metadata should execute through actions.confirm.");
+  assert(archiveResult?.status === "EXECUTED", "media.archive should execute through actions.confirm.");
+  assert(asset?.altText === "Updated integration alt", "media.update_alt should persist altText.");
+  assert(asset?.metadata?.checked === true, "media.update_metadata should persist metadata.");
+  assert(asset?.archivedAt instanceof Date, "media.archive should persist archivedAt.");
+  assert(auditCount === 4, "Media execute path should write audit rows for each action.");
+}
+
+async function testCampaignExecutePath({ account, session, clientA }) {
+  const confirmHandler = getCrmAgentExecuteToolHandler("actions.confirm");
+  assert(typeof confirmHandler === "function", "actions.confirm handler must be importable for campaign execution tests.");
+
+  const createAction = await prisma.crmAgentAction.create({
+    data: {
+      accountId: account.id,
+      sessionId: session.id,
+      actionType: "campaign.create_retention",
+      summary: "Create retention campaign",
+      riskLevel: "high",
+      permission: "crm.marketing.manage",
+      payload: {
+        title: "Integration retention",
+        clientIds: [clientA.id],
+        message: "Integration campaign message",
+        channels: ["SMS"],
+      },
+    },
+  });
+  created.actionIds.push(createAction.id);
+
+  const createResult = await confirmHandler({ actionId: createAction.id }, {
+    accountId: account.id,
+    userId: null,
+    sessionId: session.id,
+    permissions: ["crm.marketing.manage"],
+  });
+  const campaignId = createResult?.result?.data?.campaignId;
+  assert(createResult?.status === "EXECUTED" && Number.isInteger(campaignId), "campaign.create_retention should execute through actions.confirm.");
+  created.campaignIds.push(campaignId);
+
+  const sendAction = await prisma.crmAgentAction.create({
+    data: {
+      accountId: account.id,
+      sessionId: session.id,
+      actionType: "campaign.send",
+      summary: "Send campaign",
+      riskLevel: "critical",
+      permission: "crm.marketing.send",
+      payload: { campaignId },
+    },
+  });
+  created.actionIds.push(sendAction.id);
+
+  const sendResult = await confirmHandler({ actionId: sendAction.id }, {
+    accountId: account.id,
+    userId: null,
+    sessionId: session.id,
+    permissions: ["crm.marketing.send"],
+  });
+
+  const [campaign, recipientCount, auditCount] = await Promise.all([
+    prisma.crmAgentCampaign.findFirst({ where: { id: campaignId, accountId: account.id } }),
+    prisma.crmAgentCampaignRecipient.count({ where: { campaignId, accountId: account.id } }),
+    prisma.crmAgentAudit.count({ where: { accountId: account.id, sessionId: session.id, action: { in: ["campaign.create_retention", "campaign.send"] } } }),
+  ]);
+  assert(sendResult?.status === "EXECUTED", "campaign.send should execute through actions.confirm.");
+  assert(campaign?.status === "READY", "campaign.send should mark campaign READY for worker delivery.");
+  assert(recipientCount === 1, "campaign.send should create recipients for the selected audience.");
+  assert(auditCount === 2, "Campaign execute path should write audit rows for create and send.");
+}
+
+async function testWorkerJobRateLimits({ account, clientA }) {
+  const worker = await workerModulePromise;
+  assert(typeof worker.sendCrmAgentV2Campaigns === "function", "Worker must export campaign processor for job-level tests.");
+  assert(typeof worker.processCrmAgentV2NotificationOutbox === "function", "Worker must export notification outbox processor for job-level tests.");
+  assert(typeof worker.processCrmAgentV2WebhookDeliveries === "function", "Worker must export webhook delivery processor for job-level tests.");
+
+  await prisma.crmAgentCampaign.updateMany({
+    where: { accountId: account.id, status: { in: ["READY", "SCHEDULED", "SENDING"] } },
+    data: { status: "SENT", sentAt: new Date() },
+  });
+
+  const campaign = await prisma.crmAgentCampaign.create({
+    data: {
+      accountId: account.id,
+      title: "Worker rate limit campaign",
+      goal: "worker-rate-limit",
+      audience: { clientIds: [clientA.id] },
+      offer: {},
+      content: { message: "Worker batch limit" },
+      channels: ["SMS"],
+      status: "READY",
+      recipients: {
+        create: Array.from({ length: 3 }, (_, index) => ({
+          accountId: account.id,
+          clientId: clientA.id,
+          channel: "SMS",
+          target: `+7900000000${index}`,
+          message: `Worker batch limit ${index}`,
+        })),
+      },
+    },
+    include: { recipients: true },
+  });
+  created.campaignIds.push(campaign.id);
+
+  const outboxItems = await Promise.all(
+    Array.from({ length: 3 }, (_, index) =>
+      prisma.outboxItem.create({
+        data: {
+          scope: "ACCOUNT",
+          accountId: account.id,
+          userId: null,
+          eventName: `worker.rate_limit.${index}`,
+          payload: { channel: "SMS", target: `+7900000010${index}`, bodyText: "Worker batch limit" },
+          status: "PENDING",
+          dedupeKey: `${runId}:outbox:${index}`,
+          availableAt: new Date(Date.now() - 60_000),
+        },
+      }),
+    ),
+  );
+  created.outboxItemIds.push(...outboxItems.map((item) => item.id));
+
+  const endpoint = await prisma.webhookEndpoint.create({
+    data: {
+      accountId: account.id,
+      url: "https://example.test/webhook",
+      secret: "integration-secret",
+      events: ["worker.rate_limit"],
+      status: "ACTIVE",
+      deliveries: {
+        create: Array.from({ length: 3 }, (_, index) => ({
+          eventName: "worker.rate_limit",
+          payload: { index },
+          signature: `sig-${index}`,
+          status: "QUEUED",
+        })),
+      },
+    },
+    include: { deliveries: true },
+  });
+  created.webhookEndpointIds.push(endpoint.id);
+  created.webhookDeliveryIds.push(...endpoint.deliveries.map((delivery) => delivery.id));
+
+  const [campaignRun, notificationRun, webhookRun] = await Promise.all([
+    worker.sendCrmAgentV2Campaigns({ accountId: account.id, campaignBatchLimit: 1, campaignRecipientBatchLimit: 2 }),
+    worker.processCrmAgentV2NotificationOutbox({ accountId: account.id, notificationOutboxBatchLimit: 2 }),
+    worker.processCrmAgentV2WebhookDeliveries({ accountId: account.id, webhookDeliveryBatchLimit: 2 }),
+  ]);
+
+  const [sentRecipients, pendingRecipients, doneOutbox, pendingOutbox, sentWebhooks, queuedWebhooks] = await Promise.all([
+    prisma.crmAgentCampaignRecipient.count({ where: { campaignId: campaign.id, status: "SENT" } }),
+    prisma.crmAgentCampaignRecipient.count({ where: { campaignId: campaign.id, status: "PENDING" } }),
+    prisma.outboxItem.count({ where: { id: { in: created.outboxItemIds }, status: "DONE" } }),
+    prisma.outboxItem.count({ where: { id: { in: created.outboxItemIds }, status: "PENDING" } }),
+    prisma.webhookDelivery.count({ where: { id: { in: created.webhookDeliveryIds }, status: "SENT" } }),
+    prisma.webhookDelivery.count({ where: { id: { in: created.webhookDeliveryIds }, status: "QUEUED" } }),
+  ]);
+
+  assert(campaignRun.recipientsSent === 2, "Campaign worker must respect recipient batch limit.");
+  assert(sentRecipients === 2 && pendingRecipients === 1, "Campaign worker should leave excess recipients pending.");
+  assert(notificationRun.itemsProcessed === 2, "Notification outbox worker must respect item batch limit.");
+  assert(doneOutbox === 2 && pendingOutbox === 1, "Notification outbox worker should leave excess items pending.");
+  assert(webhookRun.deliveriesSent === 2, "Webhook worker must respect delivery batch limit.");
+  assert(sentWebhooks === 2 && queuedWebhooks === 1, "Webhook worker should leave excess deliveries queued.");
 }
 
 async function testRejection({ account, session }) {
@@ -489,6 +811,12 @@ async function cleanup() {
     prisma.appointmentStatusHistory.deleteMany({ where: { appointmentId: { in: created.appointmentIds } } }),
     prisma.appointmentService.deleteMany({ where: { appointmentId: { in: created.appointmentIds } } }),
     prisma.appointment.deleteMany({ where: { id: { in: created.appointmentIds } } }),
+    prisma.crmAgentCampaignRecipient.deleteMany({ where: { accountId: { in: accountIds } } }),
+    prisma.crmAgentCampaign.deleteMany({ where: { accountId: { in: accountIds } } }),
+    prisma.deliveryLog.deleteMany({ where: { outboxItemId: { in: created.outboxItemIds } } }),
+    prisma.outboxItem.deleteMany({ where: { id: { in: created.outboxItemIds } } }),
+    prisma.webhookDelivery.deleteMany({ where: { id: { in: created.webhookDeliveryIds } } }),
+    prisma.webhookEndpoint.deleteMany({ where: { id: { in: created.webhookEndpointIds } } }),
     prisma.crmAgentAudit.deleteMany({ where: { accountId: { in: accountIds } } }),
     prisma.crmAgentToolCall.deleteMany({ where: { accountId: { in: accountIds } } }),
     prisma.crmAgentAction.deleteMany({ where: { accountId: { in: accountIds } } }),
@@ -501,6 +829,8 @@ async function cleanup() {
     prisma.specialistService.deleteMany({ where: { specialist: { accountId: created.accountId } } }),
     prisma.specialistLocation.deleteMany({ where: { specialist: { accountId: created.accountId } } }),
     prisma.serviceLocation.deleteMany({ where: { service: { accountId: created.accountId } } }),
+    prisma.mediaLink.deleteMany({ where: { asset: { accountId: { in: accountIds } } } }),
+    prisma.mediaAsset.deleteMany({ where: { id: { in: created.mediaAssetIds } } }),
     prisma.specialistProfile.deleteMany({ where: { accountId: created.accountId } }),
     prisma.service.deleteMany({ where: { accountId: created.accountId } }),
     prisma.location.deleteMany({ where: { accountId: created.accountId } }),

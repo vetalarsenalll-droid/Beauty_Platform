@@ -1,7 +1,28 @@
 import { PrismaClient } from "@prisma/client";
+import { fileURLToPath } from "node:url";
 
 const prisma = new PrismaClient();
 const BUSY_STATUSES = ["NEW", "CONFIRMED", "IN_PROGRESS", "DONE"];
+const DEFAULT_CAMPAIGN_BATCH_LIMIT = 20;
+const DEFAULT_CAMPAIGN_RECIPIENT_BATCH_LIMIT = 200;
+const DEFAULT_CAMPAIGN_RETRY_LIMIT = 200;
+const DEFAULT_NOTIFICATION_OUTBOX_BATCH_LIMIT = 100;
+const DEFAULT_WEBHOOK_DELIVERY_BATCH_LIMIT = 100;
+
+function positiveInt(value, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function workerLimits(overrides = {}) {
+  return {
+    campaignBatchLimit: positiveInt(overrides.campaignBatchLimit ?? process.env.CRM_AGENT_V2_CAMPAIGN_BATCH_LIMIT, DEFAULT_CAMPAIGN_BATCH_LIMIT),
+    campaignRecipientBatchLimit: positiveInt(overrides.campaignRecipientBatchLimit ?? process.env.CRM_AGENT_V2_CAMPAIGN_RECIPIENT_BATCH_LIMIT, DEFAULT_CAMPAIGN_RECIPIENT_BATCH_LIMIT),
+    campaignRetryLimit: positiveInt(overrides.campaignRetryLimit ?? process.env.CRM_AGENT_V2_CAMPAIGN_RETRY_LIMIT, DEFAULT_CAMPAIGN_RETRY_LIMIT),
+    notificationOutboxBatchLimit: positiveInt(overrides.notificationOutboxBatchLimit ?? process.env.CRM_AGENT_V2_NOTIFICATION_OUTBOX_BATCH_LIMIT, DEFAULT_NOTIFICATION_OUTBOX_BATCH_LIMIT),
+    webhookDeliveryBatchLimit: positiveInt(overrides.webhookDeliveryBatchLimit ?? process.env.CRM_AGENT_V2_WEBHOOK_DELIVERY_BATCH_LIMIT, DEFAULT_WEBHOOK_DELIVERY_BATCH_LIMIT),
+  };
+}
 
 function insightKey(type, scope) {
   return `${type}:${scope}`;
@@ -267,19 +288,21 @@ async function refreshCrmAgentV2KnowledgeSnapshot(accountId) {
   return { updated: 0, created: 1 };
 }
 
-async function sendCrmAgentV2Campaigns() {
+export async function sendCrmAgentV2Campaigns(options = {}) {
+  const limits = workerLimits(options);
   const campaigns = await prisma.crmAgentCampaign.findMany({
     where: {
+      ...(options.accountId ? { accountId: options.accountId } : {}),
       status: { in: ["READY", "SCHEDULED", "SENDING"] },
       OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
     },
     orderBy: { createdAt: "asc" },
-    take: 20,
+    take: limits.campaignBatchLimit,
     include: {
       recipients: {
         where: { status: "PENDING" },
         orderBy: { id: "asc" },
-        take: 200,
+        take: limits.campaignRecipientBatchLimit,
       },
     },
   });
@@ -392,14 +415,23 @@ async function syncCrmAgentV2CampaignConversions() {
   return { campaignsChecked, conversionsFound };
 }
 
-async function retryCrmAgentV2Outbox() {
+export async function retryCrmAgentV2Outbox(options = {}) {
+  const limits = workerLimits(options);
   const retryAt = new Date();
   retryAt.setMinutes(retryAt.getMinutes() - 15);
-  const result = await prisma.crmAgentCampaignRecipient.updateMany({
+  const recipients = await prisma.crmAgentCampaignRecipient.findMany({
     where: {
+      ...(options.accountId ? { accountId: options.accountId } : {}),
       status: "FAILED",
       createdAt: { lte: retryAt },
     },
+    orderBy: { createdAt: "asc" },
+    take: limits.campaignRetryLimit,
+    select: { id: true },
+  });
+  if (!recipients.length) return { recipientsRetried: 0 };
+  const result = await prisma.crmAgentCampaignRecipient.updateMany({
+    where: { id: { in: recipients.map((recipient) => recipient.id) } },
     data: {
       status: "PENDING",
       error: null,
@@ -408,7 +440,92 @@ async function retryCrmAgentV2Outbox() {
   return { recipientsRetried: result.count };
 }
 
-async function runCrmAgentV2BackgroundPass() {
+function notificationChannel(value) {
+  const channel = String(value ?? "IN_APP").trim().toUpperCase();
+  return ["IN_APP", "EMAIL", "TELEGRAM", "MAX", "PUSH", "SMS", "WEBHOOK", "SSE"].includes(channel) ? channel : "IN_APP";
+}
+
+export async function processCrmAgentV2NotificationOutbox(options = {}) {
+  const limits = workerLimits(options);
+  const now = new Date();
+  const items = await prisma.outboxItem.findMany({
+    where: {
+      ...(options.accountId ? { accountId: options.accountId } : {}),
+      status: "PENDING",
+      availableAt: { lte: now },
+    },
+    orderBy: { availableAt: "asc" },
+    take: limits.notificationOutboxBatchLimit,
+    include: { deliveries: { orderBy: { attempt: "desc" }, take: 1 } },
+  });
+
+  let itemsProcessed = 0;
+  let deliveriesCreated = 0;
+  for (const item of items) {
+    const payload = jsonObject(item.payload) ?? {};
+    const channel = notificationChannel(payload.channel);
+    const target = String(payload.target ?? payload.phone ?? payload.email ?? item.userId ?? item.accountId ?? "local");
+    const attempt = (item.deliveries[0]?.attempt ?? 0) + 1;
+    await prisma.$transaction([
+      prisma.deliveryLog.create({
+        data: {
+          outboxItemId: item.id,
+          channel,
+          target,
+          status: "SENT",
+          attempt,
+          providerMessageId: `local:${item.id}:${attempt}`,
+          sentAt: now,
+        },
+      }),
+      prisma.outboxItem.update({
+        where: { id: item.id },
+        data: { status: "DONE", processedAt: now },
+      }),
+    ]);
+    itemsProcessed += 1;
+    deliveriesCreated += 1;
+  }
+
+  return { itemsChecked: items.length, itemsProcessed, deliveriesCreated };
+}
+
+export async function processCrmAgentV2WebhookDeliveries(options = {}) {
+  const limits = workerLimits(options);
+  const now = new Date();
+  const deliveries = await prisma.webhookDelivery.findMany({
+    where: {
+      ...(options.accountId ? { endpoint: { accountId: options.accountId } } : {}),
+      status: { in: ["QUEUED", "FAILED"] },
+      OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: now } }],
+      endpoint: {
+        ...(options.accountId ? { accountId: options.accountId } : {}),
+        status: "ACTIVE",
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    take: limits.webhookDeliveryBatchLimit,
+    include: { endpoint: { select: { id: true } } },
+  });
+
+  let deliveriesSent = 0;
+  for (const delivery of deliveries) {
+    await prisma.webhookDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        status: "SENT",
+        attempt: delivery.attempt + 1,
+        sentAt: now,
+        nextRetryAt: null,
+      },
+    });
+    deliveriesSent += 1;
+  }
+
+  return { deliveriesChecked: deliveries.length, deliveriesSent };
+}
+
+export async function runCrmAgentV2BackgroundPass(options = {}) {
   const accounts = await prisma.account.findMany({
     where: { status: "ACTIVE" },
     select: { id: true },
@@ -417,9 +534,14 @@ async function runCrmAgentV2BackgroundPass() {
 
   const [expiredActions, sentCampaigns, campaignConversions, retriedOutbox] = await Promise.all([
     expireCrmAgentV2Actions(),
-    sendCrmAgentV2Campaigns(),
+    sendCrmAgentV2Campaigns(options),
     syncCrmAgentV2CampaignConversions(),
-    retryCrmAgentV2Outbox(),
+    retryCrmAgentV2Outbox(options),
+  ]);
+
+  const [notificationOutbox, webhookDeliveries] = await Promise.all([
+    processCrmAgentV2NotificationOutbox(options),
+    processCrmAgentV2WebhookDeliveries(options),
   ]);
 
   let createdInsights = 0;
@@ -450,6 +572,8 @@ async function runCrmAgentV2BackgroundPass() {
     sentCampaigns,
     campaignConversions,
     retriedOutbox,
+    notificationOutbox,
+    webhookDeliveries,
     accountsChecked: accounts.length,
     createdInsights,
     createdDailyBriefs,
@@ -459,14 +583,16 @@ async function runCrmAgentV2BackgroundPass() {
   };
 }
 
-runCrmAgentV2BackgroundPass()
-  .then((result) => {
-    console.log(JSON.stringify({ worker: "crm-agent-v2", result }));
-  })
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  runCrmAgentV2BackgroundPass()
+    .then((result) => {
+      console.log(JSON.stringify({ worker: "crm-agent-v2", result }));
+    })
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

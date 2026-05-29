@@ -1,16 +1,19 @@
 import { defineCrmAgentAction } from "../define-action";
+import { executeMediaAction, previewMediaAction } from "./media-helpers";
 
 export const mediaUpdateMetadataAction = defineCrmAgentAction({
   name: "media.update_metadata",
   domain: "media",
   kind: "write",
   intent: "update",
-  status: "blocked",
+  status: "implemented",
   risk: "medium",
   permission: "crm.media.update",
   confirmation: "medium_plus",
-  requiredSlots: [],
-  optionalSlots: [],
+  requiredSlots: ["assetId"],
+  optionalSlots: ["metadata"],
   description: "Изменить metadata.",
-  plannerHints: ["Use media.update_metadata only after required slots are resolved and the user intent matches: Изменить metadata.", "Blocked: current Prisma schema has MediaAsset without archive/alt/metadata fields, so this action needs schema support before execution."],
+  plannerHints: ["Use media.update_metadata after assetId is known."],
+  preview: (payload, ctx) => previewMediaAction("media.update_metadata", payload, ctx),
+  execute: (payload, ctx) => executeMediaAction("media.update_metadata", payload, ctx),
 });

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { buildActionPreview } from "../action-preview";
-import { requiredNumber, requiredString, type JsonRecord } from "../action-helpers";
+import { inputJson, requiredNumber, requiredString, type JsonRecord } from "../action-helpers";
 import type { CrmAgentActionContext } from "../types";
 
 export async function previewMediaAction(actionName: string, payload: JsonRecord, ctx: CrmAgentActionContext) {
@@ -9,8 +9,9 @@ export async function previewMediaAction(actionName: string, payload: JsonRecord
 
 export async function readMediaAction(_actionName: string, payload: JsonRecord, ctx: CrmAgentActionContext) {
   const take = Math.min(Math.max(numberOrDefault(payload.take, 50), 1), 100);
+  const includeArchived = Boolean(payload.includeArchived);
   const assets = await prisma.mediaAsset.findMany({
-    where: { OR: [{ accountId: ctx.accountId }, { accountId: null }] },
+    where: { OR: [{ accountId: ctx.accountId }, { accountId: null }], ...(includeArchived ? {} : { archivedAt: null }) },
     orderBy: { createdAt: "desc" },
     take,
     include: { links: true },
@@ -29,9 +30,38 @@ export async function executeMediaAction(actionName: string, payload: JsonRecord
         width: numberOrNull(payload.width),
         height: numberOrNull(payload.height),
         size: numberOrNull(payload.size),
+        altText: optionalString(payload.altText),
+        metadata: payload.metadata === undefined ? undefined : inputJson(payload.metadata),
       },
     });
     return { status: "DONE" as const, data: { mediaAssetId: asset.id } };
+  }
+  if (actionName === "media.update_alt") {
+    const assetId = requiredNumber(payload.assetId ?? payload.mediaAssetId ?? payload.id, "assetId");
+    const updated = await prisma.mediaAsset.updateMany({
+      where: { id: assetId, accountId: ctx.accountId, archivedAt: null },
+      data: { altText: requiredString(payload, "altText") },
+    });
+    if (!updated.count) throw new Error("Media asset not found.");
+    return { status: "DONE" as const, data: { mediaAssetId: assetId } };
+  }
+  if (actionName === "media.update_metadata") {
+    const assetId = requiredNumber(payload.assetId ?? payload.mediaAssetId ?? payload.id, "assetId");
+    const updated = await prisma.mediaAsset.updateMany({
+      where: { id: assetId, accountId: ctx.accountId, archivedAt: null },
+      data: { metadata: inputJson(payload.metadata ?? {}) },
+    });
+    if (!updated.count) throw new Error("Media asset not found.");
+    return { status: "DONE" as const, data: { mediaAssetId: assetId } };
+  }
+  if (actionName === "media.archive") {
+    const assetId = requiredNumber(payload.assetId ?? payload.mediaAssetId ?? payload.id, "assetId");
+    const updated = await prisma.mediaAsset.updateMany({
+      where: { id: assetId, accountId: ctx.accountId, archivedAt: null },
+      data: { archivedAt: ctx.now },
+    });
+    if (!updated.count) throw new Error("Media asset not found.");
+    return { status: "DONE" as const, data: { mediaAssetId: assetId, archivedAt: ctx.now.toISOString() } };
   }
   if (actionName === "media.create_collection") {
     const collection = await prisma.mediaCollection.create({ data: { accountId: ctx.accountId, name: requiredString(payload, "name") } });
@@ -83,9 +113,10 @@ function entityTypeForAction(actionName: string) {
   return "account";
 }
 
-function serializeAsset(asset: { id: number; accountId: number | null; url: string; type: string; width: number | null; height: number | null; size: number | null; createdAt: Date; links: Array<{ id: number; entityType: string; entityId: string; collectionId: number | null; sortOrder: number; isCover: boolean; createdAt: Date }> }) {
+function serializeAsset(asset: { id: number; accountId: number | null; url: string; type: string; width: number | null; height: number | null; size: number | null; altText: string | null; metadata: unknown; archivedAt: Date | null; createdAt: Date; links: Array<{ id: number; entityType: string; entityId: string; collectionId: number | null; sortOrder: number; isCover: boolean; createdAt: Date }> }) {
   return {
     ...asset,
+    archivedAt: asset.archivedAt?.toISOString() ?? null,
     createdAt: asset.createdAt.toISOString(),
     links: asset.links.map((link) => ({ ...link, createdAt: link.createdAt.toISOString() })),
   };
@@ -103,4 +134,8 @@ function numberOrNull(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
   if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
   return null;
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }

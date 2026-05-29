@@ -889,17 +889,22 @@ model Tag {
 }
 
 model MediaAsset {
-  id        Int      @id @default(autoincrement())
-  accountId Int?
-  url       String
-  type      String
-  width     Int?
-  height    Int?
-  size      Int?
-  createdAt DateTime @default(now())
+  id         Int       @id @default(autoincrement())
+  accountId  Int?
+  url        String
+  type       String
+  width      Int?
+  height     Int?
+  size       Int?
+  altText    String?
+  metadata   Json?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   links           MediaLink[]
   publicPageMedia PublicPageMedia[]
+
+  @@index([accountId, archivedAt])
 }
 
 model MediaCollection {

@@ -1344,6 +1344,122 @@ Blockers:
 - Для 3 media actions нужны поля/модель persistence: archive state, alt text, metadata.
 - DB-backed hardening follow-up требует `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
 
+2026-05-29 19:05 - media persistence gaps - completed
+Что сделано:
+- Добавлены persistence-поля в `MediaAsset`: `altText`, `metadata`, `archivedAt` и индекс `accountId/archivedAt`.
+- Добавлена SQL migration `20260529184500_media_asset_metadata`.
+- `media.update_alt`, `media.update_metadata`, `media.archive` переведены из `blocked` в `implemented`.
+- `media.search` теперь по умолчанию скрывает archived assets; для диагностики поддержан `includeArchived`.
+- Update/archive handlers работают только с account-owned active assets, чтобы не изменять shared/system assets с `accountId: null`.
+Измененные файлы:
+- packages/db/prisma/schema.prisma
+- packages/db/prisma/migrations/20260529184500_media_asset_metadata/migration.sql
+- apps/web/lib/crm-agent-v2/actions/media/media-helpers.ts
+- apps/web/lib/crm-agent-v2/actions/media/media.archive.ts
+- apps/web/lib/crm-agent-v2/actions/media/media.update-alt.ts
+- apps/web/lib/crm-agent-v2/actions/media/media.update-metadata.ts
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npx prisma validate --schema packages/db/prisma/schema.prisma
+- npm run typecheck
+- npm run test:crm-agent-v2
+- status summary: `implemented: 252`, `read_only: 109`, `draft_only: 13`, `blocked: 0`, `planned: 0`
+Следующее:
+- Применить migration в DB окружении и повторить `npx prisma generate --schema packages/db/prisma/schema.prisma`, когда Windows file lock на Prisma query engine будет снят.
+- При наличии DB integration окружения добавить DB-backed account isolation/audit/idempotency/concurrency tests.
+Блокеры:
+- `npx prisma generate --schema packages/db/prisma/schema.prisma` сейчас упирается в Windows lock: `EPERM rename ... query_engine-windows.dll.node.tmp -> query_engine-windows.dll.node`.
+- DB-backed hardening follow-up требует `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`.
+
+2026-05-29 19:25 - DB-backed hardening - in_progress
+Что сделано:
+- Migration `20260529184500_media_asset_metadata` применена к локальной PostgreSQL DB `beauty_platform`.
+- Prisma Client обновлен через `npx prisma generate --schema packages/db/prisma/schema.prisma`.
+- `scripts/crm-agent-v2-integration-tests.mjs` теперь в DB режиме импортирует реальный `actions.confirm` execute handler через `jiti` и выполняет `appointment.create` через catalog/runtime execute path, а не ручной insert.
+- Добавлены DB-backed проверки: cross-account denial для `actions.confirm`, audit row после execute, idempotent повторный confirm, conflict handling для повторной записи на занятый slot, persisted `FAILED` для конфликтного action.
+Измененные файлы:
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+- npx prisma generate --schema packages/db/prisma/schema.prisma
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2:integration
+Следующее:
+- Прогнать полный `npm run test:crm-agent-v2` с `CRM_AGENT_V2_INTEGRATION=1`.
+- Расширить DB-backed coverage за пределы appointment representative path: media, marketing/campaign, schedule/payment where practical.
+- Добавить provider/job-level rate-limit tests для notification/campaign/webhook, когда будет доступен job/provider execution harness.
+Блокеры:
+- Полное покрытие "для всех implemented actions" требует action-specific DB fixtures; сейчас DB-backed execute coverage добавлен для representative high-risk appointment path.
+- Provider/job-level rate-limit tests требуют job/provider execution harness.
+
+2026-05-29 19:40 - DB-backed hardening - completed
+Что сделано:
+- DB-backed integration coverage расширен за пределы appointment representative path.
+- `actions.confirm` в integration suite выполняет реальные catalog execute handlers для:
+  - `appointment.create` с audit, idempotent повторным confirm, cross-account denial и slot conflict failure;
+  - `media.upload`, `media.update_alt`, `media.update_metadata`, `media.archive` с проверкой persisted `altText`, `metadata`, `archivedAt` и audit rows;
+  - `campaign.create_retention`, `campaign.send` с проверкой `READY` state, recipients и audit rows.
+- Cleanup расширен на CRM Agent campaigns/recipients и media assets/links, чтобы DB suite не оставлял fixture rows.
+Измененные файлы:
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2:integration
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2
+Следующее:
+- Расширять DB-backed fixtures на остальные high-risk implemented domains по мере необходимости: schedule/payment/legal/webhook.
+- Добавить provider/job-level rate-limit tests для notification/campaign/webhook после появления job/provider execution harness.
+Блокеры:
+- Provider/job-level rate-limit tests требуют job/provider execution harness.
+- Полное "каждый implemented action имеет DB fixture" остается отдельной большой матрицей; текущий suite покрывает ключевые representative execute paths.
+
+2026-05-29 20:05 - provider/job-level rate-limit hardening - completed
+Что сделано:
+- `apps/worker/src/index.mjs` превращен в импортируемый worker harness: background functions экспортируются, CLI запуск сохранен через direct-run guard.
+- Добавлены job-level batch limits с env overrides:
+  - `CRM_AGENT_V2_CAMPAIGN_BATCH_LIMIT`
+  - `CRM_AGENT_V2_CAMPAIGN_RECIPIENT_BATCH_LIMIT`
+  - `CRM_AGENT_V2_CAMPAIGN_RETRY_LIMIT`
+  - `CRM_AGENT_V2_NOTIFICATION_OUTBOX_BATCH_LIMIT`
+  - `CRM_AGENT_V2_WEBHOOK_DELIVERY_BATCH_LIMIT`
+- Campaign worker теперь принимает account-scoped/test options и ограничивает campaigns/recipients per pass.
+- Campaign retry больше не делает unbounded `updateMany`; retry ограничен batch selection.
+- Добавлен notification outbox processor: ограниченно берет `OutboxItem(PENDING)`, создает `DeliveryLog(SENT)` и переводит item в `DONE`.
+- Добавлен webhook delivery processor: ограниченно берет `WebhookDelivery(QUEUED/FAILED)` для active endpoints и переводит в `SENT`.
+- DB integration suite проверяет provider/job-level limits: при 3 campaign recipients/outbox items/webhook deliveries и лимите 2 worker обрабатывает ровно 2 и оставляет 1 pending/queued.
+Измененные файлы:
+- apps/worker/src/index.mjs
+- scripts/crm-agent-v2-integration-tests.mjs
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2:integration
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2
+- npm run typecheck
+Следующее:
+- Финальная сверка Definition of Done и консолидация плана: обновить старые deferred формулировки, которые уже закрыты текущими DB/job-level tests.
+- По желанию расширить DB fixture matrix на каждый implemented action, но это уже не blocker каталога.
+Блокеры:
+- Нет активных blocker по action catalog. Остается потенциальная future hardening матрица "fixture на каждый implemented action".
+
+2026-05-29 20:30 - final DoD consolidation - completed
+Что сделано:
+- Обновлены устаревшие Step 9/Step 11 формулировки, которые ссылались на уже закрытые `blocked` actions и deferred provider/job-level rate-limit coverage.
+- Зафиксировано текущее состояние каталога: `planned: 0`, `blocked: 0`, все actions из раздела 8 представлены в catalog и имеют production status.
+- Step 11 теперь отражает фактический уровень hardening: static gates, DB-backed representative execute paths, audit/idempotency/account isolation checks и worker job-level batch limit tests для campaign/notification/webhook.
+- Матрица "DB fixture на каждый implemented action" оставлена как future hardening, а не blocker Definition of Done.
+Измененные файлы:
+- CRM_AGENT_V2_FULL_ACTION_CATALOG_PLAN.md
+Проверка:
+- npm run typecheck
+- npm run test:crm-agent-v2
+- npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2:integration
+- CRM_AGENT_V2_INTEGRATION=1 npm run test:crm-agent-v2
+Следующее:
+- Future hardening по необходимости: расширять DB fixture matrix на каждый implemented action/domain.
+Блокеры:
+- Нет активных blocker по action catalog.
+
 ## 6. Порядок реализации
 
 ### Step 1. Создать инфраструктуру actions catalog
@@ -1597,13 +1713,14 @@ Blockers:
 - Домен `agent-settings`: memory/policy/autopilot/runs/tasks actions переведены из `planned` в `read_only` или `implemented`, включая memory CRUD, policy CRUD, autopilot flags/level, runs, trace, cancel/resume task.
 - Общая account-scoped логика agent settings вынесена в `actions/agent-settings/agent-settings-helpers.ts`; `agent.policy.update` пишет в `CrmAgentPolicy`.
 - Коррекция 2026-05-29 17:05: утверждение "во всем `apps/web/lib/crm-agent-v2/actions` больше нет `status: "planned"`" было неверным. Проверка показала 69 planned action-файлов.
-- Коррекция 2026-05-29 17:30: оставшиеся planned actions закрыты. Домены `account`, `domains`, `group-sessions`, `media` и specialist read extensions получили read/preview/execute handlers там, где текущая Prisma-схема это поддерживает. Marketing actions и 3 media metadata/archive actions переведены в `blocked` с явной причиной.
+- Коррекция 2026-05-29 17:30: оставшиеся planned actions закрыты. Домены `account`, `domains`, `group-sessions`, `media` и specialist read extensions получили read/preview/execute handlers там, где текущая Prisma-схема это поддерживает. Marketing actions и 3 media metadata/archive actions временно переводились в `blocked` с явной причиной.
+- Коррекция 2026-05-29 19:05: marketing persistence и media persistence gaps закрыты через существующие `CrmAgentCampaign`/`CrmAgentCampaignRecipient` модели и новые поля `MediaAsset.altText`, `MediaAsset.metadata`, `MediaAsset.archivedAt`.
 
 Осталось:
 
 - Planned actions: 0.
-- Blocked actions: 19 (`marketing/*`, `media.archive`, `media.update_alt`, `media.update_metadata`) из-за отсутствующих persistence primitives в текущей Prisma-схеме.
-- Step 11 может начинаться с production hardening и отдельного решения по blocked persistence gaps.
+- Blocked actions: 0.
+- Step 11 production hardening завершен; будущая DB fixture matrix на каждый implemented action не является blocker каталога.
 
 ### Step 10. Удалить legacy registry
 
@@ -1638,13 +1755,14 @@ Blockers:
 - Execute path пишет account-scoped audit после успешного `action.execute`.
 - Chat endpoint защищен request-level rate limit.
 - Integration static checks покрывают audit-after-execute, idempotent confirm, pending-only confirmation и rate limit presence.
+- DB-backed integration checks покрывают representative execute paths: `appointment.create`, media upload/update/archive, campaign create/send.
+- DB-backed checks покрывают cross-account denial, фактические audit rows, idempotent повторный confirm и appointment slot conflict failure.
+- Worker harness экспортирует campaign/outbox/webhook processors и DB integration проверяет job-level batch limits для campaign recipients, notification outbox и webhook deliveries.
 
 Осталось:
 
-- Deferred до окружения с `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: DB-backed account isolation tests для implemented actions.
-- Deferred до окружения с `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: DB-backed audit completeness tests на фактические execute paths.
-- Deferred до окружения с `CRM_AGENT_V2_INTEGRATION=1` и `DATABASE_URL`: idempotency/concurrency tests для appointment/schedule/payment.
-- Deferred до provider/job-level implementation: provider-specific rate-limit tests для notification/campaign/webhook actions.
+- Future hardening: расширить DB fixture matrix на каждый implemented action/domain при необходимости.
+- Future hardening: добавить более глубокие schedule/payment/legal/webhook DB scenarios поверх уже существующих representative checks.
 
 ## 7. Глобальные политики безопасности
 
